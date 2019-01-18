@@ -25,6 +25,7 @@
 #define NDBCNTR_C
 #include "Ndbcntr.hpp"
 
+#include <cstring>
 #include <ndb_limits.h>
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
@@ -2136,7 +2137,7 @@ Ndbcntr::StartRecord::reset(){
   m_startFailureTimeout = ~0;
   
   m_logNodesCount = 0;
-  bzero(m_wait_sp, sizeof(m_wait_sp));
+  std::memset(m_wait_sp, 0, sizeof(m_wait_sp));
 }
 
 void
@@ -5847,7 +5848,7 @@ Ndbcntr::init_local_sysfile()
   c_local_sysfile.m_initial_read_done = false;
   c_local_sysfile.m_last_write_done = false;
   c_local_sysfile.m_initial_write_local_sysfile_ongoing = false;
-  memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
+  std::memset(&c_local_sysfile.m_data[0], 0, sizeof(c_local_sysfile.m_data));
 
   NewVARIABLE *bat = allocateBat(1);
   bat[ZVAR_LOCAL_SYSFILE_BAT_INDEX].WA = &c_local_sysfile.m_data[0];

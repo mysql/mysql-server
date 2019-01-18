@@ -26,6 +26,7 @@
 #define DBTUP_C
 #define DBTUP_META_CPP
 #include "Dbtup.hpp"
+#include <cstring>
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
@@ -120,7 +121,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   seizeFragoperrec(fragOperPtr);
   fragOperPtr.p->tableidFrag = regTabPtr.i;
   fragOperPtr.p->attributeCount = req->noOfAttributes;
-  memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
+  std::memset(fragOperPtr.p->m_null_bits, 0, sizeof(fragOperPtr.p->m_null_bits));
   fragOperPtr.p->charsetIndex = 0;
   fragOperPtr.p->lqhBlockrefFrag = req->senderRef;
   fragOperPtr.p->m_extra_row_gci_bits =
@@ -845,7 +846,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
   CreateFilegroupImplReq rep;
-  bzero(&rep,sizeof(rep));
+  std::memset(&rep, 0, sizeof(rep));
   if(regTabPtr.p->m_no_of_disk_attributes)
   {
     {
@@ -1661,8 +1662,8 @@ Dbtup::computeTableMetaData(TablerecPtr tabPtr, Uint32 line)
   regTabPtr->notNullAttributeMask.clear();
   for (Uint32 i = 0; i < NO_DYNAMICS; ++i)
   {
-    bzero(regTabPtr->dynVarSizeMask[i], dyn_null_words[i]<<2);
-    bzero(regTabPtr->dynFixSizeMask[i], dyn_null_words[i]<<2);
+    std::memset(regTabPtr->dynVarSizeMask[i], 0, dyn_null_words[i]<<2);
+    std::memset(regTabPtr->dynFixSizeMask[i], 0, dyn_null_words[i]<<2);
   }
 
   for(Uint32 i= 0; i<regTabPtr->m_no_of_attributes; i++)

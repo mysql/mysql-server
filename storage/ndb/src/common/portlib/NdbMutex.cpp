@@ -24,6 +24,7 @@
 
 
 #include <ndb_global.h>
+#include <cstring>
 
 #include <NdbMutex.h>
 
@@ -109,7 +110,7 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
   (void)name;
 
 #ifdef NDB_MUTEX_STRUCT
-  bzero(pNdbMutex, sizeof(NdbMutex));
+  std::memset(pNdbMutex, 0, sizeof(NdbMutex));
   p = &pNdbMutex->mutex;
 
 #ifdef NDB_MUTEX_STAT
@@ -209,7 +210,7 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
   if (p_mutex == NULL)
     return -1;
   result = NdbMutex_Deinit(p_mutex);
-  memset(p_mutex, 0xff, sizeof(NdbMutex));
+  std::memset(p_mutex, 0xff, sizeof(NdbMutex));
   free(p_mutex);
   return result;
 }

@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 
 #include "MgmtSrvr.hpp"
 #include "ndb_mgmd_error.h"
@@ -3101,7 +3102,7 @@ MgmtSrvr::createNodegroup(int *nodes, int count, int *ng)
   req->nodegroupId = RNIL;
   req->senderData = 77;
   req->senderRef = ss.getOwnRef();
-  bzero(req->nodes, sizeof(req->nodes));
+  std::memset(req->nodes, 0, sizeof(req->nodes));
 
   if (ng)
   {
@@ -3406,14 +3407,14 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
   const int BufSz = 12; /* 32 bit signed = 10 digits + sign + trailing \0 */
   char buf[BufSz];  
   int b  = 0;
-  memset(buf, 0, BufSz);
+  std::memset(buf, 0, BufSz);
   for (size_t i = 0; i <= strlen(args); i++){
     if (args[i] == ' ' || args[i] == 0){
       assert(b < BufSz);
       assert(buf[b] == 0);
       args_array[numArgs] = atoi(buf);
       numArgs++;
-      memset(buf, 0, BufSz);
+      std::memset(buf, 0, BufSz);
       b = 0;
     } else {
       buf[b] = args[i];
@@ -3612,7 +3613,7 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
       Uint32 theData[25];
       EventReport repData;
     };
-    bzero(theData, sizeof(theData));
+    std::memset(theData, 0, sizeof(theData));
     EventReport * event = &repData;
     event->setEventType(NDB_LE_Disconnected);
     event->setNodeId(_ownNodeId);
@@ -3722,7 +3723,7 @@ MgmtSrvr::clear_connect_address_cache(NodeId nodeid)
 
 MgmtSrvr::NodeIdReservations::NodeIdReservations()
 {
-  memset(m_reservations, 0, sizeof(m_reservations));
+  std::memset(m_reservations, 0, sizeof(m_reservations));
 }
 
 

@@ -25,6 +25,7 @@
 
 #define DBTUP_C
 #include <dblqh/Dblqh.hpp>
+#include <cstring>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -2100,7 +2101,7 @@ expand_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
   if(bm_len > 0)
     memcpy(dst_bm_ptr, src, 4*bm_len);
   if(bm_len < max_bmlen)
-    bzero(dst_bm_ptr + bm_len, 4 * (max_bmlen - bm_len));
+    std::memset(dst_bm_ptr + bm_len, 0, 4 * (max_bmlen - bm_len));
 
   /**
    * Store max_bmlen for homogen code in DbtupRoutines
@@ -2290,7 +2291,7 @@ shrink_dyn_part(Dbtup::KeyReqStruct::Var_data *dst,
      * Zero out any padding bytes. Might not be strictly necessary,
      * but seems cleaner than leaving random stuff in there.
      */
-    bzero(dynvar_end_ptr, dyn_dst_data_ptr-dynvar_end_ptr);
+    std::memset(dynvar_end_ptr, 0, dyn_dst_data_ptr-dynvar_end_ptr);
 
     /* *
      * Copy over the fixed-sized not-NULL attributes.
@@ -2430,12 +2431,12 @@ Dbtup::prepare_initial_insert(KeyReqStruct *req_struct,
   *req_struct->m_tuple_ptr->get_mm_gci(regTabPtr) = 0;
 
   // Set all null bits
-  memset(req_struct->m_tuple_ptr->m_null_bits+
-	 regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
-	 4*regTabPtr->m_offsets[MM].m_null_words);
-  memset(req_struct->m_disk_ptr->m_null_bits+
-	 regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
-	 4*regTabPtr->m_offsets[DD].m_null_words);
+  std::memset(req_struct->m_tuple_ptr->m_null_bits+
+              regTabPtr->m_offsets[MM].m_null_offset, 0xFF,
+              4*regTabPtr->m_offsets[MM].m_null_words);
+  std::memset(req_struct->m_disk_ptr->m_null_bits+
+              regTabPtr->m_offsets[DD].m_null_offset, 0xFF,
+              4*regTabPtr->m_offsets[DD].m_null_words);
 }
 
 int Dbtup::handleInsertReq(Signal* signal,
@@ -2509,16 +2510,16 @@ int Dbtup::handleInsertReq(Signal* signal,
     {
       jamDebug();
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
-      memset(req_struct->m_disk_ptr->m_null_bits+
-             regTabPtr->m_offsets[DD].m_null_offset, 0xFF, 
-             4*regTabPtr->m_offsets[DD].m_null_words);
+      std::memset(req_struct->m_disk_ptr->m_null_bits+
+                  regTabPtr->m_offsets[DD].m_null_offset, 0xFF,
+                  4*regTabPtr->m_offsets[DD].m_null_words);
 
       Uint32 bm_size_in_bytes= 4*(regTabPtr->m_offsets[MM].m_dyn_null_words);
       if (bm_size_in_bytes)
       {
         Uint32* ptr = 
           (Uint32*)req_struct->m_var_data[MM].m_dyn_data_ptr;
-        bzero(ptr, bm_size_in_bytes);
+        std::memset(ptr, 0, bm_size_in_bytes);
         * ptr = bm_size_in_bytes >> 2;
       }
     } 
@@ -2528,9 +2529,9 @@ int Dbtup::handleInsertReq(Signal* signal,
       memcpy(dst, org, 4*regTabPtr->m_offsets[MM].m_fix_header_size);
       tuple_ptr->m_header_bits |= Tuple_header::COPY_TUPLE;
     }
-    memset(tuple_ptr->m_null_bits+
-           regTabPtr->m_offsets[MM].m_null_offset, 0xFF, 
-           4*regTabPtr->m_offsets[MM].m_null_words);
+    std::memset(tuple_ptr->m_null_bits+
+                regTabPtr->m_offsets[MM].m_null_offset, 0xFF,
+                4*regTabPtr->m_offsets[MM].m_null_words);
   }
   
   int res;
@@ -5077,7 +5078,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
       dst->m_max_var_offset = 0;
       dst->m_dyn_part_len = 0;
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
-      bzero(dst, sizeof(* dst));
+      std::memset(dst, 0, sizeof(* dst));
 #endif
     }
     

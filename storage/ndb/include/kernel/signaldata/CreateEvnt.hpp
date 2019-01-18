@@ -25,6 +25,7 @@
 #ifndef CREATE_EVNT_HPP
 #define CREATE_EVNT_HPP
 
+#include <cstring>
 #include <ndberror.h>
 #include "SignalData.hpp"
 #include <NodeBitmask.hpp>
@@ -270,7 +271,7 @@ struct CreateEvntReq {
     setAttrListBitmask(val.getSizeInWords(), val.rep.data);
   }
   void setAttrListBitmask(Uint32 sz, const Uint32 data[]){
-    bzero(m_attrListBitmask.data, sizeof(m_attrListBitmask.data));
+    std::memset(m_attrListBitmask.data, 0, sizeof(m_attrListBitmask.data));
     if (sz >= AttributeMask_OLD::Size)
     {
       AttributeMask_OLD::assign(m_attrListBitmask.data, data);

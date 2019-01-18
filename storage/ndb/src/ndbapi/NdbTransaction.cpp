@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include <NdbTick.h>
 #include <NdbOut.hpp>
 #include "API.hpp"
@@ -3405,7 +3406,7 @@ NdbTransaction::refreshTuple(const NdbRecord *key_rec, const char *key_row,
   }
 
   Uint8 keymask[NDB_MAX_ATTRIBUTES_IN_TABLE/8];
-  bzero(keymask, sizeof(keymask));
+  std::memset(keymask, 0, sizeof(keymask));
   for (Uint32 i = 0; i<key_rec->key_index_length; i++)
   {
     Uint32 id = key_rec->columns[key_rec->key_indexes[i]].attrId;

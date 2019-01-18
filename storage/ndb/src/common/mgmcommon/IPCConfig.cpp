@@ -23,6 +23,9 @@
 */
 
 #include <ndb_global.h>
+
+#include <cstring>
+
 #include <IPCConfig.hpp>
 
 #include <TransporterRegistry.hpp>
@@ -108,7 +111,7 @@ IPCConfig::configureTransporters(Uint32 nodeId,
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
     
-    bzero(&conf, sizeof(conf));
+    std::memset(&conf, 0, sizeof(conf));
     Uint32 nodeId1, nodeId2, remoteNodeId;
     const char * remoteHostName= 0, * localHostName= 0;
     if(iter.get(CFG_CONNECTION_NODE_1, &nodeId1)) continue;

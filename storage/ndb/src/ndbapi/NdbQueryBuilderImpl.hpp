@@ -26,6 +26,8 @@
 #ifndef NdbQueryBuilderImpl_H
 #define NdbQueryBuilderImpl_H
 
+#include <cstring>
+
 /* Query-related error codes. */
 #define QRY_REQ_ARG_IS_NULL 4800
 #define QRY_TOO_FEW_KEY_VALUES 4801
@@ -222,7 +224,7 @@ public:
         memcpy(start, src, len);
         m_bytesLeft = (m_bytesLeft - len) % sizeof(Uint32);
         // Make sure that any trailing bytes in the last word are zero.
-        bzero(start + len, m_bytesLeft);
+        std::memset(start + len, 0, m_bytesLeft);
       }
     }
   }

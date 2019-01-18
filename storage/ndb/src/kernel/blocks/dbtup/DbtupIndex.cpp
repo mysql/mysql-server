@@ -24,6 +24,7 @@
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
+#include <cstring>
 #include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
@@ -957,7 +958,7 @@ Dbtup::buildIndexOffline(Signal* signal, Uint32 buildPtrI)
    * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
    * up was undefined.
    */
-  bzero(req, sizeof(*req));
+  std::memset(req, 0, sizeof(*req));
   req->senderRef = reference();
   req->senderData = buildPtrI;
   req->tableId = buildReq->tableId;
@@ -1028,7 +1029,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
     }
     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
     mt_BuildIndxReq req;
-    bzero(&req, sizeof(req));
+    std::memset(&req, 0, sizeof(req));
     req.senderRef = reference();
     req.senderData = buildPtr.i;
     req.tableId = buildReq->tableId;
@@ -1068,7 +1069,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
      * Note: before 7.3.4, 7.2.15, 7.1.30 fifth word and
      * up was undefined.
      */
-    bzero(req, sizeof(*req));
+    std::memset(req, 0, sizeof(*req));
     req->senderRef = reference();
     req->senderData = buildPtrI;
     req->tableId = buildReq->tableId;

@@ -24,6 +24,7 @@
 
 #include "Backup.hpp"
 
+#include <cstring>
 #include <ndb_version.h>
 
 #include <NdbTCP.h>
@@ -7614,7 +7615,7 @@ Backup::parseTableDescription(Signal* signal,
 
   tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
   tabPtr.p->maxRecordSize = 1; // LEN word
-  bzero(tabPtr.p->attrInfo, sizeof(tabPtr.p->attrInfo));
+  std::memset(tabPtr.p->attrInfo, 0, sizeof(tabPtr.p->attrInfo));
 
   if (lcp)
   {
@@ -9522,7 +9523,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
     if (sz != footSz + 1)
     {
       tmp += footSz;
-      memset(tmp, 0, (sz - footSz - 1) * 4);
+      std::memset(tmp, 0, (sz - footSz - 1) * 4);
       *tmp = htonl(BackupFormat::EMPTY_ENTRY);
       tmp++;
       *tmp = htonl(sz - footSz - 1);
@@ -14238,7 +14239,7 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
   Uint64 remaining_size_64 = end_pos - part_array;
   ndbrequire(remaining_size_64 < file_size);
   Uint32 remaining_size = Uint32(remaining_size_64);
-  memset(part_array, 0, remaining_size);
+  std::memset(part_array, 0, remaining_size);
   return total_parts;
 }
 

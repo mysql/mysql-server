@@ -22,6 +22,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include "HugoQueries.hpp"
 #include <NDBT_Stats.hpp>
 #include <NdbSleep.h>
@@ -101,7 +102,7 @@ HugoQueries::equalForParameters(char * buf,
       {
         Uint32 len = attr->getSizeInBytes();
         Uint32 real_len;
-        bzero(buf, len);
+        std::memset(buf, 0, len);
         calc.calcValue((Uint32)rowNo, i, 0, buf, len, &real_len);
         params[no++]= NdbQueryParamValue((void*)buf);
         buf += len;
@@ -118,7 +119,7 @@ HugoQueries::equalForParameters(char * buf,
         tab.getColumn(idx->getColumn(i)->getName());
       Uint32 len = attr->getSizeInBytes();
       Uint32 real_len;
-      bzero(buf, len);
+      std::memset(buf, 0, len);
       calc.calcValue((Uint32)rowNo, attr->getColumnNo(), 
                      0, buf, len, &real_len);
       params[no++]= NdbQueryParamValue((void*)buf);

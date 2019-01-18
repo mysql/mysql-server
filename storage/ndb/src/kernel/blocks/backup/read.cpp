@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 
+#include <cstring>
 #include <NdbTCP.h>
 #include <NdbOut.hpp>
 #include "BackupFormat.hpp"
@@ -557,7 +558,7 @@ void handle_print_restored_rows(const char *file_input)
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
+  std::memset(row_entries, 0, sizeof(RowEntry*) * max_pages);
 
   row_all_entries = (RowEntry**)malloc(sizeof(RowEntry*) * max_pages);
   if (row_all_entries == NULL)
@@ -565,7 +566,7 @@ void handle_print_restored_rows(const char *file_input)
     ndbout << "Malloc failure" << endl;
     ndb_end_and_exit(1);
   }
-  memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
+  std::memset(row_all_entries, 0, sizeof(RowEntry*) * max_pages);
 
   Uint32 last_file = lcpCtlFilePtr.LastDataFileNumber;
   Uint32 num_parts = lcpCtlFilePtr.NumPartPairs;
@@ -578,7 +579,7 @@ void handle_print_restored_rows(const char *file_input)
     Uint32 first_ignore =
       move_part_forward(first_all, lcpCtlFilePtr.partPairs[inx].numParts);
     inx++;
-    memset(&parts_array[0], 0, sizeof(parts_array));
+    std::memset(&parts_array[0], 0, sizeof(parts_array));
     for (Uint32 j = first_change; j != first_all; j = move_part_forward(j,1))
     {
       parts_array[j] = CHANGE_PART;
@@ -604,7 +605,7 @@ void handle_print_restored_rows(const char *file_input)
              i,
              opt_print_restored_rows_table,
              opt_print_restored_rows_fid);
-    bzero(&fo, sizeof(fo));
+    std::memset(&fo, 0, sizeof(fo));
     BaseString::snprintf(buf, sizeof(buf),
                          "%u/T%uF%u.Data",
                          i,

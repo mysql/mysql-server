@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include <ndb_opts.h>
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
@@ -81,7 +82,7 @@ public:
 
   JoinType m_joinType;
 
-  explicit TestParameters(){bzero(this, sizeof *this);}
+  explicit TestParameters() { std::memset(this, 0, sizeof *this); }
 };
 
 /** Entry point for new posix threads.*/

@@ -24,6 +24,7 @@
 
 #define DBLQH_C
 #include "Dblqh.hpp"
+#include <cstring>
 #include <ndb_limits.h>
 #include <md5_hash.hpp>
 
@@ -25647,7 +25648,7 @@ void Dblqh::initLogpage(LogPageRecordPtr logPagePtr,
   TcConnectionrecPtr ilpTcConnectptr;
 
   /* Ensure all non-used header words are zero */
-  bzero(logPagePtr.p, sizeof(Uint32) * ZPAGE_HEADER_SIZE);
+  std::memset(logPagePtr.p, 0, sizeof(Uint32) * ZPAGE_HEADER_SIZE);
   logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = logPartPtrP->logLap;
   logPagePtr.p->logPageWord[ZPOS_MAX_GCI_COMPLETED] = 
         logPartPtrP->logPartNewestCompletedGCI;
@@ -25789,7 +25790,7 @@ Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   LogPageRecordPtr currLogPagePtr;
   currLogPagePtr.p = (LogPageRecord*)page_ptr.p;
 
-  bzero(page_ptr.p, sizeof(LogPageRecord));
+  std::memset(page_ptr.p, 0, sizeof(LogPageRecord));
   if (page_no == 0)
   {
     // keep writing these afterwards
@@ -26014,7 +26015,7 @@ void Dblqh::seizeLogpage(LogPageRecordPtr & logPagePtr,
 /* ------------------------------------------------------------------------- */
   logPartPtrP->firstFreeLogPage = logPagePtr.p->logPageWord[ZNEXT_PAGE];
 #ifdef VM_TRACE
-  bzero(logPagePtr.p, sizeof(LogPageRecord));
+  std::memset(logPagePtr.p, 0, sizeof(LogPageRecord));
 #endif
   logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
   logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST] = 0;
@@ -30143,7 +30144,7 @@ Dblqh::writeFileInInvalidate(Signal* signal,
    * Make page really empty
    */
   LogFileOperationRecordPtr lfoPtr;
-  bzero(logPagePtr.p, sizeof(LogPageRecord));
+  std::memset(logPagePtr.p, 0, sizeof(LogPageRecord));
   writeSinglePage(signal,
                   logPartPtrP->invalidatePageNo,
                   ZPAGE_SIZE - 1,
@@ -33657,11 +33658,11 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   addfragptr.p->tuxConnectptr = RNIL;
   addfragptr.p->defValSectionI = RNIL;
   addfragptr.p->defValNextPos = 0;
-  bzero(&addfragptr.p->m_createTabReq, sizeof(addfragptr.p->m_createTabReq));
-  bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
-  bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));
-  bzero(&addfragptr.p->m_dropFragReq, sizeof(addfragptr.p->m_dropFragReq));
-  bzero(&addfragptr.p->m_dropTabReq, sizeof(addfragptr.p->m_dropTabReq));
+  std::memset(&addfragptr.p->m_createTabReq, 0, sizeof(addfragptr.p->m_createTabReq));
+  std::memset(&addfragptr.p->m_lqhFragReq, 0, sizeof(addfragptr.p->m_lqhFragReq));
+  std::memset(&addfragptr.p->m_addAttrReq, 0, sizeof(addfragptr.p->m_addAttrReq));
+  std::memset(&addfragptr.p->m_dropFragReq, 0, sizeof(addfragptr.p->m_dropFragReq));
+  std::memset(&addfragptr.p->m_dropTabReq, 0, sizeof(addfragptr.p->m_dropTabReq));
   addfragptr.p->addfragErrorCode = 0;
   addfragptr.p->attrSentToTup = 0;
   addfragptr.p->attrReceived = 0;
@@ -37410,7 +37411,7 @@ Dblqh::send_runredo_event(Signal* signal, LogPartRecord * lp, Uint32 gci)
 void
 Dblqh::IOTracker::init(Uint32 partNo)
 {
-  bzero(this, sizeof(* this));
+  std::memset(this, 0, sizeof(* this));
   m_log_part_no = partNo;
 }
 

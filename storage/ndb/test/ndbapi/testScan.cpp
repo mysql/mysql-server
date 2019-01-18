@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -1859,13 +1860,13 @@ runMixedDML(NDBT_Context* ctx, NDBT_Step* step)
       }
       lastrow = rowId;
 
-      bzero(pRow, len);
+      std::memset(pRow, 0, len);
 
       HugoCalculator calc(* pTab);
       calc.setValues(pRow, pRowRecord, rowId, rand());
 
       NdbOperation::OperationOptions opts;
-      bzero(&opts, sizeof(opts));
+      std::memset(&opts, 0, sizeof(opts));
 
       const NdbOperation* pOp = 0;
       switch(ndb_rand_r(&seed) % 3){

@@ -25,6 +25,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
+#include <cstring>
 
 //static 
 const
@@ -143,9 +144,9 @@ bool printDICTTABINFO(FILE * output, const Uint32 * theData,
 
 void
 DictTabInfo::Table::init(){
-  memset(TableName, 0, sizeof(TableName));//TableName[0] = 0;
+  std::memset(TableName, 0, sizeof(TableName));//TableName[0] = 0;
   TableId = ~0;
-  memset(PrimaryTable, 0, sizeof(PrimaryTable));//PrimaryTable[0] = 0; // Only used when "index"
+  std::memset(PrimaryTable, 0, sizeof(PrimaryTable));//PrimaryTable[0] = 0; // Only used when "index"
   PrimaryTableId = RNIL;
   TableLoggedFlag = 1;
   TableTemporaryFlag = 0;
@@ -170,10 +171,10 @@ DictTabInfo::Table::init(){
   ReplicaDataLen = 0;
   RangeListDataLen = 0;
   TablespaceDataLen = 0;
-  memset(FragmentData, 0, sizeof(FragmentData));
-  memset(ReplicaData, 0, sizeof(ReplicaData));
-  memset(RangeListData, 0, sizeof(RangeListData));
-  memset(TablespaceData, 0, sizeof(TablespaceData));
+  std::memset(FragmentData, 0, sizeof(FragmentData));
+  std::memset(ReplicaData, 0, sizeof(ReplicaData));
+  std::memset(RangeListData, 0, sizeof(RangeListData));
+  std::memset(TablespaceData, 0, sizeof(TablespaceData));
   PartitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
   FragmentCount = 0;
   PartitionCount = 0;
@@ -210,7 +211,7 @@ DictTabInfo::Table::init(){
 
 void
 DictTabInfo::Attribute::init(){
-  memset(AttributeName, 0, sizeof(AttributeName));//AttributeName[0] = 0;
+  std::memset(AttributeName, 0, sizeof(AttributeName));//AttributeName[0] = 0;
   AttributeId = 0xFFFF; // ZNIL
   AttributeType = ~0, // deprecated
   AttributeSize = DictTabInfo::a32Bit;
@@ -227,7 +228,7 @@ DictTabInfo::Attribute::init(){
   AttributeStorageType = 0;
   AttributeDynamic = 0;                         // Default is not dynamic
   AttributeDefaultValueLen = 0;                 //Default byte sizes of binary default value is 0
-  memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));
+  std::memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));
 }
 
 //static 
@@ -287,7 +288,7 @@ sizeof(SimpleProperties::SP2StructMapping);
 
 void
 DictFilegroupInfo::Filegroup::init(){
-  memset(FilegroupName, 0, sizeof(FilegroupName));
+  std::memset(FilegroupName, 0, sizeof(FilegroupName));
   FilegroupType = ~0;
   FilegroupId = ~0;
   FilegroupVersion = ~0;
@@ -298,7 +299,7 @@ DictFilegroupInfo::Filegroup::init(){
   TS_DataGrow.GrowLimit = 0;
   TS_DataGrow.GrowSizeHi = 0;
   TS_DataGrow.GrowSizeLo = 0;
-  memset(TS_DataGrow.GrowPattern, 0, sizeof(TS_DataGrow.GrowPattern));
+  std::memset(TS_DataGrow.GrowPattern, 0, sizeof(TS_DataGrow.GrowPattern));
   TS_DataGrow.GrowMaxSize = 0;
   LF_UndoFreeWordsHi= 0;
   LF_UndoFreeWordsLo= 0;
@@ -306,7 +307,7 @@ DictFilegroupInfo::Filegroup::init(){
 
 void
 DictFilegroupInfo::File::init(){
-  memset(FileName, 0, sizeof(FileName));
+  std::memset(FileName, 0, sizeof(FileName));
   FileType = ~0;
   FileId = ~0;
   FileVersion = ~0;
@@ -373,7 +374,7 @@ const Uint32 DictHashMapInfo::MappingSize =
 void
 DictHashMapInfo::HashMap::init()
 {
-  bzero(this, sizeof(* this));
+  std::memset(this, 0, sizeof(* this));
 }
 
 /**
@@ -417,11 +418,11 @@ const Uint32 DictForeignKeyInfo::MappingSize =
 void
 DictForeignKeyInfo::ForeignKey::init()
 {
-  bzero(Name, sizeof(Name));
-  bzero(ParentTableName, sizeof(ParentTableName));
-  bzero(ParentIndexName, sizeof(ParentIndexName));
-  bzero(ChildTableName, sizeof(ChildTableName));
-  bzero(ChildIndexName, sizeof(ChildIndexName));
+  std::memset(Name, 0, sizeof(Name));
+  std::memset(ParentTableName, 0, sizeof(ParentTableName));
+  std::memset(ParentIndexName, 0, sizeof(ParentIndexName));
+  std::memset(ChildTableName, 0, sizeof(ChildTableName));
+  std::memset(ChildIndexName, 0, sizeof(ChildIndexName));
   ForeignKeyId = RNIL;
   ForeignKeyVersion = RNIL;
   ParentTableId = RNIL;

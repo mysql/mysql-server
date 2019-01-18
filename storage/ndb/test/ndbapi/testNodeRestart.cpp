@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -1698,8 +1699,8 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -1806,8 +1807,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   {
     int partition0[256];
     int partition1[256];
-    memset(partition0, 0, sizeof(partition0));
-    memset(partition1, 0, sizeof(partition1));
+    std::memset(partition0, 0, sizeof(partition0));
+    std::memset(partition1, 0, sizeof(partition1));
     Bitmask<4> nodesmask;
     
     Uint32 node1 = restarter.getDbNodeId(rand()%cnt);
@@ -3258,7 +3259,7 @@ runPnr(NDBT_Context* ctx, NDBT_Step* step)
   bool lcp = ctx->getProperty("LCP", (unsigned)0);
   
   int nodegroups[MAX_NDB_NODES];
-  bzero(nodegroups, sizeof(nodegroups));
+  std::memset(nodegroups, 0, sizeof(nodegroups));
   
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {
@@ -3922,7 +3923,7 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   Bitmask<255> part2mask;
   Bitmask<255> part3mask;
   Uint32 ng_count[MAX_NDB_NODE_GROUPS];
-  memset(ng_count, 0, sizeof(ng_count));
+  std::memset(ng_count, 0, sizeof(ng_count));
 
   for (int i = 0; i<res.getNumDbNodes(); i++)
   {

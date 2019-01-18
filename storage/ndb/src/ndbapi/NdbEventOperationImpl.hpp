@@ -25,6 +25,7 @@
 #ifndef NdbEventOperationImpl_H
 #define NdbEventOperationImpl_H
 
+#include <cstring>
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <NdbRecAttr.hpp>
@@ -171,7 +172,7 @@ public:
   {
 #ifndef NDEBUG
     // Shredd the memory if debugging
-    memset(m_data, 0x11, m_size);
+    std::memset(m_data, 0x11, m_size);
     m_used = 0;
     m_expiry_epoch = MonotonicEpoch::min;
 #endif
@@ -284,7 +285,7 @@ public:
     m_gci_op_count(0),
     m_gci_op_alloc(0)
   {
-    bzero(&m_data_hash, sizeof(m_data_hash));
+    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
   }
 
   void clear()
@@ -295,7 +296,7 @@ public:
     m_gcp_complete_rep_sub_data_streams.clear();
     m_gci = 0;
     m_head = m_tail = NULL;
-    bzero(&m_data_hash, sizeof(m_data_hash));
+    std::memset(&m_data_hash, 0, sizeof(m_data_hash));
 
     m_gci_op_list = NULL;
     m_gci_op_count = 0;

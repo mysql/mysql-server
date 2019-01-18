@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 
+#include <cstring>
 #include <TransporterRegistry.hpp>
 #include <FastScheduler.hpp>
 #include <Emulator.hpp>
@@ -274,7 +275,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
 
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
-  bzero(secPtr, sizeof(secPtr));
+  std::memset(secPtr, 0, sizeof(secPtr));
   secPtr[0].p = secPtr[1].p = secPtr[2].p = 0;
 
 #ifdef NDB_DEBUG_RES_OWNERSHIP
@@ -527,7 +528,7 @@ TransporterReceiveHandleKernel::reportError(NodeId nodeId,
   }
   
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 
   if(errorCode & TE_DO_DISCONNECT)
@@ -570,7 +571,7 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
                                               Uint64 bytes)
 {
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
@@ -918,7 +919,7 @@ TransporterReceiveHandleKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
 {
 
   SignalT<3> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
@@ -947,7 +948,7 @@ TransporterReceiveHandleKernel::reportConnect(NodeId nodeId)
 {
 
   SignalT<1> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;
@@ -984,7 +985,7 @@ TransporterReceiveHandleKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
   DBUG_ENTER("reportDisconnect");
 
   SignalT<DisconnectRep::SignalLength> signal;
-  memset(&signal.header, 0, sizeof(signal.header));
+  std::memset(&signal.header, 0, sizeof(signal.header));
 
 #ifndef NDBD_MULTITHREADED
   Uint32 trpman_instance = 1;

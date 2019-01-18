@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include "NdbApi.hpp"
 #include <NdbSchemaCon.hpp>
 #include <md5_hash.hpp>
@@ -405,7 +406,7 @@ int main(int argc, char** argv)
     for (Uint32 i = 0; i<tNoOfThreads; i++)
     {
       pThreadData[i].record = (char*)malloc(sz);
-      bzero(pThreadData[i].record, sz);
+      std::memset(pThreadData[i].record, 0, sz);
     }
   }
 
@@ -1484,7 +1485,7 @@ init_thread_data(THREAD_DATA *my_thread_data, Uint32 thread_id)
 {
   Uint32 sz = NdbDictionary::getRecordRowLength(g_record[0]);
   my_thread_data->record = (char*)malloc(sz);
-  memset(my_thread_data->record, 0, sz);
+  std::memset(my_thread_data->record, 0, sz);
   init_list_headers(&my_thread_data->list_header, 1);
   my_thread_data->stop = false;
   my_thread_data->ready = false;
@@ -1996,7 +1997,7 @@ definer_thread(void *data)
   KEY_LIST_HEADER free_list_header;
   void *key_op_mem = malloc(sizeof(KEY_OPERATION) * max_outstanding);
   Uint32 *thread_id_mem = (Uint32*)malloc(total_records*sizeof(Uint32));
-  memset((char*)&thread_state[0], 0, sizeof(thread_state));
+  std::memset((char*)&thread_state[0], 0, sizeof(thread_state));
 
   init_key_op_list((char*)key_op_mem,
                    &free_list_header,

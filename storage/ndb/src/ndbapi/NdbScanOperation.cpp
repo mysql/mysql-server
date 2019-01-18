@@ -24,6 +24,7 @@
 
 #include "API.hpp"
 
+#include <cstring>
 #include <NdbSqlUtil.hpp>
 #include <AttributeHeader.hpp>
 
@@ -4200,7 +4201,7 @@ NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
   /* Default is to not read any attributes, just take over the lock. */
   if (!result_row)
   {
-    bzero(empty_mask, sizeof(empty_mask));
+    std::memset(empty_mask, 0, sizeof(empty_mask));
     result_mask= &empty_mask[0];
   }
   OperationType takeoverOpType = NdbOperation::ReadRequest;

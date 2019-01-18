@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 #include "my_sys.h"
 #include "m_ctype.h"
 
@@ -785,7 +786,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
   PageRecordPtr pagePtr;
   c_pageRecordArray.getPtr(pagePtr, pageId);
 
-  memset(&pagePtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
+  std::memset(&pagePtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
   LinearWriter w(&pagePtr.p->word[ZPAGE_HEADER_SIZE],
 		 ZMAX_PAGES_OF_TABLE_DEFINITION * ZSIZE_OF_PAGES_IN_WORDS);
   w.first();
@@ -1525,7 +1526,7 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
   c_pageRecordArray.getPtr(pageRecPtr, c_writeTableRecord.pageId);
   copy(&pageRecPtr.p->word[ZPAGE_HEADER_SIZE], tabInfoPtr);
 
-  memset(&pageRecPtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
+  std::memset(&pageRecPtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
   pageRecPtr.p->word[ZPOS_CHECKSUM] =
     computeChecksum(&pageRecPtr.p->word[0],
 		    pages * ZSIZE_OF_PAGES_IN_WORDS);
@@ -1560,7 +1561,7 @@ Dbdict::writeTableFile(Signal* signal, SchemaOpPtr op_ptr, Uint32 tableId,
     bool ok = copyOut(op_sec_pool, tabInfoSec, dst, dstSize);
     ndbrequire(ok);
 
-    memset(&pageRecPtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
+    std::memset(&pageRecPtr.p->word[0], 0, 4 * ZPAGE_HEADER_SIZE);
     pageRecPtr.p->word[ZPOS_CHECKSUM] =
       computeChecksum(&pageRecPtr.p->word[0],
                       pages * ZSIZE_OF_PAGES_IN_WORDS);
@@ -2786,7 +2787,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->m_read_locked= 0;
   tablePtr.p->storageType = NDB_STORAGETYPE_DEFAULT;
   tablePtr.p->indexStatFragId = ZNIL;
-  bzero(tablePtr.p->indexStatNodes, sizeof(tablePtr.p->indexStatNodes));
+  std::memset(tablePtr.p->indexStatNodes, 0, sizeof(tablePtr.p->indexStatNodes));
   tablePtr.p->indexStatBgRequest = 0;
   tablePtr.p->m_obj_ptr_i = RNIL;
 }//Dbdict::initialiseTableRecord()
@@ -5059,7 +5060,7 @@ Dbdict::execGET_TABINFOREF(Signal* signal)
 
     GetTabInfoReq* const req =
       reinterpret_cast<GetTabInfoReq*>(signal->getDataPtrSend()+1);
-    memset(req, 0, sizeof *req);
+    std::memset(req, 0, sizeof *req);
     req->senderRef = reference();
     req->senderData = ref_copy.senderData;
     req->requestType =
@@ -5899,7 +5900,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     {
       char buf[200];
       char *buf_ptr = &buf[0];
-      memset(buf, 0, sizeof(buf));
+      std::memset(buf, 0, sizeof(buf));
       if (!c_tableDesc.TableLoggedFlag)
       {
         const char *no_log_str = " NOLOG";
@@ -11905,7 +11906,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
     rep->changeType = AlterTableRep::CT_ALTERED;
 
     char oldTableName[MAX_TAB_NAME_SIZE];
-    memset(oldTableName, 0, sizeof(oldTableName));
+    std::memset(oldTableName, 0, sizeof(oldTableName));
     {
       const RopeHandle& rh =
         AlterTableReq::getNameFlag(impl_req->changeMask)
@@ -14597,7 +14598,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
 
   // get name for system index check later
   char indexName[MAX_TAB_NAME_SIZE];
-  memset(indexName, 0, sizeof(indexName));
+  std::memset(indexName, 0, sizeof(indexName));
   {
     ConstRope r(c_rope_pool, indexPtr.p->tableName);
     r.copy(indexName);
@@ -18139,7 +18140,7 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal,
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
     int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
-    memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
+    std::memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("CreateEvntReq::RT_USER_CREATE; EventName %s, len %u\n",
 	   evntRecPtr.p->m_eventRec.NAME, len);
@@ -18167,7 +18168,7 @@ sendref:
   r0.getString(evntRecPtr.p->m_eventRec.TABLE_NAME);
   {
     int len = (int)strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
-    memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
+    std::memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
   }
 
   if (handle.m_cnt >= CreateEvntReq::ATTRIBUTE_MASK)
@@ -18180,8 +18181,9 @@ sendref:
       evntRecPtr.p->m_errorCode = 1;
       goto sendref;
     }
-    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
-          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
+    std::memset(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+                0,
+                sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
     copy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2, ssPtr);
     memcpy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
            evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
@@ -18194,10 +18196,12 @@ sendref:
     Uint32 sz0 = m.getSizeInWords();
     Uint32 sz1 = NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
     ndbrequire(sz1 == sz0);
-    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
-          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
-    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
-          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
+    std::memset(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
+                0,
+                sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
+    std::memset(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+                0,
+                sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
     BitmaskImpl::assign(sz0, evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
                         m.rep.data);
     BitmaskImpl::assign(sz0, evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
@@ -18465,7 +18469,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
     EVENT_TRACE;
 
     // clear it, since NDB$EVENTS_0.ATTRIBUTE_MASK2 might not be present
-    bzero(m_eventRec.ATTRIBUTE_MASK2, sizeof(m_eventRec.ATTRIBUTE_MASK2));
+    std::memset(m_eventRec.ATTRIBUTE_MASK2, 0, sizeof(m_eventRec.ATTRIBUTE_MASK2));
 
     // no more
     while ( id < noAttr )
@@ -18502,7 +18506,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
         memcpy(lenbytes + 2, m_eventRec.ATTRIBUTE_MASK2, szBytes);
         if (szBytes & 3)
         {
-          bzero(lenbytes + 2 + szBytes, 4 - (szBytes & 3));
+          std::memset(lenbytes + 2 + szBytes, 0, 4 - (szBytes & 3));
         }
         szBytes += 2;
         dataPtr += (szBytes + 3) / 4;
@@ -18636,7 +18640,7 @@ void Dbdict::parseReadEventSys(Signal* signal, sysTab_NDBEVENTS_0& m_eventRec)
   if (noAttr < EVENT_SYSTEM_TABLE_LENGTH)
   {
     jam();
-    bzero(m_eventRec.ATTRIBUTE_MASK2, sizeof(m_eventRec.ATTRIBUTE_MASK2));
+    std::memset(m_eventRec.ATTRIBUTE_MASK2, 0, sizeof(m_eventRec.ATTRIBUTE_MASK2));
     memcpy(m_eventRec.ATTRIBUTE_MASK2, m_eventRec.ATTRIBUTE_MASK,
            sizeof(m_eventRec.ATTRIBUTE_MASK));
   }
@@ -18646,7 +18650,7 @@ void Dbdict::parseReadEventSys(Signal* signal, sysTab_NDBEVENTS_0& m_eventRec)
     Uint8* lenbytes = (Uint8*)m_eventRec.ATTRIBUTE_MASK2;
     Uint32 szBytes  = lenbytes[0] + (lenbytes[1] * 256);
     memmove(lenbytes, lenbytes + 2, szBytes);
-    bzero(lenbytes + szBytes, sizeof(m_eventRec.ATTRIBUTE_MASK2) - szBytes);
+    std::memset(lenbytes + szBytes, 0, sizeof(m_eventRec.ATTRIBUTE_MASK2) - szBytes);
   }
 }
 
@@ -18794,7 +18798,7 @@ Dbdict::createEvent_RT_USER_GET(Signal* signal,
 
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
-  memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
+  std::memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 
   releaseSections(handle);
 
@@ -19211,7 +19215,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
-    bzero(subbPtr.p->m_buckets_per_ng, sizeof(subbPtr.p->m_buckets_per_ng));
+    std::memset(subbPtr.p->m_buckets_per_ng, 0, sizeof(subbPtr.p->m_buckets_per_ng));
   }
 
   if (refToBlock(origSenderRef) != DBDICT) {
@@ -19529,7 +19533,7 @@ busy:
     subbPtr.p->m_subscriptionKey = req->subscriptionKey;
     subbPtr.p->m_subscriberRef = req->subscriberRef;
     subbPtr.p->m_subscriberData = req->subscriberData;
-    bzero(&subbPtr.p->m_sub_stop_conf, sizeof(subbPtr.p->m_sub_stop_conf));
+    std::memset(&subbPtr.p->m_sub_stop_conf, 0, sizeof(subbPtr.p->m_sub_stop_conf));
 
     if (signal->getLength() < SubStopReq::SignalLength)
     {
@@ -19847,7 +19851,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
   r0.getString(evntRecPtr.p->m_eventRec.NAME);
   {
     int len = (int)strlen(evntRecPtr.p->m_eventRec.NAME);
-    memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
+    std::memset(evntRecPtr.p->m_eventRec.NAME+len, 0, MAX_TAB_NAME_SIZE-len);
 #ifdef EVENT_DEBUG
     printf("DropEvntReq; EventName %s, len %u\n",
 	   evntRecPtr.p->m_eventRec.NAME, len);
@@ -20547,8 +20551,9 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     {
       jam();
       Uint32 len = triggerPtr.p->attributeMask.getSizeInWords() - mask_ptr.sz;
-      bzero(triggerPtr.p->attributeMask.rep.data + mask_ptr.sz,
-            4 * len);
+      std::memset(triggerPtr.p->attributeMask.rep.data + mask_ptr.sz,
+                  0,
+                  4 * len);
     }
   }
   else
@@ -22020,7 +22025,7 @@ Dbdict::getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list)
 {
   jam();
   list.sz = 0;
-  memset(list.id, 0, sizeof(list.id));
+  std::memset(list.id, 0, sizeof(list.id));
 
   LocalAttributeRecord_list alist(c_attributeRecordPool,
                                   indexPtr.p->m_attributes);
@@ -23481,7 +23486,7 @@ Dbdict::initSchemaFile(XSchemaFile * xsf, Uint32 firstPage, Uint32 lastPage,
   for (Uint32 n = firstPage; n < lastPage; n++) {
     SchemaFile * sf = &xsf->schemaPage[n];
     if (initEntries)
-      memset(sf, 0, NDB_SF_PAGE_SIZE);
+      std::memset(sf, 0, NDB_SF_PAGE_SIZE);
 
     Uint32 ndb_version = NDB_VERSION;
     if (ndb_version < NDB_SF_VERSION_5_0_6)

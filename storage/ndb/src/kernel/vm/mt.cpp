@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <ndb_global.h>
+#include <cstring>
 
 #define NDBD_MULTITHREADED
 
@@ -9188,7 +9189,7 @@ sendprioa_STOP_FOR_CRASH(const struct thr_data *selfptr, Uint32 dst)
   struct thr_data *dstptr = &rep->m_thread[dst];
   Uint32 bno = dstptr->m_instance_list[0];
 
-  memset(&signalT.header, 0, sizeof(SignalHeader));
+  std::memset(&signalT.header, 0, sizeof(SignalHeader));
   signalT.header.theVerId_signalNumber   = GSN_STOP_FOR_CRASH;
   signalT.header.theReceiversBlockNumber = bno;
   signalT.header.theSendersBlockRef      = 0;
@@ -9255,7 +9256,7 @@ queue_init(struct thr_tq* tq)
   tq->m_current_time = 0;
   tq->m_next_free = RNIL;
   tq->m_cnt[0] = tq->m_cnt[1] = tq->m_cnt[2] = 0;
-  bzero(tq->m_delayed_signals, sizeof(tq->m_delayed_signals));
+  std::memset(tq->m_delayed_signals, 0, sizeof(tq->m_delayed_signals));
 }
 
 static bool
@@ -9346,7 +9347,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   }
   queue_init(&selfptr->m_tq);
 
-  bzero(&selfptr->m_stat, sizeof(selfptr->m_stat));
+  std::memset(&selfptr->m_stat, 0, sizeof(selfptr->m_stat));
 
   selfptr->m_pending_send_count = 0;
   selfptr->m_pending_send_mask.clear();
@@ -9355,7 +9356,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   for (i = 0; i < MAX_INSTANCES_PER_THREAD; i++)
     selfptr->m_instance_list[i] = 0;
 
-  bzero(&selfptr->m_send_buffers, sizeof(selfptr->m_send_buffers));
+  std::memset(&selfptr->m_send_buffers, 0, sizeof(selfptr->m_send_buffers));
 
   selfptr->m_thread = 0;
   selfptr->m_cpu = NO_LOCK_CPU;
@@ -9389,9 +9390,9 @@ send_buffer_init(Uint32 id, thr_repository::send_buffer * sb)
   sb->m_bytes_sent = 0;
   sb->m_send_thread = NO_SEND_THREAD;
   sb->m_enabled = false;
-  bzero(&sb->m_buffer, sizeof(sb->m_buffer));
-  bzero(&sb->m_sending, sizeof(sb->m_sending));
-  bzero(sb->m_read_index, sizeof(sb->m_read_index));
+  std::memset(&sb->m_buffer, 0, sizeof(sb->m_buffer));
+  std::memset(&sb->m_sending, 0, sizeof(sb->m_sending));
+  std::memset(sb->m_read_index, 0, sizeof(sb->m_read_index));
 }
 
 static
@@ -9419,7 +9420,7 @@ rep_init(struct thr_repository* rep, unsigned int cnt, Ndbd_mem_manager *mm)
     send_buffer_init(i, rep->m_send_buffers+i);
   }
 
-  bzero(rep->m_thread_send_buffers, sizeof(rep->m_thread_send_buffers));
+  std::memset(rep->m_thread_send_buffers, 0, sizeof(rep->m_thread_send_buffers));
 }
 
 
@@ -10004,7 +10005,7 @@ int
 ThreadConfig::doStart(NodeState::StartLevel startLevel)
 {
   SignalT<3> signalT;
-  memset(&signalT.header, 0, sizeof(SignalHeader));
+  std::memset(&signalT.header, 0, sizeof(SignalHeader));
   
   signalT.header.theVerId_signalNumber   = GSN_START_ORD;
   signalT.header.theReceiversBlockNumber = CMVMI;
@@ -10703,7 +10704,7 @@ void mt_set_spin_stat(class SimulatedBlock *block, ndb_spin_stat *src)
 void
 mt_get_thr_stat(class SimulatedBlock * block, ndb_thr_stat* dst)
 {
-  bzero(dst, sizeof(* dst));
+  std::memset(dst, 0, sizeof(* dst));
   Uint32 thr_no = block->getThreadId();
   struct thr_data *selfptr = &g_thr_repository->m_thread[thr_no];
 

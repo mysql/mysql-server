@@ -24,6 +24,7 @@
 
 
 #include <ndb_global.h>
+#include <cstring>
 #include <NdbThread.h>
 #include "my_thread.h"
 #include <NdbMutex.h>
@@ -293,7 +294,7 @@ NdbThread_CreateObject(const char * name)
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
   if (name)
   {
     my_stpnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
@@ -399,7 +400,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   {
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
     struct sched_param param;
-    bzero(&param, sizeof(param));
+    std::memset(&param, 0, sizeof(param));
     param.sched_priority = f_high_prio_prio;
     if (pthread_setschedparam(tmpThread->thread, f_high_prio_policy, &param))
       perror("pthread_setschedparam failed");
@@ -427,7 +428,7 @@ NdbThread_CreateLockObject(int tid)
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
-  bzero(tmpThread, sizeof(* tmpThread));
+  std::memset(tmpThread, 0, sizeof(* tmpThread));
 
 #if defined HAVE_LINUX_SCHEDULING
   tmpThread->tid= (pid_t)tid;
@@ -637,7 +638,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= sched_setscheduler(pThread->tid, policy, &loc_sched_param);
   if (ret)
@@ -659,7 +660,7 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     policy = SCHED_OTHER;
     prio = 0;
   }
-  bzero(&loc_sched_param, sizeof(loc_sched_param));
+  std::memset(&loc_sched_param, 0, sizeof(loc_sched_param));
   loc_sched_param.sched_priority = prio;
   ret= pthread_setschedparam(pThread->thread, policy, &loc_sched_param);
   if (ret)
@@ -1080,7 +1081,7 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
   /* Windows */
   GROUP_AFFINITY new_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
@@ -1120,8 +1121,8 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   GROUP_AFFINITY new_affinity;
   GROUP_AFFINITY old_affinity;
 
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   const KAFFINITY cpu0 = 1;
   new_affinity.Mask = (cpu0 << GET_PROCESSOR_ID(cpu_id));
@@ -1252,8 +1253,8 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
    * has to be zeroed, otherwise Windows will return an error of invalid
    * parameter.
    */
-  bzero(&new_affinity, sizeof(GROUP_AFFINITY));
-  bzero(&old_affinity, sizeof(GROUP_AFFINITY));
+  std::memset(&new_affinity, 0, sizeof(GROUP_AFFINITY));
+  std::memset(&old_affinity, 0, sizeof(GROUP_AFFINITY));
 
   new_affinity.Mask = mask;
   new_affinity.Group = used_processor_group;

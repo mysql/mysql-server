@@ -25,6 +25,7 @@
 #ifndef DBTUP_H
 #define DBTUP_H
 
+#include <cstring>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
 #include <ndb_limits.h>
@@ -373,7 +374,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
 
   /* Operation record used during alter table. */
   struct AlterTabOperation {
-    AlterTabOperation() { memset(this, 0, sizeof(AlterTabOperation)); }
+    AlterTabOperation() { std::memset(this, 0, sizeof(AlterTabOperation)); }
     Uint32 nextAlterTabOp;
     Uint32 newNoOfAttrs;
     Uint32 newNoOfCharsets;
@@ -1826,7 +1827,7 @@ struct KeyReqStruct {
     changeMask()
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
     m_when = when;
@@ -1839,7 +1840,7 @@ struct KeyReqStruct {
     changeMask(false)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = _jamBuffer;
     m_when = KRS_PREPARE;
@@ -1851,7 +1852,7 @@ struct KeyReqStruct {
     changeMask(false)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
     m_when = KRS_PREPARE;
@@ -1863,7 +1864,7 @@ struct KeyReqStruct {
     changeMask()
   {
 #if defined VM_TRACE || defined ERROR_INSERT
-    memset(this, 0xf3, sizeof(* this));
+    std::memset(this, 0xf3, sizeof(* this));
 #endif
     jamBuffer = tup->jamBuffer();
     m_when = when;
@@ -3966,7 +3967,7 @@ private:
     if (unlikely(dst == 0))
       return 0;
 #ifdef HAVE_VALGRIND
-    bzero(dst, tabPtrP->total_rec_size);
+    std::memset(dst, 0, tabPtrP->total_rec_size);
 #endif
     Uint32 count = tabPtrP->m_no_of_attributes;
     ChangeMask * mask = (ChangeMask*)(dst + COPY_TUPLE_HEADER32);

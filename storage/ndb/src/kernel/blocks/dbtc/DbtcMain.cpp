@@ -26,6 +26,7 @@
 #define DBTC_C
 
 #include "Dbtc.hpp"
+#include <cstring>
 #include "md5_hash.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>

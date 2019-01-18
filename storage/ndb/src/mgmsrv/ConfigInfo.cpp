@@ -23,6 +23,7 @@
 */
 
 #include <ndb_global.h>
+#include <cstring>
 
 #include <time.h>
 
@@ -6499,7 +6500,7 @@ check_node_vs_replicas(Vector<ConfigInfo::ConfigRuleSection>&sections,
    */
   Uint8 ng_cnt[MAX_NDB_NODE_GROUPS];
   Bitmask<(MAX_NDB_NODES+31)/32> nodes_wo_ng;
-  bzero(ng_cnt, sizeof(ng_cnt));
+  std::memset(ng_cnt, 0, sizeof(ng_cnt));
 
   for (i= 0, n= 0; n < n_nodes; i++)
   {

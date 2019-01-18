@@ -189,7 +189,7 @@ Cmvmi::Cmvmi(Block_context& ctx) :
 
   m_start_time = NdbTick_getCurrentTicks();
 
-  bzero(g_acc_pages_used, sizeof(g_acc_pages_used));
+  std::memset(g_acc_pages_used, 0, sizeof(g_acc_pages_used));
 }
 
 Cmvmi::~Cmvmi()
@@ -1793,7 +1793,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   {
 #if defined VM_TRACE || defined ERROR_INSERT
     f_free_segment_pos = 0;
-    bzero(f_free_segments, sizeof(f_free_segments));
+    std::memset(f_free_segments, 0, sizeof(f_free_segments));
 #endif
   }
 
@@ -1919,7 +1919,7 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Uint32* buffOwners = (Uint32*) malloc(buffs * sizeof(Uint32));
     Uint64* buffOwnersCount = (Uint64*) malloc(buffs * sizeof(Uint64));
     
-    memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
+    std::memset(buffOwnersCount, 0, buffs * sizeof(Uint64));
 
     ndbout_c("  Filling owners list");
     Uint32 zeroOwners = 0;
@@ -3380,7 +3380,7 @@ Cmvmi::execTESTSIG(Signal* signal){
   case 12:{
 
     const Uint32 secs = handle.m_cnt;
-    memset(g_test, 0, sizeof(g_test));
+    std::memset(g_test, 0, sizeof(g_test));
     for(i = 0; i<secs; i++){
       SegmentedSectionPtr sptr(0,0,0);
       handle.getSection(sptr, i);

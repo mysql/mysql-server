@@ -26,6 +26,7 @@
 #define DBTUP_ROUTINES_CPP
 #include "Dbtup.hpp"
 
+#include <cstring>
 #include "m_ctype.h"
 
 #include <RefConvert.hpp>
@@ -3016,7 +3017,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
   Uint32* dstmask = dst + 1;
   AttributeHeader::init(dst, AttributeHeader::READ_PACKED, 4*masksz);
-  bzero(dstmask, 4*masksz);
+  std::memset(dstmask, 0, 4*masksz);
     
   AttributeHeader ahOut;
   Uint8* outBuf = (Uint8*)outBuffer;

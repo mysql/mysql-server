@@ -24,8 +24,8 @@
 
 
 #include <ndb_global.h>
+#include <cstring>
 #include <kernel_types.h>
-
 #include "m_ctype.h"
 #include "API.hpp"
 #include <NdbOut.hpp>
@@ -1412,7 +1412,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
 
   // initialize lists
   init_gci_containers();
-  bzero(&m_sub_data_streams, sizeof(m_sub_data_streams));
+  std::memset(&m_sub_data_streams, 0, sizeof(m_sub_data_streams));
 }
 
 NdbEventBuffer::~NdbEventBuffer()
@@ -2979,8 +2979,8 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
   DBUG_ENTER("NdbEventBuffer::report_node_failure_completed");
   SubTableData data;
   LinearSectionPtr ptr[3];
-  bzero(&data, sizeof(data));
-  bzero(ptr, sizeof(ptr));
+  std::memset(&data, 0, sizeof(data));
+  std::memset(ptr, 0, sizeof(ptr));
 
   data.tableId = ~0;
   data.requestInfo = 0;

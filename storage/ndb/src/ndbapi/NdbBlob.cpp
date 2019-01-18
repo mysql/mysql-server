@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include "API.hpp"
 #include <signaldata/TcKeyReq.hpp>
 #include <NdbEnv.h>
@@ -80,7 +81,7 @@ NdbBlob::getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnIm
 {
   DBUG_ENTER("NdbBlob::getBlobTableName");
   assert(t != 0 && c != 0 && c->getBlobType() && c->getPartSize() != 0);
-  memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
+  std::memset(btname, 0, NdbBlobImpl::BlobTableNameSize);
   sprintf(btname, "NDB$BLOB_%d_%d", (int)t->m_id, (int)c->m_column_no);
   DBUG_PRINT("info", ("blob table name: %s", btname));
   DBUG_VOID_RETURN;
@@ -416,7 +417,7 @@ NdbBlob::Buf::alloc(unsigned n)
     maxsize = n;
   }
 #ifdef VM_TRACE
-  memset(data, 'X', maxsize);
+  std::memset(data, 'X', maxsize);
 #endif
 }
 
@@ -434,7 +435,7 @@ void
 NdbBlob::Buf::zerorest()
 {
   assert(size <= maxsize);
-  memset(data + size, 0, maxsize - size);
+  std::memset(data + size, 0, maxsize - size);
 }
 
 void
@@ -720,9 +721,9 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
     Uint32 packed_pad= packed_len - len;
     Uint32 unpacked_pad= unpacked_len - len;
     if (packed_pad > 0)
-      bzero(packed + len, packed_pad);
+      std::memset(packed + len, 0, packed_pad);
     if (unpacked_pad > 0)
-      bzero(unpacked + len, unpacked_pad);
+      std::memset(unpacked + len, 0, unpacked_pad);
     packed+= packed_len;
     unpacked+= unpacked_len;
   }
@@ -784,7 +785,7 @@ NdbBlob::getNullOrEmptyBlobHeadDataPtr(const char * & data,
 
   /* Reset affected members */
   theSetBuf=NULL;
-  memset(&theHead, 0, sizeof(theHead));
+  std::memset(&theHead, 0, sizeof(theHead));
 
   /* This column is not null anymore - record the fact so that
    * a setNull() call will modify state
@@ -1244,7 +1245,7 @@ NdbBlob::getHeadInlineValue(NdbOperation* anOp)
    * garbage.  The proper fix exists only in version >= 5.1.
    */
   // 5.0 theHead->length = 0;
-  memset(&theHead, 0, sizeof(theHead));
+  std::memset(&theHead, 0, sizeof(theHead));
   packBlobHead();
   DBUG_RETURN(0);
 }
@@ -1294,7 +1295,7 @@ NdbBlob::prepareSetHeadInlineValue()
   theHead.length = theLength;
   if (unlikely(theBlobVersion == NDB_BLOB_V1)) {
     if (theLength < theInlineSize)
-      memset(theInlineData + theLength, 0, size_t(theInlineSize - theLength));
+      std::memset(theInlineData + theLength, 0, size_t(theInlineSize - theLength));
   } else {
     // the 2 length bytes are not counted in length
     if (theLength < theInlineSize)
@@ -1538,7 +1539,7 @@ NdbBlob::truncate(Uint64 length)
         DBUG_PRINT("info", ("part %u length old=%u new=%u",
                             part1, (Uint32)len, off));
         if (theFixedDataFlag)
-          memset(thePartBuf.data + off, theFillChar, thePartSize - off);
+          std::memset(thePartBuf.data + off, theFillChar, thePartSize - off);
         if (updatePart(thePartBuf.data, part1, off) == -1)
           DBUG_RETURN(-1);
       }
@@ -1865,7 +1866,7 @@ NdbBlob::writeDataPrivate(const char* buf, Uint32 bytes)
     } else {
       memcpy(thePartBuf.data, buf, len);
       if (theFixedDataFlag) {
-        memset(thePartBuf.data + len, theFillChar, thePartSize - len);
+        std::memset(thePartBuf.data + len, theFillChar, thePartSize - len);
       }
       Uint16 sz = len;
       if (part < getPartCount()) {

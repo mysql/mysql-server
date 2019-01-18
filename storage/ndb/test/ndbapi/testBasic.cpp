@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT_Test.hpp>
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
@@ -2561,12 +2562,12 @@ runTest899(NDBT_Context* ctx, NDBT_Step* step)
 
       for (int b = 0; rowNo < rows && b < batch; rowNo++, b++)
       {
-        bzero(pRow, len);
+        std::memset(pRow, 0, len);
 
         HugoCalculator calc(* pTab);
 
         NdbOperation::OperationOptions opts;
-        bzero(&opts, sizeof(opts));
+        std::memset(&opts, 0, sizeof(opts));
 
         const NdbOperation* pOp = 0;
         switch(i % 2){

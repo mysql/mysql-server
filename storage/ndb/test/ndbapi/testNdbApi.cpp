@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
 #include <NDBT.hpp>
 #include <NDBT_Test.hpp>
 #include <HugoTransactions.hpp>
@@ -2296,8 +2297,8 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 sizeOfTabRec= NdbDictionary::getRecordRowLength(tabRec);
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-  bzero(keyRowBuf, sizeof(keyRowBuf));
-  bzero(attrRowBuf, sizeof(attrRowBuf));
+  std::memset(keyRowBuf, 0, sizeof(keyRowBuf));
+  std::memset(attrRowBuf, 0, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 
@@ -2390,7 +2391,7 @@ testNdbRecordPkAmbiguity(NDBT_Context* ctx, NDBT_Step* step)
       trans->close();
       
       /* Now read back */
-      memset(attrRowBuf, 0, sizeOfTabRec);
+      std::memset(attrRowBuf, 0, sizeOfTabRec);
       
       Uint32 pkVal= 0;
       memcpy(&pkVal, NdbDictionary::getValuePtr(tabRec,
@@ -2788,7 +2789,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
     
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
 
     /* Read with lower case */
     trans=pNdb->startTransaction();
@@ -2805,7 +2806,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(ucPkPtr, readPkPtr, ucPkPtr[0]) == 0);
     CHECK(memcmp(ucDataPtr, readDataPtr, sizeof(int)) == 0);
     
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
 
     /* Now update just the PK column to lower case */
     trans= pNdb->startTransaction();
@@ -2822,7 +2823,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     trans->close();
 
     /* Now check that we can read with the upper case key */
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
     
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
@@ -2839,7 +2840,7 @@ testNdbRecordCICharPKUpdate(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(memcmp(lcDataPtr, readDataPtr, sizeof(int)) == 0);
 
     /* Now check that we can read with the lower case key */
-    memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
+    std::memset(readBuf, 0, NDB_MAX_TUPLE_SIZE_IN_WORDS << 2);
     
     trans=pNdb->startTransaction();
     CHECK(trans != 0);
@@ -4913,7 +4914,7 @@ public:
   }
 
   NodeIdReservations() {
-    bzero(m_ids, sizeof(m_ids));
+    std::memset(m_ids, 0, sizeof(m_ids));
     NdbMutex_Init(&m_mutex);
   }
 
@@ -6091,8 +6092,8 @@ testNdbRecordSpecificationCompatibility(NDBT_Context* ctx, NDBT_Step* step)
 
   char keyRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
   char attrRowBuf[ NDB_MAX_TUPLE_SIZE_IN_WORDS << 2 ];
-  bzero(keyRowBuf, sizeof(keyRowBuf));
-  bzero(attrRowBuf, sizeof(attrRowBuf));
+  std::memset(keyRowBuf, 0, sizeof(keyRowBuf));
+  std::memset(attrRowBuf, 0, sizeof(attrRowBuf));
 
   HugoCalculator calc(*pTab);
 

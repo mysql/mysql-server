@@ -28,6 +28,7 @@
 /**
  * Dict : Dictionary Block
  */
+#include <cstring>
 #include <ndb_limits.h>
 #include <trigger_definitions.h>
 #include <pc.hpp>
@@ -2398,7 +2399,7 @@ private:
       m_clientState = TransClient::StateUndef;
       m_clientFlags = 0;
       m_takeOverTxKey = 0;
-      bzero(&m_lockReq, sizeof(m_lockReq));
+      std::memset(&m_lockReq, 0, sizeof(m_lockReq));
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
       m_magic = DICT_MAGIC;
@@ -2802,7 +2803,7 @@ private:
 
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_tabInfoPtrI = RNIL;
       m_fragmentsPtrI = RNIL;
       m_dihAddFragPtr = RNIL;
@@ -2883,7 +2884,7 @@ private:
 
     DropTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_block = 0;
       m_fully_replicated_trigger = false;
     }
@@ -2983,7 +2984,7 @@ private:
 
     AlterTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_newTablePtrI = RNIL;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
@@ -3104,11 +3105,11 @@ private:
 
     CreateIndexRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      memset(m_indexName, 0, sizeof(m_indexName));
-      memset(&m_attrList, 0, sizeof(m_attrList));
+      std::memset(&m_request, 0, sizeof(m_request));
+      std::memset(m_indexName, 0, sizeof(m_indexName));
+      std::memset(&m_attrList, 0, sizeof(m_attrList));
       m_attrMask.clear();
-      memset(m_attrMap, 0, sizeof(m_attrMap));
+      std::memset(m_attrMap, 0, sizeof(m_attrMap));
       m_bits = 0;
       m_fragmentType = 0;
       m_indexKeyLength = 0;
@@ -3167,7 +3168,7 @@ private:
 
     DropIndexRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_sub_alter_index = false;
       m_sub_drop_table = false;
     }
@@ -3247,8 +3248,8 @@ private:
 
     AlterIndexRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      memset(&m_attrList, 0, sizeof(m_attrList));
+      std::memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_attrList, 0, sizeof(m_attrList));
       m_attrMask.clear();
       m_triggerTmpl = 0;
       m_sub_trigger = false;
@@ -3340,9 +3341,9 @@ private:
 
     BuildIndexRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      memset(&m_indexKeyList, 0, sizeof(m_indexKeyList));
-      memset(&m_tableKeyList, 0, sizeof(m_tableKeyList));
+      std::memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_indexKeyList, 0, sizeof(m_indexKeyList));
+      std::memset(&m_tableKeyList, 0, sizeof(m_tableKeyList));
       m_attrMask.clear();
       m_triggerTmpl = 0;
       m_subOpCount = 0;
@@ -3412,7 +3413,7 @@ private:
 
     IndexStatRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_subOpCount = 0;
       m_subOpIndex = 0;
     }
@@ -3501,7 +3502,7 @@ private:
 
     CreateHashMapRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
     }
   };
 
@@ -3545,7 +3546,7 @@ private:
 
     CopyDataRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
     }
   };
 
@@ -3628,7 +3629,7 @@ private:
                            in case of NotMaster */
     // ctor
     OpCreateEvent() {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_requestType = CreateEvntReq::RT_UNDEFINED;
       m_errorCode = CreateEvntRef::NoError;
       m_errorLine = 0;
@@ -3670,7 +3671,7 @@ private:
     Uint32 m_errorNode;
     // ctor
     OpDropEvent() {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_errorCode = 0;
       m_errorLine = 0;
       m_errorNode = 0;
@@ -3719,8 +3720,8 @@ private:
 
     CreateTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      memset(m_triggerName, 0, sizeof(m_triggerName));
+      std::memset(&m_request, 0, sizeof(m_request));
+      std::memset(m_triggerName, 0, sizeof(m_triggerName));
       m_main_op = true;
       m_sub_src = false;
       m_sub_dst = false;
@@ -3782,8 +3783,8 @@ private:
 
     DropTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      memset(m_triggerName, 0, sizeof(m_triggerName));
+      std::memset(&m_request, 0, sizeof(m_request));
+      std::memset(m_triggerName, 0, sizeof(m_triggerName));
       m_main_op = true;
       m_sub_src = false;
       m_sub_dst = false;
@@ -3837,7 +3838,7 @@ private:
 
     CreateFilegroupRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
       m_warningFlags = 0;
     }
@@ -3885,7 +3886,7 @@ private:
 
     CreateFileRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
       m_warningFlags = 0;
     }
@@ -3932,7 +3933,7 @@ private:
 
     DropFilegroupRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
     }
   };
@@ -3977,7 +3978,7 @@ private:
 
     DropFileRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
     }
   };
@@ -4022,7 +4023,7 @@ private:
 
     CreateNodegroupRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_map_created = false;
       m_blockIndex = RNIL;
       m_blockCnt = RNIL;
@@ -4092,7 +4093,7 @@ private:
 
     DropNodegroupRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_blockIndex = RNIL;
       m_blockCnt = RNIL;
       m_cnt_waitGCP = RNIL;
@@ -4160,7 +4161,7 @@ private:
 
     CreateFKRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
       m_sub_create_trigger = 0;
       m_sub_build_fk = false;
@@ -4221,7 +4222,7 @@ private:
 
     BuildFKRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
     }
   };
@@ -4273,7 +4274,7 @@ private:
 
     DropFKRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
+      std::memset(&m_request, 0, sizeof(m_request));
       m_parsed = m_prepared = false;
       m_sub_drop_trigger = 0;
     }

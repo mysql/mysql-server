@@ -22,11 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <cstring>
-
 #define DBDIH_C
 #include <ndb_global.h>
 #include <ndb_limits.h>
+#include <string.h>
 #include <ndb_version.h>
 #include <NdbOut.hpp>
 
@@ -13972,10 +13971,10 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
   Uint16 fragments_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
   Uint16 primary_replica_per_ldm[MAX_NDB_NODES][NDBMT_MAX_WORKER_INSTANCES];
 
-  bzero(fragments_per_node, sizeof(fragments_per_node));
-  bzero(fragments_per_ldm, sizeof(fragments_per_ldm));
-  bzero(primary_replica_per_node, sizeof(primary_replica_per_node));
-  bzero(primary_replica_per_ldm, sizeof(primary_replica_per_ldm));
+  memset(fragments_per_node, 0, sizeof(fragments_per_node));
+  memset(fragments_per_ldm, 0, sizeof(fragments_per_ldm));
+  memset(primary_replica_per_node, 0, sizeof(primary_replica_per_node));
+  memset(primary_replica_per_ldm, 0, sizeof(primary_replica_per_ldm));
 
   /**
    * For fully replicated tables one partition can have several copy fragments.
@@ -24866,8 +24865,8 @@ void Dbdih::initCommonData()
   c_lcpState.clcpDelay = c_lcpState.clcpDelay > 31 ? 31 : c_lcpState.clcpDelay;
   
   init_next_replica_node(&c_next_replica_node, cnoReplicas);
-  bzero(&m_gcp_save, sizeof(m_gcp_save));
-  bzero(&m_micro_gcp, sizeof(m_micro_gcp));
+  memset(&m_gcp_save, 0, sizeof(m_gcp_save));
+  memset(&m_micro_gcp, 0, sizeof(m_micro_gcp));
   NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
   NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
   {
@@ -25164,7 +25163,7 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       connectPtr.p->connectState = ConnectRecord::FREE;
       connectPtr.p->table = RNIL;
       connectPtr.p->nextPool = connectPtr.i + 1;
-      bzero(connectPtr.p->nodes, sizeof(connectPtr.p->nodes));
+      memset(connectPtr.p->nodes, 0, sizeof(connectPtr.p->nodes));
     }//for
     connectPtr.i = cconnectFileSize - 1;
     ptrAss(connectPtr, connectRecord);

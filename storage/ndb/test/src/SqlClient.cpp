@@ -23,6 +23,7 @@
 */
 
 #include <SqlClient.hpp>
+#include <cstring>
 #include <NDBT_Output.hpp>
 #include <NdbSleep.h>
 
@@ -179,7 +180,7 @@ SqlClient::runQuery(const char* sql,
 
   uint params= mysql_stmt_param_count(stmt);
   MYSQL_BIND bind_param[params];
-  bzero(bind_param, sizeof(bind_param));
+  std::memset(bind_param, 0, sizeof(bind_param));
 
   for(uint i= 0; i < mysql_stmt_param_count(stmt); i++)
   {
@@ -249,7 +250,7 @@ SqlClient::runQuery(const char* sql,
     MYSQL_FIELD *fields= mysql_fetch_fields(res);
     uint num_fields= mysql_num_fields(res);
     MYSQL_BIND bind_result[num_fields];
-    bzero(bind_result, sizeof(bind_result));
+    std::memset(bind_result, 0, sizeof(bind_result));
 
     for (uint i= 0; i < num_fields; i++)
     {

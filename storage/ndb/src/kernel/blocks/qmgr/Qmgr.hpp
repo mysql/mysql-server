@@ -26,6 +26,7 @@
 #define QMGR_H
 
 
+#include <cstring>
 #include <pc.hpp>
 #include <NdbTick.h>
 #include <NdbGetRUsage.h>
@@ -251,7 +252,7 @@ public:
     NDB_TICKS m_alloc_timeout;
     Uint16 m_failconf_blocks[QMGR_MAX_FAIL_STATE_BLOCKS];
 
-    NodeRec() { bzero(m_failconf_blocks, sizeof(m_failconf_blocks)); }
+    NodeRec() { std::memset(m_failconf_blocks, 0, sizeof(m_failconf_blocks)); }
   }; /* p2c: size = 52 bytes */
   
   typedef Ptr<NodeRec> NodeRecPtr;
