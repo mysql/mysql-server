@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 #
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,8 +41,8 @@ use Cwd;
 
 my $cwd = getcwd();
 
-my @newarg = ();
-for my $i (0..$#ARGV) {
+my @newarg = ($ARGV[0]);
+for my $i (1..$#ARGV) {
 	my $arg = $ARGV[$i];
 	if ($arg =~ /-I(.+)$/) {
 		$arg = '-I' . relativize($1, $cwd);
