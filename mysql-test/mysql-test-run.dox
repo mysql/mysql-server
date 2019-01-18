@@ -377,6 +377,11 @@
       </li>
 
       <li>
+        A file name of the form <b><em>test_name</em>.combinations</b>
+        provides section of options for each test run.
+      </li>
+
+      <li>
         A file name of the form <b><em>suite</em>.opt</b> provides
         server options to all the tests within the suite it belongs
         to.
@@ -2040,12 +2045,18 @@
 
       For test runs specific to a given test suite, an alternative to
       the use of the <b>`--combination`</b> option is to create a
-      <b>combinations</b> file in the suite directory. The file
-      should contain a section of options for each test run.
-      Combination files can support bootstrap variables too. The
-      bootstrap variable has to be passed as a value to the
-      <b>`initialize`</b> keyword. For an example,
+      <b>combinations</b> file in the suite directory. The file should
+      contain a section of options for each test run. For an example,
       see @ref PAGE_BINARY_LOG_FORMAT.
+
+      <b>combinations</b> file can support <b>bootstrap</b> variables
+      too. The <b>bootstrap</b> variable has to be passed as a value
+      to the <b>`initialize`</b> keyword.
+
+      For a test specific combinations, an alternative to the use of
+      the <b>`--combination`</b> option is to create a
+      <b><em>test_name</em>.combinations</b> file in the test
+      directory.
     </li>
 
     <li>
@@ -2425,13 +2436,22 @@
   shell> ./mysql-test-run.pl --suite=rpl --do-test=row
   @endverbatim
 
+  Similar to <b>combinations</b> file in the test suite directory, you
+  can also create a file named <b><em>test_name</em>.combinations</b>
+  in the test directory and list the options that you would specify
+  using <b>`--combination`</b>, one line per option.
+
+  If there exist both suite level <b>combinations</b> file and a
+  <b><em>test_name</em>.combinations</b> file, then the
+  <b><em>test_name</em>.combinations</b> file will take the priority
+  i.e combinations specified in suite level <b>combinations</b> file
+  will be ignored.
+
   The format of the <b>combinations</b> file is similar to that of
   <b>my.cnf</b> files (section names followed by options for each
-  section), but options listed in the <b>combinations</b> file
-  should include the leading dashes. (Options in <b>my.cnf</b> files
-  are given without the leading dashes.) @ref PAGE_MYSQL_TEST_RUN_PL
-  "mysql-test-run.pl" displays the section name following the test
-  name when it reports the test result.
+  section). @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" displays
+  the section name following the test name when it reports the test
+  result.
 
   Any <b>`--combination`</b> options specified on the command line
   override those found in a <b>combinations</b> file.
@@ -2441,7 +2461,9 @@
   applies globally to all tests run by a given invocation of @ref
   PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl". The
   <b>combinations</b> file is placed in a test suite directory and
-  applies only to tests in that suite.
+  applies only to tests in that suite. The
+  <b><em>test_name</em>.combinations</b> file is placed in a test
+  directory and applies only to <b>test_name</b>.
 */
 
 ###############################################################################
@@ -4121,6 +4143,10 @@
       <b>combinations</b> file in the suite directory. The file
       should contain a section of options for each test run. See @ref
       PAGE_PASSING_OPTIONS.
+
+      For test specific combinations, onc can use
+      <b><em>test_name</em>.combinations</b> file in the test
+      directory.
     </li>
 
     <li>

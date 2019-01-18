@@ -646,6 +646,95 @@ sub split_testname {
   mtr_error("Illegal format of test name: $test_name");
 }
 
+# Read a combination file and return an array of all possible
+# combinations.
+sub combinations_from_file($) {
+  my $combination_file = shift;
+
+  my @combinations;
+
+  # Read combinations file in my.cnf format
+  mtr_verbose("Read combinations file $combination_file.");
+
+  my $config = My::Config->new($combination_file);
+  foreach my $group ($config->groups()) {
+    my $comb = {};
+    $comb->{name} = $group->name();
+    foreach my $option ($group->options()) {
+      push(@{ $comb->{comb_opt} }, $option->option());
+    }
+    push(@combinations, $comb);
+  }
+
+  return @combinations;
+}
+
+# Fetch different combinations specified on command line using
+# --combination option.
+sub combinations_from_command_line($) {
+  my @opt_combinations = shift;
+
+  # Take the combination from command-line
+  mtr_verbose("Take the combination from command line");
+
+  # Collect all combinations
+  my @combinations;
+  foreach my $combination (@::opt_combinations) {
+    my $comb = {};
+    $comb->{name} = $combination;
+    push(@{ $comb->{comb_opt} }, $combination);
+    push(@combinations,          $comb);
+  }
+
+  return @combinations;
+}
+
+# Create a new test object for each combination and return an array
+# containing all new tests.
+sub create_test_combinations($$) {
+  my $test         = shift;
+  my $combinations = shift;
+
+  my @new_cases;
+
+  foreach my $comb (@{$combinations}) {
+    # Skip this combination if the values it provides already are set
+    # in master_opt or slave_opt.
+    if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
+        My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ||
+        My::Options::is_set(\@::opt_extra_bootstrap_opt, $comb->{comb_opt}) ||
+        My::Options::is_set(\@::opt_extra_mysqld_opt, $comb->{comb_opt})) {
+      next;
+    }
+
+    # Create a new test object.
+    my $new_test = My::Test->new();
+
+    # Copy the original test options.
+    while (my ($key, $value) = each(%$test)) {
+      if (ref $value eq "ARRAY") {
+        push(@{ $new_test->{$key} }, @$value);
+      } else {
+        $new_test->{$key} = $value;
+      }
+    }
+
+    # Append the combination options to master_opt and slave_opt
+    push(@{ $new_test->{master_opt} }, @{ $comb->{comb_opt} })
+      if defined $comb->{comb_opt};
+    push(@{ $new_test->{slave_opt} }, @{ $comb->{comb_opt} })
+      if defined $comb->{comb_opt};
+
+    # Add combination name
+    $new_test->{combination} = $comb->{name};
+
+    # Add the new test to list of new test cases
+    push(@new_cases, $new_test);
+  }
+
+  return @new_cases;
+}
+
 # Look through one test suite for tests named in the second parameter,
 # or all tests in the suite if that list is empty.
 #
@@ -794,76 +883,25 @@ sub collect_one_suite($$$$) {
   # combinations if any combinations exists.
   if (!$::opt_skip_combinations && !$quick_collect) {
     my @combinations;
-    my $combination_file = "$suitedir/combinations";
-
     if (@::opt_combinations) {
-      # Take the combination from command-line
-      mtr_verbose("Take the combination from command line");
-
-      foreach my $combination (@::opt_combinations) {
-        my $comb = {};
-        $comb->{name} = $combination;
-        push(@{ $comb->{comb_opt} }, $combination);
-        push(@combinations,          $comb);
-      }
-    } elsif (-f $combination_file) {
-      # Read combinations file in my.cnf format
-      mtr_verbose("Read combinations file");
-
-      my $config = My::Config->new($combination_file);
-      foreach my $group ($config->groups()) {
-        my $comb = {};
-        $comb->{name} = $group->name();
-        foreach my $option ($group->options()) {
-          push(@{ $comb->{comb_opt} }, $option->option());
-        }
-        push(@combinations, $comb);
-      }
+      @combinations = combinations_from_command_line(@::opt_combinations);
+    } else {
+      my $combination_file = "$suitedir/combinations";
+      @combinations = combinations_from_file($combination_file)
+        if -f $combination_file;
     }
 
     if (@combinations) {
-      print " - adding combinations for $suite\n";
-
       my @new_cases;
-      foreach my $comb (@combinations) {
-        foreach my $test (@cases) {
-          next if ($test->{'skip'});
+      mtr_report(" - Adding combinations for $suite");
 
-          # Skip this combination if the values it provides already
-          # are set in master_opt or slave_opt. Check for bootstrap
-          # options also. Skip combination if the value is already
-          # passed on the command line.
-          if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) ||
-            My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ||
-            My::Options::is_set(\@::opt_extra_bootstrap_opt, $comb->{comb_opt}))
-          {
-            next;
-          }
-
-          # Copy test options
-          my $new_test = My::Test->new();
-          while (my ($key, $value) = each(%$test)) {
-            if (ref $value eq "ARRAY") {
-              push(@{ $new_test->{$key} }, @$value);
-            } else {
-              $new_test->{$key} = $value;
-            }
-          }
-
-          # Append the combination options to master_opt and slave_opt
-          push(@{ $new_test->{master_opt} }, @{ $comb->{comb_opt} });
-          push(@{ $new_test->{slave_opt} },  @{ $comb->{comb_opt} });
-
-          # Add combination name short name
-          $new_test->{combination} = $comb->{name};
-
-          # Add the new test to new test cases list
-          push(@new_cases, $new_test);
-        }
+      foreach my $test (@cases) {
+        next if ($test->{'skip'} or defined $test->{'combination'});
+        push(@new_cases, create_test_combinations($test, \@combinations));
       }
 
-      # Add the plain test if it was not already added as part of a
-      # combination.
+      # Add the plain test if it was not already added as part
+      # of a combination.
       my %added;
       foreach my $new_test (@new_cases) {
         $added{ $new_test->{name} } = 1;
@@ -1371,7 +1409,27 @@ sub collect_one_test_case {
     process_opts_file($tinfo, "$testdir/$tname-client.opt", 'client_opt');
   }
 
-  return $tinfo;
+  my @new_tests;
+
+  # Check if test specific combination file (<test_name>.combinations)
+  # exists, if yes read different combinations from it.
+  if (!$::opt_skip_combinations && !$quick_collect) {
+    if (!$tinfo->{'skip'}) {
+      my $combination_file = "$testdir/$tname.combinations";
+
+      # Check for test specific combination file
+      my @combinations = combinations_from_file($combination_file)
+        if -f $combination_file;
+
+      # Create a new test object for each combination
+      if (@combinations) {
+        mtr_report(" - Adding combinations for test '$tname'");
+        push(@new_tests, create_test_combinations($tinfo, \@combinations));
+      }
+    }
+  }
+
+  @new_tests ? return @new_tests : return $tinfo;
 }
 
 # List of tags in the .test files that if found should set
