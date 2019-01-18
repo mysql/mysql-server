@@ -67,9 +67,11 @@ DROP TABLE tab2;
 DROP DATABASE nath;
 
 --echo # Stop the encrypt server
+--let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
 
 # Restart with MTR default server
+--let $wait_counter= 3000
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
 --let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
 --source include/start_mysqld.inc
