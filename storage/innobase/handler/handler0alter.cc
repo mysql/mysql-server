@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2542,6 +2542,75 @@ innobase_check_column_length(
 	return(false);
 }
 
+/** Search for a given column in each index that is not being dropped. Return true if the column is part of any of the active indexes or it is a system column.
+@param[in]	table	table object
+@param[in]	col_no	column number of the column which is to be checked
+@param[in]	is_v	if this is a virtual column
+@retval	true the column exists or it is a system column
+@retval	false column does not exist */
+static
+bool
+check_col_exists_in_indexes(
+	const dict_table_t*	table,
+	ulint			col_no,
+	bool			is_v)
+{
+	/* This function does not check system columns */
+	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
+		return(true);
+	}
+
+	for (dict_index_t* index = dict_table_get_first_index(table); index;
+		index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+			continue;
+		}
+
+		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
+			const dict_col_t* idx_col
+				= dict_index_get_nth_col(index, i);
+
+			if (is_v && dict_col_is_virtual(idx_col)) {
+				const dict_v_col_t*   v_col = reinterpret_cast<
+					const dict_v_col_t*>(idx_col);
+				if (v_col->v_pos == col_no) {
+					return(true);
+				}
+			}
+
+			if (!is_v && !dict_col_is_virtual(idx_col)
+			    && dict_col_get_no(idx_col) == col_no) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Reset dict_col_t::ord_part for those columns that fail to be indexed,
+Check every existing column to see if any current index references them.
+This should be checked after an index is dropped during ALTER TABLE.
+@param[in,out]	table	InnoDB table to check */
+static
+inline
+void
+reset_column_ord_part(
+	dict_table_t	*table) {
+	for (ulint i = 0; i < dict_table_get_n_cols(table); i++) {
+		if (!check_col_exists_in_indexes(table, i, false)) {
+			table->cols[i].ord_part = 0;
+		}
+	}
+
+	for (ulint i = 0; i < dict_table_get_n_v_cols(table); i++) {
+		if (!check_col_exists_in_indexes(table, i, true)) {
+			table->v_cols[i].m_col.ord_part = 0;
+		}
+	}
+}
+
 /********************************************************************//**
 Drop any indexes that we were not able to free previously due to
 open table handles. */
@@ -2564,6 +2633,7 @@ online_retry_drop_indexes_low(
 
 	if (table->drop_aborted) {
 		row_merge_drop_indexes(trx, table, TRUE);
+                reset_column_ord_part(table);
 	}
 }
 
@@ -6459,56 +6529,6 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
-/** For each user column, which is part of an index which is not going to be
-dropped, it checks if the column number of the column is same as col_no
-argument passed.
-@param[in]	table	table object
-@param[in]	col_no	column number of the column which is to be checked
-@param[in]	is_v	if this is a virtual column
-@retval true column exists
-@retval false column does not exist, true if column is system column or
-it is in the index. */
-static
-bool
-check_col_exists_in_indexes(
-	const dict_table_t*	table,
-	ulint			col_no,
-	bool			is_v)
-{
-	/* This function does not check system columns */
-	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
-		return(true);
-	}
-
-	for (dict_index_t* index = dict_table_get_first_index(table); index;
-	     index = dict_table_get_next_index(index)) {
-
-		if (index->to_be_dropped) {
-			continue;
-		}
-
-		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
-			const dict_col_t* idx_col
-				= dict_index_get_nth_col(index, i);
-
-			if (is_v && dict_col_is_virtual(idx_col)) {
-				const dict_v_col_t*   v_col = reinterpret_cast<
-					const dict_v_col_t*>(idx_col);
-				if (v_col->v_pos == col_no) {
-					return(true);
-				}
-			}
-
-			if (!is_v && !dict_col_is_virtual(idx_col)
-			    && dict_col_get_no(idx_col) == col_no) {
-				return(true);
-			}
-		}
-	}
-
-	return(false);
-}
-
 /** Rollback a secondary index creation, drop the indexes with
 temparary index prefix
 @param user_table InnoDB table
@@ -6658,20 +6678,7 @@ func_exit:
 		}
 	}
 
-	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
-	we do this by checking every existing column, if any current
-	index would index them */
-	for (ulint i = 0; i < dict_table_get_n_cols(prebuilt->table); i++) {
-		if (!check_col_exists_in_indexes(prebuilt->table, i, false)) {
-			prebuilt->table->cols[i].ord_part = 0;
-		}
-	}
-
-	for (ulint i = 0; i < dict_table_get_n_v_cols(prebuilt->table); i++) {
-		if (!check_col_exists_in_indexes(prebuilt->table, i, true)) {
-			prebuilt->table->v_cols[i].m_col.ord_part = 0;
-		}
-	}
+	reset_column_ord_part(prebuilt->table);
 
 	trx_commit_for_mysql(prebuilt->trx);
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
@@ -7954,7 +7961,7 @@ commit_cache_norebuild(
 	col_set::const_iterator col_it;
 
 	/* Check if the column, part of an index to be dropped is part of any
-	other index which is not being dropped. If it so, then set the ord_part
+	other index which is not being dropped. If not, then set the ord_part
 	of the column to 0. */
 	get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
 
