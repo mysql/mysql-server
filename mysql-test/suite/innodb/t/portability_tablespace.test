@@ -99,6 +99,7 @@ CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 SELECT  file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE LIKE '%undo%';
 
 --echo ## Stop DB server
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 
 --echo # Copy whole --datadir files into new locations
@@ -157,6 +158,7 @@ SELECT @@innodb_log_group_home_dir;
 SHOW CREATE TABLE tab3;
 
 --echo # Stop DB server
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 
 --echo # Start with new --datadir only
@@ -255,6 +257,7 @@ DROP TABLE tab2;
 DROP TABLESPACE ts1;
 
 --echo # Stop DB server with new datadir
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 
 --echo # Copy back --datadir and *.ibd files into old location
@@ -320,6 +323,7 @@ CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
 INSERT INTO tab6 VALUES(1, 'VISH');
 
 --echo # Stop DB server
+--let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 
 --echo # Re-start with old --datadir only
