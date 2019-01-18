@@ -4488,7 +4488,6 @@ sub run_testcase ($) {
                            baseport            => $baseport,
                            extra_template_path => $tinfo->{extra_template_path},
                            mysqlxbaseport      => $mysqlx_baseport,
-                           need_reinit         => $server_need_reinit,
                            password            => '',
                            template_path       => $tinfo->{template_path},
                            testdir             => $glob_mysql_test_dir,
@@ -4518,7 +4517,7 @@ sub run_testcase ($) {
         if (!defined $server_need_reinit) {
           $mysqld->{need_reinitialization} = undef;
         } else {
-          $mysqld->{need_reinitialization} = $mysqld->value('#need_reinit');
+          $mysqld->{need_reinitialization} = $server_need_reinit;
         }
         # If server has been started for the first time,
         # set a flag to check if reinitialization is needed.
@@ -6050,10 +6049,10 @@ sub servers_need_reinitialization {
     if (defined $mysqld->{need_reinitialization} and
         $mysqld->{need_reinitialization} eq 1) {
       $server_need_reinit = 1;
-      last;
+      last if $tinfo->{rpl_test};
     } elsif (defined $mysqld->{need_reinitialization} and
              $mysqld->{need_reinitialization} eq 0) {
-      $server_need_reinit = 0;
+      $server_need_reinit = 0 if !$server_need_reinit;
     }
   }
 
