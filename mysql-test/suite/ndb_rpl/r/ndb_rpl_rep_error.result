@@ -325,3 +325,4 @@ drop database europenorth;
 drop database europesouth;
 drop database usnorth;
 drop database ussouth;
+include/rpl_end.inc

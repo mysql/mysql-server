@@ -43,6 +43,10 @@ call mtr.add_suppression("mysqld startup An incident event has been written");
 let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 
+# Reconnect all clients configured by rpl_init
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
 # When mysqld starts up again it will:
 # - rotate the binary log(thus switching to second log)
 # - ndbcluster binlog injector will write the special incident
@@ -70,10 +74,10 @@ let $show_slave_sql_error=1;
 let $status_items= Slave_IO_Running, Slave_SQL_Running, Last_Errno, Last_Error;	
 -- source include/show_slave_status.inc
 
+# Cleanup
 drop table if exists t1;
 
 --source include/stop_slave_io.inc
 RESET SLAVE;
-
-
-
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc

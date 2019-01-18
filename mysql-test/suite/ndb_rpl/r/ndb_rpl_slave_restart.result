@@ -65,3 +65,4 @@ DROP TABLE t2;
 STOP SLAVE;
 CHANGE MASTER TO
 master_port=<MASTER_PORT>;
+include/stop_dump_threads.inc

@@ -9,6 +9,7 @@ count(*)
 1000
 Restarting mysqld
 # restart
+include/rpl_reconnect.inc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Incident	#	#	#1 (LOST_EVENTS)
@@ -25,3 +26,4 @@ Last_Error = 'The incident LOST_EVENTS occurred on the master. Message: mysqld s
 drop table if exists t1;
 include/stop_slave_io.inc
 RESET SLAVE;
+include/rpl_end.inc
