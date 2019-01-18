@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -242,6 +242,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
     err = log_ddl->write_delete_space_log(trx, table, space, filepath, false,
                                           false);
     if (err != DB_SUCCESS) {
+      ut_free(filepath);
       return err;
     }
 
