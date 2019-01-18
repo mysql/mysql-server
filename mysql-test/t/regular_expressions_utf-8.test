@@ -783,4 +783,31 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug#29231490: REGEXP FUNCTIONS FAIL TO USE CODEPOINT POSITIONS
+--echo #
+
+--echo # Sushi emoji, may not render in your editor.
+SET NAMES DEFAULT;
+
+SELECT regexp_instr( '🍣🍣a', '🍣', 2 );
+SELECT regexp_instr( '🍣🍣a', 'a', 3 );
+--error ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR
+SELECT regexp_instr( '🍣🍣a', 'a', 4 );
+
+SELECT regexp_substr( 'a🍣b', '.', 1 );
+SELECT regexp_substr( 'a🍣b', '.', 2 );
+SELECT regexp_substr( 'a🍣b', '.', 3 );
+SELECT regexp_substr( 'a🍣b', '.', 4 );
+
+SELECT regexp_substr( 'a🍣🍣b', '.', 1 );
+SELECT regexp_substr( 'a🍣🍣b', '.', 2 );
+SELECT regexp_substr( 'a🍣🍣b', '.', 3 );
+SELECT regexp_substr( 'a🍣🍣b', '.', 4 );
+SELECT regexp_substr( 'a🍣🍣b', '.', 5 );
+
+SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2 );
+SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2, 2 );
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

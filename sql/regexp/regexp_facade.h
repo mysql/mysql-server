@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_FACADE_H_
 #define SQL_REGEXP_REGEXP_FACADE_H_
 
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,18 +41,6 @@ extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;
 
 namespace regexp {
-
-/**
-  Evaluates an expression to an output buffer, performing character set
-  conversion to regexp_lib_charset if necessary.
-
-  @param expr The expression to be printed.
-
-  @param[out] out Will be cleared, and the result stored.
-
-  @return false on success, true on error.
-*/
-bool EvalExprToCharset(Item *expr, std::u16string *out);
 
 /**
   This class handles
@@ -149,17 +137,32 @@ class Regexp_facade {
     Resets the compiled regular expression with a new string.
 
     @param subject_expr The new string to search.
+    @param start If present, start on this code point.
 
     @retval false OK.
     @retval true Either there is no compiled regular expression, or the
     expression evaluated to `NULL`.
   */
-  bool Reset(Item *subject_expr);
+  bool Reset(Item *subject_expr, int start = 1);
 
   /**
     Actually compiles the regular expression.
   */
   bool SetupEngine(Item *pattern_expr, uint flags);
+
+  /**
+    Converts a string position in m_current_subject.
+    @param index One-based code point position.
+    @return Zero-based byte position.
+  */
+  int ConvertCodePointToLibPosition(int position) const;
+
+  /**
+    Converts a string position in m_current_subject.
+    @param index Zero-based UTF-16 position.
+    @return Zero-based code point position.
+  */
+  int ConvertLibPositionToCodePoint(int position) const;
 
   /**
     Used for all the actual regular expression matching, search-and-replace,
