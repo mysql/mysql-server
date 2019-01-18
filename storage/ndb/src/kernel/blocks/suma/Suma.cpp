@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -609,7 +609,9 @@ Suma::execREAD_NODESCONF(Signal* signal){
  
   if(getNodeState().getNodeRestartInProgress())
   {
-    c_alive_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    NdbNodeBitmask started_nodes;
+    started_nodes.assign(NdbNodeBitmask::Size, conf->startedNodes);
+    c_alive_nodes.bitOR(started_nodes);
     c_alive_nodes.set(getOwnNodeId()); 
   }
   else
