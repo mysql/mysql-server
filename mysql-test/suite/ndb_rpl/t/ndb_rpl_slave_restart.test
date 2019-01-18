@@ -102,3 +102,6 @@ connection slave;
 eval CHANGE MASTER TO
   master_port=$MASTER_MYPORT;
 
+# Stop the binlog dump threads in server2
+--connection server2
+--source include/stop_dump_threads.inc
