@@ -362,10 +362,6 @@ bool srv_adaptive_flushing = TRUE;
 /* Allow IO bursts at the checkpoints ignoring io_capacity setting. */
 bool srv_flush_sync = TRUE;
 
-/* In each step sync flush flushes 1/N of the planned set of pages
-to be flushed from given instance of buffer pool. This is value of N. */
-uint srv_flush_sync_steps_granularity = 1;
-
 /** Maximum number of times allowed to conditionally acquire
 mutex before switching to blocking wait on the mutex */
 #define MAX_MUTEX_NOWAIT 20
