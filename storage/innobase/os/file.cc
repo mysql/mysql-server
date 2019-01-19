@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -133,8 +133,6 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
   deserialize_header(src, &header);
 
   byte *ptr = src + FIL_PAGE_DATA;
-
-  ut_ad(header.m_version == 1);
 
   if (header.m_version != 1 ||
       header.m_original_size < UNIV_PAGE_SIZE_MIN - (FIL_PAGE_DATA + 8) ||
