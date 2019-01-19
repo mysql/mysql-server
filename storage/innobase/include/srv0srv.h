@@ -435,7 +435,6 @@ extern uint srv_flush_log_at_timeout;
 extern ulong srv_log_write_ahead_size;
 extern bool srv_adaptive_flushing;
 extern bool srv_flush_sync;
-extern uint srv_flush_sync_steps_granularity;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
 even if they are marked as "corrupted". Mostly it is for DBA to process
