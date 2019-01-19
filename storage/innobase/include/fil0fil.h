@@ -354,14 +354,17 @@ class Fil_path {
   static char *SEPARATOR;
   static char *DOT_SLASH;
   static char *DOT_DOT_SLASH;
+  static char *SLASH_DOT_DOT_SLASH;
 #else
   static constexpr auto SEPARATOR = "\\/";
 #ifdef _WIN32
   static constexpr auto DOT_SLASH = ".\\";
   static constexpr auto DOT_DOT_SLASH = "..\\";
+  static constexpr auto SLASH_DOT_DOT_SLASH = "\\..\\";
 #else
   static constexpr auto DOT_SLASH = "./";
   static constexpr auto DOT_DOT_SLASH = "../";
+  static constexpr auto SLASH_DOT_DOT_SLASH = "/../";
 #endif /* _WIN32 */
 
 #endif /* __SUNPRO_CC */
@@ -472,6 +475,10 @@ class Fil_path {
   @return true if the path is valid. */
   bool is_valid() const MY_ATTRIBUTE((warn_unused_result));
 
+  /** Determine if m_path contains a circular section like "/anydir/../"
+  @return true if a circular section if found, false if not */
+  bool is_circular() const MY_ATTRIBUTE((warn_unused_result));
+
   /** Remove quotes e.g., 'a;b' or "a;b" -> a;b.
   Assumes matching quotes.
   @return pathspec with the quotes stripped */
@@ -567,7 +574,7 @@ class Fil_path {
             std::equal(prefix.begin(), prefix.end(), path.begin()));
   }
 
-  /** Normalizes a directory path for the current OS:
+  /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
   @param[in,out]	path	Directory and file path */
   static void normalize(std::string &path) {
@@ -578,7 +585,7 @@ class Fil_path {
     }
   }
 
-  /** Normalizes a directory path for the current OS:
+  /** Normalize a directory path for the current OS:
   On Windows, we convert '/' to '\', else we convert '\' to '/'.
   @param[in,out]	path	A NUL terminated path */
   static void normalize(char *path) {

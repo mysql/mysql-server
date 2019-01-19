@@ -250,7 +250,7 @@ CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE s1_remote ADD DATAFILE '$MYSQL_TMP_DIR/s1.ibd.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/../s2_#_dir/s2.ibd';
+eval CREATE TABLESPACE s2_remote ADD DATAFILE '$MYSQL_TMP_DIR/s2_#_dir/s2.ibd';
 
 --error ER_WRONG_FILE_NAME
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
