@@ -1157,7 +1157,6 @@ bool Handler::get_error_message(int, String *) {
 
 bool Handler::primary_key_is_clustered() const {
   DBUG_ENTER("temptable::Handler::primary_key_is_clustered");
-  DBUG_ABORT();
   DBUG_RETURN(false);
 }
 
