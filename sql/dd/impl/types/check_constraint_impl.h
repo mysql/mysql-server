@@ -128,6 +128,20 @@ class Check_constraint_impl : public Entity_object_impl,
     return new (std::nothrow) Check_constraint_impl(other, table);
   }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const {
+    return Entity_object_impl::impl();
+  }
+  virtual Object_id id() const { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const {
+    return Entity_object_impl::is_persistent();
+  }
+  virtual const String_type &name() const { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name) {
+    Entity_object_impl::set_name(name);
+  }
+
  private:
   enum_constraint_state m_constraint_state{CS_ENFORCED};
   String_type m_check_clause;
