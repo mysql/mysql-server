@@ -14,28 +14,25 @@ INSERT INTO t1 VALUES (1);
 [connection server2]
 include/start_group_replication.inc
 
-# 3. Begin a transaction on server1
-[connection server1]
-BEGIN;
-INSERT INTO t1 VALUES (2);
-
-# 4. Lock tables on server2
+# 3. Lock tables on server2
 [connection server_2]
 LOCK TABLE t1 READ;
+
+# 4. Add more data to table t1 on server1
+[connection server1]
+INSERT INTO t1 VALUES (2);
 
 # 5. Execute switch to multi primary
 [connection server2]
 SELECT group_replication_switch_to_multi_primary_mode();
 
-# 6. Commit pending transaction
-[connection server1]
-COMMIT;
-
-# 7. Validate the old secondary is waiting on the application of its
-#    replication backlog
+# 6. Wait for data added in step 4 to be recived on server2 and then
+#    validate the old secondary is waiting on the application of its
+#    replication backlog.
 [connection server_2]
+include/assert.inc [The second insert transaction is received on slave]
 
-# 8. A read statement to old secondary will not be put on hold
+# 7. A read statement to old secondary will not be put on hold
 SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 SELECT * FROM t1;
 a
@@ -43,12 +40,12 @@ a
 SET @@SESSION.group_replication_consistency= DEFAULT;
 UNLOCK TABLES;
 
-# 9. Reap with success change to multi primary
+# 8. Reap with success change to multi primary
 [connection server2]
 group_replication_switch_to_multi_primary_mode()
 Mode switched to multi-primary successfully.
 
-# 10. Cleanup
+# 9. Cleanup
 [connection server_1]
 DROP TABLE t1;
 include/group_replication_end.inc

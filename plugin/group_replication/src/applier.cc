@@ -939,6 +939,7 @@ int Applier_module::wait_for_applier_event_execution(std::string &retrieved_set,
 bool Applier_module::wait_for_current_events_execution(
     std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
     bool update_THD_status) {
+  DBUG_ENTER("Applier_module::wait_for_current_events_execution");
   applier_module->queue_and_wait_on_queue_checkpoint(checkpoint_condition);
   std::string current_retrieve_set;
   if (applier_module->get_retrieved_gtid_set(current_retrieve_set)) return true;
@@ -950,11 +951,11 @@ bool Applier_module::wait_for_current_events_execution(
 
     /* purecov: begin inspected */
     if (error == -2) {  // error when waiting
-      return true;
+      DBUG_RETURN(true);
     }
     /* purecov: end */
   }
-  return false;
+  DBUG_RETURN(false);
 }
 
 Certification_handler *Applier_module::get_certification_handler() {
