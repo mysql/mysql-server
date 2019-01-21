@@ -8,15 +8,15 @@
 #   0. This test requires two servers on single primary mode
 #   1. Bootstrap group on server 1 and create table t1
 #   2. Join server2 to group
-#   3. Begin a transaction on server1
-#   4. Lock tables on server2
+#   3. Lock tables on server2
+#   4. Add more data to table t1 on server1
 #   5. Execute switch to multi primary
-#   6. Commit pending transaction
-#   7. Validate the old secondary is waiting on the application of its
-#      replication backlog
-#   8. A read statement to old secondary will not be put on hold
-#   9. Reap with success change to multi primary
-#  10. Cleanup
+#   6. Wait for data added in step 4 to be recived on server2 and then
+#      validate the old secondary is waiting on the application of its
+#      replication backlog.
+#   7. A read statement to old secondary will not be put on hold
+#   8. Reap with success change to multi primary
+#   9. Cleanup
 #
 ########################################################################
 
@@ -39,6 +39,7 @@ CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (1);
 
+
 --echo
 --echo # 2. Join server2 to group
 
@@ -47,22 +48,24 @@ INSERT INTO t1 VALUES (1);
 
 --source include/start_group_replication.inc
 
---echo
---echo # 3. Begin a transaction on server1
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
-BEGIN;
-INSERT INTO t1 VALUES (2);
 
 --echo
---echo # 4. Lock tables on server2
+--echo # 3. Lock tables on server2
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
 LOCK TABLE t1 READ;
+
+
+--echo
+--echo # 4. Add more data to table t1 on server1
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (2);
+
 
 --echo
 --echo # 5. Execute switch to multi primary
@@ -72,26 +75,27 @@ LOCK TABLE t1 READ;
 
 --send SELECT group_replication_switch_to_multi_primary_mode()
 
---echo
---echo # 6. Commit pending transaction
-
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
-COMMIT;
 
 --echo
---echo # 7. Validate the old secondary is waiting on the application of its
---echo #    replication backlog
+--echo # 6. Wait for data added in step 4 to be recived on server2 and then
+--echo #    validate the old secondary is waiting on the application of its
+--echo #    replication backlog.
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
 
+--let $received_transaction_set= query_get_value(SELECT received_transaction_set FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_applier", received_transaction_set, 1)
+--let $assert_text= The second insert transaction is received on slave
+--let $assert_cond= "$received_transaction_set" = "$group_replication_group_name:4-5"
+--source include/assert.inc
+
+
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Multi-primary Switch: applying buffered %"
 --source include/wait_condition.inc
 
+
 --echo
---echo # 8. A read statement to old secondary will not be put on hold
+--echo # 7. A read statement to old secondary will not be put on hold
 
 SET @@SESSION.group_replication_consistency= BEFORE_ON_PRIMARY_FAILOVER;
 SELECT * FROM t1;
@@ -99,16 +103,18 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 
 UNLOCK TABLES;
 
+
 --echo
---echo # 9. Reap with success change to multi primary
+--echo # 8. Reap with success change to multi primary
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
 --reap
 
+
 --echo
---echo # 10. Cleanup
+--echo # 9. Cleanup
 
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
