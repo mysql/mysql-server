@@ -1,0 +1,36 @@
+# ==== Purpose ====
+#
+# Test errors for Unsafe statement generated inside DEFAULT expression
+#
+# ==== Requirements ====
+#
+# R1. `ALTER TABLE` with a non-deterministic function as a `DEFAULT` expression
+#     for an added column should always fail for `BINLOG_FORMAT=MIXED/ROW` with
+#     an unsafe statment error - ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+#
+# R2. `ALTER TABLE` with a deterministic function as a `DEFAULT` expression for
+#     an added column should always succeed with `BINLOG_FORMAT=MIXED/ROW`.
+#
+# ==== Implementation ====
+#
+# Test `ALTER TABLE ... ADD COLUMN ... DEFAULT` statement with both a
+# deterministic and non-deterministic function as the `DEFAULT` expression
+#
+# ==== References ====
+# WL#9418  Permit default value to be a function or expression, support for LOBs
+# BUG#28799939 DISALLOW ALTER TABLE ADD COLUMN WITH NONDETERMINISTIC DEFAULT, IF BINLOG ENABLED
+#
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/master-slave.inc
+
+--echo # Create tables on master
+CREATE TABLE t1 (z VARCHAR(36));
+
+ALTER TABLE t1 ADD COLUMN a char(36) DEFAULT (PI());
+--error ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
+
+# Clean up
+DROP TABLE t1;
+--source include/rpl_end.inc

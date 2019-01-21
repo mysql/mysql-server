@@ -19086,6 +19086,8 @@ ER_IB_MSG_POST_RECOVER_POST_TS_ENCRYPT
 ER_IB_MSG_DDL_LOG_FAIL_POST_DDL
   eng "Error in DLL Log cleanup during Post-DDL processing."
 
+ER_SERVER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+  eng "'%s' statement is unsafe because it uses a system function that may return a different value on the slave."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

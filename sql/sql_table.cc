@@ -14727,6 +14727,32 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
+  if ((alter_info->flags & Alter_info::ALTER_ADD_COLUMN) ==
+      Alter_info::ALTER_ADD_COLUMN) {
+    for (auto create_field : alter_info->create_list) {
+      if (create_field.m_default_val_expr) {
+        // ALTER TABLE .. DEFAULT (NDF function) should be rejected for mixed or
+        // row binlog_format. For statement binlog_format it should be allowed
+        // to continue and warning should be logged and/or pushed to the client
+        if ((thd->variables.option_bits & OPTION_BIN_LOG) &&
+            thd->lex->is_stmt_unsafe(
+                Query_tables_list::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION)) {
+          if (thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
+            LogErr(WARNING_LEVEL, ER_SERVER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
+                   "ALTER TABLE .. DEFAULT (NDF function)");
+            push_warning(thd, Sql_condition::SL_WARNING,
+                         ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
+                         ER_THD(thd, ER_BINLOG_UNSAFE_SYSTEM_FUNCTION));
+            break;
+          } else {
+            my_error(ER_BINLOG_UNSAFE_SYSTEM_FUNCTION, MYF(0));
+            DBUG_RETURN(true);
+          }
+        }
+      }
+    }
+  }
+
   // LOCK clause doesn't make any sense for ALGORITHM=INSTANT.
   if (alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INSTANT &&
