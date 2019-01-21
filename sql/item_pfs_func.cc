@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,8 @@
 */
 
 #include "sql/item_pfs_func.h"
+
+#include <cmath>
 
 #include "sql/derror.h"  // ER_THD
 #include "sql/sql_lex.h"
@@ -148,7 +150,7 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
 
   /* Declaring 'volatile' as workaround for 32-bit optimization bug. */
   volatile double bytes = args[0]->val_real();
-  volatile double bytes_abs = abs(bytes);
+  volatile double bytes_abs = std::abs(bytes);
 
   volatile const double kib = 1024ULL;
   volatile const double mib = static_cast<double>(1024ULL * kib);
@@ -188,7 +190,7 @@ String *Item_func_pfs_format_bytes::val_str(String *) {
     len = sprintf(m_value_buffer, "%4d %s", (int)bytes, unit);
   } else {
     double value = bytes / divisor;
-    if (abs(value) >= 100000) {
+    if (std::abs(value) >= 100000.0) {
       len = sprintf(m_value_buffer, "%4.2e %s", value, unit);
     } else {
       len = sprintf(m_value_buffer, "%4.2f %s", value, unit);
@@ -232,7 +234,7 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
   volatile const double day = static_cast<double>(24ull * hour);
 
   volatile double time_val = args[0]->val_real();
-  volatile double time_abs = abs(time_val);
+  volatile double time_abs = std::abs(time_val);
 
   volatile double divisor;
   int len;
@@ -269,7 +271,7 @@ String *Item_func_pfs_format_pico_time::val_str(String *) {
     len = sprintf(m_value_buffer, "%3d %s", (int)time_val, unit);
   } else {
     double value = time_val / divisor;
-    if (abs(value) >= 100000) {
+    if (std::abs(value) >= 100000.0) {
       len = sprintf(m_value_buffer, "%4.2e %s", value, unit);
     } else {
       len = sprintf(m_value_buffer, "%4.2f %s", value, unit);
