@@ -1066,7 +1066,7 @@ AND table1 . col_varchar_10_latin1_key >= 'w'
 AND table1 . col_varchar_10_utf8_key < 'zzzz';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	NULL	range	k5	k5	24	NULL	1	100.00	Using where
-1	SIMPLE	table2	NULL	ref	k5	k5	24	test.table1.col_varchar_10_utf8_key	1	100.00	Using where
+1	SIMPLE	table2	NULL	eq_ref	k5	k5	24	test.table1.col_varchar_10_utf8_key	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`table2`.`col_varchar_10_utf8_key` AS `field1` from `test`.`e` `table1` left join `test`.`c` `table2` on((`test`.`table2`.`col_varchar_10_utf8_key` = `test`.`table1`.`col_varchar_10_utf8_key`)) where ((`test`.`table1`.`col_varchar_255_utf8_key` <> 'LPGIV') and (`test`.`table1`.`col_varchar_10_latin1_key` >= 'w') and (`test`.`table1`.`col_varchar_10_utf8_key` < 'zzzz'))
 SELECT table2 . col_varchar_10_utf8_key AS field1

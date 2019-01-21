@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,10 @@ Key_use *Optimize_table_order::find_best_ref(
     key_part_map found_part = 0;
     // Bitmap of keyparts where the ref access is over 'keypart=const'
     key_part_map const_part = 0;
+    // Keyparts where ref access will not match on NULL values.
+    // Used for unique indexes on nullable columns to decide whether
+    // a specific key may match on (multiple) NULL valued rows.
+    key_part_map null_rejecting_part = 0;
     /*
       Cost of ref access on current index. Calculated as follows:
       cost_ref_for_one_value * prefix_rowcount
@@ -282,6 +286,13 @@ Key_use *Optimize_table_order::find_best_ref(
              (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)))  // 3b)
           continue;
 
+        if (keypart != FT_KEYPART) {
+          const bool keyinfo_maybe_null =
+              keyinfo->key_part[keypart].field->maybe_null();
+          if (keyuse->null_rejecting || !keyuse->val->maybe_null ||
+              !keyinfo_maybe_null)
+            null_rejecting_part |= keyuse->keypart_map;
+        }
         found_part |= keyuse->keypart_map;
         if (!(keyuse->used_tables & ~join->const_table_map))
           const_part |= keyuse->keypart_map;
@@ -322,12 +333,18 @@ Key_use *Optimize_table_order::find_best_ref(
 
       const bool all_key_parts_covered =
           (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));
+      const bool all_key_parts_non_null =
+          (ref_or_null_part == 0 &&
+           null_rejecting_part ==
+               LOWER_BITS(key_part_map, actual_key_parts(keyinfo)));
       /*
         check for the current key type.
         If we find a key with all the keyparts having equality predicates and
         --> if it is a clustered primary key, current key type is set to
             CLUSTERED_PK.
         --> if it is non-nullable unique key, it is set as UNIQUE.
+        --> If none of the specified key parts may result in NULL value(s)
+            being matched, it is set as UNIQUE.
         --> otherwise its a NOT_UNIQUE keytype.
       */
       if (all_key_parts_covered && (keyinfo->flags & HA_NOSAME)) {
@@ -335,6 +352,8 @@ Key_use *Optimize_table_order::find_best_ref(
             table->file->primary_key_is_clustered())
           cur_keytype = CLUSTERED_PK;
         else if ((keyinfo->flags & HA_NULL_PART_KEY) == 0)
+          cur_keytype = UNIQUE;
+        else if (all_key_parts_non_null)
           cur_keytype = UNIQUE;
       }
 
@@ -362,7 +381,9 @@ Key_use *Optimize_table_order::find_best_ref(
       if (all_key_parts_covered && !ref_or_null_part) /* use eq key */
       {
         cur_used_keyparts = (uint)~0;
-        if ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) {
+        if (keyinfo->flags & HA_NOSAME &&
+            ((keyinfo->flags & HA_NULL_PART_KEY) == 0 ||
+             all_key_parts_non_null)) {
           cur_read_cost = prev_record_reads(join, idx, table_deps) *
                           table->cost_model()->page_read_cost(1.0);
           cur_fanout = 1.0;

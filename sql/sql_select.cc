@@ -1913,7 +1913,7 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 
   @param join          The join object being handled
   @param j             The join_tab which will have the ref access populated
-  @param org_keyuse  First key part of (possibly multi-part) key
+  @param org_keyuse    First key part of (possibly multi-part) key
   @param used_tables   Bitmap of available tables
 
   @return False if success, True if error
@@ -1980,6 +1980,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   uchar *key_buff = j->ref().key_buff;
   uchar *null_ref_key = NULL;
   bool keyuse_uses_no_tables = true;
+  bool null_rejecting_key = true;
   if (ftkey) {
     j->ref().items[0] = ((Item_func *)(keyuse->val))->key_item();
     /* Predicates pushed down into subquery can't be used FT access */
@@ -2059,14 +2060,22 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         DBUG_ASSERT(null_ref_key == NULL);  // or we would overwrite it below
         null_ref_key = key_buff;
       }
+      /*
+        Check if the selected key will reject matches on NULL values.
+      */
+      if (!keyuse->null_rejecting && keyuse->val->maybe_null &&
+          keyinfo->key_part[part_no].field->maybe_null()) {
+        null_rejecting_key = false;
+      }
       key_buff += keyinfo->key_part[part_no].store_length;
     }
   } /* not ftkey */
   if (j->type() == JT_FT) DBUG_RETURN(false);
   if (j->type() == JT_CONST)
     j->table()->const_table = 1;
-  else if (((actual_key_flags(keyinfo) & (HA_NOSAME | HA_NULL_PART_KEY)) !=
-            HA_NOSAME) ||
+  else if (((actual_key_flags(keyinfo) & HA_NOSAME) == 0) ||
+           ((actual_key_flags(keyinfo) & HA_NULL_PART_KEY) &&
+            !null_rejecting_key) ||
            keyparts != actual_key_parts(keyinfo) || null_ref_key) {
     /* Must read with repeat */
     j->set_type(null_ref_key ? JT_REF_OR_NULL : JT_REF);
