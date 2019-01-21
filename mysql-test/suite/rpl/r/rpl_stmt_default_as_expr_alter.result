@@ -5,11 +5,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 CALL mtr.add_suppression('.statement is unsafe because it uses a system function that may return a different value on the slave.');
 # Create tables on master
-CREATE TABLE t2 (z VARCHAR(36));
-ALTER TABLE t2 ADD COLUMN a char(36) DEFAULT (PI());
-ALTER TABLE t2 ADD COLUMN b char(36) DEFAULT (RAND());
+CREATE TABLE t1 (z VARCHAR(36));
+ALTER TABLE t1 ADD COLUMN a char(36) DEFAULT (PI());
+ALTER TABLE t1 ADD COLUMN b char(36) DEFAULT (RAND());
 Warnings:
 Warning	1674	Statement is unsafe because it uses a system function that may return a different value on the slave.
 include/assert_grep.inc [Found 1 warning in the error log]
-DROP TABLE t2;
+DROP TABLE t1;
 include/rpl_end.inc
