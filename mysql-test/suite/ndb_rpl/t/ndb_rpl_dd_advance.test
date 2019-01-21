@@ -89,8 +89,6 @@ CREATE INDEX t1_i ON t1(c2, c3);
 #Bug 18039
 CREATE UNIQUE INDEX t1_i2 ON t1(c2);
 ALTER TABLE t1 ADD c4 TIMESTAMP;
-# Save the TIMESTAMP value of c4 for later masking of .result file
-let $c4_timestamp_value=`select c4 FROM t1 WHERE c1 = 1`;
 ALTER TABLE t1 ADD c5 DOUBLE;
 ALTER TABLE t1 ADD INDEX (c5);
 --disable_warnings
@@ -163,7 +161,6 @@ UPDATE t1 SET c3=@b1 where c1 = 2;
 
 --disable_warnings
 SHOW CREATE TABLE t1;
---replace_result $c4_timestamp_value <c4_timestamp_value>
 --enable_warnings
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
@@ -172,7 +169,6 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 connection slave;
 --disable_warnings
 SHOW CREATE TABLE t1;
---replace_result $c4_timestamp_value <c4_timestamp_value>
 --enable_warnings
 # Bug 18094
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
