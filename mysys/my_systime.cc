@@ -44,49 +44,6 @@
 // be in ctime until C++17
 #include <time.h>  // time_t, timespec
 
-namespace {
-
-/**
-   Helper function which converts a second duration to time_t
-   without overflowing.
-*/
-time_t seconds_to_time_t(std::chrono::seconds s) {
-#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
-  /* Ensure that the number of seconds don't overflow. */
-  return std::min(s.count(), static_cast<decltype(s.count())>(
-                                 std::numeric_limits<time_t>::max()));
-#else
-  return s.count();
-#endif
-}
-
-/**
-   Helper function template which converts a timepoint to a timespec value.
-*/
-template <class TP>
-timespec timepoint_to_timespec(TP tp) {
-  std::chrono::nanoseconds ns = tp.time_since_epoch();
-  auto s = std::chrono::duration_cast<std::chrono::seconds>(ns);
-  return {seconds_to_time_t(s),
-          static_cast<decltype(timespec::tv_nsec)>((ns - s).count())};
-}
-
-/**
-   Helper function template which returns the timespec value for a
-   given duration into the future.
-*/
-template <class D>
-timespec duration_from_now_as_timespec(D d) {
-#ifndef DBUG_OFF
-  assert(d >= D::zero());
-  std::chrono::nanoseconds ns = UTC_clock::now().time_since_epoch();
-  auto left = std::chrono::nanoseconds::max() - ns;
-  assert(left > d);
-#endif /* !DBUG_OFF */
-  return timepoint_to_timespec(UTC_clock::now() + d);
-}
-}  // namespace
-
 /**
    Set the value of a timespec object to the current time plus a
    number of nanosconds.
@@ -102,7 +59,15 @@ void set_timespec_nsec(struct timespec *abstime, Timeout_type nsec) {
     *abstime = TIMESPEC_POSINF;
     return;
   }
-  *abstime = duration_from_now_as_timespec(std::chrono::nanoseconds{nsec});
+  unsigned long long int now = my_getsystime() + (nsec / 100);
+  unsigned long long int tv_sec = now / 10000000ULL;
+#if SIZEOF_TIME_T < SIZEOF_LONG_LONG
+  /* Ensure that the number of seconds don't overflow. */
+  tv_sec = std::min(tv_sec, static_cast<unsigned long long int>(
+                                std::numeric_limits<time_t>::max()));
+#endif
+  abstime->tv_sec = static_cast<time_t>(tv_sec);
+  abstime->tv_nsec = (now % 10000000ULL) * 100 + (nsec % 100);
 }
 
 /**
@@ -121,13 +86,8 @@ void set_timespec(struct timespec *abstime, Timeout_type sec) {
     return;
   }
 
-  *abstime = duration_from_now_as_timespec(std::chrono::seconds{sec});
+  set_timespec_nsec(abstime, sec * 1000000000ULL);
 }
-
-/**
-   Return a timespec value for the current time.
- */
-timespec timespec_now() { return timepoint_to_timespec(UTC_clock::now()); }
 
 /**
     Store textual representation of date in a character array.

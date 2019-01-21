@@ -35,4 +35,4 @@ ENDFOREACH()
 # 2. Verifies that the library is actually independent (on platforms
 #    where even unused symbols must be defined)
 MYSQL_ADD_EXECUTABLE(mytime_client-t mytime_client-t.cc SKIP_INSTALL)
-TARGET_LINK_LIBRARIES(mytime_client-t mytime)
+TARGET_LINK_LIBRARIES(mytime_client-t mytime ${LIBRT})

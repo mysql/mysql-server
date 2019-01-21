@@ -27,17 +27,19 @@
 /**
   @file include/my_systime.h
   Defines for getting and processing the current system type programmatically.
-  Note that these are not monotonic. New code should probably use
-  std::chrono::steady_clock instead.
 */
 
 #include <time.h>   // time_t, struct timespec (C11/C++17)
-#include <chrono>   // system_clock, high_resolution_clock
+#include <chrono>   // std::chrono::microseconds
 #include <cstdint>  // std::int64_t
 #include <limits>   // std::numeric_limits
 #include <thread>   // std::this_thread::wait_for
 
 #include "my_config.h"
+
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>  // clock_gettime()
+#endif                 /* HAVE_SYS_TIME_H */
 
 using UTC_clock = std::chrono::system_clock;
 
@@ -96,10 +98,18 @@ inline void sleep(unsigned long seconds) {
   @return current high-resolution time in multiples of 100 nanoseconds.
 */
 inline unsigned long long int my_getsystime() {
+#ifdef HAVE_CLOCK_GETTIME
+  // Performance regression testing showed this to be preferable
+  struct timespec tp;
+  clock_gettime(CLOCK_REALTIME, &tp);
+  return (static_cast<unsigned long long int>(tp.tv_sec) * 10000000 +
+          static_cast<unsigned long long int>(tp.tv_nsec) / 100);
+#else
   return std::chrono::duration_cast<
              std::chrono::duration<std::int64_t, std::ratio<1, 10000000>>>(
              UTC_clock::now().time_since_epoch())
       .count();
+#endif /* HAVE_CLOCK_GETTIME */
 }
 
 /**
@@ -170,9 +180,19 @@ inline time_t my_time(int) { return time(nullptr); }
   (UTC)
 */
 inline unsigned long long int my_micro_time() {
+#ifdef _WIN32
   return std::chrono::duration_cast<std::chrono::microseconds>(
              UTC_clock::now().time_since_epoch())
       .count();
+#else
+  struct timeval t;
+  /*
+  The following loop is here because gettimeofday may fail on some systems
+  */
+  while (gettimeofday(&t, nullptr) != 0) {
+  }
+  return (static_cast<unsigned long long int>(t.tv_sec) * 1000000 + t.tv_usec);
+#endif /* _WIN32 */
 }
 
 void get_date(char *to, int flag, time_t date);
