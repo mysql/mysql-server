@@ -1112,6 +1112,13 @@ format('f','')<=replace(1,1,mid(0xd9,2,1))
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: ''
 Warning	1292	Truncated incorrect DOUBLE value: 'f'
+#
+# Bug#29240446: RECENT REGRESSION, ISCTYPE.CPP(36) : ASSERTION FAILED: C >= -1 && C <= 255
+#
+DO DATEDIFF(UUID_TO_BIN(UUID()), 0x32df2ce8);
+DO (!(SECOND(0xb16beeb7)));
+Warnings:
+Warning	1292	Truncated incorrect time value: '\xB1k\xEE\xB7'
 
 # -- Done.
 

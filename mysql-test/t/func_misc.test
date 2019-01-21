@@ -827,6 +827,18 @@ SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 
 select format('f','')<=replace(1,1,mid(0xd9,2,1));
 
+
+--echo #
+--echo # Bug#29240446: RECENT REGRESSION, ISCTYPE.CPP(36) : ASSERTION FAILED: C >= -1 && C <= 255
+--echo #
+
+# UUID() is not deterministic and affects warning output.
+--disable_warnings
+DO DATEDIFF(UUID_TO_BIN(UUID()), 0x32df2ce8);
+--enable_warnings
+DO (!(SECOND(0xb16beeb7)));
+
+
 --echo
 --echo # -- Done.
 --echo
