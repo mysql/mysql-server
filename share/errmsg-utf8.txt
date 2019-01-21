@@ -19030,7 +19030,7 @@ ER_SERVER_UPGRADE_FAILED
   eng "Failed to upgrade server."
 
 ER_SERVER_UPGRADE_STATUS
-  eng "Server upgrade to %d has %s."
+  eng "Server upgrade from %d to %d has %s."
 
 ER_SERVER_UPGRADE_REPAIR_REQUIRED
   eng "Table '%s' requires repair."
