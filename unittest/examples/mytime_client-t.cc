@@ -31,6 +31,6 @@
 int main() {
   std::cout << calc_days_in_year(2000) << std::endl;
   char buf[256];
-  get_date(buf, 0, timespec_now().tv_sec);
+  get_date(buf, 0, my_time(0));
   std::cout << "Today is " << buf << std::endl;
 }
