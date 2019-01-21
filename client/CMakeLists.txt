@@ -41,8 +41,7 @@ ENDIF(UNIX)
 
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_EXECUTABLE(mysql_upgrade upgrade/program.cc)
-  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base mysqlcheck_core)
-  ADD_DEPENDENCIES(mysql_upgrade GenFixPrivs GenSysSchema GenBootstrapPriv)
+  TARGET_LINK_LIBRARIES(mysql_upgrade mysqlclient client_base)
 ENDIF()
 
 SET(MYSQLTEST_SRC
