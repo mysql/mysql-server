@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -443,9 +443,24 @@ User_var_event::User_var_event(const char *buf,
     uint8_t type_tmp;
     READER_TRY_SET(type_tmp, read<uint8_t>);
     type = (Value_type)type_tmp;
+    switch (type) {
+      case STRING_RESULT:
+      case DECIMAL_RESULT:
+      case REAL_RESULT:
+      case INT_RESULT:
+        break;
+      default:
+        READER_THROW("Invalid type found while deserializing User_var_event");
+    }
     READER_TRY_SET(charset_number, read_and_letoh<uint32_t>);
     READER_TRY_SET(val_len, read_and_letoh<uint32_t>);
     val = const_cast<char *>(READER_CALL(ptr, val_len));
+    // val[0] is precision and val[1] is scale so precision >= scale for decimal
+    if (type == DECIMAL_RESULT) {
+      if (val[0] < val[1])
+        READER_THROW(
+            "Invalid User value found while deserializing User_var_event");
+    }
     /**
       We need to check if this is from an old server
       that did not pack information for flags.
