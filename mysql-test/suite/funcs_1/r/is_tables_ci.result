@@ -74,7 +74,7 @@ CHECK_TIME	datetime	YES		NULL
 TABLE_COLLATION	varchar(64)	YES		NULL	
 CHECKSUM	bigint(21)	YES		NULL	
 CREATE_OPTIONS	varchar(256)	YES		NULL	
-TABLE_COMMENT	varchar(256)	YES		NULL	
+TABLE_COMMENT	text	YES		NULL	
 SELECT table_catalog, table_schema, table_name
 FROM information_schema.tables WHERE table_catalog IS NULL OR table_catalog <> 'def';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME
