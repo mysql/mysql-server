@@ -113,6 +113,22 @@ if ($lctn == 2)
 --file_exists $MYSQLD_DATADIR/mysql_upgrade_info
 
 --echo ###########################################################################
+--echo # Test upgrade of help tables
+--echo ###########################################################################
+
+--echo # Truncate a help table
+TRUNCATE TABLE mysql.help_topic;
+SELECT COUNT(*) = 0 FROM mysql.help_topic;
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql80_upgrade_help_tables.log
+--replace_result $MYSQLD_LOG MYSQLD_LOG
+--let $restart_parameters = restart: --force-upgrade --log-error=$MYSQLD_LOG
+--let $wait_counter=10000
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) != 0 FROM mysql.help_topic;
+
+--echo ###########################################################################
 --echo # Cleanup
 --echo ###########################################################################
 
