@@ -87,6 +87,7 @@
 # Bug#28429993: IF THE STORAGE ENGINE SUPPORTS RBR, UNSAFE SQL STATEMENTES END UP IN BINLOG
 
 --source include/have_udf.inc
+--source include/have_debug.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
 
