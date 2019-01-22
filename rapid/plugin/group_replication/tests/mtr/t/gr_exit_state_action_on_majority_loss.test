@@ -20,6 +20,8 @@
 # 6) Cleanup.
 #
 ################################################################################
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
 --source include/big_test.inc
 --source include/have_debug.inc
 --source ../inc/have_group_replication_plugin.inc
