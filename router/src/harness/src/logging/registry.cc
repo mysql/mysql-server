@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -219,9 +219,9 @@ void clear_registry(Registry &registry) {
 
 std::ostream *get_default_logger_stream() { return &std::cerr; }
 
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages) {
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages) {
   // Register the console as the handler if the logging folder is
   // undefined. Otherwise, register a file handler.
   if (logging_folder.empty()) {

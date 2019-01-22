@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -243,7 +243,7 @@ void clear_registry(Registry &registry);
  * as a parameter.
  *
  * @note Loggers will not have any handlers attached, this needs to be done
- *       separately (see `create_main_logfile_handler()`)
+ *       separately (see `create_main_log_handler()`)
  *
  * @param registry Registry object, typically managed by DIM
  * @param level The log level of the logger
@@ -291,9 +291,9 @@ void create_logger(Registry &registry, const LogLevel level,
  * @throws std::runtime_error if opening log file fails
  */
 HARNESS_EXPORT
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages);
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
