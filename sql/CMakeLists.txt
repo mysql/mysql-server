@@ -302,6 +302,7 @@ SET(SQL_SHARED_SOURCES
   auth/sha2_password_common.cc
   auth/sha2_password.cc
   ssl_wrapper_service.cc
+  binlog_crypt_data.cc
   bootstrap.cc
   check_stack.cc
   conn_handler/connection_handler_manager.cc 
@@ -356,6 +357,7 @@ SET(SQL_SHARED_SOURCES
   locked_tables_list.cc
   locking_service.cc
   log.cc
+  event_crypt.cc
   mdl.cc
   mdl_context_backup.cc
   migrate_keyring.cc
@@ -748,7 +750,8 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    binlog_ostream.cc basic_istream.cc binlog_istream.cc
                    binlog_reader.cc rpl_log_encryption.cc rpl_cipher.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
-                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
+                   rpl_utility.cc rpl_injector.cc rpl_table_access.cc
+                   event_crypt.cc binlog_crypt_data.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 

@@ -912,6 +912,8 @@ const char *Log_event::get_type_str(Log_event_type type) {
       return "XA_prepare";
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       return "Update_rows_partial";
+    case binary_log::START_ENCRYPTION_EVENT:
+      return "Start_encryption";
     default:
       return "Unknown"; /* impossible */
   }
@@ -13301,6 +13303,41 @@ Heartbeat_log_event::Heartbeat_log_event(
   DBUG_VOID_RETURN;
 }
 #endif
+
+Start_encryption_log_event::Start_encryption_log_event(
+    const char *buf, const Format_description_event *description_event)
+    : Start_encryption_event(buf, description_event),
+      Log_event(header(), footer()) {}
+
+#ifdef MYSQL_SERVER
+int Start_encryption_log_event::do_update_pos(Relay_log_info *rli) {
+  /*
+    Master never sends Start_encryption_log_event, any SELE that a slave
+    might see was created locally in MYSQL_BIN_LOG::open() on the slave
+  */
+  rli->inc_event_relay_log_pos();
+  return 0;
+}
+
+#endif
+
+#ifndef MYSQL_SERVER
+void Start_encryption_log_event::print(
+    FILE *file MY_ATTRIBUTE((unused)),
+    PRINT_EVENT_INFO *print_event_info) const {
+  // Need 2 characters per one hex + 2 for 0x + 1 for \0
+  char nonce_buf[NONCE_LENGTH * 2 + 2 + 1];
+  str_to_hex(nonce_buf, reinterpret_cast<const char *>(nonce), NONCE_LENGTH);
+
+  IO_CACHE *const head = &print_event_info->head_cache;
+  print_header(head, print_event_info, false);
+  my_b_printf(head, "Encryption scheme: %d", crypto_scheme);
+  my_b_printf(head, ", key_version: %d", key_version);
+  my_b_printf(head, ", nonce: %s ", nonce_buf);
+  my_b_printf(head, "\n# The rest of the binlog is encrypted!\n");
+}
+#endif
+
 
 #ifdef MYSQL_SERVER
 /*

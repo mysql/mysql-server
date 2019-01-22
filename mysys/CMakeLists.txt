@@ -104,6 +104,7 @@ SET(MYSYS_SOURCES
   ptr_cmp.cc
   sql_chars.cc
   stacktrace.cc
+  system_key.cc
   thr_cond.cc
   thr_lock.cc
   thr_mutex.cc

@@ -865,6 +865,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code()) {
       case binary_log::FORMAT_DESCRIPTION_EVENT:
+      case binary_log::START_ENCRYPTION_EVENT:
         break;
       case binary_log::ROTATE_EVENT:
         /*
@@ -4122,7 +4123,8 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
       */
       if (type != binary_log::ROTATE_EVENT &&
           type != binary_log::FORMAT_DESCRIPTION_EVENT &&
-          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+          type != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
+          type != binary_log::START_ENCRYPTION_EVENT) {
         // Calculate when we should execute the event.
         sql_delay_end = ev->common_header->when.tv_sec +
                         rli->mi->clock_diff_with_master + sql_delay;
@@ -4481,7 +4483,8 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
     if (!error && rli->is_mts_recovery() &&
         ev->get_type_code() != binary_log::ROTATE_EVENT &&
         ev->get_type_code() != binary_log::FORMAT_DESCRIPTION_EVENT &&
-        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+        ev->get_type_code() != binary_log::PREVIOUS_GTIDS_LOG_EVENT &&
+        ev->get_type_code() != binary_log::START_ENCRYPTION_EVENT) {
       if (ev->starts_group()) {
         rli->mts_recovery_group_seen_begin = true;
       } else if ((ev->ends_group() || !rli->mts_recovery_group_seen_begin) &&
@@ -5476,7 +5479,7 @@ ignore_log_space_limit=%d",
               thd->killed = THD::KILLED_NO_VALUE;);
       DBUG_EXECUTE_IF(
           "stop_io_after_reading_unknown_event",
-          if (event_buf[EVENT_TYPE_OFFSET] >= binary_log::ENUM_END_EVENT)
+          if (static_cast<uchar>(event_buf[EVENT_TYPE_OFFSET]) >= binary_log::MYSQL_END_EVENT)
               thd->killed = THD::KILLED_NO_VALUE;);
       DBUG_EXECUTE_IF("stop_io_after_queuing_event",
                       thd->killed = THD::KILLED_NO_VALUE;);
@@ -5999,7 +6002,8 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
         if (ev->get_type_code() == binary_log::ROTATE_EVENT ||
             ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT ||
-            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
+            ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT ||
+            ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
           delete ev;
           ev = NULL;
           continue;
@@ -7127,7 +7131,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   // Emulate the network corruption
   DBUG_EXECUTE_IF(
       "corrupt_queue_event",
-      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
+      if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
+          event_type != binary_log::START_ENCRYPTION_EVENT) {
         char *debug_event_buf_c = (char *)buf;
         int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
         debug_event_buf_c[debug_cor_pos] = ~debug_event_buf_c[debug_cor_pos];
@@ -7553,7 +7558,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       "simulate_unknown_ignorable_log_event",
       if (event_type == binary_log::WRITE_ROWS_EVENT ||
           event_type == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-        char *event_buf = const_cast<char *>(buf);
+        uchar *event_buf = const_cast<uchar *>(reinterpret_cast<const uchar *>(buf));
         /* Overwrite the log event type with an unknown type. */
         event_buf[EVENT_TYPE_OFFSET] = binary_log::ENUM_END_EVENT + 1;
         /* Set LOG_EVENT_IGNORABLE_F for the log event. */

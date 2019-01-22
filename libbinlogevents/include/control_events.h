@@ -162,6 +162,34 @@ class Rotate_event : public Binary_log_event {
   }
 };
 
+class Start_encryption_event : public Binary_log_event {
+ public:
+  static const constexpr auto CRYPTO_SCHEME_LENGTH = 1;
+  static const constexpr auto KEY_VERSION_LENGTH = 4;
+  static const constexpr auto IV_LENGTH = 16; /* = MY_AES_BLOCK_SIZE */
+  static const constexpr auto IV_OFFS_LENGTH = 4;
+  static const constexpr auto NONCE_LENGTH = IV_LENGTH - IV_OFFS_LENGTH;
+  static const constexpr auto EVENT_DATA_LENGTH =
+      CRYPTO_SCHEME_LENGTH + KEY_VERSION_LENGTH + NONCE_LENGTH;
+
+  uint crypto_scheme;
+  uint key_version;
+  unsigned char nonce[NONCE_LENGTH];
+
+  Start_encryption_event(uint crypto_scheme_arg, uint key_version_arg,
+                         const unsigned char *nonce_arg) noexcept
+      : Binary_log_event(binary_log::START_ENCRYPTION_EVENT),
+        crypto_scheme(crypto_scheme_arg),
+        key_version(key_version_arg) {
+    memcpy(nonce, nonce_arg, NONCE_LENGTH);
+  }
+
+  Start_encryption_event(const char *buf, const Format_description_event *fde);
+
+  ~Start_encryption_event() override {}
+};
+
+
 /**
   @class Format_description_event
   For binlog version 4.

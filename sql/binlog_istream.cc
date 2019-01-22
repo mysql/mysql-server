@@ -67,6 +67,9 @@ const char *Binlog_read_error::get_str() const {
       return "Reading encrypted log files directly is not supported.";
     case ERROR_DECRYPTING_FILE:
       return "Failed to decrypt content read from binlog file.";
+    case DECRYPT_PRE_8_0_14_INIT_FAILURE:
+      return "Failed to initialize binlog encryption of binlog file encrypted with previous version of Percona Server. Please make sure that "
+             "the correct keyring is loaded.";
     default:
       /* There must be something wrong in the code if it reaches this branch. */
       DBUG_ASSERT(0);

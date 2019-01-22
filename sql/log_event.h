@@ -68,6 +68,7 @@
 #include "statement_events.h"
 #include "typelib.h"  // TYPELIB
 #include "uuid.h"
+#include "my_aes.h"
 
 class THD;
 class Table_id;
@@ -1410,6 +1411,64 @@ class Query_log_event : public virtual binary_log::Query_event,
   /** Whether or not the statement represented by this event requires
       `Q_SQL_REQUIRE_PRIMARY_KEY` to be logged along aside. */
   bool need_sql_require_primary_key{false};
+};
+
+/**
+  @class Start_encryption_log_event
+
+  Start_encryption_log_event marks the beginning of encrypted data (all events
+  after this event are encrypted).
+
+  It contains the cryptographic scheme used for the encryption as well as any
+  data required to decrypt (except the actual key).
+
+  For binlog cryptoscheme 1: key version, and nonce for iv generation.
+*/
+
+static_assert(
+    binary_log::Start_encryption_event::IV_LENGTH == MY_AES_BLOCK_SIZE,
+    "Start_encryption_event::IV_LENGTH must be equal to MY_AES_BLOCK_SIZE");
+
+class Start_encryption_log_event final
+    : public binary_log::Start_encryption_event,
+      public Log_event {
+ public:
+#ifdef MYSQL_SERVER
+  Start_encryption_log_event(uint crypto_scheme_arg, uint key_version_arg,
+                             const uchar *nonce_arg) noexcept
+      : Start_encryption_event(crypto_scheme_arg, key_version_arg, nonce_arg),
+        Log_event(header(), footer(), Log_event::EVENT_NO_CACHE,
+                  Log_event::EVENT_IMMEDIATE_LOGGING) {
+    DBUG_ASSERT(crypto_scheme == 1);
+    common_header->set_is_valid(crypto_scheme == 1);
+  }
+
+  bool write_data_body(Basic_ostream *ostream) override {
+    ostream = nullptr; //TODO:Change me to unused!
+    return (bool)ostream; // TODO: Change to return 0;
+  }
+
+#else
+  void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
+#endif
+
+  Start_encryption_log_event(const char *buf,
+                             const Format_description_event *description_event);
+
+  Log_event_type get_type_code() noexcept {
+    return binary_log::START_ENCRYPTION_EVENT;
+  }
+
+  size_t get_data_size() noexcept override { return EVENT_DATA_LENGTH; }
+
+ protected:
+#ifdef MYSQL_SERVER
+  virtual int do_update_pos(Relay_log_info *rli) override;
+  virtual enum_skip_reason do_shall_skip(
+      Relay_log_info *rli MY_ATTRIBUTE((unused))) noexcept override {
+    return Log_event::EVENT_SKIP_NOT;
+  }
+#endif
 };
 
 /**

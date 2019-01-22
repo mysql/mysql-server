@@ -61,6 +61,28 @@ Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
   BAPI_VOID_RETURN;
 }
 
+Start_encryption_event::Start_encryption_event(
+    const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER(
+      "Start_encryption_event::Start_encryption_event(const char *, ...");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  const auto remaining_length = READER_CALL(available_to_read);
+  if (unlikely(remaining_length != EVENT_DATA_LENGTH))
+    READER_THROW("Event is smaller or larger than expected");
+
+  READER_TRY_SET(crypto_scheme, read<uint8_t>);
+  if (unlikely(crypto_scheme != 1))
+    READER_THROW("Unknown crypto scheme version");
+
+  READER_TRY_SET(key_version, read_and_letoh<uint32_t>);
+  READER_TRY_CALL(memcpy<unsigned char *>, nonce, NONCE_LENGTH);
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
+}
+
 /**
   Format_description_event 1st constructor.
 */

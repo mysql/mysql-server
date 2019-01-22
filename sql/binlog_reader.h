@@ -24,6 +24,8 @@
 #define BINLOG_READER_INCLUDED
 #include "sql/binlog_istream.h"
 #include "sql/log_event.h"
+#include "sql/binlog_crypt_data.h"
+#include "sql/binlog_reader.h"
 
 /**
    Deserialize a binlog event from event_data. event_data is serialized
@@ -97,6 +99,11 @@ class Binlog_event_data_istream {
     DBUG_RETURN(false);
   }
 
+  bool start_decryption(binary_log::Start_encryption_event *see);
+  void reset_crypto() noexcept { crypto_data.disable(); }
+
+  Binlog_crypt_data crypto_data;
+
  protected:
   unsigned char m_header[LOG_EVENT_MINIMAL_HEADER_LEN];
   /**
@@ -153,6 +160,21 @@ class Binlog_event_data_istream {
   Basic_istream *m_istream = nullptr;
   unsigned int m_max_event_size;
   unsigned int m_event_length = 0;
+
+  class Decryption_buffer final {
+   public:
+    ~Decryption_buffer();
+    bool set_size(size_t size);
+    uchar *data();
+
+   private:
+    bool resize(size_t new_size);
+
+    uchar *m_buffer = nullptr;
+    size_t m_size = 0;
+    uint m_number_of_events_with_half_the_size = 0;
+  };
+  Decryption_buffer m_decryption_buffer;
 
   /**
      Fill the event data into the given buffer and verify checksum if
@@ -278,6 +300,8 @@ class Basic_binlog_file_reader {
     DBUG_ENTER("Basic_binlog_file_reader::open");
     if (m_ifile.open(file_name)) DBUG_RETURN(true);
 
+    m_data_istream.reset_crypto();
+
     Format_description_log_event *fd = read_fdle(offset);
     if (!fd) DBUG_RETURN(has_fatal_error());
 
@@ -319,8 +343,16 @@ class Basic_binlog_file_reader {
     m_event_start_pos = position();
     Log_event *ev = m_object_istream.read_event_object(m_fde, m_verify_checksum,
                                                        &m_allocator);
-    if (ev && ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT)
+    if (ev && ev->get_type_code() == binary_log::FORMAT_DESCRIPTION_EVENT) {
       m_fde = dynamic_cast<Format_description_event &>(*ev);
+    }
+    else if (ev &&
+               ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT &&
+               m_data_istream.start_decryption(
+                   down_cast<Start_encryption_log_event *>(ev))) {
+      delete ev;
+      ev = nullptr;
+    }
     return ev;
   }
 
@@ -344,6 +376,10 @@ class Basic_binlog_file_reader {
   }
   const Format_description_event *format_description_event() { return &m_fde; }
   my_off_t event_start_pos() { return m_event_start_pos; }
+
+  bool start_decryption(binary_log::Start_encryption_event *see) {
+    return m_data_istream.start_decryption(see);
+  }
 
  private:
   Binlog_read_error m_error;
@@ -388,6 +424,16 @@ class Basic_binlog_file_reader {
         delete fdle;
         fdle = dynamic_cast<Format_description_log_event *>(ev);
         m_fde = *fdle;
+        DBUG_ASSERT(m_fde.footer()->checksum_alg ==
+                        binary_log::BINLOG_CHECKSUM_ALG_OFF ||
+                    m_fde.footer()->checksum_alg ==
+                        binary_log::BINLOG_CHECKSUM_ALG_CRC32);
+      } else if (ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT &&
+                 m_data_istream.start_decryption(
+                     down_cast<Start_encryption_log_event *>(ev))) {
+        delete ev;
+        ev = nullptr;
+        break;
       } else {
         binary_log::Log_event_type type = ev->get_type_code();
         delete ev;

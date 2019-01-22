@@ -345,6 +345,10 @@ enum Log_event_type {
   */
   PARTIAL_UPDATE_ROWS_EVENT = 39,
 
+  /* New MySQL events are to be added right above this comment */
+  MYSQL_END_EVENT,
+
+  START_ENCRYPTION_EVENT = 159,
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -789,7 +793,7 @@ class Binary_log_event {
      is not to be handled, it does not exist in binlogs, it does not have a
      format).
   */
-  static const int LOG_EVENT_TYPES = (ENUM_END_EVENT - 1);
+  static constexpr int LOG_EVENT_TYPES = (MYSQL_END_EVENT - 1);
 
   /**
     The lengths for the fixed data part of each event.
@@ -823,7 +827,8 @@ class Binary_log_event {
     ROWS_HEADER_LEN_V2 = 10,
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
-    XA_PREPARE_HEADER_LEN = 0
+    XA_PREPARE_HEADER_LEN = 0,
+    START_ENCRYPTION_HEADER_LEN = 0
   };  // end enum_post_header_length
  protected:
   /**

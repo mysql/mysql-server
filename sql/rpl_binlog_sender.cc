@@ -1032,7 +1032,58 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
   if (event_checksum_on() && event_updated)
     calc_event_checksum(event_ptr, event_len);
 
-  DBUG_RETURN(send_packet());
+  if (send_packet()) DBUG_RETURN(1);
+
+  // Let's check if next event is Start encryption event
+  // If we go outside the file read_event will also return an error
+  const auto binlog_pos_after_fdle = reader->position();
+  if (read_event(reader, &event_ptr, &event_len)) {
+    reader->seek(binlog_pos_after_fdle);
+    set_last_pos(binlog_pos_after_fdle);
+    DBUG_RETURN(0);
+  }
+
+  binlog_read_error = binlog_event_deserialize(
+      event_ptr, event_len, reader->format_description_event(), false, &ev);
+
+  if (binlog_read_error.has_error()) {
+    set_fatal_error(binlog_read_error.get_str());
+    DBUG_RETURN(1);
+  }
+
+  if (ev && ev->get_type_code() == binary_log::START_ENCRYPTION_EVENT) {
+    Start_encryption_log_event *sele =
+        down_cast<Start_encryption_log_event *>(ev);
+
+    if (!sele->is_valid()) {
+      set_fatal_error("Start encryption log event is invalid");
+      DBUG_RETURN(1);
+    }
+
+    if (reader->start_decryption(sele)) {
+      set_fatal_error("Could not decrypt binlog: encryption key error");
+      DBUG_RETURN(1);
+    }
+
+    if (start_pos <= BIN_LOG_HEADER_SIZE) {
+      const auto log_pos = reader->position();
+      // We have read start encryption event from master binlog, but we have
+      // not sent it to slave. We need to inform slave that master position
+      // has advanced.
+      if (unlikely(send_heartbeat_event(log_pos))) DBUG_RETURN(1);
+    }
+  } else {
+    reader->seek(binlog_pos_after_fdle);
+    set_last_pos(binlog_pos_after_fdle);
+  }
+
+  if (ev) {
+    delete ev;
+  }
+
+  DBUG_RETURN(0);
+
+
 }
 
 int Binlog_sender::has_previous_gtid_log_event(File_reader *reader,

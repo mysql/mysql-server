@@ -1,0 +1,198 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# The test are done with prepared PS encrypted binary logs (encryption key is in keyring_with_percona_binlog_key):
+# 1) ps_encrypted_master-bin.000002 - was generated with statements:
+#    CREATE TABLE t1 (a INT);
+#    INSERT INTO t1 (a) VALUES (1);
+#    INSERT INTO t1 (a) VALUES (2);
+#    INSERT INTO t1 (a) VALUES (3);
+#    INSERT INTO t1 (a) VALUES (4);
+#    INSERT INTO t1 (a) VALUES (5);
+# 2) prepared ps_encrypted_truncated_master-bin.000002. It has the same statements as 1), however the last event is incomplete -
+#    and was manually truncated; (encryption key is in keyring_with_percona_binlog_key)
+
+# In this test we will test following scenarios:
+# 1) Generate two master-bin on server (without encrypteion), replace master-bin.000002 with ps_encrypted_truncated_master_bin.000002.
+#    Restart the server. Recovery process will have to be able to decrypt master-bin.000002. Next sync slave with master.
+# 2) Start server with master-bin.000001 unencrypted, master-bin.000002 PS encrypted. RESET SLAVE, next sync slave with master. This will test
+#    if decryption works without recovery run. Test for unencrypted => PS encrypted => unencrypted switch (master-bin.00003 is unencrypted).
+# 3) RESET MASTER, encrypt master. Generate master-bin.000001,000002,000003. Replace master-bin.000002 with ps_encrypted-master-bin.000002.
+#    Restart the server, RESET SLAVE and sync. Test for encrypted => PS encrypted => encrypted.
+
+
+########################### 1st scenario ############################################
+
+--let $keyring_file= $MYSQL_TMP_DIR/keyring_master
+--let $encrypted_binlog_file= $MYSQL_TEST_DIR/std_data/ps_encrypted_truncated_master-bin.000002
+--let $MASTER_DATADIR= `select @@datadir`
+# Makes the index file to contain two files (we will replace the second one
+# by a previously generated encrypted binary log file.
+FLUSH LOCAL LOGS;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $assert_text= Master status shall point to master-bin.000002
+--let $assert_cond= "$binlog_file" = "master-bin.000002"
+--source include/assert.inc
+--let $binlog_file_path= $MASTER_DATADIR/$binlog_file
+
+# Stop the master server
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+--connection slave
+# Replace the binary log file
+--remove_file $binlog_file_path
+--copy_file $encrypted_binlog_file $binlog_file_path
+# Replace the keyring file (with key used to encrypt binarly log file ps_encrypted_master-bin.000002)
+--copy_file $MYSQL_TEST_DIR/std_data/keyring_with_percona_binlog_key $keyring_file
+--let $keyring_parameters=$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+
+# Restart the server
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $keyring_parameters
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--connection master
+
+# Check SHOW BINARY LOGS
+--let $assert_text= 1st binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
+--source include/assert.inc
+--let $assert_text= 2nd binary log is encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "PS encrypted"
+--source include/assert.inc
+--let $assert_text= 3rd binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "No"
+--source include/assert.inc
+--let $binlog_file= master-bin.000002
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+# Start slave threads so it can sync with master
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $assert_text= Slave shall have t1 with a 4 rows on it
+--let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1] = 4
+--source include/assert.inc
+# Slave cleanup
+DROP TABLE t1;
+
+########################### 2nd scenario ############################################
+
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+
+# Stop the master server
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+# Replace the binary log file
+--let $encrypted_binlog_file= $MYSQL_TEST_DIR/std_data/ps_encrypted_master-bin.000002
+--remove_file $binlog_file_path
+--copy_file $encrypted_binlog_file $binlog_file_path
+
+# Restart the server
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $keyring_parameters
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--connection master
+
+# Check SHOW BINARY LOGS
+--let $assert_text= 1st binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "No"
+--source include/assert.inc
+--let $assert_text= 2nd binary log is encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "PS encrypted"
+--source include/assert.inc
+--let $assert_text= 3rd binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "No"
+--source include/assert.inc
+--let $binlog_file= master-bin.000002
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+# Start slave threads so it can sync with master
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $assert_text= Slave shall have t1 with a 5 rows on it
+--let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1] = 5
+--source include/assert.inc
+# Slave cleanup
+DROP TABLE t1;
+
+########################### 3rd scenario ############################################
+
+# Turn on encryption on master
+--connection master
+SET GLOBAL binlog_encryption=ON;
+
+--connection slave
+--source include/stop_slave.inc
+RESET SLAVE;
+
+--connection master
+RESET MASTER;
+CREATE TABLE t0 (a INT);
+INSERT INTO t0 (a) VALUES (1);
+INSERT INTO t0 (a) VALUES (2);
+INSERT INTO t0 (a) VALUES (3);
+FLUSH BINARY LOGS; #master-bin.000001
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 (a) VALUES (1);
+FLUSH BINARY LOGS; #master-bin.000002
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 (a) VALUES (1);
+INSERT INTO t2 (a) VALUES (2);
+FLUSH BINARY LOGS; #master-bin.000003
+
+# Stop the master server
+--let $rpl_server_number= 1
+--source include/rpl_stop_server.inc
+
+# Replace the binary log file
+--let $encrypted_binlog_file= $MYSQL_TEST_DIR/std_data/ps_encrypted_master-bin.000002
+--remove_file $binlog_file_path
+--copy_file $encrypted_binlog_file $binlog_file_path
+
+# Restart the server
+--let $rpl_server_number= 1
+--let $rpl_server_parameters= $keyring_parameters
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--connection master
+
+# Check SHOW BINARY LOGS
+--let $assert_text= 1st binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 1]" = "Yes"
+--source include/assert.inc
+--let $assert_text= 2nd binary log is encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 2]" = "PS encrypted"
+--source include/assert.inc
+--let $assert_text= 3rd binary log is not encrypted
+--let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
+--source include/assert.inc
+--let $binlog_file= master-bin.000002
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+# Start slave threads so it can sync with master
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $assert_text= Slave shall have t1 with a 5 rows on it
+--let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1] = 5
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t0,t1,t2;
+
+--source include/rpl_end.inc
+--remove_file $keyring_file

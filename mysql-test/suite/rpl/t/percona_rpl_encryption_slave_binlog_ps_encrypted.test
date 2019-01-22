@@ -1,0 +1,69 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# The test us done with prepared PS encrypted relay logs (encryption key is in
+# keyring_with_percona_binlog_key_for_slave):
+# 1) ps_encrypted_slave-relay-bin.000002 - was generated with statements:
+#    CREATE TABLE t1 (a INT);
+#    INSERT INTO t1 (a) VALUES (1);
+#    INSERT INTO t1 (a) VALUES (2);
+#    INSERT INTO t1 (a) VALUES (3);
+#    INSERT INTO t1 (a) VALUES (4);
+#    INSERT INTO t1 (a) VALUES (5);
+#
+# In this test we will test following scenarios:
+# Generate the t1 table (as described above) on master. Start slave io thread. Stop master.
+# Replace the relay logs with PS encrypted relay logs and index file. Restart slave and
+# sync with master
+
+--connection master
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 (a) VALUES (1);
+INSERT INTO t1 (a) VALUES (2);
+INSERT INTO t1 (a) VALUES (3);
+INSERT INTO t1 (a) VALUES (4);
+INSERT INTO t1 (a) VALUES (5);
+
+--connection slave
+--source include/start_slave_io.inc
+--connection master
+--source include/sync_slave_io_with_master.inc
+
+--let $SLAVE_DATADIR= `select @@datadir`
+# Stop the slave server
+--let $rpl_server_number= 2
+--source include/rpl_stop_server.inc
+
+--remove_file $SLAVE_DATADIR/slave-relay-bin.000001
+--remove_file $SLAVE_DATADIR/slave-relay-bin.000002
+
+# Replace with PS encrypted once
+--copy_file $MYSQL_TEST_DIR/std_data/ps_encrypted_slave-relay-bin.000001 $SLAVE_DATADIR/slave-relay-bin.000001
+--copy_file $MYSQL_TEST_DIR/std_data/ps_encrypted_slave-relay-bin.000002 $SLAVE_DATADIR/slave-relay-bin.000002
+
+--echo # Replace the keyring file (with key used to encrypt relay log files)
+--let $keyring_file= $MYSQL_TMP_DIR/keyring_slave
+--copy_file $MYSQL_TEST_DIR/std_data/keyring_with_percona_binlog_key_for_slave $keyring_file
+--let $keyring_parameters=$KEYRING_PLUGIN_OPT $KEYRING_PLUGIN_LOAD --keyring_file_data=$keyring_file
+
+--echo # Restart the slave server
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= $keyring_parameters
+--let $rpl_omit_print_server_parameters= 1
+--source include/rpl_start_server.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+--let $assert_text= Slave shall have t1 with a 5 rows on it
+--let $assert_cond= [SELECT COUNT(*) AS t1_rows FROM t1] = 5
+--source include/assert.inc
+
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc
+--remove_file $keyring_file
