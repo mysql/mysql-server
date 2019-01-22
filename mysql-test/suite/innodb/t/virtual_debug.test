@@ -489,4 +489,49 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 
+
+--echo #
+--echo # Bug#28825718 - ASSERTION FAILURE: TRX0REC.CC:NNN:N_IDX > 0 WHILE DOING REPLACE/INSERT
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, c INT GENERATED ALWAYS AS(b+1) VIRTUAL) ENGINE=InnoDB;
+
+INSERT INTO t1(a, b) VALUES(1, 1);
+
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s1 WAIT_FOR s2';
+SET lock_wait_timeout = 1;
+--send ALTER TABLE t1 ADD UNIQUE INDEX(c, b)
+
+connection default;
+
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+SET DEBUG_SYNC = 'row_ins_sec_index_enter SIGNAL s2 WAIT_FOR s3';
+--send INSERT INTO t1(a, b) VALUES(2, 2)
+
+connection con1;
+--echo /* con1 reap */ ALTER TABLE t1 ADD UNIQUE INDEX(c, b);
+--error ER_LOCK_WAIT_TIMEOUT
+reap;
+
+SET DEBUG_SYNC ='now SIGNAL s3';
+
+disconnect con1;
+
+connection default;
+reap;
+
+ALTER TABLE t1 ADD KEY(b);
+
+INSERT INTO t1(a, b) VALUES(3, 3);
+
+SELECT * FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+
 --source include/wait_until_count_sessions.inc
