@@ -280,10 +280,10 @@ our $group_replication  = 0;
 our $ndbcluster_enabled = 0;
 our $ssl_supported      = 1;
 
-our @logs;
 our @share_locations;
 
 our %gprof_dirs;
+our %logs;
 our %mysqld_variables;
 
 sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
@@ -5836,7 +5836,7 @@ sub mysqld_start ($$$$) {
   # Give precedence to opt file bootstrap options over command line
   # bootstrap options.
   if (@opt_extra_bootstrap_opt) {
-    @opt_extra_bootstrap_opt = grep {!/--init-file/} @opt_extra_bootstrap_opt;
+    @opt_extra_bootstrap_opt = grep { !/--init-file/ } @opt_extra_bootstrap_opt;
     unshift(@$extra_opts, @opt_extra_bootstrap_opt);
   }
 
@@ -5936,7 +5936,7 @@ sub mysqld_start ($$$$) {
   my $output = $mysqld->value('#log-error');
 
   # Remember this log file for valgrind error report search
-  push(@logs, $output) if $opt_valgrind or $opt_sanitize;
+  $logs{$output} = 1 if ($opt_valgrind or $opt_sanitize);
 
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
@@ -7002,7 +7002,7 @@ sub valgrind_arguments {
 sub valgrind_exit_reports() {
   my $found_err = 0;
 
-  foreach my $log_file (@logs) {
+  foreach my $log_file (keys %logs) {
     my @culprits      = ();
     my $valgrind_rep  = "";
     my $found_report  = 0;
