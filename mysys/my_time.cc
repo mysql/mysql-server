@@ -113,6 +113,21 @@ static longlong my_packed_time_make_int(longlong i) {
   return (static_cast<ulonglong>(i) << 24);
 }
 
+// The behavior of <cctype> functions is undefined if the argument's value is
+// neither representable as unsigned char nor equal to EOF. To use these
+// functions safely with plain chars, cast to unsigned char.
+static inline int isspace_char(char ch) {
+  return std::isspace(static_cast<unsigned char>(ch));
+}
+
+static inline int isdigit_char(char ch) {
+  return std::isdigit(static_cast<unsigned char>(ch));
+}
+
+static inline int ispunct_char(char ch) {
+  return std::ispunct(static_cast<unsigned char>(ch));
+}
+
 /**
    Calc days in one year.
    @note Works with both two and four digit years.
@@ -337,9 +352,9 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
          status->nanoseconds == 0);
 
   /* Skip space at start */
-  for (; str != end && std::isspace(*str); str++)
+  for (; str != end && isspace_char(*str); str++)
     ;
-  if (str == end || !std::isdigit(*str)) {
+  if (str == end || !isdigit_char(*str)) {
     status->warnings = MYSQL_TIME_WARN_TRUNCATED;
     l_time->time_type = MYSQL_TIMESTAMP_NONE;
     return true;
@@ -354,7 +369,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     If length= 8 or >= 14 then year is of format YYYY.
     (YYYY-MM-DD,  YYYYMMDD, YYYYYMMDDHHMMSS)
   */
-  for (pos = str; pos != end && (std::isdigit(*pos) || *pos == 'T'); pos++)
+  for (pos = str; pos != end && (isdigit_char(*pos) || *pos == 'T'); pos++)
     ;
 
   digits = static_cast<uint>(pos - str);
@@ -375,8 +390,8 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
         We do this by checking if there is two numbers separated by
         space in the input.
       */
-      while (pos < end && !std::isspace(*pos)) pos++;
-      while (pos < end && !std::isdigit(*pos)) pos++;
+      while (pos < end && !isspace_char(*pos)) pos++;
+      while (pos < end && !isdigit_char(*pos)) pos++;
       if (pos == end) {
         if (flags & TIME_DATETIME_ONLY) {
           status->warnings = MYSQL_TIME_WARN_TRUNCATED;
@@ -411,7 +426,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
 
   not_zero_date = 0;
   for (i = start_loop;
-       i < MAX_DATE_PARTS - 1 && str != end && std::isdigit(*str); i++) {
+       i < MAX_DATE_PARTS - 1 && str != end && isdigit_char(*str); i++) {
     const char *start = str;
     ulong tmp_value = static_cast<uchar>(*str++ - '0');
 
@@ -424,7 +439,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     */
     bool scan_until_delim = !is_internal_format && (i != format_position[6]);
 
-    while (str != end && std::isdigit(str[0]) &&
+    while (str != end && isdigit_char(str[0]) &&
            (scan_until_delim || --field_length)) {
       tmp_value =
           tmp_value * 10 + static_cast<ulong>(static_cast<uchar>(*str - '0'));
@@ -463,7 +478,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
         */
         last_field_pos = str;
         field_length = 6; /* 6 digits */
-      } else if (std::isdigit(str[0])) {
+      } else if (isdigit_char(str[0])) {
         /*
           We do not see a decimal point which would have indicated a
           fractional second part in further read. So we skip the further
@@ -474,8 +489,8 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
       }
       continue;
     }
-    while (str != end && (std::ispunct(*str) || std::isspace(*str))) {
-      if (std::isspace(*str)) {
+    while (str != end && (ispunct_char(*str) || isspace_char(*str))) {
+      if (isspace_char(*str)) {
         if (!(allow_space & (1 << i))) {
           status->warnings = MYSQL_TIME_WARN_TRUNCATED;
           l_time->time_type = MYSQL_TIMESTAMP_NONE;
@@ -499,7 +514,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
             continue; /* Not AM/PM */
           str += 2;   /* Skip AM/PM */
           /* Skip space after AM/PM */
-          while (str != end && std::isspace(*str)) str++;
+          while (str != end && isspace_char(*str)) str++;
         }
       }
     }
@@ -580,7 +595,7 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
     if (!not_zero_date) /* If zero date */
     {
       for (; str != end; str++) {
-        if (!std::isspace(*str)) {
+        if (!isspace_char(*str)) {
           not_zero_date = 1; /* Give warning */
           break;
         }
@@ -596,19 +611,19 @@ bool str_to_datetime(const char *str, std::size_t length, MYSQL_TIME *l_time,
 
   /* Scan all digits left after microseconds */
   if (status->fractional_digits == 6 && str != end) {
-    if (std::isdigit(*str)) {
+    if (isdigit_char(*str)) {
       /*
         We don't need the exact nanoseconds value.
         Knowing the first digit is enough for rounding.
       */
       status->nanoseconds = 100 * (*str++ - '0');
-      for (; str != end && std::isdigit(*str); str++) {
+      for (; str != end && isdigit_char(*str); str++) {
       }
     }
   }
 
   for (; str != end; str++) {
-    if (!std::isspace(*str)) {
+    if (!isspace_char(*str)) {
       status->warnings = MYSQL_TIME_WARN_TRUNCATED;
       break;
     }
@@ -658,7 +673,7 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
          status->nanoseconds == 0);
 
   l_time->neg = 0;
-  for (; str != end && std::isspace(*str); str++) length--;
+  for (; str != end && isspace_char(*str); str++) length--;
   if (str != end && *str == '-') {
     l_time->neg = 1;
     str++;
@@ -683,25 +698,25 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
   }
 
   /* Not a timestamp. Try to get this as a DAYS_TO_SECOND string */
-  for (value = 0; str != end && std::isdigit(*str); str++)
+  for (value = 0; str != end && isdigit_char(*str); str++)
     value = value * 10L + static_cast<long>(*str - '0');
 
   if (value > UINT_MAX) return 1;
 
   /* Skip all space after 'days' */
   end_of_days = str;
-  for (; str != end && std::isspace(str[0]); str++)
+  for (; str != end && isspace_char(str[0]); str++)
     ;
 
   state = 0;
   found_days = found_hours = 0;
   if (static_cast<uint>(end - str) > 1 && str != end_of_days &&
-      std::isdigit(*str)) { /* Found days part */
+      isdigit_char(*str)) { /* Found days part */
     date[0] = static_cast<ulong>(value);
     state = 1; /* Assume next is hours */
     found_days = 1;
   } else if ((end - str) > 1 && *str == time_separator &&
-             std::isdigit(str[1])) {
+             isdigit_char(str[1])) {
     date[0] = 0; /* Assume we found hours */
     date[1] = static_cast<ulong>(value);
     state = 2;
@@ -719,11 +734,11 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
 
   /* Read hours, minutes and seconds */
   for (;;) {
-    for (value = 0; str != end && std::isdigit(*str); str++)
+    for (value = 0; str != end && isdigit_char(*str); str++)
       value = value * 10L + static_cast<long>(*str - '0');
     date[state++] = static_cast<ulong>(value);
     if (state == 4 || (end - str) < 2 || *str != time_separator ||
-        !std::isdigit(str[1]))
+        !isdigit_char(str[1]))
       break;
     str++; /* Skip time_separator (':') */
   }
@@ -741,11 +756,11 @@ bool str_to_time(const char *str, std::size_t length, MYSQL_TIME *l_time,
 
 fractional:
   /* Get fractional second part */
-  if ((end - str) >= 2 && *str == '.' && std::isdigit(str[1])) {
+  if ((end - str) >= 2 && *str == '.' && isdigit_char(str[1])) {
     int field_length = 5;
     str++;
     value = static_cast<uint>(static_cast<uchar>(*str - '0'));
-    while (++str != end && std::isdigit(*str)) {
+    while (++str != end && isdigit_char(*str)) {
       if (field_length-- > 0)
         value = value * 10 + static_cast<uint>(static_cast<uchar>(*str - '0'));
     }
@@ -757,7 +772,7 @@ fractional:
       /* Scan digits left after microseconds */
       status->fractional_digits = 6;
       status->nanoseconds = 100 * (str[-1] - '0');
-      for (; str != end && std::isdigit(*str); str++) {
+      for (; str != end && isdigit_char(*str); str++) {
       }
     }
     date[4] = static_cast<ulong>(value);
@@ -770,13 +785,13 @@ fractional:
   /* Check for exponent part: E<gigit> | E<sign><digit> */
   /* (may occur as result of %g formatting of time value) */
   if ((end - str) > 1 && (*str == 'e' || *str == 'E') &&
-      (std::isdigit(str[1]) || ((str[1] == '-' || str[1] == '+') &&
-                                (end - str) > 2 && std::isdigit(str[2]))))
+      (isdigit_char(str[1]) || ((str[1] == '-' || str[1] == '+') &&
+                                (end - str) > 2 && isdigit_char(str[2]))))
     return 1;
 
   if (internal_format_positions[7] != 255) {
     /* Read a possible AM/PM */
-    while (str != end && std::isspace(*str)) str++;
+    while (str != end && isspace_char(*str)) str++;
     if (str + 2 <= end && (str[1] == 'M' || str[1] == 'm')) {
       if (str[0] == 'p' || str[0] == 'P') {
         str += 2;
@@ -813,7 +828,7 @@ fractional:
   /* Check if there is garbage at end of the MYSQL_TIME specification */
   if (str != end) {
     do {
-      if (!std::isspace(*str)) {
+      if (!isspace_char(*str)) {
         status->warnings |= MYSQL_TIME_WARN_TRUNCATED;
         // No char was actually used in conversion - bad value
         if (str == start) {
