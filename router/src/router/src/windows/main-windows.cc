@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ NTService g_service;
 extern "C" bool g_windows_service = false;
 int (*g_real_main)(int, char **);
 
-std::string &add_quoted_string(std::string &to, const char *from) {
+std::string &add_quoted_string(std::string &to, const char *from) noexcept {
   if (!strchr(from, ' ')) return to.append(from);
 
   to.append("\"").append(from).append("\"");
@@ -56,12 +56,12 @@ int router_service(void *p) {
 
 enum class ServiceStatus { StartNormal, StartAsService, Done, Error };
 
-bool file_exists(const char *path) {
+bool file_exists(const char *path) noexcept {
   std::ifstream f(path);
   return (!f) ? false : true;
 }
 
-ServiceStatus check_service_operations(int argc, char **argv) {
+ServiceStatus check_service_operations(int argc, char **argv) noexcept {
   if (g_service.GetOS()) { /* true NT family */
     // check if a service installation option was passed
     const char *config_path = NULL;
@@ -129,7 +129,7 @@ ServiceStatus check_service_operations(int argc, char **argv) {
  * Performs socket library initialization and service related things, including
  * command line param handling for installation/removal of service.
  */
-ServiceStatus do_windows_init(int argc, char **argv) {
+ServiceStatus do_windows_init(int argc, char **argv) noexcept {
   // WinSock init
   WSADATA wsaData;
   int result;
@@ -146,7 +146,7 @@ ServiceStatus do_windows_init(int argc, char **argv) {
   return status;
 }
 
-void do_windows_cleanup() {
+void do_windows_cleanup() noexcept {
   // WinSock cleanup
   WSACleanup();
 
