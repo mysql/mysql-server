@@ -3100,6 +3100,10 @@ static lsn_t srv_shutdown_log() {
     dict_persist_to_dd_table_buffer();
   }
 
+  /* If we removed this sleep, we would need to solve some
+  pending issues during shutdown. */
+  os_thread_sleep(100 * 1000);
+
   /* Wait until all background threads except master thread
   have been stopped. */
   for (uint32_t count = 0;; ++count) {
