@@ -59,7 +59,7 @@ Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
-BuildRequires:  cmake >= 2.8.2
+BuildRequires:  cmake3 >= 3.6.1
 BuildRequires:  devtoolset-8-gcc
 BuildRequires:  devtoolset-8-gcc-c++
 BuildRequires:  perl
@@ -143,7 +143,7 @@ fi
 mkdir release
 (
   cd release
-  cmake ../%{src_dir} \
+  cmake3 ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DREPRODUCIBLE_BUILD=OFF \
            -DINSTALL_LAYOUT=RPM \

@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
+
 IF(WIN32)
   # CMake 3.8.0 is needed for Visual Studio 2017 and x64 toolset.
   CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
@@ -34,18 +36,23 @@ ELSEIF(APPLE)
     CMAKE_MINIMUM_REQUIRED(VERSION 3.9.2)
   ENDIF()
 ELSEIF(UNIX)
-  # CMake 3.4.0 is needed for Solaris due to CMake bug 15673.
-  # Cannot use CMAKE_SYSTEM_NAME until after PROJECT(), use uname directly.
-  FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
-  IF(MY_UNAME)
-    EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
-    IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
-      CMAKE_MINIMUM_REQUIRED(VERSION 3.4.0)
+  # This is currently minimum version on all supported platforms.
+  IF(CMAKE_VERSION VERSION_LESS 3.4.3)
+    # Default cmake is 2.8.12.2 on RedHat
+    IF(EXISTS "/etc/redhat-release")
+      MESSAGE(WARNING "Please use cmake3 rather than cmake on this platform")
+      FIND_PROGRAM(MY_CMAKE3 cmake3 /bin /usr/bin /usr/local/bin)
+      IF(MY_CMAKE3)
+        MESSAGE(STATUS "Found ${MY_CMAKE3}")
+      ELSE()
+        MESSAGE(STATUS "Please install cmake3 (yum install cmake3)")
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()
-# 2.8.12 as minimum unless higher is checked above.
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+# CMake 3.4.3 is needed for Solaris due to CMake bug 15673.
+# 3.4.3 as minimum unless higher is checked above.
+CMAKE_MINIMUM_REQUIRED(VERSION 3.4.3)
 
 # Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
 # CMake has OLD as default even if OLD is deprecated.
@@ -70,8 +77,6 @@ ENDIF()
 IF(POLICY CMP0075)
   CMAKE_POLICY(SET CMP0075 OLD)
 ENDIF()
-
-MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 # Will set GIT_EXECUTABLE and GIT_FOUND
 FIND_PACKAGE(Git)

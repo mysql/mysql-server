@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-
 IF(SIZEOF_VOIDP EQUAL 8)
   SET(ARCH_64BIT 1)
 ELSE()
@@ -35,21 +33,15 @@ SET(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}"
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-IF(${CMAKE_VERSION} VERSION_GREATER "3.0")
-  # enable MACOSX_RPATH
-  CMAKE_POLICY(SET CMP0042 NEW)
-  # warn about non-existing dependencies in add_dependencies()
-  CMAKE_POLICY(SET CMP0046 NEW)
-  # set the VERSION as documented in PROJECT() command
-  CMAKE_POLICY(SET CMP0048 NEW)
-  IF(${CMAKE_VERSION} VERSION_GREATER "3.1")
-    # only interpret if() arguments as variables or keywords when unquoted
-    CMAKE_POLICY(SET CMP0054 NEW)
-  ENDIF()
-  PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
-ELSE()
-  PROJECT("MySQLRouter")
-ENDIF()
+# enable MACOSX_RPATH
+CMAKE_POLICY(SET CMP0042 NEW)
+# warn about non-existing dependencies in add_dependencies()
+CMAKE_POLICY(SET CMP0046 NEW)
+# set the VERSION as documented in PROJECT() command
+CMAKE_POLICY(SET CMP0048 NEW)
+# only interpret if() arguments as variables or keywords when unquoted
+CMAKE_POLICY(SET CMP0054 NEW)
+PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
 
 # In CMake 3.12 and above, the
 #

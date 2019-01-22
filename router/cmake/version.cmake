@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,16 +42,3 @@ IF(RPM_EXTRA_VERSION)
 ENDIF()
 
 # Nothing below this line needs change when releasing
-
-# Older CMake version do not set PROJECT_VERSION
-IF(${CMAKE_VERSION} VERSION_LESS "3.0")
-  # We can not use PROJECT() to set version information
-  SET(MySQLRouter_VERSION_MAJOR ${MAJOR_VERSION})
-  SET(MySQLRouter_VERSION_MINOR ${MINOR_VERSION})
-  SET(MySQLRouter_VERSION_PATCH ${PATCH_VERSION})
-  SET(PROJECT_VERSION_MAJOR ${MAJOR_VERSION})
-  SET(PROJECT_VERSION_MINOR ${MINOR_VERSION})
-  SET(PROJECT_VERSION_PATCH ${PATCH_VERSION})
-  SET(MySQLRouter_VERSION ${PROJECT_VERSION_TEXT})
-  SET(PROJECT_VERSION ${PROJECT_VERSION_TEXT})
-ENDIF()
