@@ -1,121 +1,197 @@
+include/mysqlbinlog.inc
 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-# at 4
-#111118 13:10:33 server id 1  end_log_pos 114 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 00000004 19 2f c6 4e   0f   01 00 00 00   6e 00 00 00   72 00 00 00   00 00
-# 00000017 04 00 35 2e 36 2e 34 2d  6d 37 2d 64 65 62 75 67 |..5.6.4.m7.debug|
-# 00000027 2d 6c 6f 67 00 00 00 00  00 00 00 00 00 00 00 00 |.log............|
+# 00000004 15 c2 41 5c   0f   01 00 00 00   78 00 00 00   7c 00 00 00   00 00
+# 00000017 04 00 38 2e 30 2e 31 36  2d 74 72 2d 64 65 62 75 |..8.0.16.tr.debu|
+# 00000027 67 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |g...............|
 # 00000037 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
-# 00000047 00 00 00 00 19 2f c6 4e  13 38 0d 00 08 00 12 00 |.......N.8......|
-# 00000057 04 04 04 04 12 00 00 56  00 04 1a 08 00 00 00 08 |.......V........|
-# 00000067 08 08 02 00 00 00 00 ba  38 4d f8                |........8M.|
-# 	Start: binlog v 4, server v 5.6.4-m7-debug-log created 111118 13:10:33 at startup
+# 00000047 00 00 00 00 15 c2 41 5c  13 00 0d 00 08 00 00 00 |......A.........|
+# 00000057 00 04 00 04 00 00 00 60  00 04 1a 08 00 00 00 08 |................|
+# 00000067 08 08 02 00 00 00 0a 0a  0a 2a 2a 00 12 34 00 0a |.............4..|
+# 00000077 01 0f 5c 4b ea                                   |...K.|
+# 	Start: binlog v #, server v # created # at startup
 ROLLBACK/*!*/;
 BINLOG '
-GS/GTg8BAAAAbgAAAHIAAAAAAAQANS42LjQtbTctZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAZL8ZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAALo4Tfg=
+FcJBXA8BAAAAeAAAAHwAAAAAAAQAOC4wLjE2LXRyLWRlYnVnAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAVwkFcEwANAAgAAAAABAAEAAAAYAAEGggAAAAICAgCAAAACgoKKioAEjQA
+CgEPXEvq
 '/*!*/;
-# at 114
-#111118 13:11:28 server id 1  end_log_pos 245 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 00000072 50 2f c6 4e   02   01 00 00 00   83 00 00 00   f5 00 00 00   00 00
-# 00000085 01 00 00 00 00 00 00 00  04 00 00 21 00 00 00 00 |................|
-# 00000095 00 00 01 00 00 00 00 00  00 00 00 06 03 73 74 64 |.............std|
-# 000000a5 04 21 00 21 00 08 00 0c  01 74 65 73 74 00 74 65 |.........test.te|
-# 000000b5 73 74 00 44 52 4f 50 20  54 41 42 4c 45 20 49 46 |st.DROP.TABLE.IF|
-# 000000c5 20 45 58 49 53 54 53 20  60 74 31 30 31 32 33 34 |.EXISTS..t101234|
-# 000000d5 35 36 37 38 39 60 20 2f  2a 20 67 65 6e 65 72 61 |56789.....genera|
-# 000000e5 74 65 64 20 62 79 20 73  65 72 76 65 72 20 2a 2f |ted.by.server...|
-# 	Query	thread_id=1	exec_time=0	error_code=0
+# 0000007c 15 c2 41 5c   23   01 00 00 00   1f 00 00 00   9b 00 00 00   80 00
+# 0000008f 00 00 00 00 00 00 00 00  40 09 84 c3             |............|
+# 	Previous-GTIDs
+# [empty]
+# at #
+# # server id #  end_log_pos # CRC32 # 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
+# 0000009b 16 c2 41 5c   22   01 00 00 00   4d 00 00 00   e8 00 00 00   00 00
+# 000000ae 01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
+# 000000be 00 00 00 00 00 00 00 00  00 02 00 00 00 00 00 00 |................|
+# 000000ce 00 00 01 00 00 00 00 00  00 00 c1 a5 c5 63 ba 7f |.............c..|
+# 000000de 05 d7 90 38 01 00 63 2e  01 89                   |...8..c...|
+# 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
+# 000000e8 16 c2 41 5c   02   01 00 00 00   8a 00 00 00   72 01 00 00   00 00
+# 000000fb 09 00 00 00 00 00 00 00  04 00 00 24 00 00 00 00 |................|
+# 0000010b 00 00 01 20 00 a0 45 00  00 00 00 06 03 73 74 64 |......E......std|
+# 0000011b 04 ff 00 ff 00 ff 00 0c  01 74 65 73 74 00 12 ff |.........test...|
+# 0000012b 00 74 65 73 74 00 44 52  4f 50 20 54 41 42 4c 45 |.test.DROP.TABLE|
+# 0000013b 20 49 46 20 45 58 49 53  54 53 20 60 74 31 30 31 |.IF.EXISTS..t101|
+# 0000014b 32 33 34 35 36 37 38 39  60 20 2f 2a 20 67 65 6e |23456789.....gen|
+# 0000015b 65 72 61 74 65 64 20 62  79 20 73 65 72 76 65 72 |erated.by.server|
+# 0000016b 20 2a 2f 3f 22 f2 54                             |......T|
+# 	Query	thread_id=#	exec_time=#	error_code=0
 use `test`/*!*/;
-SET TIMESTAMP=1321611088/*!*/;
-SET @@session.pseudo_thread_id=1/*!*/;
+SET TIMESTAMP=#/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
+SET @@session.sql_mode=1168113696/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C utf8 *//*!*/;
-SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
+/*!\C utf8mb4 *//*!*/;
+SET @@session.character_set_client=255,@@session.collation_connection=255,@@session.collation_server=255/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+/*!80011 SET @@session.default_collation_for_utf8mb4=255*//*!*/;
 DROP TABLE IF EXISTS `t10123456789` /* generated by server */
 /*!*/;
-# at 245
-#111118 13:11:48 server id 1  end_log_pos 347 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 000000f5 64 2f c6 4e   02   01 00 00 00   66 00 00 00   5b 01 00 00   00 00
-# 00000108 01 00 00 00 00 00 00 00  04 00 00 21 00 00 00 00 |................|
-# 00000118 00 00 01 00 00 00 00 00  00 00 00 06 03 73 74 64 |.............std|
-# 00000128 04 21 00 21 00 08 00 0c  01 74 65 73 74 00 74 65 |.........test.te|
-# 00000138 73 74 00 63 72 65 61 74  65 20 74 61 62 6c 65 20 |st.create.table.|
-# 00000148 74 31 30 31 32 33 34 35  36 37 38 39 28 69 20 69 |t10123456789.i.i|
-# 00000158 6e 74 29                                         |nt.|
-# 	Query	thread_id=1	exec_time=0	error_code=0
-SET TIMESTAMP=1321611108/*!*/;
+# 00000172 16 c2 41 5c   22   01 00 00 00   4d 00 00 00   bf 01 00 00   00 00
+# 00000185 01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
+# 00000195 00 00 00 00 00 00 00 00  00 02 01 00 00 00 00 00 |................|
+# 000001a5 00 00 02 00 00 00 00 00  00 00 e1 9c c6 63 ba 7f |.............c..|
+# 000001b5 05 c5 90 38 01 00 7c 79  55 9a                   |...8...yU.|
+# 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
+# 000001bf 16 c2 41 5c   02   01 00 00 00   78 00 00 00   37 02 00 00   00 00
+# 000001d2 09 00 00 00 00 00 00 00  04 00 00 2f 00 00 00 00 |................|
+# 000001e2 00 00 01 20 00 a0 45 00  00 00 00 06 03 73 74 64 |......E......std|
+# 000001f2 04 ff 00 ff 00 ff 00 0c  01 74 65 73 74 00 11 31 |.........test..1|
+# 00000202 00 00 00 00 00 00 00 12  ff 00 13 00 74 65 73 74 |............test|
+# 00000212 00 63 72 65 61 74 65 20  74 61 62 6c 65 20 74 31 |.create.table.t1|
+# 00000222 30 31 32 33 34 35 36 37  38 39 28 69 20 69 6e 74 |0123456789.i.int|
+# 00000232 29 bd 8c 5d fe                                   |.....|
+# 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+SET TIMESTAMP=#/*!*/;
+/*!80013 SET @@session.sql_require_primary_key=0*//*!*/;
 create table t10123456789(i int)
 /*!*/;
-# at 347
-#111118 13:12:21 server id 1  end_log_pos 422 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 0000015b 85 2f c6 4e   02   01 00 00 00   4b 00 00 00   a6 01 00 00   08 00
-# 0000016e 01 00 00 00 00 00 00 00  04 00 00 21 00 00 00 00 |................|
-# 0000017e 00 00 01 00 00 00 00 00  00 00 00 06 03 73 74 64 |.............std|
-# 0000018e 04 21 00 21 00 08 00 0c  01 74 65 73 74 00 74 65 |.........test.te|
-# 0000019e 73 74 00 42 45 47 49 4e                          |st.BEGIN|
-# 	Query	thread_id=1	exec_time=0	error_code=0
-SET TIMESTAMP=1321611141/*!*/;
+# 00000237 16 c2 41 5c   22   01 00 00 00   4f 00 00 00   86 02 00 00   00 00
+# 0000024a 01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
+# 0000025a 00 00 00 00 00 00 00 00  00 02 02 00 00 00 00 00 |................|
+# 0000026a 00 00 03 00 00 00 00 00  00 00 d0 c6 c6 63 ba 7f |.............c..|
+# 0000027a 05 fc 4e 01 90 38 01 00  5c 96 ab 34             |..N..8.....4|
+# 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
+# 00000286 16 c2 41 5c   02   01 00 00 00   52 00 00 00   d8 02 00 00   08 00
+# 00000299 09 00 00 00 00 00 00 00  04 00 00 24 00 00 00 00 |................|
+# 000002a9 00 00 01 20 00 a0 45 00  00 00 00 06 03 73 74 64 |......E......std|
+# 000002b9 04 ff 00 ff 00 ff 00 0c  01 74 65 73 74 00 12 ff |.........test...|
+# 000002c9 00 74 65 73 74 00 42 45  47 49 4e 37 f5 e7 4c    |.test.BEGIN7..L|
+# 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
 BEGIN
 /*!*/;
-# at 422
-# at 447
-#111118 13:12:21 server id 1  end_log_pos 447 
+# at #
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 000001a6 85 2f c6 4e   0e   01 00 00 00   19 00 00 00   bf 01 00 00   00 00
-# 000001b9 01 00 00 00 32 01                                |....2.|
+# 000002d8 16 c2 41 5c   0e   01 00 00 00   1e 00 00 00   f6 02 00 00   00 00
+# 000002eb 01 00 00 00 32 00 01 4f  da 67 bd                |....2..O.g.|
 # 	User_var
 SET @`2`:=NULL/*!*/;
-#111118 13:12:21 server id 1  end_log_pos 552 
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 000001bf 85 2f c6 4e   02   01 00 00 00   69 00 00 00   28 02 00 00   00 00
-# 000001d2 01 00 00 00 00 00 00 00  04 00 00 21 00 00 00 00 |................|
-# 000001e2 00 00 01 00 00 00 00 00  00 00 00 06 03 73 74 64 |.............std|
-# 000001f2 04 21 00 21 00 08 00 0c  01 74 65 73 74 00 74 65 |.........test.te|
-# 00000202 73 74 00 69 6e 73 65 72  74 20 69 6e 74 6f 20 74 |st.insert.into.t|
-# 00000212 31 30 31 32 33 34 35 36  37 38 39 20 76 61 6c 75 |10123456789.valu|
-# 00000222 65 73 28 40 32 29                                |es..2.|
-# 	Query	thread_id=1	exec_time=0	error_code=0
-SET TIMESTAMP=1321611141/*!*/;
+# 000002f6 16 c2 41 5c   02   01 00 00 00   70 00 00 00   66 03 00 00   00 00
+# 00000309 09 00 00 00 00 00 00 00  04 00 00 24 00 00 00 00 |................|
+# 00000319 00 00 01 20 00 a0 45 00  00 00 00 06 03 73 74 64 |......E......std|
+# 00000329 04 ff 00 ff 00 ff 00 0c  01 74 65 73 74 00 12 ff |.........test...|
+# 00000339 00 74 65 73 74 00 69 6e  73 65 72 74 20 69 6e 74 |.test.insert.int|
+# 00000349 6f 20 74 31 30 31 32 33  34 35 36 37 38 39 20 76 |o.t10123456789.v|
+# 00000359 61 6c 75 65 73 28 40 32  29 16 c8 fb 68          |alues..2....h|
+# 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=#/*!*/;
 insert into t10123456789 values(@2)
 /*!*/;
-# at 552
-#111118 13:12:21 server id 1  end_log_pos 579 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 00000228 85 2f c6 4e   10   01 00 00 00   1b 00 00 00   43 02 00 00   00 00
-# 0000023b 0a 00 00 00 00 00 00 00                          |........|
-# 	Xid = <number>
+# 00000366 16 c2 41 5c   10   01 00 00 00   1f 00 00 00   85 03 00 00   00 00
+# 00000379 33 00 00 00 00 00 00 00  d7 cf c6 f8             |3...........|
+# 	Xid = #
 COMMIT/*!*/;
-# at 579
-#111118 13:12:33 server id 1  end_log_pos 710 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 00000243 91 2f c6 4e   02   01 00 00 00   83 00 00 00   c6 02 00 00   00 00
-# 00000256 01 00 00 00 00 00 00 00  04 00 00 21 00 00 00 00 |................|
-# 00000266 00 00 01 00 00 00 00 00  00 00 00 06 03 73 74 64 |.............std|
-# 00000276 04 21 00 21 00 08 00 0c  01 74 65 73 74 00 74 65 |.........test.te|
-# 00000286 73 74 00 44 52 4f 50 20  54 41 42 4c 45 20 49 46 |st.DROP.TABLE.IF|
-# 00000296 20 45 58 49 53 54 53 20  60 74 31 30 31 32 33 34 |.EXISTS..t101234|
-# 000002a6 35 36 37 38 39 60 20 2f  2a 20 67 65 6e 65 72 61 |56789.....genera|
-# 000002b6 74 65 64 20 62 79 20 73  65 72 76 65 72 20 2a 2f |ted.by.server...|
-# 	Query	thread_id=1	exec_time=0	error_code=0
-SET TIMESTAMP=1321611153/*!*/;
+# 00000385 16 c2 41 5c   22   01 00 00 00   4d 00 00 00   d2 03 00 00   00 00
+# 00000398 01 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 |................|
+# 000003a8 00 00 00 00 00 00 00 00  00 02 03 00 00 00 00 00 |................|
+# 000003b8 00 00 04 00 00 00 00 00  00 00 ae 7d c7 63 ba 7f |.............c..|
+# 000003c8 05 e0 90 38 01 00 4b b9  b4 60                   |...8..K...|
+# 	Anonymous_GTID	last_committed=#	sequence_number=#	rbr_only=no	original_committed_timestamp=#   immediate_commit_timestamp=#	transaction_length=#
+# original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+# immediate_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
+/*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
+/*!80014 SET @@session.original_server_version= ORIGINAL_SERVER_VERSION*//*!*/;
+/*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
+SET @@SESSION.GTID_NEXT= '#'/*!*/;
+# at #
+# # server id #  end_log_pos # CRC32 # 
+# Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
+# 000003d2 16 c2 41 5c   02   01 00 00 00   93 00 00 00   65 04 00 00   00 00
+# 000003e5 09 00 00 00 00 00 00 00  04 00 00 2d 00 00 00 00 |................|
+# 000003f5 00 00 01 20 00 a0 45 00  00 00 00 06 03 73 74 64 |......E......std|
+# 00000405 04 ff 00 ff 00 ff 00 0c  01 74 65 73 74 00 11 34 |.........test..4|
+# 00000415 00 00 00 00 00 00 00 12  ff 00 74 65 73 74 00 44 |..........test.D|
+# 00000425 52 4f 50 20 54 41 42 4c  45 20 49 46 20 45 58 49 |ROP.TABLE.IF.EXI|
+# 00000435 53 54 53 20 60 74 31 30  31 32 33 34 35 36 37 38 |STS..t1012345678|
+# 00000445 39 60 20 2f 2a 20 67 65  6e 65 72 61 74 65 64 20 |9.....generated.|
+# 00000455 62 79 20 73 65 72 76 65  72 20 2a 2f 1e 01 76 a3 |by.server.....v.|
+# 	Query	thread_id=#	exec_time=#	error_code=0	Xid = #
+SET TIMESTAMP=#/*!*/;
 DROP TABLE IF EXISTS `t10123456789` /* generated by server */
 /*!*/;
-# at 710
-#111118 13:12:41 server id 1  end_log_pos 729 
+# at #
+# # server id #  end_log_pos # CRC32 # 
 # Position  Timestamp   Type   Master ID        Size      Master Pos    Flags 
-# 000002c6 99 2f c6 4e   03   01 00 00 00   13 00 00 00   d9 02 00 00   00 00
+# 00000465 16 c2 41 5c   03   01 00 00 00   17 00 00 00   7c 04 00 00   00 00
+# 00000478 eb cb 5f 30                                      |...0|
 # 	Stop
-SET @@SESSION.GTID_NEXT= 'AUTOMATIC' /* added by mysqlbinlog */ /*!*/;
+SET @@SESSION.GTID_NEXT= '#' /* added by mysqlbinlog */ /*!*/;
 DELIMITER ;
 # End of log file
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;

@@ -426,7 +426,8 @@ User_var_event::User_var_event(const char *buf,
 
   READER_TRY_SET(name_len, read_and_letoh<uint32_t>);
   if (name_len == 0) READER_THROW("Invalid name length");
-  name = READER_CALL(ptr, name_len);
+  name = READER_CALL(ptr);
+  READER_TRY_CALL(forward, name_len + 1);
   READER_TRY_SET(is_null, read<uint8_t>);
 
   flags = User_var_event::UNDEF_F;  // defaults to UNDEF_F
