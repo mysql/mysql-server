@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -461,8 +461,8 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
     mysql_harness::logging::create_logger(*registry, level, "sql");
 
     // attach all loggers to main handler (throws std::runtime_error)
-    mysql_harness::logging::create_main_logfile_handler(
-        *registry, kProgramName, logging_folder, !raw_mode);
+    mysql_harness::logging::create_main_log_handler(*registry, kProgramName,
+                                                    logging_folder, !raw_mode);
 
     // nothing threw - we're good. Now let's replace the new registry with the
     // old one

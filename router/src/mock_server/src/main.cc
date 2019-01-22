@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,7 @@ class MysqlServerMockFrontend {
         {mysql_harness::logging::kMainLogger, "mock_server", "http_server", "",
          "rest_mock_server"},
         mysql_harness::logging::kMainLogger);
-    mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
+    mysql_harness::logging::create_main_log_handler(registry, "", "", true);
 
     registry.set_ready();
 

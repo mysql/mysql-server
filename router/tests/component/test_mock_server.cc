@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -161,7 +161,7 @@ static void init_DIM() {
       registry, mysql_harness::logging::LogLevel::kWarning,
       {mysql_harness::logging::kMainLogger, "sql"},
       mysql_harness::logging::kMainLogger);
-  mysql_harness::logging::create_main_logfile_handler(registry, "", "", true);
+  mysql_harness::logging::create_main_log_handler(registry, "", "", true);
 
   registry.set_ready();
 }
