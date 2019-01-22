@@ -159,7 +159,14 @@ sub is_set {
         $temp_opt2 = $set_opt;
         $temp_opt2 =~ s/--initialize(\s)*=(\s*)//;
       }
-      my ($opt_name2, $value2) = split_option($temp_opt2) if $temp_opt2;
+
+      my $opt_name2;
+      my $value2;
+      if ($temp_opt2) {
+        ($opt_name2, $value2) = split_option($temp_opt2);
+      } else {
+        ($opt_name2, $value2) = split_option($set_opt);
+      }
       return 1 if (option_equals($opt_name1, $opt_name2));
     }
   }
