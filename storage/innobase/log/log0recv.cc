@@ -3436,8 +3436,7 @@ bool meb_scan_log_recs(
 
 #ifdef UNIV_HOTBACKUP
 bool meb_read_log_encryption(IORequest &encryption_request,
-                             byte *encryption_info)
-{
+                             byte *encryption_info) {
   space_id_t log_space_id = dict_sys_t::s_log_space_first_id;
   const page_id_t page_id(log_space_id, 0);
   byte *log_block_buf_ptr;
@@ -3477,7 +3476,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
       redo log blocks. */
-      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+      space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
       if (err == DB_SUCCESS) {
@@ -3490,9 +3489,8 @@ bool meb_read_log_encryption(IORequest &encryption_request,
         return (false);
       }
 
-      encryption_request.encryption_key(space->encryption_key,
-                                        space->encryption_klen,
-                                        space->encryption_iv);
+      encryption_request.encryption_key(
+          space->encryption_key, space->encryption_klen, space->encryption_iv);
 
       encryption_request.encryption_algorithm(Encryption::AES);
     } else {
@@ -3508,7 +3506,7 @@ bool meb_read_log_encryption(IORequest &encryption_request,
   ut_free(log_block_buf_ptr);
   return (true);
 }
-#endif  /* UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
 /** Reads a specified log segment to a buffer.

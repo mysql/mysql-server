@@ -3942,7 +3942,11 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
   DWORD access;
   DWORD create_flag;
   DWORD attributes = 0;
+#ifdef UNIV_HOTBACKUP
+  DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE;
+#else
   DWORD share_mode = FILE_SHARE_READ;
+#endif /* UNIV_HOTBACKUP */
 
   ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
   ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));

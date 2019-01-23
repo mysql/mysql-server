@@ -2939,7 +2939,14 @@ There must not be any pending i/o's or flushes on the files.
 @param[in]	space_id	Tablespace ID
 @return true if success */
 bool meb_fil_space_free(space_id_t space_id) {
-  return fil_space_free(space_id, false);
+  bool success = fil_space_free(space_id, false);
+
+  if (success && space_id == dict_sys_t::s_log_space_first_id) {
+    /* we freed redo log tablespace, clear the global variable for it */
+    fil_space_t::s_redo_space = nullptr;
+  }
+
+  return (success);
 }
 #endif /* UNIV_HOTBACKUP */
 
