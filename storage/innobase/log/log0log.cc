@@ -784,29 +784,12 @@ void log_stop_background_threads(log_t &log) {
   os_event_set(log.checkpointer_event);
 
   /* Wait until threads are closed. */
-  while (log.writer_thread_alive.load()) {
-    os_event_set(log.writer_event);
-    os_thread_sleep(10);
-  }
-  while (log.write_notifier_thread_alive.load()) {
-    os_event_set(log.write_notifier_event);
-    os_thread_sleep(10);
-  }
-  while (log.flusher_thread_alive.load()) {
-    os_event_set(log.flusher_event);
-    os_thread_sleep(10);
-  }
-  while (log.flush_notifier_thread_alive.load()) {
-    os_event_set(log.flush_notifier_event);
-    os_thread_sleep(10);
-  }
-  while (log.closer_thread_alive.load()) {
-    os_event_set(log.closer_event);
-    os_thread_sleep(10);
-  }
-  while (log.checkpointer_thread_alive.load()) {
-    os_event_set(log.checkpointer_event);
-    os_thread_sleep(10);
+  while (log.closer_thread_alive.load() ||
+         log.checkpointer_thread_alive.load() ||
+         log.writer_thread_alive.load() || log.flusher_thread_alive.load() ||
+         log.write_notifier_thread_alive.load() ||
+         log.flush_notifier_thread_alive.load()) {
+    os_thread_sleep(100 * 1000);
   }
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
