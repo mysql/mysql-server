@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 #include "sql/sql_table.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "template_utils.h"
 
 /*
   First, if you want to understand storage engines you should look at
@@ -353,11 +354,10 @@ unsigned int ha_archive::pack_row_v1(uchar *record) {
   pos = record_buffer->buffer + table->s->reclength;
   for (blob = table->s->blob_field, end = blob + table->s->blob_fields;
        blob != end; blob++) {
-    uint32 length = ((Field_blob *)table->field[*blob])->get_length();
+    Field_blob *field = down_cast<Field_blob *>(table->field[*blob]);
+    const uint32 length = field->get_length();
     if (length) {
-      uchar *data_ptr;
-      ((Field_blob *)table->field[*blob])->get_ptr(&data_ptr);
-      memcpy(pos, data_ptr, length);
+      memcpy(pos, field->get_ptr(), length);
       pos += length;
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -74,19 +74,11 @@ Column::Column(const unsigned char *mysql_row,
 
     m_length_bytes_size = varstring_field.length_bytes;
     m_offset = mysql_field.offset(const_cast<unsigned char *>(mysql_row));
-
-    unsigned char *data_ptr;
-    const_cast<Field &>(mysql_field).get_ptr(&data_ptr);
-
-    data_offset = static_cast<size_t>(data_ptr - mysql_row);
+    data_offset = static_cast<size_t>(mysql_field.get_ptr() - mysql_row);
   } else {
     m_length_bytes_size = 0;
-    m_length = const_cast<Field &>(mysql_field).data_length();
-
-    unsigned char *data_ptr;
-    const_cast<Field &>(mysql_field).get_ptr(&data_ptr);
-
-    data_offset = static_cast<size_t>(data_ptr - mysql_row);
+    m_length = mysql_field.data_length();
+    data_offset = static_cast<size_t>(mysql_field.get_ptr() - mysql_row);
   }
   DBUG_ASSERT(data_offset <=
               std::numeric_limits<decltype(m_user_data_offset)>::max());

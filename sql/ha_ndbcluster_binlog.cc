@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -6843,8 +6843,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
 #ifndef DBUG_OFF
           // pointer vas set in get_ndb_blobs_value
           Field_blob *field_blob= (Field_blob*)field;
-          uchar* ptr;
-          field_blob->get_ptr(&ptr, row_offset);
+          const uchar *ptr= field_blob->get_blob_data(row_offset);
           uint32 len= field_blob->get_length(row_offset);
           DBUG_PRINT("info",("[%u] SET ptr: 0x%lx  len: %u",
                              field_no, (long) ptr, len));

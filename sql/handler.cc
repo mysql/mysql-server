@@ -7838,18 +7838,17 @@ static void extract_blob_space_and_length_from_record_buff(
     // Check if this field should be included
     if (bitmap_is_set(fields, (*vfield)->field_index) &&
         (*vfield)->is_virtual_gcol() && (*vfield)->type() == MYSQL_TYPE_BLOB) {
-      blob_len_ptr_array[num].length = (*vfield)->data_length();
+      auto field = down_cast<Field_blob *>(*vfield);
+      blob_len_ptr_array[num].length = field->data_length();
       // TODO: The following check is only for Innodb.
       DBUG_ASSERT(blob_len_ptr_array[num].length == 255 ||
                   blob_len_ptr_array[num].length == 768 ||
                   blob_len_ptr_array[num].length == 3073);
 
-      uchar *ptr;
-      (*vfield)->get_ptr(&ptr);
-      blob_len_ptr_array[num].ptr = ptr;
+      blob_len_ptr_array[num].ptr = field->get_blob_data();
 
       // Let server allocate the space for BLOB virtual generated columns
-      (*vfield)->reset();
+      field->reset();
 
       num++;
       DBUG_ASSERT(num <= MAX_FIELDS);
@@ -7891,9 +7890,7 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
       const uint alloc_len = blob_len_ptr_array[num].length;
       length = length > alloc_len ? alloc_len : length;
 
-      uchar *ptr;
-      (*vfield)->get_ptr(&ptr);
-      memcpy(blob_len_ptr_array[num].ptr, ptr, length);
+      memcpy(blob_len_ptr_array[num].ptr, (*vfield)->get_ptr(), length);
       (down_cast<Field_blob *>(*vfield))
           ->store_in_allocated_space(
               pointer_cast<char *>(blob_len_ptr_array[num].ptr), length);
