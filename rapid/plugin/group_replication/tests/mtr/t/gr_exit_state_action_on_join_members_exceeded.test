@@ -123,14 +123,16 @@
 --source include/rpl_reconnect.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $assert_file = $error_file
---let $assert_text = GR reported expected excess of members in group
---let $assert_select = The START GROUP_REPLICATION command failed since the group already has 9 members
---let $assert_count = 1
---source include/assert_grep.inc
+
 # Verify that super_read_only mode is reverted to its original value
 --let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
 --source include/wait_condition.inc
+
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected excess of members in group
+--let $assert_select = The START GROUP_REPLICATION command failed since the group already has 9 members
+--let $assert_count = 2
+--source include/assert_grep.inc
 
 --echo
 --echo #########################################################################

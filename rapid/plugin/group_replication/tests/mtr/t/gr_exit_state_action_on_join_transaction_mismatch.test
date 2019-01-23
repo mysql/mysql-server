@@ -131,14 +131,16 @@ SET GTID_NEXT= "AUTOMATIC";
 --source include/rpl_reconnect.inc
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $assert_file = $error_file
---let $assert_text = GR reported expected transaction mismatch
---let $assert_select = This member has more executed transactions than those present in the group
---let $assert_count = 1
---source include/assert_grep.inc
+
 # Verify that super_read_only mode is reverted to its original value
 --let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
 --source include/wait_condition.inc
+
+--let $assert_file = $error_file
+--let $assert_text = GR reported expected transaction mismatch
+--let $assert_select = This member has more executed transactions than those present in the group
+--let $assert_count = 2
+--source include/assert_grep.inc
 
 --echo
 --echo #########################################################################
