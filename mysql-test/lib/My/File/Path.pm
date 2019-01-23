@@ -201,7 +201,7 @@ sub get_bld_path {
   }
   # If path is relative to the source tree mysql-test.
   elsif (!File::Spec->file_name_is_absolute($path) and (-e $path)) {
-    $path = "$::basedir/mysql-test/$path";
+    $path = "$::glob_mysql_test_dir/$path";
   }
   return $path;
 }
