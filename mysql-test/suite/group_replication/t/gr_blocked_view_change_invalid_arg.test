@@ -1,0 +1,104 @@
+###############################################################################
+#
+# On a blocked group if a member executes a new view with wrong parameters it
+# cannot block shutdown of server.
+#
+# Test:
+#   0. The test requires two serves
+#   1. Force expel of member 2
+#   2. Confirm member1 sees member2 as unreachable
+#   3. A new view with wrong parameters will fail
+#   4. Shutdown server to confirm server isn't locked waiting for view
+#   5. Cleanup
+#
+###############################################################################
+
+# Test involves sending SIGSTOP and SIGCONT signals using kill Linux command.
+--source include/linux.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Force expel of member 2
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+# Then we send a SIGSTOP to it. This will stop the server from sending the
+# keep-alive message and thus it will be viewed as a faulty node by the rest of
+# the group (and consequently expelled).
+
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+--let $pid_file=`SELECT @@pid_file`
+--replace_result $pid_file pid_file
+--eval LOAD DATA LOCAL INFILE '$pid_file' INTO TABLE pid_table
+--let $server_pid=`SELECT pid_no FROM pid_table`
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+
+--exec kill -19 $server_pid
+
+--echo
+--echo # 2. Confirm member1 sees member2 as unreachable
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 3. A new view with wrong parameters will fail
+
+--error ER_WRONG_VALUE_FOR_VAR
+--eval SET GLOBAL group_replication_force_members= "127.0.0.1:10000"
+
+--echo
+--echo # 4. Shutdown server to confirm server isn't locked waiting for view
+
+SHUTDOWN;
+--source include/wait_until_disconnected.inc
+
+--echo
+--echo # 5. Cleanup
+
+# Restart server1
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+# Send SIGCONT to server, so it can continue.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--exec kill -18 $server_pid
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The peer is trying to set up a configuration where there are members that don't belong to the current view.");
+call mtr.add_suppression("Error setting group_replication_force_members value '127.0.0.1:10000' on group communication interfaces");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+set session sql_log_bin=1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("The member has failed to gracefully leave the group.");
+set session sql_log_bin=1;
+
+--source include/group_replication_end.inc

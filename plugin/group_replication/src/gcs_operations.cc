@@ -496,6 +496,8 @@ int Gcs_operations::force_members(const char *members) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBER_VALUE_SET_ERROR,
                    members);
       error = 1;
+      view_change_notifier.cancel_view_modification();
+      remove_view_notifer(&view_change_notifier);
       goto end;
       /* purecov: end */
     }
