@@ -1855,7 +1855,7 @@ type_conversion_status Field::store(const char *to, size_t length,
    little-endian.
 */
 uchar *Field::pack(uchar *to, const uchar *from, uint max_length,
-                   bool low_byte_first MY_ATTRIBUTE((unused))) {
+                   bool low_byte_first MY_ATTRIBUTE((unused))) const {
   uint32 length = pack_length();
   set_if_smaller(length, max_length);
   memcpy(to, from, length);
@@ -4091,7 +4091,7 @@ void Field_longlong::sql_type(String &res) const {
  */
 
 uchar *Field_real::pack(uchar *to, const uchar *from, uint max_length,
-                        bool low_byte_first) {
+                        bool low_byte_first) const {
   DBUG_ENTER("Field_real::pack");
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first) {
@@ -6460,7 +6460,7 @@ void Field_string::sql_type(String &res) const {
 }
 
 uchar *Field_string::pack(uchar *to, const uchar *from, uint max_length,
-                          bool low_byte_first MY_ATTRIBUTE((unused))) {
+                          bool) const {
   uint length = my_charpos(field_charset, from, from + field_length,
                            field_length / field_charset->mbmaxlen);
   uint length_bytes = (field_length > 255) ? 2 : 1;
@@ -6850,7 +6850,7 @@ uint32 Field_varstring::data_length(uint row_offset) const {
 */
 
 uchar *Field_varstring::pack(uchar *to, const uchar *from, uint max_length,
-                             bool low_byte_first MY_ATTRIBUTE((unused))) {
+                             bool) const {
   uint length = length_bytes == 1 ? (uint)*from : uint2korr(from);
   if (max_length < length_bytes)
     length = 0;
@@ -7024,7 +7024,7 @@ Field_blob::Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
   /* TODO: why do not fill table->s->blob_field array here? */
 }
 
-void Field_blob::store_length(uchar *i_ptr, uint i_packlength, uint32 i_number,
+static void store_blob_length(uchar *i_ptr, uint i_packlength, uint32 i_number,
                               bool low_byte_first MY_ATTRIBUTE((unused))) {
   switch (i_packlength) {
     case 1:
@@ -7289,8 +7289,8 @@ int Field_blob::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
 
 size_t Field_blob::get_key_image(uchar *buff, size_t length,
                                  imagetype type_arg) {
-  uint32 blob_length = get_length(ptr);
-  uchar *blob;
+  uint32 blob_length = get_length();
+  const uchar *const blob = get_ptr();
 
   if (type_arg == itMBR) {
     const uint image_length = SIZEOF_STORED_DOUBLE * 4;
@@ -7299,7 +7299,6 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length,
       memset(buff, 0, image_length);
       return image_length;
     }
-    get_ptr(&blob);
     gis::srid_t srid = uint4korr(blob);
     const dd::Spatial_reference_system *srs = nullptr;
     dd::cache::Dictionary_client::Auto_releaser m_releaser(
@@ -7321,7 +7320,6 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length,
     return image_length;
   }
 
-  get_ptr(&blob);
   uint local_char_length = length / field_charset->mbmaxlen;
   local_char_length =
       my_charpos(field_charset, blob, blob + blob_length, local_char_length);
@@ -7430,27 +7428,36 @@ void Field_blob::sql_type(String &res) const {
   }
 }
 
+bool Field_blob::copy() {
+  const uint32 length = get_length();
+  if (value.copy(pointer_cast<const char *>(get_ptr()), length, charset())) {
+    Field_blob::reset();
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), length);
+    return true;
+  }
+  DBUG_ASSERT(value.length() == length);
+  set_ptr(length, pointer_cast<const uchar *>(value.ptr()));
+  return false;
+}
+
 uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length,
-                        bool low_byte_first) {
-  uchar *save = ptr;
-  ptr = (uchar *)from;
-  uint32 length = get_length();  // Length of from string
+                        bool low_byte_first) const {
+  uint32 length = get_length(from);  // Length of from string
 
   /*
     Store max length, which will occupy packlength bytes. If the max
     length given is smaller than the actual length of the blob, we
     just store the initial bytes of the blob.
   */
-  store_length(to, packlength, min(length, max_length), low_byte_first);
+  store_blob_length(to, packlength, min(length, max_length), low_byte_first);
 
   /*
     Store the actual blob data, which will occupy 'length' bytes.
    */
   if (length > 0) {
-    get_ptr((uchar **)&from);
-    memcpy(to + packlength, from, length);
+    memcpy(to + packlength, get_blob_data(from + packlength), length);
   }
-  ptr = save;  // Restore org row pointer
+
   return to + packlength + length;
 }
 
@@ -7486,12 +7493,8 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
   bitmap_set_bit(table->write_set, field_index);
   Field_blob::store(pointer_cast<const char *>(from) + master_packlength,
                     length, field_charset);
-#ifndef DBUG_OFF
-  uchar *vptr;
-  get_ptr(&vptr);
   DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
-  DBUG_DUMP("value", vptr, length /* the blob value length */);
-#endif
+  DBUG_DUMP("value", get_ptr(), length /* the blob value length */);
   DBUG_RETURN(from + master_packlength + length);
 }
 
@@ -8611,7 +8614,7 @@ uint Field_enum::is_equal(const Create_field *new_field) {
 }
 
 uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
-                        bool low_byte_first) {
+                        bool low_byte_first) const {
   DBUG_ENTER("Field_enum::pack");
   DBUG_PRINT("debug", ("packlength: %d", packlength));
   DBUG_DUMP("from", from, packlength);
@@ -9063,7 +9066,7 @@ void Field_bit::sql_type(String &res) const {
 }
 
 uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
-                       bool low_byte_first MY_ATTRIBUTE((unused))) {
+                       bool low_byte_first MY_ATTRIBUTE((unused))) const {
   if (max_length == 0) {
     return to + 1;
   }
@@ -9669,9 +9672,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
   if (!blob_value) DBUG_RETURN(true);
 
   // Copy Data
-  uchar *temp_ptr;
-  get_ptr(&temp_ptr);
-  memcpy(blob_value, temp_ptr, ulen);
+  memcpy(blob_value, get_ptr(), ulen);
 
   // Set ptr of Field for duplicated data
   store_ptr_and_length(blob_value, ulen);
@@ -9889,7 +9890,7 @@ bool Field::maybe_null() const {
 
 uint Field::null_offset() const { return null_offset(table->record[0]); }
 
-uchar *Field::pack(uchar *to, const uchar *from) {
+uchar *Field::pack(uchar *to, const uchar *from) const {
   DBUG_ENTER("Field::pack");
   uchar *result = this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
   DBUG_RETURN(result);
@@ -10019,56 +10020,56 @@ static inline void handle_int64(uchar *to, const uchar *from, uint max_length,
 }
 
 uchar *Field::pack_int16(uchar *to, const uchar *from, uint max_length,
-                         bool low_byte_first_to) {
+                         bool low_byte_first_to) const {
   handle_int16(to, from, max_length, table->s->db_low_byte_first,
                low_byte_first_to);
   return to + sizeof(int16);
 }
 
 const uchar *Field::unpack_int16(uchar *to, const uchar *from,
-                                 bool low_byte_first_from) {
+                                 bool low_byte_first_from) const {
   handle_int16(to, from, UINT_MAX, low_byte_first_from,
                table->s->db_low_byte_first);
   return from + sizeof(int16);
 }
 
 uchar *Field::pack_int24(uchar *to, const uchar *from, uint max_length,
-                         bool low_byte_first_to) {
+                         bool low_byte_first_to) const {
   handle_int24(to, from, max_length, table->s->db_low_byte_first,
                low_byte_first_to);
   return to + 3;
 }
 
 const uchar *Field::unpack_int24(uchar *to, const uchar *from,
-                                 bool low_byte_first_from) {
+                                 bool low_byte_first_from) const {
   handle_int24(to, from, UINT_MAX, low_byte_first_from,
                table->s->db_low_byte_first);
   return from + 3;
 }
 
 uchar *Field::pack_int32(uchar *to, const uchar *from, uint max_length,
-                         bool low_byte_first_to) {
+                         bool low_byte_first_to) const {
   handle_int32(to, from, max_length, table->s->db_low_byte_first,
                low_byte_first_to);
   return to + sizeof(int32);
 }
 
 const uchar *Field::unpack_int32(uchar *to, const uchar *from,
-                                 bool low_byte_first_from) {
+                                 bool low_byte_first_from) const {
   handle_int32(to, from, UINT_MAX, low_byte_first_from,
                table->s->db_low_byte_first);
   return from + sizeof(int32);
 }
 
 uchar *Field::pack_int64(uchar *to, const uchar *from, uint max_length,
-                         bool low_byte_first_to) {
+                         bool low_byte_first_to) const {
   handle_int64(to, from, max_length, table->s->db_low_byte_first,
                low_byte_first_to);
   return to + sizeof(int64);
 }
 
 const uchar *Field::unpack_int64(uchar *to, const uchar *from,
-                                 bool low_byte_first_from) {
+                                 bool low_byte_first_from) const {
   handle_int64(to, from, UINT_MAX, low_byte_first_from,
                table->s->db_low_byte_first);
   return from + sizeof(int64);
@@ -10101,7 +10102,7 @@ Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
 
 void Field_blob::store_length(uchar *i_ptr, uint i_packlength,
                               uint32 i_number) {
-  store_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
+  store_blob_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
 }
 
 uint32 Field_blob::get_length(uint row_offset) const {

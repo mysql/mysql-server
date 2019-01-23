@@ -4518,7 +4518,7 @@ static bool table_rec_cmp(TABLE *table) {
 */
 
 ulonglong unique_hash(Field *field, ulonglong *hash_val) {
-  uchar *pos, *end;
+  const uchar *pos, *end;
   ulong seed1 = 0, seed2 = 4;
   ulonglong crc = *hash_val;
 
@@ -4532,7 +4532,7 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val) {
     goto finish;
   }
 
-  field->get_ptr(&pos);
+  pos = field->get_ptr();
   end = pos + field->data_length();
 
   if (field->type() == MYSQL_TYPE_JSON) {
