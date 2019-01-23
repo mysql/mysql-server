@@ -486,12 +486,10 @@ IF (MERGE_UNITTESTS)
 
   SET(ADD_MERGE_LARGE_TESTS 1)
   IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-    IF(${CC_MINOR_VERSION} EQUAL 15)
-      MESSAGE(WARNING
-        "Likely link failure for this compiler, skipping merge_large_tests-t")
-      SET_PROPERTY(TARGET merge_large_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
-      UNSET(ADD_MERGE_LARGE_TESTS)
-    ENDIF()
+    MESSAGE(WARNING
+      "Likely link failure for this compiler, skipping merge_large_tests-t")
+    SET_PROPERTY(TARGET merge_large_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+    UNSET(ADD_MERGE_LARGE_TESTS)
   ENDIF()
   IF(ADD_MERGE_LARGE_TESTS)
     ADD_TEST(merge_large_tests

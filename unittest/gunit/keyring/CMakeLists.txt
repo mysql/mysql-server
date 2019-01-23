@@ -75,7 +75,7 @@ ADD_DEPENDENCIES(keyring_test GenError)
 
 IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t
-    ${ALL_KEYRING_TESTS} ADD_TEST merge_keyring_file_tests)
+    ${ALL_KEYRING_TESTS} SKIP_INSTALL)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
@@ -89,6 +89,17 @@ IF (MERGE_UNITTESTS)
   ENDIF()
 
   ADD_DEPENDENCIES(merge_keyring_file_tests-t GenError)
+
+  # See ../CMakeLists.txt
+  IF(ADD_MERGE_LARGE_TESTS)
+    ADD_TEST(merge_keyring_file_tests
+      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_keyring_file_tests-t)
+  ELSE()
+    MESSAGE(WARNING
+      "Likely link failure, skipping merge_keyring_file_tests-t")
+    SET_PROPERTY(TARGET merge_keyring_file_tests-t
+      PROPERTY EXCLUDE_FROM_ALL TRUE)
+  ENDIF()
 
 ENDIF(MERGE_UNITTESTS)
 
