@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1417,6 +1417,12 @@ NdbTransaction::releaseScanOperation(NdbIndexScanOperation** listhead,
   
   if (op != NULL)
   {
+    if (unlikely(theErrorOperation == op))
+    {
+      /* Remove ref to scan op before release */
+      theErrorLine = 0;
+      theErrorOperation = NULL;
+    }
     op->release();
     theNdb->releaseScanOperation(op);
     return true;
