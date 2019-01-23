@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -299,6 +299,11 @@ SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_69_0/patches")
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)
   ADD_DEFINITIONS(-DBOOST_GEOMETRY_SQRT_CHECK_FINITENESS)
+ENDIF()
+
+# Boost gets confused about language support with Clang 7 + MSVC 15.9
+IF(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  ADD_DEFINITIONS(-DBOOST_NO_CXX17_HDR_STRING_VIEW)
 ENDIF()
 
 IF(LOCAL_BOOST_DIR OR LOCAL_BOOST_ZIP)
