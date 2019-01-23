@@ -28,16 +28,10 @@ DROP TABLE ndbinfo.ndb$nodes;
 --error ER_VIEW_INVALID
 SELECT COUNT(*) FROM nodes;
 
-let $log_file = $MYSQLTEST_VARDIR/tmp/ndbinfo_upgrade_check.log;
---replace_result $log_file log_file
---let $restart_parameters= restart:--force-upgrade --log-error=$log_file
+--let $restart_parameters= restart:--force-upgrade
 --let $mysqld_name=mysqld.1.1
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
 # The underlying table should have been created and nodes view be readable
 SELECT COUNT(*) FROM nodes;
-
-# Remove the upgrade info file created by mysql_upgrade(in mysqld datadir)
-# to avoid affecting other tests running mysql_upgrade
---remove_file $log_file
