@@ -71,6 +71,27 @@ let SEARCH_FILE= $MYSQLD_LOG;
 --let SEARCH_PATTERN= Table mismatch_frms/t1_col_name is not found in InnoDB dictionary
 --source include/search_pattern.inc
 
+--echo # ------------------------------------------------------------------
+--echo # Check upgrade of tablespaces with a missing tablespace file.
+--echo # ------------------------------------------------------------------
+
+--echo # Upgrade fails for the case where the general tablespace file is removed.
+--remove_file $MYSQL_TMP_DIR/data57/test_tablespace_2.ibd
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--let SEARCH_PATTERN= Error in fixing SE data for tablespace.t3
+--source include/search_pattern.inc
+
+--echo # Upgrade fails for the case where the file per tablespace is removed.
+--remove_file $MYSQL_TMP_DIR/data57/test/parent.ibd
+
+--error 1
+--exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
+
+--let SEARCH_PATTERN= Got error 197 from SE while migrating tablespaces
+--source include/search_pattern.inc
+
 --echo # Remove copied files
 #--remove_file $MYSQLD_LOG
 --remove_file $MYSQL_TMP_DIR/data57.zip

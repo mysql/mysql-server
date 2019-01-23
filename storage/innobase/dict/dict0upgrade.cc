@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -184,7 +184,7 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
     strncpy(name, tablespace_name.c_str(), MAX_FULL_NAME_LEN);
   } else {
     ut_ad(DICT_TF_HAS_SHARED_SPACE(ib_table->flags));
-    ut_ad(ib_table->tablespace != NULL);
+    if (ib_table->tablespace == NULL) return (ts_obj);
     strncpy(name, ib_table->tablespace(), MAX_FULL_NAME_LEN);
   }
 
@@ -887,7 +887,6 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
     dd::Tablespace *dd_space =
         dd_upgrade_get_tablespace(thd, dd_client, ib_table);
-    ut_ad(dd_space != nullptr);
 
     if (dd_space == nullptr) {
       dict_table_close(ib_table, false, false);
@@ -1150,6 +1149,16 @@ int dd_upgrade_tablespace(THD *thd) {
           (tablespace_name.find("mysql/innodb_index_stats") == 0)) {
         orig_name.erase(orig_name.end() - 4, orig_name.end());
         orig_name.append("_backup57.ibd");
+      } else if (is_file_per_table) {
+        /* Validate whether the tablespace file exists before making
+        the entry in dd::tablespaces*/
+        Datafile df;
+        df.set_filepath(orig_name.c_str());
+        if (df.open_read_only(false) != DB_SUCCESS) {
+          mem_heap_free(heap);
+          DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+        }
+        df.close();
       }
 
       ut_ad(filename != NULL);
