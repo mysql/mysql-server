@@ -5848,35 +5848,29 @@ static void do_shutdown_server(struct st_command *command) {
         die("Failed to get datadir from server");
     }
 
-    const char *var_name = "$MTR_MANUAL_DEBUG";
-    VAR *var = var_get(var_name, &var_name, 0, 0);
-    if (var->int_val) {
-      if (!kill_process(pid) && is_process_active(pid)) error = 3;
-    } else {
-      // Tell server to shutdown if timeout > 0.
-      if (timeout > 0 && mysql_query_wrapper(mysql, "shutdown")) {
-        // Failed to issue shutdown command.
-        error = 1;
+    // Tell server to shutdown if timeout > 0.
+    if (timeout > 0 && mysql_query_wrapper(mysql, "shutdown")) {
+      // Failed to issue shutdown command.
+      error = 1;
+      goto end;
+    }
+
+    // Check that server dies
+    do {
+      if (!is_process_active(pid)) {
+        DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
         goto end;
       }
+      if (timeout > 0) {
+        DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
+        my_sleep(1000000L);
+      }
+    } while (timeout-- > 0);
 
-      // Check that server dies
-      do {
-        if (!is_process_active(pid)) {
-          DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
-          goto end;
-        }
-        if (timeout > 0) {
-          DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
-          my_sleep(1000000L);
-        }
-      } while (timeout-- > 0);
+    error = 2;
 
-      error = 2;
-
-      // Abort to make it easier to find the hang/problem.
-      abort_process(pid, ds_file_name.c_str());
-    }
+    // Abort to make it easier to find the hang/problem.
+    abort_process(pid, ds_file_name.c_str());
   } else {
     // timeout value is 0, kill the server
     DBUG_PRINT("info", ("Killing server, pid: %d", pid));
