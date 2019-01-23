@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@ IF(WIN32)
 ENDIF()
 
 MACRO(MYSQL_CHECK_RPC)
-  IF(LINUX)
+  IF(LINUX AND NOT LIBTIRPC_VERSION_TOO_OLD)
     # Do a sanity check, before bailing out in FIND_PACKAGE below.
     FIND_PROGRAM(MY_PKG_CONFIG_EXECUTABLE NAMES pkg-config
       DOC "pkg-config executable")
@@ -32,6 +32,23 @@ MACRO(MYSQL_CHECK_RPC)
     ENDIF()
     FIND_PACKAGE(PkgConfig REQUIRED)
     PKG_CHECK_MODULES(TIRPC libtirpc)
+  ENDIF()
+
+  IF(TIRPC_FOUND)
+    IF(TIRPC_VERSION VERSION_LESS 1.0)
+      SET(LIBTIRPC_VERSION_TOO_OLD 1 CACHE INTERNAL "libtirpc is too old" FORCE)
+      MESSAGE(WARNING
+        "Ignoring libtirpc version ${TIRPC_VERSION}, need at least 1.0")
+      UNSET(TIRPC_FOUND)
+      UNSET(TIRPC_FOUND CACHE)
+      GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)
+      FOREACH(CACHE_VAR ${CACHE_VARS})
+        IF(CACHE_VAR MATCHES "^TIRPC_.*")
+          UNSET(${CACHE_VAR})
+          UNSET(${CACHE_VAR} CACHE)
+        ENDIF()
+      ENDFOREACH()
+    ENDIF()
   ENDIF()
 
   IF(TIRPC_FOUND)
