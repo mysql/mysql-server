@@ -22,9 +22,6 @@ if ($VALGRIND_TEST) {
 if ($TSAN_OPTIONS) {
   --let $wait_counter= 15000
 }
-if ($MTR_MANUAL_DEBUG) {
-  --let $counter = 864000
-}
 if ($wait_counter) {
   --let $counter= $wait_counter
 }
