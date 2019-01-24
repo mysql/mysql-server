@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,6 @@ SET(MYISAM_NOPFS myisam_nopfs)
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc)
 TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)
-SET_TARGET_PROPERTIES(myisam_ftdump PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc)
 TARGET_LINK_LIBRARIES(myisamchk ${MYISAM_NOPFS} mysys_ssl)
@@ -84,24 +83,6 @@ TARGET_LINK_LIBRARIES(myisamlog ${MYISAM_NOPFS} ${LIBSOCKET})
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
 TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
 
-IF(WITH_UNIT_TESTS AND FALSE)
-  MYSQL_ADD_EXECUTABLE(mi_test1 mi_test1.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(mi_test1 ${MYISAM_NOPFS} mysys_ssl)
-  SET_TARGET_PROPERTIES(mi_test1 PROPERTIES LINKER_LANGUAGE CXX)
-
-  MYSQL_ADD_EXECUTABLE(mi_test2 mi_test2.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(mi_test2 myisam)
-
-  MYSQL_ADD_EXECUTABLE(mi_test3 mi_test3.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(mi_test3  myisam)
-
-  MYSQL_ADD_EXECUTABLE(sp_test sp_test.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(sp_test myisam)
-
-  MYSQL_ADD_EXECUTABLE(rt_test rt_test.cc SKIP_INSTALL)
-  TARGET_LINK_LIBRARIES(rt_test myisam)
-ENDIF()
-  
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
 ENDIF()
