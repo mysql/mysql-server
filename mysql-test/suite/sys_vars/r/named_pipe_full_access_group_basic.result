@@ -9,6 +9,11 @@ named_pipe_full_access_group	*everyone*
 show session variables like 'named_pipe_full_access_group';
 Variable_name	Value
 named_pipe_full_access_group	*everyone*
+set global named_pipe_full_access_group = NULL;
+show session variables like 'named_pipe_full_access_group';
+Variable_name	Value
+named_pipe_full_access_group	
+set global named_pipe_full_access_group = '*everyone*';
 select * from information_schema.global_variables where variable_name='named_pipe_full_access_group';
 VARIABLE_NAME	VARIABLE_VALUE
 NAMED_PIPE_FULL_ACCESS_GROUP	*everyone*
