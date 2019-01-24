@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1824,6 +1824,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
   {
     bool many = false;
     bool orlockmode = loPtr.p->m_op_bits & Operationrec::OP_LOCK_MODE;
+    bool aborting = false;
     OperationrecPtr lastP = loPtr;
     
     while (lastP.p->nextParallelQue != RNIL)
@@ -1837,6 +1838,7 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
       const Uint32 opbits = lastP.p->m_op_bits;
       many |= loPtr.p->is_same_trans(lastP.p) ? 0 : 1;
       orlockmode |= ((opbits & Operationrec::OP_LOCK_MODE) != 0);
+      aborting |= ((opbits & Operationrec::OP_PENDING_ABORT) != 0);
       
       vlqrequire(opbits & Operationrec::OP_RUN_QUEUE);
       vlqrequire((opbits & Operationrec::OP_LOCK_OWNER) == 0);
@@ -1880,6 +1882,12 @@ Dbacc::validate_lock_queue(OperationrecPtr opPtr)const
       if (many)
       {
 	vlqrequire(orlockmode == 0);
+      }
+
+      if (aborting)
+      {
+        vlqrequire(many == 0);
+        vlqrequire(lastP.p->m_op_bits & Operationrec::OP_PENDING_ABORT);
       }
     }
     
@@ -1979,23 +1987,28 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
   }
   
 /*
-    OP_MASK                 = 0x000F // 4 bits for operation type
-    ,OP_LOCK_MODE           = 0x0010 // 0 - shared lock, 1 = exclusive lock
-    ,OP_ACC_LOCK_MODE       = 0x0020 // Or:de lock mode of all operation
-                                     // before me
-    ,OP_LOCK_OWNER          = 0x0040
-    ,OP_DIRTY_READ          = 0x0080
-    ,OP_LOCK_REQ            = 0x0100 // isAccLockReq
-    ,OP_COMMIT_DELETE_CHECK = 0x0200
-    ,OP_INSERT_IS_DONE      = 0x0400
-    ,OP_ELEMENT_DISAPPEARED = 0x0800
+    OP_MASK                 = 0x0000F // 4 bits for operation type
+    ,OP_LOCK_MODE           = 0x00010 // 0 - shared lock, 1 = exclusive lock
+    ,OP_ACC_LOCK_MODE       = 0x00020 // Or:de lock mode of all operation
+                                      // before me
+    ,OP_LOCK_OWNER          = 0x00040
+    ,OP_RUN_QUEUE           = 0x00080 // In parallell queue of lock owner
+    ,OP_DIRTY_READ          = 0x00100
+    ,OP_LOCK_REQ            = 0x00200 // isAccLockReq
+    ,OP_COMMIT_DELETE_CHECK = 0x00400
+    ,OP_INSERT_IS_DONE      = 0x00800
+    ,OP_ELEMENT_DISAPPEARED = 0x01000
+    ,OP_PENDING_ABORT       = 0x02000
+
     
-    ,OP_STATE_MASK          = 0xF000
-    ,OP_STATE_IDLE          = 0xF000
-    ,OP_STATE_WAITING       = 0x0000
-    ,OP_STATE_RUNNING       = 0x1000
-    ,OP_STATE_EXECUTED      = 0x3000
-  };
+    ,OP_STATE_MASK          = 0xF0000
+    ,OP_STATE_IDLE          = 0xF0000
+    ,OP_STATE_WAITING       = 0x00000
+    ,OP_STATE_RUNNING       = 0x10000
+    ,OP_STATE_EXECUTED      = 0x30000
+    
+    ,OP_EXECUTED_DIRTY_READ = 0x3050F
+    ,OP_INITIAL             = ~(Uint32)0
 */
   if (opbits & Dbacc::Operationrec::OP_LOCK_OWNER)
     out << "LO ";
@@ -2014,6 +2027,9 @@ operator<<(NdbOut & out, Dbacc::OperationrecPtr ptr)
   
   if (opbits & Dbacc::Operationrec::OP_ELEMENT_DISAPPEARED)
     out << "ELEMENT_DISAPPEARED ";
+
+  if (opbits & Dbacc::Operationrec::OP_PENDING_ABORT)
+    out << "PENDING_ABORT ";
   
   if (opbits & Dbacc::Operationrec::OP_LOCK_OWNER)
   {
@@ -4460,6 +4476,106 @@ void Dbacc::checkoverfreelist(Page8Ptr colPageptr)
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
 /* ------------------------------------------------------------------------- */
+
+
+/**
+ * mark_pending_abort
+ *
+ * Called when aborting an operation, to mark any dependent operations
+ * as pendingAbort.
+ * This is useful for handling ABORT and PREPARE concurrency when there
+ * are multiple operations on the same row.
+ *
+ * Dependencies
+ *   Within a transaction : 
+ *     Later modify operations depend on earlier
+ *       modify operations.
+ *     Later READ operations may or may not depend
+ *       on earlier modify operations
+ *       - READs have no state at TUP
+ *       - READs may READ older (unaborted) row states
+ *       Since we do not know, we abort.
+ *     Later operations do not depend on earlier
+ *       READ operations
+ *   Between transactions : 
+ *     There are no abort dependencies
+ */
+void
+Dbacc::mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp)
+{
+  jam();
+  const Uint32 abortingOpBits = abortingOp.p->m_op_bits;
+  const Uint32 opType = abortingOpBits & Operationrec::OP_MASK;
+
+  /* Only relevant when aborting modifying operations */
+  if (opType == ZREAD ||
+      opType == ZSCAN_OP)
+  {
+    jam();
+    return;
+  }
+
+  if ((abortingOpBits & Operationrec::OP_PENDING_ABORT) != 0)
+  {
+    jam();
+    /**
+     * Aborting Op already PENDING_ABORT therefore followers also
+     * already PENDING_ABORT
+     */
+    return;
+  }
+
+  ndbassert(abortingOpBits & Operationrec::OP_LOCK_MODE);
+  ndbassert(opType == ZINSERT ||
+            opType == ZUPDATE ||
+            opType == ZDELETE); /* Don't expect WRITE */
+
+  OperationrecPtr follower;
+  follower.i = nextParallelOp;
+  while (follower.i != RNIL)
+  {
+    ptrCheckGuard(follower, coprecsize, operationrec);
+    if (likely(follower.p->is_same_trans(abortingOp.p)))
+    {
+      jam();
+      if ((follower.p->m_op_bits & Operationrec::OP_PENDING_ABORT) != 0)
+      {
+        jam();
+        /* Found a later op in PENDING_ABORT state - done */
+        break;
+      }
+
+      follower.p->m_op_bits |= Operationrec::OP_PENDING_ABORT;
+    }
+    else
+    {
+      /* Follower is not same trans - unexpected as we hold EX lock */
+      dump_lock_queue(follower);
+      ndbrequire(false);
+    }
+    follower.i = follower.p->nextParallelQue;
+  }
+}
+
+
+/**
+ * checkOpPendingAbort
+ *
+ * Method called by LQH to check that an op has not 
+ * been marked as pending abort by the abort of
+ * some other operation
+ */
+bool
+Dbacc::checkOpPendingAbort(Uint32 accConnectPtr) const
+{
+  OperationrecPtr opPtr;
+  opPtr.i = accConnectPtr;
+  ptrCheckGuard(opPtr, coprecsize, operationrec);
+  
+  return ((opPtr.p->m_op_bits & 
+           Operationrec::OP_PENDING_ABORT) != 0);
+}
+
 /* ------------------------------------------------------------------------- */
 /* ABORT_OPERATION                                                           */
 /*DESCRIPTION: AN OPERATION RECORD CAN BE IN A LOCK QUEUE OF AN ELEMENT OR   */
@@ -4533,6 +4649,12 @@ Dbacc::abortParallelQueueOperation(Signal* signal, OperationrecPtr opPtr)
     return;
   }
 
+  /**
+   * This op is not at the end of the parallel queue, so 
+   * mark pending aborts there as necessary
+   */
+  mark_pending_abort(opPtr, nextP.i);
+         
   /**
    * Abort P1/P2
    */
@@ -4794,6 +4916,7 @@ void Dbacc::abortOperation(Signal* signal)
     if (queue)
     {
       jam();
+      mark_pending_abort(operationRecPtr, operationRecPtr.p->nextParallelQue);
       release_lockowner(signal, operationRecPtr, false);
     } 
     else 
@@ -4935,6 +5058,7 @@ void Dbacc::commitOperation(Signal* signal)
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
   ndbrequire((opbits & Operationrec::OP_STATE_MASK) == Operationrec::OP_STATE_EXECUTED);
+  ndbassert((opbits & Operationrec::OP_PENDING_ABORT) == 0);
   if ((opbits & Operationrec::OP_COMMIT_DELETE_CHECK) == 0 && 
       (op != ZREAD && op != ZSCAN_OP))
   {

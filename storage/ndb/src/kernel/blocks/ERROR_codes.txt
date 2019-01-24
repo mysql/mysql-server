@@ -25,7 +25,7 @@ Next NDBCNTR 1008
 Next NDBFS 2002
 Next DBACC 3006
 Next DBTUP 4039
-Next DBLQH 5092
+Next DBLQH 5098
 Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8117
@@ -342,6 +342,17 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
            Crash on "next" ABORT
 
 5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
+
+Error insertions used to test ACCKEYCONF/ABORT interleaving
+
+5094: Allow one ACCKEYCONF to be processed then set 5095
+5095: Cause ACCKEYCONF messages to be indefinitely stalled
+      Allow one ABORT signal to be processed then set 5096
+5096: Cause ABORT messages to be indefinitely stalled
+      ACCKEYCONF signal clears ERROR Insertion
+5097: ndbrequire(false)
+
+
 
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------

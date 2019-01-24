@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -712,6 +712,8 @@ struct Operationrec {
     ,OP_COMMIT_DELETE_CHECK = 0x00400
     ,OP_INSERT_IS_DONE      = 0x00800
     ,OP_ELEMENT_DISAPPEARED = 0x01000
+    ,OP_PENDING_ABORT       = 0x02000
+
     
     ,OP_STATE_MASK          = 0xF0000
     ,OP_STATE_IDLE          = 0xF0000
@@ -818,6 +820,8 @@ public:
   // Get the size of the linear hash map in bytes.
   Uint64 getLinHashByteSize(Uint32 fragId) const;
 
+  bool checkOpPendingAbort(Uint32 accConnectPtr) const;
+
 private:
   BLOCK_DEFINES(Dbacc);
 
@@ -914,6 +918,7 @@ private:
   void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op) const;
   void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
   void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);
+  void mark_pending_abort(OperationrecPtr abortingOp, Uint32 nextParallelOp);
   
   void expandcontainer(Page8Ptr pageptr, Uint32 conidx);
   void shrinkcontainer(Page8Ptr pageptr,
