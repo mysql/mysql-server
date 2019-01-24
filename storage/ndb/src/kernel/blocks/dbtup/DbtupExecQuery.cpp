@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -341,17 +341,6 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       return false;
     }
   }
-
-  if (unlikely(bits & Tuple_header::FREE))
-  {
-    /**
-     * The tuple could be FREE'ed due to an INSERT operation which aborted
-     * while we waited for ACC to grant us access to the tuple.
-     */
-    terrorCode= ZTUPLE_DELETED_ERROR;
-    return false;
-  }
-
   if (likely(currOpPtr.i == RNIL))
   {
     if (regTabPtr->need_expand(disk))
@@ -1173,6 +1162,9 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr)
 {
+  ndbassert(regOperPtr->op_type == ZINSERT ||
+            (! (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
+
   req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
   req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
   
