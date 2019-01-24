@@ -752,9 +752,11 @@ int ha_tina::find_current_row(uchar *buf) {
         // area so that it is not overwritten by subsequent calls to
         // Field::store() after moving the offset.
         if (length > 0) {
+          unsigned char *old_blob;
+          blob_field->get_ptr(&old_blob);
           unsigned char *new_blob = new (&blobroot) unsigned char[length];
           if (new_blob == nullptr) DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-          memcpy(new_blob, blob_field->get_ptr(), length);
+          memcpy(new_blob, old_blob, length);
           blob_field->set_ptr(length, new_blob);
         }
       }

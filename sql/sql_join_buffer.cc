@@ -1136,7 +1136,7 @@ uint JOIN_CACHE::write_record_data(uchar *link, bool *is_full) {
         uint blob_len = blob_field->get_length();
         (*copy_ptr)->blob_length = blob_len;
         len += blob_len;
-        (*copy_ptr)->str = blob_field->get_blob_data();
+        blob_field->get_ptr(&(*copy_ptr)->str);
       }
     }
   }

@@ -1509,11 +1509,11 @@ class Field : public Proto_field {
   bool send_text(Protocol *protocol) final override;
 
   virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
-                      bool low_byte_first) const;
+                      bool low_byte_first);
   /**
-     @overload Field::pack(uchar*, const uchar*, uint, bool) const
+     @overload Field::pack(uchar*, const uchar*, uint, bool)
   */
-  uchar *pack(uchar *to, const uchar *from) const;
+  uchar *pack(uchar *to, const uchar *from);
 
   virtual const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                               bool low_byte_first);
@@ -1716,8 +1716,8 @@ class Field : public Proto_field {
     return 0ULL;
   }
 
-  /** Return a pointer to the actual data in memory. */
-  virtual const uchar *get_ptr() const { return ptr; }
+  /* Return pointer to the actual data in memory */
+  virtual void get_ptr(uchar **str) { *str = ptr; }
 
   /**
     Checks whether a string field is part of write_set.
@@ -1796,28 +1796,28 @@ class Field : public Proto_field {
 
  protected:
   uchar *pack_int16(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+                    bool low_byte_first_to);
 
   const uchar *unpack_int16(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+                            bool low_byte_first_from);
 
   uchar *pack_int24(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+                    bool low_byte_first_to);
 
   const uchar *unpack_int24(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+                            bool low_byte_first_from);
 
   uchar *pack_int32(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+                    bool low_byte_first_to);
 
   const uchar *unpack_int32(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+                            bool low_byte_first_from);
 
   uchar *pack_int64(uchar *to, const uchar *from, uint max_length,
-                    bool low_byte_first_to) const;
+                    bool low_byte_first_to);
 
   const uchar *unpack_int64(uchar *to, const uchar *from,
-                            bool low_byte_first_from) const;
+                            bool low_byte_first_from);
 };
 
 /**
@@ -2041,7 +2041,7 @@ class Field_real : public Field_num {
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) override;
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const override;
+              bool low_byte_first) override;
 };
 
 class Field_decimal final : public Field_real {
@@ -2082,7 +2082,7 @@ class Field_decimal final : public Field_real {
     return Field::unpack(to, from, param_data, low_byte_first);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return Field::pack(to, from, max_length, low_byte_first);
   }
 };
@@ -2192,7 +2192,9 @@ class Field_tiny : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_TINY);
     return new (*THR_MALLOC) Field_tiny(*this);
   }
-  uchar *pack(uchar *to, const uchar *from, uint, bool) const final override {
+  uchar *pack(uchar *to, const uchar *from,
+              uint max_length MY_ATTRIBUTE((unused)),
+              bool low_byte_first MY_ATTRIBUTE((unused))) final override {
     *to = *from;
     return to + 1;
   }
@@ -2251,7 +2253,7 @@ class Field_short final : public Field_num {
     return new (*THR_MALLOC) Field_short(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return pack_int16(to, from, max_length, low_byte_first);
   }
 
@@ -2304,7 +2306,7 @@ class Field_medium final : public Field_num {
     return new (*THR_MALLOC) Field_medium(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return Field::pack(to, from, max_length, low_byte_first);
   }
 
@@ -2364,7 +2366,7 @@ class Field_long : public Field_num {
     return new (*THR_MALLOC) Field_long(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return pack_int32(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
@@ -2423,7 +2425,7 @@ class Field_longlong : public Field_num {
     return new (*THR_MALLOC) Field_longlong(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return pack_int64(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
@@ -3053,7 +3055,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
     return new (*THR_MALLOC) Field_timestamp(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return pack_int32(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
@@ -3471,7 +3473,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
     return new (*THR_MALLOC) Field_datetime(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override {
+              bool low_byte_first) final override {
     return pack_int64(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
@@ -3599,7 +3601,7 @@ class Field_string : public Field_longstr {
   size_t make_sort_key(uchar *buff, size_t length) final override;
   void sql_type(String &str) const final override;
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+              bool low_byte_first) final override;
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
   uint pack_length_from_metadata(uint field_metadata) const final override {
@@ -3689,7 +3691,7 @@ class Field_varstring : public Field_longstr {
   void set_key_image(const uchar *buff, size_t length) final override;
   void sql_type(String &str) const final override;
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+              bool low_byte_first) final override;
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
   int cmp_binary(const uchar *a, const uchar *b,
@@ -3720,7 +3722,7 @@ class Field_varstring : public Field_longstr {
   }
   uint is_equal(const Create_field *new_field) final override;
   void hash(ulong *nr, ulong *nr2) final override;
-  const uchar *get_ptr() const final override { return ptr + length_bytes; }
+  void get_ptr(uchar **str) final override { *str = ptr + length_bytes; }
   bool is_text_key_type() const final override {
     return binary() ? false : true;
   }
@@ -3883,44 +3885,40 @@ class Field_blob : public Field_longstr {
   uint32 get_length(const uchar *ptr, uint packlength,
                     bool low_byte_first) const;
   uint32 get_length(const uchar *ptr_arg) const;
-  /** Get a const pointer to the BLOB data of this field. */
-  const uchar *get_ptr() const final override {
-    return get_blob_data(ptr + packlength);
+  inline void get_ptr(uchar **str) final override {
+    memcpy(str, ptr + packlength, sizeof(uchar *));
   }
-  /** Get a non-const pointer to the BLOB data of this field. */
-  uchar *get_blob_data(uint row_offset = 0) {
-    return get_blob_data(ptr + packlength + row_offset);
+  inline void get_ptr(uchar **str, uint row_offset) {
+    memcpy(str, ptr + packlength + row_offset, sizeof(char *));
   }
-
- private:
-  /**
-    Get the BLOB data pointer stored at the specified position in the record
-    buffer.
-  */
-  static uchar *get_blob_data(const uchar *position) {
-    uchar *data;
-    memcpy(&data, position, sizeof(data));
-    return data;
-  }
-
- public:
-  void set_ptr(const uchar *length, const uchar *data) {
+  inline void set_ptr(uchar *length, uchar *data) {
     memcpy(ptr, length, packlength);
     memcpy(ptr + packlength, &data, sizeof(char *));
   }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, const uchar *data) {
+  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, uchar *data) {
     uchar *ptr_ofs = ptr + ptr_diff;
     store_length(ptr_ofs, packlength, length);
     memcpy(ptr_ofs + packlength, &data, sizeof(char *));
   }
-  void set_ptr(uint32 length, const uchar *data) {
+  inline void set_ptr(uint32 length, uchar *data) {
     set_ptr_offset(0, length, data);
   }
   size_t get_key_image(uchar *buff, size_t length,
                        imagetype type) final override;
   void set_key_image(const uchar *buff, size_t length) final override;
   void sql_type(String &str) const override;
-  bool copy();
+  inline bool copy() {
+    uchar *tmp;
+    get_ptr(&tmp);
+    if (value.copy((char *)tmp, get_length(), charset())) {
+      Field_blob::reset();
+      my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), get_length());
+      return 1;
+    }
+    tmp = (uchar *)value.ptr();
+    memcpy(ptr + packlength, &tmp, sizeof(char *));
+    return 0;
+  }
   Field_blob *clone(MEM_ROOT *mem_root) const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_BLOB);
     return new (mem_root) Field_blob(*this);
@@ -3930,7 +3928,7 @@ class Field_blob : public Field_longstr {
     return new (*THR_MALLOC) Field_blob(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+              bool low_byte_first) final override;
   const uchar *unpack(uchar *, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
   uint max_packed_col_length() final override;
@@ -4324,7 +4322,7 @@ class Field_enum : public Field_str {
     return new (*THR_MALLOC) Field_enum(*this);
   }
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool low_byte_first) const final override;
+              bool low_byte_first) final override;
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
 
@@ -4458,7 +4456,7 @@ class Field_bit : public Field {
                              int *order_var) const final override;
   void sql_type(String &str) const override;
   uchar *pack(uchar *to, const uchar *from, uint max_length,
-              bool) const final override;
+              bool) final override;
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool) final override;
   void set_default() final override;
