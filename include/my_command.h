@@ -53,15 +53,15 @@ enum enum_server_command {
   COM_QUIT,       /**< See @ref page_protocol_com_quit */
   COM_INIT_DB,    /**< See @ref page_protocol_com_init_db */
   COM_QUERY,      /**< See @ref page_protocol_com_query */
-  COM_FIELD_LIST, /**< Depreated. See @ref page_protocol_com_field_list */
+  COM_FIELD_LIST, /**< Deprecated. See @ref page_protocol_com_field_list */
   COM_CREATE_DB, /**< Currently refused by the server. See ::dispatch_command */
   COM_DROP_DB,   /**< Currently refused by the server. See ::dispatch_command */
-  COM_REFRESH,   /**< Depreated. See @ref page_protocol_com_refresh */
+  COM_REFRESH,   /**< Deprecated. See @ref page_protocol_com_refresh */
   COM_DEPRECATED_1,   /**< deprecated, used to be COM_SHUTDOWN */
   COM_STATISTICS,     /**< See @ref page_protocol_com_statistics */
-  COM_PROCESS_INFO,   /**< Depreated. See @ref page_protocol_com_process_info */
+  COM_PROCESS_INFO,   /**< Deprecated. See @ref page_protocol_com_process_info */
   COM_CONNECT,        /**< Currently refused by the server. */
-  COM_PROCESS_KILL,   /**< Depreated. See @ref page_protocol_com_process_kill */
+  COM_PROCESS_KILL,   /**< Deprecated. See @ref page_protocol_com_process_kill */
   COM_DEBUG,          /**< See @ref page_protocol_com_debug */
   COM_PING,           /**< See @ref page_protocol_com_ping */
   COM_TIME,           /**< Currently refused by the server. */
