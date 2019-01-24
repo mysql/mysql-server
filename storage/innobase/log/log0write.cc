@@ -1713,8 +1713,6 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
       log_increase_concurrency_margin(log);
     }
 
-    os_event_set(log.checkpointer_event);
-
     if (last_write_lsn + OS_FILE_LOG_BLOCK_SIZE <= checkpoint_limited_lsn) {
       /* Write what we have - adjust the speed to speed of checkpoints
       going forward (to speed of page-cleaners). */
