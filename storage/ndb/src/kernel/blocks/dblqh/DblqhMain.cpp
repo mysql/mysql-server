@@ -7450,6 +7450,32 @@ void Dblqh::execTUP_DEALLOCREQ(Signal* signal)
 void Dblqh::execACCKEYCONF(Signal* signal) 
 {
   jamEntry();
+  if (ERROR_INSERTED(5095))
+  {
+    jam();
+    g_eventLogger->info("LQH %u : ERRINS 5095 Delaying ACCKEYCONF",
+                        instance());
+    sendSignalWithDelay(reference(), GSN_ACCKEYCONF, signal, 10, 5);
+    return;
+  }
+
+  if (ERROR_INSERTED(5094))
+  {
+    jam();
+    g_eventLogger->info("LQH %u : ERRINS 5094 Passing ACCKEYCONF 1 and setting ERRINS 5095",
+                        instance());
+    SET_ERROR_INSERT_VALUE(5095);
+  }
+
+  if (ERROR_INSERTED(5096))
+  {
+    jam();
+    g_eventLogger->info("LQH %u : ERRINS 5096 set when processing ACCKEYCONF, clearing",
+                        instance());
+    CLEAR_ERROR_INSERT_VALUE;
+    //SET_ERROR_INSERT_VALUE(5097); // Kill on scan
+  }
+
   Uint32 tcIndex = signal->theData[0];
 
   setup_key_pointers(tcIndex);
@@ -7463,6 +7489,12 @@ void Dblqh::execACCKEYCONF(Signal* signal)
     LQHKEY_abort(signal, 3, m_tc_connect_ptr);
     return;
   }//if
+  if (unlikely(c_acc->checkOpPendingAbort(regTcPtr->accConnectrec)))
+  {
+    jam();
+    /* Wait for Abort */
+    return;
+  }
   c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragptr.p->tupFragptr);
   continueACCKEYCONF(signal, localKey1, localKey2, m_tc_connect_ptr);
 }
@@ -10230,6 +10262,22 @@ Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
 void Dblqh::execABORT(Signal* signal) 
 {
   jamEntry();
+  if (ERROR_INSERTED(5096))
+  {
+    jam();
+    g_eventLogger->info("LQH %u : ERRINS 5096 Stalling ABORT",
+                        instance());
+    sendSignalWithDelay(reference(), GSN_ABORT, signal, 10, 4);
+    return;
+  }
+  if (ERROR_INSERTED(5095))
+  {
+    jam();
+    g_eventLogger->info("LQH %u : ERRINS 5095 Passing abort and setting ERRINS 5096",
+                        instance());
+    SET_ERROR_INSERT_VALUE(5096);
+  }
+
   Uint32 tcOprec = signal->theData[0];
   BlockReference tcBlockref = signal->theData[1];
   Uint32 transid1 = signal->theData[2];
@@ -12832,6 +12880,11 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   {
     jam();
     return;
+  }
+
+  if (ERROR_INSERTED(5097))
+  {
+    ndbrequire(false);
   }
 
   ScanFragReq * const scanFragReq = (ScanFragReq *)&signal->theData[0];
