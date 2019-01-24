@@ -4,5 +4,4 @@
 #                INCORRECTLY
 
 --replace_regex s/	Xid = [0-9]*/	Xid = <number>/#
---let $mysqlbinlog_parameters = --hexdump suite/binlog/std_data/bug11747887-bin.000003
---source include/mysqlbinlog.inc
+--exec $MYSQL_BINLOG --hexdump suite/binlog/std_data/bug11747887-bin.000003
