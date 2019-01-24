@@ -1102,6 +1102,12 @@ bool xcom_input_new_signal_connection() {
   assert(input_signal_connection == NULL);
   input_signal_connection =
       connect_xcom((char *)"::1", local_server_port, false);
+
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  }
+
   return (input_signal_connection != NULL);
 }
 #else
@@ -1110,6 +1116,10 @@ void xcom_input_new_signal_connection(void) {
   assert(local_server_port != 0);
   assert(input_signal_connection == NULL);
   input_signal_connection = connect_xcom((char *)"::1", local_server_port);
+  if (input_signal_connection == NULL) {
+    input_signal_connection =
+        connect_xcom((char *)"127.0.0.1", local_server_port, false);
+  }
   assert(input_signal_connection != NULL);
 }
 #endif
@@ -5643,7 +5653,6 @@ static result checked_create_socket(int domain, int type, int protocol) {
     G_MESSAGE("Socket creation failed with error %d - %s.", retval.funerr,
               strerror(retval.funerr));
 #endif
-    abort();
   }
   return retval;
 }
@@ -5925,7 +5934,8 @@ static connection_descriptor *connect_xcom(const char *server, xcom_port port) {
    */
   if ((fd = checked_create_socket(addr->ai_family, SOCK_STREAM, IPPROTO_TCP))
           .val < 0) {
-    G_ERROR("Error creating socket in local GR->GCS connection.");
+    G_ERROR("Error creating socket in local GR->GCS connection to address %s.",
+            server);
     goto end;
   }
 
