@@ -6431,9 +6431,6 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
 
   int4store(buf, name_len);
 
-  char name_buf[NAME_LEN + 1];
-  strncpy(name_buf, name, name_len);
-  name_buf[name_len] = '\0';
   if ((buf1[0] = is_null)) {
     buf1_length = 1;
     val_len = 0;  // Length of 'pos'
@@ -6470,13 +6467,11 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
     buf1_length = 10;
   }
 
-  /* Length of the whole event, the "1" below is the \0 in the name's length*/
-  event_length =
-      sizeof(buf) + name_len + 1 + buf1_length + val_len + unsigned_len;
+  event_length = sizeof(buf) + name_len + buf1_length + val_len + unsigned_len;
 
   return (write_header(ostream, event_length) ||
           wrapper_my_b_safe_write(ostream, (uchar *)buf, sizeof(buf)) ||
-          wrapper_my_b_safe_write(ostream, (uchar *)name_buf, name_len + 1) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)name, name_len) ||
           wrapper_my_b_safe_write(ostream, (uchar *)buf1, buf1_length) ||
           wrapper_my_b_safe_write(ostream, pos, val_len) ||
           wrapper_my_b_safe_write(ostream, &flags, unsigned_len) ||

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -836,7 +836,7 @@ class User_var_event : public Binary_log_event {
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
       : Binary_log_event(USER_VAR_EVENT),
-        name(name_arg),
+        name(bapi_strndup(name_arg, name_len_arg)),
         name_len(name_len_arg),
         val(val_arg),
         val_len(val_len_arg),
@@ -864,6 +864,7 @@ class User_var_event : public Binary_log_event {
     @param fde  An FDE event (see Rotate_event constructor for more info).
   */
   User_var_event(const char *buf, const Format_description_event *fde);
+  virtual ~User_var_event();
   const char *name;
   unsigned int name_len;
   char *val;

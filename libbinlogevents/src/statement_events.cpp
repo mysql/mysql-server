@@ -426,8 +426,7 @@ User_var_event::User_var_event(const char *buf,
 
   READER_TRY_SET(name_len, read_and_letoh<uint32_t>);
   if (name_len == 0) READER_THROW("Invalid name length");
-  name = READER_CALL(ptr);
-  READER_TRY_CALL(forward, name_len + 1);
+  name = READER_CALL(strndup<const char *>, name_len);
   READER_TRY_SET(is_null, read<uint8_t>);
 
   flags = User_var_event::UNDEF_F;  // defaults to UNDEF_F
@@ -481,6 +480,8 @@ User_var_event::User_var_event(const char *buf,
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
 }
+
+User_var_event::~User_var_event() { bapi_free(const_cast<char *>(name)); }
 
 /**
   Constructor receives a packet from the MySQL master or the binary
