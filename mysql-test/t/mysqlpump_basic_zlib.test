@@ -1,19 +1,11 @@
-
+#
 # "openssl zlib" is known to be problematic on Debian and Ubuntu,
 # and just skip if needed, on other platforms fail
+
+
 if (!$ZLIB_DECOMPRESS)
 {
-  let OPENSSL_ZLIB_EXEC_LOG= $MYSQLTEST_VARDIR/log/openssl_zlib_exec_log.txt;
-  --error 0, 1, 127
-  --exec openssl zlib -help 2> $OPENSSL_ZLIB_EXEC_LOG
-  let OPENSSL_ZLIB_VAR= $__error;
-  --error 0,1
-  --remove_file $OPENSSL_ZLIB_EXEC_LOG
-  if ($OPENSSL_ZLIB_VAR) {
-    --source include/not_debian.inc
-    --source include/not_ubuntu.inc
-    --die Test requires 'openssl zlib' sub command
-  }
+  --source include/have_openssl_zlib.inc
 }
 
 #echo
