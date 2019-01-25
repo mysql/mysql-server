@@ -92,12 +92,10 @@ ENDIF()
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
-SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(perror perror.cc)
 ADD_DEPENDENCIES(perror GenError)
 TARGET_LINK_LIBRARIES(perror mysys mysys_ssl)
-SET_TARGET_PROPERTIES(perror PROPERTIES LINKER_LANGUAGE CXX)
 
 IF (BUILD_BUNDLED_LZ4)
   MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
