@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,17 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE(CMakePushCheckState)
+
+# ld.lld: error:
+# /usr/lib64/clang/7.0.1/lib/linux/libclang_rt.fuzzer-x86_64.a
+# (FuzzerLoop.cpp.o): unsupported SHT_GROUP format
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
+    USE_LD_LLD AND C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
+  STRING(REPLACE "-fuse-ld=lld" ""
+    CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+ENDIF()
 
 # check if clang knows about the coverage and trace-pc-guard
 #
