@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,16 +56,12 @@ bool is_existing_windows_group_name(const char *group_name) {
 bool is_valid_named_pipe_full_access_group(const char *group_name) {
   // Treat the DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP value
   // as a special case: we (later) convert it to the "world" SID
-  if (strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0) {
-    return true;
-  }
-
   if (!group_name || group_name[0] == '\0' ||
+      strcmp(group_name, DEFAULT_NAMED_PIPE_FULL_ACCESS_GROUP) == 0 ||
       is_existing_windows_group_name(group_name)) {
     return true;
-  } else {
-    return false;
   }
+  return false;
 }
 
 // return false on success, true on failure.
