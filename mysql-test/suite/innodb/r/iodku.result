@@ -194,6 +194,7 @@ a	b	c
 1	1	2
 # Connection other:
 START TRANSACTION;
+SET innodb_lock_wait_timeout = 1;
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 COMMIT;
@@ -206,17 +207,6 @@ a	b	c
 1	1	2
 3	2	4
 # Cleanup
-DROP TABLE t1;
-CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL,
-  `b` int(11) DEFAULT NULL,
-  `c` int(11) DEFAULT NULL,
-  UNIQUE KEY `a` (`a`),
-  UNIQUE KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1(f1 INT PRIMARY KEY,
 f2 INT, f3 INT, UNIQUE KEY(f2))ENGINE=INNODB;
