@@ -99,7 +99,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	NULL
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.a	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (isnull(`test`.`t2`.`a`) = 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`grp` AS `grp`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where ((`test`.`t2`.`a` is null) = 1)
 select t1.*,t2.*,t3.a from t1 left join t2 on (t1.a=t2.a) left join t1 as t3 on (t2.a=t3.a);
 grp	a	c	id	a	c	d	a
 1	1	a	1	1	a	1	1
@@ -318,13 +318,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t1 left join t2 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`name`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t1 left join t2 on (t1.id = t2.owner);
 count(*)
 4
@@ -342,13 +342,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 explain select t1.name, t2.name, t2.id from t2 right join t1 on (t1.id = t2.owner) where t2.name is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`name`)
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`id` AS `id` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`owner` = `test`.`t1`.`id`)) where (`test`.`t2`.`name` is null)
 select count(*) from t2 right join t1 on (t1.id = t2.owner);
 count(*)
 4
@@ -385,10 +385,10 @@ explain select * from t1 where str is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain format=tree select * from t1 where str is null;
 EXPLAIN
--> Index lookup on t1 using str (str=NULL), with index condition: isnull(t1.str)
+-> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)
 
 drop table t1;
 CREATE TABLE t1 (
@@ -634,7 +634,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ref	id	id	4	test.t1.id	1	100.00	Using where; Not exists; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`idx` AS `idx` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`name` AS `name`,`test`.`t2`.`id` AS `id`,`test`.`t2`.`idx` AS `idx` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (`test`.`t2`.`id` is null)
 SELECT * from t1 left join t2 on t1.id=t2.id where t2.id IS NULL;
 id	name	id	idx
 2	no	NULL	NULL
@@ -718,7 +718,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b1` = `test`.`t1`.`a1`)) left join `test`.`t3` on(((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and isnull(`test`.`t2`.`b1`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`b1` = `test`.`t1`.`a1`)) left join `test`.`t3` on(((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` is null))) where 1
 drop table t1, t2, t3;
 create table t1 (
 a int(11),
@@ -1285,7 +1285,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	idx	NULL	NULL	NULL	9	11.11	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where isnull(`test`.`t2`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id` = `test`.`t1`.`id`)) where (`test`.`t2`.`b` is null)
 flush status;
 SELECT t1.id, a FROM t1 LEFT JOIN t2 ON t1.id=t2.id WHERE t2.b IS NULL;
 id	a
@@ -1310,7 +1310,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	index	NULL	PRIMARY	4	NULL	3	33.33	Using where; Not exists; Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `c`,'0' AS `e`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on(('0' <> 0)) where (isnull(`test`.`t2`.`d`))
+Note	1003	/* select#1 */ select '1' AS `c`,'0' AS `e`,`test`.`t2`.`d` AS `d` from `test`.`t1` left join `test`.`t2` on(('0' <> 0)) where ((`test`.`t2`.`d` is null))
 SELECT * FROM t1 LEFT JOIN t2 ON e<>0 WHERE c=1 AND d IS NULL;
 c	e	d
 1	0	NULL
@@ -1821,7 +1821,7 @@ ON t2.col_varchar_10 = t3.col_varchar_10
 ON t2.col_int = t1.pk
 WHERE   t1.col_int_key IS NULL OR t4.pk < t3.col_int;
 EXPLAIN
--> Filter: <if>(found_match(t3..t4), (<cache>(isnull('-448724992')) or (t4.pk < t3.col_int)), true)
+-> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)
     -> Nested loop left join
         -> Rows fetched before execution
         -> Nested loop left join
@@ -2134,7 +2134,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where isnull(`test`.`t2`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where (`test`.`t2`.`a` is null)
 FLUSH STATUS;
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
 a	a

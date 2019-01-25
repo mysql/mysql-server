@@ -127,7 +127,7 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN ( t2 LEFT JOIN t3 USING (a) ) ON 
 EXPLAIN
 -> Nested loop left join
     -> Table scan on t1
-    -> Filter: isnull(t3.b)
+    -> Filter: (t3.b is null)
         -> Nested loop left join
             -> Table scan on t2
             -> Filter: (t3.a = t2.a)
@@ -141,7 +141,7 @@ INSERT INTO t1 VALUES ( 3 );
 CREATE TABLE t2 AS SELECT * FROM t1;
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 USING (f1) WHERE t2.f1 IS NULL;
 EXPLAIN
--> Filter: isnull(t2.f1)
+-> Filter: (t2.f1 is null)
     -> Nested loop anti-join
         -> Index scan on t1 using PRIMARY
         -> Filter: (t2.f1 = t1.f1)

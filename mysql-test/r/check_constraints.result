@@ -1343,7 +1343,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) DEFAULT NULL,
-  CONSTRAINT `t1_chk_1` CHECK (isnull(`f1`))
+  CONSTRAINT `t1_chk_1` CHECK ((`f1` is null))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL);
 INSERT INTO t1 VALUES(10);
@@ -2295,7 +2295,7 @@ t1	CREATE TABLE `t1` (
   `c11` char(6) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`c1` < 0x7c)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_10` CHECK ((`c10` > 10.1)),
-  CONSTRAINT `t1_chk_11` CHECK (isnull(`c11`)),
+  CONSTRAINT `t1_chk_11` CHECK ((`c11` is null)),
   CONSTRAINT `t1_chk_2` CHECK ((`c2` > 0)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_3` CHECK ((`c3` > 10)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_4` CHECK ((`c4` > 10)) /*!80015 NOT ENFORCED */,
@@ -2323,7 +2323,7 @@ t1	CREATE TABLE `t1` (
   `c11` char(6) DEFAULT NULL,
   CONSTRAINT `t1_chk_1` CHECK ((`c1` < 0x7c)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_10` CHECK ((`c10` > 10.1)),
-  CONSTRAINT `t1_chk_11` CHECK (isnull(`c11`)),
+  CONSTRAINT `t1_chk_11` CHECK ((`c11` is null)),
   CONSTRAINT `t1_chk_2` CHECK ((`c2` > 0)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_3` CHECK ((`c3` > 10)) /*!80015 NOT ENFORCED */,
   CONSTRAINT `t1_chk_4` CHECK ((`c4` > 10)) /*!80015 NOT ENFORCED */,

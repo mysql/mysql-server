@@ -171,7 +171,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -42,4 +43,3 @@
            "col4"
 -        ],
--        "attached_condition": "isnull(`test`.`t1`.`col1`)"
+-        "attached_condition": "(`test`.`t1`.`col1` is null)"
 +        ]
        }
 QUERY: SELECT t1.c2   FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1 
@@ -291,7 +291,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -45,4 +46,3 @@
              "b"
 -          ],
--          "attached_condition": "(<if>(found_match(t2), (((`test`.`t2`.`b` = 1) and (`test`.`t1`.`b` = 1)) or isnull(`test`.`t2`.`a`)), true) and <if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true))"
+-          "attached_condition": "(<if>(found_match(t2), (((`test`.`t2`.`b` = 1) and (`test`.`t1`.`b` = 1)) or (`test`.`t2`.`a` is null)), true) and <if>(is_not_null_compl(t2), (`test`.`t2`.`a` = `test`.`t1`.`a`), true))"
 +          ]
          }
 QUERY: UPDATE t1 LEFT JOIN t2 USING(id) SET s1 = 'b' 
@@ -319,7 +319,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -39,4 +40,3 @@
            "c"
 -        ],
--        "attached_condition": "isnull(`test`.`t1`.`b`)"
+-        "attached_condition": "(`test`.`t1`.`b` is null)"
 +        ]
        }
 QUERY: SELECT * from t1 where b=1 or b is null order by a 
@@ -328,7 +328,7 @@ SYNC_POINT:before_reset_query_plan
 Diff: EXPLAIN NORMAL vs OTHER
 @@ -26,3 +26,3 @@
          "filtered": "100.00",
--        "index_condition": "((`test`.`t1`.`b` = 1) or isnull(`test`.`t1`.`b`))",
+-        "index_condition": "((`test`.`t1`.`b` = 1) or (`test`.`t1`.`b` is null))",
 +        "index_condition": true,
          "cost_info": {
 QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c 
@@ -353,7 +353,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -36,4 +37,3 @@
            "c"
 -        ],
--        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
+-        "attached_condition": "((`test`.`t1`.`c` = 10) or (`test`.`t1`.`c` is null))"
 +        ]
        }
 QUERY: SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC 
@@ -378,7 +378,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 @@ -36,4 +37,3 @@
            "c"
 -        ],
--        "attached_condition": "((`test`.`t1`.`c` = 10) or isnull(`test`.`t1`.`c`))"
+-        "attached_condition": "((`test`.`t1`.`c` = 10) or (`test`.`t1`.`c` is null))"
 +        ]
        }
 QUERY: UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 

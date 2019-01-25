@@ -873,7 +873,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in t2 on a checking NULL where ((<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`) or (`test`.`t2`.`a` is null)) having <is_not_null_test>(`test`.`t2`.`a`)))) AS `t1.a in (select t2.a from t2)` from `test`.`t1`
 CREATE TABLE t3 (a int(11) default '0');
 INSERT INTO t3 VALUES (1),(2),(3);
 SELECT t1.a, t1.a in (select t2.a from t2,t3 where t3.a=t2.a) FROM t1;
@@ -888,7 +888,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	index	a	a	5	NULL	3	33.33	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) or isnull(`test`.`t3`.`a`))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t3`.`a`) and ((<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null))) having <is_not_null_test>(`test`.`t2`.`a`))) AS `t1.a in (select t2.a from t2,t3 where t3.a=t2.a)` from `test`.`t1`
 drop table t1,t2,t3;
 create table t1 (a float);
 select 10.5 IN (SELECT * from t1 LIMIT 1);
@@ -1349,25 +1349,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 = ANY (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))) AS `s1 = ANY (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 <> ALL (SELECT s1 FROM t2) from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 <> ALL (SELECT s1 FROM t2)` from `test`.`t1`
 explain select s1, s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2') from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	s1	6	NULL	3	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	index_subquery	s1	s1	6	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where ((`test`.`t2`.`s1` < 'a2') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or isnull(`test`.`t2`.`s1`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,(not(<in_optimizer>(`test`.`t1`.`s1`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`s1`) in t2 on s1 checking NULL where ((`test`.`t2`.`s1` < 'a2') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`s1`) = `test`.`t2`.`s1`) or (`test`.`t2`.`s1` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`s1`), true)))))) AS `s1 NOT IN (SELECT s1 FROM t2 WHERE s1 < 'a2')` from `test`.`t1`
 drop table t1,t2;
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -1654,7 +1654,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	b	NULL	eq_ref	PRIMARY	PRIMARY	4	test.a.id	1	100.00	NULL
 1	SIMPLE	c	NULL	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
+Note	1003	/* select#1 */ select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or (`test`.`b`.`id` is null))) join `test`.`t1` `c` where (if((`test`.`b`.`id` is null),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
 create table t1 (a int);
 insert into t1 values (1);
@@ -2825,7 +2825,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `a IN (SELECT a FROM t1)` from `test`.`t2`
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 a	a IN (SELECT a FROM t1)
 1	1
@@ -4316,7 +4316,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	4	20.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true)))) AS `z` from `test`.`t2`
 flush status;
 select oref, a from t2 where a in (select a from t1 where oref=t2.oref);
 oref	a
@@ -4382,7 +4382,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ref	a	a	5	test.t1.b	1	10.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true))) AS `z` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int NOT NULL, b int NOT NULL, key(a));
 insert into t1 values 
@@ -4466,7 +4466,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a	a	5	func	2	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true))))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on a checking NULL where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or (`test`.`t1`.`b` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true))))) AS `z` from `test`.`t2`
 select a,b, oref, (a,b) in (select a,b from t1 where c=t2.oref) z from t2;
 a	b	oref	z
 NULL	1	100	0
@@ -4483,7 +4483,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	100	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or (`test`.`t1`.`b` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `z` from `test`.`t2`
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) z 
 from t2;
@@ -4528,7 +4528,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or (`test`.`t1`.`ie1` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or (`test`.`t1`.`ie2` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2` where ((`test`.`t2`.`b` = 10) and (`test`.`t2`.`a` = 10))
 drop table t1, t2;
 create table t1 (oref char(4), grp int, ie int) charset utf8mb4;
 insert into t1 (oref, grp, ie) values
@@ -4637,7 +4637,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or isnull(`test`.`t1`.`ie`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true)))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or (`test`.`t1`.`ie` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true)))) AS `z` from `test`.`t2`
 select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 oref	a	z
 ee	NULL	NULL
@@ -4663,7 +4663,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	ref_or_null	idx	idx	22	test.t2.oref,func	4	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or isnull(`test`.`t1`.`ie`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie`) or (`test`.`t1`.`ie` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie`), true))) AS `z` from `test`.`t2`
 select oref, a, a in (select ie from t1 where oref=t2.oref) z from t2;
 oref	a	z
 ee	NULL	NULL
@@ -4785,7 +4785,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or (`test`.`t1`.`ie1` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or (`test`.`t1`.`ie2` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
 select oref, a, b, (a,b) in (select ie1,ie2 from t1 where oref=t2.oref) z from t2;
 oref	a	b	z
 ee	NULL	1	NULL
@@ -4810,7 +4810,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	idx	idx	5	func	4	10.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or isnull(`test`.`t1`.`ie1`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or isnull(`test`.`t1`.`ie2`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`oref` AS `oref`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(<index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on idx checking NULL where ((`test`.`t1`.`oref` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`ie1`) or (`test`.`t1`.`ie1` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`ie2`) or (`test`.`t1`.`ie2` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie1`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`ie2`), true))))) AS `z` from `test`.`t2`
 drop table t1,t2;
 create table t1 (oref char(4), grp int, ie int primary key);
 insert into t1 (oref, grp, ie) values
@@ -4946,7 +4946,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)) having <is_not_null_test>(`test`.`t1`.`a`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`a`) or (`test`.`t1`.`a` is null)) having <is_not_null_test>(`test`.`t1`.`a`))))))
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 a
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
@@ -7154,7 +7154,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (isnull((NULL + NULL)) or (NULL = (@`var3`)))
+Note	1003	/* select#1 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((NULL + NULL) is null) or (NULL = (@`var3`)))
 SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
@@ -7174,7 +7174,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select NULL AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (isnull((NULL + NULL)) or (NULL = (@`var3`)))) `alias3`
+Note	1003	/* select#1 */ select NULL AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from (/* select#2 */ select (@var3:=12) AS `@var3:=12`,NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (((NULL + NULL) is null) or (NULL = (@`var3`)))) `alias3`
 SELECT * FROM ( SELECT @var3:=12, sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
@@ -7201,7 +7201,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),<exists>(/* select#2 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or isnull(`test`.`c_sq1_alias1`.`col_varchar_key`)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or isnull(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))))))
+Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),<exists>(/* select#2 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or (`test`.`c_sq1_alias1`.`col_varchar_key` is null)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or (`test`.`c_sq1_alias1`.`col_varchar_nokey` is null))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))))))
 SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
@@ -7225,7 +7225,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),<exists>(/* select#3 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or isnull(`test`.`c_sq1_alias1`.`col_varchar_key`)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or isnull(`test`.`c_sq1_alias1`.`col_varchar_nokey`))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))))))
+Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `col_int_nokey`,NULL AS `col_int_key`,NULL AS `col_time_key`,NULL AS `col_varchar_key`,NULL AS `col_varchar_nokey` from `test`.`t1` `sq4_alias1` where (not(<in_optimizer>((NULL,NULL),<exists>(/* select#3 */ select `test`.`c_sq1_alias1`.`col_varchar_key` AS `c_sq1_field1`,`test`.`c_sq1_alias1`.`col_varchar_nokey` AS `c_sq1_field2` from `test`.`t2` `c_sq1_alias1` where (((`test`.`c_sq1_alias1`.`col_int_nokey` <> (@`var2`)) or (`test`.`c_sq1_alias1`.`pk` <> (@`var3`))) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_key`) or (`test`.`c_sq1_alias1`.`col_varchar_key` is null)) and ((<cache>(NULL) = `test`.`c_sq1_alias1`.`col_varchar_nokey`) or (`test`.`c_sq1_alias1`.`col_varchar_nokey` is null))) having (<is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_key`) and <is_not_null_test>(`test`.`c_sq1_alias1`.`col_varchar_nokey`))))))
 SELECT * FROM ( SELECT sq4_alias1.*
 FROM t1 AS sq4_alias1
 WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
@@ -7698,7 +7698,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `field1`,NULL AS `field2` from `test`.`t2` where <in_optimizer>((NULL,NULL),<exists>(/* select#2 */ select max(`test`.`t1`.`col_datetime_key`),`test`.`t1`.`col_int_key` from `test`.`t1` where (`test`.`t1`.`col_int_key` > `test`.`t1`.`col_int_nokey`) group by `test`.`t1`.`col_int_key` having (((<cache>(NULL) = max(`test`.`t1`.`col_datetime_key`)) or isnull(max(`test`.`t1`.`col_datetime_key`))) and ((<cache>(NULL) = `test`.`t1`.`col_int_key`) or isnull(`test`.`t1`.`col_int_key`)) and <is_not_null_test>(max(`test`.`t1`.`col_datetime_key`)) and <is_not_null_test>(`test`.`t1`.`col_int_key`))))
+Note	1003	/* select#1 */ select NULL AS `field1`,NULL AS `field2` from `test`.`t2` where <in_optimizer>((NULL,NULL),<exists>(/* select#2 */ select max(`test`.`t1`.`col_datetime_key`),`test`.`t1`.`col_int_key` from `test`.`t1` where (`test`.`t1`.`col_int_key` > `test`.`t1`.`col_int_nokey`) group by `test`.`t1`.`col_int_key` having (((<cache>(NULL) = max(`test`.`t1`.`col_datetime_key`)) or (max(`test`.`t1`.`col_datetime_key`) is null)) and ((<cache>(NULL) = `test`.`t1`.`col_int_key`) or (`test`.`t1`.`col_int_key` is null)) and <is_not_null_test>(max(`test`.`t1`.`col_datetime_key`)) and <is_not_null_test>(`test`.`t1`.`col_int_key`))))
 SELECT * FROM t2 WHERE (field1, field2) IN (
 SELECT MAX(col_datetime_key), col_int_key
 FROM t1
@@ -8061,7 +8061,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1276	Field or reference 'test.outr.col_int_key' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`outr`.`pk` AS `pk`,<in_optimizer>(`test`.`outr`.`col_int`,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr2` left join (`test`.`t2`) on((`test`.`innr2`.`col_date` <> `test`.`t2`.`col_date`)) where ((`test`.`outr`.`col_int_key` < 6) and <if>(outer_field_is_not_null, ((<cache>(`test`.`outr`.`col_int`) = `test`.`t2`.`pk`) or isnull(`test`.`t2`.`pk`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`pk`), true))) AS `x` from `test`.`t3` `outr`
+Note	1003	/* select#1 */ select `test`.`outr`.`pk` AS `pk`,<in_optimizer>(`test`.`outr`.`col_int`,<exists>(/* select#2 */ select 1 from `test`.`t1` `innr2` left join (`test`.`t2`) on((`test`.`innr2`.`col_date` <> `test`.`t2`.`col_date`)) where ((`test`.`outr`.`col_int_key` < 6) and <if>(outer_field_is_not_null, ((<cache>(`test`.`outr`.`col_int`) = `test`.`t2`.`pk`) or (`test`.`t2`.`pk` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`pk`), true))) AS `x` from `test`.`t3` `outr`
 SELECT pk,
 col_int IN
 (SELECT innr1.pk
@@ -8233,7 +8233,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	index_subquery	a1	a1	3	func	6	100.00	Using where; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`b1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`b1`) in t1 on a1 checking NULL where ((`test`.`t1`.`a1` > '1') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b1`) = `test`.`t1`.`a1`) or isnull(`test`.`t1`.`a1`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a1`), true))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`b1`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`b1`) in t1 on a1 checking NULL where ((`test`.`t1`.`a1` > '1') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b1`) = `test`.`t1`.`a1`) or (`test`.`t1`.`a1` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a1`), true))))))
 SELECT * FROM t2 WHERE b1 NOT IN
 (SELECT a1 FROM t1 FORCE INDEX(a1) WHERE a1 > '1');
 b1	b2

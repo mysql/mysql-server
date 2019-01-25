@@ -91,7 +91,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	kid	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t2	NULL	index	e_n	e_n	404	NULL	200	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select distinct sql_calc_found_rows `test`.`t2`.`email` AS `email` from `test`.`t2` where isnull(NULL) limit 10
+Note	1003	/* select#1 */ select distinct sql_calc_found_rows `test`.`t2`.`email` AS `email` from `test`.`t2` where (NULL is null) limit 10
 FLUSH STATUS;
 SELECT SQL_CALC_FOUND_ROWS DISTINCT email FROM t2 LEFT JOIN t1  ON kid = t2.id WHERE t1.id IS NULL LIMIT 10;
 SHOW SESSION STATUS LIKE 'Sort_scan%';

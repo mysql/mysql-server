@@ -5345,6 +5345,13 @@ longlong Item_func_isnull::val_int() {
   return args[0]->is_null() ? 1 : 0;
 }
 
+void Item_func_isnull::print(const THD *thd, String *str,
+                             enum_query_type query_type) const {
+  str->append('(');
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" is null)"));
+}
+
 longlong Item_is_not_null_test::val_int() {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");

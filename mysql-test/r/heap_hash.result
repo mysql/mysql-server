@@ -201,7 +201,7 @@ explain SELECT * FROM t1 WHERE a IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where isnull(`test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` is null)
 SELECT * FROM t1 WHERE a<=>NULL;
 a	b
 NULL	99
@@ -211,7 +211,7 @@ explain SELECT * FROM t1 WHERE b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	b	b	5	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where isnull(`test`.`t1`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` is null)
 SELECT * FROM t1 WHERE b<=>NULL;
 a	b
 99	NULL
@@ -499,7 +499,7 @@ EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	val	val	5	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`val` AS `val` from `test`.`t1` where isnull(`test`.`t1`.`val`)
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`val` AS `val` from `test`.`t1` where (`test`.`t1`.`val` is null)
 DROP TABLE t1;
 End of 5.5 tests
 # Bug#24364448: Check that hash indexes are not used to provide ordering

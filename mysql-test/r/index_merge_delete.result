@@ -53,7 +53,7 @@ EXPLAIN DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i3,i5	i3,i5	4,5	NULL	#	100.00	Using union(i3,i5); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or isnull(`test`.`t1`.`key5`))
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or (`test`.`t1`.`key5` is null))
 SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
 COUNT(*)
 8
@@ -65,7 +65,7 @@ EXPLAIN DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i3,i6	i3,i1,i6	4,4,5	NULL	#	100.00	Using union(i3,i1,i6); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 45) or (`test`.`t1`.`key1` = 6) or isnull(`test`.`t1`.`key6`))
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 45) or (`test`.`t1`.`key1` = 6) or (`test`.`t1`.`key6` is null))
 SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
 COUNT(*)
 2
@@ -200,7 +200,7 @@ EXPLAIN DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	100.00	Using sort_union(i4,i5); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where (((`test`.`t1`.`key4` < 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and isnull(`test`.`t1`.`key5`) and (`test`.`t1`.`key2` <> 50)))
+Note	1003	delete from `test`.`t1` where (((`test`.`t1`.`key4` < 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and (`test`.`t1`.`key5` is null) and (`test`.`t1`.`key2` <> 50)))
 SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 COUNT(*)
 13
@@ -357,7 +357,7 @@ EXPLAIN DELETE FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i3,i5	i3,i5	4,5	NULL	#	100.00	Using sort_union(i3,i5); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or isnull(`test`.`t1`.`key5`))
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or (`test`.`t1`.`key5` is null))
 SELECT COUNT(*) FROM t1 WHERE key3=1025 OR key5 IS NULL;
 COUNT(*)
 8
@@ -369,7 +369,7 @@ EXPLAIN DELETE FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i3,i6	i3,i1,i6	4,4,5	NULL	#	100.00	Using sort_union(i3,i1,i6); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 45) or (`test`.`t1`.`key1` = 6) or isnull(`test`.`t1`.`key6`))
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`key3` = 45) or (`test`.`t1`.`key1` = 6) or (`test`.`t1`.`key6` is null))
 SELECT COUNT(*) FROM t1 WHERE key3=45 OR key1=6 OR key6 IS NULL;
 COUNT(*)
 2
@@ -504,7 +504,7 @@ EXPLAIN DELETE FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	100.00	Using sort_union(i4,i5); Using where
 Warnings:
-Note	1003	delete from `test`.`t1` where (((`test`.`t1`.`key4` < 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and isnull(`test`.`t1`.`key5`) and (`test`.`t1`.`key2` <> 50)))
+Note	1003	delete from `test`.`t1` where (((`test`.`t1`.`key4` < 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and (`test`.`t1`.`key5` is null) and (`test`.`t1`.`key2` <> 50)))
 SELECT COUNT(*) FROM t1 WHERE (key4<42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 COUNT(*)
 13

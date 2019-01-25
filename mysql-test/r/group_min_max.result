@@ -901,32 +901,32 @@ explain select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	5	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and isnull(`test`.`t2`.`b`)) group by `test`.`t2`.`a1`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and (`test`.`t2`.`b` is null)) group by `test`.`t2`.`a1`
 explain select a1,a2,b,max(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_0,idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	5	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and isnull(`test`.`t2`.`b`)) group by `test`.`t2`.`a1`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where ((`test`.`t2`.`a2` = 'a') and (`test`.`t2`.`b` is null)) group by `test`.`t2`.`a1`
 explain select a1,a2,b,min(c) from t2 where b is NULL group by a1,a2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	10	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where isnull(`test`.`t2`.`b`) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select a1,a2,b,max(c) from t2 where b is NULL group by a1,a2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	146	NULL	10	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where isnull(`test`.`t2`.`b`) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	10	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where isnull(`test`.`t2`.`b`) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 explain select a1,a2,b,min(c),max(c) from t2 where b is NULL group by a1,a2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	range	idx_t2_1,idx_t2_2	idx_t2_1	163	NULL	10	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where isnull(`test`.`t2`.`b`) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a1` AS `a1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b` AS `b`,min(`test`.`t2`.`c`) AS `min(c)`,max(`test`.`t2`.`c`) AS `max(c)` from `test`.`t2` where (`test`.`t2`.`b` is null) group by `test`.`t2`.`a1`,`test`.`t2`.`a2`
 select a1,a2,b,min(c) from t2 where (a2 = 'a') and b is NULL group by a1;
 a1	a2	b	min(c)
 a	a	NULL	a777

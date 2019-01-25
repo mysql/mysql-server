@@ -22659,12 +22659,12 @@ EXPLAIN SELECT * FROM t WHERE u=256 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`u` AS `u` from `test`.`t` where isnull((`test`.`t`.`u` <> `test`.`t`.`u`))
+Note	1003	/* select#1 */ select `test`.`t`.`u` AS `u` from `test`.`t` where ((`test`.`t`.`u` <> `test`.`t`.`u`) is null)
 EXPLAIN SELECT * FROM t WHERE u=256 IS UNKNOWN;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`u` AS `u` from `test`.`t` where isnull((`test`.`t`.`u` <> `test`.`t`.`u`))
+Note	1003	/* select#1 */ select `test`.`t`.`u` AS `u` from `test`.`t` where ((`test`.`t`.`u` <> `test`.`t`.`u`) is null)
 EXPLAIN SELECT * FROM t WHERE ABS(u=256)=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
@@ -26631,7 +26631,7 @@ EXPLAIN SELECT * FROM t WHERE i = (i < 255);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = if(isnull(`test`.`t`.`i`),NULL,1))
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = if((`test`.`t`.`i` is null),NULL,1))
 SELECT * FROM t WHERE i = (i < 255);
 i
 1
@@ -26642,7 +26642,7 @@ EXPLAIN SELECT * FROM t WHERE 1 = (i < 255);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (1 = if(isnull(`test`.`t`.`i`),NULL,1))
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (1 = if((`test`.`t`.`i` is null),NULL,1))
 SELECT * FROM t WHERE 1 = (i < 255);
 i
 10
@@ -26654,7 +26654,7 @@ EXPLAIN SELECT * FROM t WHERE 0 = (i < 255);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (0 = if(isnull(`test`.`t`.`i`),NULL,1))
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` where (0 = if((`test`.`t`.`i` is null),NULL,1))
 SELECT * FROM t WHERE 0 = (i < 255);
 i
 DROP TABLE t;

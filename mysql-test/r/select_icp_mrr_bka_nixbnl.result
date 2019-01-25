@@ -1389,13 +1389,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	100.00	NULL
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	1	100.00	Using where; Not exists; Using join buffer (Batched Key Access)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where isnull(`test`.`t4`.`companynr`)
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where (`test`.`t4`.`companynr` is null)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1200	10.00	Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where isnull(`test`.`t2`.`companynr`)
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t2`.`companynr` is null)
 select companynr,companyname from t2 left join t4 using (companynr) where companynr is null;
 companynr	companyname
 select count(*) from t2 left join t4 using (companynr) where companynr is not null;
@@ -1453,7 +1453,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	40.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or isnull(`test`.`t2`.`companynr`))
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` is null))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	12	100.00	NULL
@@ -2842,7 +2842,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or (`test`.`t2`.`b` is null))
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -2854,7 +2854,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	index	b	b	5	NULL	2	100.00	Using index
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or isnull(`test`.`t2`.`b`))
+Note	1003	/* select#1 */ select straight_join count(0) AS `COUNT(*)` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) or (`test`.`t2`.`b` is null))
 SELECT STRAIGHT_JOIN * FROM t2, t1 WHERE t1.b = t2.b OR t2.b IS NULL;
 a	b	a	b
 1	NULL	1	1
@@ -3850,14 +3850,14 @@ EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID_with_null);
 EXPLAIN SELECT * FROM t1 WHERE ID_better=1 AND ID_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	97.69	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID_with_null` AS `ID_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID_with_null` is null))
 DROP TABLE t1;
 CREATE TABLE t1 (
 ID1_with_null int NULL,
@@ -3891,19 +3891,19 @@ WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.79	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null=3 IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	27.27	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull((`test`.`t1`.`ID2_with_null` = 3)))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and ((`test`.`t1`.`ID2_with_null` = 3) is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	64.88	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 DROP INDEX idx1 ON t1;
 CREATE UNIQUE INDEX idx1 ON t1(ID1_with_null,ID2_with_null);
 EXPLAIN SELECT * FROM t1
@@ -3911,26 +3911,26 @@ WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null=3 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID2_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null=3 AND ID2_with_null IS NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	12.40	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID1_with_null` = 3) and (`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND ID2_with_null IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	73.55	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and isnull(`test`.`t1`.`ID2_with_null`))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and (`test`.`t1`.`ID2_with_null` is null))
 EXPLAIN SELECT * FROM t1
 WHERE ID_better=1 AND ID1_with_null IS NULL AND 
 (ID2_with_null=1 OR ID2_with_null=2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1,idx2	idx2	4	const	1	5.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and isnull(`test`.`t1`.`ID1_with_null`) and ((`test`.`t1`.`ID2_with_null` = 1) or (`test`.`t1`.`ID2_with_null` = 2)))
+Note	1003	/* select#1 */ select `test`.`t1`.`ID1_with_null` AS `ID1_with_null`,`test`.`t1`.`ID2_with_null` AS `ID2_with_null`,`test`.`t1`.`ID_better` AS `ID_better` from `test`.`t1` where ((`test`.`t1`.`ID_better` = 1) and (`test`.`t1`.`ID1_with_null` is null) and ((`test`.`t1`.`ID2_with_null` = 1) or (`test`.`t1`.`ID2_with_null` = 2)))
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY ts(ts));
 INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");

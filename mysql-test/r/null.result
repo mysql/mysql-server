@@ -13,7 +13,7 @@ Warnings:
 Warning	1365	Division by 0
 Warning	1365	Division by 0
 Warning	1365	Division by 0
-Note	1003	/* select#1 */ select NULL AS `NULL`,isnull(NULL) AS `isnull(null)`,isnull((1 / 0)) AS `isnull(1/0)`,isnull(((1 / 0) = NULL)) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,isnull((1 / 0)) AS `1/0 is null`,(1 is not null) AS `1 is not null`
+Note	1003	/* select#1 */ select NULL AS `NULL`,(NULL is null) AS `isnull(null)`,((1 / 0) is null) AS `isnull(1/0)`,(((1 / 0) = NULL) is null) AS `isnull(1/0 = null)`,ifnull(NULL,1) AS `ifnull(null,1)`,ifnull(NULL,'TRUE') AS `ifnull(null,"TRUE")`,ifnull('TRUE','ERROR') AS `ifnull("TRUE","ERROR")`,((1 / 0) is null) AS `1/0 is null`,(1 is not null) AS `1 is not null`
 select 1 | NULL,1 & NULL,1+NULL,1-NULL;
 1 | NULL	1 & NULL	1+NULL	1-NULL
 NULL	NULL	NULL	NULL
@@ -195,7 +195,7 @@ explain select * from t1 where i=2 or i is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	i	i	5	const	10	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` = 2) or isnull(`test`.`t1`.`i`))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` = 2) or (`test`.`t1`.`i` is null))
 select count(*) from t1 where i=2 or i is null;
 count(*)
 10

@@ -18,7 +18,7 @@ explain select * from t1 where str is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	str	str	41	const	1	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain format=json select * from t1 where str is null;
 EXPLAIN
 {
@@ -44,7 +44,7 @@ EXPLAIN
       "rows_examined_per_scan": 1,
       "rows_produced_per_join": 1,
       "filtered": "100.00",
-      "index_condition": "isnull(`test`.`t1`.`str`)",
+      "index_condition": "(`test`.`t1`.`str` is null)",
       "cost_info": {
         "read_cost": "0.25",
         "eval_cost": "0.10",
@@ -59,7 +59,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where isnull(`test`.`t1`.`str`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain select * from t1 where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL

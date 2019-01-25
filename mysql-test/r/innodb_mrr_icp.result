@@ -187,7 +187,7 @@ select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	16	100.00	Using index condition; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (isnull(`test`.`t4`.`a`) and isnull(`test`.`t4`.`b`) and (isnull(`test`.`t4`.`c`) or (`test`.`t4`.`c` = 'no-such-row1') or (`test`.`t4`.`c` = 'no-such-row2')))
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where ((`test`.`t4`.`a` is null) and (`test`.`t4`.`b` is null) and ((`test`.`t4`.`c` is null) or (`test`.`t4`.`c` = 'no-such-row1') or (`test`.`t4`.`c` = 'no-such-row2')))
 select * from t4 where a IS NULL and b IS NULL and (c IS NULL or c='no-such-row1'
                                                     or c='no-such-row2');
 a	b	c	filler
@@ -211,7 +211,7 @@ select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='c
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	NULL	range	idx1	idx1	89	NULL	32	100.00	Using index condition; Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (((`test`.`t4`.`a` = 'b-1') or (`test`.`t4`.`a` = 'bb-1')) and isnull(`test`.`t4`.`b`) and ((`test`.`t4`.`c` = 'c-1') or (`test`.`t4`.`c` = 'cc-2')))
+Note	1003	/* select#1 */ select `test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`filler` AS `filler` from `test`.`t4` where (((`test`.`t4`.`a` = 'b-1') or (`test`.`t4`.`a` = 'bb-1')) and (`test`.`t4`.`b` is null) and ((`test`.`t4`.`c` = 'c-1') or (`test`.`t4`.`c` = 'cc-2')))
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 a	b	c	filler
 b-1	NULL	c-1	NULL-15
@@ -568,7 +568,7 @@ ORDER BY i1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`i1` AS `i1` from `test`.`t2` where ((`test`.`t2`.`i1` > 5) and isnull(`test`.`t2`.`pk`) and multiple equal('2', `test`.`t2`.`i2`)) order by `test`.`t2`.`i1`
+Note	1003	/* select#1 */ select `test`.`t2`.`i1` AS `i1` from `test`.`t2` where ((`test`.`t2`.`i1` > 5) and (`test`.`t2`.`pk` is null) and multiple equal('2', `test`.`t2`.`i2`)) order by `test`.`t2`.`i1`
 SELECT i1
 FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
 WHERE t2.i1 > 5
@@ -742,7 +742,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t2	NULL	index_subquery	c1	c1	7	func	1	100.00	Using index
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1`) `d1` where (<in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) and isnull(`d1`.`c1`)) order by `d1`.`i1`
+Note	1003	/* select#1 */ select `d1`.`i1` AS `i1`,`d1`.`c1` AS `c1` from (/* select#2 */ select `test`.`t1`.`i1` AS `i1`,`test`.`t1`.`c1` AS `c1` from `test`.`t1`) `d1` where (<in_optimizer>(`d1`.`c1`,<exists>(<index_lookup>(<cache>(`d1`.`c1`) in t2 on c1))) and (`d1`.`c1` is null)) order by `d1`.`i1`
 SELECT *
 FROM
 ( SELECT * FROM  t1 ) AS d1

@@ -389,7 +389,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	j_lj_t3	NULL	index	id	id	4	NULL	2	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3_lj	NULL	index	id	id	8	NULL	1	100.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t1`.`id` AS `id` from `test`.`t1` straight_join `test`.`t2` straight_join `test`.`t3` straight_join `test`.`t1` `j_lj_t2` left join `test`.`t2` `t2_lj` on((`test`.`t2_lj`.`id` = `test`.`j_lj_t2`.`id`)) straight_join `test`.`t1` `j_lj_t3` left join `test`.`t3` `t3_lj` on((`test`.`t3_lj`.`id` = `test`.`j_lj_t3`.`id`)) where ((((`test`.`j_lj_t2`.`id` = `test`.`t1`.`id`) and isnull(`test`.`t2_lj`.`id`)) or ((`test`.`t2`.`idx` = 2) and (`test`.`t2`.`id` = `test`.`t1`.`id`))) and (((`test`.`j_lj_t3`.`id` = `test`.`t1`.`id`) and isnull(`test`.`t3_lj`.`id`)) or ((`test`.`t3`.`idx` = 2) and (`test`.`t3`.`id` = `test`.`t1`.`id`))))
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`id` AS `id` from `test`.`t1` straight_join `test`.`t2` straight_join `test`.`t3` straight_join `test`.`t1` `j_lj_t2` left join `test`.`t2` `t2_lj` on((`test`.`t2_lj`.`id` = `test`.`j_lj_t2`.`id`)) straight_join `test`.`t1` `j_lj_t3` left join `test`.`t3` `t3_lj` on((`test`.`t3_lj`.`id` = `test`.`j_lj_t3`.`id`)) where ((((`test`.`j_lj_t2`.`id` = `test`.`t1`.`id`) and (`test`.`t2_lj`.`id` is null)) or ((`test`.`t2`.`idx` = 2) and (`test`.`t2`.`id` = `test`.`t1`.`id`))) and (((`test`.`j_lj_t3`.`id` = `test`.`t1`.`id`) and (`test`.`t3_lj`.`id` is null)) or ((`test`.`t3`.`idx` = 2) and (`test`.`t3`.`id` = `test`.`t1`.`id`))))
 SELECT DISTINCT
 t1.id
 from
@@ -2078,7 +2078,7 @@ EXPLAIN FORMAT=tree SELECT DISTINCT table1.pk FROM t1 AS table1 LEFT JOIN t1 AS 
 EXPLAIN
 -> Table scan on <temporary>
     -> Temporary table with deduplication
-        -> Filter: isnull(table2.f1)
+        -> Filter: (table2.f1 is null)
             -> Nested loop left join
                 -> Table scan on table1
                 -> Filter: (table1.f2 = table2.f3)

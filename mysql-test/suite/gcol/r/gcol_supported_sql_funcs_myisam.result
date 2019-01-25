@@ -1794,7 +1794,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS (isnull(`a`)) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((`a` is null)) VIRTUAL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 insert into t1 values (1,default);
 insert into t1 values (NULL,default);

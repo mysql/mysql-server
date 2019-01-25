@@ -1807,6 +1807,8 @@ class Item_func_isnull : public Item_bool_func {
                              double rows_in_table) override;
   optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
   const CHARSET_INFO *compare_collation() const override {
     return args[0]->collation.collation;
   }
@@ -1837,6 +1839,10 @@ class Item_is_not_null_test final : public Item_func_isnull {
   */
   table_map get_initial_pseudo_tables() const override {
     return RAND_TABLE_BIT;
+  }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    Item_bool_func::print(thd, str, query_type);
   }
 };
 

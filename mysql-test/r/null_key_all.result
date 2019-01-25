@@ -9,17 +9,17 @@ explain select * from t1 where a is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a	a	5	const	3	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where isnull(`test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` is null)
 explain select * from t1 where a is null and b = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	9	const,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 2) and isnull(`test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 2) and (`test`.`t1`.`a` is null))
 explain select * from t1 where a is null and b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	9	const,const	1	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and isnull(`test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and (`test`.`t1`.`a` is null))
 explain select * from t1 where a=2 and b = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	a,b	a	9	const,const	1	100.00	Using index
@@ -34,32 +34,32 @@ explain select * from t1 where (a is null or a > 0 and a < 3) and b < 5 limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a,b	a	9	NULL	3	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) or ((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` < 3))) and (`test`.`t1`.`b` < 5)) limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` is null) or ((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` < 3))) and (`test`.`t1`.`b` < 5)) limit 3
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 EXPLAIN
--> Filter: ((t1.b = 7) and (isnull(t1.a) or (t1.a = 7)))
+-> Filter: ((t1.b = 7) and ((t1.a is null) or (t1.a = 7)))
     -> Index lookup on t1 using a (a=7 or NULL, b=7)
 
 explain select * from t1 where (a is null or a = 7) and b=7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a,b	a	9	const,const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` = 7)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and ((`test`.`t1`.`a` is null) or (`test`.`t1`.`a` = 7)))
 explain select * from t1 where (a is null or a = 7) and b=7 order by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a,b	a	9	const,const	2	100.00	Using where; Using index; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` = 7))) order by `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`b` = 7) and ((`test`.`t1`.`a` is null) or (`test`.`t1`.`a` = 7))) order by `test`.`t1`.`a`
 explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	40.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` > `test`.`t1`.`a`)) or ((`test`.`t1`.`b` = 7) and isnull(`test`.`t1`.`a`))) limit 2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` > `test`.`t1`.`a`)) or ((`test`.`t1`.`b` = 7) and (`test`.`t1`.`a` is null))) limit 2
 explain select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a,b	a	9	NULL	3	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`b` = 9) and isnull(`test`.`t1`.`a`)) or ((`test`.`t1`.`b` = 7) and isnull(`test`.`t1`.`a`))) limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`b` = 9) and (`test`.`t1`.`a` is null)) or ((`test`.`t1`.`b` = 7) and (`test`.`t1`.`a` is null))) limit 3
 explain select * from t1 where a > 1 and a < 3 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	1	100.00	Using where; Using index
@@ -114,7 +114,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 2))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 2))
 explain select * from t1 where a is null and b = 2 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	8.33	Using where
@@ -122,7 +122,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 2))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 2))
 explain select * from t1 where a is null and b = 7 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	8.33	Using where
@@ -130,7 +130,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 7))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 7))
 explain select * from t1 where a=2 and b = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	1	10.00	Using where
@@ -150,7 +150,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (isnull(`test`.`t1`.`a`) or ((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` < 3))) and (`test`.`t1`.`b` < 5)) limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and ((`test`.`t1`.`a` is null) or ((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` < 3))) and (`test`.`t1`.`b` < 5)) limit 3
 explain select * from t1 where (a is null or a = 7) and b=7 and c=0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a,b	a	5	const	4	8.33	Using where
@@ -158,7 +158,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` = 7)) and (`test`.`t1`.`b` = 7))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((`test`.`t1`.`c` = 0) and ((`test`.`t1`.`a` is null) or (`test`.`t1`.`a` = 7)) and (`test`.`t1`.`b` = 7))
 explain select * from t1 where (a is null and b>a) or a is null and b=7 limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	40.00	Using where
@@ -166,7 +166,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` > `test`.`t1`.`a`)) or (isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 7))) limit 2
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` > `test`.`t1`.`a`)) or ((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 7))) limit 2
 explain select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	a	5	const	3	19.00	Using where
@@ -177,7 +177,7 @@ Warning	1739	Cannot use range access on index 'a' due to type or collation conve
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 9)) or (isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 7))) limit 3
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 9)) or ((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 7))) limit 3
 explain select * from t1 where a > 1 and a < 3 limit 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	1	100.00	Using where
@@ -190,7 +190,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where ((isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` = 7)) or ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` < 3))) limit 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where (((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` = 7)) or ((`test`.`t1`.`a` > 1) and (`test`.`t1`.`a` < 3))) limit 1
 explain select * from t1 where a > 8 and a < 9;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	5	NULL	1	100.00	Using where
@@ -241,7 +241,7 @@ explain select * from t1 where a = 7 and (b=7 or b is null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a,b	a	10	const,const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 7) and ((`test`.`t1`.`b` = 7) or isnull(`test`.`t1`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where ((`test`.`t1`.`a` = 7) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t1 where a = 7 and (b=7 or b is null);
 a	b
 7	7
@@ -250,7 +250,7 @@ explain select * from t1 where (a = 7 or a is null) and (b=7 or b is null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a,b	a	5	const	4	33.33	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or isnull(`test`.`t1`.`a`)) and ((`test`.`t1`.`b` = 7) or isnull(`test`.`t1`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t1 where (a = 7 or a is null) and (b=7 or b is null);
 a	b
 7	NULL
@@ -260,7 +260,7 @@ explain select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	const	5	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or isnull(`test`.`t1`.`a`)) and ((`test`.`t1`.`a` = 7) or isnull(`test`.`t1`.`a`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`a` = 7) or (`test`.`t1`.`a` is null)))
 select * from t1 where (a = 7 or a is null) and (a = 7 or a is null);
 a	b
 7	NULL
@@ -275,14 +275,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t1	NULL	ref	a,b	a	10	test.t2.a,const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` straight_join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and isnull(`test`.`t1`.`b`))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` straight_join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` is null))
 drop index b on t1;
 explain select * from t2,t1 where t1.a=t2.a and b is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t1	NULL	ref	a	a	10	test.t2.a,const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and isnull(`test`.`t1`.`b`))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t1`.`b` is null))
 select * from t2,t1 where t1.a=t2.a and b is null;
 a	a	b
 7	7	NULL
@@ -292,7 +292,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 1	SIMPLE	t1	NULL	ref_or_null	a	a	10	test.t2.a,const	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and ((`test`.`t1`.`b` = 7) or isnull(`test`.`t1`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t2,t1 where t1.a=t2.a and (b= 7 or b is null);
 a	a	b
 7	7	7
@@ -304,7 +304,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ref_or_null	a	a	10	test.t2.a,const	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = 7) and ((`test`.`t1`.`a` = `test`.`t2`.`a`) or isnull(`test`.`t1`.`a`)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`b` = 7) and ((`test`.`t1`.`a` = `test`.`t2`.`a`) or (`test`.`t1`.`a` is null)))
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and b= 7;
 a	a	b
 7	7	7
@@ -316,7 +316,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	test.t2.a	4	19.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t2`.`a`) or isnull(`test`.`t1`.`a`)) and ((`test`.`t1`.`b` = 7) or isnull(`test`.`t1`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where (((`test`.`t1`.`a` = `test`.`t2`.`a`) or (`test`.`t1`.`a` is null)) and ((`test`.`t1`.`b` = 7) or (`test`.`t1`.`b` is null)))
 select * from t2,t1 where (t1.a=t2.a or t1.a is null) and (b= 7 or b is null);
 a	a	b
 7	7	NULL
@@ -332,13 +332,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	test.t2.a	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) or isnull(`test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) or (`test`.`t1`.`a` is null))
 explain select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	test.t2.a	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` <=> `test`.`t2`.`a`) or (isnull(`test`.`t1`.`a`) and (`test`.`t1`.`b` <> 9)))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` <=> `test`.`t2`.`a`) or ((`test`.`t1`.`a` is null) and (`test`.`t1`.`b` <> 9)))
 select * from t2,t1 where t1.a<=>t2.a or (t1.a is null and t1.b <> 9);
 a	a	b
 7	7	NULL
@@ -368,7 +368,7 @@ explain select id from t1 where uniq_id is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	5	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where isnull(`test`.`t1`.`uniq_id`)
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where (`test`.`t1`.`uniq_id` is null)
 explain select id from t1 where uniq_id =1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	idx1	idx1	5	const	1	100.00	NULL
@@ -572,7 +572,7 @@ explain SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 42) or ((`test`.`t1`.`a` is true) and isnull(`test`.`t1`.`a`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 42) or ((`test`.`t1`.`a` is true) and (`test`.`t1`.`a` is null)))
 SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 a
 explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);
@@ -590,7 +590,7 @@ Warnings:
 Warning	1062	Duplicate entry '6-6' for key 'b'
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 EXPLAIN
--> Filter: ((t1.b = 7) and (isnull(t1.a) or (t1.a = 7)))
+-> Filter: ((t1.b = 7) and ((t1.a is null) or (t1.a = 7)))
     -> Index lookup on t1 using b (b=7, a=7 or NULL)
 
 drop table t1;

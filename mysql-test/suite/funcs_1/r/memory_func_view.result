@@ -1570,7 +1570,7 @@ IS NOT NULL	2000	4
 IS NOT NULL	2005	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_year`),'IS     NULL','IS NOT NULL') AS `IF(my_year IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_year` is null),'IS     NULL','IS NOT NULL') AS `IF(my_year IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1599,7 +1599,7 @@ IS NOT NULL	13:00:00	4
 IS NOT NULL	10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_time`),'IS     NULL','IS NOT NULL') AS `IF(my_time IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_time` is null),'IS     NULL','IS NOT NULL') AS `IF(my_time IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1628,7 +1628,7 @@ IS NOT NULL	2004-02-29 23:59:59	4
 IS NOT NULL	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_timestamp`),'IS     NULL','IS NOT NULL') AS `IF(my_timestamp IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_timestamp` is null),'IS     NULL','IS NOT NULL') AS `IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1657,7 +1657,7 @@ IS NOT NULL	2004-02-29	4
 IS NOT NULL	2005-06-28	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_date`),'IS     NULL','IS NOT NULL') AS `IF(my_date IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_date` is null),'IS     NULL','IS NOT NULL') AS `IF(my_date IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1686,7 +1686,7 @@ IS NOT NULL	2004-02-29 23:59:59	4
 IS NOT NULL	2005-06-28 10:00:00	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_datetime`),'IS     NULL','IS NOT NULL') AS `IF(my_datetime IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_datetime` is null),'IS     NULL','IS NOT NULL') AS `IF(my_datetime IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1715,7 +1715,7 @@ IS NOT NULL	0	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_double`),'IS     NULL','IS NOT NULL') AS `IF(my_double IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_double` is null),'IS     NULL','IS NOT NULL') AS `IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1744,7 +1744,7 @@ IS NOT NULL	0.000000000000000000000000000000	4
 IS NOT NULL	-1.000000000000000000000000000000	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_decimal`),'IS     NULL','IS NOT NULL') AS `IF(my_decimal IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_decimal` is null),'IS     NULL','IS NOT NULL') AS `IF(my_decimal IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1773,7 +1773,7 @@ IS NOT NULL	0	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_bigint`),'IS     NULL','IS NOT NULL') AS `IF(my_bigint IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_bigint` is null),'IS     NULL','IS NOT NULL') AS `IF(my_bigint IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1802,7 +1802,7 @@ IS NOT NULL	 ---äÖüß@µ*$-- 	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_varbinary_1000`),'IS     NULL','IS NOT NULL') AS `IF(my_varbinary_1000 IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_varbinary_1000` is null),'IS     NULL','IS NOT NULL') AS `IF(my_varbinary_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1831,7 +1831,7 @@ IS NOT NULL	 ---äÖüß@µ*$-- 	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_binary_30`),'IS     NULL','IS NOT NULL') AS `IF(my_binary_30 IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_binary_30` is null),'IS     NULL','IS NOT NULL') AS `IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1860,7 +1860,7 @@ IS NOT NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$-- 	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_varchar_1000`),'IS     NULL','IS NOT NULL') AS `IF(my_varchar_1000 IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_varchar_1000` is null),'IS     NULL','IS NOT NULL') AS `IF(my_varchar_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
@@ -1889,7 +1889,7 @@ IS NOT NULL	 ---Ã¤Ã–Ã¼ÃŸ@Âµ*$--	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(isnull(`t1_values`.`my_char_30`),'IS     NULL','IS NOT NULL') AS `IF(my_char_30 IS NULL, 'IS     NULL',
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if((`t1_values`.`my_char_30` is null),'IS     NULL','IS NOT NULL') AS `IF(my_char_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	utf8mb4	utf8mb4_0900_ai_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values

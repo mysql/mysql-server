@@ -606,7 +606,7 @@ explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or (`test`.`t1`.`txt` is null))
 select * from t1 where txt='Chevy ';
 id	txt
 1	Chevy
@@ -682,7 +682,7 @@ explain select * from t1 where txt='Chevy' or txt is NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or (`test`.`t1`.`txt` is null))
 select * from t1 where txt='Chevy' or txt is NULL;
 id	txt
 1	Chevy
@@ -691,7 +691,7 @@ explain select * from t1 where txt='Chevy' or txt is NULL order by txt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	txt_index	txt_index	23	const	2	100.00	Using where; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or isnull(`test`.`t1`.`txt`)) order by `test`.`t1`.`txt`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`txt` AS `txt` from `test`.`t1` where ((`test`.`t1`.`txt` = 'Chevy') or (`test`.`t1`.`txt` is null)) order by `test`.`t1`.`txt`
 select * from t1 where txt='Chevy' or txt is NULL order by txt;
 id	txt
 3	NULL
