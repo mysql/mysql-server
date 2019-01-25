@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -605,6 +605,15 @@ int validate_plugin_server_requirements(Trans_param *param) {
   my_free(encoded_gtid_executed_string);
 #endif
   my_free(encoded_gtid_executed);
+
+  my_free(server_ssl_variables.ssl_ca);
+  my_free(server_ssl_variables.ssl_capath);
+  my_free(server_ssl_variables.tls_version);
+  my_free(server_ssl_variables.ssl_cert);
+  my_free(server_ssl_variables.ssl_cipher);
+  my_free(server_ssl_variables.ssl_key);
+  my_free(server_ssl_variables.ssl_crl);
+  my_free(server_ssl_variables.ssl_crlpath);
 
   /*
     Log number of successful validations.
