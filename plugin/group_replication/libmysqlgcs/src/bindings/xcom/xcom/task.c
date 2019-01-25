@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1390,6 +1390,33 @@ static result create_server_socket() {
   return fd;
 }
 
+static result create_server_socket_v4() {
+  result fd = {0, 0};
+  /* Create socket */
+  if ((fd = xcom_checked_socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)).val < 0) {
+    G_MESSAGE(
+        "Unable to create socket v4"
+        "(socket=%d, errno=%d)!",
+        fd.val, to_errno(GET_OS_ERR));
+    return fd;
+  }
+  {
+    int reuse = 1;
+    SET_OS_ERR(0);
+    if (setsockopt(fd.val, SOL_SOCKET, SOCK_OPT_REUSEADDR, (void *)&reuse,
+                   sizeof(reuse)) < 0) {
+      fd.funerr = to_errno(GET_OS_ERR);
+      G_MESSAGE(
+          "Unable to set socket options "
+          "(socket=%d, errno=%d)!",
+          fd.val, to_errno(GET_OS_ERR));
+      close_socket(&fd.val);
+      return fd;
+    }
+  }
+  return fd;
+}
+
 /**
  * @brief Initializes a sockaddr prepared to be used in bind()
  *
@@ -1400,7 +1427,7 @@ static result create_server_socket() {
  * @param port the port to bind.
  */
 static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
-                             xcom_port port) {
+                             xcom_port port, int family) {
   struct addrinfo *address_info = NULL, hints, *address_info_loop;
   memset(&hints, 0, sizeof(hints));
 
@@ -1412,7 +1439,7 @@ static void init_server_addr(struct sockaddr **sock_addr, socklen_t *sock_len,
 
   address_info_loop = address_info;
   while (address_info_loop) {
-    if (address_info_loop->ai_family == AF_INET6) {
+    if (address_info_loop->ai_family == family) {
       if (*sock_addr == NULL) {
         *sock_addr = (struct sockaddr *)malloc(address_info_loop->ai_addrlen);
       }
@@ -1433,18 +1460,40 @@ result announce_tcp(xcom_port port) {
   result fd;
   struct sockaddr *sock_addr = NULL;
   socklen_t sock_addr_len;
+  int server_socket_v6_ok = 0;
 
+  // Try and create a V6 server socket. It should succeed if the OS
+  // supports IPv6, and fail otherwise.
   fd = create_server_socket();
   if (fd.val < 0) {
-    return fd;
+    // If the OS does not support IPv6, we fall back to IPv4.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+  } else {
+    server_socket_v6_ok = 1;
   }
-  init_server_addr(&sock_addr, &sock_addr_len, port);
+  init_server_addr(&sock_addr, &sock_addr_len, port,
+                   server_socket_v6_ok ? AF_INET6 : AF_INET);
   if (sock_addr == NULL || (bind(fd.val, sock_addr, sock_addr_len) < 0)) {
-    int err = to_errno(GET_OS_ERR);
-    G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
-              port, fd.val, err);
-    goto err;
+    // If we fail to bind to the desired address, we fall back to an
+    // IPv4 socket.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+
+    free(sock_addr);
+    init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
+    if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
+      int err = to_errno(GET_OS_ERR);
+      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "INADDR_ANY",
+                port, fd.val, err);
+      goto err;
+    }
   }
+
   G_DEBUG("Successfully bound to %s:%d (socket=%d).", "INADDR_ANY", port,
           fd.val);
   if (listen(fd.val, 32) < 0) {
@@ -1490,38 +1539,83 @@ err:
  * These are used by the local_server and the XCom queue. They will use a local
  * TCP connection to signal that the queue has work to be consumed.
  */
-static void init_local_server_addr(struct sockaddr_in6 *sock_addr) {
+static void init_local_server_addr_v6(struct sockaddr_in6 *sock_addr) {
   memset(sock_addr, 0, sizeof(*sock_addr));
   sock_addr->sin6_family = AF_INET6;
   sock_addr->sin6_addr = in6addr_loopback;
   sock_addr->sin6_port = 0;
 }
 
+static void init_local_server_addr_v4(struct sockaddr_in *sock_addr) {
+  memset(sock_addr, 0, sizeof(*sock_addr));
+  sock_addr->sin_family = AF_INET;
+  sock_addr->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  sock_addr->sin_port = 0;
+}
+
 result announce_tcp_local_server() {
   result fd;
   struct sockaddr_in6 sock_addr;
   struct sockaddr_in6 bound_addr;
-  socklen_t bound_addr_len = sizeof(bound_addr);
-  int error_code = 0;
+  struct sockaddr_in sock_addr_v4;
+  struct sockaddr_in bound_addr_v4;
+  int bind_v6 = 0;
 
+  int error_code = 0;
+  xcom_port port = 0;
+  socklen_t bound_addr_len = 0;
+
+  // Try to create an IPv6 server socket. It should succeed if the
+  // OS supports IPv6, and fail otherwise.
   fd = create_server_socket();
   if (fd.val < 0) {
-    /* purecov: begin inspected */
-    return fd;
-    /* purecov: end */
+    // If the OS does *not* support IPv6, we fall back to IPv4.
+    fd = create_server_socket_v4();
+    if (fd.val < 0) {
+      return fd;
+    }
+  } else {
+    bind_v6 = 1;
   }
-  init_local_server_addr(&sock_addr);
-  xcom_port port = 0;
-  if (bind(fd.val, (struct sockaddr *)&sock_addr, sizeof(sock_addr)) < 0) {
-    /* purecov: begin inspected */
-    int err = to_errno(GET_OS_ERR);
-    G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "0.0.0.0", port,
-              fd.val, err);
-    goto err;
-    /* purecov: end */
+
+  int bind_result = 0;
+  if (bind_v6) {
+    init_local_server_addr_v6(&sock_addr);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr, sizeof(sock_addr));
   }
-  error_code =
-      getsockname(fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+
+  if (bind_result < 0 || !bind_v6) {
+    if (bind_result < 0) {
+      fd = create_server_socket_v4();
+    }
+    // If we fail to bind to the desired address,
+    // we fall back to an IPv4 socket.
+    init_local_server_addr_v4(&sock_addr_v4);
+    bind_result =
+        bind(fd.val, (struct sockaddr *)&sock_addr_v4, sizeof(sock_addr_v4));
+
+    if (bind_result < 0) {
+      /* purecov: begin inspected */
+      int err = to_errno(GET_OS_ERR);
+      G_MESSAGE("Unable to bind to %s:%d (socket=%d, errno=%d)!", "0.0.0.0",
+                port, fd.val, err);
+      goto err;
+      /* purecov: end */
+    } else {
+      bind_v6 = 0;
+    }
+  }
+
+  if (bind_v6) {
+    bound_addr_len = sizeof(bound_addr);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr, &bound_addr_len);
+  } else {
+    bound_addr_len = sizeof(bound_addr_v4);
+    error_code =
+        getsockname(fd.val, (struct sockaddr *)&bound_addr_v4, &bound_addr_len);
+  }
   if (error_code != 0) {
     /* purecov: begin inspected */
     G_MESSAGE(
@@ -1531,7 +1625,13 @@ result announce_tcp_local_server() {
     goto err;
     /* purecov: end */
   }
-  port = ntohs(bound_addr.sin6_port);
+
+  if (bind_v6) {
+    port = ntohs(bound_addr.sin6_port);
+  } else {
+    port = ntohs(bound_addr_v4.sin_port);
+  }
+
   G_DEBUG("Successfully bound to %s:%d (socket=%d).", "0.0.0.0", port, fd.val);
   if (listen(fd.val, 32) < 0) {
     /* purecov: begin inspected */
@@ -1563,7 +1663,6 @@ err:
   close_socket(&fd.val);
   return fd;
 }
-
 int accept_tcp(int fd, int *ret) {
   struct sockaddr_storage sock_addr;
   DECL_ENV
