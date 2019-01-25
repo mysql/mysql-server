@@ -639,6 +639,26 @@ IF (ENABLE_GPROF AND NOT WIN32 AND NOT APPLE)
   STRING_APPEND(CMAKE_EXE_LINKER_FLAGS " -pg")
 ENDIF()
 
+# Use lld for Clang if available and not explicitly disabled.
+# Also works for gcc on Debian/Ubuntu. Do 'apt install lld'.
+IF(LINUX)
+  OPTION(USE_LD_LLD "Use llvm lld linker" ON)
+ELSE()
+  OPTION(USE_LD_LLD "Use llvm lld linker" OFF)
+ENDIF()
+
+IF(USE_LD_LLD)
+  CMAKE_PUSH_CHECK_STATE(RESET)
+  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld")
+  CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_LLD_RESULT)
+  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_LLD_RESULT)
+  IF(C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
+    STRING_APPEND(CMAKE_C_LINK_FLAGS " -fuse-ld=lld")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -fuse-ld=lld")
+  ENDIF()
+  CMAKE_POP_CHECK_STATE()
+ENDIF()
+
 # Use gold if available and not explicitly disabled.
 IF(WIN32)
   # Feature tests are expensive on Windows, and we only support MSVC,
@@ -656,7 +676,7 @@ ELSE()
   SET(LINK_RANDOMIZE OFF)
 ENDIF()
 
-IF (USE_LD_GOLD)
+IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
   # These tests will give a false negative on some Clang versions,
   # since there is no easy way in CMake to check for a linker flag
   # without reimplementing CheckCXXSourceCompiles, and
