@@ -175,6 +175,7 @@ SELECT * FROM t1;
 --echo # Connection other:
 connection other;
 START TRANSACTION;
+SET innodb_lock_wait_timeout = 1;
 --error  ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 VALUES (2, 2, 3) ON DUPLICATE KEY UPDATE c=VALUES(c);
 COMMIT;
@@ -188,11 +189,6 @@ COMMIT;
 SELECT * FROM t1;
 
 --echo # Cleanup
-DROP TABLE t1;
-
-CREATE TABLE t1 (a INT UNIQUE KEY, b INT UNIQUE KEY, c INT) ENGINE = InnoDB;
-SHOW CREATE TABLE t1;
-
 DROP TABLE t1;
 
 #test 7
