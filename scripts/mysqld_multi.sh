@@ -22,7 +22,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-use Getopt::Long;
+use Getopt::Long qw(:config pass_through);
 use POSIX qw(strftime getcwd);
 use File::Path qw(mkpath);
 
@@ -175,7 +175,8 @@ sub main
       print "groups [mysqldN] separately for each.\n\n";
     }
     if ($ARGV[0] =~ m/^start$/i) {
-      start_mysqlds();
+      @params = @ARGV [2 .. $#ARGV ];
+      start_mysqlds(@params);
     } elsif ($ARGV[0] =~ m/^reload$/i) {
       reload_mysqlds();
     }
@@ -313,6 +314,7 @@ sub report_mysqlds
 
 sub start_mysqlds()
 {
+  @config_overrides = @_;
   my (@groups, $com, $tmp, $i, @options, $j, $mysqld_found, $info_sent);
 
   if (!$opt_no_log)
@@ -324,9 +326,32 @@ sub start_mysqlds()
     print "\nStarting MySQL servers\n";
   }
   @groups = &find_groups($groupids);
+  $additional_params = "";
+
   for ($i = 0; defined($groups[$i]); $i++)
   {
     @options = defaults_for_group($groups[$i]);
+    foreach my $override (@config_overrides)
+    {
+      $found = 0;
+      ($ovr_opt) = $override =~ /(--[a-z_]+)/i;
+      for ($o = 0; defined(@options[$o]); $o++)
+      {
+        ($opt) = (@options[$o] =~ /(--[a-z_]+)/i);
+
+        if ( $ovr_opt eq $opt)
+        {
+          @options[$o] = $override;
+          $found = 1;
+          break;
+        }
+      }
+
+      if ( $found eq 0)
+      {
+        $additional_params .= " $override";
+      }
+    }
 
     $basedir_found= 0; # The default
     $mysqld_found= 1; # The default
@@ -388,6 +413,7 @@ sub start_mysqlds()
       $info_sent= 1;
     }
     # Prepare command line by appending command and option list, and redirect output.
+    $tmp.= $additional_params;
     $com.= $tmp;
     $com.= " >> $opt_log 2>&1" if (!$opt_no_log);
     if (!$mysqld_found)
