@@ -44,6 +44,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x` from `test`.`t1`
+EXPLAIN SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1;
+ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
 EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL

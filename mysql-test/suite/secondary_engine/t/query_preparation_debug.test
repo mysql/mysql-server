@@ -56,6 +56,8 @@ ANALYZE TABLE t1, t2;
 # prevents the queries from being offloaded to the MOCK engine.
 SET DEBUG = "+d,secondary_engine_mock_optimize_error";
 EXPLAIN SELECT * FROM t1;
+--error ER_SECONDARY_ENGINE
+EXPLAIN SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1;
 EXPLAIN SELECT (SELECT y FROM t2 WHERE y = 1) FROM t1;
 EXPLAIN SELECT * FROM t1 UNION ALL SELECT * FROM t2;
 EXPLAIN SELECT * FROM t1 UNION DISTINCT SELECT * FROM t2;

@@ -1001,7 +1001,11 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   table_map ref_depend_map = 0;
   uint used_key_parts = 0;
 
-  if (tab->keyuse() != NULL)
+  /*
+    Secondary storage engines do not support index access. Only look for best
+    ref access when using the primary storage engine.
+  */
+  if (tab->keyuse() != nullptr && table->s->is_primary())
     best_ref =
         find_best_ref(tab, remaining_tables, idx, prefix_rowcount,
                       &found_condition, &ref_depend_map, &used_key_parts);

@@ -402,26 +402,6 @@ SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
 DROP PREPARE ps;
-FLUSH STATUS;
-SET @@secondary_engine_cost_threshold = 0;
-ALTER TABLE t1 SECONDARY_UNLOAD;
-ALTER TABLE t1 SECONDARY_ENGINE NULL;
-CREATE INDEX t1_x ON t1(x);
-ALTER TABLE t1 SECONDARY_ENGINE MOCK;
-ALTER TABLE t1 SECONDARY_LOAD;
-SELECT x FROM t1 FORCE INDEX (t1_x);
-x
-1
-2
-3
-SHOW STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
-SELECT /*+ SET_VAR(use_secondary_engine = FORCED) */ x FROM t1 FORCE INDEX (t1_x);
-ERROR HY000: Secondary engine operation failed. use_secondary_engine is FORCED but query could not be executed in secondary engine.
-SHOW STATUS LIKE 'Secondary_engine_execution_count';
-Variable_name	Value
-Secondary_engine_execution_count	0
 DROP TABLE t1;
 DROP VIEW v1;
 SET @@secondary_engine_cost_threshold = @saved_threshold;

@@ -3464,8 +3464,13 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     thd->mem_root = param.old_root;
 
-    /* If we got a read plan, create a quick select from it. */
-    if (best_trp) {
+    /*
+      If we got a read plan, create a quick select from it.
+
+      Secondary storage engines do not support index access, so only create a
+      quick select for the primary storage engine.
+    */
+    if (best_trp && head->s->is_primary()) {
       QUICK_SELECT_I *qck;
       records = best_trp->records;
       if (!(qck = best_trp->make_quick(&param, true)) || qck->init())

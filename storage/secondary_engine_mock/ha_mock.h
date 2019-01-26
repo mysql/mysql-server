@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,11 +75,12 @@ class ha_mock : public handler {
 
   int info(unsigned int) override;
 
+  ha_rows records_in_range(unsigned int index, key_range *min_key,
+                           key_range *max_key) override;
+
   void position(const unsigned char *) override {}
 
-  unsigned long index_flags(unsigned int, unsigned int, bool) const override {
-    return 0;
-  }
+  unsigned long index_flags(unsigned int, unsigned int, bool) const override;
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              thr_lock_type lock_type) override;

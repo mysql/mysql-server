@@ -499,14 +499,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   if (share->found_next_number_field) {
     Field *reg_field = *share->found_next_number_field;
-    /*
-      Check that the auto-increment column is the first column of some key. The
-      check is skipped for shares that represent tables in secondary engines,
-      since secondary engines don't have keys or indexes, and the auto-increment
-      column is maintained by the primary engine.
-    */
-    if (share->is_primary() &&
-        (int)(share->next_number_index = (uint)find_ref_key(
+    /* Check that the auto-increment column is the first column of some key. */
+    if ((int)(share->next_number_index = (uint)find_ref_key(
                   share->key_info, share->keys, share->default_values,
                   reg_field, &share->next_number_key_offset,
                   &share->next_number_keypart)) < 0) {
@@ -1462,9 +1456,6 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
   share->keys_for_keyread.init(0);
   share->keys_in_use.init();
   share->visible_indexes.init();
-
-  // Indexes are not available in the secondary storage engine.
-  if (share->is_secondary()) return false;
 
   uint32 primary_key_parts = 0;
 

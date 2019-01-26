@@ -131,6 +131,30 @@ int ha_mock::info(unsigned int flags) {
   return ret;
 }
 
+unsigned long ha_mock::index_flags(unsigned int idx, unsigned int part,
+                                   bool all_parts) const {
+  const handler *primary = ha_get_primary_handler();
+  const unsigned long primary_flags =
+      primary == nullptr ? 0 : primary->index_flags(idx, part, all_parts);
+
+  // Inherit the following index flags from the primary handler, if they are
+  // set:
+  //
+  // HA_READ_RANGE - to signal that ranges can be read from the index, so that
+  // the optimizer can use the index to estimate the number of rows in a range.
+  //
+  // HA_KEY_SCAN_NOT_ROR - to signal if the index returns records in rowid
+  // order. Used to disable use of the index in the range optimizer if it is not
+  // in rowid order.
+  return ((HA_READ_RANGE | HA_KEY_SCAN_NOT_ROR) & primary_flags);
+}
+
+ha_rows ha_mock::records_in_range(unsigned int index, key_range *min_key,
+                                  key_range *max_key) {
+  // Get the number of records in the range from the primary storage engine.
+  return ha_get_primary_handler()->records_in_range(index, min_key, max_key);
+}
+
 THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
                                     thr_lock_type lock_type) {
   if (lock_type != TL_IGNORE && m_lock.type == TL_UNLOCK)
