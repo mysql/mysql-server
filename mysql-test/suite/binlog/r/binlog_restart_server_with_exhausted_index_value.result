@@ -1,0 +1,13 @@
+call mtr.add_suppression("Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.");
+call mtr.add_suppression("Can't generate a unique log-filename .*");
+call mtr.add_suppression("MYSQL_BIN_LOG::open failed to generate new file name.");
+RESET MASTER TO 2147483647;
+Occurrences of 'Aborting' in the input file: 1
+Occurrences of 'MYSQL_BIN_LOG::open failed to generate new file name.' in the input file: 1
+Occurrences of 'Can't generate a unique log-filename .*' in the input file: 1
+Occurrences of 'Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.' in the input file: 1
+Occurrences of 'Aborting' in the input file: 1
+Occurrences of 'MYSQL_BIN_LOG::open failed to generate new file name.' in the input file: 1
+Occurrences of 'Can't generate a unique log-filename .*' in the input file: 1
+Occurrences of 'Log filename extension number exhausted: 2147483647. Please fix this by archiving old logs and updating the index files.' in the input file: 1
+# restart
