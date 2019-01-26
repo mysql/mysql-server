@@ -3597,9 +3597,10 @@ int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name,
   fn_format(new_name, log_name, mysql_data_home, "", 4);
   if (!fn_ext(log_name)[0]) {
     if (find_uniq_filename(new_name, new_index_number)) {
-      my_printf_error(ER_NO_UNIQUE_LOGFILE,
-                      ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
-                      MYF(ME_FATALERROR), log_name);
+      if (current_thd != nullptr)
+        my_printf_error(ER_NO_UNIQUE_LOGFILE,
+                        ER_THD(current_thd, ER_NO_UNIQUE_LOGFILE),
+                        MYF(ME_FATALERROR), log_name);
       LogErr(ERROR_LEVEL, ER_FAILED_TO_GENERATE_UNIQUE_LOGFILE, log_name);
       return 1;
     }
