@@ -1884,7 +1884,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
 
-  ut_ad(dict_table_is_intrinsic(table));
+  ut_ad(table->is_intrinsic());
   rec_offs_init(offsets_);
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -1903,7 +1903,7 @@ static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
+  ut_ad(!cmp_dtuple_rec(entry, rec, index, offsets));
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(index->table)));
   ut_ad(btr_pcur_get_block(&pcur)->made_dirty_with_no_latch);
 
