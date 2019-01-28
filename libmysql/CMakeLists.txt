@@ -361,6 +361,8 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 #
 MYSQL_ADD_EXECUTABLE(libmysql_api_test
   ${CMAKE_CURRENT_BINARY_DIR}/api_test.c SKIP_INSTALL)
+# Clang/UBSAN needs this on some platforms.
+SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
