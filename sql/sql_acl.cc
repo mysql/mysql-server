@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1200,8 +1200,16 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   init_read_record(&read_record_info,thd,table=tables[1].table,NULL,1,0,FALSE);
   table->use_all_columns();
+
+  if (table->s->fields <= MYSQL_USER_FIELD_PASSWORD)
+  {
+    sql_print_error("Fatal error: mysql.user table is damaged with missing "
+                   "password column.");
+    goto end;
+  }
   password_length= table->field[2]->field_length /
     table->field[2]->charset()->mbmaxlen;
+
   if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
   {
     sql_print_error("Fatal error: mysql.user table is damaged or in "
