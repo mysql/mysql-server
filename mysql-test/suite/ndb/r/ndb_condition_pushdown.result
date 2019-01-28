@@ -1753,9 +1753,9 @@ count(*)
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	index	PRIMARY	PRIMARY	4	NULL	#	#	Using pushed condition (isnull(`test`.`t2`.`attr3`) or ((`test`.`t2`.`pk1` = 3) and (`test`.`t2`.`attr1` > 2)))
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	index	PRIMARY	PRIMARY	4	NULL	#	#	Using pushed condition ((`test`.`t2`.`attr3` is null) or ((`test`.`t2`.`pk1` = 3) and (`test`.`t2`.`attr1` > 2)))
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`pk1` AS `pk1`,`test`.`t2`.`attr1` AS `attr1`,`test`.`t2`.`attr2` AS `attr2`,`test`.`t2`.`attr3` AS `attr3` from `test`.`t2` where (isnull(`test`.`t2`.`attr3`) or ((`test`.`t2`.`pk1` = 3) and (`test`.`t2`.`attr1` > 2))) order by `test`.`t2`.`pk1`
+Note	1003	/* select#1 */ select `test`.`t2`.`pk1` AS `pk1`,`test`.`t2`.`attr1` AS `attr1`,`test`.`t2`.`attr2` AS `attr2`,`test`.`t2`.`attr3` AS `attr3` from `test`.`t2` where ((`test`.`t2`.`attr3` is null) or ((`test`.`t2`.`pk1` = 3) and (`test`.`t2`.`attr1` > 2))) order by `test`.`t2`.`pk1`
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 pk1	attr1	attr2	attr3
 2	2	NULL	NULL
@@ -1835,7 +1835,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	Can't push table 't4' as child, 'type' must be a 'ref' access
-Note	1003	/* select#1 */ select `test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`attr1` AS `attr1`,`test`.`t3`.`attr2` AS `attr2`,`test`.`t3`.`attr3` AS `attr3`,`test`.`t3`.`attr4` AS `attr4`,`test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`attr2` = `test`.`t3`.`attr2`)) where (((`test`.`t4`.`attr1` > 1) and (`test`.`t4`.`attr3` < 5)) or isnull(`test`.`t4`.`attr1`)) order by `test`.`t4`.`pk1`
+Note	1003	/* select#1 */ select `test`.`t3`.`pk1` AS `pk1`,`test`.`t3`.`attr1` AS `attr1`,`test`.`t3`.`attr2` AS `attr2`,`test`.`t3`.`attr3` AS `attr3`,`test`.`t3`.`attr4` AS `attr4`,`test`.`t4`.`pk1` AS `pk1`,`test`.`t4`.`attr1` AS `attr1`,`test`.`t4`.`attr2` AS `attr2`,`test`.`t4`.`attr3` AS `attr3`,`test`.`t4`.`attr4` AS `attr4` from `test`.`t3` left join `test`.`t4` on((`test`.`t4`.`attr2` = `test`.`t3`.`attr2`)) where (((`test`.`t4`.`attr1` > 1) and (`test`.`t4`.`attr3` < 5)) or (`test`.`t4`.`attr1` is null)) order by `test`.`t4`.`pk1`
 create table t5 (a int primary key auto_increment, b tinytext not null) 
 engine = ndb
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
