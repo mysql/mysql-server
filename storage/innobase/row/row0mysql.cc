@@ -1872,6 +1872,54 @@ class ib_dec_counter {
   }
 };
 
+/** Do an in-place update in the intrinsic table.  The update should not
+modify any of the keys and it should not change the size of any fields.
+@param[in]	node	the update node.
+@return DB_SUCCESS on success, an error code on failure. */
+static dberr_t row_update_inplace_for_intrinsic(const upd_node_t *node) {
+  mtr_t mtr;
+  dict_table_t *table = node->table;
+  mem_heap_t *heap = node->heap;
+  dtuple_t *entry = node->row;
+  ulint offsets_[REC_OFFS_NORMAL_SIZE];
+  ulint *offsets = offsets_;
+
+  ut_ad(dict_table_is_intrinsic(table));
+  rec_offs_init(offsets_);
+  mtr_start(&mtr);
+  mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+  btr_pcur_t pcur;
+
+  dict_index_t *index = table->first_index();
+
+  entry = row_build_index_entry(node->row, node->ext, index, heap);
+
+  btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_LEAF, &pcur, &mtr);
+
+  rec_t *rec = btr_pcur_get_rec(&pcur);
+
+  ut_ad(!page_rec_is_infimum(rec));
+  ut_ad(!page_rec_is_supremum(rec));
+
+  offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+  ut_ad(!cmp_dtuple_rec(entry, rec, offsets));
+  ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(index->table)));
+  ut_ad(btr_pcur_get_block(&pcur)->made_dirty_with_no_latch);
+
+  bool size_changes =
+      row_upd_changes_field_size_or_external(index, offsets, node->update);
+
+  if (size_changes) {
+    return (DB_FAIL);
+  }
+
+  row_upd_rec_in_place(rec, index, offsets, node->update, NULL);
+  mtr_commit(&mtr);
+
+  return (DB_SUCCESS);
+}
+
 typedef std::vector<btr_pcur_t, ut_allocator<btr_pcur_t>> cursors_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
@@ -1888,7 +1936,7 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
                                                  bool restore_delete) {
   mtr_t mtr;
   dict_table_t *table = node->table;
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = node->heap;
   dberr_t err = DB_SUCCESS;
   dtuple_t *entry;
 
@@ -1979,8 +2027,6 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
 
   mtr_commit(&mtr);
 
-  mem_heap_free(heap);
-
   return (err);
 }
 
@@ -1994,7 +2040,7 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
                                                  que_thr_t *thr) {
   dberr_t err = DB_SUCCESS;
   dict_table_t *table = node->table;
-  mem_heap_t *heap = mem_heap_create(1000);
+  mem_heap_t *heap = node->heap;
   dtuple_t *entry;
   dfield_t *trx_id_field;
 
@@ -2065,9 +2111,6 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
     }
   }
 
-  if (heap != NULL) {
-    mem_heap_free(heap);
-  }
   return (err);
 }
 
@@ -2108,6 +2151,32 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
   /* Internal table is created by optimiser. So there
   should not be any virtual columns. */
   row_upd_store_row(prebuilt->trx, node, NULL, NULL);
+
+  if (!node->is_delete) {
+    /* UPDATE operation */
+
+    bool key_changed = false;
+
+    dict_table_t *table = prebuilt->table;
+
+    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes); index != NULL;
+         index = UT_LIST_GET_NEXT(indexes, index)) {
+      key_changed = row_upd_changes_ord_field_binary(
+          index, node->update, thr, node->upd_row, node->upd_ext);
+
+      if (key_changed) {
+        break;
+      }
+    }
+
+    if (!key_changed) {
+      err = row_update_inplace_for_intrinsic(node);
+
+      if (err == DB_SUCCESS) {
+        return (err);
+      }
+    }
+  }
 
   /* Step-2: Execute DELETE operation. */
   err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
