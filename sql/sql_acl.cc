@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1565,7 +1565,14 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   freeze_size(&acl_users);
 
   /* Legacy password integrity checks ----------------------------------------*/
-  { 
+  {
+    if (table->s->fields <= MYSQL_USER_FIELD_PASSWORD)
+    {
+      sql_print_error("Fatal error: mysql.user table is damaged with missing "
+                      "password column.");
+      goto end;
+    }
+
     password_length= table->field[MYSQL_USER_FIELD_PASSWORD]->field_length /
       table->field[MYSQL_USER_FIELD_PASSWORD]->charset()->mbmaxlen;
     if (password_length < SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
