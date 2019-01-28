@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <stddef.h>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "storage/ndb/include/ndbapi/NdbBlob.hpp"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
@@ -148,5 +149,31 @@ bool
 ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
                               const std::string &schema_name,
                               std::unordered_set<std::string>& table_names);
+
+
+/**
+ * @brief Retrieves list of undofile names assigned to a logfile group from NDB
+ *        Dictionary
+ * @param dict                 NDB Dictionary
+ * @param logfile_group_name   Logfile group name
+ * @param undofile_names [out] Undofile names
+ * @return true on success, false on failure
+ */
+bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
+                            const std::string &logfile_group_name,
+                            std::vector<std::string> &undofile_names);
+
+
+/**
+ * @brief Retrieves list of datafile names assigned to a tablespace from NDB
+ *        Dictionary
+ * @param dict                 NDB Dictionary
+ * @param tablespace_name      Tablespace name
+ * @param datafile_names [out] Datafile names
+ * @return true on success, false on failure
+ */
+bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
+                            const std::string &tablespace_name,
+                            std::vector<std::string> &datafile_names);
 
 #endif

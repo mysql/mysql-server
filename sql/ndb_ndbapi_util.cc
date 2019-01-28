@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -244,6 +244,52 @@ bool ndb_get_table_names_in_schema(NdbDictionary::Dictionary* dict,
       // StateBackup or if they're expected to be usable soon which is denoted
       // by StateBuilding
       table_names.insert(elmt.name);
+    }
+  }
+  return true;
+}
+
+
+bool ndb_get_undofile_names(NdbDictionary::Dictionary *dict,
+                            const std::string &logfile_group_name,
+                            std::vector<std::string> &undofile_names)
+{
+  NdbDictionary::Dictionary::List undofile_list;
+  if (dict->listObjects(undofile_list, NdbDictionary::Object::Undofile) != 0)
+  {
+    return false;
+  }
+
+  for (uint i = 0; i < undofile_list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt = undofile_list.elements[i];
+    NdbDictionary::Undofile uf = dict->getUndofile(-1, elmt.name);
+    if (logfile_group_name.compare(uf.getLogfileGroup()) == 0)
+    {
+      undofile_names.push_back(elmt.name);
+    }
+  }
+  return true;
+}
+
+
+bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
+                            const std::string &tablespace_name,
+                            std::vector<std::string> &datafile_names)
+{
+  NdbDictionary::Dictionary::List datafile_list;
+  if (dict->listObjects(datafile_list, NdbDictionary::Object::Datafile) != 0)
+  {
+    return false;
+  }
+
+  for (uint i = 0; i < datafile_list.count; i++)
+  {
+    NdbDictionary::Dictionary::List::Element &elmt = datafile_list.elements[i];
+    NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
+    if (tablespace_name.compare(df.getTablespace()) == 0)
+    {
+      datafile_names.push_back(elmt.name);
     }
   }
   return true;

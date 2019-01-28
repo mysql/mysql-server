@@ -1191,52 +1191,6 @@ class Ndb_binlog_setup {
 
 
   bool
-  get_ndb_table_names_in_schema(const char* schema_name,
-                                std::unordered_set<std::string>* names)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict= ndb->getDictionary();
-
-    NdbDictionary::Dictionary::List list;
-    if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
-      return false;
-
-    for (uint i= 0 ; i < list.count ; i++)
-    {
-      NDBDICT::List::Element& elmt= list.elements[i];
-
-      if (strcmp(schema_name, elmt.database) != 0)
-      {
-        DBUG_PRINT("info", ("Skipping %s.%s table, not in schema %s",
-                            elmt.database, elmt.name, schema_name));
-        continue;
-      }
-
-      if (ndb_name_is_temp(elmt.name) ||
-          ndb_name_is_blob_prefix(elmt.name))
-      {
-        DBUG_PRINT("info", ("Skipping %s.%s in NDB", elmt.database, elmt.name));
-        continue;
-      }
-
-      DBUG_PRINT("info", ("Found %s.%s in NDB", elmt.database, elmt.name));
-      if (elmt.state != NDBOBJ::StateOnline &&
-          elmt.state != NDBOBJ::ObsoleteStateBackup &&
-          elmt.state != NDBOBJ::StateBuilding)
-      {
-        ndb_log_info("Skipping setup of table '%s.%s', in state %d",
-                     elmt.database, elmt.name, elmt.state);
-        continue;
-      }
-
-      names->insert(elmt.name);
-    }
-
-    return true;
-  }
-
-
-  bool
   remove_table_from_dd(const char* schema_name,
                        const char* table_name)
   {
@@ -1257,6 +1211,7 @@ class Ndb_binlog_setup {
     return true; // OK
   }
 
+
   bool
   remove_deleted_ndb_tables_from_dd()
   {
@@ -1266,9 +1221,7 @@ class Ndb_binlog_setup {
     std::vector<std::string> schema_names;
     if (!dd_client.fetch_schema_names(&schema_names))
     {
-      ndb_log_verbose(19,
-                      "Failed to remove deleted NDB tables, could not "
-                      "fetch schema names");
+      ndb_log_error("Failed to fetch schema names from DD");
       return false;
     }
 
@@ -1276,11 +1229,11 @@ class Ndb_binlog_setup {
     // from the DD one by one
     for (const auto name : schema_names)
     {
-      const char* schema_name= name.c_str();
+      const char* schema_name = name.c_str();
       // Lock the schema in DD
       if (!dd_client.mdl_lock_schema(schema_name))
       {
-        ndb_log_info("Failed to MDL lock schema");
+        ndb_log_error("Failed to acquire MDL lock on schema '%s'", schema_name);
         return false;
       }
 
@@ -1290,29 +1243,38 @@ class Ndb_binlog_setup {
       if (!dd_client.get_ndb_table_names_in_schema(schema_name,
                                                    &ndb_tables_in_DD))
       {
-        ndb_log_info("Failed to get list of NDB tables in DD");
+        ndb_log_error("Failed to get list of NDB tables in schema '%s' from DD",
+                      schema_name);
         return false;
       }
 
       // Fetch list of NDB tables in NDB
       std::unordered_set<std::string> ndb_tables_in_NDB;
-      if (!get_ndb_table_names_in_schema(schema_name, &ndb_tables_in_NDB))
+      Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+      NDBDICT *dict = ndb->getDictionary();
+      if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB))
       {
-        ndb_log_info("Failed to get list of NDB tables in NDB");
+        log_NDB_error(dict->getNdbError());
+        ndb_log_error("Failed to get list of NDB tables in schema '%s' from "
+                      "NDB", schema_name);
         return false;
       }
 
       // Iterate over all NDB tables found in DD. If they
       // don't exist in NDB anymore, then remove the table
       // from DD
-
       for (const auto ndb_table_name : ndb_tables_in_DD)
       {
-        if (ndb_tables_in_NDB.count(ndb_table_name) == 0)
+        if (ndb_tables_in_NDB.find(ndb_table_name) == ndb_tables_in_NDB.end())
         {
           ndb_log_info("Removing table '%s.%s'",
                        schema_name, ndb_table_name.c_str());
-          remove_table_from_dd(schema_name, ndb_table_name.c_str());
+          if (!remove_table_from_dd(schema_name, ndb_table_name.c_str()))
+          {
+            ndb_log_error("Failed to remove table '%s.%s' from DD", schema_name,
+                          ndb_table_name.c_str());
+            return false;
+          }
         }
       }
     }
@@ -1602,15 +1564,19 @@ class Ndb_binlog_setup {
     // Lock the schema in DD
     if (!dd_client.mdl_lock_schema(schema_name))
     {
-      ndb_log_info("Failed to MDL lock schema");
+      ndb_log_error("Failed to acquire MDL lock on schema '%s'", schema_name);
       return false;
     }
 
     // Fetch list of NDB tables in NDB
     std::unordered_set<std::string> ndb_tables_in_NDB;
-    if (!get_ndb_table_names_in_schema(schema_name, &ndb_tables_in_NDB))
+    Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT *dict = ndb->getDictionary();
+    if (!ndb_get_table_names_in_schema(dict, schema_name, ndb_tables_in_NDB))
     {
-      ndb_log_info("Failed to get list of NDB tables in NDB");
+      log_NDB_error(dict->getNdbError());
+      ndb_log_error("Failed to get list of NDB tables in schema '%s' from NDB",
+                    schema_name);
       return false;
     }
 
@@ -1630,38 +1596,9 @@ class Ndb_binlog_setup {
 
 
   bool
-  get_undo_file_names_from_NDB(const char* logfile_group_name,
-                               std::vector<std::string>& undo_file_names)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
-    NDBDICT::List undo_file_list;
-    if (dict->listObjects(undo_file_list, NDBOBJ::Undofile) != 0)
-    {
-      log_NDB_error(dict->getNdbError());
-      ndb_log_error("Failed to get undo files assigned to logfile group '%s'",
-                    logfile_group_name);
-      return false;
-    }
-
-    for (uint i = 0; i < undo_file_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt = undo_file_list.elements[i];
-      NdbDictionary::Undofile uf = dict->getUndofile(-1, elmt.name);
-      if (strcmp(uf.getLogfileGroup(), logfile_group_name) == 0)
-      {
-        undo_file_names.push_back(elmt.name);
-      }
-    }
-    return true;
-  }
-
-
-  bool
   install_logfile_group_into_DD(const char* logfile_group_name,
                                 NdbDictionary::LogfileGroup ndb_lfg,
-                                const std::vector<std::string>&
-                                  undo_file_names,
+                                const std::vector<std::string> &undofile_names,
                                 bool force_overwrite)
   {
     Ndb_dd_client dd_client(m_thd);
@@ -1673,7 +1610,7 @@ class Ndb_binlog_setup {
     }
 
     if (!dd_client.install_logfile_group(logfile_group_name,
-                                         undo_file_names,
+                                         undofile_names,
                                          ndb_lfg.getObjectId(),
                                          ndb_lfg.getObjectVersion(),
                                          force_overwrite))
@@ -1735,14 +1672,17 @@ class Ndb_binlog_setup {
       // Logfile group exists only in NDB. Install into DD
       ndb_log_info("Logfile group '%s' does not exist in DD, installing..",
                    logfile_group_name);
-      std::vector<std::string> undo_file_names;
-      if (!get_undo_file_names_from_NDB(logfile_group_name, undo_file_names))
+      std::vector<std::string> undofile_names;
+      if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names))
       {
+        log_NDB_error(dict->getNdbError());
+        ndb_log_error("Failed to get undofiles assigned to logfile group '%s' "
+                      "from NDB", logfile_group_name);
         return false;
       }
       if (!install_logfile_group_into_DD(logfile_group_name,
                                          ndb_lfg,
-                                         undo_file_names,
+                                         undofile_names,
                                          false /*force_overwrite*/))
       {
         return false;
@@ -1782,17 +1722,18 @@ class Ndb_binlog_setup {
 
     const int object_id_in_NDB = ndb_lfg.getObjectId();
     const int object_version_in_NDB = ndb_lfg.getObjectVersion();
-    std::vector<std::string> undo_file_names_in_NDB;
-    if (!get_undo_file_names_from_NDB(logfile_group_name,
-                                      undo_file_names_in_NDB))
+    std::vector<std::string> undofile_names_in_NDB;
+    if (!ndb_get_undofile_names(dict, logfile_group_name,
+                                undofile_names_in_NDB))
     {
-      ndb_log_error("Failed to get undo files assigned to logfile group "
-                    "'%s' from NDB", logfile_group_name);
+      log_NDB_error(dict->getNdbError());
+      ndb_log_error("Failed to get undofiles assigned to logfile group '%s' "
+                    "from NDB", logfile_group_name);
       return false;
     }
 
-    std::vector<std::string> undo_file_names_in_DD;
-    ndb_dd_disk_data_get_file_names(existing, undo_file_names_in_DD);
+    std::vector<std::string> undofile_names_in_DD;
+    ndb_dd_disk_data_get_file_names(existing, undofile_names_in_DD);
     if (object_id_in_NDB != object_id_in_DD ||
         object_version_in_NDB != object_version_in_DD ||
         // The object version is not updated after an ALTER, so there
@@ -1804,14 +1745,14 @@ class Ndb_binlog_setup {
         // that's possible after an initial cluster restart. In such
         // cases, it's possible the ids and versions match even though
         // they are entirely different objects
-        !compare_file_list(undo_file_names_in_NDB,
-                           undo_file_names_in_DD))
+        !compare_file_list(undofile_names_in_NDB,
+                           undofile_names_in_DD))
     {
       ndb_log_info("Logfile group '%s' has outdated version in DD, "
                    "reinstalling..", logfile_group_name);
       if (!install_logfile_group_into_DD(logfile_group_name,
                                          ndb_lfg,
-                                         undo_file_names_in_NDB,
+                                         undofile_names_in_NDB,
                                          true /* force_overwrite */))
       {
         return false;
@@ -1824,36 +1765,17 @@ class Ndb_binlog_setup {
 
 
   bool
-  fetch_logfile_group_names_from_NDB(std::unordered_set<std::string>&
-                                     lfg_in_NDB)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
-    NDBDICT::List lfg_list;
-    if (dict->listObjects(lfg_list, NDBOBJ::LogfileGroup) != 0)
-    {
-      log_NDB_error(dict->getNdbError());
-      return false;
-    }
-
-    for (uint i = 0; i < lfg_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt = lfg_list.elements[i];
-      lfg_in_NDB.insert(elmt.name);
-    }
-    return true;
-  }
-
-
-  bool
   synchronize_logfile_groups()
   {
     ndb_log_info("Synchronizing logfile groups");
 
     // Retrieve list of logfile groups from NDB
     std::unordered_set<std::string> lfg_in_NDB;
-    if (!fetch_logfile_group_names_from_NDB(lfg_in_NDB))
+    Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT *dict = ndb->getDictionary();
+    if (!ndb_get_logfile_group_names(dict, lfg_in_NDB))
     {
+      log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to fetch logfile group names from NDB");
       return false;
     }
@@ -1892,34 +1814,6 @@ class Ndb_binlog_setup {
       }
     }
     dd_client.commit();
-    return true;
-  }
-
-
-  bool
-  get_data_file_names_from_NDB(const char* tablespace_name,
-                               std::vector<std::string>& data_file_names)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
-    NDBDICT::List data_file_list;
-    if (dict->listObjects(data_file_list, NDBOBJ::Datafile) != 0)
-    {
-      log_NDB_error(dict->getNdbError());
-      ndb_log_error("Failed to get data files assigned to tablespace '%s'",
-                    tablespace_name);
-      return false;
-    }
-
-    for (uint i = 0; i < data_file_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt = data_file_list.elements[i];
-      NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
-      if (strcmp(df.getTablespace(), tablespace_name) == 0)
-      {
-        data_file_names.push_back(elmt.name);
-      }
-    }
     return true;
   }
 
@@ -1979,14 +1873,17 @@ class Ndb_binlog_setup {
       // Tablespace exists only in NDB. Install in DD
       ndb_log_info("Tablespace '%s' does not exist in DD, installing..",
                    tablespace_name);
-      std::vector<std::string> data_file_names;
-      if (!get_data_file_names_from_NDB(tablespace_name, data_file_names))
+      std::vector<std::string> datafile_names;
+      if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names))
       {
+        log_NDB_error(dict->getNdbError());
+        ndb_log_error("Failed to get datafiles assigned to tablespace '%s'",
+                      tablespace_name);
         return false;
       }
       if (!install_tablespace_into_DD(tablespace_name,
                                       ndb_tablespace,
-                                      data_file_names,
+                                      datafile_names,
                                       false /*force_overwrite*/))
       {
         return false;
@@ -2025,17 +1922,17 @@ class Ndb_binlog_setup {
 
     const int object_id_in_NDB = ndb_tablespace.getObjectId();
     const int object_version_in_NDB = ndb_tablespace.getObjectVersion();
-    std::vector<std::string> data_file_names_in_NDB;
-    if (!get_data_file_names_from_NDB(tablespace_name,
-                                      data_file_names_in_NDB))
+    std::vector<std::string> datafile_names_in_NDB;
+    if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names_in_NDB))
     {
-      ndb_log_error("Failed to get data files assigned to tablespace "
-                    "'%s' from NDB", tablespace_name);
+      log_NDB_error(dict->getNdbError());
+      ndb_log_error("Failed to get datafiles assigned to tablespace '%s' from "
+                    "NDB", tablespace_name);
       return false;
     }
 
-    std::vector<std::string> data_file_names_in_DD;
-    ndb_dd_disk_data_get_file_names(existing, data_file_names_in_DD);
+    std::vector<std::string> datafile_names_in_DD;
+    ndb_dd_disk_data_get_file_names(existing, datafile_names_in_DD);
     if (object_id_in_NDB != object_id_in_DD ||
         object_version_in_NDB != object_version_in_DD ||
         // The object version is not updated after an ALTER, so there
@@ -2047,14 +1944,14 @@ class Ndb_binlog_setup {
         // that's possible after an initial cluster restart. In such
         // cases, it's possible the ids and versions match even though
         // they are entirely different objects
-        !compare_file_list(data_file_names_in_NDB,
-                           data_file_names_in_DD))
+        !compare_file_list(datafile_names_in_NDB,
+                           datafile_names_in_DD))
     {
       ndb_log_info("Tablespace '%s' has outdated version in DD, "
                    "reinstalling..", tablespace_name);
       if (!install_tablespace_into_DD(tablespace_name,
                                       ndb_tablespace,
-                                      data_file_names_in_NDB,
+                                      datafile_names_in_NDB,
                                       true /* force_overwrite */))
       {
         return false;
@@ -2067,36 +1964,17 @@ class Ndb_binlog_setup {
 
 
   bool
-  fetch_tablespace_names_from_NDB(std::unordered_set<std::string>&
-                                  tablespaces_in_NDB)
-  {
-    Ndb* ndb = get_thd_ndb(m_thd)->ndb;
-    NDBDICT* dict = ndb->getDictionary();
-    NDBDICT::List tablespace_list;
-    if (dict->listObjects(tablespace_list, NDBOBJ::Tablespace) != 0)
-    {
-      log_NDB_error(dict->getNdbError());
-      return false;
-    }
-
-    for (uint i = 0; i < tablespace_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt= tablespace_list.elements[i];
-      tablespaces_in_NDB.insert(elmt.name);
-    }
-    return true;
-  }
-
-
-  bool
   synchronize_tablespaces()
   {
     ndb_log_info("Synchronizing tablespaces");
 
     // Retrieve list of tablespaces from NDB
     std::unordered_set<std::string> tablespaces_in_NDB;
-    if (!fetch_tablespace_names_from_NDB(tablespaces_in_NDB))
+    Ndb *ndb = get_thd_ndb(m_thd)->ndb;
+    NDBDICT *dict = ndb->getDictionary();
+    if (!ndb_get_tablespace_names(dict, tablespaces_in_NDB))
     {
+      log_NDB_error(dict->getNdbError());
       ndb_log_error("Failed to fetch tablespace names from NDB");
       return false;
     }
@@ -4646,26 +4524,14 @@ class Ndb_schema_event_handler {
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
     NDBDICT* dict = ndb->getDictionary();
-
-    std::vector<std::string> data_file_names;
-    NDBDICT::List data_file_list;
-    if (dict->listObjects(data_file_list, NDBOBJ::Datafile) != 0)
+    std::vector<std::string> datafile_names;
+    if (!ndb_get_datafile_names(dict, tablespace_name, datafile_names))
     {
       ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
                     dict->getNdbError().message);
       ndb_log_error("Failed to get data files assigned to tablespace '%s'",
                     tablespace_name);
       DBUG_RETURN(false);
-    }
-
-    for (uint i = 0; i < data_file_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt = data_file_list.elements[i];
-      NdbDictionary::Datafile df = dict->getDatafile(-1, elmt.name);
-      if (strcmp(df.getTablespace(), tablespace_name) == 0)
-      {
-        data_file_names.push_back(elmt.name);
-      }
     }
 
     Ndb_dd_client dd_client(m_thd);
@@ -4677,7 +4543,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!dd_client.install_tablespace(tablespace_name,
-                                      data_file_names,
+                                      datafile_names,
                                       id,
                                       version,
                                       true /* force_overwrite */))
@@ -4792,26 +4658,14 @@ class Ndb_schema_event_handler {
 
     Ndb* ndb = get_thd_ndb(m_thd)->ndb;
     NDBDICT* dict = ndb->getDictionary();
-
-    std::vector<std::string> undo_file_names;
-    NDBDICT::List undo_file_list;
-    if (dict->listObjects(undo_file_list, NDBOBJ::Undofile) != 0)
+    std::vector<std::string> undofile_names;
+    if (!ndb_get_undofile_names(dict, logfile_group_name, undofile_names))
     {
       ndb_log_error("NDB error: %d, %s", dict->getNdbError().code,
                     dict->getNdbError().message);
       ndb_log_error("Failed to get undo files assigned to logfile group '%s'",
                     logfile_group_name);
       DBUG_RETURN(false);
-    }
-
-    for (uint i = 0; i < undo_file_list.count; i++)
-    {
-      NDBDICT::List::Element& elmt = undo_file_list.elements[i];
-      NdbDictionary::Undofile df = dict->getUndofile(-1, elmt.name);
-      if (strcmp(df.getLogfileGroup(), logfile_group_name) == 0)
-      {
-        undo_file_names.push_back(elmt.name);
-      }
     }
 
     Ndb_dd_client dd_client(m_thd);
@@ -4823,7 +4677,7 @@ class Ndb_schema_event_handler {
     }
 
     if (!dd_client.install_logfile_group(logfile_group_name,
-                                         undo_file_names,
+                                         undofile_names,
                                          id,
                                          version,
                                          true /* force_overwrite */))
