@@ -382,7 +382,7 @@ int JOIN::optimize() {
         Item *table_independent_conds = make_cond_for_table(
             thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
         DBUG_EXECUTE("where",
-                     print_where(table_independent_conds,
+                     print_where(thd, table_independent_conds,
                                  "where after opt_sum_query()", QT_ORDINARY););
         where_cond = table_independent_conds;
       }
@@ -468,8 +468,9 @@ int JOIN::optimize() {
       DBUG_RETURN(1);
     }
     where_cond->update_used_tables();
-    DBUG_EXECUTE("where", print_where(where_cond, "after substitute_best_equal",
-                                      QT_ORDINARY););
+    DBUG_EXECUTE("where",
+                 print_where(thd, where_cond, "after substitute_best_equal",
+                             QT_ORDINARY););
   }
 
   /*
@@ -5851,9 +5852,9 @@ static void add_not_null_conds(JOIN *join) {
             called.
           */
           if (notnull->fix_fields(join->thd, &notnull)) DBUG_VOID_RETURN;
-          DBUG_EXECUTE(
-              "where",
-              print_where(notnull, referred_tab->table()->alias, QT_ORDINARY););
+          DBUG_EXECUTE("where",
+                       print_where(join->thd, notnull,
+                                   referred_tab->table()->alias, QT_ORDINARY););
           referred_tab->and_with_condition(notnull);
         }
       }
@@ -8272,7 +8273,8 @@ static bool test_if_ref(Item_field *left_item, Item *right_item) {
 */
 static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
   DBUG_ENTER("reduce_cond_for_table");
-  DBUG_EXECUTE("where", print_where(cond, "cond term", QT_ORDINARY););
+  DBUG_EXECUTE("where",
+               print_where(current_thd, cond, "cond term", QT_ORDINARY););
 
   if (cond->type() == Item::COND_ITEM) {
     List<Item> *arguments = down_cast<Item_cond *>(cond)->argument_list();
@@ -8780,7 +8782,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
     if (and_conditions(&const_cond, join->best_ref[i]->condition()))
       DBUG_RETURN(true);
   }
-  DBUG_EXECUTE("where", print_where(const_cond, "constants", QT_ORDINARY););
+  DBUG_EXECUTE("where",
+               print_where(thd, const_cond, "constants", QT_ORDINARY););
   if (const_cond != NULL) {
     const bool const_cond_result = const_cond->val_int() != 0;
     if (thd->is_error()) DBUG_RETURN(true);
@@ -8848,7 +8851,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
           tab->type() == JT_REF_OR_NULL || tab->type() == JT_EQ_REF ||
           first_inner != NO_PLAN_IDX) {
         DBUG_EXECUTE("where",
-                     print_where(tmp, tab->table()->alias, QT_ORDINARY););
+                     print_where(thd, tmp, tab->table()->alias, QT_ORDINARY););
         /*
           If tab is an inner table of an outer join operation,
           add a match guard to the pushed down predicate.
@@ -8869,7 +8872,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
         }
 
         DBUG_EXECUTE("where",
-                     print_where(tmp, tab->table()->alias, QT_ORDINARY););
+                     print_where(thd, tmp, tab->table()->alias, QT_ORDINARY););
 
         if (tab->quick()) {
           if (tab->needed_reg.is_clear_all() && tab->type() != JT_CONST) {
@@ -9519,7 +9522,8 @@ bool optimize_cond(THD *thd, Item **cond, COND_EQUAL **cond_equal,
     Remove all instances of item == item
     Remove all and-levels where CONST item != CONST item
   */
-  DBUG_EXECUTE("where", print_where(*cond, "after const change", QT_ORDINARY););
+  DBUG_EXECUTE("where",
+               print_where(thd, *cond, "after const change", QT_ORDINARY););
   if (*cond) {
     Opt_trace_object step_wrapper(trace);
     step_wrapper.add_alnum("transformation", "trivial_condition_removal");

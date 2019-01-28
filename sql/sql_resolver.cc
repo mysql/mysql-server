@@ -2677,7 +2677,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       (sj_cond->used_tables() & outer_tables_map) | lateral_dep_tables;
 
   // TODO fix QT_
-  DBUG_EXECUTE("where", print_where(sj_cond, "SJ-COND", QT_ORDINARY););
+  DBUG_EXECUTE("where", print_where(thd, sj_cond, "SJ-COND", QT_ORDINARY););
 
   if (emb_tbl_nest) {
     // Inject semi-join condition into parent's join condition

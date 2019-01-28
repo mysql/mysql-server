@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,11 +90,12 @@ const char *lock_descriptions[TL_WRITE_ONLY + 1] = {
 
 #ifndef DBUG_OFF
 
-void print_where(Item *cond, const char *info, enum_query_type query_type) {
+void print_where(const THD *thd, const Item *cond, const char *info,
+                 enum_query_type query_type) {
   char buff[256];
   String str(buff, sizeof(buff), system_charset_info);
   str.length(0);
-  if (cond) cond->print(current_thd, &str, query_type);
+  if (cond) cond->print(thd, &str, query_type);
   str.append('\0');
 
   DBUG_LOCK_FILE;

@@ -2391,10 +2391,12 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
       !has_guarded_conds() && type() != JT_CONST && type() != JT_SYSTEM &&
       !(keyno == tbl->s->primary_key &&
         tbl->file->primary_key_is_clustered())) {
-    DBUG_EXECUTE("where", print_where(condition(), "full cond", QT_ORDINARY););
+    DBUG_EXECUTE("where", print_where(join_->thd, condition(), "full cond",
+                                      QT_ORDINARY););
     Item *idx_cond =
         make_cond_for_index(condition(), tbl, keyno, other_tbls_ok);
-    DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
+    DBUG_EXECUTE("where",
+                 print_where(join_->thd, idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond) {
       /*
         Check that the condition to push actually contains fields from
@@ -2442,8 +2444,9 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
         trace_obj->add("pushed_to_BKA", true);
       } else {
         idx_remainder_cond = tbl->file->idx_cond_push(keyno, idx_cond);
-        DBUG_EXECUTE("where", print_where(tbl->file->pushed_idx_cond,
-                                          "icp cond", QT_ORDINARY););
+        DBUG_EXECUTE("where",
+                     print_where(join_->thd, tbl->file->pushed_idx_cond,
+                                 "icp cond", QT_ORDINARY););
       }
       /*
         Disable eq_ref's "lookup cache" if we've pushed down an index
@@ -2459,8 +2462,8 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
       }
 
       Item *row_cond = make_cond_remainder(condition(), true);
-      DBUG_EXECUTE("where",
-                   print_where(row_cond, "remainder cond", QT_ORDINARY););
+      DBUG_EXECUTE("where", print_where(join_->thd, row_cond, "remainder cond",
+                                        QT_ORDINARY););
 
       if (row_cond) {
         if (idx_remainder_cond) and_conditions(&row_cond, idx_remainder_cond);
@@ -3987,13 +3990,13 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
       if (curr_table->condition()->fix_fields(thd, 0)) DBUG_RETURN(true);
     }
     curr_table->condition()->top_level_item();
-    DBUG_EXECUTE("where", print_where(curr_table->condition(),
+    DBUG_EXECUTE("where", print_where(thd, curr_table->condition(),
                                       "select and having", QT_ORDINARY););
 
     having_cond = make_cond_for_table(thd, having_cond, ~(table_map)0,
                                       ~used_tables, false);
-    DBUG_EXECUTE("where",
-                 print_where(having_cond, "having after sort", QT_ORDINARY););
+    DBUG_EXECUTE("where", print_where(thd, having_cond, "having after sort",
+                                      QT_ORDINARY););
 
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object(trace, "sort_using_internal_table")

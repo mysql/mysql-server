@@ -16273,7 +16273,7 @@ ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok)
   DBUG_ENTER("ha_ndbcluster::cond_push");
   DBUG_ASSERT(pushed_cond == nullptr);
   DBUG_ASSERT(cond != nullptr);
-  DBUG_EXECUTE("where",print_where((Item *)cond, m_tabname, QT_ORDINARY););
+  DBUG_EXECUTE("where",print_where(ha_thd(), cond, m_tabname, QT_ORDINARY););
 
   if (m_pushed_join_member != nullptr &&
       m_pushed_join_operation > PUSHED_ROOT)
@@ -16373,7 +16373,7 @@ ha_ndbcluster::cond_push_boolean_term(const Item *term,
     /**
      * 'term' refers fields from other tables -> reject it.
      */
-    DBUG_EXECUTE("where",print_where((Item *)term, "Other table, rejected", QT_ORDINARY););
+    DBUG_EXECUTE("where",print_where(ha_thd(), term, "Other table, rejected", QT_ORDINARY););
     remainder.push_back((Item*)term);
     DBUG_VOID_RETURN;
   }
