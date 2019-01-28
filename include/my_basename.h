@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,9 +51,9 @@ constexpr int basename_prefix_find(const char *const path, const int index) {
              : basename_prefix_find(path, index - 1);
 }
 
-#define LOG_SUBSYSTEM_TAG         \
-  basename_prefix_eval(__FILE__ + \
-                       basename_prefix_find(__FILE__, sizeof(__FILE__) - 1))
+#define LOG_SUBSYSTEM_TAG \
+  basename_prefix_eval(   \
+      &__FILE__[basename_prefix_find(__FILE__, sizeof(__FILE__) - 1)])
 
 #endif
 
