@@ -71,7 +71,7 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
+INITIAL_SIZE = 12M
 ENGINE=NDB;
 
 ########################################
