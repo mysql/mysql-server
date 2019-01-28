@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -873,12 +873,24 @@ static void trx_resurrect_update(
     trx_undo_t *undo, /*!< in/out: update UNDO record */
     trx_rseg_t *rseg) /*!< in/out: rollback segment */
 {
-  rseg->trx_ref_count++;
-  trx->rsegs.m_redo.rseg = rseg;
-  *trx->xid = undo->xid;
-  trx->id = undo->trx_id;
+  /* This resurected transaction might also have been doing inserts.
+  If so, this rseg is already assigned by trx_resurrect_insert(). */
+  if (trx->rsegs.m_redo.rseg != nullptr) {
+    ut_a(trx->rsegs.m_redo.rseg == rseg);
+    ut_ad(undo->xid.eq(trx->xid));
+    ut_ad(trx->id == undo->trx_id);
+    ut_ad(trx->is_recovered);
+  } else {
+    rseg->trx_ref_count++;
+    trx->rsegs.m_redo.rseg = rseg;
+    *trx->xid = undo->xid;
+    trx->id = undo->trx_id;
+    trx->is_recovered = true;
+  }
+
+  /* Assign the update_undo segment. */
+  ut_a(trx->rsegs.m_redo.update_undo == nullptr);
   trx->rsegs.m_redo.update_undo = undo;
-  trx->is_recovered = true;
 
   /* This is single-threaded startup code, we do not need the
   protection of trx->mutex or trx_sys->mutex here. */
