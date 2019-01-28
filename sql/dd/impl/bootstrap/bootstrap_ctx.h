@@ -72,18 +72,13 @@ static std::set<uint> supported_dd_versions = {
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;
 static constexpr uint SERVER_VERSION_80011 = 80011;
-static constexpr uint SERVER_VERSION_80012 = 80012;
 static constexpr uint SERVER_VERSION_80013 = 80013;
-static constexpr uint SERVER_VERSION_80014 = 80014;
-static constexpr uint SERVER_VERSION_80015 = 80015;
 
 /*
-  Set of supported server version labels. A supported server version is a
-  version from which we can upgrade.
+  Set of unsupported server version labels. An unsupported server version is a
+  version from which we can't upgrade.
 */
-static std::set<uint> supported_server_versions = {
-    SERVER_VERSION_50700, SERVER_VERSION_80011, SERVER_VERSION_80012,
-    SERVER_VERSION_80013, SERVER_VERSION_80014, SERVER_VERSION_80015};
+static std::set<uint> unsupported_server_versions = {};
 
 class DD_bootstrap_ctx {
  private:
@@ -116,8 +111,9 @@ class DD_bootstrap_ctx {
   }
 
   bool supported_server_version(uint version) const {
-    return (supported_server_versions.find(version) !=
-            supported_server_versions.end());
+    return (unsupported_server_versions.find(version) ==
+            unsupported_server_versions.end()) &&
+           MYSQL_VERSION_ID > version;
   }
 
   bool supported_server_version() const {
