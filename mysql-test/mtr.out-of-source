@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!@PERL_EXECUTABLE@
 # Call mtr in out-of-source build
 $ENV{MTR_BINDIR} = '@CMAKE_BINARY_DIR@';
 chdir('@CMAKE_SOURCE_DIR@/mysql-test');
