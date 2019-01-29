@@ -2683,6 +2683,52 @@ select @count:=count(*) from t1 where not b not like 'five';
 --enable_result_log
 eval $verify_row_count;
 
+--echo #
+--echo # Bug#29231709 NULL VALUES (still) NOT FILTERED OUT BY PUSHED CONDITIONS
+--echo #
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' ='
+select @count:=count(*) from t1 where 'five' = b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <>'
+select @count:=count(*) from t1 where 'five' <> b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' >'
+select @count:=count(*) from t1 where 'five' > b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <'
+select @count:=count(*) from t1 where 'five' < b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' >='
+select @count:=count(*) from t1 where 'five' >= b;
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: ''five' <='
+select @count:=count(*) from t1 where 'five' <= b;
+--enable_result_log
+eval $verify_row_count;
+
 drop table t1;
 --enable_query_log
 

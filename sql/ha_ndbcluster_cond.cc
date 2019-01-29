@@ -82,34 +82,41 @@ typedef union ndb_item_value {
   uint arg_count;                       // NDB_FUNCTION
 } NDB_ITEM_VALUE;
 
-struct negated_function_mapping
+/*
+  Mapping defining the negated and swapped function equivalent
+   - 'not op1 func op2' -> 'op1 neg_func op2'
+   - 'op1 func op2' -> ''op2 swap_func op1'
+*/
+struct function_mapping
 {
-  NDB_FUNC_TYPE pos_fun;
-  NDB_FUNC_TYPE neg_fun;
+  NDB_FUNC_TYPE func;
+  NDB_FUNC_TYPE neg_func;
+  NDB_FUNC_TYPE swap_func;
 };
 
 /*
   Define what functions can be negated in condition pushdown.
   Note, these HAVE to be in the same order as in definition enum
 */
-static const negated_function_mapping neg_map[]=
+static const function_mapping func_map[]=
 {
-  {NDB_EQ_FUNC, NDB_NE_FUNC},
-  {NDB_NE_FUNC, NDB_EQ_FUNC},
-  {NDB_LT_FUNC, NDB_GE_FUNC},
-  {NDB_LE_FUNC, NDB_GT_FUNC},
-  {NDB_GT_FUNC, NDB_LE_FUNC},
-  {NDB_GE_FUNC, NDB_LT_FUNC},
-  {NDB_ISNULL_FUNC, NDB_ISNOTNULL_FUNC},
-  {NDB_ISNOTNULL_FUNC, NDB_ISNULL_FUNC},
-  {NDB_LIKE_FUNC, NDB_NOTLIKE_FUNC},
-  {NDB_NOTLIKE_FUNC, NDB_LIKE_FUNC},
-  {NDB_NOT_FUNC, NDB_UNSUPPORTED_FUNC},
-  {NDB_UNKNOWN_FUNC, NDB_UNSUPPORTED_FUNC},
-  {NDB_COND_AND_FUNC, NDB_UNSUPPORTED_FUNC},
-  {NDB_COND_OR_FUNC, NDB_UNSUPPORTED_FUNC},
-  {NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC}
+  {NDB_EQ_FUNC, NDB_NE_FUNC, NDB_EQ_FUNC},
+  {NDB_NE_FUNC, NDB_EQ_FUNC, NDB_NE_FUNC},
+  {NDB_LT_FUNC, NDB_GE_FUNC, NDB_GT_FUNC},
+  {NDB_LE_FUNC, NDB_GT_FUNC, NDB_GE_FUNC},
+  {NDB_GT_FUNC, NDB_LE_FUNC, NDB_LT_FUNC},
+  {NDB_GE_FUNC, NDB_LT_FUNC, NDB_LE_FUNC},
+  {NDB_ISNULL_FUNC, NDB_ISNOTNULL_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_ISNOTNULL_FUNC, NDB_ISNULL_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_LIKE_FUNC, NDB_NOTLIKE_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_NOTLIKE_FUNC, NDB_LIKE_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_NOT_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_UNKNOWN_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_COND_AND_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_COND_OR_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
+  {NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC}
 };
+
 
 /*
   This class is the construction element for serialization of Item tree
@@ -322,8 +329,15 @@ public:
   static NDB_FUNC_TYPE negate(NDB_FUNC_TYPE fun)
   {
     uint i= (uint) fun;
-    DBUG_ASSERT(fun == neg_map[i].pos_fun);
-    return  neg_map[i].neg_fun;
+    DBUG_ASSERT(fun == func_map[i].func);
+    return  func_map[i].neg_func;
+  }
+
+  static NDB_FUNC_TYPE swap(NDB_FUNC_TYPE fun)
+  {
+    uint i= (uint) fun;
+    DBUG_ASSERT(fun == func_map[i].func);
+    return  func_map[i].swap_func;
   }
 
   const NDB_ITEM_TYPE type;
@@ -2022,7 +2036,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     Ndb_item *a= cond->next->ndb_item;
     Ndb_item *b, *field, *value= NULL;
 
-    const enum ndb_func_type function_type = (negated)
+    enum ndb_func_type function_type = (negated)
        ? Ndb_item::negate(cond->ndb_item->qualification.function_type)
        : cond->ndb_item->qualification.function_type;
 
@@ -2049,6 +2063,8 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
         DBUG_PRINT("info", ("condition missing 'value' argument"));
         DBUG_RETURN(1);
       }
+      if (field == b)
+        function_type = Ndb_item::swap(function_type);
       cond= cond->next->next->next;
       break;
     default:
@@ -2167,24 +2183,12 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       if (unlikely(value->save_in_field(field) == 0))
         DBUG_RETURN(1);
-      if (a == field)
-      {
-        DBUG_PRINT("info", ("Generating LT filter")); 
-        if (filter->cmp(NdbScanFilter::COND_LT, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
-      else
-      {
-        DBUG_PRINT("info", ("Generating GT filter")); 
-        if (filter->cmp(NdbScanFilter::COND_GT, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
+      DBUG_PRINT("info", ("Generating LT filter"));
+      if (filter->cmp(NdbScanFilter::COND_LT,
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       break;
     }
     case NDB_LE_FUNC:
@@ -2192,24 +2196,12 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       if (unlikely(value->save_in_field(field) == 0))
         DBUG_RETURN(1);
-      if (a == field)
-      {
-        DBUG_PRINT("info", ("Generating LE filter")); 
-        if (filter->cmp(NdbScanFilter::COND_LE, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);       
-      }
-      else
-      {
-        DBUG_PRINT("info", ("Generating GE filter on field %d", field->get_field_no()));
-        if (filter->cmp(NdbScanFilter::COND_GE, 
-                        field->get_field_no(),      // FIXME ????
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
+      DBUG_PRINT("info", ("Generating LE filter"));
+      if (filter->cmp(NdbScanFilter::COND_LE,
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       break;
     }
     case NDB_GE_FUNC:
@@ -2217,24 +2209,12 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       if (unlikely(value->save_in_field(field) == 0))
         DBUG_RETURN(1);
-      if (a == field)
-      {
-        DBUG_PRINT("info", ("Generating GE filter")); 
-        if (filter->cmp(NdbScanFilter::COND_GE, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
-      else
-      {
-        DBUG_PRINT("info", ("Generating LE filter")); 
-        if (filter->cmp(NdbScanFilter::COND_LE, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
+      DBUG_PRINT("info", ("Generating GE filter"));
+      if (filter->cmp(NdbScanFilter::COND_GE,
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       break;
     }
     case NDB_GT_FUNC:
@@ -2242,26 +2222,14 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       // Save value in right format for the field type
       if (unlikely(value->save_in_field(field) == 0))
         DBUG_RETURN(1);
-      if (a == field)
-      {
-        DBUG_PRINT("info", ("Generating GT filter"));
-        if (filter->cmp(NdbScanFilter::COND_GT, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
-      }
-      else
-      {
-        DBUG_PRINT("info", ("Generating LT filter"));
-        if (filter->cmp(NdbScanFilter::COND_LT, 
-                        field->get_field_no(),
-                        field->get_val(),
-                        field->pack_length()) == -1)
-          DBUG_RETURN(1);
+      DBUG_PRINT("info", ("Generating GT filter"));
+      if (filter->cmp(NdbScanFilter::COND_GT,
+                      field->get_field_no(),
+                      field->get_val(),
+                      field->pack_length()) == -1)
+        DBUG_RETURN(1);
       }
       break;
-    }
     case NDB_LIKE_FUNC:
     {
       const bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
