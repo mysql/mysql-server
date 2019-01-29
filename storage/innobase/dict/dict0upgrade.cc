@@ -1156,6 +1156,7 @@ int dd_upgrade_tablespace(THD *thd) {
         df.set_filepath(orig_name.c_str());
         if (df.open_read_only(false) != DB_SUCCESS) {
           mem_heap_free(heap);
+          btr_pcur_close(&pcur);
           DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
         }
         df.close();
