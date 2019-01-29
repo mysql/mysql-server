@@ -144,7 +144,12 @@
   - Bug#28492272: Synchronize sql_mode in server with that in DD.
 
 
-  80015: Current
+  80015: Not published. DD version still at 80014 in server 8.0.15.
+  ----------------------------------------------------------------------------
+  No changes from version 80014.
+
+
+  80016: Current
   ----------------------------------------------------------------------------
   Changes from version 80014:
 
@@ -155,9 +160,9 @@
   - WL#12261 adds new mysql.schemata.default_encryption DD column.
 
 
-  80016: Next DD version number after the previous is public.
+  80017: Next DD version number after the previous is public.
   ----------------------------------------------------------------------------
-  Changes from version 80015:
+  Changes from version 80016:
   - No changes, this version number is not active yet.
 
 
@@ -170,9 +175,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80015;
+static const uint DD_VERSION = 80016;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80015;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80016;
 
 }  // namespace dd
 

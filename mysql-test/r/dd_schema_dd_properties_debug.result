@@ -156,7 +156,7 @@ character_sets=
        table_id=7
        trx_id=0
        space_id=1
-  collations=
+check_constraints=
   col0=table_id=8
   col1=table_id=8
   col2=table_id=8
@@ -166,6 +166,95 @@ character_sets=
   col6=table_id=8
   col7=table_id=8
   col8=table_id=8
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=check_clause LONGBLOB NOT NULL
+            lbl=FIELD_CHECK_CLAUSE
+            pos=5
+      elem1=def=check_clause_utf8 LONGTEXT NOT NULL
+            lbl=FIELD_CHECK_CLAUSE_UTF8
+            pos=6
+      elem2=def=enforced ENUM('NO', 'YES') NOT NULL
+            lbl=FIELD_ENFORCED
+            pos=4
+      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem4=def=name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci
+            lbl=FIELD_NAME
+            pos=3
+      elem5=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem6=def=table_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TABLE_ID
+            pos=2
+    foreign_keys=
+      elem0=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+      elem1=def=FOREIGN KEY (table_id) REFERENCES tables(id)
+            lbl=FK_TABLE_ID
+            pos=1
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+      elem2=def=UNIQUE KEY (table_id, name)
+            lbl=INDEX_UK_TABLE_ID_NAME
+            pos=2
+    name=check_constraints
+    options=
+      elem0=def=DEFAULT CHARSET=utf8
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=8
+  idx0=id=12
+       root=15
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+  idx1=id=13
+       root=16
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+  idx2=id=14
+       root=17
+       space_id=4294967294
+       table_id=8
+       trx_id=0
+       space_id=1
+  collations=
+  col0=table_id=9
+  col1=table_id=9
+  col2=table_id=9
+  col3=table_id=9
+  col4=table_id=9
+  col5=table_id=9
+  col6=table_id=9
+  col7=table_id=9
+  col8=table_id=9
   data=autoinc=0
   version=0
   def=
@@ -225,34 +314,34 @@ character_sets=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=8
-  idx0=id=12
-       root=15
+  id=9
+  idx0=id=15
+       root=18
        space_id=4294967294
-       table_id=8
+       table_id=9
        trx_id=0
-  idx1=id=13
-       root=16
+  idx1=id=16
+       root=19
        space_id=4294967294
-       table_id=8
+       table_id=9
        trx_id=0
-  idx2=id=14
-       root=17
+  idx2=id=17
+       root=20
        space_id=4294967294
-       table_id=8
+       table_id=9
        trx_id=0
        space_id=1
   column_statistics=
-  col0=table_id=9
-  col1=table_id=9
-  col2=table_id=9
-  col3=table_id=9
-  col4=table_id=9
-  col5=table_id=9
-  col6=table_id=9
-  col7=table_id=9
-  col8=table_id=9
-  col9=table_id=9
+  col0=table_id=10
+  col1=table_id=10
+  col2=table_id=10
+  col3=table_id=10
+  col4=table_id=10
+  col5=table_id=10
+  col6=table_id=10
+  col7=table_id=10
+  col8=table_id=10
+  col9=table_id=10
   data=autoinc=0
   version=0
   def=
@@ -315,29 +404,29 @@ character_sets=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=9
-  idx0=id=15
-       root=18
+  id=10
+  idx0=id=18
+       root=21
        space_id=4294967294
-       table_id=9
+       table_id=10
        trx_id=0
-  idx1=id=16
-       root=19
+  idx1=id=19
+       root=22
        space_id=4294967294
-       table_id=9
+       table_id=10
        trx_id=0
-  idx2=id=17
-       root=20
+  idx2=id=20
+       root=23
        space_id=4294967294
-       table_id=9
+       table_id=10
        trx_id=0
        space_id=1
   column_type_elements=
-  col0=table_id=10
-  col1=table_id=10
-  col2=table_id=10
-  col3=table_id=10
-  col4=table_id=10
+  col0=table_id=11
+  col1=table_id=11
+  col2=table_id=11
+  col3=table_id=11
+  col4=table_id=11
   data=
   def=
     fields=
@@ -378,46 +467,46 @@ character_sets=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=10
-  idx0=id=18
-       root=21
+  id=11
+  idx0=id=21
+       root=24
        space_id=4294967294
-       table_id=10
+       table_id=11
        trx_id=0
        space_id=1
   columns=
-  col0=table_id=11
-  col1=table_id=11
-  col10=table_id=11
-  col11=table_id=11
-  col12=table_id=11
-  col13=table_id=11
-  col14=table_id=11
-  col15=table_id=11
-  col16=table_id=11
-  col17=table_id=11
-  col18=table_id=11
-  col19=table_id=11
-  col2=table_id=11
-  col20=table_id=11
-  col21=table_id=11
-  col22=table_id=11
-  col23=table_id=11
-  col24=table_id=11
-  col25=table_id=11
-  col26=table_id=11
-  col27=table_id=11
-  col28=table_id=11
-  col29=table_id=11
-  col3=table_id=11
-  col30=table_id=11
-  col31=table_id=11
-  col4=table_id=11
-  col5=table_id=11
-  col6=table_id=11
-  col7=table_id=11
-  col8=table_id=11
-  col9=table_id=11
+  col0=table_id=12
+  col1=table_id=12
+  col10=table_id=12
+  col11=table_id=12
+  col12=table_id=12
+  col13=table_id=12
+  col14=table_id=12
+  col15=table_id=12
+  col16=table_id=12
+  col17=table_id=12
+  col18=table_id=12
+  col19=table_id=12
+  col2=table_id=12
+  col20=table_id=12
+  col21=table_id=12
+  col22=table_id=12
+  col23=table_id=12
+  col24=table_id=12
+  col25=table_id=12
+  col26=table_id=12
+  col27=table_id=12
+  col28=table_id=12
+  col29=table_id=12
+  col3=table_id=12
+  col30=table_id=12
+  col31=table_id=12
+  col4=table_id=12
+  col5=table_id=12
+  col6=table_id=12
+  col7=table_id=12
+  col8=table_id=12
+  col9=table_id=12
   data=autoinc=0
   version=0
   def=
@@ -575,60 +664,60 @@ character_sets=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=11
-  idx0=id=19
-       root=22
-       space_id=4294967294
-       table_id=11
-       trx_id=0
-  idx1=id=20
-       root=23
-       space_id=4294967294
-       table_id=11
-       trx_id=0
-  idx2=id=21
-       root=24
-       space_id=4294967294
-       table_id=11
-       trx_id=0
-  idx3=id=22
+  id=12
+  idx0=id=22
        root=25
        space_id=4294967294
-       table_id=11
+       table_id=12
        trx_id=0
-  idx4=id=23
+  idx1=id=23
        root=26
        space_id=4294967294
-       table_id=11
+       table_id=12
+       trx_id=0
+  idx2=id=24
+       root=27
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx3=id=25
+       root=28
+       space_id=4294967294
+       table_id=12
+       trx_id=0
+  idx4=id=26
+       root=29
+       space_id=4294967294
+       table_id=12
        trx_id=0
        space_id=1
 events=
-  col0=table_id=12
-  col1=table_id=12
-  col10=table_id=12
-  col11=table_id=12
-  col12=table_id=12
-  col13=table_id=12
-  col14=table_id=12
-  col15=table_id=12
-  col16=table_id=12
-  col17=table_id=12
-  col18=table_id=12
-  col19=table_id=12
-  col2=table_id=12
-  col20=table_id=12
-  col21=table_id=12
-  col22=table_id=12
-  col23=table_id=12
-  col24=table_id=12
-  col25=table_id=12
-  col3=table_id=12
-  col4=table_id=12
-  col5=table_id=12
-  col6=table_id=12
-  col7=table_id=12
-  col8=table_id=12
-  col9=table_id=12
+  col0=table_id=13
+  col1=table_id=13
+  col10=table_id=13
+  col11=table_id=13
+  col12=table_id=13
+  col13=table_id=13
+  col14=table_id=13
+  col15=table_id=13
+  col16=table_id=13
+  col17=table_id=13
+  col18=table_id=13
+  col19=table_id=13
+  col2=table_id=13
+  col20=table_id=13
+  col21=table_id=13
+  col22=table_id=13
+  col23=table_id=13
+  col24=table_id=13
+  col25=table_id=13
+  col3=table_id=13
+  col4=table_id=13
+  col5=table_id=13
+  col6=table_id=13
+  col7=table_id=13
+  col8=table_id=13
+  col9=table_id=13
   data=autoinc=0
   version=0
   def=
@@ -754,40 +843,40 @@ events=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=12
-  idx0=id=24
-       root=27
-       space_id=4294967294
-       table_id=12
-       trx_id=0
-  idx1=id=25
-       root=28
-       space_id=4294967294
-       table_id=12
-       trx_id=0
-  idx2=id=26
-       root=29
-       space_id=4294967294
-       table_id=12
-       trx_id=0
-  idx3=id=27
+  id=13
+  idx0=id=27
        root=30
        space_id=4294967294
-       table_id=12
+       table_id=13
        trx_id=0
-  idx4=id=28
+  idx1=id=28
        root=31
        space_id=4294967294
-       table_id=12
+       table_id=13
+       trx_id=0
+  idx2=id=29
+       root=32
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx3=id=30
+       root=33
+       space_id=4294967294
+       table_id=13
+       trx_id=0
+  idx4=id=31
+       root=34
+       space_id=4294967294
+       table_id=13
        trx_id=0
        space_id=1
 foreign_key_column_usage=
-  col0=table_id=13
-  col1=table_id=13
-  col2=table_id=13
-  col3=table_id=13
-  col4=table_id=13
-  col5=table_id=13
+  col0=table_id=14
+  col1=table_id=14
+  col2=table_id=14
+  col3=table_id=14
+  col4=table_id=14
+  col5=table_id=14
   data=
   def=
     fields=
@@ -840,38 +929,38 @@ foreign_key_column_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=13
-  idx0=id=29
-       root=32
+  id=14
+  idx0=id=32
+       root=35
        space_id=4294967294
-       table_id=13
+       table_id=14
        trx_id=0
-  idx1=id=30
-       root=33
+  idx1=id=33
+       root=36
        space_id=4294967294
-       table_id=13
+       table_id=14
        trx_id=0
-  idx2=id=31
-       root=34
+  idx2=id=34
+       root=37
        space_id=4294967294
-       table_id=13
+       table_id=14
        trx_id=0
        space_id=1
     foreign_keys=
-  col0=table_id=14
-  col1=table_id=14
-  col10=table_id=14
-  col11=table_id=14
-  col12=table_id=14
-  col13=table_id=14
-  col2=table_id=14
-  col3=table_id=14
-  col4=table_id=14
-  col5=table_id=14
-  col6=table_id=14
-  col7=table_id=14
-  col8=table_id=14
-  col9=table_id=14
+  col0=table_id=15
+  col1=table_id=15
+  col10=table_id=15
+  col11=table_id=15
+  col12=table_id=15
+  col13=table_id=15
+  col2=table_id=15
+  col3=table_id=15
+  col4=table_id=15
+  col5=table_id=15
+  col6=table_id=15
+  col7=table_id=15
+  col8=table_id=15
+  col9=table_id=15
   data=autoinc=0
   version=0
   def=
@@ -957,37 +1046,37 @@ foreign_key_column_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=14
-  idx0=id=32
-       root=35
-       space_id=4294967294
-       table_id=14
-       trx_id=0
-  idx1=id=33
-       root=36
-       space_id=4294967294
-       table_id=14
-       trx_id=0
-  idx2=id=34
-       root=37
-       space_id=4294967294
-       table_id=14
-       trx_id=0
-  idx3=id=35
+  id=15
+  idx0=id=35
        root=38
        space_id=4294967294
-       table_id=14
+       table_id=15
+       trx_id=0
+  idx1=id=36
+       root=39
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx2=id=37
+       root=40
+       space_id=4294967294
+       table_id=15
+       trx_id=0
+  idx3=id=38
+       root=41
+       space_id=4294967294
+       table_id=15
        trx_id=0
        space_id=1
 index_column_usage=
-  col0=table_id=15
-  col1=table_id=15
-  col2=table_id=15
-  col3=table_id=15
-  col4=table_id=15
-  col5=table_id=15
-  col6=table_id=15
-  col7=table_id=15
+  col0=table_id=16
+  col1=table_id=16
+  col2=table_id=16
+  col3=table_id=16
+  col4=table_id=16
+  col5=table_id=16
+  col6=table_id=16
+  col7=table_id=16
   data=
   def=
     fields=
@@ -1046,31 +1135,31 @@ index_column_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=15
-  idx0=id=36
-       root=39
+  id=16
+  idx0=id=39
+       root=42
        space_id=4294967294
-       table_id=15
+       table_id=16
        trx_id=0
-  idx1=id=37
-       root=40
+  idx1=id=40
+       root=43
        space_id=4294967294
-       table_id=15
+       table_id=16
        trx_id=0
-  idx2=id=38
-       root=41
+  idx2=id=41
+       root=44
        space_id=4294967294
-       table_id=15
+       table_id=16
        trx_id=0
        space_id=1
 index_partitions=
-  col0=table_id=16
-  col1=table_id=16
-  col2=table_id=16
-  col3=table_id=16
-  col4=table_id=16
-  col5=table_id=16
-  col6=table_id=16
+  col0=table_id=17
+  col1=table_id=17
+  col2=table_id=17
+  col3=table_id=17
+  col4=table_id=17
+  col5=table_id=17
+  col6=table_id=17
   data=
   def=
     fields=
@@ -1129,32 +1218,32 @@ index_partitions=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=16
-  idx0=id=39
-       root=42
+  id=17
+  idx0=id=42
+       root=45
        space_id=4294967294
-       table_id=16
+       table_id=17
        trx_id=0
-  idx1=id=40
-       root=43
+  idx1=id=43
+       root=47
        space_id=4294967294
-       table_id=16
+       table_id=17
        trx_id=0
-  idx2=id=41
-       root=44
+  idx2=id=44
+       root=48
        space_id=4294967294
-       table_id=16
+       table_id=17
        trx_id=0
        space_id=1
 index_stats=
-  col0=table_id=17
-  col1=table_id=17
-  col2=table_id=17
-  col3=table_id=17
-  col4=table_id=17
-  col5=table_id=17
-  col6=table_id=17
-  col7=table_id=17
+  col0=table_id=18
+  col1=table_id=18
+  col2=table_id=18
+  col3=table_id=18
+  col4=table_id=18
+  col5=table_id=18
+  col6=table_id=18
+  col7=table_id=18
   data=
   def=
     fields=
@@ -1201,31 +1290,31 @@ index_stats=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=17
-  idx0=id=42
-       root=45
+  id=18
+  idx0=id=45
+       root=49
        space_id=4294967294
-       table_id=17
+       table_id=18
        trx_id=0
        space_id=1
     indexes=
-  col0=table_id=18
-  col1=table_id=18
-  col10=table_id=18
-  col11=table_id=18
-  col12=table_id=18
-  col13=table_id=18
-  col14=table_id=18
-  col15=table_id=18
-  col16=table_id=18
-  col2=table_id=18
-  col3=table_id=18
-  col4=table_id=18
-  col5=table_id=18
-  col6=table_id=18
-  col7=table_id=18
-  col8=table_id=18
-  col9=table_id=18
+  col0=table_id=19
+  col1=table_id=19
+  col10=table_id=19
+  col11=table_id=19
+  col12=table_id=19
+  col13=table_id=19
+  col14=table_id=19
+  col15=table_id=19
+  col16=table_id=19
+  col2=table_id=19
+  col3=table_id=19
+  col4=table_id=19
+  col5=table_id=19
+  col6=table_id=19
+  col7=table_id=19
+  col8=table_id=19
+  col9=table_id=19
   data=autoinc=0
   version=0
   def=
@@ -1324,21 +1413,21 @@ index_stats=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=18
-  idx0=id=43
-       root=47
+  id=19
+  idx0=id=46
+       root=50
        space_id=4294967294
-       table_id=18
+       table_id=19
        trx_id=0
-  idx1=id=44
-       root=48
+  idx1=id=47
+       root=51
        space_id=4294967294
-       table_id=18
+       table_id=19
        trx_id=0
-  idx2=id=45
-       root=49
+  idx2=id=48
+       root=52
        space_id=4294967294
-       table_id=18
+       table_id=19
        trx_id=0
        space_id=1
 innodb_ddl_log=
@@ -1609,11 +1698,11 @@ innodb_table_stats=
        trx_id=0
        space_id=1
 parameter_type_elements=
-  col0=table_id=19
-  col1=table_id=19
-  col2=table_id=19
-  col3=table_id=19
-  col4=table_id=19
+  col0=table_id=20
+  col1=table_id=20
+  col2=table_id=20
+  col3=table_id=20
+  col4=table_id=20
   data=
   def=
     fields=
@@ -1654,31 +1743,31 @@ parameter_type_elements=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=19
-  idx0=id=46
-       root=50
+  id=20
+  idx0=id=49
+       root=53
        space_id=4294967294
-       table_id=19
+       table_id=20
        trx_id=0
        space_id=1
 parameters=
-  col0=table_id=20
-  col1=table_id=20
-  col10=table_id=20
-  col11=table_id=20
-  col12=table_id=20
-  col13=table_id=20
-  col14=table_id=20
-  col15=table_id=20
-  col16=table_id=20
-  col2=table_id=20
-  col3=table_id=20
-  col4=table_id=20
-  col5=table_id=20
-  col6=table_id=20
-  col7=table_id=20
-  col8=table_id=20
-  col9=table_id=20
+  col0=table_id=21
+  col1=table_id=21
+  col10=table_id=21
+  col11=table_id=21
+  col12=table_id=21
+  col13=table_id=21
+  col14=table_id=21
+  col15=table_id=21
+  col16=table_id=21
+  col2=table_id=21
+  col3=table_id=21
+  col4=table_id=21
+  col5=table_id=21
+  col6=table_id=21
+  col7=table_id=21
+  col8=table_id=21
+  col9=table_id=21
   data=autoinc=0
   version=0
   def=
@@ -1782,33 +1871,33 @@ parameters=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=20
-  idx0=id=47
-       root=51
+  id=21
+  idx0=id=50
+       root=54
        space_id=4294967294
-       table_id=20
+       table_id=21
        trx_id=0
-  idx1=id=48
-       root=52
+  idx1=id=51
+       root=55
        space_id=4294967294
-       table_id=20
+       table_id=21
        trx_id=0
-  idx2=id=49
-       root=53
+  idx2=id=52
+       root=56
        space_id=4294967294
-       table_id=20
+       table_id=21
        trx_id=0
        space_id=1
 resource_groups=
-  col0=table_id=21
-  col1=table_id=21
-  col2=table_id=21
-  col3=table_id=21
-  col4=table_id=21
-  col5=table_id=21
-  col6=table_id=21
-  col7=table_id=21
-  col8=table_id=21
+  col0=table_id=22
+  col1=table_id=22
+  col2=table_id=22
+  col3=table_id=22
+  col4=table_id=22
+  col5=table_id=22
+  col6=table_id=22
+  col7=table_id=22
+  col8=table_id=22
   data=autoinc=0
   version=0
   def=
@@ -1862,50 +1951,50 @@ resource_groups=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=21
-  idx0=id=50
-       root=54
+  id=22
+  idx0=id=53
+       root=57
        space_id=4294967294
-       table_id=21
+       table_id=22
        trx_id=0
-  idx1=id=51
-       root=55
+  idx1=id=54
+       root=58
        space_id=4294967294
-       table_id=21
+       table_id=22
        trx_id=0
        space_id=1
 routines=
-  col0=table_id=22
-  col1=table_id=22
-  col10=table_id=22
-  col11=table_id=22
-  col12=table_id=22
-  col13=table_id=22
-  col14=table_id=22
-  col15=table_id=22
-  col16=table_id=22
-  col17=table_id=22
-  col18=table_id=22
-  col19=table_id=22
-  col2=table_id=22
-  col20=table_id=22
-  col21=table_id=22
-  col22=table_id=22
-  col23=table_id=22
-  col24=table_id=22
-  col25=table_id=22
-  col26=table_id=22
-  col27=table_id=22
-  col28=table_id=22
-  col29=table_id=22
-  col3=table_id=22
-  col30=table_id=22
-  col4=table_id=22
-  col5=table_id=22
-  col6=table_id=22
-  col7=table_id=22
-  col8=table_id=22
-  col9=table_id=22
+  col0=table_id=23
+  col1=table_id=23
+  col10=table_id=23
+  col11=table_id=23
+  col12=table_id=23
+  col13=table_id=23
+  col14=table_id=23
+  col15=table_id=23
+  col16=table_id=23
+  col17=table_id=23
+  col18=table_id=23
+  col19=table_id=23
+  col2=table_id=23
+  col20=table_id=23
+  col21=table_id=23
+  col22=table_id=23
+  col23=table_id=23
+  col24=table_id=23
+  col25=table_id=23
+  col26=table_id=23
+  col27=table_id=23
+  col28=table_id=23
+  col29=table_id=23
+  col3=table_id=23
+  col30=table_id=23
+  col4=table_id=23
+  col5=table_id=23
+  col6=table_id=23
+  col7=table_id=23
+  col8=table_id=23
+  col9=table_id=23
   data=autoinc=0
   version=0
   def=
@@ -2071,48 +2160,49 @@ routines=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=22
-  idx0=id=52
-       root=56
-       space_id=4294967294
-       table_id=22
-       trx_id=0
-  idx1=id=53
-       root=57
-       space_id=4294967294
-       table_id=22
-       trx_id=0
-  idx2=id=54
-       root=58
-       space_id=4294967294
-       table_id=22
-       trx_id=0
-  idx3=id=55
+  id=23
+  idx0=id=55
        root=59
        space_id=4294967294
-       table_id=22
+       table_id=23
        trx_id=0
-  idx4=id=56
+  idx1=id=56
        root=60
        space_id=4294967294
-       table_id=22
+       table_id=23
        trx_id=0
-  idx5=id=57
+  idx2=id=57
        root=61
        space_id=4294967294
-       table_id=22
+       table_id=23
+       trx_id=0
+  idx3=id=58
+       root=62
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx4=id=59
+       root=63
+       space_id=4294967294
+       table_id=23
+       trx_id=0
+  idx5=id=60
+       root=64
+       space_id=4294967294
+       table_id=23
        trx_id=0
        space_id=1
 schemata=
-  col0=table_id=23
-  col1=table_id=23
-  col2=table_id=23
-  col3=table_id=23
-  col4=table_id=23
-  col5=table_id=23
-  col6=table_id=23
-  col7=table_id=23
-  col8=table_id=23
+  col0=table_id=24
+  col1=table_id=24
+  col2=table_id=24
+  col3=table_id=24
+  col4=table_id=24
+  col5=table_id=24
+  col6=table_id=24
+  col7=table_id=24
+  col8=table_id=24
+  col9=table_id=24
   data=autoinc=0
   version=0
   def=
@@ -2126,16 +2216,19 @@ schemata=
       elem2=def=default_collation_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_DEFAULT_COLLATION_ID
             pos=3
-      elem3=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem3=def=default_encryption ENUM('NO', 'YES') NOT NULL
+            lbl=FIELD_DEFAULT_ENCRYPTION
+            pos=7
+      elem4=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem4=def=last_altered TIMESTAMP NOT NULL
+      elem5=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=5
-      elem5=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
+      elem6=def=name VARCHAR(64) NOT NULL COLLATE utf8_bin
             lbl=FIELD_NAME
             pos=2
-      elem6=def=options MEDIUMTEXT
+      elem7=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=6
     foreign_keys=
@@ -2175,36 +2268,36 @@ schemata=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=23
-  idx0=id=58
-       root=62
+  id=24
+  idx0=id=61
+       root=65
        space_id=4294967294
-       table_id=23
+       table_id=24
        trx_id=0
-  idx1=id=59
-       root=63
+  idx1=id=62
+       root=66
        space_id=4294967294
-       table_id=23
+       table_id=24
        trx_id=0
-  idx2=id=60
-       root=64
+  idx2=id=63
+       root=67
        space_id=4294967294
-       table_id=23
+       table_id=24
        trx_id=0
        space_id=1
 st_spatial_reference_systems=
-  col0=table_id=24
-  col1=table_id=24
-  col10=table_id=24
-  col11=table_id=24
-  col2=table_id=24
-  col3=table_id=24
-  col4=table_id=24
-  col5=table_id=24
-  col6=table_id=24
-  col7=table_id=24
-  col8=table_id=24
-  col9=table_id=24
+  col0=table_id=25
+  col1=table_id=25
+  col10=table_id=25
+  col11=table_id=25
+  col2=table_id=25
+  col3=table_id=25
+  col4=table_id=25
+  col5=table_id=25
+  col6=table_id=25
+  col7=table_id=25
+  col8=table_id=25
+  col9=table_id=25
   data=
   def=
     fields=
@@ -2278,31 +2371,31 @@ COLLATE utf8_general_ci
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=24
-  idx0=id=61
-       root=65
+  id=25
+  idx0=id=64
+       root=68
        space_id=4294967294
-       table_id=24
+       table_id=25
        trx_id=0
-  idx1=id=62
-       root=66
+  idx1=id=65
+       root=69
        space_id=4294967294
-       table_id=24
+       table_id=25
        trx_id=0
-  idx2=id=63
-       root=67
+  idx2=id=66
+       root=70
        space_id=4294967294
-       table_id=24
+       table_id=25
        trx_id=0
        space_id=1
 table_partition_values=
-  col0=table_id=25
-  col1=table_id=25
-  col2=table_id=25
-  col3=table_id=25
-  col4=table_id=25
-  col5=table_id=25
-  col6=table_id=25
+  col0=table_id=26
+  col1=table_id=26
+  col2=table_id=26
+  col3=table_id=26
+  col4=table_id=26
+  col5=table_id=26
+  col6=table_id=26
   data=
   def=
     fields=
@@ -2349,28 +2442,28 @@ table_partition_values=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=25
-  idx0=id=64
-       root=68
+  id=26
+  idx0=id=67
+       root=71
        space_id=4294967294
-       table_id=25
+       table_id=26
        trx_id=0
        space_id=1
 table_partitions=
-  col0=table_id=26
-  col1=table_id=26
-  col10=table_id=26
-  col11=table_id=26
-  col12=table_id=26
-  col13=table_id=26
-  col2=table_id=26
-  col3=table_id=26
-  col4=table_id=26
-  col5=table_id=26
-  col6=table_id=26
-  col7=table_id=26
-  col8=table_id=26
-  col9=table_id=26
+  col0=table_id=27
+  col1=table_id=27
+  col10=table_id=27
+  col11=table_id=27
+  col12=table_id=27
+  col13=table_id=27
+  col2=table_id=27
+  col3=table_id=27
+  col4=table_id=27
+  col5=table_id=27
+  col6=table_id=27
+  col7=table_id=27
+  col8=table_id=27
+  col9=table_id=27
   data=autoinc=0
   version=0
   def=
@@ -2463,59 +2556,59 @@ table_partitions=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=26
-  idx0=id=65
-       root=69
-       space_id=4294967294
-       table_id=26
-       trx_id=0
-  idx1=id=66
-       root=70
-       space_id=4294967294
-       table_id=26
-       trx_id=0
-  idx2=id=67
-       root=71
-       space_id=4294967294
-       table_id=26
-       trx_id=0
-  idx3=id=68
+  id=27
+  idx0=id=68
        root=72
        space_id=4294967294
-       table_id=26
+       table_id=27
        trx_id=0
-  idx4=id=69
+  idx1=id=69
        root=73
        space_id=4294967294
-       table_id=26
+       table_id=27
        trx_id=0
-  idx5=id=70
+  idx2=id=70
        root=74
        space_id=4294967294
-       table_id=26
+       table_id=27
        trx_id=0
-  idx6=id=71
+  idx3=id=71
        root=75
        space_id=4294967294
-       table_id=26
+       table_id=27
+       trx_id=0
+  idx4=id=72
+       root=76
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx5=id=73
+       root=77
+       space_id=4294967294
+       table_id=27
+       trx_id=0
+  idx6=id=74
+       root=78
+       space_id=4294967294
+       table_id=27
        trx_id=0
        space_id=1
 table_stats=
-  col0=table_id=27
-  col1=table_id=27
-  col10=table_id=27
-  col11=table_id=27
-  col12=table_id=27
-  col13=table_id=27
-  col14=table_id=27
-  col2=table_id=27
-  col3=table_id=27
-  col4=table_id=27
-  col5=table_id=27
-  col6=table_id=27
-  col7=table_id=27
-  col8=table_id=27
-  col9=table_id=27
+  col0=table_id=28
+  col1=table_id=28
+  col10=table_id=28
+  col11=table_id=28
+  col12=table_id=28
+  col13=table_id=28
+  col14=table_id=28
+  col2=table_id=28
+  col3=table_id=28
+  col4=table_id=28
+  col5=table_id=28
+  col6=table_id=28
+  col7=table_id=28
+  col8=table_id=28
+  col9=table_id=28
   data=
   def=
     fields=
@@ -2583,51 +2676,51 @@ table_stats=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=27
-  idx0=id=72
-       root=76
+  id=28
+  idx0=id=75
+       root=79
        space_id=4294967294
-       table_id=27
+       table_id=28
        trx_id=0
        space_id=1
 tables=
-  col0=table_id=28
-  col1=table_id=28
-  col10=table_id=28
-  col11=table_id=28
-  col12=table_id=28
-  col13=table_id=28
-  col14=table_id=28
-  col15=table_id=28
-  col16=table_id=28
-  col17=table_id=28
-  col18=table_id=28
-  col19=table_id=28
-  col2=table_id=28
-  col20=table_id=28
-  col21=table_id=28
-  col22=table_id=28
-  col23=table_id=28
-  col24=table_id=28
-  col25=table_id=28
-  col26=table_id=28
-  col27=table_id=28
-  col28=table_id=28
-  col29=table_id=28
-  col3=table_id=28
-  col30=table_id=28
-  col31=table_id=28
-  col32=table_id=28
-  col33=table_id=28
-  col34=table_id=28
-  col35=table_id=28
-  col36=table_id=28
-  col4=table_id=28
-  col5=table_id=28
-  col6=table_id=28
-  col7=table_id=28
-  col8=table_id=28
-  col9=table_id=28
+  col0=table_id=29
+  col1=table_id=29
+  col10=table_id=29
+  col11=table_id=29
+  col12=table_id=29
+  col13=table_id=29
+  col14=table_id=29
+  col15=table_id=29
+  col16=table_id=29
+  col17=table_id=29
+  col18=table_id=29
+  col19=table_id=29
+  col2=table_id=29
+  col20=table_id=29
+  col21=table_id=29
+  col22=table_id=29
+  col23=table_id=29
+  col24=table_id=29
+  col25=table_id=29
+  col26=table_id=29
+  col27=table_id=29
+  col28=table_id=29
+  col29=table_id=29
+  col3=table_id=29
+  col30=table_id=29
+  col31=table_id=29
+  col32=table_id=29
+  col33=table_id=29
+  col34=table_id=29
+  col35=table_id=29
+  col36=table_id=29
+  col4=table_id=29
+  col5=table_id=29
+  col6=table_id=29
+  col7=table_id=29
+  col8=table_id=29
+  col9=table_id=29
   data=autoinc=0
   version=0
   def=
@@ -2811,60 +2904,60 @@ tables=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=28
-  idx0=id=73
-       root=77
-       space_id=4294967294
-       table_id=28
-       trx_id=0
-  idx1=id=74
-       root=78
-       space_id=4294967294
-       table_id=28
-       trx_id=0
-  idx2=id=75
-       root=79
-       space_id=4294967294
-       table_id=28
-       trx_id=0
-  idx3=id=76
+  id=29
+  idx0=id=76
        root=80
        space_id=4294967294
-       table_id=28
+       table_id=29
        trx_id=0
-  idx4=id=77
+  idx1=id=77
        root=81
        space_id=4294967294
-       table_id=28
+       table_id=29
        trx_id=0
-  idx5=id=78
+  idx2=id=78
        root=82
        space_id=4294967294
-       table_id=28
+       table_id=29
        trx_id=0
-  idx6=id=79
+  idx3=id=79
        root=83
        space_id=4294967294
-       table_id=28
+       table_id=29
        trx_id=0
-  idx7=id=80
+  idx4=id=80
        root=84
        space_id=4294967294
-       table_id=28
+       table_id=29
        trx_id=0
-  idx8=id=81
+  idx5=id=81
        root=85
        space_id=4294967294
-       table_id=28
+       table_id=29
+       trx_id=0
+  idx6=id=82
+       root=86
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx7=id=83
+       root=87
+       space_id=4294967294
+       table_id=29
+       trx_id=0
+  idx8=id=84
+       root=88
+       space_id=4294967294
+       table_id=29
        trx_id=0
        space_id=1
 tablespace_files=
-  col0=table_id=29
-  col1=table_id=29
-  col2=table_id=29
-  col3=table_id=29
-  col4=table_id=29
-  col5=table_id=29
+  col0=table_id=30
+  col1=table_id=30
+  col2=table_id=30
+  col3=table_id=30
+  col4=table_id=30
+  col5=table_id=30
   data=
   def=
     fields=
@@ -2911,27 +3004,27 @@ tablespace_files=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=29
-  idx0=id=82
-       root=86
+  id=30
+  idx0=id=85
+       root=90
        space_id=4294967294
-       table_id=29
+       table_id=30
        trx_id=0
-  idx1=id=83
-       root=87
+  idx1=id=86
+       root=91
        space_id=4294967294
-       table_id=29
+       table_id=30
        trx_id=0
        space_id=1
 tablespaces=
-  col0=table_id=30
-  col1=table_id=30
-  col2=table_id=30
-  col3=table_id=30
-  col4=table_id=30
-  col5=table_id=30
-  col6=table_id=30
-  col7=table_id=30
+  col0=table_id=31
+  col1=table_id=31
+  col2=table_id=31
+  col3=table_id=31
+  col4=table_id=31
+  col5=table_id=31
+  col6=table_id=31
+  col7=table_id=31
   data=autoinc=0
   version=0
   def=
@@ -2982,38 +3075,38 @@ tablespaces=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=30
-  idx0=id=84
-       root=88
+  id=31
+  idx0=id=87
+       root=92
        space_id=4294967294
-       table_id=30
+       table_id=31
        trx_id=0
-  idx1=id=85
-       root=90
+  idx1=id=88
+       root=93
        space_id=4294967294
-       table_id=30
+       table_id=31
        trx_id=0
        space_id=1
 triggers=
-  col0=table_id=31
-  col1=table_id=31
-  col10=table_id=31
-  col11=table_id=31
-  col12=table_id=31
-  col13=table_id=31
-  col14=table_id=31
-  col15=table_id=31
-  col16=table_id=31
-  col17=table_id=31
-  col18=table_id=31
-  col2=table_id=31
-  col3=table_id=31
-  col4=table_id=31
-  col5=table_id=31
-  col6=table_id=31
-  col7=table_id=31
-  col8=table_id=31
-  col9=table_id=31
+  col0=table_id=32
+  col1=table_id=32
+  col10=table_id=32
+  col11=table_id=32
+  col12=table_id=32
+  col13=table_id=32
+  col14=table_id=32
+  col15=table_id=32
+  col16=table_id=32
+  col17=table_id=32
+  col18=table_id=32
+  col2=table_id=32
+  col3=table_id=32
+  col4=table_id=32
+  col5=table_id=32
+  col6=table_id=32
+  col7=table_id=32
+  col8=table_id=32
+  col9=table_id=32
   data=autoinc=0
   version=0
   def=
@@ -3124,45 +3217,45 @@ triggers=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=31
-  idx0=id=86
-       root=91
-       space_id=4294967294
-       table_id=31
-       trx_id=0
-  idx1=id=87
-       root=92
-       space_id=4294967294
-       table_id=31
-       trx_id=0
-  idx2=id=88
-       root=93
-       space_id=4294967294
-       table_id=31
-       trx_id=0
-  idx3=id=89
+  id=32
+  idx0=id=89
        root=94
        space_id=4294967294
-       table_id=31
+       table_id=32
        trx_id=0
-  idx4=id=90
+  idx1=id=90
        root=95
        space_id=4294967294
-       table_id=31
+       table_id=32
        trx_id=0
-  idx5=id=91
+  idx2=id=91
        root=96
        space_id=4294967294
-       table_id=31
+       table_id=32
+       trx_id=0
+  idx3=id=92
+       root=97
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx4=id=93
+       root=98
+       space_id=4294967294
+       table_id=32
+       trx_id=0
+  idx5=id=94
+       root=99
+       space_id=4294967294
+       table_id=32
        trx_id=0
        space_id=1
 view_routine_usage=
-  col0=table_id=32
-  col1=table_id=32
-  col2=table_id=32
-  col3=table_id=32
-  col4=table_id=32
-  col5=table_id=32
+  col0=table_id=33
+  col1=table_id=33
+  col2=table_id=33
+  col3=table_id=33
+  col4=table_id=33
+  col5=table_id=33
   data=
   def=
     fields=
@@ -3209,25 +3302,25 @@ view_routine_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=32
-  idx0=id=92
-       root=97
+  id=33
+  idx0=id=95
+       root=100
        space_id=4294967294
-       table_id=32
+       table_id=33
        trx_id=0
-  idx1=id=93
-       root=98
+  idx1=id=96
+       root=101
        space_id=4294967294
-       table_id=32
+       table_id=33
        trx_id=0
        space_id=1
 view_table_usage=
-  col0=table_id=33
-  col1=table_id=33
-  col2=table_id=33
-  col3=table_id=33
-  col4=table_id=33
-  col5=table_id=33
+  col0=table_id=34
+  col1=table_id=34
+  col2=table_id=34
+  col3=table_id=34
+  col4=table_id=34
+  col5=table_id=34
   data=
   def=
     fields=
@@ -3274,15 +3367,15 @@ view_table_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=33
-  idx0=id=94
-       root=99
+  id=34
+  idx0=id=97
+       root=102
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
-  idx1=id=95
-       root=100
+  idx1=id=98
+       root=103
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
        space_id=1

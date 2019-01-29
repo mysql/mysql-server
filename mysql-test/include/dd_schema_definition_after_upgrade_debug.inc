@@ -23,7 +23,7 @@ if (!$VERSION)
 --echo # Restart the server against the unzipped datadir.
 --echo ########################################################################
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_$VERSION.log
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:" --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
@@ -32,7 +32,8 @@ if (!$VERSION)
 --echo ########################################################################
 --echo # Verify that we can restart after upgrade.
 --echo ########################################################################
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/shutdown_mysqld.inc
+--exec echo "restart:" --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 3000
 --source include/wait_until_connected_again.inc

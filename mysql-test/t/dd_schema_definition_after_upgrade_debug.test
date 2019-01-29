@@ -74,6 +74,18 @@
 --echo ########################################################################
 --source include/dd_schema_definition_after_upgrade_debug.inc
 
+--echo ########################################################################
+--let  $VERSION = 80014
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
+--echo ########################################################################
+--let  $VERSION = 80015
+--echo # Test upgrade from $VERSION.
+--echo ########################################################################
+--source include/dd_schema_definition_after_upgrade_debug.inc
+
 
 --echo ########################################################################
 --echo # Cleanup: Remove definition files and restart with default options.
