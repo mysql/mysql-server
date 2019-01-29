@@ -2547,31 +2547,50 @@ void ForEachSubselect(
   });
 }
 
+namespace {
+
+void GetIteratorsFromItem(Item *item, vector<RowIterator::Child> *children) {
+  ForEachSubselect(item, [children](int select_number, bool is_dependent,
+                                    bool is_cacheable, RowIterator *iterator) {
+    char description[256];
+    if (is_dependent) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; dependent)", select_number);
+    } else if (!is_cacheable) {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; uncacheable)",
+               select_number);
+    } else {
+      snprintf(description, sizeof(description),
+               "Select #%d (subquery in projection; run only once)",
+               select_number);
+    }
+    children->push_back(RowIterator::Child{iterator, description});
+  });
+}
+
+}  // namespace
+
 vector<RowIterator::Child> GetIteratorsFromSelectList(JOIN *join) {
   vector<RowIterator::Child> ret;
   if (join == nullptr) {
     return ret;
   }
 
+  // Look for any Items in the projection list itself.
   for (Item &item : *join->get_current_fields()) {
-    ForEachSubselect(&item, [&ret](int select_number, bool is_dependent,
-                                   bool is_cacheable, RowIterator *iterator) {
-      char description[256];
-      if (is_dependent) {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; dependent)",
-                 select_number);
-      } else if (!is_cacheable) {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; uncacheable)",
-                 select_number);
-      } else {
-        snprintf(description, sizeof(description),
-                 "Select #%d (subquery in projection; run only once)",
-                 select_number);
+    GetIteratorsFromItem(&item, &ret);
+  }
+
+  // Look for any Items that were materialized into fields during execution.
+  for (unsigned table_idx = join->primary_tables; table_idx < join->tables;
+       ++table_idx) {
+    QEP_TAB *qep_tab = &join->qep_tab[table_idx];
+    if (qep_tab != nullptr && qep_tab->tmp_table_param != nullptr) {
+      for (Func_ptr &func : *qep_tab->tmp_table_param->items_to_copy) {
+        GetIteratorsFromItem(func.func(), &ret);
       }
-      ret.push_back(RowIterator::Child{iterator, description});
-    });
+    }
   }
   return ret;
 }
