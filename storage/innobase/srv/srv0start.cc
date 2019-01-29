@@ -548,7 +548,7 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
   os_file_create_subdirs_if_needed(file_name);
 
   /* Until this undo tablespace can become active, keep a truncate log
-  file around so that if a cash happens it can be rebuilt at startup. */
+  file around so that if a crash happens it can be rebuilt at startup. */
   err = undo::start_logging(&undo_space);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_1070, undo_space.log_file_name(),
@@ -591,6 +591,8 @@ static dberr_t srv_undo_tablespace_create(undo::Tablespace &undo_space) {
         file_name, fh, 0,
         SRV_UNDO_TABLESPACE_SIZE_IN_PAGES << UNIV_PAGE_SIZE_SHIFT,
         srv_read_only_mode, true);
+
+    DBUG_EXECUTE_IF("ib_undo_tablespace_create_fail", ret = false;);
 
     if (!ret) {
       ib::info(ER_IB_MSG_1074, file_name);
@@ -850,7 +852,6 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
 @return DB_SUCCESS or error code */
 static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
   DBUG_EXECUTE_IF("ib_undo_tablespace_open_fail",
-                  ib::info() << "ib_undo_tablespace_open_fail";
                   return (DB_CANNOT_OPEN_FILE););
 
   pfs_os_file_t fh;
@@ -1439,6 +1440,10 @@ cleanup_and_exit:
     undo::spaces->x_lock();
     undo::spaces->drop(undo_space);
     undo::spaces->x_unlock();
+
+    /* Remove undo tablespace file (if created) */
+    os_file_delete_if_exists(innodb_data_file_key, undo_space.file_name(),
+                             nullptr);
   }
 
   srv_undo_tablespaces_mark_construction_done();
