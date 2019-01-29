@@ -141,6 +141,13 @@ class Item_str_func : public Item_func {
   void left_right_max_length();
   bool fix_fields(THD *thd, Item **ref) override;
   String *val_str_from_val_str_ascii(String *str, String *str2);
+
+ protected:
+  /**
+    Calls push_warning_printf for packet overflow.
+    @return error_str().
+   */
+  String *push_packet_overflow_warning(THD *thd, const char *func);
 };
 
 /*
@@ -1006,12 +1013,7 @@ class Item_func_quote : public Item_str_func {
   Item_func_quote(const POS &pos, Item *a) : Item_str_func(pos, a) {}
   const char *func_name() const override { return "quote"; }
   String *val_str(String *) override;
-  bool resolve_type(THD *) override {
-    uint32 max_result_length = args[0]->max_char_length() + 2U;
-    set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
-                         args[0]->collation);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 };
 
 class Item_func_conv_charset final : public Item_str_func {
