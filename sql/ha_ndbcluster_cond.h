@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,10 +74,10 @@ private:
                       const NdbDictionary::Table *ndb_table) const;
   int build_scan_filter_predicate(Ndb_cond* &cond, 
                                   NdbScanFilter* filter,
-                                  bool negated= false) const;
+                                  bool negated) const;
   int build_scan_filter_group(Ndb_cond* &cond, 
-                              NdbScanFilter* filter) const;
-  int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter) const;
+                              NdbScanFilter* filter,
+                              bool negated) const;
 
   bool eval_condition() const;
 

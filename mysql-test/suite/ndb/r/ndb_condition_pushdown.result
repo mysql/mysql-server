@@ -2746,6 +2746,28 @@ Testing: ''five' <='
 result_rows	filtered_rows
 5	5
 #
+# Bug#29232744 NULL VALUES NOT FILTERED OUT BY PUSHED
+#              'NOT IN/BETWEEN' PREDICATES
+#
+Testing: '<field> between'
+result_rows	filtered_rows
+3	3
+Testing: '<field> not between'
+result_rows	filtered_rows
+2	2
+Testing: 'not <field> between'
+result_rows	filtered_rows
+2	2
+Testing: '<field> in (...)'
+result_rows	filtered_rows
+3	3
+Testing: '<field> not in (...)'
+result_rows	filtered_rows
+2	2
+Testing: 'not <field> in (...)'
+result_rows	filtered_rows
+2	2
+#
 # Bug#29054626 TRUNCATION OF OUT OF RANGE VALUES IN PUSHED CONDITION -> INCORRECT RESULT
 #
 CREATE TABLE t1 (
