@@ -631,7 +631,7 @@ String *Item_func_random_bytes::val_str(String *) {
   return &str_value;
 }
 
-bool Item_func_to_base64::resolve_type(THD *) {
+bool Item_func_to_base64::resolve_type(THD *thd) {
   maybe_null = args[0]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->max_length > (uint)base64_encode_max_arg_length()) {
@@ -641,6 +641,7 @@ bool Item_func_to_base64::resolve_type(THD *) {
     uint64 length = base64_needed_encoded_length((uint64)args[0]->max_length);
     DBUG_ASSERT(length > 0);
     set_data_type_string((ulonglong)length - 1);
+    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   }
   return false;
 }
@@ -656,11 +657,7 @@ String *Item_func_to_base64::val_str_ascii(String *str) {
       tmp_value.alloc((uint)length)) {
     null_value = 1;  // NULL input, too long input, or OOM.
     if (too_long) {
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING,
-          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-          current_thd->variables.max_allowed_packet);
+      return push_packet_overflow_warning(current_thd, func_name());
     }
     return 0;
   }
@@ -698,11 +695,7 @@ String *Item_func_from_base64::val_str(String *str) {
       end_ptr < res->ptr() + res->length()) {
     null_value = 1;  // NULL input, too long input, OOM, or badly formed input
     if (too_long) {
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING,
-          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-          current_thd->variables.max_allowed_packet);
+      return push_packet_overflow_warning(current_thd, func_name());
     }
     return 0;
   }
@@ -950,13 +943,7 @@ String *Item_func_concat::val_str(String *str) {
     }
     if (res->length() + tmp_value.length() >
         thd->variables.max_allowed_packet) {
-      push_warning_printf(
-          thd, Sql_condition::SL_WARNING, ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-          ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-          current_thd->variables.max_allowed_packet);
-      DBUG_ASSERT(maybe_null);
-      null_value = true;
-      return nullptr;
+      return push_packet_overflow_warning(thd, func_name());
     }
     if (tmp_value.append(*res)) return error_str();
   }
@@ -1012,13 +999,7 @@ String *Item_func_concat_ws::val_str(String *str) {
 
     if (tmp_value.length() + sep_str->length() + res2->length() >
         thd->variables.max_allowed_packet) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                          ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                          func_name(), thd->variables.max_allowed_packet);
-      DBUG_ASSERT(maybe_null);
-      null_value = true;
-      return nullptr;
+      return push_packet_overflow_warning(thd, func_name());
     }
     if (tmp_value.append(*sep_str)) return error_str();
     if (tmp_value.append(*res2)) return error_str();
@@ -1126,11 +1107,7 @@ String *Item_func_replace::val_str(String *str) {
       if (to_length > from_length &&
           result->length() + (to_length - from_length) + (strend - ptr) >
               max_size) {
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-            ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-            current_thd->variables.max_allowed_packet);
-        return error_str();
+        return push_packet_overflow_warning(thd, func_name());
       }
       if (result->append(*res3)) return error_str();
       ptr += from_length;
@@ -1150,7 +1127,7 @@ String *Item_func_replace::val_str(String *str) {
   return result;
 }
 
-bool Item_func_replace::resolve_type(THD *) {
+bool Item_func_replace::resolve_type(THD *thd) {
   ulonglong char_length = args[0]->max_char_length();
   int diff = (int)(args[2]->max_char_length() - args[1]->max_char_length());
   if (diff > 0 && args[1]->max_char_length()) {  // Calculate of maxreplaces
@@ -1161,6 +1138,7 @@ bool Item_func_replace::resolve_type(THD *) {
   if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
     return true;
   set_data_type_string(char_length);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1176,9 +1154,10 @@ String *Item_func_insert::val_str(String *str) {
   length = args[2]->val_int();
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value ||
-      args[3]->null_value)
-    goto null; /* purecov: inspected */
-
+      args[3]->null_value) {
+    DBUG_ASSERT(maybe_null);
+    return error_str(); /* purecov: inspected */
+  }
   orig_len = static_cast<longlong>(res->length());
 
   if ((start < 1) || (start > orig_len))
@@ -1212,30 +1191,25 @@ String *Item_func_insert::val_str(String *str) {
 
   if ((ulonglong)(orig_len - length + res2->length()) >
       (ulonglong)current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    goto null;
+    return push_packet_overflow_warning(current_thd, func_name());
   }
   if (res->uses_buffer_owned_by(str)) {
-    if (tmp_value_res.alloc(orig_len) || tmp_value_res.copy(*res)) goto null;
+    if (tmp_value_res.alloc(orig_len) || tmp_value_res.copy(*res))
+      return error_str();
     res = &tmp_value_res;
   } else
     res = copy_if_not_alloced(str, res, orig_len);
 
   res->replace((uint32)start, (uint32)length, *res2);
   return res;
-null:
-  null_value = 1;
-  return 0;
 }
 
-bool Item_func_insert::resolve_type(THD *) {
+bool Item_func_insert::resolve_type(THD *thd) {
   // Handle character set for args[0] and args[3].
   if (agg_arg_charsets_for_string_result(collation, args, 2, 3)) return true;
   ulonglong length = args[0]->max_char_length() + args[3]->max_char_length();
   set_data_type_string(length);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -1326,6 +1300,16 @@ void Item_str_func::left_right_max_length() {
 
 end:
   set_data_type_string(char_length);
+}
+
+String *Item_str_func::push_packet_overflow_warning(THD *thd,
+                                                    const char *func) {
+  push_warning_printf(thd, Sql_condition::SL_WARNING,
+                      ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                      ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func,
+                      thd->variables.max_allowed_packet);
+  DBUG_ASSERT(maybe_null);
+  return error_str();
 }
 
 bool Item_func_left::resolve_type(THD *) {
@@ -2319,7 +2303,7 @@ inline String *alloc_buffer(String *res, String *str, String *tmp_value,
   return res;
 }
 
-bool Item_func_repeat::resolve_type(THD *) {
+bool Item_func_repeat::resolve_type(THD *thd) {
   if (agg_arg_charsets_for_string_result(collation, args, 1)) return true;
   DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item()) {
@@ -2333,6 +2317,7 @@ bool Item_func_repeat::resolve_type(THD *) {
 
     ulonglong char_length = (ulonglong)args[0]->max_char_length() * count;
     set_data_type_string(char_length);
+    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
@@ -2373,11 +2358,7 @@ String *Item_func_repeat::val_str(String *str) {
   length = res->length();
   // Safe length check
   if (length > current_thd->variables.max_allowed_packet / (uint)count) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    return error_str();
+    return push_packet_overflow_warning(current_thd, func_name());
   }
   tot_length = length * (uint)count;
   if (res->uses_buffer_owned_by(str)) {
@@ -2395,7 +2376,7 @@ String *Item_func_repeat::val_str(String *str) {
   return res;
 }
 
-bool Item_func_space::resolve_type(THD *) {
+bool Item_func_space::resolve_type(THD *thd) {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   if (args[0]->const_item()) {
     /* must be longlong to avoid truncation */
@@ -2407,6 +2388,7 @@ bool Item_func_space::resolve_type(THD *) {
     */
     if (count > INT_MAX32) count = INT_MAX32;
     set_data_type_string(ulonglong(count));
+    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
@@ -2421,7 +2403,7 @@ String *Item_func_space::val_str(String *str) {
   longlong count = args[0]->val_int();
   const CHARSET_INFO *cs = collation.collation;
 
-  if (args[0]->null_value) goto err;  // string and/or delim are null
+  if (args[0]->null_value) return error_str();  // string and/or delim are null
   null_value = 0;
 
   if (count <= 0 && (count == 0 || !args[0]->unsigned_flag))
@@ -2435,25 +2417,17 @@ String *Item_func_space::val_str(String *str) {
   // Safe length check
   tot_length = (uint)count * cs->mbminlen;
   if (tot_length > current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    goto err;
+    return push_packet_overflow_warning(current_thd, func_name());
   }
 
-  if (str->alloc(tot_length)) goto err;
+  if (str->alloc(tot_length)) return error_str();
   str->length(tot_length);
   str->set_charset(cs);
   cs->cset->fill(cs, (char *)str->ptr(), tot_length, ' ');
   return str;
-
-err:
-  null_value = 1;
-  return 0;
 }
 
-bool Item_func_rpad::resolve_type(THD *) {
+bool Item_func_rpad::resolve_type(THD *thd) {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
@@ -2465,6 +2439,7 @@ bool Item_func_rpad::resolve_type(THD *) {
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32) char_length = INT_MAX32;
     set_data_type_string(char_length);
+    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
@@ -2542,12 +2517,7 @@ String *Item_func_rpad::val_str(String *str) {
   // Must be ulonglong to avoid overflow
   const ulonglong byte_count = count * collation.collation->mbmaxlen;
   if (byte_count > current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    null_value = true;
-    return nullptr;
+    return push_packet_overflow_warning(current_thd, func_name());
   }
   if (!pad_char_length) return make_empty_result();
   /* Must be done before alloc_buffer */
@@ -2578,7 +2548,7 @@ String *Item_func_rpad::val_str(String *str) {
   return (res);
 }
 
-bool Item_func_lpad::resolve_type(THD *) {
+bool Item_func_lpad::resolve_type(THD *thd) {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
     return true;
@@ -2591,6 +2561,7 @@ bool Item_func_lpad::resolve_type(THD *) {
     /* Set here so that rest of code sees out-of-bound value as such. */
     if (char_length > INT_MAX32) char_length = INT_MAX32;
     set_data_type_string(char_length);
+    maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
     return false;
   }
 
@@ -2771,12 +2742,7 @@ String *Item_func_lpad::val_str(String *str) {
   byte_count = count * collation.collation->mbmaxlen;
 
   if (byte_count > current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    null_value = true;
-    return nullptr;
+    return push_packet_overflow_warning(current_thd, func_name());
   }
 
   if (!pad_char_length) return make_empty_result();
@@ -3068,7 +3034,7 @@ String *Item_func_weight_string::val_str(String *str) {
 
   if (args[0]->result_type() != STRING_RESULT ||
       !(input = args[0]->val_str(str)))
-    goto nl;
+    return error_str();
 
   /*
     Use result_length if it was given in constructor
@@ -3093,14 +3059,10 @@ String *Item_func_weight_string::val_str(String *str) {
   }
 
   if (output_buf_size > current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    goto nl;
+    return push_packet_overflow_warning(current_thd, func_name());
   }
 
-  if (tmp_value.alloc(output_buf_size)) goto nl;
+  if (tmp_value.alloc(output_buf_size)) return error_str();
 
   if (field) {
     output_length = field->pack_length();
@@ -3133,10 +3095,6 @@ String *Item_func_weight_string::val_str(String *str) {
   tmp_value.length(output_length);
   null_value = 0;
   return &tmp_value;
-
-nl:
-  null_value = 1;
-  return 0;
 }
 
 String *Item_func_hex::val_str_ascii(String *str) {
@@ -3281,12 +3239,8 @@ String *Item_char_typecast::val_str(String *str) {
 
   if (cast_length >= 0 &&
       static_cast<ulonglong>(cast_length) > thd->variables.max_allowed_packet) {
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-        ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-        cast_cs == &my_charset_bin ? "cast_as_binary" : func_name(),
-        thd->variables.max_allowed_packet);
-    return error_str();
+    return push_packet_overflow_warning(
+        thd, cast_cs == &my_charset_bin ? "cast_as_binary" : func_name());
   }
 
   String *res = args[0]->val_str(str);
@@ -3350,7 +3304,7 @@ String *Item_char_typecast::val_str(String *str) {
   return res;
 }
 
-bool Item_char_typecast::resolve_type(THD *) {
+bool Item_char_typecast::resolve_type(THD *thd) {
   /*
     If we convert between two ASCII compatible character sets and the
     argument repertoire is MY_REPERTOIRE_ASCII then from_cs is set to cast_cs.
@@ -3369,6 +3323,7 @@ bool Item_char_typecast::resolve_type(THD *) {
                                     : cast_cs == &my_charset_bin
                                           ? args[0]->max_length
                                           : args[0]->max_char_length()));
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
 
   /*
      We always force character set conversion if cast_cs
@@ -3411,31 +3366,39 @@ String *Item_load_file::val_str(String *str) {
   MY_STAT stat_info;
   char path[FN_REFLEN];
   uchar buf[4096];
-  DBUG_ENTER("load_file");
 
   if (!(file_name = args[0]->val_str(str)) ||
-      !(current_thd->security_context()->check_access(FILE_ACL)))
-    goto err;
+      !(current_thd->security_context()->check_access(FILE_ACL))) {
+    DBUG_ASSERT(maybe_null);
+    return error_str();
+  }
 
   (void)fn_format(path, file_name->c_ptr_safe(), mysql_real_data_home, "",
                   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
   /* Read only allowed from within dir specified by secure_file_priv */
-  if (!is_secure_file_path(path)) goto err;
+  if (!is_secure_file_path(path)) {
+    DBUG_ASSERT(maybe_null);
+    return error_str();
+  }
 
   if ((file = mysql_file_open(key_file_loadfile, file_name->ptr(), O_RDONLY,
-                              MYF(0))) < 0)
-    goto err;
+                              MYF(0))) < 0) {
+    DBUG_ASSERT(maybe_null);
+    return error_str();
+  }
 
   if (mysql_file_fstat(file, &stat_info) != 0) {
     mysql_file_close(file, MYF(0));
-    goto err;
+    DBUG_ASSERT(maybe_null);
+    return error_str();
   }
 
   if (!(stat_info.st_mode & S_IROTH) || !MY_S_ISREG(stat_info.st_mode)) {
     /* my_error(ER_TEXTFILE_NOT_READABLE, MYF(0), file_name->c_ptr()); */
     mysql_file_close(file, MYF(0));
-    goto err;
+    DBUG_ASSERT(maybe_null);
+    return error_str();
   }
 
   tmp_value.length(0);
@@ -3443,7 +3406,8 @@ String *Item_load_file::val_str(String *str) {
     int ret = mysql_file_read(file, buf, sizeof(buf), MYF(0));
     if (ret == -1) {
       mysql_file_close(file, MYF(0));
-      goto err;
+      DBUG_ASSERT(maybe_null);
+      return error_str();
     }
     if (ret == 0) {
       // EOF.
@@ -3451,22 +3415,13 @@ String *Item_load_file::val_str(String *str) {
     }
     tmp_value.append(pointer_cast<char *>(buf), ret);
     if (tmp_value.length() > current_thd->variables.max_allowed_packet) {
-      push_warning_printf(
-          current_thd, Sql_condition::SL_WARNING,
-          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-          ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED), func_name(),
-          current_thd->variables.max_allowed_packet);
       mysql_file_close(file, MYF(0));
-      goto err;
+      return push_packet_overflow_warning(current_thd, func_name());
     }
   }
   mysql_file_close(file, MYF(0));
   null_value = 0;
-  DBUG_RETURN(&tmp_value);
-
-err:
-  null_value = 1;
-  DBUG_RETURN(0);
+  return &tmp_value;
 }
 
 String *Item_func_export_set::val_str(String *str) {
@@ -3521,11 +3476,7 @@ String *Item_func_export_set::val_str(String *str) {
       num_separators * sep->length();
 
   if (unlikely(max_total_length > max_allowed_packet)) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), static_cast<long>(max_allowed_packet));
-    return error_str();
+    return push_packet_overflow_warning(current_thd, func_name());
   }
 
   uint ix;
@@ -3543,7 +3494,7 @@ String *Item_func_export_set::val_str(String *str) {
   return str;
 }
 
-bool Item_func_export_set::resolve_type(THD *) {
+bool Item_func_export_set::resolve_type(THD *thd) {
   uint32 length = max(args[1]->max_char_length(), args[2]->max_char_length());
   uint32 sep_length = (arg_count > 3 ? args[3]->max_char_length() : 1);
 
@@ -3551,6 +3502,15 @@ bool Item_func_export_set::resolve_type(THD *) {
                                          min(4U, arg_count) - 1))
     return true;
   set_data_type_string(length * 64U + sep_length * 63U);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
+  return false;
+}
+
+bool Item_func_quote::resolve_type(THD *thd) {
+  uint32 max_result_length = args[0]->max_char_length() + 2U;
+  set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
+                       args[0]->collation);
+  maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
 
@@ -3700,11 +3660,7 @@ String *Item_func_quote::val_str(String *str) {
 
 ret:
   if (new_length > current_thd->variables.max_allowed_packet) {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-                        ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), current_thd->variables.max_allowed_packet);
-    return error_str();
+    return push_packet_overflow_warning(current_thd, func_name());
   }
 
   tmp_value.length(new_length);
