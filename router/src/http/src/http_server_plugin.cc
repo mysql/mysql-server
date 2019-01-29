@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -188,6 +188,7 @@ class HttpRequestMainThread : public HttpRequestThread {
   }
 };
 
+#ifdef EVENT__HAVE_OPENSSL
 class HttpsRequestMainThread : public HttpRequestMainThread {
  public:
   HttpsRequestMainThread(SSL_CTX *ssl_ctx) {
@@ -200,6 +201,7 @@ class HttpsRequestMainThread : public HttpRequestMainThread {
                      ssl_ctx);
   }
 };
+#endif
 
 class HttpRequestWorkerThread : public HttpRequestThread {
  public:
@@ -208,6 +210,7 @@ class HttpRequestWorkerThread : public HttpRequestThread {
   }
 };
 
+#ifdef EVENT__HAVE_OPENSSL
 class HttpsRequestWorkerThread : public HttpRequestWorkerThread {
  public:
   explicit HttpsRequestWorkerThread(harness_socket_t accept_fd,
@@ -222,6 +225,7 @@ class HttpsRequestWorkerThread : public HttpRequestWorkerThread {
                      ssl_ctx);
   }
 };
+#endif
 
 void HttpServer::join_all() {
   while (!sys_threads_.empty()) {
@@ -256,6 +260,7 @@ void HttpServer::start(size_t max_threads) {
   }
 }
 
+#ifdef EVENT__HAVE_OPENSSL
 class HttpsServer : public HttpServer {
  public:
   HttpsServer(TlsServerContext &&tls_ctx, const std::string &address,
@@ -292,6 +297,7 @@ void HttpsServer::start(size_t max_threads) {
     });
   }
 }
+#endif
 
 void HttpServer::add_route(const std::string &url_regex,
                            std::unique_ptr<BaseRequestHandler> cb) {
@@ -385,9 +391,13 @@ class HttpServerFactory {
 
       if (!config.ssl_cipher.empty()) tls_ctx.cipher_list(config.ssl_cipher);
 
+#ifdef EVENT__HAVE_OPENSSL
       // tls-context is owned by the HttpsServer
       return std::make_shared<HttpsServer>(std::move(tls_ctx),
                                            config.srv_address, config.srv_port);
+#else
+      throw std::invalid_argument("SSL support disabled at compile-time");
+#endif
     } else {
       return std::make_shared<HttpServer>(config.srv_address.c_str(),
                                           config.srv_port);

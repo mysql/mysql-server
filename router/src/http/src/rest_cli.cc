@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -234,6 +234,7 @@ int RestClientFrontend::run() {
   TlsClientContext tls_ctx;
   std::unique_ptr<HttpClient> http_client;
   if (u.get_scheme() == "https") {
+#ifdef EVENT__HAVE_OPENSSL
     if (!config_.ssl_ca_file.empty() || !config_.ssl_ca_dir.empty()) {
       if (!tls_ctx.ssl_ca(config_.ssl_ca_file, config_.ssl_ca_dir)) {
         TlsError e("setting CA's failed");
@@ -246,6 +247,9 @@ int RestClientFrontend::run() {
     }
     http_client = std::make_unique<HttpsClient>(io_ctx, std::move(tls_ctx),
                                                 u.get_host(), u.get_port());
+#else
+    throw FrontendError("HTTPS support disabled at buildtime");
+#endif
   } else {
     http_client =
         std::make_unique<HttpClient>(io_ctx, u.get_host(), u.get_port());

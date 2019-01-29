@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,9 +60,9 @@ class UsageError : public FrontendError {
 class PasswdFrontend {
  public:
   enum class Kdf { Sha256_crypt, Sha512_crypt, Pbkdf2_sha256, Pbkdf2_sha512 };
-  enum class Cmd { SET, DELETE, VERIFY, LIST, SHOW_HELP, SHOW_VERSION };
+  enum class Cmd { Set, Delete, Verify, List, ShowHelp, ShowVersion };
   struct Config {
-    Cmd cmd{Cmd::SET};
+    Cmd cmd{Cmd::Set};
     std::string filename;
     std::string username;
     Kdf kdf{Kdf::Sha256_crypt};

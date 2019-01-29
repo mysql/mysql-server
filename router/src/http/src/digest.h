@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,8 @@ class Digest {
    * initializes the digest function.
    */
   Digest(Type type) : type_{type}, ctx_ {
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+#if defined(OPENSSL_VERSION_NUMBER) && \
+    (OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0))
     EVP_MD_CTX_new(), &EVP_MD_CTX_free
 #else
     EVP_MD_CTX_create(), &EVP_MD_CTX_destroy
@@ -148,7 +149,8 @@ class Digest {
   }
   Type type_;
   std::unique_ptr<EVP_MD_CTX, decltype(
-#if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
+#if defined(OPENSSL_VERSION_NUMBER) && \
+    (OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0))
                                   &EVP_MD_CTX_free
 #else
                                   &EVP_MD_CTX_destroy
