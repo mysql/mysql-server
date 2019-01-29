@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ struct st_access_param {
 
 extern int main(int argc, char **argv);
 static void get_options(int *argc, char ***argv);
-static int examine_log(char *file_name, char **table_names);
+static int examine_log(const char *file_name, char **table_names);
 static int read_string(IO_CACHE *file, uchar **to, uint length);
 static int file_info_compare(const void *cmp_arg, const void *a, const void *b);
 static int test_if_open(void *key, element_count count, void *param);
@@ -83,13 +83,14 @@ static int reopen_closed_file(TREE *tree, struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info, uchar *record);
 static void printf_log(const char *str, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
-static bool cmp_filename(struct file_info *file_info, char *name);
+static bool cmp_filename(struct file_info *file_info, const char *name);
 
 static uint verbose = 0, update = 0, test_info = 0, max_files = 0,
             re_open_count = 0, recover = 0, prefix_remove = 0,
             opt_processes = 0;
-static char *log_filename = 0, *filepath = 0, *write_filename = 0;
-static char *record_pos_file = 0;
+static const char *log_filename = nullptr, *filepath = nullptr,
+                  *write_filename = nullptr;
+static const char *record_pos_file = nullptr;
 static ulong com_count[10][3], number_of_commands = (ulong)~0L, isamlog_process;
 static my_off_t isamlog_filepos, start_offset = 0, record_pos = HA_OFFSET_ERROR;
 static const char *command_name[] = {"open",       "write", "update", "delete",
@@ -222,7 +223,7 @@ static void get_options(int *argc, char ***argv) {
             else
               pos = *(++*argv);
           }
-          record_pos_file = (char *)pos;
+          record_pos_file = pos;
           if (!--*argc) goto err;
           record_pos = (my_off_t)my_strtoll(*(++*argv), NULL, 10);
           pos = " ";
@@ -237,7 +238,7 @@ static void get_options(int *argc, char ***argv) {
             else
               pos = *(++*argv);
           }
-          write_filename = (char *)pos;
+          write_filename = pos;
           pos = " ";
           break;
         case 'F':
@@ -247,7 +248,7 @@ static void get_options(int *argc, char ***argv) {
             else
               pos = *(++*argv);
           }
-          filepath = (char *)pos;
+          filepath = pos;
           pos = " ";
           break;
         case 'V':
@@ -298,7 +299,7 @@ static void get_options(int *argc, char ***argv) {
     (*argv)++;
   }
   if (*argc >= 1) {
-    log_filename = (char *)pos;
+    log_filename = pos;
     (*argc)--;
     (*argv)++;
   }
@@ -309,7 +310,7 @@ err:
   exit(1);
 }
 
-static int examine_log(char *file_name, char **table_names) {
+static int examine_log(const char *file_name, char **table_names) {
   uint command, result, files_open;
   ulong access_time, length;
   my_off_t filepos;
@@ -650,14 +651,13 @@ static int read_string(IO_CACHE *file, uchar **to, uint length) {
   DBUG_RETURN(0);
 } /* read_string */
 
-static int file_info_compare(const void *cmp_arg MY_ATTRIBUTE((unused)),
-                             const void *a, const void *b) {
+static int file_info_compare(const void *, const void *a, const void *b) {
   long lint;
 
-  if ((lint =
-           ((struct file_info *)a)->process - ((struct file_info *)b)->process))
-    return lint < 0L ? -1 : 1;
-  return ((struct file_info *)a)->filenr - ((struct file_info *)b)->filenr;
+  const file_info *file_a = static_cast<const struct file_info *>(a);
+  const file_info *file_b = static_cast<const struct file_info *>(b);
+  if ((lint = file_a->process - file_b->process)) return lint < 0L ? -1 : 1;
+  return file_a->filenr - file_b->filenr;
 }
 
 /* ARGSUSED */
@@ -760,12 +760,12 @@ static void printf_log(const char *format, ...) {
   va_start(args, format);
   if (verbose > 2) printf("%9s:", llstr(isamlog_filepos, llbuff));
   if (verbose > 1) printf("%5ld ", isamlog_process); /* Write process number */
-  (void)vprintf((char *)format, args);
+  (void)vprintf(format, args);
   putchar('\n');
   va_end(args);
 }
 
-static bool cmp_filename(struct file_info *file_info, char *name) {
+static bool cmp_filename(struct file_info *file_info, const char *name) {
   if (!file_info) return 1;
   return strcmp(file_info->name, name) ? 1 : 0;
 }

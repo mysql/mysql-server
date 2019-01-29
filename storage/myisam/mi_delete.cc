@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -724,10 +724,11 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
     s_length = (int)(keypos - start);
     if (keypos != page_end) {
       if (keyinfo->flag & HA_BINARY_PACK_KEY) {
-        uchar *old_key = start;
-        uint next_length, prev_length, prev_pack_length;
-        get_key_length(next_length, keypos);
-        get_key_pack_length(prev_length, prev_pack_length, old_key);
+        const uchar *old_key = start;
+        uint prev_pack_length;
+        uint next_length =
+            get_key_length(pointer_cast<const uchar **>(&keypos));
+        uint prev_length = get_key_pack_length(&old_key, &prev_pack_length);
         if (next_length > prev_length) {
           /* We have to copy data from the current key to the next key */
           memmove(keypos - next_length + prev_length, lastkey + prev_length,
@@ -757,13 +758,14 @@ static uint remove_key(MI_KEYDEF *keyinfo, uint nod_flag,
           if (!(*start & 128)) prev_length = 0; /* prev key not packed */
           if (keyinfo->seg[0].flag & HA_NULL_PART)
             lastkey++; /* Skip null marker */
-          get_key_length(lastkey_length, lastkey);
+          lastkey_length =
+              get_key_length(pointer_cast<const uchar **>(&lastkey));
           if (!next_length) /* Same key after */
           {
             next_length = lastkey_length;
             rest_length = 0;
           } else
-            get_key_length(rest_length, keypos);
+            rest_length = get_key_length(pointer_cast<const uchar **>(&keypos));
 
           if (next_length >=
               prev_length) { /* Key after is based on deleted key */

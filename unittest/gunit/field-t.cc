@@ -551,7 +551,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_short");
-    Field_short fs(0, false, "", true);
+    Field_short fs(0, "", true);
     test_integer_field(&fs);
   }
   {
@@ -606,7 +606,7 @@ TEST_F(FieldTest, MakeSortKey) {
   }
   {
     SCOPED_TRACE("Field_time");
-    Field_time ft(false, "");
+    Field_time ft("");
     uchar from[] = {3, 2, 1};
     uchar expected[] = {129, 2, 3};
     test_make_sort_key(&ft, from, expected, 3);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,9 +306,8 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   DBUG_RETURN(parser->parse(param));
 }
 
-static int _ftb_no_dupes_cmp(const void *not_used MY_ATTRIBUTE((unused)),
-                             const void *a, const void *b) {
-  return CMP_NUM((*((my_off_t *)a)), (*((my_off_t *)b)));
+static int _ftb_no_dupes_cmp(const void *, const void *a, const void *b) {
+  return CMP_NUM((*((const my_off_t *)a)), (*((const my_off_t *)b)));
 }
 
 /*
@@ -523,7 +522,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
 
   if (!(ftb = (FTB *)my_malloc(mi_key_memory_FTB, sizeof(FTB), MYF(MY_WME))))
     return 0;
-  ftb->please = (struct _ft_vft *)&_ft_vft_boolean;
+  ftb->please = const_cast<struct _ft_vft *>(&_ft_vft_boolean);
   ftb->state = FTB::UNINITIALIZED;
   ftb->info = info;
   ftb->keynr = keynr;
@@ -674,7 +673,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->mysql_add_word = ftb_phrase_add_word;
   param->mysql_ftparam = (void *)&ftb_param;
   param->cs = ftb->charset;
-  param->doc = (char *)document;
+  param->doc = const_cast<char *>(pointer_cast<const char *>(document));
   param->length = len;
   param->flags = 0;
   param->mode = MYSQL_FTPARSER_WITH_STOPWORDS;
@@ -928,7 +927,7 @@ extern "C" float ft_boolean_find_relevance(FT_INFO *ftb_base, uchar *record,
   param->mode = MYSQL_FTPARSER_SIMPLE_MODE;
   while (_mi_ft_segiterator(&ftsi)) {
     if (!ftsi.pos) continue;
-    param->doc = (char *)ftsi.pos;
+    param->doc = const_cast<char *>(pointer_cast<const char *>(ftsi.pos));
     param->length = ftsi.len;
     if (unlikely(parser->parse(param))) return 0;
   }

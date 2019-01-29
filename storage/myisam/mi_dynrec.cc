@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,8 +49,7 @@
 /* Enough for comparing if number is zero */
 static char zero_string[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-static int write_dynamic_record(MI_INFO *info, const uchar *record,
-                                ulong reclength);
+static int write_dynamic_record(MI_INFO *info, uchar *record, ulong reclength);
 static int _mi_find_writepos(MI_INFO *info, ulong reclength, my_off_t *filepos,
                              ulong *length);
 static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
@@ -304,8 +303,7 @@ int _mi_delete_dynamic_record(MI_INFO *info) {
 
 /* Write record to data-file */
 
-static int write_dynamic_record(MI_INFO *info, const uchar *record,
-                                ulong reclength) {
+static int write_dynamic_record(MI_INFO *info, uchar *record, ulong reclength) {
   int flag;
   ulong length;
   my_off_t filepos;
@@ -339,7 +337,7 @@ static int write_dynamic_record(MI_INFO *info, const uchar *record,
             info, filepos, length,
             (info->append_insert_at_end ? HA_OFFSET_ERROR
                                         : info->s->state.dellink),
-            (uchar **)&record, &reclength, &flag))
+            &record, &reclength, &flag))
       goto err;
   } while (reclength);
 
@@ -853,7 +851,8 @@ err:
 
 uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from) {
   uint length, new_length, flag, bit, i;
-  uchar *pos, *end, *startpos, *packpos;
+  const uchar *pos, *end, *startpos;
+  uchar *packpos;
   enum en_fieldtype type;
   MI_COLUMNDEF *rec;
   MI_BLOB *blob;
@@ -882,15 +881,15 @@ uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from) {
         }
         blob++;
       } else if (type == FIELD_SKIP_ZERO) {
-        if (memcmp((uchar *)from, zero_string, length) == 0)
+        if (memcmp(from, zero_string, length) == 0)
           flag |= bit;
         else {
           memcpy((uchar *)to, from, (size_t)length);
           to += length;
         }
       } else if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE) {
-        pos = (uchar *)from;
-        end = (uchar *)from + length;
+        pos = from;
+        end = from + length;
         if (type == FIELD_SKIP_ENDSPACE) { /* Pack trailing spaces */
           while (end > from && *(end - 1) == ' ') end--;
         } else { /* Pack pref-spaces */
@@ -915,7 +914,7 @@ uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from) {
         uint pack_length = HA_VARCHAR_PACKLENGTH(rec->length - 1);
         uint tmp_length;
         if (pack_length == 1) {
-          tmp_length = (uint) * (uchar *)from;
+          tmp_length = (uint)*from;
           *to++ = *from;
         } else {
           tmp_length = uint2korr(from);
@@ -953,7 +952,7 @@ uint _mi_rec_pack(MI_INFO *info, uchar *to, const uchar *from) {
 bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *rec_buff,
                    ulong packed_length, bool with_checksum) {
   uint length, new_length, flag, bit, i;
-  uchar *pos, *end, *packpos, *to;
+  const uchar *pos, *end, *packpos, *to;
   enum en_fieldtype type;
   MI_COLUMNDEF *rec;
   DBUG_ENTER("_mi_rec_check");
@@ -973,13 +972,13 @@ bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *rec_buff,
         if (!blob_length && !(flag & bit)) goto err;
         if (blob_length) to += length - portable_sizeof_char_ptr + blob_length;
       } else if (type == FIELD_SKIP_ZERO) {
-        if (memcmp((uchar *)record, zero_string, length) == 0) {
+        if (memcmp(record, zero_string, length) == 0) {
           if (!(flag & bit)) goto err;
         } else
           to += length;
       } else if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE) {
-        pos = (uchar *)record;
-        end = (uchar *)record + length;
+        pos = record;
+        end = record + length;
         if (type == FIELD_SKIP_ENDSPACE) { /* Pack trailing spaces */
           while (end > record && *(end - 1) == ' ') end--;
         } else { /* Pack pre-spaces */
@@ -1004,7 +1003,7 @@ bool _mi_rec_check(MI_INFO *info, const uchar *record, uchar *rec_buff,
         uint pack_length = HA_VARCHAR_PACKLENGTH(rec->length - 1);
         uint tmp_length;
         if (pack_length == 1) {
-          tmp_length = (uint) * (uchar *)record;
+          tmp_length = (uint)*record;
           to += 1 + tmp_length;
           continue;
         } else {
@@ -1041,19 +1040,19 @@ err:
 /* Returns -1 and my_errno =HA_ERR_RECORD_DELETED if reclength isn't */
 /* right. Returns reclength (>0) if ok */
 
-ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
+ulong _mi_rec_unpack(MI_INFO *info, uchar *to, const uchar *from,
                      ulong found_length) {
   uint flag, bit, length, rec_length, min_pack_length;
   enum en_fieldtype type;
-  uchar *from_end, *to_end, *packpos;
+  uchar *to_end;
   MI_COLUMNDEF *rec, *end_field;
   DBUG_ENTER("_mi_rec_unpack");
 
   to_end = to + info->s->base.reclength;
-  from_end = from + found_length;
+  const uchar *from_end = from + found_length;
   flag = (uchar)*from;
   bit = 1;
-  packpos = from;
+  const uchar *packpos = from;
   if (found_length < info->s->base.min_pack_length) goto err;
   from += info->s->base.pack_bits;
   min_pack_length = info->s->base.min_pack_length - info->s->base.pack_bits;
@@ -1066,11 +1065,11 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
       if (type == FIELD_VARCHAR) {
         uint pack_length = HA_VARCHAR_PACKLENGTH(rec_length - 1);
         if (pack_length == 1) {
-          length = (uint) * (uchar *)from;
+          length = (uint)*from;
           if (length > rec_length - 1) goto err;
           *to = *from++;
         } else {
-          get_key_length(length, from);
+          length = get_key_length(&from);
           if (length > rec_length - 2) goto err;
           int2store(to, length);
         }
@@ -1097,11 +1096,11 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
               min_pack_length + length > (uint)(from_end - from))
             goto err;
           if (type == FIELD_SKIP_ENDSPACE) {
-            memcpy(to, (uchar *)from, (size_t)length);
+            memcpy(to, from, (size_t)length);
             memset(to + length, ' ', rec_length - length);
           } else {
             memset(to, ' ', rec_length - length);
-            memcpy(to + rec_length - length, (uchar *)from, (size_t)length);
+            memcpy(to + rec_length - length, from, (size_t)length);
           }
           from += length;
         }
@@ -1120,7 +1119,7 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
         if (type == FIELD_SKIP_ENDSPACE || type == FIELD_SKIP_PRESPACE)
           min_pack_length--;
         if (min_pack_length + rec_length > (uint)(from_end - from)) goto err;
-        memcpy(to, (uchar *)from, (size_t)rec_length);
+        memcpy(to, from, (size_t)rec_length);
         from += rec_length;
       }
       if ((bit = bit << 1) >= 256) {
@@ -1130,7 +1129,7 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
     } else {
       if (min_pack_length > (uint)(from_end - from)) goto err;
       min_pack_length -= rec_length;
-      memcpy(to, (uchar *)from, (size_t)rec_length);
+      memcpy(to, from, (size_t)rec_length);
       from += rec_length;
     }
   }

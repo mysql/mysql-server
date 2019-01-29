@@ -785,6 +785,12 @@ class Field : public Proto_field {
   enum_check_fields m_check_for_truncated_fields_saved;
 
  protected:
+  /*
+    null_ptr buffer to be used for Fields that are nullable but
+    cannot store null. Typically used from create_tmp_field().
+  */
+  static uchar dummy_null_buffer;
+
   const uchar *get_null_ptr() const { return m_null_ptr; }
 
   uchar *get_null_ptr() { return m_null_ptr; }
@@ -1490,17 +1496,17 @@ class Field : public Proto_field {
     ptr -= row_offset;
     return tmp;
   }
-  inline longlong val_int(const uchar *new_ptr) {
+  longlong val_int(uchar *new_ptr) {
     uchar *old_ptr = ptr;
     longlong return_value;
-    ptr = (uchar *)new_ptr;
+    ptr = new_ptr;
     return_value = val_int();
     ptr = old_ptr;
     return return_value;
   }
-  inline String *val_str(String *str, const uchar *new_ptr) {
+  String *val_str(String *str, uchar *new_ptr) {
     uchar *old_ptr = ptr;
-    ptr = (uchar *)new_ptr;
+    ptr = new_ptr;
     val_str(str);
     ptr = old_ptr;
     return str;
@@ -2216,10 +2222,9 @@ class Field_short final : public Field_num {
               const char *field_name_arg, bool zero_arg, bool unsigned_arg)
       : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
-  Field_short(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-              bool unsigned_arg)
-      : Field_num((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                  NONE, field_name_arg, 0, 0, unsigned_arg) {}
+  Field_short(uint32 len_arg, const char *field_name_arg, bool unsigned_arg)
+      : Field_num(nullptr, len_arg, nullptr, 0, NONE, field_name_arg, 0, false,
+                  unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_SHORT; }
   enum ha_base_keytype key_type() const final override {
@@ -2329,8 +2334,9 @@ class Field_long : public Field_num {
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
   Field_long(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
              bool unsigned_arg)
-      : Field_num((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                  NONE, field_name_arg, 0, 0, unsigned_arg) {}
+      : Field_num(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, 0, false, unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_LONG; }
   enum ha_base_keytype key_type() const final override {
@@ -2389,8 +2395,9 @@ class Field_longlong : public Field_num {
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
   Field_longlong(uint32 len_arg, bool maybe_null_arg,
                  const char *field_name_arg, bool unsigned_arg)
-      : Field_num((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                  NONE, field_name_arg, 0, 0, unsigned_arg) {}
+      : Field_num(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, 0, 0, unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_LONGLONG; }
   enum ha_base_keytype key_type() const final override {
@@ -2445,10 +2452,6 @@ class Field_float final : public Field_real {
               bool unsigned_arg)
       : Field_real(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, dec_arg, zero_arg, unsigned_arg) {}
-  Field_float(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-              uint8 dec_arg)
-      : Field_real((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0,
-                   (uint)0, NONE, field_name_arg, dec_arg, 0, 0) {}
   enum_field_types type() const final override { return MYSQL_TYPE_FLOAT; }
   enum ha_base_keytype key_type() const final override {
     return HA_KEYTYPE_FLOAT;
@@ -2500,12 +2503,14 @@ class Field_double final : public Field_real {
                    field_name_arg, dec_arg, zero_arg, unsigned_arg) {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
                uint8 dec_arg)
-      : Field_real((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0,
-                   (uint)0, NONE, field_name_arg, dec_arg, 0, 0) {}
+      : Field_real(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, dec_arg, false, false) {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
                uint8 dec_arg, bool not_fixed_arg)
-      : Field_real((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0,
-                   (uint)0, NONE, field_name_arg, dec_arg, 0, 0) {
+      : Field_real(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, dec_arg, false, false) {
     not_fixed = not_fixed_arg;
   }
   enum_field_types type() const final override { return MYSQL_TYPE_DOUBLE; }
@@ -2780,22 +2785,6 @@ class Field_temporal : public Field {
     flags |= BINARY_FLAG;
     dec = normalize_dec(dec_arg);
   }
-  /**
-    Constructor for Field_temporal
-    @param maybe_null_arg    See Field definition
-    @param field_name_arg    See Field definition
-    @param len_arg           Number of characters in the integer part.
-    @param dec_arg           Number of second fraction digits, 0..6
-  */
-  Field_temporal(bool maybe_null_arg, const char *field_name_arg,
-                 uint32 len_arg, uint8 dec_arg)
-      : Field((uchar *)0,
-              len_arg + ((dec = normalize_dec(dec_arg))
-                             ? normalize_dec(dec_arg) + 1
-                             : 0),
-              maybe_null_arg ? (uchar *)"" : 0, 0, NONE, field_name_arg) {
-    flags |= BINARY_FLAG;
-  }
   Item_result result_type() const final override { return STRING_RESULT; }
   uint32 max_display_length() const final override { return field_length; }
   bool str_needs_quotes() const final override { return true; }
@@ -2875,17 +2864,6 @@ class Field_temporal_with_date : public Field_temporal {
                            const char *field_name_arg, uint8 int_length_arg,
                            uint8 dec_arg)
       : Field_temporal(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                       field_name_arg, int_length_arg, dec_arg) {}
-  /**
-    Constructor for Field_temporal
-    @param maybe_null_arg    See Field definition
-    @param field_name_arg    See Field definition
-    @param int_length_arg    Number of characters in the integer part.
-    @param dec_arg           Number of second fraction digits, 0..6.
-  */
-  Field_temporal_with_date(bool maybe_null_arg, const char *field_name_arg,
-                           uint int_length_arg, uint8 dec_arg)
-      : Field_temporal((uchar *)0, maybe_null_arg ? (uchar *)"" : 0, 0, NONE,
                        field_name_arg, int_length_arg, dec_arg) {}
   bool send_binary(Protocol *protocol) override;
   type_conversion_status store_time(MYSQL_TIME *ltime,
@@ -2979,17 +2957,6 @@ class Field_temporal_with_date_and_timef
       : Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
                                           auto_flags_arg, field_name_arg,
                                           dec_arg) {}
-  /**
-    Constructor for Field_temporal_with_date_and_timef
-    @param maybe_null_arg    See Field definition
-    @param field_name_arg    See Field definition
-    @param dec_arg           Number of second fraction digits, 0..6.
-  */
-  Field_temporal_with_date_and_timef(bool maybe_null_arg,
-                                     const char *field_name_arg, uint8 dec_arg)
-      : Field_temporal_with_date_and_time((uchar *)0,
-                                          maybe_null_arg ? (uchar *)"" : 0, 0,
-                                          NONE, field_name_arg, dec_arg) {}
 
   uint decimals() const final override { return dec; }
   const CHARSET_INFO *sort_charset() const final override {
@@ -3180,7 +3147,8 @@ class Field_newdate : public Field_temporal_with_date {
                                  auto_flags_arg, field_name_arg, MAX_DATE_WIDTH,
                                  0) {}
   Field_newdate(bool maybe_null_arg, const char *field_name_arg)
-      : Field_temporal_with_date((uchar *)0, maybe_null_arg ? (uchar *)"" : 0,
+      : Field_temporal_with_date(nullptr,
+                                 maybe_null_arg ? &dummy_null_buffer : nullptr,
                                  0, NONE, field_name_arg, MAX_DATE_WIDTH, 0) {}
   enum_field_types type() const final override { return MYSQL_TYPE_DATE; }
   enum_field_types real_type() const final override {
@@ -3265,16 +3233,6 @@ class Field_time_common : public Field_temporal {
                     uint8 dec_arg)
       : Field_temporal(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                        field_name_arg, MAX_TIME_WIDTH, dec_arg) {}
-  /**
-    Constructor for Field_time_common
-    @param maybe_null_arg    See Field definition
-    @param field_name_arg    See Field definition
-    @param dec_arg           Number of second fraction digits, 0..6.
-  */
-  Field_time_common(bool maybe_null_arg, const char *field_name_arg,
-                    uint8 dec_arg)
-      : Field_temporal((uchar *)0, maybe_null_arg ? (uchar *)"" : 0, 0, NONE,
-                       field_name_arg, MAX_TIME_WIDTH, dec_arg) {}
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec) final override;
   String *val_str(String *, String *) final override;
@@ -3297,9 +3255,8 @@ class Field_time final : public Field_time_common {
              uchar auto_flags_arg, const char *field_name_arg)
       : Field_time_common(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                           field_name_arg, 0) {}
-  Field_time(bool maybe_null_arg, const char *field_name_arg)
-      : Field_time_common((uchar *)0, maybe_null_arg ? (uchar *)"" : 0, 0, NONE,
-                          field_name_arg, 0) {}
+  Field_time(const char *field_name_arg)
+      : Field_time_common(nullptr, nullptr, 0, NONE, field_name_arg, 0) {}
   enum_field_types type() const final override { return MYSQL_TYPE_TIME; }
   enum ha_base_keytype key_type() const final override {
     return HA_KEYTYPE_INT24;
@@ -3362,8 +3319,9 @@ class Field_timef final : public Field_time_common {
     @param dec_arg           Number of second fraction digits, 0..6.
   */
   Field_timef(bool maybe_null_arg, const char *field_name_arg, uint8 dec_arg)
-      : Field_time_common((uchar *)0, maybe_null_arg ? (uchar *)"" : 0, 0, NONE,
-                          field_name_arg, dec_arg) {}
+      : Field_time_common(nullptr,
+                          maybe_null_arg ? &dummy_null_buffer : nullptr, 0,
+                          NONE, field_name_arg, dec_arg) {}
   Field_timef *clone(MEM_ROOT *mem_root) const final override {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIME);
     return new (mem_root) Field_timef(*this);
@@ -3439,10 +3397,9 @@ class Field_datetime : public Field_temporal_with_date_and_time {
                  uchar auto_flags_arg, const char *field_name_arg)
       : Field_temporal_with_date_and_time(ptr_arg, null_ptr_arg, null_bit_arg,
                                           auto_flags_arg, field_name_arg, 0) {}
-  Field_datetime(bool maybe_null_arg, const char *field_name_arg)
-      : Field_temporal_with_date_and_time((uchar *)0,
-                                          maybe_null_arg ? (uchar *)"" : 0, 0,
-                                          NONE, field_name_arg, 0) {}
+  Field_datetime(const char *field_name_arg)
+      : Field_temporal_with_date_and_time(nullptr, nullptr, 0, NONE,
+                                          field_name_arg, 0) {}
   enum_field_types type() const final override { return MYSQL_TYPE_DATETIME; }
   enum ha_base_keytype key_type() const final override {
     return HA_KEYTYPE_ULONGLONG;
@@ -3516,9 +3473,9 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
   */
   Field_datetimef(bool maybe_null_arg, const char *field_name_arg,
                   uint8 dec_arg)
-      : Field_temporal_with_date_and_timef((uchar *)0,
-                                           maybe_null_arg ? (uchar *)"" : 0, 0,
-                                           NONE, field_name_arg, dec_arg) {}
+      : Field_temporal_with_date_and_timef(
+            nullptr, maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+            field_name_arg, dec_arg) {}
   Field_datetimef *clone(MEM_ROOT *mem_root) const final override {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
     return new (mem_root) Field_datetimef(*this);
@@ -3561,8 +3518,9 @@ class Field_string : public Field_longstr {
                       auto_flags_arg, field_name_arg, cs) {}
   Field_string(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
                const CHARSET_INFO *cs)
-      : Field_longstr((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                      NONE, field_name_arg, cs) {}
+      : Field_longstr(nullptr, len_arg,
+                      maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                      field_name_arg, cs) {}
 
   enum_field_types type() const final override { return MYSQL_TYPE_STRING; }
   bool match_collation_to_optimize_range() const final override { return true; }
@@ -3796,8 +3754,8 @@ class Field_blob : public Field_longstr {
 
   Field_blob(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
              const CHARSET_INFO *cs, bool set_packlength)
-      : Field_longstr((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                      NONE, field_name_arg, cs),
+      : Field_longstr(nullptr, len_arg, maybe_null_arg ? &dummy_null_buffer : 0,
+                      0, NONE, field_name_arg, cs),
         packlength(4),
         m_keep_old_value(false) {
     flags |= BLOB_FLAG;
@@ -4419,7 +4377,7 @@ class Field_bit : public Field {
   }
   int cmp_max(const uchar *a, const uchar *b, uint max_length) final override;
   int key_cmp(const uchar *a, const uchar *b) final override {
-    return cmp_binary((uchar *)a, (uchar *)b);
+    return cmp_binary(a, b);
   }
   int key_cmp(const uchar *str, uint length) final override;
   int cmp_offset(uint row_offset) final override;
@@ -4429,12 +4387,12 @@ class Field_bit : public Field {
   }
   void set_image(const uchar *buff, size_t length,
                  const CHARSET_INFO *cs) final override {
-    Field_bit::store((char *)buff, length, cs);
+    Field_bit::store(pointer_cast<const char *>(buff), length, cs);
   }
   size_t get_key_image(uchar *buff, size_t length,
                        imagetype type) final override;
   void set_key_image(const uchar *buff, size_t length) final override {
-    Field_bit::store((char *)buff, length, &my_charset_bin);
+    Field_bit::store(pointer_cast<const char *>(buff), length, &my_charset_bin);
   }
   size_t make_sort_key(uchar *buff, size_t length) final override {
     get_key_image(buff, length, itRAW);

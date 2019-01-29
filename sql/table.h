@@ -2785,7 +2785,7 @@ struct TABLE_LIST {
     DBUG_ASSERT((is_view_or_derived()) && uses_materialization());
     table_name = table->s->table_name.str;
     table_name_length = table->s->table_name.length;
-    db = (char *)"";
+    db = "";
     db_length = 0;
   }
 

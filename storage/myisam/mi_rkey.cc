@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,8 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     DBUG_ASSERT(keypart_map);
     /* Save the packed key for later use in the second buffer of lastkey. */
     key_buff = info->lastkey + info->s->base.max_key_length;
-    pack_key_length = _mi_pack_key(info, (uint)inx, key_buff, (uchar *)key,
-                                   keypart_map, &last_used_keyseg);
+    pack_key_length = _mi_pack_key(info, (uint)inx, key_buff, key, keypart_map,
+                                   &last_used_keyseg);
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length = pack_key_length;
     info->last_used_keyseg =

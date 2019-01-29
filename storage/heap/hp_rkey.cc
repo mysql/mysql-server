@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,8 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
     heap_rb_param custom_arg;
 
     custom_arg.keyseg = info->s->keydef[inx].seg;
-    custom_arg.key_length = info->lastkey_len = hp_rb_pack_key(
-        keyinfo, (uchar *)info->lastkey, (uchar *)key, keypart_map);
+    custom_arg.key_length = info->lastkey_len =
+        hp_rb_pack_key(keyinfo, (uchar *)info->lastkey, key, keypart_map);
     custom_arg.search_flag = SEARCH_FIND | SEARCH_SAME;
     /* for next rkey() after deletion */
     if (find_flag == HA_READ_AFTER_KEY)

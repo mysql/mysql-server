@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -90,7 +90,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx, key_range *min_key,
         break;
       }
       key_buff = info->lastkey + info->s->base.max_key_length;
-      start_key_len = _mi_pack_key(info, inx, key_buff, (uchar *)min_key->key,
+      start_key_len = _mi_pack_key(info, inx, key_buff, min_key->key,
                                    min_key->keypart_map, (HA_KEYSEG **)0);
       res = rtree_estimate(info, inx, key_buff, start_key_len,
                            myisam_read_vec[min_key->flag]);
@@ -135,10 +135,9 @@ static ha_rows _mi_record_pos(MI_INFO *info, const uchar *key,
   DBUG_ASSERT(keypart_map);
 
   key_buff = info->lastkey + info->s->base.max_key_length;
-  key_len = _mi_pack_key(info, inx, key_buff, (uchar *)key, keypart_map,
-                         (HA_KEYSEG **)0);
-  DBUG_EXECUTE("key", _mi_print_key(DBUG_FILE, keyinfo->seg, (uchar *)key_buff,
-                                    key_len););
+  key_len = _mi_pack_key(info, inx, key_buff, key, keypart_map, nullptr);
+  DBUG_EXECUTE("key",
+               _mi_print_key(DBUG_FILE, keyinfo->seg, key_buff, key_len););
   nextflag = myisam_read_vec[search_flag];
   if (!(nextflag & (SEARCH_FIND | SEARCH_NO_FIND | SEARCH_LAST)))
     key_len = USE_WHOLE_KEY;

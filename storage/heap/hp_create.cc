@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "my_macros.h"
 #include "mysql/service_mysql_alloc.h"
 #include "storage/heap/heapdef.h"
+#include "template_utils.h"
 
 static int keys_compare(const void *a, const void *b, const void *c);
 static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
@@ -238,9 +239,9 @@ err:
 
 static int keys_compare(const void *a, const void *b, const void *c) {
   uint not_used[2];
-  heap_rb_param *param = (heap_rb_param *)a;
-  uchar *key1 = (uchar *)b;
-  uchar *key2 = (uchar *)c;
+  const heap_rb_param *param = pointer_cast<const heap_rb_param *>(a);
+  const uchar *key1 = pointer_cast<const uchar *>(b);
+  const uchar *key2 = pointer_cast<const uchar *>(c);
   return ha_key_cmp(param->keyseg, key1, key2, param->key_length,
                     param->search_flag, not_used);
 }

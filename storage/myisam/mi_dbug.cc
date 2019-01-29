@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,7 +72,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
         }
         break;
       case HA_KEYTYPE_INT8:
-        (void)fprintf(stream, "%d", (int)*((signed char *)key));
+        (void)fprintf(stream, "%d", (int)static_cast<signed char>(*key));
         key = end;
         break;
       case HA_KEYTYPE_SHORT_INT:
@@ -106,12 +106,12 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
         key = end;
         break;
       case HA_KEYTYPE_FLOAT:
-        mi_float4get(f_1, key);
+        f_1 = mi_float4get(key);
         (void)fprintf(stream, "%g", (double)f_1);
         key = end;
         break;
       case HA_KEYTYPE_DOUBLE:
-        mi_float8get(d_1, key);
+        d_1 = mi_float8get(key);
         (void)fprintf(stream, "%g", d_1);
         key = end;
         break;
@@ -143,8 +143,7 @@ void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg, const uchar *key,
       case HA_KEYTYPE_VARBINARY1: /* VARBINARY and BLOB */
       case HA_KEYTYPE_VARBINARY2: /* VARBINARY and BLOB */
       {
-        uint tmp_length;
-        get_key_length(tmp_length, key);
+        uint tmp_length = get_key_length(&key);
         /*
           The following command sometimes gives a warning from valgrind.
           Not yet sure if the bug is in valgrind, glibc or mysqld

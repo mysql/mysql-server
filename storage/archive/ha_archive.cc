@@ -1040,7 +1040,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
   size_t read;
   int error;
   uint *ptr, *end;
-  char *last;
+  const char *last;
   size_t total_blob_length = 0;
   MY_BITMAP *read_set = table->read_set;
   DBUG_ENTER("ha_archive::get_row_version2");
@@ -1073,7 +1073,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
 
   /* Adjust our row buffer if we need be */
   buffer.alloc(total_blob_length);
-  last = (char *)buffer.ptr();
+  last = buffer.ptr();
 
   /* Loop through our blobs and read them */
   for (ptr = table->s->blob_field, end = ptr + table->s->blob_fields;
@@ -1082,12 +1082,13 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf) {
     if (size) {
       if (bitmap_is_set(read_set,
                         ((Field_blob *)table->field[*ptr])->field_index)) {
-        read = azread(file_to_read, last, size, &error);
+        read = azread(file_to_read, const_cast<char *>(last), size, &error);
 
         if (error) DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
         if ((size_t)read != size) DBUG_RETURN(HA_ERR_END_OF_FILE);
-        ((Field_blob *)table->field[*ptr])->set_ptr(size, (uchar *)last);
+        ((Field_blob *)table->field[*ptr])
+            ->set_ptr(size, pointer_cast<const uchar *>(last));
         last += size;
       } else {
         (void)azseek(file_to_read, size, SEEK_CUR);

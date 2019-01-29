@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,8 +187,8 @@ struct MI_KEYDEF /* Key definition with open & info */
                     uint key_len, uint comp_flag, uchar **ret_pos, uchar *buff,
                     bool *was_last_key);
   uint (*get_key)(MI_KEYDEF *keyinfo, uint nod_flag, uchar **page, uchar *key);
-  int (*pack_key)(MI_KEYDEF *keyinfo, uint nod_flag, uchar *next_key,
-                  uchar *org_key, uchar *prev_key, uchar *key,
+  int (*pack_key)(MI_KEYDEF *keyinfo, uint nod_flag, const uchar *next_key,
+                  uchar *org_key, uchar *prev_key, const uchar *key,
                   MI_KEY_PARAM *s_temp);
   void (*store_key)(MI_KEYDEF *keyinfo, uchar *key_pos, MI_KEY_PARAM *s_temp);
   int (*ck_insert)(MI_INFO *inf, uint k_nr, uchar *k, uint klen);
@@ -235,7 +235,7 @@ struct MI_COLUMNDEF /* column information */
   MI_DECODE_TREE *huff_tree;
 };
 
-extern char *myisam_log_filename; /* Name of logfile */
+extern const char *myisam_log_filename; /* Name of logfile */
 extern ulong myisam_block_size;
 extern ulong myisam_concurrent_insert;
 extern bool myisam_flush, myisam_delay_key_write, myisam_single_user;

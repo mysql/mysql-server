@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,11 +141,11 @@ ha_myisammrg::ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg)
 ha_myisammrg::~ha_myisammrg(void) { free_root(&children_mem_root, MYF(0)); }
 
 static const char *ha_myisammrg_exts[] = {".MRG", NullS};
-static void split_file_name(const char *file_name, LEX_STRING *db,
-                            LEX_STRING *name);
+static void split_file_name(const char *file_name, LEX_CSTRING *db,
+                            LEX_CSTRING *name);
 
 extern "C" void myrg_print_wrong_table(const char *table_name) {
-  LEX_STRING db = {NULL, 0}, name;
+  LEX_CSTRING db = {nullptr, 0}, name;
   char buf[FN_REFLEN];
   split_file_name(table_name, &db, &name);
   memcpy(buf, db.str, db.length);
@@ -1259,8 +1259,8 @@ THR_LOCK_DATA **ha_myisammrg::store_lock(THD *, THR_LOCK_DATA **to,
 
 /* Find out database name and table name from a filename */
 
-static void split_file_name(const char *file_name, LEX_STRING *db,
-                            LEX_STRING *name) {
+static void split_file_name(const char *file_name, LEX_CSTRING *db,
+                            LEX_CSTRING *name) {
   size_t dir_length, prefix_length;
   char buff[FN_REFLEN];
 
@@ -1271,10 +1271,10 @@ static void split_file_name(const char *file_name, LEX_STRING *db,
     /* Get database */
     buff[dir_length - 1] = 0;  // Remove end '/'
     prefix_length = dirname_length(buff);
-    db->str = (char *)file_name + prefix_length;
+    db->str = file_name + prefix_length;
     db->length = dir_length - prefix_length - 1;
   }
-  name->str = (char *)file_name + dir_length;
+  name->str = file_name + dir_length;
   name->length = (uint)(fn_ext(name->str) - name->str);
 }
 

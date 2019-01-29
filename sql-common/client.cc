@@ -6951,7 +6951,8 @@ net_async_status STDCALL mysql_send_query_nonblocking(MYSQL *mysql,
     free_state_change_info(static_cast<MYSQL_EXTENSION *>(mysql->extension));
 
   bool ret;
-  if (simple_command_nonblocking(mysql, COM_QUERY, (uchar *)query, length, 1,
+  if (simple_command_nonblocking(mysql, COM_QUERY,
+                                 pointer_cast<const uchar *>(query), length, 1,
                                  &ret) == NET_ASYNC_NOT_READY) {
     DBUG_RETURN(NET_ASYNC_NOT_READY);
   }

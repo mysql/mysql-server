@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@
 */
 #define ft_sintXkorr(A) mi_sint4korr(A)
 #define ft_intXstore(T, A) mi_int4store(T, A)
-#define ft_floatXget(V, M) mi_float4get(V, M)
+#define ft_floatXget(M) mi_float4get(M)
 
 extern const HA_KEYSEG ft_keysegs[FT_SEGS];
 

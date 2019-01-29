@@ -906,7 +906,8 @@ int ha_tina::write_row(uchar *buf) {
     if (init_tina_writer()) DBUG_RETURN(-1);
 
   /* use pwrite, as concurrent reader could have changed the position */
-  if (mysql_file_write(share->tina_write_filedes, (uchar *)buffer.ptr(), size,
+  if (mysql_file_write(share->tina_write_filedes,
+                       pointer_cast<const uchar *>(buffer.ptr()), size,
                        MYF(MY_WME | MY_NABP)))
     DBUG_RETURN(-1);
 
@@ -968,7 +969,8 @@ int ha_tina::update_row(const uchar *, uchar *new_data) {
 
   if (open_update_temp_file_if_needed()) goto err;
 
-  if (mysql_file_write(update_temp_file, (uchar *)buffer.ptr(), size,
+  if (mysql_file_write(update_temp_file,
+                       pointer_cast<const uchar *>(buffer.ptr()), size,
                        MYF(MY_WME | MY_NABP)))
     goto err;
   temp_file_length += size;

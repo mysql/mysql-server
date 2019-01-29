@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,9 +59,11 @@ ENDIF()
 
 SET(MUTEXTYPE "event" CACHE STRING "Mutex type: event, sys or futex")
 
-# Turn off unused parameter warnings for InnoDB.
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter")
+  # Turn off unused parameter warnings.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-unused-parameter")
+  # Turn off warnings about implicit casting away const.
+  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-cast-qual")
 ENDIF()
 
 IF(CMAKE_CXX_COMPILER_ID MATCHES "GNU")

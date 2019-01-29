@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
 
 uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
                   my_off_t filepos) {
-  uchar *pos;
+  const uchar *pos;
   uchar *start;
   HA_KEYSEG *keyseg;
   bool is_ft = info->s->keyinfo[keynr].flag & HA_FULLTEXT;
@@ -91,11 +91,11 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
     char_length =
         ((!is_ft && cs && cs->mbmaxlen > 1) ? length / cs->mbmaxlen : length);
 
-    pos = (uchar *)record + keyseg->start;
+    pos = record + keyseg->start;
     if (type == HA_KEYTYPE_BIT) {
       if (keyseg->bit_length) {
-        uchar bits = get_rec_bits((uchar *)record + keyseg->bit_pos,
-                                  keyseg->bit_start, keyseg->bit_length);
+        uchar bits = get_rec_bits(record + keyseg->bit_pos, keyseg->bit_start,
+                                  keyseg->bit_length);
         *key++ = bits;
         length--;
       }
@@ -105,27 +105,27 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
     }
     if (keyseg->flag & HA_SPACE_PACK) {
       if (type != HA_KEYTYPE_NUM) {
-        length = cs->cset->lengthsp(cs, (char *)pos, length);
+        length =
+            cs->cset->lengthsp(cs, pointer_cast<const char *>(pos), length);
       } else {
-        uchar *end = pos + length;
+        const uchar *end = pos + length;
         while (pos < end && pos[0] == ' ') pos++;
         length = (uint)(end - pos);
       }
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
-      memcpy((uchar *)key, (uchar *)pos, (size_t)char_length);
+      memcpy((uchar *)key, pos, (size_t)char_length);
       key += char_length;
       continue;
     }
     if (keyseg->flag & HA_VAR_LENGTH_PART) {
       uint pack_length = (keyseg->bit_start == 1 ? 1 : 2);
-      uint tmp_length =
-          (pack_length == 1 ? (uint) * (uchar *)pos : uint2korr(pos));
+      uint tmp_length = (pack_length == 1 ? (uint)*pos : uint2korr(pos));
       pos += pack_length; /* Skip VARCHAR length */
       set_if_smaller(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
-      memcpy((uchar *)key, (uchar *)pos, (size_t)char_length);
+      memcpy((uchar *)key, pos, (size_t)char_length);
       key += char_length;
       continue;
     } else if (keyseg->flag & HA_BLOB_PART) {
@@ -134,8 +134,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
       set_if_smaller(length, tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
-      if (char_length > 0)
-        memcpy((uchar *)key, (uchar *)pos, (size_t)char_length);
+      if (char_length > 0) memcpy((uchar *)key, pos, (size_t)char_length);
       key += char_length;
       continue;
     } else if (keyseg->flag & HA_SWAP_KEY) { /* Numerical column */
@@ -195,7 +194,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
      last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
-uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
+uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
                   key_part_map keypart_map, HA_KEYSEG **last_used_keyseg) {
   uchar *start_key = key;
   HA_KEYSEG *keyseg;
@@ -214,7 +213,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
     enum ha_base_keytype type = (enum ha_base_keytype)keyseg->type;
     uint length = keyseg->length;
     uint char_length;
-    uchar *pos;
+    const uchar *pos;
 
     const CHARSET_INFO *cs = keyseg->charset;
     keypart_map >>= 1;
@@ -230,11 +229,12 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
     pos = old;
     if (keyseg->flag & HA_SPACE_PACK) {
       if (type == HA_KEYTYPE_NUM) {
-        uchar *end = pos + length;
+        const uchar *end = pos + length;
         while (pos < end && pos[0] == ' ') pos++;
         length = (uint)(end - pos);
       } else if (type != HA_KEYTYPE_BINARY) {
-        length = cs->cset->lengthsp(cs, (char *)pos, length);
+        length =
+            cs->cset->lengthsp(cs, pointer_cast<const char *>(pos), length);
       }
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key, char_length);
@@ -292,15 +292,14 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
 
 static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
                                  uchar *record) {
-  uchar *key;
-  uchar *pos, *key_end;
+  uchar *pos;
   HA_KEYSEG *keyseg;
   uchar *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
-  blob_ptr = (uchar *)info->lastkey2; /* Place to put blob parts */
-  key = (uchar *)info->lastkey;       /* KEy that was read */
-  key_end = key + info->lastkey_length;
+  blob_ptr = info->lastkey2;        /* Place to put blob parts */
+  const uchar *key = info->lastkey; /* KEy that was read */
+  const uchar *key_end = key + info->lastkey_length;
   for (keyseg = info->s->keyinfo[keynr].seg; keyseg->type; keyseg++) {
     if (keyseg->null_bit) {
       if (!*key++) {
@@ -321,13 +320,12 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
         clr_rec_bits(record + keyseg->bit_pos, keyseg->bit_start,
                      keyseg->bit_length);
       }
-      memcpy(record + keyseg->start, (uchar *)key, length);
+      memcpy(record + keyseg->start, key, length);
       key += length;
       continue;
     }
     if (keyseg->flag & HA_SPACE_PACK) {
-      uint length;
-      get_key_length(length, key);
+      uint length = get_key_length(&key);
       if (length > keyseg->length || key + length > key_end) goto err;
       pos = record + keyseg->start;
       if (keyseg->type != (int)HA_KEYTYPE_NUM) {
@@ -343,8 +341,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
     }
 
     if (keyseg->flag & HA_VAR_LENGTH_PART) {
-      uint length;
-      get_key_length(length, key);
+      uint length = get_key_length(&key);
       if (length > keyseg->length || key + length > key_end) goto err;
       /* Store key length */
       if (keyseg->bit_start == 1)
@@ -352,11 +349,10 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
       else
         int2store(record + keyseg->start, length);
       /* And key data */
-      memcpy(record + keyseg->start + keyseg->bit_start, (uchar *)key, length);
+      memcpy(record + keyseg->start + keyseg->bit_start, key, length);
       key += length;
     } else if (keyseg->flag & HA_BLOB_PART) {
-      uint length;
-      get_key_length(length, key);
+      uint length = get_key_length(&key);
       if (length > keyseg->length || key + length > key_end) goto err;
       if (unpack_blobs) {
         memcpy(record + keyseg->start + keyseg->bit_start, &blob_ptr,
@@ -369,7 +365,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
       key += length;
     } else if (keyseg->flag & HA_SWAP_KEY) {
       uchar *to = record + keyseg->start + keyseg->length;
-      uchar *end = key + keyseg->length;
+      const uchar *end = key + keyseg->length;
       if (end > key_end) goto err;
       do {
         *--to = *key++;
@@ -377,7 +373,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
       continue;
     } else {
       if (key + keyseg->length > key_end) goto err;
-      memcpy(record + keyseg->start, (uchar *)key, (size_t)keyseg->length);
+      memcpy(record + keyseg->start, key, (size_t)keyseg->length);
       key += keyseg->length;
     }
   }
@@ -449,14 +445,14 @@ ulonglong retrieve_auto_increment(MI_INFO *info, const uchar *record) {
   ulonglong value = 0;  /* Store unsigned values here */
   longlong s_value = 0; /* Store signed values here */
   HA_KEYSEG *keyseg = info->s->keyinfo[info->s->base.auto_key - 1].seg;
-  const uchar *key = (uchar *)record + keyseg->start;
+  const uchar *key = record + keyseg->start;
 
   switch (keyseg->type) {
     case HA_KEYTYPE_INT8:
-      s_value = (longlong) * (char *)key;
+      s_value = (longlong) static_cast<char>(*key);
       break;
     case HA_KEYTYPE_BINARY:
-      value = (ulonglong) * (uchar *)key;
+      value = (ulonglong)*key;
       break;
     case HA_KEYTYPE_SHORT_INT:
       s_value = (longlong)sint2korr(key);

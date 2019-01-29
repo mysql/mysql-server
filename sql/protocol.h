@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ class Protocol {
     return from ? store(from, strlen(from), fromcs) : store_null();
   }
   inline bool store(String *str) {
-    return store((char *)str->ptr(), str->length(), str->charset());
+    return store(str->ptr(), str->length(), str->charset());
   }
   inline bool store(const LEX_STRING &s, const CHARSET_INFO *cs) {
     return store(s.str, s.length, cs);

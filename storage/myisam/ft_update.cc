@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,7 @@ uint _mi_ft_segiterator(FT_SEG_ITERATOR *ftsi) {
   ftsi->pos = ftsi->rec + ftsi->seg->start;
   if (ftsi->seg->flag & HA_VAR_LENGTH_PART) {
     uint pack_length = (ftsi->seg->bit_start);
-    ftsi->len =
-        (pack_length == 1 ? (uint) * (uchar *)ftsi->pos : uint2korr(ftsi->pos));
+    ftsi->len = (pack_length == 1 ? (uint)*ftsi->pos : uint2korr(ftsi->pos));
     ftsi->pos += pack_length; /* Skip VARCHAR length */
     DBUG_RETURN(1);
   }
@@ -111,8 +110,8 @@ uint _mi_ft_parse(TREE *parsed, MI_INFO *info, uint keynr, const uchar *record,
   parser = info->s->keyinfo[keynr].parser;
   while (_mi_ft_segiterator(&ftsi)) {
     if (ftsi.pos)
-      if (ft_parse(parsed, (uchar *)ftsi.pos, ftsi.len, parser, param,
-                   mem_root))
+      if (ft_parse(parsed, const_cast<uchar *>(ftsi.pos), ftsi.len, parser,
+                   param, mem_root))
         DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -176,8 +175,7 @@ int _mi_ft_cmp(MI_INFO *info, uint keynr, const uchar *rec1,
   while (_mi_ft_segiterator(&ftsi1) && _mi_ft_segiterator(&ftsi2)) {
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
-         ha_compare_text(cs, (uchar *)ftsi1.pos, ftsi1.len, (uchar *)ftsi2.pos,
-                         ftsi2.len, 0)))
+         ha_compare_text(cs, ftsi1.pos, ftsi1.len, ftsi2.pos, ftsi2.len, 0)))
       DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
   }
   DBUG_RETURN(GEE_THEY_ARE_ABSOLUTELY_IDENTICAL);

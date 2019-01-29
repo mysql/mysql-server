@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf) {
   MI_COLUMNDEF *rec = info->s->rec;
 
   for (i = info->s->base.fields; i--; buf += (rec++)->length) {
-    uchar *pos;
+    const uchar *pos;
     ulong length;
     switch (rec->type) {
       case FIELD_BLOB: {
@@ -48,18 +48,18 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf) {
       case FIELD_VARCHAR: {
         uint pack_length = HA_VARCHAR_PACKLENGTH(rec->length - 1);
         if (pack_length == 1)
-          length = (ulong) * (uchar *)buf;
+          length = (ulong)*buf;
         else
           length = uint2korr(buf);
-        pos = (uchar *)buf + pack_length;
+        pos = buf + pack_length;
         break;
       }
       default:
         length = rec->length;
-        pos = (uchar *)buf;
+        pos = buf;
         break;
     }
-    crc = my_checksum(crc, pos ? pos : (uchar *)"", length);
+    crc = my_checksum(crc, pos ? pos : pointer_cast<const uchar *>(""), length);
   }
   return crc;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,36 +70,17 @@ struct HA_KEYSEG /* Key-portion */
   uint8 bit_length;         /* Length of bit part */
 };
 
-#define get_key_length(length, key)         \
-  {                                         \
-    if (*(uchar *)(key) != 255)             \
-      length = (uint) * (uchar *)((key)++); \
-    else {                                  \
-      length = mi_uint2korr((key) + 1);     \
-      (key) += 3;                           \
-    }                                       \
-  }
+static inline uint get_key_length(const uchar **key) {
+  if (**key != 255) return *(*key)++;
+  uint length = mi_uint2korr((*key) + 1);
+  (*key) += 3;
+  return length;
+}
 
-#define get_key_length_rdonly(length, key)  \
-  {                                         \
-    if (*(uchar *)(key) != 255)             \
-      length = ((uint) * (uchar *)((key))); \
-    else {                                  \
-      length = mi_uint2korr((key) + 1);     \
-    }                                       \
-  }
-
-#define get_key_pack_length(length, length_pack, key) \
-  {                                                   \
-    if (*(uchar *)(key) != 255) {                     \
-      length = (uint) * (uchar *)((key)++);           \
-      length_pack = 1;                                \
-    } else {                                          \
-      length = mi_uint2korr((key) + 1);               \
-      (key) += 3;                                     \
-      length_pack = 3;                                \
-    }                                                 \
-  }
+static inline uint get_key_pack_length(const uchar **key, uint *length_pack) {
+  *length_pack = (**key != 255) ? 1 : 3;
+  return get_key_length(key);
+}
 
 #define store_key_length_inc(key, length) \
   {                                       \
@@ -131,9 +112,9 @@ struct HA_KEYSEG /* Key-portion */
 #define clr_rec_bits(bit_ptr, bit_ofs, bit_len) \
   set_rec_bits(0, bit_ptr, bit_ofs, bit_len)
 
-extern int ha_compare_text(const CHARSET_INFO *, uchar *, uint, uchar *, uint,
-                           bool);
-extern "C" int ha_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b,
-                          uint key_length, uint nextflag, uint *diff_pos);
+extern int ha_compare_text(const CHARSET_INFO *, const uchar *, uint,
+                           const uchar *, uint, bool);
+extern int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
+                      uint key_length, uint nextflag, uint *diff_pos);
 
 #endif /* _my_compare_h */

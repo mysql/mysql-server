@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -57,8 +57,8 @@ inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
   *c++ = 'X';
   *c++ = '\'';
   for (i = 0; i < gln; i++) {
-    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
-    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
+    *c++ = _dig_vec_lower[static_cast<uchar>(dat[i]) >> 4];
+    *c++ = _dig_vec_lower[static_cast<uchar>(dat[i]) & 0x0f];
   }
   *c++ = '\'';
 
@@ -66,8 +66,8 @@ inline char *serialize_xid(char *buf, long fmt, long gln, long bln,
   *c++ = 'X';
   *c++ = '\'';
   for (; i < gln + bln; i++) {
-    *c++ = _dig_vec_lower[((uchar *)dat)[i] >> 4];
-    *c++ = _dig_vec_lower[((uchar *)dat)[i] & 0x0f];
+    *c++ = _dig_vec_lower[static_cast<uchar>(dat[i]) >> 4];
+    *c++ = _dig_vec_lower[static_cast<uchar>(dat[i]) & 0x0f];
   }
   *c++ = '\'';
   sprintf(c, ",%lu", fmt);

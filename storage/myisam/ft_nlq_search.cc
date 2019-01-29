@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 #include "my_macros.h"
 #include "storage/myisam/ftdefs.h"
 #include "storage/myisam/myisamdef.h"
+#include "template_utils.h"
 
 /* search with natural language queries */
 
@@ -62,10 +63,9 @@ struct FT_SUPERDOC {
   double tmp_weight;
 };
 
-static int FT_SUPERDOC_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
-                           const void *a, const void *b) {
-  FT_SUPERDOC *p1 = (FT_SUPERDOC *)a;
-  FT_SUPERDOC *p2 = (FT_SUPERDOC *)b;
+static int FT_SUPERDOC_cmp(const void *, const void *a, const void *b) {
+  const FT_SUPERDOC *p1 = pointer_cast<const FT_SUPERDOC *>(a);
+  const FT_SUPERDOC *p2 = pointer_cast<const FT_SUPERDOC *>(b);
   if (p1->doc.dpos < p2->doc.dpos) return -1;
   if (p1->doc.dpos == p2->doc.dpos) return 0;
   return 1;
@@ -137,7 +137,7 @@ static int walk_and_match(void *v_word, uint32 count, void *v_aio) {
       r = _mi_search_first(info, keyinfo, key_root);
       goto do_skip;
     }
-    ft_floatXget(tmp_weight, info->lastkey + info->lastkey_length - extra);
+    tmp_weight = ft_floatXget(info->lastkey + info->lastkey_length - extra);
     /* The following should be safe, even if we compare doubles */
     if (tmp_weight == 0)
       DBUG_RETURN(doc_cnt); /* stopword, doc_cnt should be 0 */
@@ -284,7 +284,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
       MYF(0));
   if (!dlist) goto err;
 
-  dlist->please = (struct _ft_vft *)&_ft_vft_nlq;
+  dlist->please = const_cast<struct _ft_vft *>(&_ft_vft_nlq);
   dlist->ndocs = aio.dtree.elements_in_tree;
   dlist->curdoc = -1;
   dlist->info = aio.info;

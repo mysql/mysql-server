@@ -337,7 +337,7 @@ class Name_string : public Simple_cstring {
   }
 };
 
-#define NAME_STRING(x) Name_string(C_STRING_WITH_LEN(x))
+#define NAME_STRING(x) Name_string(STRING_WITH_LEN(x))
 
 extern const Name_string null_name_string;
 
@@ -3264,7 +3264,7 @@ class Item_ident_for_show final : public Item {
   bool get_time(MYSQL_TIME *ltime) override { return field->get_time(ltime); }
   void make_field(Send_field *tmp_field) override;
   const CHARSET_INFO *charset_for_protocol() const override {
-    return (CHARSET_INFO *)field->charset_for_protocol();
+    return field->charset_for_protocol();
   }
 };
 
@@ -4623,7 +4623,7 @@ class Item_ref : public Item_ident {
         chop_ref(!ref) {}
   enum Type type() const override { return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override {
-    Item *it = ((Item *)item)->real_item();
+    const Item *it = const_cast<Item *>(item)->real_item();
     return ref && (*ref)->eq(it, binary_cmp);
   }
   double val_real() override;

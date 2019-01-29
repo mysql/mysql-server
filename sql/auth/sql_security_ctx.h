@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -443,7 +443,7 @@ inline void Security_context::set_master_access(
 }
 
 inline const char *Security_context::priv_host_name() const {
-  return (*m_priv_host ? m_priv_host : (char *)"%");
+  return (*m_priv_host ? m_priv_host : "%");
 }
 
 inline bool Security_context::has_account_assigned() const {

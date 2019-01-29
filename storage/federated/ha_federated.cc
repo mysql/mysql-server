@@ -634,7 +634,7 @@ static int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share) {
   share->hostname = server->host;
   if (!(share->socket = server->socket) &&
       !strcmp(share->hostname, my_localhost))
-    share->socket = (char *)MYSQL_UNIX_ADDR;
+    share->socket = MYSQL_UNIX_ADDR;
   share->scheme = server->scheme;
 
   DBUG_PRINT("info", ("share->username %s", share->username));
@@ -857,7 +857,7 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
 
   if (!share->port) {
     if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
-      share->socket = (char *)MYSQL_UNIX_ADDR;
+      share->socket = MYSQL_UNIX_ADDR;
     else
       share->port = MYSQL_PORT;
   }
@@ -973,8 +973,8 @@ static bool emit_key_part_name(String *to, KEY_PART_INFO *part) {
 }
 
 static bool emit_key_part_element(String *to, KEY_PART_INFO *part,
-                                  bool needs_quotes, bool is_like,
-                                  const uchar *ptr, uint len) {
+                                  bool needs_quotes, bool is_like, uchar *ptr,
+                                  uint len) {
   Field *field = part->field;
   DBUG_ENTER("emit_key_part_element");
 
@@ -1262,7 +1262,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
                                          bool from_records_in_range,
                                          bool eq_range_arg) {
   bool both_not_null = (start_key != NULL && end_key != NULL) ? true : false;
-  const uchar *ptr;
+  uchar *ptr;
   uint remainder, length;
   char tmpbuff[FEDERATED_QUERY_BUFFER_SIZE];
   String tmp(tmpbuff, sizeof(tmpbuff), system_charset_info);
@@ -1288,7 +1288,7 @@ bool ha_federated::create_where_from_key(String *to, KEY *key_info,
 
     for (key_part = key_info->key_part,
         remainder = key_info->user_defined_key_parts,
-        length = ranges[i]->length, ptr = ranges[i]->key;
+        length = ranges[i]->length, ptr = const_cast<uchar *>(ranges[i]->key);
          ; remainder--, key_part++) {
       Field *field = key_part->field;
       uint store_length = key_part->store_length;
@@ -2071,7 +2071,9 @@ int ha_federated::update_row(const uchar *old_data, uchar *) {
           where_string.append("CAST(");
         }
 
-        (*field)->val_str(&field_value, (old_data + (*field)->offset(record)));
+        (*field)->val_str(
+            &field_value,
+            const_cast<uchar *>(old_data + (*field)->offset(record)));
         if (needs_quote) where_string.append(value_quote_char);
         field_value.print(&where_string);
         if (needs_quote) where_string.append(value_quote_char);

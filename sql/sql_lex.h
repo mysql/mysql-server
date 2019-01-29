@@ -288,12 +288,12 @@ enum class Acl_type {
   PROCEDURE = TYPE_ENUM_PROCEDURE,
 };
 
-const LEX_STRING sp_data_access_name[] = {
-    {C_STRING_WITH_LEN("")},
-    {C_STRING_WITH_LEN("CONTAINS SQL")},
-    {C_STRING_WITH_LEN("NO SQL")},
-    {C_STRING_WITH_LEN("READS SQL DATA")},
-    {C_STRING_WITH_LEN("MODIFIES SQL DATA")}};
+const LEX_CSTRING sp_data_access_name[] = {
+    {STRING_WITH_LEN("")},
+    {STRING_WITH_LEN("CONTAINS SQL")},
+    {STRING_WITH_LEN("NO SQL")},
+    {STRING_WITH_LEN("READS SQL DATA")},
+    {STRING_WITH_LEN("MODIFIES SQL DATA")}};
 
 enum class enum_view_create_mode {
   VIEW_CREATE_NEW,        // check that there are not such VIEW/table

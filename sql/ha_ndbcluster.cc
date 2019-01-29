@@ -1907,7 +1907,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
       /* Have to set length even in this case. */
       my_ptrdiff_t ptrdiff=
         ha->m_blob_destination_record - ha->table->record[0];
-      uchar *buf= ha->m_blobs_buffer + offset;
+      const uchar *buf= ha->m_blobs_buffer + offset;
       field_blob->move_field_offset(ptrdiff);
       field_blob->set_ptr((uint32)0, buf);
       field_blob->set_null();

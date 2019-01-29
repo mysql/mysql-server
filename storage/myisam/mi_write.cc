@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -457,12 +457,12 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, uchar *anc_buff,
         Let's consider converting.
         We'll compare 'key' and the first key at anc_buff
        */
-      uchar *a = key, *b = anc_buff + 2 + nod_flag;
-      uint alen, blen, ft2len = info->s->ft2_keyinfo.keylength;
+      const uchar *a = key, *b = anc_buff + 2 + nod_flag;
+      uint blen, ft2len = info->s->ft2_keyinfo.keylength;
       /* the very first key on the page is always unpacked */
       DBUG_ASSERT((*b & 128) == 0);
       blen = *b++;
-      get_key_length(alen, a);
+      uint alen = get_key_length(&a);
       DBUG_ASSERT(info->ft1_to_ft2 == 0);
       if (alen == blen &&
           ha_compare_text(keyinfo->seg->charset, a, alen, b, blen, 0) == 0) {
@@ -818,9 +818,9 @@ int _mi_ck_write_tree(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
 
 static int keys_compare(const void *a, const void *b, const void *c) {
   uint not_used[2];
-  bulk_insert_param *param = (bulk_insert_param *)a;
-  uchar *key1 = (uchar *)b;
-  uchar *key2 = (uchar *)c;
+  const bulk_insert_param *param = static_cast<const bulk_insert_param *>(a);
+  const uchar *key1 = static_cast<const uchar *>(b);
+  const uchar *key2 = static_cast<const uchar *>(c);
   return ha_key_cmp(param->info->s->keyinfo[param->keynr].seg, key1, key2,
                     USE_WHOLE_KEY, SEARCH_SAME, not_used);
 }

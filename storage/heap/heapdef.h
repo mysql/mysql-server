@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,8 +108,8 @@ extern bool hp_if_null_in_key(HP_KEYDEF *keyinfo, const uchar *record);
 extern int hp_close(HP_INFO *info);
 extern void hp_clear(HP_SHARE *info);
 extern void hp_clear_keys(HP_SHARE *info);
-extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
-                           key_part_map keypart_map);
+extern uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key,
+                           const uchar *old, key_part_map keypart_map);
 
 extern mysql_mutex_t THR_LOCK_heap;
 

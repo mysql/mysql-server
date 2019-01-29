@@ -102,6 +102,7 @@ using std::min;
 */
 uchar Field_null::null[1] = {1};
 const char field_separator = ',';
+uchar Field::dummy_null_buffer = ' ';
 
 #define DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE FLOATING_POINT_BUFFER
 #define LONGLONG_TO_STRING_CONVERSION_BUFFER_SIZE 128
@@ -1695,6 +1696,7 @@ type_conversion_status Field::check_constraints(int mysql_errno) {
 */
 void Field::set_null(my_ptrdiff_t row_offset) {
   if (real_maybe_null()) {
+    DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] |= null_bit;
   } else if (is_tmp_nullable()) {
     set_tmp_null();
@@ -1709,6 +1711,7 @@ void Field::set_null(my_ptrdiff_t row_offset) {
 */
 void Field::set_notnull(my_ptrdiff_t row_offset) {
   if (real_maybe_null()) {
+    DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] &= (uchar)~null_bit;
   } else if (is_tmp_nullable()) {
     reset_tmp_null();
@@ -1735,6 +1738,7 @@ void Field::copy_data(my_ptrdiff_t src_record_offset) {
 
   if (real_maybe_null()) {
     // Set to NULL if the source record is NULL, otherwise set to NOT-NULL.
+    DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[0] = (m_null_ptr[0] & ~null_bit) |
                     (m_null_ptr[src_record_offset] & null_bit);
   } else if (is_tmp_nullable())
