@@ -2324,10 +2324,10 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
 
 int
 ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond, 
-                                            NdbScanFilter *filter) const
+                                            NdbScanFilter *filter,
+                                            const bool negated) const
 {
   uint level=0;
-  bool negated= false;
   DBUG_ENTER("build_scan_filter_group");
 
   do
@@ -2341,24 +2341,22 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
       case NDB_COND_AND_FUNC:
       {
         level++;
-        DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NAND":"AND",
+        DBUG_PRINT("info", ("Generating %s group %u", (negated)?"OR":"AND",
                             level));
-        if ((negated) ? filter->begin(NdbScanFilter::NAND)
+        if ((negated) ? filter->begin(NdbScanFilter::OR)
             : filter->begin(NdbScanFilter::AND) == -1)
           DBUG_RETURN(1);
-        negated= false;
         cond= cond->next;
         break;
       }
       case NDB_COND_OR_FUNC:
       {
         level++;
-        DBUG_PRINT("info", ("Generating %s group %u", (negated)?"NOR":"OR",
+        DBUG_PRINT("info", ("Generating %s group %u", (negated)?"AND":"OR",
                             level));
-        if ((negated) ? filter->begin(NdbScanFilter::NOR)
+        if ((negated) ? filter->begin(NdbScanFilter::AND)
             : filter->begin(NdbScanFilter::OR) == -1)
           DBUG_RETURN(1);
-        negated= false;
         cond= cond->next;
         break;
       }
@@ -2366,13 +2364,13 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
       {
         DBUG_PRINT("info", ("Generating negated query"));
         cond= cond->next;
-        negated= true;
+        if (build_scan_filter_group(cond, filter, !negated))
+          DBUG_RETURN(1);
         break;
       }
       default:
         if (build_scan_filter_predicate(cond, filter, negated))
           DBUG_RETURN(1);
-        negated= false;
         break;
       }
       break;
@@ -2383,48 +2381,16 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
       if (cond) cond= cond->next;
       if (filter->end() == -1)
         DBUG_RETURN(1);
-      if (!negated)
-        break;
-      // else fall through (NOT END is an illegal condition)
+      break;
     default:
     {
       DBUG_PRINT("info", ("Illegal scan filter"));
+      DBUG_ASSERT(false);
+      DBUG_RETURN(1);
     }
     }
-  }  while (level > 0 || negated);
+  }  while (level > 0);
   
-  DBUG_RETURN(0);
-}
-
-
-int
-ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
-                                      NdbScanFilter *filter) const
-{
-  bool simple_cond= true;
-  DBUG_ENTER("build_scan_filter");  
-
-    switch (cond->ndb_item->type) {
-    case NDB_FUNCTION:
-      switch (cond->ndb_item->qualification.function_type) {
-      case NDB_COND_AND_FUNC:
-      case NDB_COND_OR_FUNC:
-        simple_cond= false;
-        break;
-      default:
-        break;
-      }
-      break;
-    default:
-      break;
-    }
-  if (simple_cond && filter->begin() == -1)
-    DBUG_RETURN(1);
-  if (build_scan_filter_group(cond, filter))
-    DBUG_RETURN(1);
-  if (simple_cond && filter->end() == -1)
-    DBUG_RETURN(1);
-
   DBUG_RETURN(0);
 }
 
@@ -2432,25 +2398,40 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
 int
 ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
 {
-  bool multiple_cond= false;
+  bool need_group = true;
   DBUG_ENTER("generate_scan_filter_from_cond");
 
-  // Wrap an AND group around multiple conditions
-  if (m_cond_stack->next) 
+  // Determine if we need to wrap an AND group around condition(s)
+  if (m_cond_stack->next == nullptr)
   {
-    multiple_cond= true;
-    if (filter.begin() == -1)
-      DBUG_RETURN(1); 
+    const Ndb_cond *cond= m_cond_stack->ndb_cond;
+    if (cond->ndb_item->type == NDB_FUNCTION)
+    {
+      switch (cond->ndb_item->qualification.function_type) {
+      case NDB_COND_AND_FUNC:
+      case NDB_COND_OR_FUNC:
+        // A single AND/OR condition has its own AND/OR-group
+        // .. in all other cases we start a AND group now
+        need_group = false;
+        break;
+      default:
+        break;
+      }
+    }
   }
+
+  if (need_group && filter.begin() == -1)
+    DBUG_RETURN(1);
+
   for (Ndb_cond_stack *stack= m_cond_stack; 
        (stack); 
        stack= stack->next)
   {
     Ndb_cond *cond= stack->ndb_cond;
     
-    if (build_scan_filter(cond, &filter))
+    if (build_scan_filter_group(cond, &filter, false))
     {
-      DBUG_PRINT("info", ("build_scan_filter failed"));
+      DBUG_PRINT("info", ("build_scan_filter_group failed"));
 
       const NdbError& err= filter.getNdbError();
       if (err.code == NdbScanFilter::FilterTooLarge)
@@ -2462,7 +2443,7 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
       DBUG_RETURN(1);
     }
   }
-  if (multiple_cond && filter.end() == -1)
+  if (need_group && filter.end() == -1)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);

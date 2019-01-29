@@ -2729,6 +2729,53 @@ select @count:=count(*) from t1 where 'five' <= b;
 --enable_result_log
 eval $verify_row_count;
 
+--echo #
+--echo # Bug#29232744 NULL VALUES NOT FILTERED OUT BY PUSHED
+--echo #              'NOT IN/BETWEEN' PREDICATES
+--echo #
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> between'
+select @count:=count(*) from t1 where b between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> not between'
+select @count:=count(*) from t1 where b not between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <field> between'
+select @count:=count(*) from t1 where not b between 'g' and 'x';
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> in (...)'
+select @count:=count(*) from t1 where b in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: '<field> not in (...)'
+select @count:=count(*) from t1 where b not in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
+--disable_result_log
+eval $prepare;
+--echo Testing: 'not <field> in (...)'
+select @count:=count(*) from t1 where not b in ('one', 'three', 'five');
+--enable_result_log
+eval $verify_row_count;
+
 drop table t1;
 --enable_query_log
 
