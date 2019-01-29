@@ -64,7 +64,7 @@ SET(source_files main.cc)
 IF(WIN32)
   LIST(APPEND source_files
     ../../harness/src/logging/eventlog_rc/message.rc
-    ../../harness/src/logging/eventlog_rc/msg00001.bin)
+    ../../harness/src/logging/eventlog_rc/MSG00001.bin)
 ENDIF()
 
 IF(NOT WIN32)
