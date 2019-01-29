@@ -18,6 +18,9 @@
 
 --source include/not_valgrind.inc
 
+# ASAN disables core dumps
+--source include/not_asan.inc
+
 --echo # Shutdown server
 --source include/shutdown_mysqld.inc
 
