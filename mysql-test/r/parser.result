@@ -2476,3 +2476,47 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'random_identifier t1 LEFT JOIN t2 ON TRUE }' at line 1
 DROP TABLE t1, t2;
+#
+# Bug #28997518: "COLLATE X GENERATED ALWAYS ... COLLATE Y": X HAS
+#                 A PRIORITY OVER Y
+#
+CREATE TABLE t1 (
+x VARCHAR(10)
+COLLATE ascii_bin
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 4
+CREATE TABLE t2 (
+x VARCHAR(10)
+COLLATE ascii_bin
+COLLATE ascii_general_ci
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_general_ci
+)' at line 4
+CREATE TABLE t3 (
+x VARCHAR(10)
+COLLATE ascii_bin
+NOT NULL
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 5
+CREATE TABLE t3 (
+x VARCHAR(10)
+COLLATE ascii_bin
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'COLLATE ascii_bin
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+)' at line 3
+CREATE TABLE t4 (
+x VARCHAR(10)
+GENERATED ALWAYS AS(NULL)
+COLLATE ascii_bin
+COLLATE ascii_bin
+);
+ERROR 42000: Multiple COLLATE clauses near 'ascii_bin
+)' at line 5

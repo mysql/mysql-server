@@ -6259,7 +6259,7 @@ field_def:
                 opt_attrs= NEW_PTN
                   Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
               }
-              auto *collation= NEW_PTN PT_collate_column_attr($2);
+              auto *collation= NEW_PTN PT_collate_column_attr(@2, $2);
               if (opt_attrs == nullptr || collation == nullptr ||
                   opt_attrs->push_back(collation))
                 MYSQL_YYABORT; // OOM
@@ -6680,7 +6680,7 @@ column_attribute:
           }
         | COLLATE_SYM collation_name
           {
-            $$= NEW_PTN PT_collate_column_attr($2);
+            $$= NEW_PTN PT_collate_column_attr(@2, $2);
           }
         | COLUMN_FORMAT_SYM column_format
           {

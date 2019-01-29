@@ -2422,3 +2422,56 @@ SELECT * FROM { `OJ` t1 LEFT JOIN t2 ON TRUE };
 SELECT * FROM { random_identifier t1 LEFT JOIN t2 ON TRUE };
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #28997518: "COLLATE X GENERATED ALWAYS ... COLLATE Y": X HAS
+--echo #                 A PRIORITY OVER Y
+--echo #
+
+# Even compatible multiple COLLATE clauses should fail:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);
+
+# Incompatible COLLATE clauses should fail with the same error message:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t2 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  COLLATE ascii_general_ci
+);
+
+# Multiple COLLATE clauses mixed with other column attributes should fail too:
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  NOT NULL
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 1):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t3 (
+  x VARCHAR(10)
+  COLLATE ascii_bin
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+);
+
+# Multiple COLLATE clauses should fail in gcol definitions (syntax 2):
+
+--error ER_PARSE_ERROR
+CREATE TABLE t4 (
+  x VARCHAR(10)
+  GENERATED ALWAYS AS(NULL)
+  COLLATE ascii_bin
+  COLLATE ascii_bin
+);

@@ -72,9 +72,9 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual void apply_gen_default_value(Value_generator **) {}
   virtual void apply_on_update_value(Item **) const {}
   virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
-  virtual bool apply_collation(const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
-                               bool *has_explicit_collation) const {
-    *has_explicit_collation = false;
+  virtual bool apply_collation(
+      Column_parse_context *, const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
+      bool *has_explicit_collation MY_ATTRIBUTE((unused))) const {
     return false;
   }
 };
@@ -168,19 +168,25 @@ class PT_comment_column_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_collate_column_attr : public PT_column_attr_base {
-  const CHARSET_INFO *const collation;
-
  public:
-  explicit PT_collate_column_attr(const CHARSET_INFO *collation)
-      : collation(collation) {
-    DBUG_ASSERT(collation != nullptr);
+  explicit PT_collate_column_attr(const POS &pos, const CHARSET_INFO *collation)
+      : m_pos(pos), m_collation(collation) {
+    DBUG_ASSERT(m_collation != nullptr);
   }
 
-  bool apply_collation(const CHARSET_INFO **to,
+  bool apply_collation(Column_parse_context *pc, const CHARSET_INFO **to,
                        bool *has_explicit_collation) const override {
+    if (*has_explicit_collation) {
+      pc->thd->syntax_error_at(m_pos, ER_INVALID_MULTIPLE_CLAUSES, "COLLATE");
+      return true;
+    }
     *has_explicit_collation = true;
-    return merge_charset_and_collation(*to, collation, to);
+    return merge_charset_and_collation(*to, m_collation, to);
   }
+
+ private:
+  const POS m_pos;
+  const CHARSET_INFO *const m_collation;
 };
 
 // Specific to non-generated columns only:
@@ -773,7 +779,7 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_gen_default_value(&default_val_info);
         attr->apply_on_update_value(&on_update_value);
         attr->apply_srid_modifier(&m_srid);
-        if (attr->apply_collation(&charset, &has_explicit_collation))
+        if (attr->apply_collation(pc, &charset, &has_explicit_collation))
           return true;
       }
     }
