@@ -12,6 +12,13 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --let $shutdown_server_timeout = 300
 --source include/restart_mysqld.inc
 
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] .* Failed to truncate undo tablespace");
+call mtr.add_suppression("\\[Warning\\] .* Purge reached the head of the history list");
+call mtr.add_suppression("\\[ERROR\\] .* Error 65 opening newly created undo tablespace");
+call mtr.add_suppression("\\[ERROR\\] .* Cannot create truncate log for undo tablespace");
+--enable_query_log
+
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 CREATE UNDO TABLESPACE undo_005 ADD DATAFILE 'undo_005.ibu';
@@ -23,11 +30,30 @@ let $inactive_undo_space = innodb_undo_002;
 source include/wait_until_undo_space_is_empty.inc;
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+
+--echo #
+--echo # Bug#28966457: IF CREATE UNDO TABLESPACE FAILS, INCOMPLETE UNDO
+--echo #               TABLESPACE SHOULD BE CLEANED UP
+--echo #
+--list_files $MYSQLD_DATADIR/ undo_006.ibu
+SET GLOBAL DEBUG="+d,ib_undo_tablespace_create_fail";
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
+SET GLOBAL DEBUG="-d,ib_undo_tablespace_create_fail";
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+       WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+       WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+--echo # Make sure file is not left behind in datadir
+--list_files $MYSQLD_DATADIR/ undo_006.ibu
 
 --echo #
 --echo # Inject a failure to open an undo tablespace after it is created.
 --echo # The file remains on disk along with the truncate log file.
 --echo #
+--list_files $MYSQLD_DATADIR/ undo_006.ibu
 SET GLOBAL DEBUG="+d,ib_undo_tablespace_open_fail";
 --error ER_CREATE_FILEGROUP_FAILED
 CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
@@ -36,7 +62,8 @@ SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
        WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
---remove_file $MYSQLD_DATADIR/undo_006.ibu
+--echo # Make sure file is not left behind in datadir
+--list_files $MYSQLD_DATADIR/ undo_006.ibu
 
 --echo #
 --echo # Inject a failure to get the MDL during undo truncate.
@@ -120,10 +147,4 @@ DROP UNDO TABLESPACE undo_003;
 DROP UNDO TABLESPACE undo_004;
 DROP UNDO TABLESPACE undo_005;
 
---disable_query_log
-call mtr.add_suppression("\\[Warning\\] .* Failed to truncate undo tablespace");
-call mtr.add_suppression("\\[Warning\\] .* Purge reached the head of the history list");
-call mtr.add_suppression("\\[ERROR\\] .* Error 65 opening newly created undo tablespace");
-call mtr.add_suppression("\\[ERROR\\] .* Cannot create truncate log for undo tablespace");
---enable_query_log
 

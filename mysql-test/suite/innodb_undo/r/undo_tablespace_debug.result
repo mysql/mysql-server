@@ -17,6 +17,39 @@ innodb_undo_002	Undo	empty
 undo_003	Undo	active
 undo_004	Undo	active
 undo_005	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+#
+# Bug#28966457: IF CREATE UNDO TABLESPACE FAILS, INCOMPLETE UNDO
+#               TABLESPACE SHOULD BE CLEANED UP
+#
+SET GLOBAL DEBUG="+d,ib_undo_tablespace_create_fail";
+CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
+ERROR HY000: Failed to create UNDO TABLESPACE undo_006
+SET GLOBAL DEBUG="-d,ib_undo_tablespace_create_fail";
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	empty
+innodb_undo_002	Undo	empty
+undo_003	Undo	active
+undo_004	Undo	active
+undo_005	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+innodb_undo_001	UNDO LOG	./undo_001
+innodb_undo_002	UNDO LOG	./undo_002
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./undo_005.ibu
+# Make sure file is not left behind in datadir
 #
 # Inject a failure to open an undo tablespace after it is created.
 # The file remains on disk along with the truncate log file.
@@ -41,6 +74,7 @@ innodb_undo_002	UNDO LOG	./undo_002
 undo_003	UNDO LOG	./undo_003.ibu
 undo_004	UNDO LOG	./undo_004.ibu
 undo_005	UNDO LOG	./undo_005.ibu
+# Make sure file is not left behind in datadir
 #
 # Inject a failure to get the MDL during undo truncate.
 #
