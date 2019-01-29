@@ -4220,8 +4220,19 @@ static TABLE_LIST *get_trigger_table(THD *thd, const sp_name *trg_name) {
   db = trg_name->m_db;
   db.str = thd->strmake(db.str, db.length);
 
-  tbl_name.str = thd->strmake(table_name.c_str(), table_name.length());
-  tbl_name.length = table_name.length();
+  char lc_table_name[NAME_LEN + 1];
+  const char *table_name_ptr = table_name.c_str();
+  if (lower_case_table_names == 2) {
+    my_stpncpy(lc_table_name, table_name.c_str(), NAME_LEN);
+    my_casedn_str(files_charset_info, lc_table_name);
+    lc_table_name[NAME_LEN] = '\0';
+    table_name_ptr = lc_table_name;
+  }
+
+  size_t table_name_length = strlen(table_name_ptr);
+
+  tbl_name.str = thd->strmake(table_name_ptr, table_name_length);
+  tbl_name.length = table_name_length;
 
   if (db.str == nullptr || tbl_name.str == nullptr) return nullptr;
 
