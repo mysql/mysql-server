@@ -335,5 +335,6 @@ END
 $$
 DELIMITER ;$$
 --echo # The SHOW CREATE TRIGGER command fails without the fix.
+--replace_column 7 #
 SHOW CREATE TRIGGER `test`.`test_table_t1_before_insert`;
 DROP TABLE `T1`;

@@ -370,5 +370,5 @@ SHOW CREATE TRIGGER `test`.`test_table_t1_before_insert`;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 test_table_t1_before_insert	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `test_table_t1_before_insert` BEFORE INSERT ON `t1` FOR EACH ROW BEGIN
 SET NEW.creation_utc = UTC_TIMESTAMP();
-END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	2019-01-29 12:19:58.84
+END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
 DROP TABLE `T1`;
