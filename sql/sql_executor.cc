@@ -5960,13 +5960,12 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         } else if (w.after_frame()) {
           w.set_last_rowno_in_range_frame(rowno - 1);
           if (!found_first) w.set_first_rowno_in_range_frame(rowno);
-          if (!range_to_current_row) {
-            /*
-              If range_to_current_row, this first row out of frame will be
-              necessary soon, so keep its position.
-            */
-            w.restore_pos(Window::REA_LAST_IN_FRAME);
-          }
+          /*
+            We read one row too far, so reinstate previous hint for last in
+            frame. We will likely be reading the last row in frame
+            again in for next current row, and then we will need the hint.
+          */
+          w.restore_pos(Window::REA_LAST_IN_FRAME);
           break;
         }  // else: row is within range, process
 
