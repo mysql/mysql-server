@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80015
+DD_VERSION=80016
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -720,5 +720,5 @@ SET debug = '-d,skip_dd_table_access_check';
 SET debug = '+d,skip_dd_table_access_check';
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80015.
+The schema checksum corresponds to DD version 80016.
 include/assert.inc [The schema checksum corresponds to a known DD version.]
