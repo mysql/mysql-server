@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -687,7 +687,13 @@ void MetadataCache::refresh() {
     // only now we can safely update the list of metadata servers
     // when we no longer iterate over it
     if (changed) {
-      metadata_servers_ = replicaset_lookup("" /*cluster_name_*/);
+      auto metadata_servers_tmp =
+          replicaset_lookup(/*cluster_name_ (all clusters)*/ "");
+      // never let the list that we iterate over become empty as we would
+      // not recover from that
+      if (!metadata_servers_tmp.empty()) {
+        metadata_servers_ = std::move(metadata_servers_tmp);
+      }
     }
     return;
   }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -102,8 +102,19 @@ class MetadataServersStateListener
   }
 
   void notify(const LookupResult &instances,
-              const bool /*md_servers_reachable*/) override {
+              const bool md_servers_reachable) override {
+    if (!md_servers_reachable) return;
     auto md_servers = instances.instance_vector;
+
+    if (md_servers.empty()) {
+      // This happens for example when the router could connect to one of the
+      // metadata servers but failed to fetch metadata because the connection
+      // went down while querying metadata
+      log_warning(
+          "Got empty list of metadata servers; refusing to store to the state "
+          "file");
+      return;
+    }
 
     // need to convert from ManagedInstance to uri string
     std::vector<std::string> metadata_servers_str;
