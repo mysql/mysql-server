@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -503,7 +503,7 @@ static void do_update(Ndb &myNdb, ApiType accessType)
   }
 
   std::cout << "-------\n";
-};
+}
   
 /*************************************************
  * Delete one tuple (the one with primary key 3) *

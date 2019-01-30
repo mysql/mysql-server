@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2104,7 +2104,7 @@ TESTCASE("CheckNextRedoFileOpened",
   FINALIZER(runDrop);
   FINALIZER(resizeRedoLog);
 }
-NDBT_TESTSUITE_END(testRedo);
+NDBT_TESTSUITE_END(testRedo)
 
 int
 main(int argc, const char** argv)

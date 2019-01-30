@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -355,7 +355,7 @@ NDB_SPECIALIZE_NON_STD_NUM_TYPE_TRAITS(Tuint24, Uint32, 0, UINT_MAX24)
     assert(false);                                                      \
     (void)a;                                                            \
     return 0;                                                           \
-  };                                                                    \
+  }                                                                     \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(false);                                                      \
     (void)a; (void)l;                                                   \
@@ -371,7 +371,7 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS0(Hbinary)
     assert(a);                                                          \
     const Uint8 * s = static_cast<const Uint8 *>(a);                    \
     return s[0];                                                        \
-  };                                                                    \
+  }                                                                     \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(a);                                                          \
     assert(l >> (lengthPrefixSize() * 8) == 0);                         \
@@ -389,7 +389,7 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS1(Hvarbinary)
     assert(a);                                                          \
     const Uint8 * s = static_cast<const Uint8 *>(a);                    \
     return static_cast<Uint32>(s[0] + (s[1] << 8));                     \
-  };                                                                    \
+  }                                                                     \
   template<> inline void H::writeLengthPrefix(void * a, Uint32 l) {     \
     assert(a);                                                          \
     assert(l >> (lengthPrefixSize() * 8) == 0);                         \
@@ -413,8 +413,8 @@ NDB_SPECIALIZE_ARRAY_TYPE_HELPER_LPS2(Hlongvarbinary)
             reinterpret_cast<const char *>(s));                         \
   }
 
-NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Hint8, Int8);
-NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Huint8, Uint8);
+NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Hint8, Int8)
+NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Huint8, Uint8)
 #undef NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE
 
 // specialize the Helper template members for numeric types
@@ -428,13 +428,13 @@ NDB_SPECIALIZE_NUM_TYPE_HELPER_BYTE(Huint8, Uint8);
             reinterpret_cast<const char *>(s));                         \
   }
 
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint16, Int16);
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint32, Int32);
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint64, Int64);
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint16, Int16)
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint32, Int32)
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Hint64, Int64)
 
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint16, Uint16);
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint32, Uint32);
-NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint64, Uint64);
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint16, Uint16)
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint32, Uint32)
+NDB_SPECIALIZE_NUM_TYPE_HELPER(Huint64, Uint64)
 // not implemented yet: float, double
 #undef NDB_SPECIALIZE_NUM_TYPE_HELPER
 

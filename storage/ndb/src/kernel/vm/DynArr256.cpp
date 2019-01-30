@@ -811,7 +811,7 @@ DynArr256Pool::getInfo() const
   info.nodes_per_page = 30;
   
   return info;
-};
+}
 
 #ifdef UNIT_TEST
 

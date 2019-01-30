@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ Configuration::Configuration(Configuration *old) :
   primary_connect_string(old->primary_connect_string),
   server_role(old->server_role),
   config_version(CONFIG_VER_UNKNOWN),
-  primary_conn(old->primary_conn)  {};
+  primary_conn(old->primary_conn)  {}
 
 
 bool Configuration::connectToPrimary() {

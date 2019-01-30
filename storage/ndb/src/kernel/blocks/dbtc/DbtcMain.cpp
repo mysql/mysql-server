@@ -10444,7 +10444,7 @@ const char* getNFBitName(const Uint32 bit)
   default:
     return "Unknown";
   }
-};
+}
 
 static
 void getNFBitNames(char* buff, Uint32 buffLen, const Uint32 bits)

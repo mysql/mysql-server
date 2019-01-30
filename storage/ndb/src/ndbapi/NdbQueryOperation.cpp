@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -745,7 +745,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
   m_currentRow(tupleNotFound),
   m_maxRows(0),
   m_tupleSet(NULL)
-{};
+{}
 
 NdbResultStream::~NdbResultStream()
 {
@@ -1440,7 +1440,7 @@ NdbQuery::getNdbTransaction() const
 const NdbError& 
 NdbQuery::getNdbError() const {
   return m_impl.getNdbError();
-};
+}
 
 int NdbQuery::isPrunable(bool& prunable) const
 {
@@ -1486,7 +1486,7 @@ NdbQueryOperation::getQueryOperationDef() const
 NdbQuery& 
 NdbQueryOperation::getQuery() const {
   return m_impl.getQuery().getInterface();
-};
+}
 
 NdbRecAttr*
 NdbQueryOperation::getValue(const char* anAttrName,

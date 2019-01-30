@@ -3194,7 +3194,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   return rc;
-};
+}
 
 // Regression test for bug #14208924
 static int
@@ -4442,7 +4442,7 @@ TESTCASE("AbortRace",
   STEP(testAbortRace);
   FINALIZER(runClearTable);
 }
-NDBT_TESTSUITE_END(testBasic);
+NDBT_TESTSUITE_END(testBasic)
 
 #if 0
 TESTCASE("ReadConsistency",

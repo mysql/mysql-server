@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -524,7 +524,7 @@ NdbInfo::Table::Table(const char *name, Uint32 id, const VirtualTable* virt) :
   m_table_id(id),
   m_virt(virt)
 {
-};
+}
 
 NdbInfo::Table::Table(const NdbInfo::Table& tab) :
   m_virt(tab.m_virt)
@@ -553,7 +553,7 @@ NdbInfo::Table::~Table()
 {
   for (unsigned i = 0; i < m_columns.size(); i++)
     delete m_columns[i];
-};
+}
 
 const char * NdbInfo::Table::getName() const
 {

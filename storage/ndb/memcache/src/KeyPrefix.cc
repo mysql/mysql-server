@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@
 /* constructor */
 KeyPrefix::KeyPrefix(const char *name) : 
   prefix(strdup(name)) , prefix_len(strlen(name))
-{};
+{}
 
 /* copy constructor */
 KeyPrefix::KeyPrefix(const KeyPrefix &k) : 
@@ -38,7 +38,7 @@ KeyPrefix::KeyPrefix(const KeyPrefix &k) :
   info(k.info),
   prefix(strdup(k.prefix)),   /* deep copy */
   prefix_len(k.prefix_len) 
-{}; 
+{} 
 
 /* destructor */
 KeyPrefix::~KeyPrefix() {

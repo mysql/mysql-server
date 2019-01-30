@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -7965,8 +7965,8 @@ setupTestVariant(NdbRestarter& res,
   }
 
   return NDBT_OK;
-};
-                 
+}
+
 
 int
 runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
@@ -7974,7 +7974,7 @@ runGcpStop(NDBT_Context* ctx, NDBT_Step* step)
   /* Intention here is to :
    *   a) Use DUMP code to lower GCP stop detection threshold
    *   b) Use ERROR INSERT to trigger GCP stop
-   *   c) (Optional : Use ERROR INSERT to cause 'kill-self' 
+   *   c) (Optional : Use ERROR INSERT to cause 'kill-self'
    *       handling of GCP Stop to fail, so that isolation
    *       is required)
    *   d) Check that GCP is resumed
@@ -10001,7 +10001,7 @@ TESTCASE("NodeFailLcpStall",
   FINALIZER(dropManyTables);
 }
 
-NDBT_TESTSUITE_END(testNodeRestart);
+NDBT_TESTSUITE_END(testNodeRestart)
 
 int main(int argc, const char** argv){
   ndb_init();

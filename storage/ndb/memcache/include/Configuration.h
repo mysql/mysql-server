@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -155,28 +155,28 @@ public:
 
 inline void Configuration::setServerRole(const char *role) {
   server_role = role;
-};
+}
 
 inline const char * Configuration::getServerRole() {
   return server_role;
-};
+}
 
 inline void Configuration::setPrimaryConnectString(const char *mgm) {
   primary_connect_string = mgm;
-};
+}
 
 inline ClusterConnectionPool * Configuration::getConnectionPoolById(int id) const 
 {
   return get_connection_pool_for_cluster(connect_strings[id]);
-};
+}
 
 inline const KeyPrefix * Configuration::getDefaultPrefix() const {
   return prefixes[0];
-};
+}
 
 inline const KeyPrefix * Configuration::getPrefix(int id) const {
   return prefixes[id];
-};
+}
 
 inline bool Configuration::canReloadOnline() const {
   return (bool) onlineReloadFlag;

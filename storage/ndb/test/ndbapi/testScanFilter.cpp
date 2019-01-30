@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1127,7 +1127,7 @@ void getBitfieldVariants(int bitNum, int& offset, bool& invert)
     /* Shift the mask */
     offset= (bitNum / 2);
   }
-};
+}
   
 
 bool isRowExpected(int rowId, 
@@ -1668,7 +1668,7 @@ TESTCASE("TestScanFilterBit",
   INITIALIZER(runTestScanFilterBit);
 }
 
-NDBT_TESTSUITE_END(testScanFilter);
+NDBT_TESTSUITE_END(testScanFilter)
 
 
 int main(int argc, const char** argv)
