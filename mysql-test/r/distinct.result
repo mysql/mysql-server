@@ -1311,7 +1311,7 @@ g1
 200
 300
 400
-truncate table t1;
+DELETE FROM t1;
 # Test when selecting from view
 create view v1 as select t1.* from t1 left join t2 on 1;
 insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
@@ -1540,7 +1540,7 @@ g1
 200
 300
 400
-truncate table t1;
+DELETE FROM t1;
 drop view v1;
 # Test when selecting from view, again
 create view v1 as select t1.a*2 as a, t1.b*2 as b, t1.c*2 as c from t1;
@@ -1769,7 +1769,7 @@ g1
 400
 600
 800
-truncate table t1;
+DELETE FROM t1;
 drop view v1;
 # Test when selecting from derived table
 insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
@@ -1998,7 +1998,7 @@ g1
 200
 300
 400
-truncate table t1;
+DELETE FROM t1;
 select distinct t1_outer.a from t1 t1_outer
 order by t1_outer.b;
 ERROR HY000: Expression #1 of ORDER BY clause is not in SELECT list, references column 'test.t1_outer.b' which is not in SELECT list; this is incompatible with DISTINCT

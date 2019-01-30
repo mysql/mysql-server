@@ -101,6 +101,15 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 --echo #
+--echo # Attempt to truncate a table after a secondary engine has been defined.
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+--error ER_SECONDARY_ENGINE_DDL
+TRUNCATE TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
 --echo # Attempt to alter table after its secondary engine has been removed.
 --echo #
 CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
@@ -108,6 +117,17 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 SECONDARY_ENGINE NULL;
 ALTER TABLE t1 COMMENT="Test";
 ALTER TABLE t1 ADD COLUMN (b INT);
+ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Attempt to truncate table after its secondary engine is removed
+--echo #
+CREATE TABLE t1 (a INT) SECONDARY_ENGINE NONEXISTENT;
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 SECONDARY_ENGINE NULL;
+TRUNCATE TABLE t1;
 ALTER TABLE t1 SECONDARY_ENGINE NONEXISTENT;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;

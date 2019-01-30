@@ -1,5 +1,3 @@
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-
 --source include/turn_off_only_full_group_by.inc
 
 insert into t1 values(100,1,2),(200,1,1),(300,2,1),(400,2,2);
@@ -145,4 +143,4 @@ eval SELECT DISTINCT GP1.a AS g1 FROM $source_no_alias AS GP1
 WHERE GP1.a >= 0
 ORDER BY 2+ANY_VALUE(GP1.b) LIMIT 8;
 
-truncate table t1;
+DELETE FROM t1;

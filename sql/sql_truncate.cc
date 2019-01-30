@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +41,7 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::table_storage_engine
+#include "sql/dd/properties.h"               // dd::Properties
 #include "sql/dd/types/abstract_table.h"     // dd::enum_table_type
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
@@ -497,6 +499,14 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
       DBUG_RETURN(true);
 
     DBUG_ASSERT(table_def != nullptr);
+
+    if (table_def->options().exists("secondary_engine")) {
+      /* Truncate operation is not allowed for tables with secondary engine
+       * since it's not currently supported by change propagation
+       */
+      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+      DBUG_RETURN(true);
+    }
 
     if (hton->flags & HTON_CAN_RECREATE) {
       error = mysql_audit_table_access_notify(thd, table_ref);
