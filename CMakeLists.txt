@@ -677,25 +677,22 @@ ELSE()
 ENDIF()
 
 IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
-  # These tests will give a false negative on some Clang versions,
-  # since there is no easy way in CMake to check for a linker flag
-  # without reimplementing CheckCXXSourceCompiles, and
-  # CheckCXXSourceCompiles tends to compile and link in two steps
-  # (which causes warning output about unused flags, which we interpret
-  # as the flag not existing).
-  MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
-  MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
+  CMAKE_PUSH_CHECK_STATE(RESET)
+  SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=gold")
+  CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_GOLD_RESULT)
+  CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_GOLD_RESULT)
   IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
-    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
-    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
+    STRING_APPEND(CMAKE_C_LINK_FLAGS " -fuse-ld=gold")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -fuse-ld=gold")
 
     # Seemingly --gc-sections causes problems with randomization, so only
     # turn it on if we are not making a randomized build.
     IF (NOT LINK_RANDOMIZE)
-      SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--gc-sections")
-      SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--gc-sections")
+      STRING_APPEND(CMAKE_C_LINK_FLAGS " -Wl,--gc-sections")
+      STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--gc-sections")
     ENDIF()
   ENDIF()
+  CMAKE_POP_CHECK_STATE()
 ENDIF()
 
 IF(LINK_RANDOMIZE)
