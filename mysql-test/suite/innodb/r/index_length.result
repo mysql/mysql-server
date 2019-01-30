@@ -1,0 +1,38 @@
+CREATE TABLE abc(a int auto_increment PRIMARY KEY, b char(10), c
+char(10))ENGINE=INNODB;
+INSERT INTO abc (b,c) VALUES ('bb','ccccccccc');
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	0
+ALTER TABLE abc add INDEX cc (c);
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	25739264
+ALTER TABLE abc add INDEX bb (b);
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	51478528
+DROP TABLE abc;

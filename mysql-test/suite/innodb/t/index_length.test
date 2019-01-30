@@ -1,0 +1,35 @@
+CREATE TABLE abc(a int auto_increment PRIMARY KEY, b char(10), c
+char(10))ENGINE=INNODB;
+INSERT INTO abc (b,c) VALUES ('bb','ccccccccc');
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+--replace_column 1 #
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+ALTER TABLE abc add INDEX cc (c);
+--replace_column 1 #
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+ALTER TABLE abc add INDEX bb (b);
+--replace_column 1 #
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DROP TABLE abc;
