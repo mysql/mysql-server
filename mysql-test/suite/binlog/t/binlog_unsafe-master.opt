@@ -1,1 +1,1 @@
-$UDF_EXAMPLE_LIB_OPT --log-output=file,table
+$UDF_EXAMPLE_LIB_OPT --log-output=file,table --thread-stack=512K
