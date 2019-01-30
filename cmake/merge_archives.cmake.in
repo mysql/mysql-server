@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@ SET(CMAKE_C_CREATE_STATIC_LIBRARY "@CMAKE_C_CREATE_STATIC_LIBRARY@")
 SET(CMAKE_LINKER "@CMAKE_LINKER@")
 SET(CMAKE_RANLIB "@CMAKE_RANLIB@")
 SET(CMAKE_STATIC_LINKER_FLAGS "@CMAKE_STATIC_LINKER_FLAGS@")
+SET(SSL_LIBRARIES "@SSL_LIBRARIES@")
 
 # MESSAGE(STATUS "merge_archives MYLIBS ${MYLIBS}")
 # MESSAGE(STATUS "merge_archives TARGET_LINK_FLAGS ${TARGET_LINK_FLAGS}")
@@ -82,6 +83,13 @@ EXECUTE_PROCESS(
   )
 
 IF(MSVC)
+  # On Windows, ssleay32.lib/libeay32.lib or libssl.lib/libcrypto.lib
+  # must be merged into mysqlclient.lib
+  IF(TARGET_NAME STREQUAL "mysqlclient")
+    FOREACH(LIB ${SSL_LIBRARIES})
+      LIST(APPEND LIB_LOCATIONS ${LIB})
+    ENDFOREACH()
+  ENDIF()
   # See CMAKE_CXX_CREATE_STATIC_LIBRARY
   IF(CMAKE_LINKER MATCHES "lld-link")
     # lld-link does not yet support making convenience libraries;

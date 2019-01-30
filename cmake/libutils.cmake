@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -105,25 +105,6 @@ MACRO(ADD_CONVENIENCE_LIBRARY)
     )
 ENDMACRO()
 
-
-# An IMPORTED library can also be merged.
-MACRO(ADD_IMPORTED_LIBRARY TARGET LOC)
-  ADD_LIBRARY(${TARGET} STATIC IMPORTED)
-  SET_TARGET_PROPERTIES(${TARGET} PROPERTIES IMPORTED_LOCATION ${LOC})
-  SET(KNOWN_CONVENIENCE_LIBRARIES
-    ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
-  CONFIGURE_FILE(
-    ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
-    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
-    @ONLY)
-  ADD_CUSTOM_TARGET(${TARGET}_location
-    COMMAND ${CMAKE_COMMAND}
-    -DTARGET_NAME=${TARGET}
-    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
-    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
-    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
-    )
-ENDMACRO()
 
 # Create libs from libs.
 # Merge static libraries, creates shared libraries out of convenience libraries.
@@ -292,10 +273,6 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
         MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
       ELSE()
         ADD_DEPENDENCIES(${TARGET} ${LIB})
-        GET_TARGET_PROPERTY(loc ${LIB} IMPORTED_LOCATION)
-        IF(loc)
-          ADD_DEPENDENCIES(${TARGET} ${LIB}_location)
-        ENDIF()
         LIST(APPEND MYLIBS ${LIB})
         GET_DEPENDEND_OS_LIBS(${LIB} LIB_OSLIBS)
         IF(LIB_OSLIBS)

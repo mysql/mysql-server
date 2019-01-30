@@ -276,21 +276,12 @@ MACRO (MYSQL_CHECK_SSL)
       SET(LINUX_STANDALONE 1)
     ENDIF()
 
-    # On mac this list is <.dylib;.so;.a>
-    # On most platforms we still prefer static libraries, so we revert it here.
-    IF (WITH_SSL_PATH AND NOT APPLE AND NOT LINUX_STANDALONE)
-      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-      MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
-    ENDIF()
     FIND_LIBRARY(OPENSSL_LIBRARY
                  NAMES ssl libssl ssleay32 ssleay32MD
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
     FIND_LIBRARY(CRYPTO_LIBRARY
                  NAMES crypto libcrypto libeay32
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
-    IF (WITH_SSL_PATH AND NOT APPLE AND NOT LINUX_STANDALONE)
-      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    ENDIF()
 
     IF(OPENSSL_INCLUDE_DIR)
       # Verify version number. Version information looks like:
@@ -361,25 +352,8 @@ MACRO (MYSQL_CHECK_SSL)
       SET(OPENSSL_FOUND FALSE)
     ENDIF()
 
-    # If we are invoked with -DWITH_SSL=/path/to/custom/openssl
-    # and we have found static libraries, then link them statically
-    # into our executables and libraries.
-    # Adding IMPORTED_LOCATION allows MERGE_CONVENIENCE_LIBRARIES
-    # to merge imported libraries as well as our own libraries.
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
-    IF (WITH_SSL_PATH)
-      GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
-      GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
-      IF (CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
-        SET(MY_CRYPTO_LIBRARY imported_crypto)
-        ADD_IMPORTED_LIBRARY(imported_crypto "${CRYPTO_LIBRARY}")
-      ENDIF()
-      IF (OPENSSL_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
-        SET(MY_OPENSSL_LIBRARY imported_openssl)
-        ADD_IMPORTED_LIBRARY(imported_openssl "${OPENSSL_LIBRARY}")
-      ENDIF()
-    ENDIF()
 
     MESSAGE(STATUS "OPENSSL_INCLUDE_DIR = ${OPENSSL_INCLUDE_DIR}")
     MESSAGE(STATUS "OPENSSL_LIBRARY = ${OPENSSL_LIBRARY}")
@@ -387,10 +361,6 @@ MACRO (MYSQL_CHECK_SSL)
     MESSAGE(STATUS "OPENSSL_MAJOR_VERSION = ${OPENSSL_MAJOR_VERSION}")
     MESSAGE(STATUS "OPENSSL_MINOR_VERSION = ${OPENSSL_MINOR_VERSION}")
     MESSAGE(STATUS "OPENSSL_FIX_VERSION = ${OPENSSL_FIX_VERSION}")
-    # The server hangs in OpenSSL_add_all_algorithms() in ssl_start()
-    IF(WIN32 AND OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
-      MESSAGE(WARNING "OpenSSL 1.1 is experimental on Windows")
-    ENDIF()
 
     INCLUDE(CheckSymbolExists)
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
@@ -761,6 +731,10 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
           DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries)
       ELSE()
         MESSAGE(STATUS "Cannot find SSL dynamic libraries")
+        IF(OPENSSL_MINOR_VERSION VERSION_EQUAL 1)
+          SET(SSL_LIBRARIES ${SSL_LIBRARIES} crypt32.lib)
+          MESSAGE(STATUS "SSL_LIBRARIES ${SSL_LIBRARIES}")
+        ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()
