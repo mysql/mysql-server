@@ -50,8 +50,8 @@
 %{!?feature_set:                 %global feature_set community}
 %{!?compilation_comment_release: %global compilation_comment_release MySQL Community - GPL}
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community - GPL - Debug}
-%{!?compilation_comment_server_release: %global compilation_comment_release MySQL Community Server - GPL}
-%{!?compilation_comment_server_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
+%{!?compilation_comment_server_release: %global compilation_comment_server_release MySQL Community Server - GPL}
+%{!?compilation_comment_server_debug:   %global compilation_comment_server_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %if 0%{?rhel} == 6
