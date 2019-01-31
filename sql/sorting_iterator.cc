@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,12 +85,17 @@ SortFileIndirectIterator::~SortFileIndirectIterator() {
 }
 
 bool SortFileIndirectIterator::Init() {
-  if (!table()->file->inited) {
-    int error = table()->file->ha_rnd_init(0);
-    if (error) {
-      PrintError(error);
-      return true;
-    }
+  // The sort's source iterator could have initialized an index
+  // read, and it won't call end until it's destroyed (which we
+  // can't do before destroying SortingIterator, since we may need
+  // to scan/sort multiple times). Thus, as a small hack, we need
+  // to reset it here.
+  table()->file->ha_index_or_rnd_end();
+
+  int error = table()->file->ha_rnd_init(0);
+  if (error) {
+    PrintError(error);
+    return true;
   }
 
   /*
