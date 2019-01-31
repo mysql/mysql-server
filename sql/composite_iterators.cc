@@ -811,6 +811,11 @@ bool TemptableAggregateIterator::Init() {
       return true;
     }
     empty_record(table());
+  } else if (table()->file->inited) {
+    // If we're being called several times (in particular, as part of a
+    // LATERAL join), the table iterator may have started a scan, so end it
+    // before we start our own.
+    table()->file->ha_index_or_rnd_end();
   }
 
   table()->file->ha_delete_all_rows();

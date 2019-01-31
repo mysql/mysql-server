@@ -3200,3 +3200,16 @@ Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 DROP TABLE bb;
 SET SQL_MODE=DEFAULT;
+#
+# Bug #29268512: ASSERTION FAILED: INITED == NONE INTERMITTENTLY
+#
+CREATE TABLE t1 (
+f1 integer
+);
+INSERT INTO t1 VALUES (0),(1);
+CREATE TABLE t2 (
+f2 integer
+);
+SELECT * FROM t1, LATERAL ( SELECT MAX(1) FROM t2 GROUP BY t1.f1 ) AS l1;
+f1	MAX(1)
+DROP TABLE t1, t2;
