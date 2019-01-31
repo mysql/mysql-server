@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
         if ((thd->system_thread &
              (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0) {
           // TODO: error is *not* reported on cancel
-          DBUG_ASSERT(thd->rli_slave != NULL);
+          DBUG_ASSERT(thd->rli_slave != nullptr);
           Relay_log_info *c_rli = thd->rli_slave->get_c_rli();
           if (c_rli->abort_slave) {
             goto err;
@@ -169,7 +169,7 @@ err:
   if (lock_count >= 1) global_sid_lock->unlock();
 
   if (!ret) gtid_set_performance_schema_values(thd);
-  thd->owned_gtid.dbug_print(NULL, "Set owned_gtid in set_gtid_next");
+  thd->owned_gtid.dbug_print(nullptr, "Set owned_gtid in set_gtid_next");
 
   DBUG_RETURN(ret);
 }
@@ -231,7 +231,7 @@ int gtid_acquire_ownership_multiple(THD *thd) {
     // has been stopped by STOP SLAVE [SQL_THREAD].
     if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) != 0) {
-      DBUG_ASSERT(thd->rli_slave != NULL);
+      DBUG_ASSERT(thd->rli_slave != nullptr);
       Relay_log_info *c_rli = thd->rli_slave->get_c_rli();
       if (c_rli->abort_slave) DBUG_RETURN(1);
     }
@@ -294,7 +294,7 @@ static inline bool is_already_logged_transaction(const THD *thd) {
   const Gtid_specification *gtid_next = &thd->variables.gtid_next;
   const Gtid_set *gtid_next_list = thd->get_gtid_next_list_const();
 
-  if (gtid_next_list == NULL) {
+  if (gtid_next_list == nullptr) {
     if (gtid_next->type == ASSIGNED_GTID) {
       if (thd->owned_gtid.sidno == 0)
         DBUG_RETURN(true);
@@ -498,7 +498,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd) {
                       thd->owned_gtid.gno, thd->thread_id()));
 
   const bool skip_transaction = is_already_logged_transaction(thd);
-  if (gtid_next_list == NULL) {
+  if (gtid_next_list == nullptr) {
     if (skip_transaction) {
       skip_statement(thd);
       DBUG_RETURN(GTID_STATEMENT_SKIP);
@@ -563,7 +563,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd) {
 void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("gtid_set_performance_schema_values");
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  if (thd->m_transaction_psi != NULL) {
+  if (thd->m_transaction_psi != nullptr) {
     Gtid_specification spec;
 
     // Thread owns GTID.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ class Rpl_info_table : public Rpl_info_handler {
 
   Rpl_info_table(uint nparam, const char *param_schema, const char *param_table,
                  const uint param_n_pk_fields = 0,
-                 const uint *param_pk_field_indexes = NULL);
+                 const uint *param_pk_field_indexes = nullptr);
 
   Rpl_info_table(const Rpl_info_table &info);
   Rpl_info_table &operator=(const Rpl_info_table &info);

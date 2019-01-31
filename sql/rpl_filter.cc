@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,9 +63,9 @@
 extern PSI_memory_key key_memory_array_buffer;
 
 Rpl_pfs_filter::Rpl_pfs_filter()
-    : m_channel_name(NULL),
-      m_filter_name(NULL),
-      m_rpl_filter_statistics(NULL) {}
+    : m_channel_name(nullptr),
+      m_filter_name(nullptr),
+      m_rpl_filter_statistics(nullptr) {}
 
 Rpl_pfs_filter::Rpl_pfs_filter(const char *channel_name,
                                const char *filter_name,
@@ -103,7 +103,7 @@ void Rpl_filter_statistics::set_all(enum_configured_by configured_by) {
 
   /* Set m_active_since to current time. */
   THD *thd = current_thd;
-  if (thd == NULL)
+  if (thd == nullptr)
     m_active_since = my_micro_time();
   else {
     /*
@@ -197,7 +197,7 @@ int Rpl_filter::copy_global_replication_filters() {
   if (rpl_global_filter.is_empty()) DBUG_RETURN(0);
 
   THD *thd = current_thd;
-  if (thd != NULL && thd->lex->sql_command == SQLCOM_CHANGE_MASTER) {
+  if (thd != nullptr && thd->lex->sql_command == SQLCOM_CHANGE_MASTER) {
     /*
       Acquire the write lock when copying global replication filter if
       a new channel is being created by CHANGE MASTER TO ... FOR CHANNEL
@@ -1300,7 +1300,7 @@ void Rpl_global_filter::reset_pfs_view() {
   rpl_pfs_filter_vec.clear();
 
   // Pass NULL since rpl_global_filter does not attach a channel.
-  put_filters_into_vector(rpl_pfs_filter_vec, NULL);
+  put_filters_into_vector(rpl_pfs_filter_vec, nullptr);
 
   DBUG_VOID_RETURN;
 }
@@ -1312,7 +1312,7 @@ Rpl_pfs_filter *Rpl_global_filter::get_filter_at_pos(uint pos) {
   if (pos < rpl_pfs_filter_vec.size())
     DBUG_RETURN(&rpl_pfs_filter_vec[pos]);
   else
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
 }
 
 uint Rpl_global_filter::get_filter_count() {
@@ -1376,7 +1376,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
   DBUG_ENTER("change_rpl_filter");
   bool ret = false;
   int thread_mask = 0;
-  Master_info *mi = NULL;
+  Master_info *mi = nullptr;
   LEX *lex = thd->lex;
   Rpl_filter *rpl_filter;
 
@@ -1438,7 +1438,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
         if (Master_info::is_configured(mi)) {
           /* filter for this channel */
           rpl_filter = mi->rli->rpl_filter;
-          if (rpl_filter != NULL) {
+          if (rpl_filter != nullptr) {
             rpl_filter->wrlock();
             if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_CRF", 1, 0) ||
                 rpl_filter->set_do_db(
@@ -1544,7 +1544,7 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
     if (!ret) {
       /* filter for this channel */
       rpl_filter = mi->rli->rpl_filter;
-      if (rpl_filter != NULL) {
+      if (rpl_filter != nullptr) {
         rpl_filter->wrlock();
         if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_CRF_FOR_CHA", 1, 0) ||
             rpl_filter->set_do_db(

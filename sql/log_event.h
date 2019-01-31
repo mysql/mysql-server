@@ -833,7 +833,7 @@ class Log_event {
   void free_temp_buf() {
     if (temp_buf) {
       if (m_free_temp_buf_in_destructor) my_free(temp_buf);
-      temp_buf = 0;
+      temp_buf = nullptr;
     }
   }
   /*
@@ -1732,7 +1732,7 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
     DBUG_ENTER(
         "XA_prepare_log_event::XA_prepare_log_event(const char*, const "
         "Format_description_log_event *)");
-    xid = NULL;
+    xid = nullptr;
     DBUG_VOID_RETURN;
   }
   Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
@@ -2443,7 +2443,7 @@ class Rows_applier_psi_stage {
   ulonglong m_n_rows_applied;
 
  public:
-  Rows_applier_psi_stage() : m_progress(NULL), m_n_rows_applied(0) {}
+  Rows_applier_psi_stage() : m_progress(nullptr), m_n_rows_applied(0) {}
 
   void set_progress(PSI_stage_progress *progress) { m_progress = progress; }
 
@@ -2452,7 +2452,7 @@ class Rows_applier_psi_stage {
    @return true if instrumentation is enabled for the given stage, false
    otherwise.
    */
-  bool is_enabled() { return m_progress != NULL; }
+  bool is_enabled() { return m_progress != nullptr; }
 
   /**
    This member function shall update the progress and reestimate the remaining
@@ -2490,7 +2490,7 @@ class Rows_applier_psi_stage {
    Resets this object.
    */
   void end_work() {
-    m_progress = NULL;
+    m_progress = nullptr;
     m_n_rows_applied = 0;
   }
 
@@ -2714,7 +2714,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
        Before we need to do comparisons - i.e. before we need to insert
        elements, we update Rows_log_event::m_key_info once for all.
     */
-    Key_compare(KEY **ki = NULL) : m_key_info(ki) {}
+    Key_compare(KEY **ki = nullptr) : m_key_info(ki) {}
     bool operator()(uchar *k1, uchar *k2) const {
       return key_cmp2((*m_key_info)->key_part, k1, (*m_key_info)->key_length,
                       k2, (*m_key_info)->key_length) < 0;
@@ -3312,7 +3312,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == NULL && message_length == 0);
+    DBUG_ASSERT(message == nullptr && message_length == 0);
     DBUG_VOID_RETURN;
   }
 
@@ -3325,7 +3325,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    DBUG_ASSERT(message == NULL && message_length == 0);
+    DBUG_ASSERT(message == nullptr && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
       // The allocation failed. Mark this binlog event as invalid.
@@ -3486,7 +3486,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 
   ~Rows_query_log_event() override {
     if (m_rows_query) my_free(m_rows_query);
-    m_rows_query = NULL;
+    m_rows_query = nullptr;
   }
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file,
@@ -4118,7 +4118,7 @@ inline bool is_gtid_event(Log_event *evt) {
           false  otherwise
 */
 inline bool is_atomic_ddl_event(Log_event *evt) {
-  return evt != NULL && evt->get_type_code() == binary_log::QUERY_EVENT &&
+  return evt != nullptr && evt->get_type_code() == binary_log::QUERY_EVENT &&
          static_cast<Query_log_event *>(evt)->ddl_xid !=
              binary_log::INVALID_XID;
 }

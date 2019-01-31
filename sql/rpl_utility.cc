@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -474,7 +474,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
     We only check the initial columns for the tables.
   */
   uint const cols_to_check = min<ulong>(table->s->fields, size());
-  TABLE *tmp_table = NULL;
+  TABLE *tmp_table = nullptr;
 
   for (uint col = 0; col < cols_to_check; ++col) {
     Field *const field = table->field[col];
@@ -490,20 +490,20 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         If order is not 0, a conversion is required, so we need to set
         up the conversion table.
        */
-      if (order != 0 && tmp_table == NULL) {
+      if (order != 0 && tmp_table == nullptr) {
         /*
           This will create the full table with all fields. This is
           necessary to ge the correct field lengths for the record.
         */
         tmp_table = create_conversion_table(thd, rli, table);
-        if (tmp_table == NULL) return false;
+        if (tmp_table == nullptr) return false;
         /*
           Clear all fields up to, but not including, this column.
         */
-        for (unsigned int i = 0; i < col; ++i) tmp_table->field[i] = NULL;
+        for (unsigned int i = 0; i < col; ++i) tmp_table->field[i] = nullptr;
       }
 
-      if (order == 0 && tmp_table != NULL) tmp_table->field[col] = NULL;
+      if (order == 0 && tmp_table != nullptr) tmp_table->field[col] = nullptr;
     } else {
       DBUG_PRINT("debug", ("Checking column %d -"
                            " field '%s' can not be converted",
@@ -591,7 +591,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
   DBUG_ENTER("table_def::create_conversion_table");
 
   List<Create_field> field_list;
-  TABLE *conv_table = NULL;
+  TABLE *conv_table = nullptr;
   /*
     At slave, columns may differ. So we should create
     min(columns@master, columns@slave) columns in the
@@ -613,10 +613,10 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
 
   for (uint col = 0; col < cols_to_create; ++col) {
     Create_field *field_def = new (thd->mem_root) Create_field();
-    if (field_list.push_back(field_def)) DBUG_RETURN(NULL);
+    if (field_list.push_back(field_def)) DBUG_RETURN(nullptr);
 
     uint decimals = 0;
-    TYPELIB *interval = NULL;
+    TYPELIB *interval = nullptr;
     uint pack_length_override = 0;  // 0 => NA. Only assigned below when needed.
     enum_field_types field_type = type(col);
     uint32 max_length =
@@ -686,7 +686,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
   conv_table = create_tmp_table_from_fields(thd, field_list);
 
 err:
-  if (conv_table == NULL) {
+  if (conv_table == nullptr) {
     enum loglevel report_level = INFORMATION_LEVEL;
     if (!ignored_error_code(ER_SLAVE_CANT_CREATE_CONVERSION)) {
       report_level = ERROR_LEVEL;
@@ -714,17 +714,17 @@ PSI_memory_key key_memory_table_def_memory;
 table_def::table_def(unsigned char *types, ulong size, uchar *field_metadata,
                      int metadata_size, uchar *null_bitmap, uint16 flags)
     : m_size(size),
-      m_type(0),
+      m_type(nullptr),
       m_field_metadata_size(metadata_size),
-      m_field_metadata(0),
-      m_null_bits(0),
+      m_field_metadata(nullptr),
+      m_null_bits(nullptr),
       m_flags(flags),
-      m_memory(NULL),
+      m_memory(nullptr),
       m_json_column_count(-1) {
   m_memory = (uchar *)my_multi_malloc(key_memory_table_def_memory, MYF(MY_WME),
                                       &m_type, size, &m_field_metadata,
                                       size * sizeof(uint16), &m_null_bits,
-                                      (size + 7) / 8, NULL);
+                                      (size + 7) / 8, nullptr);
 
   memset(m_field_metadata, 0, size * sizeof(uint16));
 
@@ -846,7 +846,9 @@ bool Hash_slave_rows::deinit(void) {
 
 int Hash_slave_rows::size() { return m_hash.size(); }
 
-HASH_ROW_ENTRY *Hash_slave_rows::make_entry() { return make_entry(NULL, NULL); }
+HASH_ROW_ENTRY *Hash_slave_rows::make_entry() {
+  return make_entry(nullptr, nullptr);
+}
 
 HASH_ROW_ENTRY *Hash_slave_rows::make_entry(const uchar *bi_start,
                                             const uchar *bi_ends) {
@@ -891,7 +893,7 @@ err:
     my_free(preamble);
   }
   if (pos) my_free(pos);
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(nullptr);
 }
 
 bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
@@ -918,7 +920,7 @@ bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
 HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
   DBUG_ENTER("Hash_slave_rows::get");
   uint key;
-  HASH_ROW_ENTRY *entry = NULL;
+  HASH_ROW_ENTRY *entry = nullptr;
 
   key = make_hash_key(table, cols);
 
@@ -944,7 +946,7 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
   DBUG_ENTER("Hash_slave_rows::next");
   DBUG_ASSERT(*entry);
 
-  if (*entry == NULL) DBUG_RETURN(true);
+  if (*entry == nullptr) DBUG_RETURN(true);
 
   HASH_ROW_PREAMBLE *preamble = (*entry)->preamble;
 
@@ -1099,7 +1101,7 @@ Deferred_log_events::~Deferred_log_events() { m_array.clear(); }
 
 int Deferred_log_events::add(Log_event *ev) {
   m_array.push_back(ev);
-  ev->worker = NULL;  // to mark event busy avoiding deletion
+  ev->worker = nullptr;  // to mark event busy avoiding deletion
   return 0;
 }
 

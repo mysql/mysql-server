@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ Rpl_info_table::Rpl_info_table(uint nparam, const char *param_schema,
                                const uint param_n_pk_fields,
                                const uint *param_pk_field_indexes)
     : Rpl_info_handler(nparam), is_transactional(false) {
-  str_schema.str = str_table.str = NULL;
+  str_schema.str = str_table.str = nullptr;
   str_schema.length = str_table.length = 0;
 
   size_t schema_length = strlen(param_schema);
@@ -108,7 +108,7 @@ int Rpl_info_table::do_init_info(uint instance) {
 int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
@@ -170,7 +170,7 @@ end:
 int Rpl_info_table::do_flush_info(const bool force) {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
@@ -273,7 +273,7 @@ int Rpl_info_table::do_remove_info() { return do_clean_info(); }
 int Rpl_info_table::do_clean_info() {
   int error = 1;
   enum enum_return_id res = FOUND_ID;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
@@ -332,11 +332,11 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
                                   const char *param_table,
                                   const char *channel_name) {
   int error = 0;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
-  Rpl_info_table *info = NULL;
-  THD *thd = NULL;
+  Rpl_info_table *info = nullptr;
+  THD *thd = nullptr;
   int handler_error = 0;
 
   DBUG_ENTER("Rpl_info_table::do_reset_info");
@@ -413,7 +413,7 @@ end:
 }
 
 enum_return_check Rpl_info_table::do_check_info() {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
@@ -462,7 +462,7 @@ end:
 }
 
 enum_return_check Rpl_info_table::do_check_info(uint instance) {
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
@@ -518,11 +518,11 @@ end:
 bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
                                    const char *param_table, uint *counter) {
   int error = 1;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
-  Rpl_info_table *info = NULL;
-  THD *thd = NULL;
+  Rpl_info_table *info = nullptr;
+  THD *thd = nullptr;
 
   DBUG_ENTER("Rpl_info_table::do_count_info");
 
@@ -692,7 +692,7 @@ bool Rpl_info_table::do_is_transactional() { return is_transactional; }
 bool Rpl_info_table::do_update_is_transactional() {
   bool error = true;
   sql_mode_t saved_mode;
-  TABLE *table = NULL;
+  TABLE *table = nullptr;
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_update_is_transactional");

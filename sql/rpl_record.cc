@@ -344,7 +344,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   Bit_writer null_bits(pack_ptr);
   pack_ptr += (image_column_count + 7) / 8;
 
-  for (Field **p_field = table->field; *p_field != NULL; p_field++) {
+  for (Field **p_field = table->field; *p_field != nullptr; p_field++) {
     Field *field = *p_field;
     bool is_partial_json = false;
     if (bitmap_is_set(&table->pack_row_tmp_set, p_field - table->field)) {
@@ -589,8 +589,8 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                 row_image_type == enum_row_image_type::UPDATE_AI);
 
   // Get table_def object and table used for type conversion
-  table_def *tabledef = NULL;
-  TABLE *conv_table = NULL;
+  table_def *tabledef = nullptr;
+  TABLE *conv_table = nullptr;
   rli->get_table_data(table, &tabledef, &conv_table);
   DBUG_ASSERT(tabledef != nullptr);
 
@@ -696,12 +696,12 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       the conversion table.  If the conversion table or the field
       pointer is NULL, no conversions are necessary.
      */
-    Field *conv_field = conv_table ? conv_table->field[col_i] : NULL;
+    Field *conv_field = conv_table ? conv_table->field[col_i] : nullptr;
     Field *const f = conv_field ? conv_field : field_ptr;
     DBUG_PRINT("debug",
                ("Conversion %srequired for field '%s' (#%d)",
                 conv_field ? "" : "not ", field_ptr->field_name, col_i));
-    DBUG_ASSERT(f != NULL);
+    DBUG_ASSERT(f != nullptr);
 
     DBUG_PRINT("debug",
                ("field name: %s; field position: %p", f->field_name, pack_ptr));
@@ -719,7 +719,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
      */
     if (bitmap_is_set(column_image, col_i)) {
       /* Field...::unpack() cannot return 0 */
-      DBUG_ASSERT(pack_ptr != NULL);
+      DBUG_ASSERT(pack_ptr != nullptr);
 
       if (null_bits.get()) {
         if (f->maybe_null()) {

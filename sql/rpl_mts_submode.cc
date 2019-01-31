@@ -83,7 +83,7 @@ void Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info *,
   for (i = 0; i < parts; i++) {
     mts_move_temp_tables_to_thd(
         thd, ev->mts_assigned_partitions[i]->temporary_tables);
-    ev->mts_assigned_partitions[i]->temporary_tables = NULL;
+    ev->mts_assigned_partitions[i]->temporary_tables = nullptr;
   }
   DBUG_VOID_RETURN;
 }
@@ -143,7 +143,7 @@ int Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
       PSI_stage_info old_stage;
       Slave_worker *w_entry = entry->worker;
 
-      entry->worker = NULL;  // mark Worker to signal when  usage drops to 0
+      entry->worker = nullptr;  // mark Worker to signal when  usage drops to 0
       thd->ENTER_COND(
           &rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock,
           &stage_slave_waiting_worker_to_release_partition, &old_stage);
@@ -164,7 +164,7 @@ int Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
     }
     // resources relocation
     mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
-    entry->temporary_tables = NULL;
+    entry->temporary_tables = nullptr;
     if (entry->worker->running_status != Slave_worker::RUNNING)
       cant_sync = true;
     mysql_mutex_lock(&rli->slave_worker_hash_lock);
@@ -212,13 +212,13 @@ void Mts_submode_database::detach_temp_tables(THD *thd,
        destroy references to them.
   */
   for (i = 0; i < parts; i++) {
-    ev->mts_assigned_partitions[i]->temporary_tables = NULL;
+    ev->mts_assigned_partitions[i]->temporary_tables = nullptr;
   }
 
   Rpl_filter *rpl_filter = rli->rpl_filter;
   for (TABLE *table = thd->temporary_tables; table;) {
     int i;
-    char *db_name = NULL;
+    char *db_name = nullptr;
 
     // find which entry to go
     for (i = 0; i < parts; i++) {
@@ -270,7 +270,7 @@ void Mts_submode_database::detach_temp_tables(THD *thd,
 Slave_worker *Mts_submode_database::get_least_occupied_worker(
     Relay_log_info *, Slave_worker_array *ws, Log_event *) {
   long usage = LONG_MAX;
-  Slave_worker **ptr_current_worker = NULL, *worker = NULL;
+  Slave_worker **ptr_current_worker = nullptr, *worker = nullptr;
 
   DBUG_ENTER("Mts_submode_database::get_least_occupied_worker");
 
@@ -280,7 +280,7 @@ Slave_worker *Mts_submode_database::get_least_occupied_worker(
     worker = ws->at(w_rr % ws->size());
     LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
            static_cast<ulong>(w_rr % ws->size()));
-    DBUG_ASSERT(worker != NULL);
+    DBUG_ASSERT(worker != nullptr);
     DBUG_RETURN(worker);
   }
 #endif
@@ -292,7 +292,7 @@ Slave_worker *Mts_submode_database::get_least_occupied_worker(
       usage = (*ptr_current_worker)->usage_partition;
     }
   }
-  DBUG_ASSERT(worker != NULL);
+  DBUG_ASSERT(worker != nullptr);
   DBUG_RETURN(worker);
 }
 
@@ -726,8 +726,8 @@ void Mts_submode_logical_clock::attach_temp_tables(THD *thd,
       if (cur_table->next)  // not the last node
         cur_table->next->prev = cur_table->prev;
       /* isolate the table */
-      cur_table->prev = NULL;
-      cur_table->next = NULL;
+      cur_table->prev = nullptr;
+      cur_table->next = nullptr;
       mts_move_temp_tables_to_thd(thd, cur_table);
     } else
         /* We must shift the C->temp_table pointer to the fist table unused in
@@ -778,8 +778,8 @@ void Mts_submode_logical_clock::detach_temp_tables(THD *thd,
 Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
     Relay_log_info *rli, Slave_worker_array *ws MY_ATTRIBUTE((unused)),
     Log_event *ev) {
-  Slave_worker *worker = NULL;
-  PSI_stage_info *old_stage = 0;
+  Slave_worker *worker = nullptr;
+  PSI_stage_info *old_stage = nullptr;
   THD *thd = rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::get_least_occupied_worker");
 #ifndef DBUG_OFF
@@ -788,7 +788,7 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
     worker = ws->at(w_rr % ws->size());
     LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
            static_cast<ulong>(w_rr % ws->size()));
-    DBUG_ASSERT(worker != NULL);
+    DBUG_ASSERT(worker != nullptr);
     DBUG_RETURN(worker);
   }
   Slave_committed_queue *gaq = rli->gaq;
@@ -817,7 +817,7 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
     DBUG_ASSERT(ev->get_type_code() != binary_log::USER_VAR_EVENT ||
                 rli->curr_group_seen_begin || rli->curr_group_seen_gtid);
 
-    if (worker == NULL) {
+    if (worker == nullptr) {
       struct timespec ts[2];
 
       set_timespec_nsec(&ts[0], 0);
@@ -851,16 +851,17 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
         any worker thread. So The flag is removed and Coordinator thread
         will not try to finish the group before abort.
       */
-      if (worker == NULL) rli->info_thd->variables.option_bits &= ~OPTION_BEGIN;
+      if (worker == nullptr)
+        rli->info_thd->variables.option_bits &= ~OPTION_BEGIN;
     }
-    if (rli->get_commit_order_manager() != NULL && worker != NULL)
+    if (rli->get_commit_order_manager() != nullptr && worker != nullptr)
       rli->get_commit_order_manager()->register_trx(worker);
   }
 
   DBUG_ASSERT(ptr_group);
   // assert that we have a worker thread for this event or the slave has
   // stopped.
-  DBUG_ASSERT(worker != NULL || thd->killed);
+  DBUG_ASSERT(worker != nullptr || thd->killed);
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == binary_log::QUERY_EVENT)
     static_cast<Query_log_event *>(ev)->mts_accessed_dbs = 0;
@@ -898,7 +899,7 @@ Slave_worker *Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli) {
  */
 int Mts_submode_logical_clock::wait_for_workers_to_finish(
     Relay_log_info *rli, MY_ATTRIBUTE((unused)) Slave_worker *ignore) {
-  PSI_stage_info *old_stage = 0;
+  PSI_stage_info *old_stage = nullptr;
   THD *thd = rli->info_thd;
   DBUG_ENTER("Mts_submode_logical_clock::wait_for_workers_to_finish");
   DBUG_PRINT("info", ("delegated %d, jobs_done %d", delegated_jobs, jobs_done));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ static const PSI_memory_key table_psi_key = PSI_NOT_INSTRUMENTED;
 static const PSI_memory_key table_psi_key = key_memory_table_mapping_root;
 #endif
 
-table_mapping::table_mapping() : m_free(0), m_table_ids(table_psi_key) {
+table_mapping::table_mapping() : m_free(nullptr), m_table_ids(table_psi_key) {
   /* We don't preallocate any block, this is consistent with m_free=0 above */
   init_alloc_root(table_psi_key, &m_mem_root,
                   TABLE_ID_HASH_SIZE * sizeof(entry), 0);
@@ -77,7 +77,7 @@ Mapped_table *table_mapping::get_table(ulonglong table_id) {
   }
 
   DBUG_PRINT("info", ("tid %llu is not mapped!", table_id));
-  DBUG_RETURN(NULL);
+  DBUG_RETURN(nullptr);
 }
 
 /*
@@ -87,7 +87,7 @@ Mapped_table *table_mapping::get_table(ulonglong table_id) {
 */
 int table_mapping::expand() {
   entry *tmp = new (&m_mem_root) entry[TABLE_ID_CHUNK];
-  if (tmp == NULL) return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
+  if (tmp == nullptr) return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
 
   /* Find the end of this fresh new array of free entries */
   entry *e_end = tmp + TABLE_ID_CHUNK - 1;

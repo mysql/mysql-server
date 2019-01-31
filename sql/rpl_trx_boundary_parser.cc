@@ -137,7 +137,7 @@ Transaction_boundary_parser::get_event_boundary_type(
       /* Get the query to let us check for BEGIN/COMMIT/ROLLBACK */
       qlen = Query_log_event::get_query(buf, length, fd_event, &query);
       if (qlen == 0) {
-        DBUG_ASSERT(query == NULL);
+        DBUG_ASSERT(query == nullptr);
         boundary_type = EVENT_BOUNDARY_TYPE_ERROR;
         break;
       }

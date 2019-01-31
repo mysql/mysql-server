@@ -163,7 +163,7 @@ bool Log_event_footer::event_checksum_test(unsigned char *event_buf,
            sizeof(incoming));
     incoming = le32toh(incoming);
 
-    computed = checksum_crc32(0L, NULL, 0);
+    computed = checksum_crc32(0L, nullptr, 0);
     /* checksum the event content but not the checksum part itself */
     computed =
         binary_log::checksum_crc32(computed, (const unsigned char *)event_buf,

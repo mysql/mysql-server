@@ -72,7 +72,7 @@ bool is_group_replication_plugin_loaded() {
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     plugin_unlock(0, plugin);
     result = true;
   }
@@ -85,7 +85,7 @@ int group_replication_start(char **error_message) {
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     /*
       We need to take global_sid_lock because
       group_replication_handler->start function will (among other
@@ -118,7 +118,7 @@ int group_replication_stop(char **error_message) {
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->stop(error_message);
@@ -135,7 +135,7 @@ bool is_group_replication_running() {
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->is_running();
@@ -151,7 +151,7 @@ int set_group_replication_retrieved_certification_info(
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->set_retrieved_certification_info(view_change_event);
@@ -167,7 +167,7 @@ bool get_group_replication_connection_status_info(
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_connection_status_info(callbacks);
@@ -184,7 +184,7 @@ bool get_group_replication_group_members_info(
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_members_info(index, callbacks);
@@ -201,7 +201,7 @@ bool get_group_replication_group_member_stats_info(
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_group_member_stats_info(index, callbacks);
@@ -216,7 +216,7 @@ unsigned int get_group_replication_members_number_info() {
 
   plugin_ref plugin = my_plugin_lock_by_name(
       0, group_replication_plugin_name_str, MYSQL_GROUP_REPLICATION_PLUGIN);
-  if (plugin != NULL) {
+  if (plugin != nullptr) {
     st_mysql_group_replication *plugin_handle =
         (st_mysql_group_replication *)plugin_decl(plugin)->info;
     result = plugin_handle->get_members_number_info();
@@ -356,7 +356,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   *length = executed_gtids->get_encoded_length();
   *encoded_gtid_executed =
       (uchar *)my_malloc(key_memory_Gtid_set_to_string, *length, MYF(MY_WME));
-  if (*encoded_gtid_executed == NULL) {
+  if (*encoded_gtid_executed == nullptr) {
     global_sid_lock->unlock();
     return true;
   }
@@ -369,11 +369,11 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 #if !defined(DBUG_OFF)
 char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length) {
   /* No sid_lock because this is a completely local object. */
-  Sid_map sid_map(NULL);
+  Sid_map sid_map(nullptr);
   Gtid_set set(&sid_map);
 
   if (set.add_gtid_encoding(encoded_gtid_set, length) != RETURN_STATUS_OK)
-    return NULL;
+    return nullptr;
 
   char *buf;
   set.to_string(&buf);

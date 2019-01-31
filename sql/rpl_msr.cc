@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ void Multisource_info::delete_mi(const char *channel_name) {
 
   m_channel_map_lock->assert_some_wrlock();
 
-  Master_info *mi = 0;
+  Master_info *mi = nullptr;
   mi_map::iterator it;
 
   DBUG_ASSERT(channel_name != 0);
@@ -157,7 +157,7 @@ void Multisource_info::delete_mi(const char *channel_name) {
   /* erase from the map */
   map_it->second.erase(it);
 
-  if (default_channel_mi == mi) default_channel_mi = NULL;
+  if (default_channel_mi == mi) default_channel_mi = nullptr;
 
   /* delete the master info */
   if (mi) {
@@ -205,7 +205,7 @@ bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi) {
 int Multisource_info::get_index_from_rpl_pfs_mi(const char *channel_name) {
   m_channel_map_lock->assert_some_lock();
 
-  Master_info *mi = 0;
+  Master_info *mi = nullptr;
   for (uint i = 0; i < MAX_CHANNELS; i++) {
     mi = rpl_pfs_mi[i];
     if (mi) {
@@ -248,7 +248,7 @@ Rpl_filter *Rpl_channel_filters::create_filter(const char *channel_name) {
       !ret.second) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_ADD_RPL_FILTER, channel_name);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    DBUG_RETURN(NULL);
+    DBUG_RETURN(nullptr);
   }
 
   DBUG_RETURN(rpl_filter);
@@ -287,7 +287,7 @@ void Rpl_channel_filters::discard_group_replication_filters() {
       LogErr(WARNING_LEVEL, ER_PER_CHANNEL_RPL_FILTER_CONF_FOR_GRP_RPL,
              it->first.c_str());
       delete it->second;
-      it->second = NULL;
+      it->second = nullptr;
       it = channel_to_filter.erase(it);
     } else
       it++;
@@ -314,7 +314,7 @@ void Rpl_channel_filters::discard_all_unattached_filters() {
       to a channel.
     */
     delete it->second;
-    it->second = NULL;
+    it->second = nullptr;
     LogErr(WARNING_LEVEL, ER_RPL_FILTERS_NOT_ATTACHED_TO_CHANNEL,
            it->first.c_str());
     it = channel_to_filter.erase(it);
@@ -331,7 +331,7 @@ void Rpl_channel_filters::discard_all_unattached_filters() {
 Rpl_filter *Rpl_channel_filters::get_channel_filter(const char *channel_name) {
   DBUG_ENTER("Rpl_channel_filters::get_channel_filter");
   filter_map::iterator it;
-  Rpl_filter *rpl_filter = NULL;
+  Rpl_filter *rpl_filter = nullptr;
 
   DBUG_ASSERT(channel_name != 0);
 
@@ -371,7 +371,7 @@ void Rpl_channel_filters::reset_pfs_view() {
 Rpl_pfs_filter *Rpl_channel_filters::get_filter_at_pos(uint pos) {
   DBUG_ENTER("Rpl_channel_filters::get_filter_at_pos");
   m_channel_to_filter_lock->assert_some_rdlock();
-  Rpl_pfs_filter *res = NULL;
+  Rpl_pfs_filter *res = nullptr;
 
   if (pos < rpl_pfs_filter_vec.size()) res = &rpl_pfs_filter_vec[pos];
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     const Format_description_event *fde, bool verify_checksum,
     Log_event **event) {
   const char *buf = reinterpret_cast<const char *>(buffer);
-  Log_event *ev = NULL;
+  Log_event *ev = nullptr;
   enum_binlog_checksum_alg alg;
 
   DBUG_ENTER("binlog_event_deserialize");
@@ -299,7 +299,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       } else {
         DBUG_PRINT("error",
                    ("Unknown event code: %d", (int)buf[EVENT_TYPE_OFFSET]));
-        ev = NULL;
+        ev = nullptr;
       }
       break;
   }

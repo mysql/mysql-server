@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -304,7 +304,7 @@ Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
     unsigned char *optional_metadata, unsigned int optional_metadata_len) {
   unsigned char *field = optional_metadata;
 
-  if (optional_metadata == NULL) return;
+  if (optional_metadata == nullptr) return;
 
   while (field < optional_metadata + optional_metadata_len) {
     unsigned int len;
@@ -465,7 +465,7 @@ bool Rows_event::Extra_row_info::compare_extra_row_info(
     int source_part_id_arg) {
   const unsigned char *ndb_row_info = m_extra_row_ndb_info;
   bool ndb_info = ((ndb_info_arg == ndb_row_info) ||
-                   ((ndb_info_arg != NULL) && (ndb_row_info != NULL) &&
+                   ((ndb_info_arg != nullptr) && (ndb_row_info != nullptr) &&
                     (ndb_info_arg[EXTRA_ROW_INFO_LEN_OFFSET] ==
                      ndb_row_info[EXTRA_ROW_INFO_LEN_OFFSET]) &&
                     (memcmp(ndb_info_arg, ndb_row_info,

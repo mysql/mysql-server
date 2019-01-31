@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
       any event yet, it could be that group_master_log_name is "". In that case,
       just wait for more events (as there is no sensible comparison to do).
     */
-    if (log_name == NULL || strcmp("", log_name) == 0) DBUG_RETURN(false);
+    if (log_name == nullptr || strcmp("", log_name) == 0) DBUG_RETURN(false);
 
     const char *basename = log_name + dirname_length(log_name);
     const char *q = (const char *)(fn_ext(basename) + 1);

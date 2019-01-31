@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Commit_order_manager::Commit_order_manager(uint32 worker_numbers)
       m_workers(worker_numbers),
       queue_head(QUEUE_EOF),
       queue_tail(QUEUE_EOF) {
-  mysql_mutex_init(key_commit_order_manager_mutex, &m_mutex, NULL);
+  mysql_mutex_init(key_commit_order_manager_mutex, &m_mutex, nullptr);
   for (uint32 i = 0; i < worker_numbers; i++) {
     mysql_cond_init(key_commit_order_manager_cond, &m_workers[i].cond);
     m_workers[i].status = OCS_FINISH;

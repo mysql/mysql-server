@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,7 +131,7 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
 */
 enum enum_return_id Rpl_info_table_access::find_info(
     Rpl_info_values *field_values, TABLE *table) {
-  KEY *keyinfo = NULL;
+  KEY *keyinfo = nullptr;
   uchar key[MAX_KEY_LENGTH];
 
   DBUG_ENTER("Rpl_info_table_access::find_info");

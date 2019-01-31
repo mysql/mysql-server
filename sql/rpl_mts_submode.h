@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -79,7 +79,7 @@ class Mts_submode {
                                                   Log_event *ev) = 0;
   /* wait for slave workers to finish */
   virtual int wait_for_workers_to_finish(Relay_log_info *rli,
-                                         Slave_worker *ignore = NULL) = 0;
+                                         Slave_worker *ignore = nullptr) = 0;
 
   virtual ~Mts_submode() {}
 };
@@ -100,7 +100,7 @@ class Mts_submode_database : public Mts_submode {
                                           Slave_worker_array *ws, Log_event *);
   ~Mts_submode_database() {}
   int wait_for_workers_to_finish(Relay_log_info *rli,
-                                 Slave_worker *ignore = NULL);
+                                 Slave_worker *ignore = nullptr);
 };
 
 /**
@@ -163,7 +163,7 @@ class Mts_submode_logical_clock : public Mts_submode {
   */
   void withdraw_delegated_job() { delegated_jobs--; }
   int wait_for_workers_to_finish(Relay_log_info *rli,
-                                 Slave_worker *ignore = NULL);
+                                 Slave_worker *ignore = nullptr);
   bool wait_for_last_committed_trx(Relay_log_info *rli,
                                    longlong last_committed_arg);
   /*

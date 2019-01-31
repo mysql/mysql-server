@@ -642,7 +642,7 @@ class Table_map_event : public Binary_log_event {
         m_field_metadata(0),
         m_null_bits(0),
         m_optional_metadata_len(0),
-        m_optional_metadata(NULL) {
+        m_optional_metadata(nullptr) {
     if (dbnam) m_dbnam = std::string(dbnam, m_dblen);
     if (tblnam) m_tblnam = std::string(tblnam, m_tbllen);
   }
@@ -679,7 +679,7 @@ class Table_map_event : public Binary_log_event {
         m_field_metadata(0),
         m_null_bits(0),
         m_optional_metadata_len(0),
-        m_optional_metadata(NULL) {}
+        m_optional_metadata(nullptr) {}
 
   unsigned long long get_table_id() { return m_table_id.id(); }
   std::string get_table_name() { return m_tblnam; }

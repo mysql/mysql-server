@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ int set_transaction_ctx(
                        transaction_termination_ctx.m_sidno,
                        transaction_termination_ctx.m_gno));
 
-  THD *thd = NULL;
+  THD *thd = nullptr;
   uint error = ER_NO_SUCH_THREAD;
   Find_thd_with_id find_thd_with_id(transaction_termination_ctx.m_thread_id);
 

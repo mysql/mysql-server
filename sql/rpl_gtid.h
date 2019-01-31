@@ -621,7 +621,7 @@ class Sid_map {
     @retval 0 if the given SID does not exist in this map.
   */
   rpl_sidno sid_to_sidno(const rpl_sid &sid) const {
-    if (sid_lock != NULL) sid_lock->assert_some_lock();
+    if (sid_lock != nullptr) sid_lock->assert_some_lock();
     const auto it = _sid_to_sidno.find(sid);
     if (it == _sid_to_sidno.end()) return 0;
     return it->second->sidno;
@@ -647,7 +647,7 @@ class Sid_map {
     destroyed.
   */
   const rpl_sid &sidno_to_sid(rpl_sidno sidno, bool need_lock = false) const {
-    if (sid_lock != NULL) {
+    if (sid_lock != nullptr) {
       if (need_lock)
         sid_lock->rdlock();
       else
@@ -655,7 +655,7 @@ class Sid_map {
     }
     DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
     const rpl_sid &ret = (_sidno_to_sid[sidno - 1])->sid;
-    if (sid_lock != NULL && need_lock) sid_lock->unlock();
+    if (sid_lock != nullptr && need_lock) sid_lock->unlock();
     return ret;
   }
   /**
@@ -667,7 +667,7 @@ class Sid_map {
     @param n A number in the interval [0, get_max_sidno()-1], inclusively.
   */
   rpl_sidno get_sorted_sidno(rpl_sidno n) const {
-    if (sid_lock != NULL) sid_lock->assert_some_lock();
+    if (sid_lock != nullptr) sid_lock->assert_some_lock();
     return _sorted[n];
   }
   /**
@@ -677,7 +677,7 @@ class Sid_map {
     invoking this function.
   */
   rpl_sidno get_max_sidno() const {
-    if (sid_lock != NULL) sid_lock->assert_some_lock();
+    if (sid_lock != nullptr) sid_lock->assert_some_lock();
     return static_cast<rpl_sidno>(_sidno_to_sid.size());
   }
 
@@ -837,7 +837,7 @@ class Mutex_cond_array {
     global_lock->unlock();
     mysql_mutex_assert_owner(&mutex_cond->mutex);
     if (is_thd_killed(thd)) DBUG_RETURN(true);
-    if (abstime != NULL)
+    if (abstime != nullptr)
       error =
           mysql_cond_timedwait(&mutex_cond->cond, &mutex_cond->mutex, abstime);
     else
@@ -1169,7 +1169,7 @@ class Gtid_monitoring_info {
                             on mi->data_lock. When no mutex is specified, the
                             object will rely on its own atomic mechanism.
   */
-  Gtid_monitoring_info(mysql_mutex_t *atomic_mutex_arg = NULL);
+  Gtid_monitoring_info(mysql_mutex_t *atomic_mutex_arg = nullptr);
 
   /// Destroy this GTID monitoring info object.
   ~Gtid_monitoring_info();
@@ -1311,7 +1311,7 @@ class Gtid_set {
     number of SIDs. This may be NULL if such changes do not need to be
     protected.
   */
-  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock = NULL);
+  Gtid_set(Sid_map *sid_map, Checkable_rwlock *sid_lock = nullptr);
   /**
     Constructs a new Gtid_set that contains the gtids in the given
     string, in the same format as add_gtid_text(char *).
@@ -1329,7 +1329,7 @@ class Gtid_set {
     there will be a short period when the lock is not held at all.
   */
   Gtid_set(Sid_map *sid_map, const char *text, enum_return_status *status,
-           Checkable_rwlock *sid_lock = NULL);
+           Checkable_rwlock *sid_lock = nullptr);
 
  private:
   /// Worker for the constructor.
@@ -1467,8 +1467,8 @@ class Gtid_set {
 
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
-  enum_return_status add_gtid_text(const char *text, bool *anonymous = NULL,
-                                   bool *starts_with_plus = NULL);
+  enum_return_status add_gtid_text(const char *text, bool *anonymous = nullptr,
+                                   bool *starts_with_plus = nullptr);
   /**
     Decodes a Gtid_set from the given string.
 
@@ -1481,7 +1481,7 @@ class Gtid_set {
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
-                                       size_t *actual_length = NULL);
+                                       size_t *actual_length = nullptr);
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.
@@ -1563,7 +1563,7 @@ class Gtid_set {
     DBUG_ASSERT(sidno >= 1);
     if (sidno > get_max_sidno()) return false;
     Const_interval_iterator ivit(this, sidno);
-    return ivit.get() != NULL;
+    return ivit.get() != nullptr;
   }
   /**
     Returns true if the given string is a valid specification of a
@@ -1609,7 +1609,7 @@ class Gtid_set {
     separators in the resulting text.
     @return The length.
   */
-  size_t get_string_length(const String_format *string_format = NULL) const;
+  size_t get_string_length(const String_format *string_format = nullptr) const;
   /**
     Formats this Gtid_set as a string and saves in a given buffer.
 
@@ -1624,7 +1624,7 @@ class Gtid_set {
     @return Length of the generated string.
   */
   size_t to_string(char *buf, bool need_lock = false,
-                   const String_format *string_format = NULL) const;
+                   const String_format *string_format = nullptr) const;
 
   /**
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
@@ -1638,13 +1638,13 @@ class Gtid_set {
     @retval Length of the generated string, or -1 on out of memory.
   */
   long to_string(char **buf, bool need_lock = false,
-                 const String_format *string_format = NULL) const;
+                 const String_format *string_format = nullptr) const;
 #ifndef DBUG_OFF
   /// Debug only: Print this Gtid_set to stdout.
 
   /// For use with C `printf`
   void print(bool need_lock = false,
-             const Gtid_set::String_format *sf = NULL) const {
+             const Gtid_set::String_format *sf = nullptr) const {
     char *str;
     to_string(&str, need_lock, sf);
     printf("%s\n", str ? str : "out of memory in Gtid_set::print");
@@ -1664,10 +1664,10 @@ class Gtid_set {
     Print this Gtid_set to the trace file if debug is enabled; no-op
     otherwise.
   */
-  void dbug_print(
-      const char *text MY_ATTRIBUTE((unused)) = "",
-      bool need_lock MY_ATTRIBUTE((unused)) = false,
-      const Gtid_set::String_format *sf MY_ATTRIBUTE((unused)) = NULL) const {
+  void dbug_print(const char *text MY_ATTRIBUTE((unused)) = "",
+                  bool need_lock MY_ATTRIBUTE((unused)) = false,
+                  const Gtid_set::String_format *sf MY_ATTRIBUTE((unused)) =
+                      nullptr) const {
 #ifndef DBUG_OFF
     char *str;
     to_string(&str, need_lock, sf);
@@ -1729,9 +1729,9 @@ class Gtid_set {
     @param intervals_param Array of n_intervals intervals.
   */
   void add_interval_memory(int n_intervals, Interval *intervals_param) {
-    if (sid_lock != NULL) mysql_mutex_lock(&free_intervals_mutex);
+    if (sid_lock != nullptr) mysql_mutex_lock(&free_intervals_mutex);
     add_interval_memory_lock_taken(n_intervals, intervals_param);
-    if (sid_lock != NULL) mysql_mutex_unlock(&free_intervals_mutex);
+    if (sid_lock != nullptr) mysql_mutex_unlock(&free_intervals_mutex);
   }
 
   /**
@@ -1767,7 +1767,7 @@ class Gtid_set {
     }
     /// Advance current_elem one step.
     inline void next() {
-      DBUG_ASSERT(*p != NULL);
+      DBUG_ASSERT(*p != nullptr);
       p = const_cast<Interval_p *>(&(*p)->next);
     }
     /// Return current_elem.
@@ -1825,7 +1825,7 @@ class Gtid_set {
     }
     /// Remove current_elem.
     inline void remove(Gtid_set *gtid_set) {
-      DBUG_ASSERT(get() != NULL);
+      DBUG_ASSERT(get() != nullptr);
       Interval *next = (*p)->next;
       gtid_set->put_free_interval(*p);
       set(next);
@@ -1847,7 +1847,7 @@ class Gtid_set {
   class Gtid_iterator {
    public:
     Gtid_iterator(const Gtid_set *gs) : gtid_set(gs), sidno(0), ivit(gs) {
-      if (gs->sid_lock != NULL) gs->sid_lock->assert_some_wrlock();
+      if (gs->sid_lock != nullptr) gs->sid_lock->assert_some_wrlock();
       next_sidno();
     }
     /// Advance to next gtid.
@@ -1860,7 +1860,7 @@ class Gtid_set {
         ivit.next();
         const Interval *iv = ivit.get();
         // last interval for this sidno? then go to next sidno
-        if (iv == NULL) {
+        if (iv == nullptr) {
           next_sidno();
           // last sidno? then don't try more
           if (sidno == 0) return;
@@ -1888,7 +1888,7 @@ class Gtid_set {
         }
         ivit.init(gtid_set, sidno);
         iv = ivit.get();
-      } while (iv == NULL);
+      } while (iv == nullptr);
       gno = iv->start;
     }
     /// The Gtid_set we iterate over.
@@ -1950,7 +1950,7 @@ class Gtid_set {
   int get_n_intervals(rpl_sidno sidno) const {
     Const_interval_iterator ivit(this, sidno);
     int ret = 0;
-    while (ivit.get() != NULL) {
+    while (ivit.get() != nullptr) {
       ret++;
       ivit.next();
     }
@@ -1958,7 +1958,7 @@ class Gtid_set {
   }
   /// Return the number of intervals in this Gtid_set.
   int get_n_intervals() const {
-    if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+    if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
     rpl_sidno max_sidno = get_max_sidno();
     int ret = 0;
     for (rpl_sidno sidno = 1; sidno < max_sidno; sidno++)
@@ -2041,7 +2041,7 @@ class Gtid_set {
     bool locked;
   };
   void assert_free_intervals_locked() {
-    if (sid_lock != NULL) mysql_mutex_assert_owner(&free_intervals_mutex);
+    if (sid_lock != nullptr) mysql_mutex_assert_owner(&free_intervals_mutex);
   }
 
   /**
@@ -2189,8 +2189,8 @@ struct Gtid_set_or_null {
   bool is_non_null;
   /// Return NULL if this is NULL, otherwise return the Gtid_set.
   inline Gtid_set *get_gtid_set() const {
-    DBUG_ASSERT(!(is_non_null && gtid_set == NULL));
-    return is_non_null ? gtid_set : NULL;
+    DBUG_ASSERT(!(is_non_null && gtid_set == nullptr));
+    return is_non_null ? gtid_set : nullptr;
   }
   /**
     Do nothing if this object is non-null; set to empty set otherwise.
@@ -2199,12 +2199,12 @@ struct Gtid_set_or_null {
   */
   Gtid_set *set_non_null(Sid_map *sm) {
     if (!is_non_null) {
-      if (gtid_set == NULL)
+      if (gtid_set == nullptr)
         gtid_set = new Gtid_set(sm);
       else
         gtid_set->clear();
     }
-    is_non_null = (gtid_set != NULL);
+    is_non_null = (gtid_set != nullptr);
     return gtid_set;
   }
   /// Set this Gtid_set to NULL.
@@ -2307,7 +2307,7 @@ class Owned_gtids {
       bool printed_sid = false;
       for (const auto &key_and_value : *get_hash(sidno)) {
         Node *node = key_and_value.second.get();
-        DBUG_ASSERT(node != NULL);
+        DBUG_ASSERT(node != nullptr);
         if (!printed_sid) {
           p += global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid = true;
@@ -2343,7 +2343,7 @@ class Owned_gtids {
   bool thread_owns_anything(my_thread_id thd_id) const {
     Gtid_iterator git(this);
     Node *node = git.get_node();
-    while (node != NULL) {
+    while (node != nullptr) {
       if (node->owner == thd_id) return true;
       git.next();
       node = git.get_node();
@@ -2359,7 +2359,7 @@ class Owned_gtids {
   char *to_string() const {
     char *str = (char *)my_malloc(key_memory_Owned_gtids_to_string,
                                   get_max_string_length(), MYF(MY_WME));
-    DBUG_ASSERT(str != NULL);
+    DBUG_ASSERT(str != nullptr);
     to_string(str);
     return str;
   }
@@ -2421,7 +2421,7 @@ class Owned_gtids {
   class Gtid_iterator {
    public:
     Gtid_iterator(const Owned_gtids *og)
-        : owned_gtids(og), sidno(1), hash(NULL), node(NULL) {
+        : owned_gtids(og), sidno(1), hash(nullptr), node(nullptr) {
       max_sidno = owned_gtids->get_max_sidno();
       if (sidno <= max_sidno) {
         hash = owned_gtids->get_hash(sidno);
@@ -2436,10 +2436,10 @@ class Owned_gtids {
 #endif
 
       while (sidno <= max_sidno) {
-        DBUG_ASSERT(hash != NULL);
+        DBUG_ASSERT(hash != nullptr);
         if (node_it != hash->end()) {
           node = node_it->second.get();
-          DBUG_ASSERT(node != NULL);
+          DBUG_ASSERT(node != nullptr);
           // Jump to next node on next iteration.
           ++node_it;
           return;
@@ -2453,7 +2453,7 @@ class Owned_gtids {
           node_it = hash->begin();
         }
       }
-      node = NULL;
+      node = nullptr;
     }
     /// Return next GTID, or {0,0} if we reached the end.
     inline Gtid get() const {
@@ -2887,7 +2887,7 @@ class Gtid_state {
   enum_return_status generate_automatic_gtid(THD *thd,
                                              rpl_sidno specified_sidno = 0,
                                              rpl_gno specified_gno = 0,
-                                             rpl_sidno *locked_sidno = NULL);
+                                             rpl_sidno *locked_sidno = nullptr);
 
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
@@ -2926,7 +2926,7 @@ class Gtid_state {
     caller waits for one specific GTID.
   */
   bool wait_for_gtid(THD *thd, const Gtid &gtid,
-                     struct timespec *abstime = NULL);
+                     struct timespec *abstime = nullptr);
   /**
     Wait until the given Gtid_set is included in @@GLOBAL.GTID_EXECUTED.
 

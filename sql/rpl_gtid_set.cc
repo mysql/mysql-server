@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ Gtid_set::Gtid_set(Sid_map *_sid_map, const char *text,
     : sid_lock(_sid_lock),
       sid_map(_sid_map),
       m_intervals(key_memory_Gtid_set_Interval_chunk) {
-  DBUG_ASSERT(_sid_map != NULL);
+  DBUG_ASSERT(_sid_map != nullptr);
   init();
   *status = add_gtid_text(text);
 }
@@ -101,12 +101,12 @@ void Gtid_set::init() {
   DBUG_ENTER("Gtid_set::init");
   has_cached_string_length = false;
   cached_string_length = 0;
-  cached_string_format = NULL;
-  chunks = NULL;
-  free_intervals = NULL;
+  cached_string_format = nullptr;
+  chunks = nullptr;
+  free_intervals = nullptr;
   if (sid_lock)
     mysql_mutex_init(key_gtid_executed_free_intervals_mutex,
-                     &free_intervals_mutex, NULL);
+                     &free_intervals_mutex, nullptr);
 #ifndef DBUG_OFF
   n_chunks = 0;
 #endif
@@ -116,7 +116,7 @@ void Gtid_set::init() {
 Gtid_set::~Gtid_set() {
   DBUG_ENTER("Gtid_set::~Gtid_set");
   Interval_chunk *chunk = chunks;
-  while (chunk != NULL) {
+  while (chunk != nullptr) {
     Interval_chunk *next_chunk = chunk->next;
     my_free(chunk);
     chunk = next_chunk;
@@ -131,13 +131,14 @@ Gtid_set::~Gtid_set() {
 
 enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno) {
   DBUG_ENTER("Gtid_set::ensure_sidno");
-  if (sid_lock != NULL) sid_lock->assert_some_lock();
+  if (sid_lock != nullptr) sid_lock->assert_some_lock();
   DBUG_PRINT("info", ("sidno=%d get_max_sidno()=%d sid_map=%p "
                       "sid_map->get_max_sidno()=%d",
                       sidno, get_max_sidno(), sid_map,
-                      sid_map != NULL ? sid_map->get_max_sidno() : 0));
-  DBUG_ASSERT(sid_map == NULL || sidno <= sid_map->get_max_sidno());
-  DBUG_ASSERT(sid_map == NULL || get_max_sidno() <= sid_map->get_max_sidno());
+                      sid_map != nullptr ? sid_map->get_max_sidno() : 0));
+  DBUG_ASSERT(sid_map == nullptr || sidno <= sid_map->get_max_sidno());
+  DBUG_ASSERT(sid_map == nullptr ||
+              get_max_sidno() <= sid_map->get_max_sidno());
   rpl_sidno max_sidno = get_max_sidno();
   if (sidno > max_sidno) {
     /*
@@ -147,7 +148,7 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno) {
       the array, and then we restore it to a read lock at the end.
     */
     bool is_wrlock = false;
-    if (sid_lock != NULL) {
+    if (sid_lock != nullptr) {
       is_wrlock = sid_lock->is_wrlock();
       if (!is_wrlock) {
         sid_lock->unlock();
@@ -161,10 +162,10 @@ enum_return_status Gtid_set::ensure_sidno(rpl_sidno sidno) {
         }
       }
     }
-    Interval *null_p = NULL;
+    Interval *null_p = nullptr;
     for (rpl_sidno i = max_sidno; i < sidno; i++)
       if (m_intervals.push_back(null_p)) goto error;
-    if (sid_lock != NULL) {
+    if (sid_lock != nullptr) {
       if (!is_wrlock) {
         sid_lock->unlock();
         sid_lock->rdlock();
@@ -192,7 +193,7 @@ void Gtid_set::add_interval_memory_lock_taken(int n_ivs, Interval *ivs) {
 void Gtid_set::create_new_chunk(int size) {
   DBUG_ENTER("Gtid_set::create_new_chunk");
   int i = 0;
-  Interval_chunk *new_chunk = NULL;
+  Interval_chunk *new_chunk = nullptr;
 
   assert_free_intervals_locked();
   /*
@@ -207,7 +208,7 @@ void Gtid_set::create_new_chunk(int size) {
     new_chunk = (Interval_chunk *)my_malloc(
         key_memory_Gtid_set_Interval_chunk,
         sizeof(Interval_chunk) + sizeof(Interval) * (size - 1), MYF(MY_WME));
-    if (new_chunk != NULL) {
+    if (new_chunk != nullptr) {
 #ifdef MYSQL_SERVER
       if (i > 0)
         LogErr(WARNING_LEVEL, ER_RPL_GTID_MEMORY_FINALLY_AVAILABLE, i + 1);
@@ -248,7 +249,8 @@ void Gtid_set::get_free_interval(Interval **out) {
   bool simulate_failure = DBUG_EVALUATE_IF(
       "rpl_gtid_get_free_interval_simulate_out_of_memory", true, false);
   if (simulate_failure) DBUG_SET("+d,rpl_simulate_new_chunk_allocate_failure");
-  if (ivit.get() == NULL || simulate_failure) create_new_chunk(CHUNK_GROW_SIZE);
+  if (ivit.get() == nullptr || simulate_failure)
+    create_new_chunk(CHUNK_GROW_SIZE);
   *out = ivit.get();
   ivit.set((*out)->next);
   DBUG_VOID_RETURN;
@@ -277,13 +279,13 @@ void Gtid_set::clear() {
     */
     Interval_iterator ivit(this, sidno);
     Interval *iv = ivit.get();
-    if (iv != NULL) {
+    if (iv != nullptr) {
       // find the end of the list of free intervals
-      while (free_ivit.get() != NULL) free_ivit.next();
+      while (free_ivit.get() != nullptr) free_ivit.next();
       // append the present list
       free_ivit.set(iv);
       // clear the pointer to the head of this list
-      ivit.set(NULL);
+      ivit.set(nullptr);
     }
   }
   DBUG_VOID_RETURN;
@@ -315,7 +317,7 @@ void Gtid_set::add_gno_interval(Interval_iterator *ivitp, rpl_gno start,
   has_cached_string_length = false;
   cached_string_length = 0;
 
-  while ((iv = ivit.get()) != NULL) {
+  while ((iv = ivit.get()) != nullptr) {
     if (iv->end >= start) {
       if (iv->start > end)
         // (start, end) is strictly before the current interval
@@ -368,13 +370,13 @@ void Gtid_set::remove_gno_interval(Interval_iterator *ivitp, rpl_gno start,
   // Skip intervals of 'this' that are completely before the removed interval.
   while (1) {
     iv = ivit.get();
-    if (iv == NULL) goto ok;
+    if (iv == nullptr) goto ok;
     if (iv->end > start) break;
     ivit.next();
   }
 
   // Now iv ends after the beginning of the removed interval.
-  DBUG_ASSERT(iv != NULL && iv->end > start);
+  DBUG_ASSERT(iv != nullptr && iv->end > start);
   if (iv->start < start) {
     if (iv->end > end) {
       // iv cuts also the end of the removed interval: split iv in two
@@ -393,22 +395,22 @@ void Gtid_set::remove_gno_interval(Interval_iterator *ivitp, rpl_gno start,
     iv->end = start;
     ivit.next();
     iv = ivit.get();
-    if (iv == NULL) goto ok;
+    if (iv == nullptr) goto ok;
   }
 
   // Now iv starts after the beginning of the removed interval.
-  DBUG_ASSERT(iv != NULL && iv->start >= start);
+  DBUG_ASSERT(iv != nullptr && iv->start >= start);
   while (iv->end <= end) {
     // iv ends before the end of the removed interval, so it is
     // completely covered: remove iv.
     lock->lock_if_not_locked();
     ivit.remove(this);
     iv = ivit.get();
-    if (iv == NULL) goto ok;
+    if (iv == nullptr) goto ok;
   }
 
   // Now iv ends after the removed interval.
-  DBUG_ASSERT(iv != NULL && iv->end > end);
+  DBUG_ASSERT(iv != nullptr && iv->end > end);
   if (iv->start < end) {
     // iv begins before the end of the removed interval: truncate iv
     iv->start = end;
@@ -434,15 +436,15 @@ int format_gno(char *s, rpl_gno gno) {
 enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
                                            bool *starts_with_plus) {
   DBUG_ENTER("Gtid_set::add_gtid_text(const char *, bool *)");
-  DBUG_ASSERT(sid_map != NULL);
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  DBUG_ASSERT(sid_map != nullptr);
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   const char *s = text;
 
   DBUG_PRINT("info", ("adding '%s'", text));
 
-  if (anonymous != NULL) *anonymous = false;
+  if (anonymous != nullptr) *anonymous = false;
 
-  if (starts_with_plus != NULL) {
+  if (starts_with_plus != nullptr) {
     SKIP_WHITESPACE();
     if (*s == '+') {
       *starts_with_plus = true;
@@ -460,7 +462,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
 
   DBUG_PRINT("info", ("'%s' not only whitespace", text));
   // Allocate space for all intervals at once, if nothing is allocated.
-  if (chunks == NULL) {
+  if (chunks == nullptr) {
     // compute number of intervals in text: it is equal to the number of
     // colons
     int n_intervals = 0;
@@ -488,7 +490,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
     }
 
     // Parse SID.
-    if (anonymous != NULL && strncmp(s, "ANONYMOUS", 9) == 0) {
+    if (anonymous != nullptr && strncmp(s, "ANONYMOUS", 9) == 0) {
       *anonymous = true;
       s += 9;
     } else {
@@ -551,7 +553,8 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous,
           // current interval does not begin before it.  Otherwise iterate
           // from the beginning.
           Interval *current = ivit.get();
-          if (current == NULL || start < current->start) ivit.init(this, sidno);
+          if (current == nullptr || start < current->start)
+            ivit.init(this, sidno);
           add_gno_interval(&ivit, start, end, &lock);
         }
       }
@@ -627,7 +630,7 @@ void Gtid_set::add_gno_intervals(rpl_sidno sidno,
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
-  while ((other_iv = other_ivit.get()) != NULL) {
+  while ((other_iv = other_ivit.get()) != nullptr) {
     add_gno_interval(&ivit, other_iv->start, other_iv->end, lock);
     other_ivit.next();
   }
@@ -643,9 +646,9 @@ void Gtid_set::remove_gno_intervals(rpl_sidno sidno,
   DBUG_ASSERT(sidno >= 1 && sidno <= get_max_sidno());
   const Interval *other_iv;
   Interval_iterator ivit(this, sidno);
-  while ((other_iv = other_ivit.get()) != NULL) {
+  while ((other_iv = other_ivit.get()) != nullptr) {
     remove_gno_interval(&ivit, other_iv->start, other_iv->end, lock);
-    if (ivit.get() == NULL) break;
+    if (ivit.get() == nullptr) break;
     other_ivit.next();
   }
   DBUG_VOID_RETURN;
@@ -653,8 +656,8 @@ void Gtid_set::remove_gno_intervals(rpl_sidno sidno,
 
 void Gtid_set::remove_intervals_for_sidno(Gtid_set *other, rpl_sidno sidno) {
   // Currently only works if this and other use the same Sid_map.
-  DBUG_ASSERT(other->sid_map == sid_map || other->sid_map == NULL ||
-              sid_map == NULL);
+  DBUG_ASSERT(other->sid_map == sid_map || other->sid_map == nullptr ||
+              sid_map == nullptr);
   Const_interval_iterator other_ivit(other, sidno);
   Free_intervals_lock lock(this);
   remove_gno_intervals(sidno, other_ivit, &lock);
@@ -665,21 +668,22 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other) {
     @todo refactor this and remove_gtid_set to avoid duplicated code
   */
   DBUG_ENTER("Gtid_set::add_gtid_set(const Gtid_set *)");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno = other->get_max_sidno();
   Free_intervals_lock lock(this);
-  if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL) {
+  if (other->sid_map == sid_map || other->sid_map == nullptr ||
+      sid_map == nullptr) {
     PROPAGATE_REPORTED_ERROR(ensure_sidno(max_other_sidno));
     for (rpl_sidno sidno = 1; sidno <= max_other_sidno; sidno++)
       add_gno_intervals(sidno, Const_interval_iterator(other, sidno), &lock);
   } else {
     Sid_map *other_sid_map = other->sid_map;
     Checkable_rwlock *other_sid_lock = other->sid_lock;
-    if (other_sid_lock != NULL) other_sid_lock->assert_some_wrlock();
+    if (other_sid_lock != nullptr) other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno = 1; other_sidno <= max_other_sidno;
          other_sidno++) {
       Const_interval_iterator other_ivit(other, other_sidno);
-      if (other_ivit.get() != NULL) {
+      if (other_ivit.get() != nullptr) {
         const rpl_sid &sid = other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno = sid_map->add_sid(sid);
         if (this_sidno <= 0) RETURN_REPORTED_ERROR;
@@ -693,21 +697,22 @@ enum_return_status Gtid_set::add_gtid_set(const Gtid_set *other) {
 
 void Gtid_set::remove_gtid_set(const Gtid_set *other) {
   DBUG_ENTER("Gtid_set::remove_gtid_set(Gtid_set *)");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   rpl_sidno max_other_sidno = other->get_max_sidno();
   Free_intervals_lock lock(this);
-  if (other->sid_map == sid_map || other->sid_map == NULL || sid_map == NULL) {
+  if (other->sid_map == sid_map || other->sid_map == nullptr ||
+      sid_map == nullptr) {
     rpl_sidno max_sidno = min(max_other_sidno, get_max_sidno());
     for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++)
       remove_gno_intervals(sidno, Const_interval_iterator(other, sidno), &lock);
   } else {
     Sid_map *other_sid_map = other->sid_map;
     Checkable_rwlock *other_sid_lock = other->sid_lock;
-    if (other_sid_lock != NULL) other_sid_lock->assert_some_wrlock();
+    if (other_sid_lock != nullptr) other_sid_lock->assert_some_wrlock();
     for (rpl_sidno other_sidno = 1; other_sidno <= max_other_sidno;
          other_sidno++) {
       Const_interval_iterator other_ivit(other, other_sidno);
-      if (other_ivit.get() != NULL) {
+      if (other_ivit.get() != nullptr) {
         const rpl_sid &sid = other_sid_map->sidno_to_sid(other_sidno);
         rpl_sidno this_sidno = sid_map->sid_to_sidno(sid);
         if (this_sidno != 0)
@@ -721,11 +726,11 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other) {
 bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const {
   DBUG_ENTER("Gtid_set::contains_gtid");
   DBUG_ASSERT(sidno >= 1 && gno >= 1);
-  if (sid_lock != NULL) sid_lock->assert_some_lock();
+  if (sid_lock != nullptr) sid_lock->assert_some_lock();
   if (sidno > get_max_sidno()) DBUG_RETURN(false);
   Const_interval_iterator ivit(this, sidno);
   const Interval *iv;
-  while ((iv = ivit.get()) != NULL) {
+  while ((iv = ivit.get()) != nullptr) {
     if (gno < iv->start)
       DBUG_RETURN(false);
     else if (gno < iv->end)
@@ -739,13 +744,13 @@ rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const {
   DBUG_ENTER("Gtid_set::get_last_gno");
   rpl_gno gno = 0;
 
-  if (sid_lock != NULL) sid_lock->assert_some_lock();
+  if (sid_lock != nullptr) sid_lock->assert_some_lock();
 
   if (sidno > get_max_sidno()) DBUG_RETURN(gno);
 
   Const_interval_iterator ivit(this, sidno);
   const Gtid_set::Interval *iv = ivit.get();
-  while (iv != NULL) {
+  while (iv != nullptr) {
     gno = iv->end - 1;
     ivit.next();
     iv = ivit.get();
@@ -757,7 +762,7 @@ rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const {
 long Gtid_set::to_string(char **buf_arg, bool need_lock,
                          const Gtid_set::String_format *sf_arg) const {
   DBUG_ENTER("Gtid_set::to_string");
-  if (sid_lock != NULL) {
+  if (sid_lock != nullptr) {
     if (need_lock)
       sid_lock->wrlock();
     else
@@ -766,27 +771,27 @@ long Gtid_set::to_string(char **buf_arg, bool need_lock,
   size_t len = get_string_length(sf_arg);
   *buf_arg =
       (char *)my_malloc(key_memory_Gtid_set_to_string, len + 1, MYF(MY_WME));
-  if (*buf_arg == NULL) DBUG_RETURN(-1);
+  if (*buf_arg == nullptr) DBUG_RETURN(-1);
   to_string(*buf_arg, false /*need_lock*/, sf_arg);
-  if (sid_lock != NULL && need_lock) sid_lock->unlock();
+  if (sid_lock != nullptr && need_lock) sid_lock->unlock();
   DBUG_RETURN(len);
 }
 
 size_t Gtid_set::to_string(char *buf, bool need_lock,
                            const Gtid_set::String_format *sf) const {
   DBUG_ENTER("Gtid_set::to_string");
-  DBUG_ASSERT(sid_map != NULL);
-  if (sid_lock != NULL) {
+  DBUG_ASSERT(sid_map != nullptr);
+  if (sid_lock != nullptr) {
     if (need_lock)
       sid_lock->wrlock();
     else
       sid_lock->assert_some_wrlock();
   }
-  if (sf == NULL) sf = &default_string_format;
-  if (sf->empty_set_string != NULL && is_empty()) {
+  if (sf == nullptr) sf = &default_string_format;
+  if (sf->empty_set_string != nullptr && is_empty()) {
     memcpy(buf, sf->empty_set_string, sf->empty_set_string_length);
     buf[sf->empty_set_string_length] = '\0';
-    if (sid_lock != NULL && need_lock) sid_lock->unlock();
+    if (sid_lock != nullptr && need_lock) sid_lock->unlock();
     DBUG_RETURN(sf->empty_set_string_length);
   }
   rpl_sidno map_max_sidno = sid_map->get_max_sidno();
@@ -824,7 +829,7 @@ size_t Gtid_set::to_string(char *buf, bool need_lock,
         }
         ivit.next();
         iv = ivit.get();
-      } while (iv != NULL);
+      } while (iv != nullptr);
     }
   }
   memcpy(s, sf->end, sf->end_length);
@@ -834,14 +839,14 @@ size_t Gtid_set::to_string(char *buf, bool need_lock,
                       buf, strlen(buf), (ulong)(s - buf),
                       static_cast<unsigned long long>(get_string_length(sf))));
   DBUG_ASSERT((ulong)(s - buf) == get_string_length(sf));
-  if (sid_lock != NULL && need_lock) sid_lock->unlock();
+  if (sid_lock != nullptr && need_lock) sid_lock->unlock();
   DBUG_RETURN((int)(s - buf));
 }
 
 void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const {
   DBUG_ENTER("Gtid_set::get_gtid_intervals");
-  DBUG_ASSERT(sid_map != NULL);
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  DBUG_ASSERT(sid_map != nullptr);
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   rpl_sidno map_max_sidno = sid_map->get_max_sidno();
   DBUG_ASSERT(get_max_sidno() <= map_max_sidno);
   for (int sid_i = 0; sid_i < map_max_sidno; sid_i++) {
@@ -849,7 +854,7 @@ void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const {
     if (contains_sidno(sidno)) {
       Const_interval_iterator ivit(this, sidno);
       const Interval *iv = ivit.get();
-      while (iv != NULL) {
+      while (iv != nullptr) {
         Gtid_interval gtid_interval;
         gtid_interval.set(sidno, iv->start, iv->end - 1);
         gtid_intervals->push_back(gtid_interval);
@@ -882,9 +887,9 @@ static size_t get_string_length(rpl_gno gno) {
 }
 
 size_t Gtid_set::get_string_length(const Gtid_set::String_format *sf) const {
-  DBUG_ASSERT(sid_map != NULL);
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
-  if (sf == NULL) sf = &default_string_format;
+  DBUG_ASSERT(sid_map != nullptr);
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  if (sf == nullptr) sf = &default_string_format;
   if (has_cached_string_length == false || cached_string_format != sf) {
     int n_sids = 0, n_intervals = 0, n_long_intervals = 0;
     size_t total_interval_length = 0;
@@ -892,7 +897,7 @@ size_t Gtid_set::get_string_length(const Gtid_set::String_format *sf) const {
     for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++) {
       Const_interval_iterator ivit(this, sidno);
       const Interval *iv = ivit.get();
-      if (iv != NULL) {
+      if (iv != nullptr) {
         n_sids++;
         do {
           n_intervals++;
@@ -903,10 +908,10 @@ size_t Gtid_set::get_string_length(const Gtid_set::String_format *sf) const {
           }
           ivit.next();
           iv = ivit.get();
-        } while (iv != NULL);
+        } while (iv != nullptr);
       }
     }
-    if (n_sids == 0 && sf->empty_set_string != NULL)
+    if (n_sids == 0 && sf->empty_set_string != nullptr)
       cached_string_length = sf->empty_set_string_length;
     else {
       cached_string_length = sf->begin_length + sf->end_length;
@@ -932,23 +937,24 @@ bool Gtid_set::sidno_equals(rpl_sidno sidno, const Gtid_set *other,
   Const_interval_iterator other_ivit(other, other_sidno);
   const Interval *iv = ivit.get();
   const Interval *other_iv = other_ivit.get();
-  while (iv != NULL && other_iv != NULL) {
+  while (iv != nullptr && other_iv != nullptr) {
     if (!iv->equals(*other_iv)) DBUG_RETURN(false);
     ivit.next();
     other_ivit.next();
     iv = ivit.get();
     other_iv = other_ivit.get();
   }
-  if (iv != NULL || other_iv != NULL) DBUG_RETURN(false);
+  if (iv != nullptr || other_iv != nullptr) DBUG_RETURN(false);
   DBUG_RETURN(true);
 }
 
 bool Gtid_set::equals(const Gtid_set *other) const {
   DBUG_ENTER("Gtid_set::equals");
 
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
-  if (other->sid_lock != NULL) other->sid_lock->assert_some_wrlock();
-  if (sid_map == NULL || other->sid_map == NULL || sid_map == other->sid_map) {
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  if (other->sid_lock != nullptr) other->sid_lock->assert_some_wrlock();
+  if (sid_map == nullptr || other->sid_map == nullptr ||
+      sid_map == other->sid_map) {
     // in this case, we don't need to translate sidnos
     rpl_sidno max_sidno = get_max_sidno();
     rpl_sidno other_max_sidno = other->get_max_sidno();
@@ -1015,7 +1021,7 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
     check if it covers sub_iv.
   */
   do {
-    if (super_iv == NULL) DBUG_RETURN(false);
+    if (super_iv == nullptr) DBUG_RETURN(false);
 
     // Skip over 'smaller' intervals of super.
     while (sub_iv->start > super_iv->end) {
@@ -1023,7 +1029,7 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
       super_iv = super->get();
       // If we reach end of super, then no interal covers sub_iv, so
       // sub is not a subset of super.
-      if (super_iv == NULL) DBUG_RETURN(false);
+      if (super_iv == nullptr) DBUG_RETURN(false);
     }
 
     // If super_iv does not cover sub_iv, then sub is not a subset of
@@ -1035,7 +1041,7 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
     sub->next();
     sub_iv = sub->get();
 
-  } while (sub_iv != NULL);
+  } while (sub_iv != nullptr);
 
   // If every GNO in sub also exists in super, then it was a subset.
   DBUG_RETURN(true);
@@ -1054,8 +1060,8 @@ bool Gtid_set::is_subset_for_sid(const Gtid_set *super,
         A1. global_sid_lock.wrlock()
         A2. global_sid_lock.rdlock(); gtid_state.lock_sidno(sidno)
   */
-  if (sid_lock != NULL) super->sid_lock->assert_some_lock();
-  if (super->sid_lock != NULL) super->sid_lock->assert_some_lock();
+  if (sid_lock != nullptr) super->sid_lock->assert_some_lock();
+  if (super->sid_lock != nullptr) super->sid_lock->assert_some_lock();
   /*
     If subset(i.e, this object) does not have required sid in it, i.e.,
     subset_sidno is zero, then it means it is subset of any given
@@ -1081,8 +1087,8 @@ bool Gtid_set::is_subset_for_sid(const Gtid_set *super,
 
 bool Gtid_set::is_subset(const Gtid_set *super) const {
   DBUG_ENTER("Gtid_set::is_subset");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
-  if (super->sid_lock != NULL) super->sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  if (super->sid_lock != nullptr) super->sid_lock->assert_some_wrlock();
 
   Sid_map *super_sid_map = super->sid_map;
   rpl_sidno max_sidno = get_max_sidno();
@@ -1097,10 +1103,11 @@ bool Gtid_set::is_subset(const Gtid_set *super) const {
   for (int sidno = 1; sidno <= max_sidno; sidno++) {
     Const_interval_iterator ivit(this, sidno);
     const Interval *iv = ivit.get();
-    if (iv != NULL) {
+    if (iv != nullptr) {
       // Get the corresponding super_sidno
       int super_sidno;
-      if (super_sid_map == sid_map || super_sid_map == NULL || sid_map == NULL)
+      if (super_sid_map == sid_map || super_sid_map == nullptr ||
+          sid_map == nullptr)
         super_sidno = sidno;
       else {
         super_sidno = super_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
@@ -1125,8 +1132,8 @@ bool Gtid_set::is_interval_intersection_nonempty(
   DBUG_ENTER("is_interval_intersection_nonempty");
   const Interval *iv1 = ivit1->get();
   const Interval *iv2 = ivit2->get();
-  DBUG_ASSERT(iv1 != NULL);
-  if (iv2 == NULL) DBUG_RETURN(false);
+  DBUG_ASSERT(iv1 != nullptr);
+  if (iv2 == nullptr) DBUG_RETURN(false);
 
   /*
     Algorithm: Let iv1 iterate over all intervals of ivit1.  For each
@@ -1140,7 +1147,7 @@ bool Gtid_set::is_interval_intersection_nonempty(
       ivit2->next();
       iv2 = ivit2->get();
       // If we reached the end of ivit2, then there is no intersection.
-      if (iv2 == NULL) DBUG_RETURN(false);
+      if (iv2 == nullptr) DBUG_RETURN(false);
     }
 
     // If iv1 and iv2 intersect, return true.
@@ -1150,7 +1157,7 @@ bool Gtid_set::is_interval_intersection_nonempty(
     ivit1->next();
     iv1 = ivit1->get();
 
-  } while (iv1 != NULL);
+  } while (iv1 != nullptr);
 
   // If we iterated over all intervals of ivit1 without finding any
   // intersection with ivit2, then there is no intersection.
@@ -1172,8 +1179,8 @@ bool Gtid_set::is_intersection_nonempty(const Gtid_set *other) const {
     or remove_gtid_set, and there is no way for this function to
     return an error.
   */
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
-  if (other->sid_lock != NULL) other->sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  if (other->sid_lock != nullptr) other->sid_lock->assert_some_wrlock();
 
   Sid_map *other_sid_map = other->sid_map;
   rpl_sidno max_sidno = get_max_sidno();
@@ -1189,10 +1196,11 @@ bool Gtid_set::is_intersection_nonempty(const Gtid_set *other) const {
   for (int sidno = 1; sidno <= max_sidno; sidno++) {
     Const_interval_iterator ivit(this, sidno);
     const Interval *iv = ivit.get();
-    if (iv != NULL) {
+    if (iv != nullptr) {
       // Get the corresponding other_sidno.
       int other_sidno = 0;
-      if (other_sid_map == sid_map || other_sid_map == NULL || sid_map == NULL)
+      if (other_sid_map == sid_map || other_sid_map == nullptr ||
+          sid_map == nullptr)
         other_sidno = sidno;
       else {
         other_sidno = other_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
@@ -1213,9 +1221,9 @@ bool Gtid_set::is_intersection_nonempty(const Gtid_set *other) const {
 enum_return_status Gtid_set::intersection(const Gtid_set *other,
                                           Gtid_set *result) {
   DBUG_ENTER("Gtid_set::intersection(Gtid_set *, Gtid_set *)");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
-  DBUG_ASSERT(result != NULL);
-  DBUG_ASSERT(other != NULL);
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
+  DBUG_ASSERT(result != nullptr);
+  DBUG_ASSERT(other != nullptr);
   DBUG_ASSERT(result != this);
   DBUG_ASSERT(result != other);
   DBUG_ASSERT(other != this);
@@ -1238,7 +1246,7 @@ enum_return_status Gtid_set::intersection(const Gtid_set *other,
 
 void Gtid_set::encode(uchar *buf) const {
   DBUG_ENTER("Gtid_set::encode(uchar *)");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   // make place for number of sids
   uint64 n_sids = 0;
   uchar *n_sids_p = buf;
@@ -1254,7 +1262,7 @@ void Gtid_set::encode(uchar *buf) const {
                         sid_i, sidno, max_sidno, sid_map->get_max_sidno()));
     Const_interval_iterator ivit(this, sidno);
     const Interval *iv = ivit.get();
-    if (iv != NULL) {
+    if (iv != nullptr) {
       n_sids++;
       // store SID
       sid_map->sidno_to_sid(sidno).copy_to(buf);
@@ -1274,7 +1282,7 @@ void Gtid_set::encode(uchar *buf) const {
         // iterate to next interval
         ivit.next();
         iv = ivit.get();
-      } while (iv != NULL);
+      } while (iv != nullptr);
       // store number of intervals
       int8store(n_intervals_p, n_intervals);
     }
@@ -1289,7 +1297,7 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
                                                size_t length,
                                                size_t *actual_length) {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   size_t pos = 0;
   uint64 n_sids;
   Free_intervals_lock lock(this);
@@ -1345,13 +1353,13 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
       // current interval does not begin before it.  Otherwise iterate
       // from the beginning.
       Interval *current = ivit.get();
-      if (current == NULL || start < current->start) ivit.init(this, sidno);
+      if (current == nullptr || start < current->start) ivit.init(this, sidno);
       DBUG_PRINT("info", ("adding %d:%lld-%lld", sidno, start, end - 1));
       add_gno_interval(&ivit, start, end, &lock);
     }
   }
   DBUG_ASSERT(pos <= length);
-  if (actual_length == NULL) {
+  if (actual_length == nullptr) {
     if (pos != length) {
       DBUG_PRINT("error",
                  ("(pos=%lu) != (length=%lu)", (ulong)pos, (ulong)length));
@@ -1369,7 +1377,7 @@ report_error:
 }
 
 size_t Gtid_set::get_encoded_length() const {
-  if (sid_lock != NULL) sid_lock->assert_some_wrlock();
+  if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   size_t ret = 8;
   rpl_sidno max_sidno = get_max_sidno();
   for (rpl_sidno sidno = 1; sidno <= max_sidno; sidno++)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,7 +175,7 @@ enum_return_check Rpl_info_file::do_check_info(uint instance) {
   uint i;
   enum_return_check last_check = REPOSITORY_EXISTS;
   char fname_local[FN_REFLEN];
-  char *pos = NULL;
+  char *pos = nullptr;
 
   for (i = 1; i <= instance && last_check == REPOSITORY_EXISTS; i++) {
     pos = my_stpcpy(fname_local, pattern_fname);
@@ -210,10 +210,10 @@ enum_return_check Rpl_info_file::do_check_info() {
 bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
                                   bool indexed, uint *counter) {
   uint i = 0;
-  Rpl_info_file *info = NULL;
+  Rpl_info_file *info = nullptr;
 
   char fname_local[FN_REFLEN];
-  char *pos = NULL;
+  char *pos = nullptr;
   enum_return_check last_check = REPOSITORY_EXISTS;
 
   DBUG_ENTER("Rpl_info_file::do_count_info");
@@ -289,9 +289,9 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
                                  bool indexed) {
   int error = false;
   uint i = 0;
-  Rpl_info_file *info = NULL;
+  Rpl_info_file *info = nullptr;
   char fname_local[FN_REFLEN];
-  char *pos = NULL;
+  char *pos = nullptr;
   enum_return_check last_check = REPOSITORY_EXISTS;
 
   DBUG_ENTER("Rpl_info_file::do_count_info");

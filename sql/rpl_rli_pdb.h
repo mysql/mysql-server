@@ -234,13 +234,13 @@ struct Slave_job_group {
   void reset(my_off_t master_pos, ulonglong seqno) {
     master_log_pos = master_pos;
     group_master_log_pos = group_relay_log_pos = 0;
-    group_master_log_name = NULL;  // todo: remove
-    group_relay_log_name = NULL;
+    group_master_log_name = nullptr;  // todo: remove
+    group_relay_log_name = nullptr;
     worker_id = MTS_WORKER_UNDEF;
     total_seqno = seqno;
-    checkpoint_log_name = NULL;
+    checkpoint_log_name = nullptr;
     checkpoint_log_pos = 0;
-    checkpoint_relay_log_name = NULL;
+    checkpoint_relay_log_name = nullptr;
     checkpoint_relay_log_pos = 0;
     checkpoint_seqno = (uint)-1;
     done = 0;
@@ -250,7 +250,7 @@ struct Slave_job_group {
 #endif
     last_committed = SEQ_UNINIT;
     sequence_number = SEQ_UNINIT;
-    new_fd_event = NULL;
+    new_fd_event = nullptr;
   }
 };
 

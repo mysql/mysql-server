@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ template <Cipher_type TYPE>
 bool Aes_ctr_cipher<TYPE>::open(const Key_string &password, int header_size) {
   m_header_size = header_size;
 #ifdef HAVE_BYTESTOKEY_SHA512_HANDLING
-  if (EVP_BytesToKey(Aes_ctr::get_evp_cipher(), Aes_ctr::get_evp_md(), NULL,
+  if (EVP_BytesToKey(Aes_ctr::get_evp_cipher(), Aes_ctr::get_evp_md(), nullptr,
                      password.data(), password.length(), 1, m_file_key,
                      m_iv) == 0)
     return true;

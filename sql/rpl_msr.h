@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ class Multisource_info {
     DBUG_ASSERT(instance_count == 1);
 #endif
     current_mi_count = 0;
-    default_channel_mi = NULL;
+    default_channel_mi = nullptr;
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
     init_rpl_pfs_mi();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -528,9 +528,9 @@ class Rpl_channel_filters {
     /* Traverse the filter map and free all filters */
     for (filter_map::iterator it = channel_to_filter.begin();
          it != channel_to_filter.end(); it++) {
-      if (it->second != NULL) {
+      if (it->second != nullptr) {
         delete it->second;
-        it->second = NULL;
+        it->second = nullptr;
       }
     }
 
@@ -569,7 +569,7 @@ static bool inline is_slave_configured() {
      including the default channel one.
      Hence, channel_map.get_default_channel_mi() will return NULL.
   */
-  return (channel_map.get_default_channel_mi() != NULL);
+  return (channel_map.get_default_channel_mi() != nullptr);
 }
 
 #endif /*RPL_MSR_H*/

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -287,23 +287,23 @@ const char *base64_output_mode_names[] = {"NEVER", "AUTO", "UNSPEC",
                                           "DECODE-ROWS", NullS};
 TYPELIB base64_output_mode_typelib = {
     array_elements(base64_output_mode_names) - 1, "", base64_output_mode_names,
-    NULL};
+    nullptr};
 static enum_base64_output_mode opt_base64_output_mode = BASE64_OUTPUT_UNSPEC;
-static char *opt_base64_output_mode_str = 0;
+static char *opt_base64_output_mode_str = nullptr;
 static bool opt_remote_alias = 0;
 const char *remote_proto_names[] = {"BINLOG-DUMP-NON-GTIDS",
                                     "BINLOG-DUMP-GTIDS", NullS};
 TYPELIB remote_proto_typelib = {array_elements(remote_proto_names) - 1, "",
-                                remote_proto_names, NULL};
+                                remote_proto_names, nullptr};
 static enum enum_remote_proto {
   BINLOG_DUMP_NON_GTID = 0,
   BINLOG_DUMP_GTID = 1,
   BINLOG_LOCAL = 2
 } opt_remote_proto = BINLOG_LOCAL;
-static char *opt_remote_proto_str = 0;
-static char *database = 0;
-static char *output_file = 0;
-static char *rewrite = 0;
+static char *opt_remote_proto_str = nullptr;
+static char *database = nullptr;
+static char *output_file = nullptr;
+static char *rewrite = nullptr;
 bool force_opt = 0, short_form = 0, idempotent_mode = 0;
 static bool debug_info_flag, debug_check_flag;
 static bool force_if_open_opt = 1, raw_mode = 0;
@@ -312,19 +312,19 @@ static bool opt_verify_binlog_checksum = 1;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id = -1;
 static int64 connection_server_id = -1;
-static char *host = 0;
+static char *host = nullptr;
 static int port = 0;
 static uint my_end_arg;
-static const char *sock = 0;
-static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+static const char *sock = nullptr;
+static char *opt_plugin_dir = nullptr, *opt_default_auth = 0;
 
 #if defined(_WIN32)
-static char *shared_memory_base_name = 0;
+static char *shared_memory_base_name = nullptr;
 #endif
-static char *user = 0;
-static char *pass = 0;
-static char *opt_bind_addr = NULL;
-static char *charset = 0;
+static char *user = nullptr;
+static char *pass = nullptr;
+static char *opt_bind_addr = nullptr;
+static char *charset = nullptr;
 
 static uint verbose = 0;
 
@@ -335,14 +335,14 @@ static ulonglong start_position, stop_position;
 static char *start_datetime_str, *stop_datetime_str;
 static my_time_t start_datetime = 0, stop_datetime = MY_TIME_T_MAX;
 static ulonglong rec_count = 0;
-static MYSQL *mysql = NULL;
-static char *dirname_for_local_load = 0;
+static MYSQL *mysql = nullptr;
+static char *dirname_for_local_load = nullptr;
 static uint opt_server_id_bits = 0;
 ulong opt_server_id_mask = 0;
-Sid_map *global_sid_map = NULL;
-Checkable_rwlock *global_sid_lock = NULL;
-Gtid_set *gtid_set_included = NULL;
-Gtid_set *gtid_set_excluded = NULL;
+Sid_map *global_sid_map = nullptr;
+Checkable_rwlock *global_sid_lock = nullptr;
+Gtid_set *gtid_set_included = nullptr;
+Gtid_set *gtid_set_excluded = nullptr;
 
 static bool opt_print_table_metadata;
 
@@ -368,7 +368,7 @@ enum Exit_status {
 /*
   Options that will be used to filter out events.
 */
-static char *opt_include_gtids_str = NULL, *opt_exclude_gtids_str = NULL;
+static char *opt_include_gtids_str = nullptr, *opt_exclude_gtids_str = nullptr;
 static bool opt_skip_gtids = 0;
 static bool filter_based_on_gtids = false;
 
@@ -476,10 +476,10 @@ class Load_log_processor {
   */
   char *grab_fname(uint file_id) {
     File_name_record *ptr;
-    char *res = NULL;
+    char *res = nullptr;
 
     File_names::iterator it = file_names.find(file_id);
-    if (it == file_names.end()) return NULL;
+    if (it == file_names.end()) return nullptr;
     ptr = &((*it).second);
     res = ptr->fname;
     memset(ptr, 0, sizeof(File_name_record));
@@ -599,7 +599,7 @@ Exit_status Load_log_processor::process(Begin_load_query_log_event *blqe) {
 Exit_status Load_log_processor::process(Append_block_log_event *ae) {
   DBUG_ENTER("Load_log_processor::process");
   File_names::iterator it = file_names.find(ae->file_id);
-  const char *fname = ((it != file_names.end()) ? (*it).second.fname : NULL);
+  const char *fname = ((it != file_names.end()) ? (*it).second.fname : nullptr);
 
   if (fname) {
     File file;
@@ -665,7 +665,8 @@ static void convert_path_to_forward_slashes(char *fname) {
   filtered out, 0 otherwise.
 */
 static bool shall_skip_database(const char *log_dbname) {
-  return one_database && (log_dbname != NULL) && strcmp(log_dbname, database);
+  return one_database && (log_dbname != nullptr) &&
+         strcmp(log_dbname, database);
 }
 
 /**
@@ -685,12 +686,12 @@ static bool shall_skip_gtids(const Log_event *ev) {
     case binary_log::GTID_LOG_EVENT:
     case binary_log::ANONYMOUS_GTID_LOG_EVENT: {
       Gtid_log_event *gtid = (Gtid_log_event *)ev;
-      if (opt_include_gtids_str != NULL) {
+      if (opt_include_gtids_str != nullptr) {
         filtered = filtered || !gtid_set_included->contains_gtid(
                                    gtid->get_sidno(true), gtid->get_gno());
       }
 
-      if (opt_exclude_gtids_str != NULL) {
+      if (opt_exclude_gtids_str != nullptr) {
         filtered = filtered || gtid_set_excluded->contains_gtid(
                                    gtid->get_sidno(true), gtid->get_gno());
       }
@@ -1062,7 +1063,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         buff_event.event = ev;
         buff_event.event_pos = pos;
         buff_ev->push_back(buff_event);
-        ev = NULL;
+        ev = nullptr;
         break;
       }
 
@@ -1070,7 +1071,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         buff_event.event = ev;
         buff_event.event_pos = pos;
         buff_ev->push_back(buff_event);
-        ev = NULL;
+        ev = nullptr;
         break;
       }
 
@@ -1078,7 +1079,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
         buff_event.event = ev;
         buff_event.event_pos = pos;
         buff_ev->push_back(buff_event);
-        ev = NULL;
+        ev = nullptr;
         break;
       }
       case binary_log::APPEND_BLOCK_EVENT:
@@ -1168,7 +1169,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           print_event_info->skipped_event_in_transaction = true;
           print_event_info->m_table_map_ignored.set_table(map->get_table_id(),
                                                           map);
-          ev = NULL;
+          ev = nullptr;
           goto end;
         }
       }
@@ -1182,7 +1183,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
       case binary_log::DELETE_ROWS_EVENT_V1:
       case binary_log::PARTIAL_UPDATE_ROWS_EVENT: {
         bool stmt_end = false;
-        Table_map_log_event *ignored_map = NULL;
+        Table_map_log_event *ignored_map = nullptr;
         if (ev_type == binary_log::WRITE_ROWS_EVENT ||
             ev_type == binary_log::DELETE_ROWS_EVENT ||
             ev_type == binary_log::UPDATE_ROWS_EVENT ||
@@ -1196,7 +1197,7 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
               new_ev->get_table_id());
         }
 
-        bool skip_event = (ignored_map != NULL);
+        bool skip_event = (ignored_map != nullptr);
         /*
           end of statement check:
           i) destroy/free ignored maps
@@ -1829,7 +1830,7 @@ static Exit_status safe_connect() {
     are mysql_closed at the end of program, explicitly.
   */
   mysql_close(mysql);
-  mysql = mysql_init(NULL);
+  mysql = mysql_init(nullptr);
 
   if (!mysql) {
     error("Failed on mysql_init.");
@@ -1983,7 +1984,7 @@ static Exit_status dump_multiple_logs(int argc, char **argv) {
 */
 static Exit_status check_master_version() {
   DBUG_ENTER("check_master_version");
-  MYSQL_RES *res = 0;
+  MYSQL_RES *res = nullptr;
   MYSQL_ROW row;
   const char *version;
 
@@ -2079,7 +2080,7 @@ class Destroy_log_event_guard {
   Log_event **ev_del;
   Destroy_log_event_guard(Log_event **ev_arg) { ev_del = ev_arg; }
   ~Destroy_log_event_guard() {
-    if (*ev_del != NULL) delete *ev_del;
+    if (*ev_del != nullptr) delete *ev_del;
   }
 };
 
@@ -2102,7 +2103,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   my_off_t old_off = start_position_mot;
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval = OK_CONTINUE;
-  char *event_buf = NULL;
+  char *event_buf = nullptr;
   ulong event_len;
 
   DBUG_ENTER("dump_remote_log_entries");
@@ -2150,10 +2151,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                    server_id,
                    get_dump_flags() | MYSQL_RPL_SKIP_HEARTBEAT,
                    0,
-                   NULL,
-                   NULL,
+                   nullptr,
+                   nullptr,
                    0,
-                   NULL};
+                   nullptr};
 
   if (opt_remote_proto != BINLOG_DUMP_NON_GTID) {
     rpl.flags |= MYSQL_RPL_GTID;
@@ -2185,7 +2186,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
 
     Log_event_type type = (Log_event_type)rpl.buffer[1 + EVENT_TYPE_OFFSET];
-    Log_event *ev = NULL;
+    Log_event *ev = nullptr;
     Destroy_log_event_guard del(&ev);
     event_len = rpl.size - 1;
     if (!(event_buf =
@@ -2315,7 +2316,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         // The event's deletion has been handled in process_event. To prevent
         // that Destroy_log_event_guard deletes it again, we have to set it to
         // NULL
-        ev = NULL;
+        ev = nullptr;
       }
 
       if (retval != OK_CONTINUE) DBUG_RETURN(retval);
@@ -2480,7 +2481,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
   Exit_status retval = OK_CONTINUE;
 
   ulong max_event_size = 0;
-  mysql_get_option(NULL, MYSQL_OPT_MAX_ALLOWED_PACKET, &max_event_size);
+  mysql_get_option(nullptr, MYSQL_OPT_MAX_ALLOWED_PACKET, &max_event_size);
   Mysqlbinlog_file_reader mysqlbinlog_file_reader(opt_verify_binlog_checksum,
                                                   max_event_size);
 
@@ -2504,7 +2505,7 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
     my_off_t old_off = mysqlbinlog_file_reader.position();
 
     Log_event *ev = mysqlbinlog_file_reader.read_event_object();
-    if (ev == NULL) {
+    if (ev == nullptr) {
       /*
         if binlog wasn't closed properly ("in use" flag is set) don't complain
         about a corruption, but treat it as EOF and move to the next binlog.
@@ -2559,13 +2560,13 @@ static int args_post_process(void) {
       DBUG_RETURN(ERROR_STOP);
     }
 
-    if (opt_include_gtids_str != NULL) {
+    if (opt_include_gtids_str != nullptr) {
       error("You cannot use --include-gtids and --raw together.");
       DBUG_RETURN(ERROR_STOP);
     }
 
     if (opt_remote_proto == BINLOG_DUMP_NON_GTID &&
-        opt_exclude_gtids_str != NULL) {
+        opt_exclude_gtids_str != nullptr) {
       error(
           "You cannot use both of --exclude-gtids and --raw together "
           "with one of --read-from-remote-server or "
@@ -2588,7 +2589,7 @@ static int args_post_process(void) {
 
   global_sid_lock->rdlock();
 
-  if (opt_include_gtids_str != NULL) {
+  if (opt_include_gtids_str != nullptr) {
     if (gtid_set_included->add_gtid_text(opt_include_gtids_str) !=
         RETURN_STATUS_OK) {
       error("Could not configure --include-gtids '%s'", opt_include_gtids_str);
@@ -2597,7 +2598,7 @@ static int args_post_process(void) {
     }
   }
 
-  if (opt_exclude_gtids_str != NULL) {
+  if (opt_exclude_gtids_str != nullptr) {
     if (gtid_set_excluded->add_gtid_text(opt_exclude_gtids_str) !=
         RETURN_STATUS_OK) {
       error("Could not configure --exclude-gtids '%s'", opt_exclude_gtids_str);
@@ -2628,10 +2629,10 @@ inline void gtid_client_cleanup() {
   delete global_sid_map;
   delete gtid_set_excluded;
   delete gtid_set_included;
-  global_sid_lock = NULL;
-  global_sid_map = NULL;
-  gtid_set_excluded = NULL;
-  gtid_set_included = NULL;
+  global_sid_lock = nullptr;
+  global_sid_map = nullptr;
+  gtid_set_excluded = nullptr;
+  gtid_set_included = nullptr;
 }
 
 /**

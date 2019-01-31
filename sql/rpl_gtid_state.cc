@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
   DBUG_ASSERT(thd->owned_gtid.sidno == 0);
   if (owned_gtids.add_gtid_owner(gtid, thd->thread_id()) != RETURN_STATUS_OK)
     goto err;
-  if (thd->get_gtid_next_list() != NULL) {
+  if (thd->get_gtid_next_list() != nullptr) {
 #ifdef HAVE_GTID_NEXT_LIST
     thd->owned_gtid_set._add_gtid(gtid);
     thd->owned_gtid.sidno = THD::OWNED_SIDNO_GTID_SET;
@@ -93,13 +93,13 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid) {
 #endif
   } else {
     thd->owned_gtid = gtid;
-    thd->owned_gtid.dbug_print(NULL, "set owned_gtid in acquire_ownership");
+    thd->owned_gtid.dbug_print(nullptr, "set owned_gtid in acquire_ownership");
     thd->owned_sid = sid_map->sidno_to_sid(gtid.sidno);
     thd->rpl_thd_ctx.last_used_gtid_tracker_ctx().set_last_used_gtid(gtid);
   }
   RETURN_OK;
 err:
-  if (thd->get_gtid_next_list() != NULL) {
+  if (thd->get_gtid_next_list() != nullptr) {
 #ifdef HAVE_GTID_NEXT_LIST
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g = git.get();
@@ -112,7 +112,7 @@ err:
 #endif
   }
   thd->clear_owned_gtids();
-  thd->owned_gtid.dbug_print(NULL,
+  thd->owned_gtid.dbug_print(nullptr,
                              "set owned_gtid (clear) in acquire_ownership");
   RETURN_REPORTED_ERROR;
 }
@@ -164,7 +164,7 @@ void Gtid_state::update_commit_group(THD *first_thd) {
 
   update_gtids_impl_lock_sidnos(first_thd);
 
-  for (THD *thd = first_thd; thd != NULL; thd = thd->next_to_commit) {
+  for (THD *thd = first_thd; thd != nullptr; thd = thd->next_to_commit) {
     bool is_commit = (thd->commit_error != THD::CE_COMMIT_ERROR);
 
     if (update_gtids_impl_do_nothing(thd) ||
@@ -239,7 +239,7 @@ void Gtid_state::update_gtids_impl(THD *thd, bool is_commit) {
 
   update_gtids_impl_end(thd, more_trx_with_same_gtid_next);
 
-  thd->owned_gtid.dbug_print(NULL,
+  thd->owned_gtid.dbug_print(nullptr,
                              "set owned_gtid (clear) in update_gtids_impl");
 
   DBUG_VOID_RETURN;
@@ -335,7 +335,7 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set *wait_for,
   bool verified = false;
 
   // The set of GTIDs that we are still waiting for.
-  Gtid_set todo(global_sid_map, NULL);
+  Gtid_set todo(global_sid_map, nullptr);
   // As an optimization, add 100 Intervals that do not need to be
   // allocated. This avoids allocation of these intervals.
   static const int preallocated_interval_count = 100;
@@ -361,7 +361,8 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set *wait_for,
         todo.remove_intervals_for_sidno(&executed_gtids, sidno);
 
         if (todo.contains_sidno(sidno)) {
-          bool ret = wait_for_sidno(thd, sidno, timeout > 0 ? &abstime : NULL);
+          bool ret =
+              wait_for_sidno(thd, sidno, timeout > 0 ? &abstime : nullptr);
 
           // wait_for_gtid will release both the global lock and the
           // mutex.  Acquire the global lock again.
@@ -426,7 +427,7 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const {
                          sidno == get_server_sidno() ? next_free_gno : 1};
   while (true) {
     const Gtid_set::Interval *iv = ivit.get();
-    rpl_gno next_interval_start = iv != NULL ? iv->start : MAX_GNO;
+    rpl_gno next_interval_start = iv != nullptr ? iv->start : MAX_GNO;
     while (next_candidate.gno < next_interval_start &&
            DBUG_EVALUATE_IF("simulate_gno_exhausted", false, true)) {
       DBUG_PRINT("debug",
@@ -435,7 +436,8 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const {
         DBUG_RETURN(next_candidate.gno);
       next_candidate.gno++;
     }
-    if (iv == NULL || DBUG_EVALUATE_IF("simulate_gno_exhausted", true, false)) {
+    if (iv == nullptr ||
+        DBUG_EVALUATE_IF("simulate_gno_exhausted", true, false)) {
       my_error(ER_GNO_EXHAUSTED, MYF(0));
       DBUG_RETURN(-1);
     }
@@ -466,7 +468,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(
   DBUG_ASSERT(specified_gno >= 0);
   DBUG_ASSERT(thd->owned_gtid.is_empty());
 
-  bool locked_sidno_was_passed_null = (locked_sidno == NULL);
+  bool locked_sidno_was_passed_null = (locked_sidno == nullptr);
 
   if (locked_sidno_was_passed_null)
     sid_lock->rdlock();
@@ -522,7 +524,7 @@ enum_return_status Gtid_state::generate_automatic_gtid(
     thd->owned_gtid.gno = 0;
     acquire_anonymous_ownership();
     thd->owned_gtid.dbug_print(
-        NULL, "set owned_gtid (anonymous) in generate_automatic_gtid");
+        nullptr, "set owned_gtid (anonymous) in generate_automatic_gtid");
   }
 
   /* The caller will unlock the sid_lock if locked_sidno was passed */
@@ -642,7 +644,7 @@ int Gtid_state::init() {
 
 int Gtid_state::save(THD *thd) {
   DBUG_ENTER("Gtid_state::save(THD *thd)");
-  DBUG_ASSERT(gtid_table_persistor != NULL);
+  DBUG_ASSERT(gtid_table_persistor != nullptr);
   DBUG_ASSERT(thd->owned_gtid.sidno > 0);
   int error = 0;
 
@@ -654,7 +656,7 @@ int Gtid_state::save(THD *thd) {
     */
     thd->clear_error();
     if (!thd->get_stmt_da()->is_set())
-      thd->get_stmt_da()->set_ok_status(0, 0, NULL);
+      thd->get_stmt_da()->set_ok_status(0, 0, nullptr);
   } else if (-1 == ret)
     error = -1;
 
@@ -675,8 +677,8 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation) {
     Use local Sid_map, so that we don't need a lock while inserting
     into the table.
   */
-  Sid_map sid_map(NULL);
-  Gtid_set logged_gtids_last_binlog(&sid_map, NULL);
+  Sid_map sid_map(nullptr);
+  Gtid_set logged_gtids_last_binlog(&sid_map, nullptr);
   // Allocate some intervals on stack to reduce allocation.
   static const int PREALLOCATED_INTERVAL_COUNT = 64;
   Gtid_set::Interval iv[PREALLOCATED_INTERVAL_COUNT];
@@ -772,7 +774,7 @@ void Gtid_state ::update_gtids_impl_own_gtid_set(
     thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtid_executed_update(thd);
 
   thd->variables.gtid_next.set_undefined();
-  thd->owned_gtid.dbug_print(NULL,
+  thd->owned_gtid.dbug_print(nullptr,
                              "set owned_gtid (clear; old was gtid_set) "
                              "in update_gtids_impl");
   thd->clear_owned_gtids();
@@ -789,7 +791,7 @@ void Gtid_state::update_gtids_impl_lock_sidno(rpl_sidno sidno) {
 
 void Gtid_state::update_gtids_impl_lock_sidnos(THD *first_thd) {
   /* Define which sidnos should be locked to be updated */
-  for (THD *thd = first_thd; thd != NULL; thd = thd->next_to_commit) {
+  for (THD *thd = first_thd; thd != nullptr; thd = thd->next_to_commit) {
     if (thd->owned_gtid.sidno > 0) {
       DBUG_PRINT("info",
                  ("Setting sidno %d to be locked", thd->owned_gtid.sidno));

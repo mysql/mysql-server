@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,7 @@ inline void commit_order_manager_check_deadlock(THD *thd_self,
   Commit_order_manager *mngr = self_w->get_commit_order_manager();
 
   /* Check if both workers are working for the same channel */
-  if (mngr != NULL && self_w->c_rli == wait_for_w->c_rli &&
+  if (mngr != nullptr && self_w->c_rli == wait_for_w->c_rli &&
       wait_for_w->sequence_number() > self_w->sequence_number()) {
     DBUG_PRINT("info", ("Found slave order commit deadlock"));
     mngr->report_deadlock(wait_for_w);

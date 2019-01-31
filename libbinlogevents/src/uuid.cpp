@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ int Uuid::parse(const char *string, size_t len) {
 
 int Uuid::parse(const char *in_string, size_t len,
                 const unsigned char *out_str) {
-  const unsigned char **p_out_str = out_str ? &out_str : NULL;
+  const unsigned char **p_out_str = out_str ? &out_str : nullptr;
 
   switch (len) {
     // UUID without dashes. ex 12345678123456781234567812345678
@@ -107,7 +107,7 @@ bool Uuid::read_section(int section_len, const char **section_str,
 }
 
 bool Uuid::is_valid(const char *s, size_t len) {
-  return parse(s, len, NULL) == 0;
+  return parse(s, len, nullptr) == 0;
 }
 
 size_t Uuid::to_string(const unsigned char *bytes_arg, char *buf) {

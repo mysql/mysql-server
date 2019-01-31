@@ -144,7 +144,8 @@ int register_slave(THD *thd, uchar *packet, size_t packet_length) {
   uchar *p = packet, *p_end = packet + packet_length;
   const char *errmsg = "Wrong parameters to function register_slave";
 
-  if (check_access(thd, REPL_SLAVE_ACL, any_db, NULL, NULL, 0, 0)) return 1;
+  if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, 0, 0))
+    return 1;
 
   unique_ptr_my_free<SLAVE_INFO> si((SLAVE_INFO *)my_malloc(
       key_memory_SLAVE_INFO, sizeof(SLAVE_INFO), MYF(MY_WME)));
@@ -933,7 +934,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long)pos);
-  mysql_binlog_send(thd, thd->mem_strdup(packet + 10), (my_off_t)pos, NULL,
+  mysql_binlog_send(thd, thd->mem_strdup(packet + 10), (my_off_t)pos, nullptr,
                     flags);
 
   unregister_slave(thd, true, true /*need_lock_slave_list=true*/);
@@ -956,11 +957,11 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   uint64 pos = 0;
   char name[FN_REFLEN + 1];
   uint32 name_size = 0;
-  char *gtid_string = NULL;
+  char *gtid_string = nullptr;
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
   Sid_map sid_map(
-      NULL /*no sid_lock because this is a completely local object*/);
+      nullptr /*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
   DBUG_ASSERT(!thd->status_var_aggregated);
@@ -1017,20 +1018,20 @@ void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
   @return       if success value is returned else NULL is returned.
 */
 String *get_slave_uuid(THD *thd, String *value) {
-  if (value == NULL) return NULL;
+  if (value == nullptr) return nullptr;
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
   const auto it = thd->user_vars.find("slave_uuid");
   if (it != thd->user_vars.end() && it->second->length() > 0) {
-    value->copy(it->second->ptr(), it->second->length(), NULL);
+    value->copy(it->second->ptr(), it->second->length(), nullptr);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return value;
   }
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return NULL;
+  return nullptr;
 }
 
 /**
@@ -1203,7 +1204,7 @@ end:
 */
 bool show_master_status(THD *thd) {
   Protocol *protocol = thd->get_protocol();
-  char *gtid_set_buffer = NULL;
+  char *gtid_set_buffer = nullptr;
   int gtid_set_size = 0;
   List<Item> field_list;
 

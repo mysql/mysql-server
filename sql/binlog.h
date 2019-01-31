@@ -95,7 +95,7 @@ class Stage_manager {
     friend class Stage_manager;
 
    public:
-    Mutex_queue() : m_first(NULL), m_last(&m_first), m_size(0) {}
+    Mutex_queue() : m_first(nullptr), m_last(&m_first), m_size(0) {}
 
     void init(PSI_mutex_key key_LOCK_queue) {
       mysql_mutex_init(key_LOCK_queue, &m_lock, MY_MUTEX_INIT_FAST);
@@ -103,7 +103,7 @@ class Stage_manager {
 
     void deinit() { mysql_mutex_destroy(&m_lock); }
 
-    bool is_empty() const { return m_first == NULL; }
+    bool is_empty() const { return m_first == nullptr; }
 
     /**
       Append a linked list of threads to the queue.

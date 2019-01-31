@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -570,13 +570,13 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
  public:
   /** Constructor.  */
   Sql_cmd_change_repl_filter()
-      : do_db_list(NULL),
-        ignore_db_list(NULL),
-        do_table_list(NULL),
-        ignore_table_list(NULL),
-        wild_do_table_list(NULL),
-        wild_ignore_table_list(NULL),
-        rewrite_db_pair_list(NULL) {}
+      : do_db_list(nullptr),
+        ignore_db_list(nullptr),
+        do_table_list(nullptr),
+        ignore_table_list(nullptr),
+        wild_do_table_list(nullptr),
+        wild_ignore_table_list(nullptr),
+        rewrite_db_pair_list(nullptr) {}
 
   ~Sql_cmd_change_repl_filter() {}
 

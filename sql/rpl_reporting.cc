@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,7 +103,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
       case ER_GET_TEMPORARY_ERRMSG:
         DBUG_RETURN(1);
       case ER_SLAVE_SILENT_RETRY_TRANSACTION: {
-        if (silent != NULL) *silent = true;
+        if (silent != nullptr) *silent = true;
         DBUG_RETURN(1);
       }
       default:

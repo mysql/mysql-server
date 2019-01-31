@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,20 +33,20 @@
 #include "sql/system_variables.h"
 
 Session_consistency_gtids_ctx::Session_consistency_gtids_ctx()
-    : m_sid_map(NULL),
-      m_gtid_set(NULL),
-      m_listener(NULL),
+    : m_sid_map(nullptr),
+      m_gtid_set(nullptr),
+      m_listener(nullptr),
       m_curr_session_track_gtids(OFF) {}
 
 Session_consistency_gtids_ctx::~Session_consistency_gtids_ctx() {
   if (m_gtid_set) {
     delete m_gtid_set;
-    m_gtid_set = NULL;
+    m_gtid_set = nullptr;
   }
 
   if (m_sid_map) {
     delete m_sid_map;
-    m_sid_map = NULL;
+    m_sid_map = nullptr;
   }
 }
 
@@ -55,7 +55,7 @@ inline bool Session_consistency_gtids_ctx::shall_collect(const THD *thd) {
             (non-anonymous) GTID. */
       (thd->owned_gtid.sidno > 0 || m_curr_session_track_gtids == ALL_GTIDS) &&
       /* if there is no listener/tracker, then there is no reason to collect */
-      m_listener != NULL &&
+      m_listener != nullptr &&
       /* ROLLBACK statements may end up calling trans_commit_stmt */
       thd->lex->sql_command != SQLCOM_ROLLBACK &&
       thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT;
@@ -148,11 +148,11 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
 
 void Session_consistency_gtids_ctx::register_ctx_change_listener(
     Session_consistency_gtids_ctx::Ctx_change_listener *listener, THD *thd) {
-  DBUG_ASSERT(m_listener == NULL || m_listener == listener);
-  if (m_listener == NULL) {
-    DBUG_ASSERT(m_sid_map == NULL && m_gtid_set == NULL);
+  DBUG_ASSERT(m_listener == nullptr || m_listener == listener);
+  if (m_listener == nullptr) {
+    DBUG_ASSERT(m_sid_map == nullptr && m_gtid_set == nullptr);
     m_listener = listener;
-    m_sid_map = new Sid_map(NULL);
+    m_sid_map = new Sid_map(nullptr);
     m_gtid_set = new Gtid_set(m_sid_map);
 
     /*
@@ -167,15 +167,15 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
     Session_consistency_gtids_ctx::Ctx_change_listener *listener
         MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(m_listener == listener || m_listener == NULL);
+  DBUG_ASSERT(m_listener == listener || m_listener == nullptr);
 
   if (m_gtid_set) delete m_gtid_set;
 
   if (m_sid_map) delete m_sid_map;
 
-  m_listener = NULL;
-  m_gtid_set = NULL;
-  m_sid_map = NULL;
+  m_listener = nullptr;
+  m_gtid_set = nullptr;
+  m_sid_map = nullptr;
 }
 
 Last_used_gtid_tracker_ctx::Last_used_gtid_tracker_ctx() {

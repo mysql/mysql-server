@@ -168,7 +168,7 @@ Master_info::Master_info(
       master_id(0),
       checksum_alg_before_fd(binary_log::BINLOG_CHECKSUM_ALG_UNDEF),
       retry_count(master_retry_count),
-      mi_description_event(NULL),
+      mi_description_event(nullptr),
       auto_position(false),
       reset(false) {
   host[0] = 0;
@@ -385,7 +385,7 @@ int Master_info::mi_init_info() {
 
   if (inited) DBUG_RETURN(0);
 
-  mysql = 0;
+  mysql = nullptr;
   file_id = 1;
   if ((check_return = check_info()) == ERROR_CHECKING_REPOSITORY) goto err;
 
@@ -425,7 +425,7 @@ const uint *Master_info::get_table_pk_field_indexes() {
 
 bool Master_info::read_info(Rpl_info_handler *from) {
   int lines = 0;
-  char *first_non_digit = NULL;
+  char *first_non_digit = nullptr;
   ulong temp_master_log_pos = 0;
   int temp_ssl = 0;
   int temp_ssl_verify_server_cert = 0;
@@ -520,7 +520,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS) {
-    if (from->get_info(ignore_server_ids, (Server_ids *)NULL))
+    if (from->get_info(ignore_server_ids, (Server_ids *)nullptr))
       DBUG_RETURN(true);
   }
 
@@ -664,7 +664,7 @@ void Master_info::channel_wrlock() {
 }
 
 void Master_info::wait_until_no_reference(THD *thd) {
-  PSI_stage_info *old_stage = NULL;
+  PSI_stage_info *old_stage = nullptr;
 
   thd->enter_stage(&stage_waiting_for_no_channel_reference, old_stage, __func__,
                    __FILE__, __LINE__);

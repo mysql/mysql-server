@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -175,7 +175,7 @@ void mysql_client_binlog_statement(THD *thd) {
     }
   }
 
-  const char *error = 0;
+  const char *error = nullptr;
   char *buf = (char *)my_malloc(key_memory_binlog_statement_buffer, decoded_len,
                                 MYF(MY_WME));
   Log_event *ev = nullptr;
@@ -193,7 +193,7 @@ void mysql_client_binlog_statement(THD *thd) {
   for (char const *strptr = thd->lex->binlog_stmt_arg.str;
        strptr <
        thd->lex->binlog_stmt_arg.str + thd->lex->binlog_stmt_arg.length;) {
-    char const *endptr = 0;
+    char const *endptr = nullptr;
     int64 bytes_decoded = base64_decode(strptr, coded_len, buf, &endptr,
                                         MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 

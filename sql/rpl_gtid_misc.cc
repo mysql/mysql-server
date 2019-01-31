@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,14 +54,14 @@ struct mysql_mutex_t;
 #endif
 
 // Todo: move other global gtid variable declarations here.
-Checkable_rwlock *gtid_mode_lock = NULL;
+Checkable_rwlock *gtid_mode_lock = nullptr;
 std::atomic<ulong> gtid_mode_counter;
 
 ulong _gtid_mode;
 const char *gtid_mode_names[] = {"OFF", "OFF_PERMISSIVE", "ON_PERMISSIVE", "ON",
                                  NullS};
 TYPELIB gtid_mode_typelib = {array_elements(gtid_mode_names) - 1, "",
-                             gtid_mode_names, NULL};
+                             gtid_mode_names, nullptr};
 
 #ifdef MYSQL_SERVER
 enum_gtid_mode get_gtid_mode(enum_gtid_mode_lock have_lock) {
@@ -99,7 +99,7 @@ ulong _gtid_consistency_mode;
 const char *gtid_consistency_mode_names[] = {"OFF", "ON", "WARN", NullS};
 TYPELIB gtid_consistency_mode_typelib = {
     array_elements(gtid_consistency_mode_names) - 1, "",
-    gtid_consistency_mode_names, NULL};
+    gtid_consistency_mode_names, nullptr};
 
 #ifdef MYSQL_SERVER
 enum_gtid_consistency_mode get_gtid_consistency_mode() {
@@ -167,7 +167,7 @@ int Gtid::to_string(const rpl_sid &sid, char *buf) const {
 int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
   DBUG_ENTER("Gtid::to_string");
   int ret;
-  if (sid_map != NULL) {
+  if (sid_map != nullptr) {
     Checkable_rwlock *lock = sid_map->get_sid_lock();
     if (lock) {
       if (need_lock)
@@ -242,7 +242,7 @@ void check_return_status(enum_return_status status, const char *action,
         assert in this case. We assert that diagnostic area logged the error
         outside server startup since the assert is realy useful.
      */
-      DBUG_ASSERT(thd == NULL ||
+      DBUG_ASSERT(thd == nullptr ||
                   thd->get_stmt_da()->status() == Diagnostics_area::DA_ERROR ||
                   (thd->get_stmt_da()->status() == Diagnostics_area::DA_EMPTY &&
                    thd->system_thread == SYSTEM_THREAD_COMPRESS_GTID_TABLE));
@@ -416,7 +416,7 @@ Gtid_monitoring_info::~Gtid_monitoring_info() {
 }
 
 void Gtid_monitoring_info::atomic_lock() {
-  if (atomic_mutex == NULL) {
+  if (atomic_mutex == nullptr) {
     bool expected = false;
     while (!atomic_locked.compare_exchange_weak(expected, true)) {
       /*
@@ -441,7 +441,7 @@ void Gtid_monitoring_info::atomic_lock() {
 }
 
 void Gtid_monitoring_info::atomic_unlock() {
-  if (atomic_mutex == NULL) {
+  if (atomic_mutex == nullptr) {
 #ifndef DBUG_OFF
     DBUG_ASSERT(is_locked);
     is_locked = false;
@@ -549,7 +549,7 @@ const Gtid *Gtid_monitoring_info::get_processing_trx_gtid() {
   /*
     This function is only called by relay log recovery/queuing.
   */
-  DBUG_ASSERT(atomic_mutex != NULL);
+  DBUG_ASSERT(atomic_mutex != nullptr);
   mysql_mutex_assert_owner(atomic_mutex);
   return &processing_trx->gtid;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,7 +164,7 @@ inline void *bapi_memdup(const void *source, size_t len) {
   @return Void pointer to the allocated chunk of memory
 */
 inline void *bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused))) {
-  void *dest = NULL;
+  void *dest = nullptr;
 #ifdef HAVE_MYSYS
   dest = my_malloc(key_memory_log_event, size, MYF(flags));
 #else

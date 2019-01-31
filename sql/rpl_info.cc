@@ -50,12 +50,12 @@ Rpl_info::Rpl_info(const char *type,
       key_info_stop_cond(param_key_info_stop_cond),
       key_info_sleep_cond(param_key_info_sleep_cond),
 #endif
-      info_thd(0),
+      info_thd(nullptr),
       inited(0),
       abort_slave(0),
       slave_running(0),
       slave_run_id(0),
-      handler(0),
+      handler(nullptr),
       internal_id(param_id) {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_init(*key_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);

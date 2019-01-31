@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ bool Binlog_cache_storage::open(my_off_t cache_size, my_off_t max_cache_size) {
 }
 
 void Binlog_cache_storage::close() {
-  m_pipeline_head = NULL;
+  m_pipeline_head = nullptr;
   m_file.close();
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #include "sql_string.h"  // String
 
 Rpl_info_values::Rpl_info_values(int param_ninfo)
-    : value(0), ninfo(param_ninfo) {}
+    : value(nullptr), ninfo(param_ninfo) {}
 
 /**
   Initializes a sequence of values to be read from or stored into a repository.

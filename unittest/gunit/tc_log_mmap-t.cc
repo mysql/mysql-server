@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ class TC_LOG_MMAP_no_msync : public TC_LOG_MMAP {
 
 class TCLogMMapTest : public ::testing::Test {
  public:
-  TCLogMMapTest() : tc_log_mmap(NULL) {}
+  TCLogMMapTest() : tc_log_mmap(nullptr) {}
 
   virtual void SetUp() {
     initializer.SetUp();
@@ -130,7 +130,10 @@ TEST_F(TCLogMMapTest, TClogCommit) {
 class TC_Log_MMap_thread : public thread::Thread {
  public:
   TC_Log_MMap_thread()
-      : m_start_xid(0), m_end_xid(0), m_tc_log_mmap(NULL), initializer(NULL) {}
+      : m_start_xid(0),
+        m_end_xid(0),
+        m_tc_log_mmap(nullptr),
+        initializer(nullptr) {}
 
   ~TC_Log_MMap_thread() {
     initializer->TearDown();

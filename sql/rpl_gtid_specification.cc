@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 enum_return_status Gtid_specification::parse(Sid_map *sid_map,
                                              const char *text) {
   DBUG_ENTER("Gtid_specification::parse");
-  DBUG_ASSERT(text != NULL);
+  DBUG_ASSERT(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0) {
     type = AUTOMATIC_GTID;
     gtid.sidno = 0;
@@ -51,7 +51,7 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map,
 
 bool Gtid_specification::is_valid(const char *text) {
   DBUG_ENTER("Gtid_specification::is_valid");
-  DBUG_ASSERT(text != NULL);
+  DBUG_ASSERT(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
     DBUG_RETURN(true);
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
@@ -95,6 +95,6 @@ int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,
                                   bool need_lock) const {
   return to_string(type == ASSIGNED_GTID || type == UNDEFINED_GTID
                        ? &sid_map->sidno_to_sid(gtid.sidno, need_lock)
-                       : NULL,
+                       : nullptr,
                    buf);
 }
