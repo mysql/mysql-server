@@ -68,9 +68,10 @@ static PSI_rwlock_key key_MDL_lock_rwlock;
 static PSI_rwlock_key key_MDL_context_LOCK_waiting_for;
 
 static PSI_rwlock_info all_mdl_rwlocks[] = {
-    {&key_MDL_lock_rwlock, "MDL_lock::rwlock", 0, 0, PSI_DOCUMENT_ME},
-    {&key_MDL_context_LOCK_waiting_for, "MDL_context::LOCK_waiting_for", 0, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_MDL_lock_rwlock, "MDL_lock::rwlock", PSI_FLAG_RWLOCK_PR, 0,
+     PSI_DOCUMENT_ME},
+    {&key_MDL_context_LOCK_waiting_for, "MDL_context::LOCK_waiting_for",
+     PSI_FLAG_RWLOCK_PR, 0, PSI_DOCUMENT_ME}};
 
 static PSI_cond_key key_MDL_wait_COND_wait_status;
 

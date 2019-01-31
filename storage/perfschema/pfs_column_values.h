@@ -37,6 +37,8 @@ extern LEX_STRING PERFORMANCE_SCHEMA_str;
 
 /** String prefix for all mutex instruments. */
 extern LEX_STRING mutex_instrument_prefix;
+/** String prefix for all prlock instruments. */
+extern LEX_STRING prlock_instrument_prefix;
 /** String prefix for all rwlock instruments. */
 extern LEX_STRING rwlock_instrument_prefix;
 /** String prefix for all sxlock instruments. */

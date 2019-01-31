@@ -697,6 +697,7 @@ static const LEX_STRING operation_names_map[] = {
     {C_STRING_WITH_LEN("write_lock")},
     {C_STRING_WITH_LEN("try_read_lock")},
     {C_STRING_WITH_LEN("try_write_lock")},
+    {C_STRING_WITH_LEN("unlock")},
 
     /* RWLock operations (SX-lock) */
     {C_STRING_WITH_LEN("shared_lock")},
@@ -705,6 +706,9 @@ static const LEX_STRING operation_names_map[] = {
     {C_STRING_WITH_LEN("try_shared_lock")},
     {C_STRING_WITH_LEN("try_shared_exclusive_lock")},
     {C_STRING_WITH_LEN("try_exclusive_lock")},
+    {C_STRING_WITH_LEN("shared_unlock")},
+    {C_STRING_WITH_LEN("shared_exclusive_unlock")},
+    {C_STRING_WITH_LEN("exclusive_unlock")},
 
     /* Condition operations */
     {C_STRING_WITH_LEN("wait")},

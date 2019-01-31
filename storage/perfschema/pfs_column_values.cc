@@ -32,6 +32,8 @@ LEX_STRING PERFORMANCE_SCHEMA_str = {C_STRING_WITH_LEN("performance_schema")};
 
 LEX_STRING mutex_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/mutex")};
 
+LEX_STRING prlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/prlock")};
+
 LEX_STRING rwlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/rwlock")};
 
 LEX_STRING sxlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/sxlock")};

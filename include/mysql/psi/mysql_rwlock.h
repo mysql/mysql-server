@@ -496,7 +496,7 @@ static inline int inline_mysql_rwlock_unlock(
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi);
+    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
   }
 #endif
   result = native_rw_unlock(&that->m_rwlock);
@@ -510,7 +510,7 @@ static inline int inline_mysql_prlock_unlock(
   int result;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
   if (that->m_psi != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi);
+    PSI_RWLOCK_CALL(unlock_rwlock)(that->m_psi, PSI_RWLOCK_UNLOCK);
   }
 #endif
   result = rw_pr_unlock(&that->m_prlock);

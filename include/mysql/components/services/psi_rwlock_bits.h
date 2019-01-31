@@ -43,16 +43,23 @@ typedef unsigned int PSI_rwlock_key;
 /**
   @def PSI_RWLOCK_VERSION_1
   Performance Schema Rwlock Interface number for version 1.
-  This version is supported.
+  This version is obsolete.
 */
 #define PSI_RWLOCK_VERSION_1 1
 
 /**
+  @def PSI_RWLOCK_VERSION_2
+  Performance Schema Rwlock Interface number for version 2.
+  This version is supported.
+*/
+#define PSI_RWLOCK_VERSION_2 2
+
+/**
   @def PSI_CURRENT_RWLOCK_VERSION
   Performance Schema Rwlock Interface number for the most recent version.
-  The most current version is @c PSI_RWLOCK_VERSION_1
+  The most current version is @c PSI_RWLOCK_VERSION_2
 */
-#define PSI_CURRENT_RWLOCK_VERSION 1
+#define PSI_CURRENT_RWLOCK_VERSION 2
 
 /**
   Interface for an instrumented rwlock.
@@ -67,6 +74,12 @@ typedef struct PSI_rwlock PSI_rwlock;
 */
 struct PSI_rwlock_locker;
 typedef struct PSI_rwlock_locker PSI_rwlock_locker;
+
+#if 0
+/*
+  Keeping the original version 1 definition in the source,
+  in case we ever need to provide support for version 1.
+*/
 
 /**
   Operation performed on an instrumented rwlock.
@@ -96,7 +109,45 @@ enum PSI_rwlock_operation {
   PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 8,
   /** Exclusive lock attempt. */
   PSI_RWLOCK_TRYEXCLUSIVELOCK = 9
+};
+#endif
 
+/**
+  Operation performed on an instrumented rwlock.
+  For basic READ / WRITE lock,
+  operations are "READ" or "WRITE".
+  For SX-locks, operations are "SHARED", "SHARED-EXCLUSIVE" or "EXCLUSIVE".
+*/
+enum PSI_rwlock_operation {
+  /** Read lock. */
+  PSI_RWLOCK_READLOCK = 0,
+  /** Write lock. */
+  PSI_RWLOCK_WRITELOCK = 1,
+  /** Read lock attempt. */
+  PSI_RWLOCK_TRYREADLOCK = 2,
+  /** Write lock attempt. */
+  PSI_RWLOCK_TRYWRITELOCK = 3,
+  /** Unlock (Read or Write). */
+  PSI_RWLOCK_UNLOCK = 4,
+
+  /** Shared lock. */
+  PSI_RWLOCK_SHAREDLOCK = 5,
+  /** Shared Exclusive lock. */
+  PSI_RWLOCK_SHAREDEXCLUSIVELOCK = 6,
+  /** Exclusive lock. */
+  PSI_RWLOCK_EXCLUSIVELOCK = 7,
+  /** Shared lock attempt. */
+  PSI_RWLOCK_TRYSHAREDLOCK = 8,
+  /** Shared Exclusive lock attempt. */
+  PSI_RWLOCK_TRYSHAREDEXCLUSIVELOCK = 9,
+  /** Exclusive lock attempt. */
+  PSI_RWLOCK_TRYEXCLUSIVELOCK = 10,
+  /** Unlock a shared lock. */
+  PSI_RWLOCK_SHAREDUNLOCK = 11,
+  /** Unlock a shared exclusive lock. */
+  PSI_RWLOCK_SHAREDEXCLUSIVEUNLOCK = 12,
+  /** Unlock an exclusive lock. */
+  PSI_RWLOCK_EXCLUSIVEUNLOCK = 13
 };
 typedef enum PSI_rwlock_operation PSI_rwlock_operation;
 
@@ -227,6 +278,14 @@ typedef void (*end_rwlock_wrwait_v1_t)(struct PSI_rwlock_locker *locker,
   @param rwlock the rwlock instrumentation
 */
 typedef void (*unlock_rwlock_v1_t)(struct PSI_rwlock *rwlock);
+
+/**
+  Record a rwlock instrumentation unlock event.
+  @param rwlock the rwlock instrumentation
+  @param op the unlock operation performed
+*/
+typedef void (*unlock_rwlock_v2_t)(struct PSI_rwlock *rwlock,
+                                   enum PSI_rwlock_operation op);
 
 typedef struct PSI_rwlock_info_v1 PSI_rwlock_info;
 typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state;

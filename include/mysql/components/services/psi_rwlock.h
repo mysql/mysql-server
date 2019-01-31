@@ -26,8 +26,8 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_rwlock_service.h>
 
-REQUIRES_SERVICE_PLACEHOLDER(psi_rwlock_v1);
+REQUIRES_SERVICE_PLACEHOLDER(psi_rwlock_v2);
 
-#define PSI_RWLOCK_CALL(M) mysql_service_psi_rwlock_v1->M
+#define PSI_RWLOCK_CALL(M) mysql_service_psi_rwlock_v2->M
 
 #endif /* COMPONENTS_SERVICES_PSI_RWLOCK_H */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -206,11 +206,11 @@ static void test_psi_rwlock_part_1() {
   }
 
   if (psi_rwlock_s1 != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s1);
+    PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s1, PSI_RWLOCK_SHAREDUNLOCK);
   }
 
   if (psi_rwlock_s2 != NULL) {
-    PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s2);
+    PSI_RWLOCK_CALL(unlock_rwlock)(psi_rwlock_s2, PSI_RWLOCK_EXCLUSIVEUNLOCK);
   }
 }
 

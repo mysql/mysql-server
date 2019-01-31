@@ -1589,8 +1589,8 @@ PSI_DATA_LOCK_CALL(unregister_data_lock)(...)
 @endverbatim
 
   Implemented as:
-  - [1] #pfs_start_rwlock_rdwait_v1(), #pfs_end_rwlock_rdwait_v1(), ...
-  - [2] #pfs_destroy_rwlock_v1()
+  - [1] #pfs_start_rwlock_rdwait_v2(), #pfs_end_rwlock_rdwait_v2(), ...
+  - [2] #pfs_destroy_rwlock_v2()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -2111,6 +2111,7 @@ static enum_operation_type rwlock_operation_map[] = {
     OPERATION_TYPE_WRITELOCK,
     OPERATION_TYPE_TRYREADLOCK,
     OPERATION_TYPE_TRYWRITELOCK,
+    OPERATION_TYPE_UNLOCK,
 
     OPERATION_TYPE_SHAREDLOCK,
     OPERATION_TYPE_SHAREDEXCLUSIVELOCK,
@@ -2118,7 +2119,9 @@ static enum_operation_type rwlock_operation_map[] = {
     OPERATION_TYPE_TRYSHAREDLOCK,
     OPERATION_TYPE_TRYSHAREDEXCLUSIVELOCK,
     OPERATION_TYPE_TRYEXCLUSIVELOCK,
-};
+    OPERATION_TYPE_SHAREDUNLOCK,
+    OPERATION_TYPE_SHAREDEXCLUSIVEUNLOCK,
+    OPERATION_TYPE_EXCLUSIVEUNLOCK};
 
 /**
   Conversion map from PSI_cond_operation to enum_operation_type.
@@ -2276,13 +2279,15 @@ void pfs_register_mutex_v1(const char *category, PSI_mutex_info_v1 *info,
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::register_rwlock.
+  @sa PSI_v2::register_rwlock.
 */
-void pfs_register_rwlock_v1(const char *category, PSI_rwlock_info_v1 *info,
+void pfs_register_rwlock_v2(const char *category, PSI_rwlock_info_v1 *info,
                             int count) {
   PSI_rwlock_key key;
+  char pr_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
   char rw_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
   char sx_formatted_name[PFS_MAX_INFO_NAME_LENGTH];
+  size_t pr_prefix_length;
   size_t rw_prefix_length;
   size_t sx_prefix_length;
   size_t len;
@@ -2290,7 +2295,9 @@ void pfs_register_rwlock_v1(const char *category, PSI_rwlock_info_v1 *info,
 
   DBUG_ASSERT(category != NULL);
   DBUG_ASSERT(info != NULL);
-  if (build_prefix(&rwlock_instrument_prefix, category, rw_formatted_name,
+  if (build_prefix(&prlock_instrument_prefix, category, pr_formatted_name,
+                   &pr_prefix_length) ||
+      build_prefix(&rwlock_instrument_prefix, category, rw_formatted_name,
                    &rw_prefix_length) ||
       build_prefix(&sxlock_instrument_prefix, category, sx_formatted_name,
                    &sx_prefix_length) ||
@@ -2313,7 +2320,18 @@ void pfs_register_rwlock_v1(const char *category, PSI_rwlock_info_v1 *info,
         key = register_rwlock_class(sx_formatted_name, (uint)full_length, info);
       } else {
         pfs_print_error(
-            "pfs_register_rwlock_v1: (sx) name too long <%s> <%s>\n", category,
+            "pfs_register_rwlock_v2: (sx) name too long <%s> <%s>\n", category,
+            info->m_name);
+        key = 0;
+      }
+    } else if (info->m_flags & PSI_FLAG_RWLOCK_PR) {
+      full_length = pr_prefix_length + len;
+      if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH)) {
+        memcpy(pr_formatted_name + pr_prefix_length, info->m_name, len);
+        key = register_rwlock_class(pr_formatted_name, (uint)full_length, info);
+      } else {
+        pfs_print_error(
+            "pfs_register_rwlock_v2: (pr) name too long <%s> <%s>\n", category,
             info->m_name);
         key = 0;
       }
@@ -2324,7 +2342,7 @@ void pfs_register_rwlock_v1(const char *category, PSI_rwlock_info_v1 *info,
         key = register_rwlock_class(rw_formatted_name, (uint)full_length, info);
       } else {
         pfs_print_error(
-            "pfs_register_rwlock_v1: (rw) name too long <%s> <%s>\n", category,
+            "pfs_register_rwlock_v2: (rw) name too long <%s> <%s>\n", category,
             info->m_name);
         key = 0;
       }
@@ -2471,9 +2489,9 @@ void pfs_destroy_mutex_v1(PSI_mutex *mutex) {
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::init_rwlock.
+  @sa PSI_v2::init_rwlock.
 */
-PSI_rwlock *pfs_init_rwlock_v1(PSI_rwlock_key key, const void *identity) {
+PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key key, const void *identity) {
   PFS_rwlock_class *klass;
   PFS_rwlock *pfs;
   klass = find_rwlock_class(key);
@@ -2486,9 +2504,9 @@ PSI_rwlock *pfs_init_rwlock_v1(PSI_rwlock_key key, const void *identity) {
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::destroy_rwlock.
+  @sa PSI_v2::destroy_rwlock.
 */
-void pfs_destroy_rwlock_v1(PSI_rwlock *rwlock) {
+void pfs_destroy_rwlock_v2(PSI_rwlock *rwlock) {
   PFS_rwlock *pfs = reinterpret_cast<PFS_rwlock *>(rwlock);
 
   DBUG_ASSERT(pfs != NULL);
@@ -3540,10 +3558,10 @@ PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::start_rwlock_rdwait
-  @sa PSI_v1::start_rwlock_wrwait
+  @sa PSI_v2::start_rwlock_rdwait
+  @sa PSI_v2::start_rwlock_wrwait
 */
-static PSI_rwlock_locker *pfs_start_rwlock_wait_v1(
+static PSI_rwlock_locker *pfs_start_rwlock_wait_v2(
     PSI_rwlock_locker_state *state, PSI_rwlock *rwlock, PSI_rwlock_operation op,
     const char *src_file, uint src_line) {
   PFS_rwlock *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
@@ -3644,7 +3662,7 @@ static PSI_rwlock_locker *pfs_start_rwlock_wait_v1(
   return reinterpret_cast<PSI_rwlock_locker *>(state);
 }
 
-PSI_rwlock_locker *pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
+PSI_rwlock_locker *pfs_start_rwlock_rdwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock *rwlock,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
@@ -3653,10 +3671,10 @@ PSI_rwlock_locker *pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state *state,
               (op == PSI_RWLOCK_SHAREDLOCK) ||
               (op == PSI_RWLOCK_TRYSHAREDLOCK));
 
-  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
+  return pfs_start_rwlock_wait_v2(state, rwlock, op, src_file, src_line);
 }
 
-PSI_rwlock_locker *pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state *state,
+PSI_rwlock_locker *pfs_start_rwlock_wrwait_v2(PSI_rwlock_locker_state *state,
                                               PSI_rwlock *rwlock,
                                               PSI_rwlock_operation op,
                                               const char *src_file,
@@ -3667,7 +3685,7 @@ PSI_rwlock_locker *pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state *state,
               (op == PSI_RWLOCK_EXCLUSIVELOCK) ||
               (op == PSI_RWLOCK_TRYEXCLUSIVELOCK));
 
-  return pfs_start_rwlock_wait_v1(state, rwlock, op, src_file, src_line);
+  return pfs_start_rwlock_wait_v2(state, rwlock, op, src_file, src_line);
 }
 
 /**
@@ -4454,7 +4472,8 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   Implementation of the rwlock instrumentation interface.
   @sa PSI_v1::unlock_rwlock.
 */
-void pfs_unlock_rwlock_v1(PSI_rwlock *rwlock) {
+void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
+                          PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
   PFS_rwlock *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
   DBUG_ASSERT(pfs_rwlock != NULL);
   DBUG_ASSERT(pfs_rwlock == sanitize_rwlock(pfs_rwlock));
@@ -4762,9 +4781,9 @@ void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc) {
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::end_rwlock_rdwait.
+  @sa PSI_v2::end_rwlock_rdwait.
 */
-void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker *locker, int rc) {
+void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc) {
   PSI_rwlock_locker_state *state =
       reinterpret_cast<PSI_rwlock_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
@@ -4838,9 +4857,9 @@ void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker *locker, int rc) {
 
 /**
   Implementation of the rwlock instrumentation interface.
-  @sa PSI_v1::end_rwlock_wrwait.
+  @sa PSI_v2::end_rwlock_wrwait.
 */
-void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker *locker, int rc) {
+void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc) {
   PSI_rwlock_locker_state *state =
       reinterpret_cast<PSI_rwlock_locker_state *>(locker);
   DBUG_ASSERT(state != NULL);
@@ -7996,20 +8015,20 @@ SERVICE_IMPLEMENTATION(performance_schema, psi_mutex_v1) = {
     pfs_register_mutex_v1,   pfs_init_mutex_v1,     pfs_destroy_mutex_v1,
     pfs_start_mutex_wait_v1, pfs_end_mutex_wait_v1, pfs_unlock_mutex_v1};
 
-PSI_rwlock_service_v1 pfs_rwlock_service_v1 = {
+PSI_rwlock_service_v2 pfs_rwlock_service_v2 = {
     /* Old interface, for plugins. */
-    pfs_register_rwlock_v1,   pfs_init_rwlock_v1,
-    pfs_destroy_rwlock_v1,    pfs_start_rwlock_rdwait_v1,
-    pfs_end_rwlock_rdwait_v1, pfs_start_rwlock_wrwait_v1,
-    pfs_end_rwlock_wrwait_v1, pfs_unlock_rwlock_v1};
+    pfs_register_rwlock_v2,   pfs_init_rwlock_v2,
+    pfs_destroy_rwlock_v2,    pfs_start_rwlock_rdwait_v2,
+    pfs_end_rwlock_rdwait_v2, pfs_start_rwlock_wrwait_v2,
+    pfs_end_rwlock_wrwait_v2, pfs_unlock_rwlock_v2};
 
-SERVICE_TYPE(psi_rwlock_v1)
-SERVICE_IMPLEMENTATION(performance_schema, psi_rwlock_v1) = {
+SERVICE_TYPE(psi_rwlock_v2)
+SERVICE_IMPLEMENTATION(performance_schema, psi_rwlock_v2) = {
     /* New interface, for components. */
-    pfs_register_rwlock_v1,   pfs_init_rwlock_v1,
-    pfs_destroy_rwlock_v1,    pfs_start_rwlock_rdwait_v1,
-    pfs_end_rwlock_rdwait_v1, pfs_start_rwlock_wrwait_v1,
-    pfs_end_rwlock_wrwait_v1, pfs_unlock_rwlock_v1};
+    pfs_register_rwlock_v2,   pfs_init_rwlock_v2,
+    pfs_destroy_rwlock_v2,    pfs_start_rwlock_rdwait_v2,
+    pfs_end_rwlock_rdwait_v2, pfs_start_rwlock_wrwait_v2,
+    pfs_end_rwlock_wrwait_v2, pfs_unlock_rwlock_v2};
 
 PSI_cond_service_v1 pfs_cond_service_v1 = {
     /* Old interface, for plugins. */
@@ -8324,7 +8343,9 @@ static void *get_mutex_interface(int version) {
 static void *get_rwlock_interface(int version) {
   switch (version) {
     case PSI_RWLOCK_VERSION_1:
-      return &pfs_rwlock_service_v1;
+      return NULL;
+    case PSI_RWLOCK_VERSION_2:
+      return &pfs_rwlock_service_v2;
     default:
       return NULL;
   }
@@ -8523,7 +8544,8 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_mdl_v1),
     PROVIDES_SERVICE(performance_schema, psi_memory_v1),
     PROVIDES_SERVICE(performance_schema, psi_mutex_v1),
-    PROVIDES_SERVICE(performance_schema, psi_rwlock_v1),
+    /* Obsolete: PROVIDES_SERVICE(performance_schema, psi_rwlock_v1), */
+    PROVIDES_SERVICE(performance_schema, psi_rwlock_v2),
     PROVIDES_SERVICE(performance_schema, psi_socket_v1),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
     /* Deprecated, use psi_statement_v2. */

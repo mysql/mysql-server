@@ -26,6 +26,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 #include <mysql/components/services/psi_rwlock_bits.h>
 
+#if 0
+/*
+  Version 1.
+  Introduced in MySQL 8.0.3
+  Obsoleted in MySQL 8.0.17
+  Status: Obsolete, use version 2 instead.
+*/
 BEGIN_SERVICE_DEFINITION(psi_rwlock_v1)
 /** @sa register_rwlock_v1_t. */
 register_rwlock_v1_t register_rwlock;
@@ -44,7 +51,32 @@ end_rwlock_wrwait_v1_t end_rwlock_wrwait;
 /** @sa unlock_rwlock_v1_t. */
 unlock_rwlock_v1_t unlock_rwlock;
 END_SERVICE_DEFINITION(psi_rwlock_v1)
+#endif
 
-#define REQUIRES_PSI_RWLOCK_SERVICE REQUIRES_SERVICE(psi_rwlock_v1)
+/*
+  Version 2.
+  Introduced in MySQL 8.0.17
+  Status: active
+*/
+BEGIN_SERVICE_DEFINITION(psi_rwlock_v2)
+/** @sa register_rwlock_v1_t. */
+register_rwlock_v1_t register_rwlock;
+/** @sa init_rwlock_v1_t. */
+init_rwlock_v1_t init_rwlock;
+/** @sa destroy_rwlock_v1_t. */
+destroy_rwlock_v1_t destroy_rwlock;
+/** @sa start_rwlock_rdwait_v1_t. */
+start_rwlock_rdwait_v1_t start_rwlock_rdwait;
+/** @sa end_rwlock_rdwait_v1_t. */
+end_rwlock_rdwait_v1_t end_rwlock_rdwait;
+/** @sa start_rwlock_wrwait_v1_t. */
+start_rwlock_wrwait_v1_t start_rwlock_wrwait;
+/** @sa end_rwlock_wrwait_v1_t. */
+end_rwlock_wrwait_v1_t end_rwlock_wrwait;
+/** @sa unlock_rwlock_v2_t. */
+unlock_rwlock_v2_t unlock_rwlock;
+END_SERVICE_DEFINITION(psi_rwlock_v2)
+
+#define REQUIRES_PSI_RWLOCK_SERVICE REQUIRES_SERVICE(psi_rwlock_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_RWLOCK_SERVICE_H */

@@ -175,6 +175,8 @@ struct PFS_instr_class {
 
   bool is_shared_exclusive() const { return m_flags & PSI_FLAG_RWLOCK_SX; }
 
+  bool is_priority() const { return m_flags & PSI_FLAG_RWLOCK_PR; }
+
   bool is_transferable() const { return m_flags & PSI_FLAG_TRANSFER; }
 
   bool is_user() const { return m_flags & PSI_FLAG_USER; }

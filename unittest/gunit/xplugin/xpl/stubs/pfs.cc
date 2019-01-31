@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,24 +54,24 @@ void pfs_unlock_mutex_v1(PSI_mutex *) {}
 #endif
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-void pfs_destroy_rwlock_v1(PSI_rwlock *) {}
-void pfs_end_rwlock_rdwait_v1(PSI_rwlock_locker *, int) {}
-void pfs_end_rwlock_wrwait_v1(PSI_rwlock_locker *, int) {}
-PSI_rwlock *pfs_init_rwlock_v1(PSI_rwlock_key, const void *) { return nullptr; }
-void pfs_register_rwlock_v1(char const *, PSI_rwlock_info_v1 *, int) {}
-PSI_rwlock_locker *pfs_start_rwlock_rdwait_v1(PSI_rwlock_locker_state_v1 *,
+void pfs_destroy_rwlock_v2(PSI_rwlock *) {}
+void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *, int) {}
+void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *, int) {}
+PSI_rwlock *pfs_init_rwlock_v2(PSI_rwlock_key, const void *) { return nullptr; }
+void pfs_register_rwlock_v2(char const *, PSI_rwlock_info_v1 *, int) {}
+PSI_rwlock_locker *pfs_start_rwlock_rdwait_v2(PSI_rwlock_locker_state_v1 *,
                                               PSI_rwlock *,
                                               PSI_rwlock_operation,
                                               char const *, uint) {
   return nullptr;
 }
-PSI_rwlock_locker *pfs_start_rwlock_wrwait_v1(PSI_rwlock_locker_state_v1 *,
+PSI_rwlock_locker *pfs_start_rwlock_wrwait_v2(PSI_rwlock_locker_state_v1 *,
                                               PSI_rwlock *,
                                               PSI_rwlock_operation,
                                               char const *, uint) {
   return nullptr;
 }
-void pfs_unlock_rwlock_v1(PSI_rwlock *) {}
+void pfs_unlock_rwlock_v2(PSI_rwlock *, PSI_rwlock_operation) {}
 #endif
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE

@@ -202,7 +202,9 @@ static void test_bootstrap() {
   psi = rwlock_boot->get_interface(0);
   ok(psi == NULL, "no rwlock version 0");
   psi = rwlock_boot->get_interface(PSI_RWLOCK_VERSION_1);
-  ok(psi != NULL, "rwlock version 1");
+  ok(psi == NULL, "no rwlock version 1");
+  psi = rwlock_boot->get_interface(PSI_RWLOCK_VERSION_2);
+  ok(psi != NULL, "rwlock version 2");
 
   psi = cond_boot->get_interface(0);
   ok(psi == NULL, "no cond version 0");
@@ -363,7 +365,7 @@ static void load_perfschema(
   *mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   *rwlock_service =
-      (PSI_rwlock_service_t *)rwlock_boot->get_interface(PSI_RWLOCK_VERSION_1);
+      (PSI_rwlock_service_t *)rwlock_boot->get_interface(PSI_RWLOCK_VERSION_2);
   *cond_service =
       (PSI_cond_service_t *)cond_boot->get_interface(PSI_COND_VERSION_1);
   *file_service =
@@ -1877,7 +1879,7 @@ static void test_event_name_index() {
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   ok(mutex_service != NULL, "mutex_service");
   rwlock_service =
-      (PSI_rwlock_service_t *)rwlock_boot->get_interface(PSI_RWLOCK_VERSION_1);
+      (PSI_rwlock_service_t *)rwlock_boot->get_interface(PSI_RWLOCK_VERSION_2);
   ok(rwlock_service != NULL, "rwlock_service");
   cond_service =
       (PSI_cond_service_t *)cond_boot->get_interface(PSI_COND_VERSION_1);
@@ -2199,7 +2201,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(330);
+  plan(331);
 
   MY_INIT("pfs-t");
   do_all_tests();

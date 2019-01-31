@@ -104,6 +104,12 @@
 */
 #define PSI_FLAG_ONLY_GLOBAL_STAT (1 << 7)
 
+/**
+  Priority lock flag.
+  Indicates that rwlock support the priority lock scheduling.
+*/
+#define PSI_FLAG_RWLOCK_PR (1 << 8)
+
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2
