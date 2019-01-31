@@ -13,7 +13,7 @@ INSERT INTO t1 SELECT NULL FROM t1;
 # Error insert to pause backup.
 --exec $NDB_MGM -e'all error 10039' > /dev/null
 
---exec $NDB_MGM -e'start backup nowait' > /dev/null
+--exec $NDB_MGM -e 'start backup wait started' > /dev/null
 
 # Check if the error ER_GET_ERRMSG is thrown when
 # ALTER TABLE is executed while the backup is in progress.
