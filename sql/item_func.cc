@@ -3214,9 +3214,9 @@ longlong Item_func_min_max::int_op() {
 
   // Find the least/greatest argument based on integer value.
   for (uint i = 0; i < arg_count; i++) {
-    DBUG_ASSERT(!unsigned_flag || (unsigned_flag && args[i]->unsigned_flag));
     const longlong val = args[i]->val_int();
     if ((null_value = args[i]->null_value)) return 0;
+    DBUG_ASSERT(!unsigned_flag || (unsigned_flag && args[i]->unsigned_flag));
     const bool val_is_smaller = unsigned_flag ? static_cast<ulonglong>(val) <
                                                     static_cast<ulonglong>(res)
                                               : val < res;
