@@ -31,6 +31,12 @@
 
   Welcome to the MySQL source code documentation.
 
+  This documentation covers primarily the MySQL server,
+  for the @c mysqld process.
+
+  Other programs, like the MySQL Router, are also documented,
+  see the @ref PAGE_SERVER_TOOLS section.
+
   The order chosen to present the content is to start with low level components,
   and build upon previous sections, so that code is presented in a logical order.
 
@@ -42,9 +48,17 @@
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 
+  This documentation is published for each release, starting with MySQL 8.0.
+
+  The present document corresponds to:
+
   Document generated on: ${DOXYGEN_GENERATION_DATE},
   branch: ${DOXYGEN_GENERATION_BRANCH},
   revision: ${DOXYGEN_GENERATION_REVISION}
+
+  For the latest available version, see https://dev.mysql.com/doc/dev/mysql-server/latest/
+
+  For other versions, see https://dev.mysql.com/doc/index-archive.html
 */
 
 /**
@@ -471,6 +485,13 @@ The documentation is based on the source files such as:
   separate binaries.
 
   To learn how to create these user defined functions see @subpage page_ext_udf
+*/
+
+
+/**
+  @page PAGE_SERVER_TOOLS Server tools
+
+  - @subpage PAGE_MYSQL_ROUTER
 */
 
 
