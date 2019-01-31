@@ -995,7 +995,7 @@ drop procedure p1;
 drop procedure p2;
 show create database information_schema;
 Database	Create Database
-information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80014 DEFAULT ENCRYPTION='N' */
+information_schema	CREATE DATABASE `information_schema` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 create table t1(f1 LONGBLOB, f2 LONGTEXT);
 select column_name,data_type,CHARACTER_OCTET_LENGTH,
 CHARACTER_MAXIMUM_LENGTH

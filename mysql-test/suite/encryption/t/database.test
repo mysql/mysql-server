@@ -132,7 +132,7 @@ connect (con1, localhost, u1);
 
 --echo `````````````````````````````````````````````````````````
 --echo # Check with legacy syntax.
-CREATE DATABASE `db1` /*!80014 DEFAULT ENCRYPTION='Y' */;
+CREATE DATABASE `db1` /*!80016 DEFAULT ENCRYPTION='Y' */;
 SHOW CREATE DATABASE db1;
 DROP DATABASE db1;
 --echo `````````````````````````````````````````````````````````

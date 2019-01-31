@@ -583,7 +583,7 @@ drop table t1, t2, t3;
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 create user mysqltest_1@localhost, mysqltest_2@localhost, mysqltest_3@localhost;
@@ -595,7 +595,7 @@ a
 1
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop table t1;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
 drop database mysqltest;
@@ -612,7 +612,7 @@ select * from mysqltest.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop table mysqltest.t1;
 drop database mysqltest;
 set names binary;
@@ -896,7 +896,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Database	253	192	10	N	1	31	33
 def					Create Database	253	3072	132	N	1	31	33
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 ----------------------------------------------------------------
 SHOW DATABASES LIKE 'mysqltest1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1320,14 +1320,14 @@ End of 5.0 tests
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 create user mysqltest_4@localhost;
 grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';

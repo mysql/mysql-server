@@ -655,7 +655,7 @@ drop database if exists mysqltest1
 /*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-/*!80014 SET @@session.default_table_encryption=0*//*!*/;
+/*!80016 SET @@session.default_table_encryption=0*//*!*/;
 create database mysqltest1
 /*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
@@ -1508,7 +1508,7 @@ drop database if exists mysqltest2
 /*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-/*!80014 SET @@session.default_table_encryption=0*//*!*/;
+/*!80016 SET @@session.default_table_encryption=0*//*!*/;
 create database mysqltest
 /*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)
@@ -1518,7 +1518,7 @@ create database mysqltest
 /*!80014 SET @@session.immediate_server_version= IMMEDIATE_SERVER_VERSION*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-/*!80014 SET @@session.default_table_encryption=0*//*!*/;
+/*!80016 SET @@session.default_table_encryption=0*//*!*/;
 create database mysqltest2
 /*!*/;
 # original_commit_timestamp= MICROSECONDS-FROM-EPOCH (YYYY-MM-DD HOURS:MINUTES:SECONDS TZ)

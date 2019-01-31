@@ -4306,7 +4306,7 @@ void Query_log_event::print_query_header(
   }
   if (default_table_encryption != print_event_info->default_table_encryption) {
     my_b_printf(file,
-                "/*!80014 SET @@session.default_table_encryption=%d*/%s\n",
+                "/*!80016 SET @@session.default_table_encryption=%d*/%s\n",
                 default_table_encryption, print_event_info->delimiter);
   }
 }

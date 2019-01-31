@@ -1716,7 +1716,7 @@ prepare stmt from "create database mysqltest_1";
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
-mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
 set @@character_set_server= utf8;
 Warnings:
@@ -1724,7 +1724,7 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 execute stmt;
 show create database mysqltest_1;
 Database	Create Database
-mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80014 DEFAULT ENCRYPTION='N' */
+mysqltest_1	CREATE DATABASE `mysqltest_1` /*!40100 DEFAULT CHARACTER SET utf8 */ /*!80016 DEFAULT ENCRYPTION='N' */
 drop database mysqltest_1;
 deallocate prepare stmt;
 set @@character_set_server= @old_character_set_server;

@@ -276,15 +276,15 @@ bool update_meta_data(THD *thd) {
       return dd::end_transaction(thd, true);
   }
 
-  /* Upgrade from 80014. */
+  /* Upgrade from 80015. */
   if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015)) {
+          bootstrap::DD_VERSION_80016)) {
     // A) REMOVE 'ENCRYPTION' KEY FROM MYSQL.TABLESPACES.OPTIONS FOR
     //    NON-INNODB TABLESPACES/TABLES
 
     /*
       Remove ENCRYPTION clause for unencrypted non-InnoDB tablespaces.
-      Because its only InnoDB that support encryption in 8.0.15.
+      Because its only InnoDB that support encryption in 8.0.16.
     */
     if (dd::execute_query(
             thd,
@@ -497,7 +497,7 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
 
   /* Upgrade from 80014. */
   if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015)) {
+          bootstrap::DD_VERSION_80016)) {
     migrated_set.insert("schemata");
 
     // Store 'NO' for new mysql.schemata.default_encryption column.
