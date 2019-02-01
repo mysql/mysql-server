@@ -86,3 +86,17 @@ DISCONNECT con2;
 # Check that all connections opened by test cases in this file are really gone
 # so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+
+
+--echo #
+--echo #  BUG#29140298 - `OPT_EVENT_SCHEDULER == EVENTS::EVENTS_ON ||
+--echo #                  OPT_EVENT_SCHEDULER == EVENTS::EVEN
+--echo #  When mysqld is started with --event_scheduler=DISABLED,
+--echo #  it asserts on debug build without the fix.
+--echo #  With the fix, the event scheduler initialization is skipped
+--echo #  if mysqld is started with --event_scheduler=DISABLED.
+
+--let $restart_parameters = restart: --event_scheduler=DISABLED
+--source include/restart_mysqld.inc
+# Ensure the event scheduler is OFF.
+SELECT @@event_scheduler='DISABLED';

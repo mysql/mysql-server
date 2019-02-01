@@ -47,3 +47,14 @@ connection default;
 SET DEBUG_SYNC='RESET';
 disconnect con1;
 disconnect con2;
+#
+#  BUG#29140298 - `OPT_EVENT_SCHEDULER == EVENTS::EVENTS_ON ||
+#                  OPT_EVENT_SCHEDULER == EVENTS::EVEN
+#  When mysqld is started with --event_scheduler=DISABLED,
+#  it asserts on debug build without the fix.
+#  With the fix, the event scheduler initialization is skipped
+#  if mysqld is started with --event_scheduler=DISABLED.
+# restart: --event_scheduler=DISABLED
+SELECT @@event_scheduler='DISABLED';
+@@event_scheduler='DISABLED'
+1
