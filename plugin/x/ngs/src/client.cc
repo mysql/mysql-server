@@ -56,6 +56,7 @@
 #include "plugin/x/src/capabilities/handler_tls.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
@@ -87,6 +88,7 @@ Client::Client(std::shared_ptr<Vio_interface> connection,
       m_state(Client_invalid),
       m_removed(false),
       m_protocol_monitor(pmon),
+      m_session_exit_mutex(KEY_mutex_x_client_session_exit),
       m_msg_buffer(NULL),
       m_msg_buffer_size(0),
       m_supports_expired_passwords(false) {

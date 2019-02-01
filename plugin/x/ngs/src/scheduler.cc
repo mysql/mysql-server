@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
@@ -44,6 +45,7 @@ Scheduler_dynamic::Scheduler_dynamic(const char *name,
       m_worker_pending_cond(KEY_cond_x_scheduler_dynamic_worker_pending),
       m_thread_exit_mutex(KEY_mutex_x_scheduler_dynamic_thread_exit),
       m_thread_exit_cond(KEY_cond_x_scheduler_dynamic_thread_exit),
+      m_post_mutex(KEY_mutex_x_scheduler_post),
       m_is_running(0),
       m_min_workers_count(1),
       m_workers_count(0),

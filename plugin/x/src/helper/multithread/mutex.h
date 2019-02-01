@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class Mutex {
   friend class Cond;
 
  public:
-  Mutex(PSI_mutex_key key = PSI_NOT_INSTRUMENTED);
+  Mutex(PSI_mutex_key key);
   ~Mutex();
 
   operator mysql_mutex_t *();

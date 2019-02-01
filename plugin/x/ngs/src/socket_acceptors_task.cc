@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/src/helper/string_formatter.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
@@ -48,7 +49,9 @@ Socket_acceptors_task::Socket_acceptors_task(
       m_unix_socket(listener_factory.create_unix_socket_listener(
           unix_socket_file, *m_event, backlog)),
 #endif
-      m_time_and_event_state(State_listener_initializing) {
+      m_time_and_event_state(State_listener_initializing,
+                             KEY_mutex_x_socket_acceptors_sync,
+                             KEY_cond_x_socket_acceptors_sync) {
 }
 
 bool Socket_acceptors_task::prepare_impl(

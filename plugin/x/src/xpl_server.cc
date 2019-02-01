@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ class Worker_scheduler_monitor
 };
 
 Server *Server::instance;
-RWLock Server::instance_rwl;
+RWLock Server::instance_rwl{KEY_rwlock_x_xpl_server_instance};
 std::atomic<bool> Server::exiting{false};
 
 Server::Server(

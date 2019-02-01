@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
 
@@ -218,7 +219,7 @@ class Tcp_creator {
 
   bool is_ipv6_avaiable() {
     ngs::Socket_interface::Shared_ptr socket(m_factory.create_socket(
-        PSI_NOT_INSTRUMENTED, AF_INET6, SOCK_STREAM, 0));
+        KEY_socket_x_diagnostics, AF_INET6, SOCK_STREAM, 0));
     const bool has_ipv6 = INVALID_SOCKET != socket->get_socket_fd();
 
     return has_ipv6;
@@ -252,7 +253,8 @@ Listener_tcp::Listener_tcp(Factory_ptr operations_factory,
                            ngs::Socket_events_interface &event,
                            const uint32 backlog)
     : m_operations_factory(operations_factory),
-      m_state(ngs::State_listener_initializing),
+      m_state(ngs::State_listener_initializing, KEY_mutex_x_listener_tcp_sync,
+              KEY_cond_x_listener_tcp_sync),
       m_bind_address(bind_address),
       m_port(port),
       m_port_open_timeout(port_open_timeout),
