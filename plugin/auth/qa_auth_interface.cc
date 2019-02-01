@@ -218,7 +218,8 @@ mysql_declare_plugin(test_plugin){
       and whether the input is a password (not echoed).
    3. the prompt is expected to be sent zero-terminated
 */
-static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
+static int test_plugin_client(MYSQL_PLUGIN_VIO *vio,
+                              MYSQL *mysql) SUPPRESS_UBSAN {
   unsigned char *pkt, cmd = 0;
   int pkt_len, res;
   char *reply;
