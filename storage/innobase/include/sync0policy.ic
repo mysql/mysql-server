@@ -32,12 +32,29 @@ std::string GenericPolicy<Mutex>::to_string() const
 }
 
 template <typename Mutex>
-std::string BlockMutexPolicy<Mutex>::to_string() const
+std::string AggregateMutexStatsPolicy<Mutex>::to_string() const
 {
-	/* I don't think it makes sense to keep track of the file name
-	and line number for each block mutex. Too much of overhead. Use the
-	latch id to figure out the location from the source. */
-	return(sync_mutex_to_string(get_id(), "buf0buf.cc:0"));
+	switch (m_id) {
+
+	case LATCH_ID_BUF_BLOCK_MUTEX:
+		/* I don't think it makes sense to keep track of the file name
+		and line number for each block mutex. Too much of overhead.
+		Use the latch id to figure out the location from the source. */
+		return(sync_mutex_to_string(get_id(), "buf0buf.cc:0"));
+
+	case LATCH_ID_AUTOINC:
+		return(sync_mutex_to_string(
+			get_id(), "dict_table_autoinc_alloc():0"));
+
+	default:
+		/* Currently only block mutexes and autoinc mutexes use aggregrate
+		Latch Stat counters. If any new mutex uses this aggregrate,
+		add entry here */
+		ut_ad(0);
+	}
+
+	ut_ad(0);
+	return("unknown");
 }
 
 #ifdef UNIV_DEBUG
