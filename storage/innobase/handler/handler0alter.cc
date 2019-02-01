@@ -7917,6 +7917,24 @@ class alter_part {
   @return the InnoDB table object or nullptr if not applicable */
   dict_table_t *new_table() { return (m_new); }
 
+  /** Set the freed old partition to nullptr to avoid dangling pointer
+  @param check_in_cache whether we need to check table in cache
+  @param part_name	Partiioned table name .*/
+  inline void free_old_part(bool check_in_cache, const char *part_name) {
+    if (check_in_cache) {
+      mutex_enter(&dict_sys->mutex);
+
+      if (!dict_table_check_if_in_cache_low(part_name)) {
+        *m_old = nullptr;
+      }
+
+      mutex_exit(&dict_sys->mutex);
+
+    } else {
+      *m_old = nullptr;
+    }
+  }
+
   /** Prepare
   @param[in,out]	altered_table	Table definition after the ALTER
   @param[in]	old_part	the stored old partition or nullptr
@@ -7966,7 +7984,7 @@ class alter_part {
                                   default is nullptr, which means there
                                   is no corresponding object */
   alter_part(trx_t *trx, uint part_id, partition_state state,
-             const char *table_name, dict_table_t *old)
+             const char *table_name, dict_table_t **old)
       : m_trx(trx),
         m_part_id(part_id),
         m_state(state),
@@ -8015,7 +8033,7 @@ class alter_part {
   const char *m_table_name;
 
   /** The InnoDB table object for old partition */
-  dict_table_t *m_old;
+  dict_table_t **m_old;
 
   /** The InnoDB table object for newly created partition */
   dict_table_t *m_new;
@@ -8442,10 +8460,10 @@ class alter_part_normal : public alter_part {
   @param[in,out]	old		InnoDB table object for old partition,
                                   default is nullptr, which means there
                                   is no corresponding object */
-  alter_part_normal(uint part_id, partition_state state, dict_table_t *old)
+  alter_part_normal(uint part_id, partition_state state, dict_table_t **old)
       : /* Table name is not used in this class, so pass a fake
         one */
-        alter_part(nullptr, part_id, state, old->name.m_name, old) {}
+        alter_part(nullptr, part_id, state, (*old)->name.m_name, old) {}
 
   /** Destructor */
   ~alter_part_normal() {}
@@ -8478,11 +8496,12 @@ class alter_part_normal : public alter_part {
                  const dd::Partition *old_part, dd::Partition *new_part) {
     ut_ad(m_old != nullptr);
 
-    btr_drop_ahi_for_table(m_old);
+    btr_drop_ahi_for_table(*m_old);
 
     mutex_enter(&dict_sys->mutex);
-    dd_table_close(m_old, nullptr, nullptr, true);
-    dict_table_remove_from_cache(m_old);
+    dd_table_close(*m_old, nullptr, nullptr, true);
+    dict_table_remove_from_cache(*m_old);
+    *m_old = nullptr;
     mutex_exit(&dict_sys->mutex);
     return (0);
   }
@@ -8659,7 +8678,7 @@ class alter_part_drop : public alter_part {
   @param[in]	conflict	True if there is already a partition
                                   table with the same name */
   alter_part_drop(uint part_id, partition_state state, const char *table_name,
-                  trx_t *trx, dict_table_t *old, bool conflict)
+                  trx_t *trx, dict_table_t **old, bool conflict)
       : alter_part(trx, part_id, state, table_name, old),
         m_conflict(conflict) {}
 
@@ -8679,19 +8698,20 @@ class alter_part_drop : public alter_part {
     ut_ad(new_part == nullptr);
 
     mutex_enter(&dict_sys->mutex);
-    dict_table_ddl_acquire(m_old);
+    dict_table_ddl_acquire(*m_old);
     mutex_exit(&dict_sys->mutex);
-    dd_table_close(m_old, nullptr, nullptr, false);
+    dd_table_close(*m_old, nullptr, nullptr, false);
 
     int error;
     char part_name[FN_REFLEN];
     THD *thd = m_trx->mysql_thd;
-
     build_partition_name(old_part, false, part_name);
 
     if (!m_conflict) {
       error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, part_name,
                                                              old_part);
+      DBUG_EXECUTE_IF("drop_part_fail", error = DB_ERROR;
+                      my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0)););
     } else {
       /* Have to rename it to a temporary name to prevent
       name conflict, because later deleting table doesn't
@@ -8704,7 +8724,7 @@ class alter_part_drop : public alter_part {
       MDL_ticket *mdl_ticket = nullptr;
 
       char *temp_name = dict_mem_create_temporary_tablename(
-          heap, m_old->name.m_name, m_old->id);
+          heap, (*m_old)->name.m_name, (*m_old)->id);
 
       /* Acquire mdl lock on the temporary table name. */
       dd_parse_tbl_name(temp_name, db_buf, tbl_buf, nullptr, nullptr, nullptr);
@@ -8724,6 +8744,8 @@ class alter_part_drop : public alter_part {
 
       mem_heap_free(heap);
     }
+
+    free_old_part(error != 0, part_name);
 
     return (error);
   }
@@ -8761,7 +8783,7 @@ class alter_part_change : public alter_part {
   @param[in]	file_per_table	Current value of innodb_file_per_table
   @param[in]	autoinc		Next AUTOINC value to use */
   alter_part_change(uint part_id, partition_state state, const char *table_name,
-                    const char *tablespace, trx_t *trx, dict_table_t *old,
+                    const char *tablespace, trx_t *trx, dict_table_t **old,
                     const Alter_inplace_info *ha_alter_info,
                     bool file_per_table, ib_uint64_t autoinc)
       : alter_part(trx, part_id, state, table_name, old),
@@ -8880,12 +8902,12 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
   char db_buf[NAME_LEN + 1];
   char tbl_buf[NAME_LEN + 1];
   char *temp_old_name = dict_mem_create_temporary_tablename(
-      m_old->heap, m_old->name.m_name, m_old->id);
+      (*m_old)->heap, (*m_old)->name.m_name, (*m_old)->id);
 
   mutex_enter(&dict_sys->mutex);
-  dict_table_ddl_acquire(m_old);
+  dict_table_ddl_acquire(*m_old);
   mutex_exit(&dict_sys->mutex);
-  dd_table_close(m_old, nullptr, nullptr, false);
+  dd_table_close(*m_old, nullptr, nullptr, false);
 
   /* Acquire mdl lock on the temporary table name. */
   dd_parse_tbl_name(temp_old_name, db_buf, tbl_buf, nullptr, nullptr, nullptr);
@@ -8911,6 +8933,7 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
     if (error == 0) {
       error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, temp_old_name,
                                                              old_part);
+      free_old_part(error != 0, temp_old_name);
     }
   }
 
@@ -8995,10 +9018,10 @@ alter_part *alter_part_factory::create_one_low(uint &part_id, uint old_part_id,
 
   switch (state) {
     case PART_NORMAL:
-      alter_part =
-          UT_NEW(alter_part_normal(part_id, state,
-                                   m_part_share->get_table_part(old_part_id)),
-                 mem_key_partitioning);
+      alter_part = UT_NEW(
+          alter_part_normal(part_id, state,
+                            m_part_share->get_table_part_ref(old_part_id)),
+          mem_key_partitioning);
       break;
     case PART_TO_BE_ADDED:
       alter_part = UT_NEW(
@@ -9014,7 +9037,7 @@ alter_part *alter_part_factory::create_one_low(uint &part_id, uint old_part_id,
       alter_part = UT_NEW(
           alter_part_drop(part_id, state,
                           m_part_share->get_table_share()->normalized_path.str,
-                          m_trx, m_part_share->get_table_part(old_part_id),
+                          m_trx, m_part_share->get_table_part_ref(old_part_id),
                           conflict),
           mem_key_partitioning);
       break;
@@ -9023,8 +9046,9 @@ alter_part *alter_part_factory::create_one_low(uint &part_id, uint old_part_id,
           alter_part_change(
               part_id, state,
               m_part_share->get_table_share()->normalized_path.str, tablespace,
-              m_trx, m_part_share->get_table_part(old_part_id), m_ha_alter_info,
-              m_file_per_table, m_part_share->next_auto_inc_val),
+              m_trx, m_part_share->get_table_part_ref(old_part_id),
+              m_ha_alter_info, m_file_per_table,
+              m_part_share->next_auto_inc_val),
           mem_key_partitioning);
       break;
     default:
@@ -10393,6 +10417,7 @@ bool ha_innopart::commit_inplace_alter_partition(
     TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit,
     const dd::Table *old_dd_tab, dd::Table *new_dd_tab) {
   alter_parts *ctx = static_cast<alter_parts *>(ha_alter_info->handler_ctx);
+  m_prebuilt->table = nullptr;
   if (ctx == nullptr) {
     ut_ad(!commit);
     return (false);
@@ -10401,8 +10426,6 @@ bool ha_innopart::commit_inplace_alter_partition(
   if (commit) {
     int error = ctx->try_commit(*old_dd_tab, *new_dd_tab, table, altered_table);
     if (!error) {
-      m_prebuilt->table = nullptr;
-
       UT_DELETE(ctx);
       ha_alter_info->handler_ctx = nullptr;
 

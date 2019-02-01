@@ -492,7 +492,7 @@ bool Ha_innopart_share::set_table_parts_and_indexes(
 
   return (false);
 err:
-  close_table_parts(false);
+  close_table_parts();
 
   return (true);
 }
@@ -503,19 +503,15 @@ err:
 void Ha_innopart_share::close_table_parts(dict_table_t **table_parts,
                                           uint tot_parts) {
   for (uint i = 0; i < tot_parts; i++) {
-    if (table_parts[i] != NULL) {
+    if (table_parts[i] != nullptr) {
       dd_table_close(table_parts[i], NULL, NULL, false);
     }
   }
 }
 
 /** Close the table partitions.
-If all instances are closed, also release the resources.
-@param[in]	only_free	true if the tables have already been
-                                closed, which happens during inplace
-                                DDL, and we just need to release the
-                                resources */
-void Ha_innopart_share::close_table_parts(bool only_free) {
+If all instances are closed, also release the resources. */
+void Ha_innopart_share::close_table_parts(void) {
 #ifdef UNIV_DEBUG
   if (m_table_share->tmp_table == NO_TMP_TABLE) {
     mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
@@ -539,9 +535,7 @@ void Ha_innopart_share::close_table_parts(bool only_free) {
   free the memory. */
 
   if (m_table_parts != NULL) {
-    if (!only_free) {
-      close_table_parts(m_table_parts, m_tot_parts);
-    }
+    close_table_parts(m_table_parts, m_tot_parts);
     ut_free(m_table_parts);
     m_table_parts = NULL;
   }
@@ -1300,8 +1294,7 @@ int ha_innopart::close() {
   ut_ad(m_part_share != NULL);
   if (m_part_share != NULL) {
     lock_shared_ha_data();
-    m_part_share->close_table_parts(m_prebuilt != nullptr &&
-                                    m_prebuilt->table == nullptr);
+    m_part_share->close_table_parts();
     unlock_shared_ha_data();
     m_part_share = NULL;
   }
