@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "plugin/x/src/helper/string_formatter.h"
 #include "plugin/x/src/operations_factory.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 #ifdef HAVE_SYS_UN_H
 #include <signal.h>
@@ -333,7 +334,9 @@ Listener_unix_socket::Listener_unix_socket(
     : m_operations_factory(operations_factory),
       m_unix_socket_path(unix_socket_path),
       m_backlog(backlog),
-      m_state(ngs::State_listener_initializing),
+      m_state(ngs::State_listener_initializing,
+              KEY_mutex_x_listener_unix_socket_sync,
+              KEY_cond_x_listener_unix_socket_sync),
       m_event(event) {}
 
 Listener_unix_socket::~Listener_unix_socket() {

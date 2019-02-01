@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,9 @@ namespace xpl {
 
 class Synchronize {
  public:
+  Synchronize(PSI_mutex_key mutex_key, PSI_cond_key cond_key)
+      : m_mutex(mutex_key), m_cond(cond_key) {}
+
   class Block {
    public:
     ~Block() {

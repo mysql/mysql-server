@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -52,8 +52,7 @@ class Scheduler_dynamic {
 
   typedef std::function<void()> Task;
 
-  Scheduler_dynamic(const char *name,
-                    PSI_thread_key thread_key = PSI_NOT_INSTRUMENTED);
+  Scheduler_dynamic(const char *name, PSI_thread_key thread_key);
   virtual ~Scheduler_dynamic();
 
   virtual void launch();

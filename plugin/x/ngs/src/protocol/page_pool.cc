@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/page_pool.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 using namespace ngs;
 
@@ -39,6 +40,7 @@ Page_pool::Page_pool(const Pool_config &pool_config)
       m_pages_cache_max(pool_config.pages_cache_max),
       m_pages_cached(0),
       m_page_size(pool_config.page_size),
+      m_mutex(KEY_mutex_x_page_pool),
       m_pages_allocated(0) {}
 
 Page_pool::~Page_pool() {

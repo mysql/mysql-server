@@ -24,7 +24,7 @@ SELECT DISTINCT name FROM performance_schema.threads WHERE name
 LIKE 'thread/mysqlx/%' ORDER BY name;
 
 SELECT DISTINCT name FROM performance_schema.mutex_instances WHERE name 
-LIKE 'wait/synch/mutex/mysqlx/%' ORDER BY name;
+LIKE 'wait/synch/mutex/mysqlx/%' AND name NOT LIKE '%unix%' ORDER BY name;
 
 SELECT DISTINCT name FROM performance_schema.cond_instances WHERE name 
 LIKE 'wait/synch/cond/mysqlx/%' ORDER BY name;

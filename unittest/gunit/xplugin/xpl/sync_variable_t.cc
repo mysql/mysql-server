@@ -42,7 +42,9 @@ const int EXPECTED_VALUE_SET_EXPECT = 50;
 
 class Xpl_sync_variable : public ::testing::Test {
  public:
-  Xpl_sync_variable() : m_sut(EXPECTED_VALUE_FIRST), m_thread_ended(false) {}
+  Xpl_sync_variable()
+      : m_sut(EXPECTED_VALUE_FIRST, PSI_NOT_INSTRUMENTED, PSI_NOT_INSTRUMENTED),
+        m_thread_ended(false) {}
 
   static void *start_routine_set(void *data) {
     Xpl_sync_variable *self = (Xpl_sync_variable *)data;

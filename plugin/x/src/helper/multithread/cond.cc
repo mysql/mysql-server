@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,7 @@
 
 namespace xpl {
 
-Cond::Cond(PSI_cond_key key MY_ATTRIBUTE((unused))) {
-  mysql_cond_init(key, &m_cond);
-}
+Cond::Cond(PSI_cond_key key) { mysql_cond_init(key, &m_cond); }
 
 Cond::~Cond() { mysql_cond_destroy(&m_cond); }
 

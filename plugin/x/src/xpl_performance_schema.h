@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -45,14 +45,34 @@ extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_post;
 extern PSI_mutex_key KEY_mutex_x_document_id_generate;
+extern PSI_mutex_key KEY_mutex_x_notice_output_queue;
+extern PSI_mutex_key KEY_mutex_x_xpl_server_accepting;
+extern PSI_mutex_key KEY_mutex_x_client_session_exit;
+extern PSI_mutex_key KEY_mutex_x_socket_events_timers;
+extern PSI_mutex_key KEY_mutex_x_scheduler_post;
+extern PSI_mutex_key KEY_mutex_x_server_client_exit;
+extern PSI_mutex_key KEY_mutex_x_vio_shutdown;
+extern PSI_mutex_key KEY_mutex_x_page_pool;
+extern PSI_mutex_key KEY_mutex_x_listener_tcp_sync;
+extern PSI_mutex_key KEY_mutex_x_listener_unix_socket_sync;
+extern PSI_mutex_key KEY_mutex_x_broker_context_sync;
+extern PSI_mutex_key KEY_mutex_x_server_state_sync;
+extern PSI_mutex_key KEY_mutex_x_socket_acceptors_sync;
 
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending;
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;
+extern PSI_cond_key KEY_cond_x_listener_tcp_sync;
+extern PSI_cond_key KEY_cond_x_listener_unix_socket_sync;
+extern PSI_cond_key KEY_cond_x_broker_context_sync;
+extern PSI_cond_key KEY_cond_x_server_state_sync;
+extern PSI_cond_key KEY_cond_x_socket_acceptors_sync;
 
 extern PSI_rwlock_key KEY_rwlock_x_client_list_clients;
 extern PSI_rwlock_key KEY_rwlock_x_sha256_password_cache;
+extern PSI_rwlock_key KEY_rwlock_x_xpl_server_instance;
 
 extern PSI_socket_key KEY_socket_x_tcpip;
+extern PSI_socket_key KEY_socket_x_diagnostics;
 extern PSI_socket_key KEY_socket_x_unix;
 extern PSI_socket_key KEY_socket_x_client_connection;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@
 #include "plugin/x/src/udf/registry.h"
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 #include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
@@ -152,7 +153,7 @@ class Server : public ngs::Server_delegate {
   std::shared_ptr<ngs::Protocol_config> m_config;
   std::shared_ptr<ngs::Scheduler_dynamic> m_wscheduler;
   std::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
-  Mutex m_accepting_mutex;
+  Mutex m_accepting_mutex{KEY_mutex_x_xpl_server_accepting};
   ngs::Server_properties m_properties;
   std::shared_ptr<Notice_input_queue> m_notice_input_queue;
   ngs::Server m_server;

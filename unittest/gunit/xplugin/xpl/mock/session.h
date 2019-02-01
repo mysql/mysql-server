@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -75,7 +75,7 @@ class Mock_ssl_context : public Ssl_context_interface {
 
 class Mock_scheduler_dynamic : public Scheduler_dynamic {
  public:
-  Mock_scheduler_dynamic() : Scheduler_dynamic("") {}
+  Mock_scheduler_dynamic() : Scheduler_dynamic("", PSI_NOT_INSTRUMENTED) {}
 
   MOCK_METHOD0(launch, void());
   MOCK_METHOD0(stop, void());

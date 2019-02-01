@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,12 @@
 
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/src/io/connection_type.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace ngs {
 
-Vio_wrapper::Vio_wrapper(Vio *vio) : m_vio(vio) {}
+Vio_wrapper::Vio_wrapper(Vio *vio)
+    : m_vio(vio), m_shutdown_mutex(KEY_mutex_x_vio_shutdown) {}
 
 ssize_t Vio_wrapper::read(uchar *buffer, ssize_t bytes_to_send) {
   return vio_read(m_vio, buffer, bytes_to_send);

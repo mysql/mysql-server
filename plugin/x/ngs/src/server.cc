@@ -40,6 +40,7 @@
 #include "plugin/x/ngs/include/ngs/socket_acceptors_task.h"
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 #include "my_systime.h"  // my_sleep()
 
@@ -58,8 +59,10 @@ Server::Server(std::shared_ptr<Scheduler_dynamic> accept_scheduler,
       m_worker_scheduler(work_scheduler),
       m_config(config),
       m_id_generator(new Document_id_generator()),
-      m_state(State_initializing),
+      m_state(State_initializing, KEY_mutex_x_server_state_sync,
+              KEY_cond_x_server_state_sync),
       m_delegate(delegate),
+      m_client_exit_mutex(KEY_mutex_x_server_client_exit),
       m_properties(properties),
       m_tasks(tasks),
       m_timeout_callback(timeout_callback) {}

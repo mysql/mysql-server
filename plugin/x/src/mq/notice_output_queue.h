@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 namespace xpl {
 
@@ -65,7 +66,7 @@ class Notice_output_queue : public ngs::Notice_output_queue_interface {
   ngs::Notice_configuration_interface *m_notice_configuration;
   std::queue<Buffer_shared> m_queue;
   std::unique_ptr<Waiting_for_io_interface> m_decoder_io_callbacks;
-  Mutex m_queue_mutex;
+  Mutex m_queue_mutex{KEY_mutex_x_notice_output_queue};
 };
 
 }  // namespace xpl
