@@ -137,6 +137,12 @@ class Ha_innopart_share : public Partition_share {
     ut_ad(part_id < m_tot_parts);
     m_table_parts[part_id] = table;
   }
+  /** Get table reference for given partition.
+  @param[in]    part_id Partition number
+  @return	InnoDB table reference. */
+  inline dict_table_t **get_table_part_ref(uint part_id) {
+    return (&m_table_parts[part_id]);
+  }
 
   /** Return innodb table for given partition.
   @param[in]	part_id	Partition number.
@@ -187,12 +193,8 @@ class Ha_innopart_share : public Partition_share {
                                    dict_table_t **table_parts);
 
   /** Close the table partitions.
-  If all instances are closed, also release the resources.
-  @param[in]	only_free	true if the tables have already been
-                                  closed, which happens during inplace
-                                  DDL, and we just need to release the
-                                  resources */
-  void close_table_parts(bool only_free);
+  If all instances are closed, also release the resources.*/
+  void close_table_parts();
 
   /** Close InnoDB tables for partitions.
   @param[in]	table_parts	Array of InnoDB tables for partitions.
