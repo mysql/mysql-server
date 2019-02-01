@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,15 +29,13 @@
 #include "openssl_version.h"
 #include "tls_error.h"
 
-static const SSL_METHOD *client_method =
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 1, 0)
-    TLS_client_method()
+#define TLS_CLIENT_METHOD() TLS_client_method()
 #else
-    SSLv23_client_method()
+#define TLS_CLIENT_METHOD() SSLv23_client_method()
 #endif
-    ;
 
-TlsClientContext::TlsClientContext() : TlsContext(client_method) {
+TlsClientContext::TlsClientContext() : TlsContext(TLS_CLIENT_METHOD()) {
   verify(TlsVerify::PEER);
 }
 

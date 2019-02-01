@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,8 @@ HttpClientConnectionBase::HttpClientConnectionBase(IOContext &io_ctx)
 
 std::string HttpClientConnectionBase::error_msg() const {
   std::string out;
-  if (pImpl_->conn != nullptr) {
+  if (pImpl_->conn) {
+#ifdef EVENT__HAVE_OPENSSL
     auto *bev = evhttp_connection_get_bufferevent(pImpl_->conn.get());
     while (auto oslerr = bufferevent_get_openssl_error(bev)) {
       char buffer[256];
@@ -123,12 +124,16 @@ std::string HttpClientConnectionBase::error_msg() const {
 
       out.append(buffer);
     }
+#else
+    out.append("SSL support disabled at compile-time");
+#endif
   }
   return out;
 }
 
 HttpClientConnectionBase::operator bool() const {
   if (pImpl_->conn) {
+#ifdef EVENT__HAVE_OPENSSL
     auto *bev = evhttp_connection_get_bufferevent(pImpl_->conn.get());
     SSL *ssl = bufferevent_openssl_get_ssl(bev);
 
@@ -137,6 +142,9 @@ HttpClientConnectionBase::operator bool() const {
       return (ERR_peek_error() == 0) &&
              (SSL_get_verify_result(ssl) == X509_V_OK);
     }
+#else
+    return false;
+#endif
   }
   return true;
 }
@@ -156,6 +164,10 @@ HttpClientConnection::HttpClientConnection(IOContext &io_ctx,
 void HttpClientConnectionBase::make_request(HttpRequest *req,
                                             HttpMethod::type method,
                                             const std::string &uri) {
+  if (!pImpl_->conn) {
+    throw std::runtime_error("no connection set");
+  }
+
   auto *ev_req = req->pImpl_->req.get();
 
   if (0 != evhttp_make_request(pImpl_->conn.get(), ev_req,
@@ -184,6 +196,7 @@ HttpsClientConnection::HttpsClientConnection(IOContext &io_ctx,
                                              const std::string &address,
                                              uint16_t port)
     : HttpClientConnectionBase{io_ctx} {
+#ifdef EVENT__HAVE_OPENSSL
   // owned by the bev
   SSL *ssl = SSL_new(tls_ctx.get());
 
@@ -202,4 +215,10 @@ HttpsClientConnection::HttpsClientConnection(IOContext &io_ctx,
 
   pImpl_->conn.reset(evhttp_connection_base_bufferevent_new(
       ev_base(), NULL, bev, address.c_str(), port));
+#else
+  (void)io_ctx;
+  (void)tls_ctx;
+  (void)address;
+  (void)port;
+#endif
 }

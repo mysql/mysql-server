@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,12 @@
 #include <vector>
 
 #include <openssl/ssl.h>  // SSL_METHOD
+
+#if defined(LIBWOLFSSL_VERSION_HEX) && defined(close)
+// wolfssl 3.14.0 has a 'define close(fd) closesocket(fd)' which interfers
+// with all other uses of close() like fstream::close()
+#undef close
+#endif
 
 /**
  * TLS Versions.

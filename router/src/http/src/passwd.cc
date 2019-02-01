@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -148,10 +148,10 @@ std::string PasswdFrontend::read_password() {
 
 int PasswdFrontend::run() {
   switch (config_.cmd) {
-    case PasswdFrontend::Cmd::SHOW_HELP:
+    case PasswdFrontend::Cmd::ShowHelp:
       cout_ << get_help() << std::endl;
       return EXIT_SUCCESS;
-    case PasswdFrontend::Cmd::SHOW_VERSION:
+    case PasswdFrontend::Cmd::ShowVersion:
       cout_ << get_version() << std::endl;
       return EXIT_SUCCESS;
     default:
@@ -168,10 +168,10 @@ int PasswdFrontend::run() {
     }
 
     std::map<std::string, PasswdFrontend::Cmd> cmds{
-        {"set", PasswdFrontend::Cmd::SET},
-        {"verify", PasswdFrontend::Cmd::VERIFY},
-        {"delete", PasswdFrontend::Cmd::DELETE},
-        {"list", PasswdFrontend::Cmd::LIST}};
+        {"set", PasswdFrontend::Cmd::Set},
+        {"verify", PasswdFrontend::Cmd::Verify},
+        {"delete", PasswdFrontend::Cmd::Delete},
+        {"list", PasswdFrontend::Cmd::List}};
 
     const auto cmd = cmds.find(rest_args[0]);
     if (cmd == cmds.end()) {
@@ -187,7 +187,7 @@ int PasswdFrontend::run() {
 
         break;
       case 2:
-        if (config_.cmd == PasswdFrontend::Cmd::LIST) {
+        if (config_.cmd == PasswdFrontend::Cmd::List) {
           config_.filename = rest_args[1];
           config_.username = "";
 
@@ -195,7 +195,7 @@ int PasswdFrontend::run() {
         }
         /* Falls through. */
       default:
-        if (config_.cmd == PasswdFrontend::Cmd::LIST) {
+        if (config_.cmd == PasswdFrontend::Cmd::List) {
           throw UsageError("expected at least one extra argument: <filename>");
         } else {
           throw UsageError("expected <filename> and <username>");
@@ -224,7 +224,7 @@ int PasswdFrontend::run() {
       }
     } else {
       switch (config_.cmd) {
-        case Cmd::SET:
+        case Cmd::Set:
           // set will create a new file if the file doesn't exist
           break;
         default:
@@ -235,7 +235,7 @@ int PasswdFrontend::run() {
 
   bool changed = false;
   switch (config_.cmd) {
-    case Cmd::LIST: {
+    case Cmd::List: {
       if (config_.username.empty()) {
         // dump all
         backend.to_stream(cout_);
@@ -251,7 +251,7 @@ int PasswdFrontend::run() {
       }
       break;
     }
-    case Cmd::VERIFY: {
+    case Cmd::Verify: {
       std::string passwd = read_password();
 
       auto ec = backend.authenticate(config_.username, passwd);
@@ -262,7 +262,7 @@ int PasswdFrontend::run() {
 
       return !ec ? EXIT_SUCCESS : EXIT_FAILURE;
     }
-    case Cmd::DELETE: {
+    case Cmd::Delete: {
       changed = (backend.erase(config_.username) != 0);
 
       if (!changed) {
@@ -271,7 +271,7 @@ int PasswdFrontend::run() {
       }
       break;
     }
-    case Cmd::SET: {
+    case Cmd::Set: {
       changed = true;
 
       switch (config_.kdf) {
@@ -297,8 +297,8 @@ int PasswdFrontend::run() {
         case PasswdFrontend::Kdf::Pbkdf2_sha256:
         case PasswdFrontend::Kdf::Pbkdf2_sha512: {
           Pbkdf2::Type kdf = config_.kdf == PasswdFrontend::Kdf::Pbkdf2_sha256
-                                 ? Pbkdf2::Type::Sha256
-                                 : Pbkdf2::Type::Sha512;
+                                 ? Pbkdf2::Type::Sha_256
+                                 : Pbkdf2::Type::Sha_512;
 
           Pbkdf2McfAdaptor mcf_adaptor(kdf, config_.cost, Pbkdf2::salt(), {});
           {
@@ -318,8 +318,8 @@ int PasswdFrontend::run() {
       }
       break;
     }
-    case Cmd::SHOW_HELP:
-    case Cmd::SHOW_VERSION:
+    case Cmd::ShowHelp:
+    case Cmd::ShowVersion:
       // unreachable
       abort();
       break;
@@ -366,7 +366,7 @@ void PasswdFrontend::prepare_command_options() {
   arg_handler_.add_option(
       CmdOption::OptionNames({"-?", "--help"}), "Display this help and exit.",
       CmdOptionValueReq::none, "", [this](const std::string &) {
-        config_.cmd = PasswdFrontend::Cmd::SHOW_HELP;
+        config_.cmd = PasswdFrontend::Cmd::ShowHelp;
       });
   arg_handler_.add_option(
       CmdOption::OptionNames({"--kdf"}),
@@ -386,7 +386,7 @@ void PasswdFrontend::prepare_command_options() {
       CmdOption::OptionNames({"-V", "--version"}),
       "Display version information and exit.", CmdOptionValueReq::none, "",
       [this](const std::string &) {
-        config_.cmd = PasswdFrontend::Cmd::SHOW_VERSION;
+        config_.cmd = PasswdFrontend::Cmd::ShowVersion;
       });
   arg_handler_.add_option(
       CmdOption::OptionNames({"--work-factor"}),

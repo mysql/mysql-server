@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,11 +41,13 @@ TlsLibraryContext::TlsLibraryContext() {
   SSL_library_init();
 #endif
   SSL_load_error_strings();
+#if !defined(LIBWOLFSSL_VERSION_HEX)
   ERR_load_crypto_strings();
+#endif
 }
 
 TlsContext::TlsContext(const SSL_METHOD *method)
-    : ssl_ctx_{SSL_CTX_new(method), &SSL_CTX_free} {
+    : ssl_ctx_{SSL_CTX_new(const_cast<SSL_METHOD *>(method)), &SSL_CTX_free} {
   // SSL_CTX_new may fail if ciphers aren't loaded.
   if (!ssl_ctx_) {
     throw TlsError("ssl-ctx-new");
@@ -136,7 +138,7 @@ void TlsContext::version_range(TlsVersion min_version, TlsVersion max_version) {
     case TlsVersion::SSL_3:
       opts |= SSL_OP_NO_SSLv2;
       break;
-  };
+  }
 
   switch (max_version) {
       // fallthrough
@@ -151,7 +153,7 @@ void TlsContext::version_range(TlsVersion min_version, TlsVersion max_version) {
       // fallthrough
     default:
       break;
-  };
+  }
 
   // returns the updated options
   SSL_CTX_set_options(ssl_ctx_.get(), opts);
@@ -225,5 +227,9 @@ void TlsContext::info_callback(TlsContext::InfoCallback cb) {
 }
 
 TlsContext::InfoCallback TlsContext::info_callback() const {
+#if defined(LIBWOLFSSL_VERSION_HEX)
+  return nullptr;
+#else
   return SSL_CTX_get_info_callback(ssl_ctx_.get());
+#endif
 }

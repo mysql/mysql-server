@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@
  */
 class Pbkdf2 {
  public:
-  enum class Type { Sha256, Sha512 };
+  enum class Type { Sha_256, Sha_512 };
   static std::vector<uint8_t> salt();
   static std::vector<uint8_t> derive(Type type, unsigned long rounds,
                                      const std::vector<uint8_t> &salt,
@@ -77,9 +77,9 @@ class Pbkdf2McfType {
 
   static std::pair<bool, std::string> name(Type type) noexcept {
     switch (type) {
-      case Type::Sha256:
+      case Type::Sha_256:
         return std::make_pair(true, kTypeSha256);
-      case Type::Sha512:
+      case Type::Sha_512:
         return std::make_pair(true, kTypeSha512);
     }
 
@@ -88,9 +88,9 @@ class Pbkdf2McfType {
 
   static std::pair<bool, Type> type(const std::string &name) noexcept {
     if (name == kTypeSha256) {
-      return std::make_pair(true, Type::Sha256);
+      return std::make_pair(true, Type::Sha_256);
     } else if (name == kTypeSha512) {
-      return std::make_pair(true, Type::Sha512);
+      return std::make_pair(true, Type::Sha_512);
     }
 
     return std::make_pair(false, Type{});
