@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1281,8 +1281,7 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   Json_boolean true_literal1(true);
   Json_boolean false_literal1(false);
   Json_null *null_literal1 = new (std::nothrow) Json_null();
-  const Json_null *json_null = NULL;
-  EXPECT_EQ(json_null, null_literal1->parent());
+  EXPECT_EQ(nullptr, null_literal1->parent());
   object1.add_clone(std::string("a"), &true_literal1);
   object1.add_clone(std::string("b"), &false_literal1);
   object1.add_alias(std::string("c"), null_literal1);
@@ -1297,7 +1296,7 @@ TEST_F(JsonPathTest, RemoveDomTest) {
   // Json_dom.add_clone()
 
   Json_null null_literal2;
-  EXPECT_EQ(json_null, null_literal2.parent());
+  EXPECT_EQ(nullptr, null_literal2.parent());
   std::string key("d");
   object1.add_clone(key, &null_literal2);
   Json_dom *clone = object1.get(key);

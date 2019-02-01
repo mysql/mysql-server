@@ -1231,7 +1231,7 @@ static uint make_json_sort_key(Item *item, uchar *to, uchar *null_indicator,
   }
 
   size_t actual_length = wr.make_sort_key(to, length);
-  *hash = wr.make_hash_key(hash);
+  *hash = wr.make_hash_key(*hash);
   return actual_length;
 }
 

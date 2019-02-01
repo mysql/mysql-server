@@ -1795,7 +1795,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
           inside an array or object, we need to find the parent DOM to be
           able to replace it in situ.
         */
-        Json_dom *parent = hit->parent();
+        Json_container *parent = hit->parent();
         if (parent == nullptr)  // root
         {
           DBUG_ASSERT(possible_root_path(path->begin(), path->end()));
@@ -1912,7 +1912,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
             array or object, we need to find the parent DOM to be able to
             replace it in situ.
           */
-          Json_dom *parent = hit->parent();
+          Json_container *parent = hit->parent();
           if (parent == nullptr)  // root
           {
             DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
@@ -2264,7 +2264,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
               inside an array or object, we need to find the parent DOM to be
               able to replace it in situ.
             */
-            Json_dom *parent = hit->parent();
+            Json_container *parent = hit->parent();
             if (parent == nullptr)  // root
             {
               docw = Json_wrapper(std::move(newarr));
@@ -2299,8 +2299,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         // We found one value, so replace semantics.
         DBUG_ASSERT(hits.size() == 1);
         Json_dom *child = hits[0];
-        Json_dom *parent = child->parent();
-        if (!parent) {
+        Json_container *parent = child->parent();
+        if (parent == nullptr) {
           Json_dom_ptr dom = valuew.clone_dom(thd);
           if (dom == nullptr) return error_json(); /* purecov: inspected */
           docw = Json_wrapper(std::move(dom));

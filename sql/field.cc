@@ -8107,9 +8107,9 @@ size_t Field_json::make_sort_key(uchar *to, size_t length) {
   return wr.make_sort_key(to, length);
 }
 
-ulonglong Field_json::make_hash_key(ulonglong *hash_val) {
+ulonglong Field_json::make_hash_key(ulonglong hash_val) {
   Json_wrapper wr;
-  if (val_json(&wr)) return *hash_val; /* purecov: inspected */
+  if (val_json(&wr)) return hash_val; /* purecov: inspected */
   return wr.make_hash_key(hash_val);
 }
 

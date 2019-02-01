@@ -4538,7 +4538,7 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val) {
   if (field->type() == MYSQL_TYPE_JSON) {
     Field_json *json_field = down_cast<Field_json *>(field);
 
-    crc = json_field->make_hash_key(hash_val);
+    crc = json_field->make_hash_key(*hash_val);
   } else if (field->key_type() == HA_KEYTYPE_TEXT ||
              field->key_type() == HA_KEYTYPE_VARTEXT1 ||
              field->key_type() == HA_KEYTYPE_VARTEXT2) {
