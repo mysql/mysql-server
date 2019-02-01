@@ -1,4 +1,4 @@
-# restart:--force-upgrade --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,ANSI_QUOTES --log-error=MYSQLD_LOG
+# restart:--upgrade=FORCE --sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,ANSI_QUOTES --log-error=MYSQLD_LOG
 # There should be no errors
 Pattern "\[ERROR\]" not found
 # Restart server with defaults
@@ -7,7 +7,7 @@ Pattern "\[ERROR\]" not found
 # Bug #27549249: MYSQL_UPGRADE FAILED TO CHANGE @@SESSION.SQL_LOG_BIN
 #   WHEN AUTOCOMMIT IS OFF
 #
-# restart:--force-upgrade --autocommit=0
+# restart:--upgrade=FORCE --autocommit=0
 # Restart server with defaults
 # restart:
 #
@@ -20,7 +20,7 @@ GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARI
 GRANT SELECT ON `performance\_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 # Must have SESSION_VARIABLES_ADMIN;
 SHOW GRANTS FOR "mysql.session"@localhost;
 Grants for mysql.session@localhost
@@ -31,7 +31,7 @@ GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 #
 # Bug #28855207: 8.0.13 - MYSQL_UPGRADE FAILS DUE TO PRIMARY KEY ERROR WITHOUT STATING THE TABLE
 #
-# restart: --sql_require_primary_key=1 --force-upgrade
+# restart: --sql_require_primary_key=1 --upgrade=FORCE
 # restart: 
 
 End of tests

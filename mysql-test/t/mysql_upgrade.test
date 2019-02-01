@@ -8,7 +8,7 @@
 
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_upgrade_test.log
 --replace_result $MYSQLD_LOG MYSQLD_LOG
---let $restart_parameters = restart:--force-upgrade --sql-mode=$sql_mode_old,ANSI_QUOTES --log-error=$MYSQLD_LOG
+--let $restart_parameters = restart:--upgrade=FORCE --sql-mode=$sql_mode_old,ANSI_QUOTES --log-error=$MYSQLD_LOG
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -29,7 +29,7 @@
 
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---let $restart_parameters = restart:--force-upgrade --autocommit=0
+--let $restart_parameters = restart:--upgrade=FORCE --autocommit=0
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -46,7 +46,7 @@ REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM "mysql.session"@localhost;
 
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -57,7 +57,7 @@ SHOW GRANTS FOR "mysql.session"@localhost;
 --echo # Bug #28855207: 8.0.13 - MYSQL_UPGRADE FAILS DUE TO PRIMARY KEY ERROR WITHOUT STATING THE TABLE
 --echo #
 
---let restart_parameters=restart: --sql_require_primary_key=1 --force-upgrade
+--let restart_parameters=restart: --sql_require_primary_key=1 --upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

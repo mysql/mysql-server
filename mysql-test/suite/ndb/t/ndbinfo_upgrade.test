@@ -28,7 +28,7 @@ DROP TABLE ndbinfo.ndb$nodes;
 --error ER_VIEW_INVALID
 SELECT COUNT(*) FROM nodes;
 
---let $restart_parameters= restart:--force-upgrade
+--let $restart_parameters= restart:--upgrade=FORCE
 --let $mysqld_name=mysqld.1.1
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc

@@ -1821,7 +1821,7 @@ tables_priv	MyISAM
 user	MyISAM
 
 # mysql_upgrade...
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 
 # The ACL tables must have been upgraded.
 SELECT table_name, engine FROM INFORMATION_SCHEMA.TABLES

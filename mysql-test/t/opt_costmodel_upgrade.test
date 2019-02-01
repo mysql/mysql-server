@@ -18,7 +18,7 @@ ALTER TABLE mysql.engine_cost DROP COLUMN default_value;
 # Filter out ndb_binlog_index to mask differences due to running with
 # or without NDB. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -40,7 +40,7 @@ SELECT * FROM mysql.engine_cost;
 #
 # Filter out ndb_binlog_index to mask differences due to running with
 # or without NDB.
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

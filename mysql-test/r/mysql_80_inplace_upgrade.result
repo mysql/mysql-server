@@ -9,22 +9,22 @@
 # Check that the file exists in the working folder.
 # Unzip the zip file.
 ###########################################################################
-# Test the --no-upgrade option with a 8.0.11 data directory
+# Test the --upgrade=NONE option with a 8.0.11 data directory
 ###########################################################################
 # Search for the error message in the server error log.
-Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\." found
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
 ###########################################################################
-# Test the --minimal-upgrade option with a 8.0.11 data directory
+# Test the --upgrade=MINIMAL option with a 8.0.11 data directory
 ###########################################################################
 # Search for the error message in the server error log.
 Pattern "Column count of mysql\.user is wrong. Expected \d+, found 49\. Created with MySQL 80011, now running \d+\." found
-Pattern "Server upgrade is required, but skipped by command line option \'--minimal-upgrade\'\." found
+Pattern "Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\." found
 ###########################################################################
-# Test the --no-upgrade option with a 8.0.11 data directory with upgraded
+# Test the --upgrade=NONE option with a 8.0.11 data directory with upgraded
 # data dictionary but skipped server upgrade
 ###########################################################################
 # Search for the error message in the server error log.
-Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\." found
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
 ###########################################################################
 # Complete the upgrade on a data directory that has an upgraded data
 # dictionary but skipped server upgrade
@@ -39,7 +39,7 @@ TRUNCATE TABLE mysql.help_topic;
 SELECT COUNT(*) = 0 FROM mysql.help_topic;
 COUNT(*) = 0
 1
-# restart: --force-upgrade --log-error=MYSQLD_LOG
+# restart: --upgrade=FORCE --log-error=MYSQLD_LOG
 SELECT COUNT(*) != 0 FROM mysql.help_topic;
 COUNT(*) != 0
 1

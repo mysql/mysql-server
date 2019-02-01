@@ -328,7 +328,6 @@ The following options may be given as the first argument:
  --flush             Flush MyISAM tables to disk between SQL commands
  --flush-time=#      A dedicated thread is created to flush all tables at the
  given interval
- --force-upgrade     Force upgrade of system tables.
  --ft-boolean-syntax=name 
  List of operators for MATCH ... AGAINST ( ... IN BOOLEAN
  MODE)
@@ -624,8 +623,6 @@ The following options may be given as the first argument:
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
- --minimal-upgrade   Start the server, but skip upgrade steps that are not
- absolutely necessary.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -677,10 +674,8 @@ The following options may be given as the first argument:
  -n, --new           Use very new possible "unsafe" functions
  --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
  data dictionary is needed. Deprecated option. Use
- --no-upgrade instead.
+ --upgrade=NONE instead.
  --no-monitor        Disable monitor process.
- --no-upgrade        Abort restart if automatic upgrade or downgrade of the
- server is needed.
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
@@ -1356,6 +1351,11 @@ The following options may be given as the first argument:
  Prohibit update of a VIEW, which does not contain a key
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
+ --upgrade[=name]    Set server upgrade mode. NONE to abort server if
+ automatic upgrade of the server is needed; MINIMAL to
+ start the server, but skip upgrade steps that are not
+ absolutely necessary; AUTO (default) to upgrade the
+ server if required; FORCE to force upgrade server.
  -u, --user=name     Run mysqld daemon as user.
  --validate-config   Validate the server configuration specified by the user.
  --validate-user-plugins 
@@ -1448,7 +1448,6 @@ explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
 flush-time 0
-force-upgrade FALSE
 ft-boolean-syntax + -><()~*:""&|
 ft-max-word-len 84
 ft-min-word-len 4
@@ -1540,7 +1539,6 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 min-examined-row-limit 0
-minimal-upgrade FALSE
 myisam-block-size 1024
 myisam-data-pointer-size 6
 myisam-max-sort-file-size 9223372036853727232
@@ -1560,7 +1558,6 @@ net-write-timeout 60
 new FALSE
 no-dd-upgrade FALSE
 no-monitor FALSE
-no-upgrade FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE
@@ -1738,6 +1735,7 @@ transaction-prealloc-size 4096
 transaction-read-only FALSE
 transaction-write-set-extraction XXHASH64
 updatable-views-with-limit YES
+upgrade AUTO
 validate-config FALSE
 validate-user-plugins TRUE
 verbose TRUE

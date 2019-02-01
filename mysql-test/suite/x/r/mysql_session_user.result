@@ -15,7 +15,7 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 # Recreate the user with an upgrade and see that X plugin works
 #
 Run mysql_upgrade
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 include/assert.inc [session_user should exist after upgrade]
 RUN SELECT CURRENT_USER()
 

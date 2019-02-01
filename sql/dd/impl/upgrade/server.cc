@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/upgrade/server.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -60,6 +61,10 @@
 typedef ulonglong sql_mode_t;
 extern const char *mysql_sys_schema[];
 extern const char *fill_help_tables[];
+
+const char *upgrade_modes[] = {"NONE", "MINIMAL", "AUTO", "FORCE", NullS};
+TYPELIB upgrade_mode_typelib = {array_elements(upgrade_modes) - 1, "",
+                                upgrade_modes, NULL};
 
 namespace dd {
 namespace upgrade {
@@ -918,6 +923,11 @@ bool upgrade_system_schemas(THD *thd) {
   close_cached_tables(NULL, NULL, false, LONG_TIMEOUT);
 
   return dd::end_transaction(thd, err);
+}
+
+bool no_server_upgrade_required() {
+  return !(dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
+           opt_upgrade_mode == UPGRADE_FORCE);
 }
 
 }  // namespace upgrade

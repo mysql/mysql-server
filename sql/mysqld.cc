@@ -747,13 +747,12 @@ The documentation is based on the source files such as:
 #include "../components/mysql_server/log_builtins_filter_imp.h"
 #include "../components/mysql_server/server_component.h"
 #include "sql/auth/dynamic_privileges_impl.h"
-#include "sql/dd/dd.h"                            // dd::shutdown
-#include "sql/dd/dd_kill_immunizer.h"             // dd::DD_kill_immunizer
-#include "sql/dd/dictionary.h"                    // dd::get_dictionary
-#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::DD_bootstrap_ctx
-#include "sql/dd/impl/upgrade/server.h"  // dd::upgrade::upgrade_system_schemas
+#include "sql/dd/dd.h"                       // dd::shutdown
+#include "sql/dd/dd_kill_immunizer.h"        // dd::DD_kill_immunizer
+#include "sql/dd/dictionary.h"               // dd::get_dictionary
 #include "sql/dd/performance_schema/init.h"  // performance_schema::init
-#include "sql/dd/upgrade_57/upgrade.h"       // dd::upgrade_57::in_progress
+#include "sql/dd/upgrade/server.h"      // dd::upgrade::upgrade_system_schemas
+#include "sql/dd/upgrade_57/upgrade.h"  // dd::upgrade_57::in_progress
 #include "sql/srv_session.h"
 
 using std::max;
@@ -992,9 +991,7 @@ bool opt_no_monitor = false;
 #endif
 
 bool opt_no_dd_upgrade = false;
-bool opt_no_upgrade = false;
-bool opt_minimal_upgrade = false;
-bool opt_force_upgrade = false;
+long opt_upgrade_mode = UPGRADE_AUTO;
 bool opt_initialize = 0;
 bool opt_skip_slave_start = 0;  ///< If set, slave is not autostarted
 bool opt_enable_named_pipe = 0;
@@ -5161,13 +5158,6 @@ static int init_server_components() {
       }
     }
   } else {
-    // Check server upgrade options before initializing DD
-    // The server upgrade options are mutually exclusive
-    if (opt_no_upgrade + opt_minimal_upgrade + opt_force_upgrade > 1) {
-      LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_BAD_OPTION);
-      unireg_abort(1);
-    }
-
     /*
       Initialize DD in case of upgrade and normal normal server restart.
       It is detected if we are starting on old data directory or current
@@ -5259,9 +5249,8 @@ static int init_server_components() {
 #endif
 
   if (!is_help_or_validate_option() && !opt_initialize &&
-      (dd::bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade() ||
-       opt_force_upgrade)) {
-    if (opt_minimal_upgrade)
+      !dd::upgrade::no_server_upgrade_required()) {
+    if (opt_upgrade_mode == UPGRADE_MINIMAL)
       LogErr(WARNING_LEVEL, ER_SERVER_UPGRADE_SKIP);
     else {
       init_optimizer_cost_module(true);
@@ -7164,24 +7153,20 @@ struct my_option my_long_early_options[] = {
      &opt_keyring_migration_port, 0, GET_ULONG, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"no-dd-upgrade", 0,
      "Abort restart if automatic upgrade or downgrade of the data dictionary "
-     "is needed. Deprecated option. Use --no-upgrade instead.",
+     "is needed. Deprecated option. Use --upgrade=NONE instead.",
      &opt_no_dd_upgrade, &opt_no_dd_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
      0},
     {"validate-config", 0,
      "Validate the server configuration specified by the user.",
      &opt_validate_config, &opt_validate_config, 0, GET_BOOL, NO_ARG, 0, 0, 0,
      0, 0, 0},
-    {"minimal-upgrade", 0,
-     "Start the server, but skip upgrade steps that are not absolutely "
-     "necessary.",
-     &opt_minimal_upgrade, &opt_minimal_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0,
-     0, 0, 0},
-    {"no-upgrade", 0,
-     "Abort restart if automatic upgrade or downgrade of the server "
-     "is needed.",
-     &opt_no_upgrade, &opt_no_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"force-upgrade", 0, "Force upgrade of system tables.", &opt_force_upgrade,
-     &opt_force_upgrade, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"upgrade", 0,
+     "Set server upgrade mode. NONE to abort server if automatic upgrade of "
+     "the server is needed; MINIMAL to start the server, but skip upgrade "
+     "steps that are not absolutely necessary; AUTO (default) to upgrade the "
+     "server if required; FORCE to force upgrade server.",
+     &opt_upgrade_mode, &opt_upgrade_mode, &upgrade_mode_typelib, GET_ENUM,
+     OPT_ARG, UPGRADE_AUTO, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**

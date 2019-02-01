@@ -14,7 +14,7 @@ CREATE USER 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 --echo Run mysql_upgrade with all privileges on a user
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -73,7 +73,7 @@ let SEARCH_FILE= $test_error_log;
 --source include/search_pattern.inc
 --echo # end of check for the presense of the warning
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -231,7 +231,7 @@ connection default;
 --echo #mysql.user table should have 5.7 layout thus no need to restore the
 --echo #dropped columns from the begining of the test
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -322,7 +322,7 @@ let SEARCH_FILE= $test_error_log;
 
 --echo # end of check for the presense of the warning
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -378,7 +378,7 @@ SHOW GRANTS FOR u1;
 
 --echo # Start upgrade
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -404,7 +404,7 @@ REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # Start upgrade
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -445,7 +445,7 @@ SHOW GRANTS FOR u2;
 
 --echo # Start upgrade
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -479,7 +479,7 @@ SHOW GRANTS FOR user1;
 
 --echo # Start upgrade
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -517,7 +517,7 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 SHOW GRANTS FOR root@localhost;
 SHOW GRANTS FOR u1;
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc
@@ -543,7 +543,7 @@ REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 --echo # Start upgrade
 
---let $restart_parameters = restart:--force-upgrade --log-error=$test_error_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
 --let $wait_counter= 10000
 --replace_result $test_error_log test_error_log
 --source include/restart_mysqld.inc

@@ -38,7 +38,7 @@ Warning	1805	Column count of mysql.user is wrong. Expected 51, found 43. The tab
 #password set. After mysql_upgrade finishes the mysql.user table should
 #have 5.7 layout thus no need to restore the dropped columns from
 #the begining of the test
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 DROP USER 'user_sha_pass_wp'@'%';
 TRUNCATE TABLE mysql.user;
 INSERT INTO mysql.user SELECT * FROM tmp_user;

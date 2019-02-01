@@ -1,7 +1,7 @@
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
-# restart:--force-upgrade --log-error=MYSQLD_LOG
+# restart:--upgrade=FORCE --log-error=MYSQLD_LOG
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
-# restart:--force-upgrade --log-error=MYSQLD_LOG
+# restart:--upgrade=FORCE --log-error=MYSQLD_LOG
 First initialize the binlog
 reset master;
 DROP TABLE IF EXISTS t1;

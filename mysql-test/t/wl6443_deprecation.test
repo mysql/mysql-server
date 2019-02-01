@@ -84,7 +84,7 @@ select count(*) from information_schema.tables where table_name like 'host' and 
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
 
---let $restart_parameters = restart: --force-upgrade
+--let $restart_parameters = restart: --upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -93,7 +93,7 @@ create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 
---let $restart_parameters = restart: --force-upgrade
+--let $restart_parameters = restart: --upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 
@@ -101,7 +101,7 @@ select count(*) from mysql.host;
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 
---let $restart_parameters = restart: --force-upgrade
+--let $restart_parameters = restart: --upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

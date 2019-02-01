@@ -17,7 +17,7 @@ ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 GRANT SELECT ON *.* TO u1;
 ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 # Run mysql_upgrade
-# restart:--force-upgrade --log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
+# restart:--upgrade=FORCE --log-error=MYSQLTEST_VARDIR/log/roles-upgrade.err
 SHOW CREATE TABLE mysql.role_edges;
 Table	Create Table
 role_edges	CREATE TABLE `role_edges` (

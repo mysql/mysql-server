@@ -10,7 +10,7 @@ USE mysql;
 FLUSH TABLES;
 RENAME TABLE general_log TO renamed_general_log;
 RENAME TABLE test.bug49823 TO general_log;
-# restart:--force-upgrade --general-log=0
+# restart:--upgrade=FORCE --general-log=0
 DROP TABLE general_log;
 RENAME TABLE renamed_general_log TO general_log;
 USE test;

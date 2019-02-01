@@ -12,12 +12,12 @@
 # These files are added to test error scenario, delete from for upgrade testing.
 # Remove myisam partitioned tables. There are used for negative testing.
 ###########################################################################
-# Test the --no-upgrade option with a 5.7 data directory
+# Test the --upgrade=NONE option with a 5.7 data directory
 ###########################################################################
 # Search for the error messege in the server error log.
-Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\." found
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
 ###########################################################################
-# Test the --minimal-upgrade option with a 5.7 data directory
+# Test the --upgrade=MINIMAL option with a 5.7 data directory
 ###########################################################################
 # Search for the error messege in the server error log.
 Pattern "Table \'mysql.component\' doesn\'t exist" found
@@ -40,13 +40,13 @@ Pattern "Error in checking mysql\.slave_master_info repository info type of TABL
 Pattern "Error creating master info\: Error checking repositories\." found
 Pattern "Slave: Failed to initialize the master info structure for channel \'\'; its record may still be present in \'mysql.slave_master_info\' table, consider deleting it\." found
 Pattern "Failed to create or recover replication info repositories\." found
-Pattern "Server upgrade is required, but skipped by command line option \'--minimal-upgrade\'\." found
+Pattern "Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\." found
 ###########################################################################
-# Test the --no-upgrade option with a 5.7 data directory with upgraded
+# Test the --upgrade=NONE option with a 5.7 data directory with upgraded
 # data dictionary but skipped server upgrade
 ###########################################################################
 # Search for the error messege in the server error log.
-Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\." found
+Pattern "Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\." found
 ###########################################################################
 # Complete the upgrade on a data directory that has an upgraded data
 # dictionary but skipped server upgrade
@@ -61,7 +61,7 @@ TRUNCATE TABLE mysql.help_topic;
 SELECT COUNT(*) = 0 FROM mysql.help_topic;
 COUNT(*) = 0
 1
-# restart: --force-upgrade --log-error=MYSQLD_LOG
+# restart: --upgrade=FORCE --log-error=MYSQLD_LOG
 SELECT COUNT(*) != 0 FROM mysql.help_topic;
 COUNT(*) != 0
 1

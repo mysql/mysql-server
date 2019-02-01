@@ -19021,10 +19021,10 @@ ER_GRP_RPL_DEFAULT_TABLE_ENCRYPTION_DIFF_FROM_GRP
   eng "The member is configured with a default_table_encryption option value '%d' different from the group '%d'. The member will now exit the group."
 
 ER_SERVER_UPGRADE_OFF
-  eng "Server shutting down because upgrade is required, yet prohibited by the command line option '--no-upgrade'."
+  eng "Server shutting down because upgrade is required, yet prohibited by the command line option '--upgrade=NONE'."
 
 ER_SERVER_UPGRADE_SKIP
-  eng "Server upgrade is required, but skipped by command line option '--minimal-upgrade'."
+  eng "Server upgrade is required, but skipped by command line option '--upgrade=MINIMAL'."
 
 ER_SERVER_UPGRADE_PENDING
   eng "Server upgrade started with version %d, but server upgrade of version %d is still pending."
@@ -19040,9 +19040,6 @@ ER_SERVER_UPGRADE_REPAIR_REQUIRED
 
 ER_SERVER_UPGRADE_REPAIR_STATUS
   eng "Table '%s' repair %s."
-
-ER_SERVER_UPGRADE_BAD_OPTION
-  eng "Options '--minimal-upgrade', '--no-upgrade' and '--force-upgrade' are mutually exclusive."
 
 ER_SERVER_UPGRADE_INFO_FILE
   eng "Could not create server upgrade info file at '%s'."

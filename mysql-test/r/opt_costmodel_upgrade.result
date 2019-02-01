@@ -3,7 +3,7 @@ WL#10128:  Add defaults column to optimizer cost tables
 
 ALTER TABLE mysql.server_cost DROP COLUMN default_value;
 ALTER TABLE mysql.engine_cost DROP COLUMN default_value;
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 SELECT * FROM mysql.server_cost;
 cost_name	cost_value	last_update	comment	default_value
 disk_temptable_create_cost	NULL	#	NULL	20
@@ -18,7 +18,7 @@ default	0	io_block_read_cost	NULL	#	NULL	1
 default	0	memory_block_read_cost	NULL	#	NULL	0.25
 # Default values after upgrade should be equal to fresh server
 include/assert.inc [Default values after upgrade should be equal to fresh server.]
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 SELECT * FROM mysql.server_cost;
 cost_name	cost_value	last_update	comment	default_value
 disk_temptable_create_cost	NULL	#	NULL	20

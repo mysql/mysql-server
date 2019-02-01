@@ -8,7 +8,7 @@ mtr
 mysql
 performance_schema
 test
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 SHOW DATABASES;
 Database
 information_schema

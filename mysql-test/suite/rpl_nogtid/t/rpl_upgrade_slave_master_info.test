@@ -98,7 +98,7 @@ CREATE TABLE `slave_master_info` (
 
 --echo # Running mysql_upgrade to update slave_master_info table
 
---let $rpl_server_parameters= --force-upgrade
+--let $rpl_server_parameters= --upgrade=FORCE
 --let $rpl_server_number= 1
 --let $wait_counter= 10000
 --source include/rpl_restart_server.inc

@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DD_UPGRADE__SERVER_H_INCLUDED
-#define DD_UPGRADE__SERVER_H_INCLUDED
+#ifndef DD_UPGRADE_IMPL__SERVER_H_INCLUDED
+#define DD_UPGRADE_IMPL__SERVER_H_INCLUDED
 
 #include <stdio.h>
 
@@ -194,38 +194,7 @@ bool invalid_routine(THD *thd, const dd::Schema &schema,
 */
 bool build_event_sp(const THD *thd, const char *name, size_t name_len,
                     const char *body, size_t body_len, dd::String_type *sp_sql);
-
-/**
-  Upgrades/restores the system tables to defaults of the current MySQL version.
-  This is a replacement for the mysql_upgrade client.
-
-  There are four SQL scripts executed:
-  1. mysql_system_tables.sql - Creates the system tables
-  2. mysql_system_tables_fix.sql - Updates the system table
-  3. mysql_system_tables_data_fix.sql - Fills the system tables with meta data
-  4. mysql_sys_schema.sql - Create and/or updates the sys schema
-
-  Then the system tables are checked by executing CHECK TABLE SQL statements.
-
-  This function is called during startup if the MySQL version present in
-  DD_properties in not the same as the current MySQL version. This function can
-  also be called if the server is started with --force-upgrade option.
-
-  If the server is started with --minimal-upgrade option with a newer MySQL
-  server version Z on an older data directory of MySQL server version X, this
-  function checks if server upgrade has been skipped before using another MySQL
-  server version Y such that Y != Z, X < Y and X < Z. If yes, we abort.
-
-  The server upgrade ends with updating the MYSQLD_UPGRADED_VERSION value in
-  DD_properties to the current server version (MYSQL_VERSION_ID).
-
-  @param[in]  thd   Thread handle.
-
-  @retval false  ON SUCCESS
-  @retval true   ON FAILURE
-*/
-bool upgrade_system_schemas(THD *thd);
 }  // namespace upgrade
 
 }  // namespace dd
-#endif  // DD_UPGRADE__SERVER_H_INCLUDED
+#endif  // DD_UPGRADE_IMPL__SERVER_H_INCLUDED

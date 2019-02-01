@@ -44,7 +44,7 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 --echo #
 
 --echo Run mysql_upgrade
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 --source include/mysql_upgrade_cleanup.inc

@@ -22,7 +22,7 @@ enable_query_log;
 enable_result_log;
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_2_upgrade.log
---let $restart_parameters= restart:--force-upgrade --log-error=$MYSQLD_LOG
+--let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
 --let $mysqld_name=mysqld.2.1
 --let $wait_counter= 10000
 --replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
@@ -39,7 +39,7 @@ enable_query_log;
 enable_result_log;
 call mtr.add_suppression("Can't create database 'performance_schema'; database exists");
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql_1_upgrade.log
---let $restart_parameters= restart:--force-upgrade --log-error=$MYSQLD_LOG
+--let $restart_parameters= restart:--upgrade=FORCE --log-error=$MYSQLD_LOG
 --let $mysqld_name=mysqld.1.1
 --let $wait_counter= 10000
 disconnect default;

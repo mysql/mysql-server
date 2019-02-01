@@ -233,7 +233,7 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
 --echo # DB server which was started above is not running, no need for shutdown, just start
 --echo # the server. This will not fail after the bugfix since the trigger order is now corrected.
---exec echo "restart: --datadir=$MYSQLD_DATADIR_57 --log-error-verbosity=3 --log-error=$MYSQLD_LOG --minimal-upgrade" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$MYSQLD_DATADIR_57 --log-error-verbosity=3 --log-error=$MYSQLD_LOG --upgrade=MINIMAL" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --let $wait_counter= 3000
 --source include/wait_until_connected_again.inc

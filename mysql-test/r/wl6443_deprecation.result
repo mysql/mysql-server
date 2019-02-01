@@ -74,17 +74,17 @@ count(*)
 0
 create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
-# restart: --force-upgrade
+# restart: --upgrade=FORCE
 drop table mysql.host;
 create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
 select count(*) from mysql.host;
 count(*)
 3
-# restart: --force-upgrade
+# restart: --upgrade=FORCE
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
-# restart: --force-upgrade
+# restart: --upgrade=FORCE
 # End of 5.6 tests
 #
 # WL#6802: Deprecate the INFORMATION_SCHEMA.PROFILING table

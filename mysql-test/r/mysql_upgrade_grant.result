@@ -5,7 +5,7 @@
 CREATE USER 'user3'@'%';
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%';
 Run mysql_upgrade with all privileges on a user
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
 GRANT USAGE ON *.* TO `user3`@`%`
@@ -51,7 +51,7 @@ Pattern "2. Run" found
 Pattern "3. Restart" found
 Pattern "For complete instructions on how to upgrade MySQL" found
 # end of check for the presense of the warning
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # expect mysql_native_password
 SELECT plugin FROM mysql.user WHERE user='B19011337_nhash';
 plugin
@@ -177,7 +177,7 @@ Host	User	Password	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	D
 #column and 4.1 hash password. After mysql_upgrade finishes the
 #mysql.user table should have 5.7 layout thus no need to restore the
 #dropped columns from the begining of the test
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 call mtr.add_suppression("User entry 'user_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 call mtr.add_suppression("User entry 'su_old_pass_pn'@'%' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # check the presents of the warnings in the log file
@@ -254,7 +254,7 @@ Warning	1805	Column count of mysql.user is wrong. Expected 51, found 43. The tab
 # check the presents of the warnings in the log file
 Pattern "User entry 'B20614545'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
 # end of check for the presense of the warning
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 call mtr.add_suppression("User entry 'B20614545'@'localhost' has an empty plugin value. The user will be ignored and no one can login with this user anymore.");
 # check the presents of the warnings in the log file
 Pattern "User entry 'B20614545'@'localhost' has an empty plugin value." found
@@ -304,7 +304,7 @@ SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SUPER ON *.* TO `u1`@`%`
 # Start upgrade
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # Show privileges granted to the users root@localhost and u1
 # after upgrade has been finished.
 # It is expected that the users root@localhost and u1 have the
@@ -329,7 +329,7 @@ GRANT XA_RECOVER_ADMIN ON *.* TO `u1`@`%`
 REVOKE XA_RECOVER_ADMIN ON *.* FROM u1;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
 # Start upgrade
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # It is expected that after upgrade be finished the privilege
 # XA_RECOVER_ADMIN won't be granted to the user u1 since
 # there was another user (root@localhost) who had the privilege
@@ -371,7 +371,7 @@ SHOW GRANTS FOR u2;
 Grants for u2@%
 GRANT RELOAD, SUPER ON *.* TO `u2`@`%` WITH GRANT OPTION
 # Start upgrade
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # Check that the user u1 has privileges BACKUP_ADMIN and XA_RECOVER_ADMIN granted
 SHOW GRANTS FOR u1;
 Grants for u1@%
@@ -405,7 +405,7 @@ SHOW GRANTS FOR user1;
 Grants for user1@%
 GRANT SUPER ON *.* TO `user1`@`%`
 # Start upgrade
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
 SHOW GRANTS FOR root@localhost;
 Grants for root@localhost
@@ -449,7 +449,7 @@ GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 SHOW GRANTS FOR u1;
 Grants for u1@%
 GRANT SUPER ON *.* TO `u1`@`%`
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # Show privileges granted to the users root@localhost and u1
 # after upgrade has been finished.
 # It is expected that the users root@localhost and u1 have the
@@ -474,7 +474,7 @@ GRANT SERVICE_CONNECTION_ADMIN ON *.* TO `u1`@`%`
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM u1;
 REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM `mysql.session`@localhost;
 # Start upgrade
-# restart:--force-upgrade --log-error=test_error_log
+# restart:--upgrade=FORCE --log-error=test_error_log
 # It is expected that after upgrade be finished the privilege
 # SERVICE_CONNECTION_ADMIN won't be granted to the user u1 since
 # there was another user (root@localhost) who had the privilege
