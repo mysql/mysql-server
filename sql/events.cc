@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -906,6 +906,17 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
 
   DBUG_ENTER("Events::init");
 
+  // If event scheduler was explicitly disabled from command-line, do not
+  // initialize it.
+  if (opt_event_scheduler == Events::EVENTS_DISABLED) DBUG_RETURN(res);
+
+  //  If run with --skip-grant-tables or --initialize, disable the event
+  //  scheduler and return.
+  if (opt_noacl_or_bootstrap) {
+    opt_event_scheduler = Events::EVENTS_DISABLED;
+    DBUG_RETURN(res);
+  }
+
   /*
     We need a temporary THD during boot
 
@@ -928,13 +939,6 @@ bool Events::init(bool opt_noacl_or_bootstrap) {
   */
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
-
-  //  If run with --skip-grant-tables or --initialize, disable the event
-  //  scheduler.
-  if (opt_noacl_or_bootstrap) {
-    opt_event_scheduler = EVENTS_DISABLED;
-    goto end;
-  }
 
   DBUG_ASSERT(opt_event_scheduler == Events::EVENTS_ON ||
               opt_event_scheduler == Events::EVENTS_OFF);
