@@ -9264,7 +9264,8 @@ static void init_signal_handling(void) {
 
 int main(int argc, char **argv) {
   struct st_command *command;
-  bool q_send_flag = 0, abort_flag = 0;
+  bool abort_flag = 0;
+  int q_send_flag = 0;
   uint command_executed = 0, last_command_executed = 0;
   char output_file[FN_REFLEN];
   MY_INIT(argv[0]);
@@ -9735,8 +9736,13 @@ int main(int argc, char **argv) {
           int flags = QUERY_REAP_FLAG | QUERY_SEND_FLAG;
 
           if (q_send_flag) {
-            /* Last command was an empty 'send' */
+            // Last command was an empty 'send' or 'send_eval'
             flags = QUERY_SEND_FLAG;
+            if (q_send_flag == 2)
+              // Last command was an empty 'send_eval' command. Set the command
+              // type to Q_SEND_EVAL so that the variable gets replaced with its
+              // value before executing.
+              command->type = Q_SEND_EVAL;
             q_send_flag = 0;
           } else if (command->type == Q_REAP) {
             flags = QUERY_REAP_FLAG;
@@ -9772,11 +9778,12 @@ int main(int argc, char **argv) {
         case Q_SEND:
         case Q_SEND_EVAL:
           if (!*command->first_argument) {
-            /*
-              This is a send without arguments, it indicates that _next_ query
-              should be send only
-            */
-            q_send_flag = 1;
+            // This is a 'send' or 'send_eval' command without arguments, it
+            // indicates that _next_ query should be send only.
+            if (command->type == Q_SEND)
+              q_send_flag = 1;
+            else if (command->type == Q_SEND_EVAL)
+              q_send_flag = 2;
             break;
           }
 
