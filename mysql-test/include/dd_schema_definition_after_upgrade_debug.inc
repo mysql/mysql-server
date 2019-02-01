@@ -25,7 +25,7 @@ if (!$VERSION)
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_$VERSION.log
 --exec echo "restart:" --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 --source include/mysql_upgrade_cleanup.inc
 
@@ -35,7 +35,7 @@ if (!$VERSION)
 --source include/shutdown_mysqld.inc
 --exec echo "restart:" --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv="" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---let $wait_counter= 3000
+--let $wait_counter= 10000
 --source include/wait_until_connected_again.inc
 
 --echo ########################################################################
@@ -63,7 +63,7 @@ if (!$VERSION)
 --echo ########################################################################
 --let $actual_dd_props = $MYSQL_TMP_DIR/actual_dd_properties.txt
 --let $file = $actual_dd_props
---let $filter = 'id|root|MYSQLD_VERSION_LO'
+--let $filter = id|root|MYSQLD_VERSION_LO
 --source include/dd_schema_dd_properties.inc
 --diff_files $target_dd_props $actual_dd_props
 
