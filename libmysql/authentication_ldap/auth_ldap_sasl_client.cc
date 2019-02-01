@@ -283,7 +283,8 @@ void Sasl_client::set_user_info(std::string name, std::string pwd) {
   m_user_pwd[sizeof(m_user_pwd) - 1] = '\0';
 }
 
-static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
+static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio,
+                             MYSQL *mysql) SUPPRESS_UBSAN {
   int rc_sasl = SASL_FAIL;
   int rc_auth = CR_ERROR;
   unsigned char *server_packet = NULL;

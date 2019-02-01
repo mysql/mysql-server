@@ -4915,7 +4915,7 @@ static net_async_status client_mpvio_read_packet_nonblocking(
   handshake packet, if neccessary.
 */
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
-                                     int pkt_len) {
+                                     int pkt_len) SUPPRESS_UBSAN {
   int res;
   MCPVIO_EXT *mpvio = (MCPVIO_EXT *)mpv;
 
