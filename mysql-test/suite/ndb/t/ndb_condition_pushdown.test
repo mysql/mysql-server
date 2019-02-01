@@ -2830,29 +2830,35 @@ select * from t1 where ushort = 999999;
 --echo # Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.
 --echo # Seems to be unpredictable which value is actually stored for an
 --echo # out of range value. Anyway the result was not as expected.
+--echo # This was made obsolete when we started rejecting invalid dates
 
 set @@optimizer_switch = 'engine_condition_pushdown=off';
 
+--error ER_WRONG_VALUE
 explain
-select * from t1 where date_field < '9999-99-99';
---sorted_result
 select * from t1 where date_field < '9999-99-99';
 
+--error ER_WRONG_VALUE
+select * from t1 where date_field < '9999-99-99';
+
+--error ER_WRONG_VALUE
 explain
 select * from t1 where date_field > '9999-99-99';
---sorted_result
+--error ER_WRONG_VALUE
 select * from t1 where date_field > '9999-99-99';
 
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 
+--error ER_WRONG_VALUE
 explain
 select * from t1 where date_field < '9999-99-99';
---sorted_result
+--error ER_WRONG_VALUE
 select * from t1 where date_field < '9999-99-99';
 
+--error ER_WRONG_VALUE
 explain
 select * from t1 where date_field > '9999-99-99';
---sorted_result
+--error ER_WRONG_VALUE
 select * from t1 where date_field > '9999-99-99';
 
 
