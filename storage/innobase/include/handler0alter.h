@@ -81,7 +81,7 @@ struct ib_sequence_t {
     m_offset = in.m_offset;
     m_eof = in.m_eof;
     return (*this);
-  };
+  }
   /**
   @return the next value in the sequence */
   ulonglong last() const UNIV_NOTHROW {
