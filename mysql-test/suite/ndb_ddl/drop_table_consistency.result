@@ -1,0 +1,132 @@
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE NDB;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+Drop the table using ndb_drop_table
+SHOW CREATE TABLE t1;
+ERROR HY000: Got error 4243 'Index not found' from NDBCLUSTER
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 4243 'Index not found' from NDB
+Error	1296	Got error 4243 'Index not found' from NDBCLUSTER
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+No event found for 'test.t1'
+CREATE TABLE t1 (
+a int,
+b varchar(255)
+) ENGINE NDB;
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW TABLES;
+Tables_in_test
+t1
+Drop the table using ndb_drop_table
+SHOW CREATE TABLE t1;
+ERROR HY000: Table definition has changed, please retry transaction
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 284 'Table not defined in transaction coordinator' from NDB
+Error	1412	Table definition has changed, please retry transaction
+Error	1146	Table 'test.t1' doesn't exist
+Error	1033	Incorrect information in file: './test/t1.frm'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+SHOW TABLES;
+Tables_in_test
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE NDB;
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE NDB;
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+SHOW TABLES IN ndb_ddl_test3;
+Tables_in_ndb_ddl_test3
+t1
+t2
+Drop the table using ndb_drop_table
+DROP DATABASE ndb_ddl_test3;
+No event found for 'ndb_ddl_test3.t1'
+No event found for 'ndb_ddl_test3.t2'
+CREATE DATABASE ndb_ddl_test3;
+USE ndb_ddl_test3;
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE NDB;
+DROP DATABASE ndb_ddl_test3;

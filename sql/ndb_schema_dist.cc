@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -402,6 +402,15 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
       .append(table_name)
       .append("`");
   DBUG_PRINT("info", ("rewritten query: '%s'", rewritten_query.c_str()));
+
+  // Special case where the table to be dropped was already dropped in the
+  // client. This is considered acceptable behavior and the query is distributed
+  // to ensure that the table is dropped in the pariticipants. Assign values to
+  // id and version to workaround the assumption that they will always be != 0
+  if (id == 0 && version == 0) {
+    id = unique_id();
+    version = unique_version();
+  }
 
   DBUG_RETURN(log_schema_op(rewritten_query.c_str(), rewritten_query.length(),
                             db, table_name, id, version, SOT_DROP_TABLE));

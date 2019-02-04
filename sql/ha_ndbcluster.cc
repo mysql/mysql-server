@@ -12462,15 +12462,12 @@ drop_table_impl(THD *thd, Ndb *ndb,
                 const char *table_name)
 {
   DBUG_ENTER("drop_table_impl");
-  NDBDICT *dict= ndb->getDictionary();
-  int ndb_table_id= 0;
-  int ndb_table_version= 0;
 
   NDB_SHARE *share=
       NDB_SHARE::acquire_reference_by_key(path,
                                           "delete_table");
 
-  bool skip_related= false;
+  bool skip_related = false;
   int drop_flags = 0;
   // Copying alter can leave temporary named table which is parent of old FKs
   if ((thd_sql_command(thd) == SQLCOM_ALTER_TABLE ||
@@ -12496,67 +12493,66 @@ drop_table_impl(THD *thd, Ndb *ndb,
     skip_related= true;
   }
 
-  /* Drop the table from NDB */
-  int res= 0;
+  // Drop the table from NDB
+  NDBDICT *dict = ndb->getDictionary();
+  int ndb_table_id = 0;
+  int ndb_table_version = 0;
+  ndb->setDatabaseName(db);
+  while (true)
   {
-    ndb->setDatabaseName(db);
-    while (1)
+    Ndb_table_guard ndbtab_g(dict, table_name);
+    const NDBTAB *ndbtab = ndbtab_g.get_table();
+    if (ndbtab == nullptr)
     {
-      Ndb_table_guard ndbtab_g(dict, table_name);
-      if (ndbtab_g.get_table())
-      {
-    retry_temporary_error2:
-        if (drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
-                                   drop_flags, skip_related))
-        {
-          ndb_table_id= ndbtab_g.get_table()->getObjectId();
-          ndb_table_version= ndbtab_g.get_table()->getObjectVersion();
-          DBUG_PRINT("info", ("success 2"));
-          break;
-        }
-        else
-        {
-          switch (dict->getNdbError().status)
-          {
-            case NdbError::TemporaryError:
-              if (!thd->killed) 
-                goto retry_temporary_error2; // retry indefinitly
-              break;
-            default:
-              if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT)
-              {
-                ndbtab_g.invalidate();
-                continue;
-              }
-              break;
-          }
-        }
-      }
-      res= ndb_to_mysql_error(&dict->getNdbError());
-      DBUG_PRINT("info", ("error(2) %u", res));
+      // Table not found
       break;
     }
+
+    if (drop_table_and_related(thd, ndb, dict, ndbtab, drop_flags,
+                               skip_related))
+    {
+      // Table successfully dropped from NDB
+      ndb_table_id = ndbtab->getObjectId();
+      ndb_table_version = ndbtab->getObjectVersion();
+      break;
+    }
+
+    // An error has occurred. Examine the failure and retry if possible
+    if (dict->getNdbError().status == NdbError::TemporaryError &&
+        !thd_killed(thd))
+    {
+      // Temporary error, retry
+      continue;
+    }
+
+    if (dict->getNdbError().code == NDB_INVALID_SCHEMA_OBJECT)
+    {
+      // Invalidate the object and retry
+      ndbtab_g.invalidate();
+      continue;
+    }
+
+    // Some other error has occurred, do not retry
+    break;
   }
 
-  if (res)
+  const Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  const int dict_error_code = dict->getNdbError().code;
+  // Check if an error has occurred. Note that if the table didn't exist in NDB
+  // (denoted by error codes 709 or 723), it's considered a success
+  if (dict_error_code && dict_error_code != 709 && dict_error_code != 723)
   {
-    // The drop table failed for some reason, just release the share
-    // reference and return the error
+    // The drop table failed, just release the share reference and return error
+    thd_ndb->push_ndb_error_warning(dict->getNdbError());
     if (share)
     {
       NDB_SHARE::release_reference(share, "delete_table");
     }
-    DBUG_RETURN(res);
+    DBUG_RETURN(dict_error_code);
   }
 
-  // Drop table is successful even if table didn't exist in NDB
-  const bool table_dropped= dict->getNdbError().code != 709;
-  if (table_dropped)
-  {
-    // Drop the event(s) for the table
-    Ndb_binlog_client::drop_events_for_table(thd, ndb,
-                                             db, table_name);
-  }
+  // Drop the event(s) for the table
+  Ndb_binlog_client::drop_events_for_table(thd, ndb, db, table_name);
 
   if (share)
   {
@@ -12573,8 +12569,8 @@ drop_table_impl(THD *thd, Ndb *ndb,
                                        ndb_table_id, ndb_table_version))
     {
       // Failed to distribute the drop of this table to the
-      // other MySQL Servers, just log error and continue
-      ndb_log_error("Failed to distribute 'DROP TABLE %s'", table_name);
+      // other MySQL Servers, just push warning and continue
+      thd_ndb->push_warning("Failed to distribute 'DROP TABLE %s'", table_name);
     }
   }
 
@@ -12615,8 +12611,9 @@ drop_table_impl(THD *thd, Ndb *ndb,
                                          ndb_table_id, ndb_table_version))
       {
         // Failed to distribute the drop of this table to the
-        // other MySQL Servers, just log error and continue
-        ndb_log_error("Failed to distribute 'DROP TABLE %s'", orig_name);
+        // other MySQL Servers, just push warning and continue
+        thd_ndb->push_warning("Failed to distribute 'DROP TABLE %s'",
+                              table_name);
       }
     }
   }
