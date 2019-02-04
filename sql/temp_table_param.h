@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,7 +123,7 @@ class Temp_table_param {
     replacing them with constants, in which case sum_func_count will
     need to be updated.
 
-    @see opt_sum_query, count_field_types
+    @see optimize_aggregated_query, count_field_types
   */
   uint sum_func_count;
   uint hidden_field_count;

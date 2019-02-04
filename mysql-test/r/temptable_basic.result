@@ -442,6 +442,6 @@ WHERE 1 IN (SELECT 1 FROM t_pk AS SQ2_alias1
 WHERE 1 IN (SELECT 1 FROM t_pk AS C_SQ1_alias1)
 );
 COUNT(t_pk.pk)
-0
+3
 DROP TABLE t_pk;
 SET @@internal_tmp_mem_storage_engine = default;
