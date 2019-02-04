@@ -30,8 +30,13 @@
 %{?with_cluster: %global cluster 1}
 
 # Pass path to mecab lib
+%if 0%{?rhel} >= 8
+%global mecab_option -DWITH_MECAB=system
+%global mecab 1
+%else
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+%endif
 
 # Pass path to the AWS SDK install
 %{?with_aws_sdk: %global aws_sdk_option -DWITH_AWS_SDK=%{with_aws_sdk}}
@@ -45,6 +50,7 @@
 
 %{!?with_systemd:                %global systemd 0}
 %{?el7:                          %global systemd 1}
+%{?el8:                          %global systemd 1}
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
@@ -104,11 +110,21 @@ Source7:        %{compatsrc}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+%if 0%{?rhel} >= 8
+BuildRequires:  cmake >= 3.6.1
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  libtirpc-devel
+BuildRequires:  mecab-devel
+BuildRequires:  rpcgen
+%else
+BuildRequires:  cmake3 >= 3.6.1
 BuildRequires:  devtoolset-8-gcc
 BuildRequires:  devtoolset-8-gcc-c++
-BuildRequires:  cmake3 >= 3.6.1
+%endif
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
+%{?el8:BuildRequires: perl(Env)}
 BuildRequires:  perl(Carp)
 BuildRequires:  perl(Config)
 BuildRequires:  perl(Cwd)
@@ -187,6 +203,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
+%{?el8:Recommends:     mecab-ipadic}
+%{?el8:Recommends:     mecab-ipadic-EUCJP}
 Requires:       %{name}-client%{?_isa} >= %{min}
 Requires:       %{name}-common%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
@@ -223,6 +241,7 @@ Obsoletes:      mysql-embedded-devel < 8.0.1
 Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Obsoletes:      mysql-server < %{version}-%{release}
+Obsoletes:      mariadb-connector-c-config
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
@@ -393,6 +412,7 @@ Provides:       MySQL-devel = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
+Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      mysql-connector-c-devel < 6.2
 Provides:       mysql-devel = %{version}-%{release}
 Provides:       mysql-devel%{?_isa} = %{version}-%{release}
@@ -553,6 +573,7 @@ Requires:       python-paramiko
 %{?el5:Requires:  python-crypto}
 %{?el6:Requires:  python-crypto}
 %{?el7:Requires:  python2-crypto}
+%{?el8:Requires:  python2-crypto}
 %description    auto-installer
 This package contains the MySQL Cluster web-based graphical
 configuration installer, which can be used to set up and start or stop
@@ -750,9 +771,7 @@ mkdir debug
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-%if 0%{?rhel} > 5
            -DWITH_NUMA=ON \
-%endif
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
@@ -797,9 +816,7 @@ mkdir release
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DMYSQLX_UNIX_ADDR="/var/run/mysqld/mysqlx.sock" \
            -DFEATURE_SET="%{feature_set}" \
-%if 0%{?rhel} > 5
            -DWITH_NUMA=ON \
-%endif
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
@@ -1097,10 +1114,12 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %if 0%{?mecab}
+%if 0%{?rhel} < 8
 %{_libdir}/mysql/mecab
+%endif # rhel
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libpluginmecab.so
-%endif
+%endif # mecab
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
@@ -1583,6 +1602,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Thu Jan 31 2019 Terje Rosten <terje.rosten@oracle.com> - 8.0.16-1
+- Initial el8 packaging
+
 * Fri Dec 14 2018 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1
 - Added component_test_mysql_runtime_error.so test component
 

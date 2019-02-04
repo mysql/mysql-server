@@ -24,8 +24,13 @@
 %global mysqldatadir /var/lib/mysql
 
 # Pass path to mecab lib
+%if 0%{?rhel} >= 8
+%global mecab_option -DWITH_MECAB=system
+%global mecab 1
+%else
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
 %{?with_mecab: %global mecab 1}
+%endif
 
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
@@ -59,9 +64,18 @@ Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+%if 0%{?rhel} >= 8
+BuildRequires:  cmake >= 3.6.1
+BuildRequires:  gcc
+BuildRequires:  gcc-c++
+BuildRequires:  libtirpc-devel
+BuildRequires:  mecab-devel
+BuildRequires:  rpcgen
+%else
 BuildRequires:  cmake3 >= 3.6.1
 BuildRequires:  devtoolset-8-gcc
 BuildRequires:  devtoolset-8-gcc-c++
+%endif
 BuildRequires:  perl
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Env)
@@ -352,9 +366,11 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %if 0%{?mecab}
+%if 0%{?rhel} < 8
 %{_libdir}/mysql/mecab
+%endif # rhel
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
-%endif
+%endif # mecab
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
@@ -418,6 +434,9 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
+* Thu Jan 31 2019 Terje Rosten <terje.rosten@oracle.com> - 8.0.16-1
+- Initial el8 packaging
+
 * Fri Dec 14 2018 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1
 - Added component_test_mysql_runtime_error.so test component
 
