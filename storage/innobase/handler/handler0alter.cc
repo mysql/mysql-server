@@ -310,7 +310,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
 
   /** Set shared data between the passed in handler context
   and current context.
-  @param[in] inplace_alter_handler_ctx        handler context */
+  @param[in] ctx        handler context */
   void set_shared_data(const inplace_alter_handler_ctx *ctx) {
     ut_ad(ctx != nullptr);
     if (this->add_autoinc == ULINT_UNDEFINED) {
