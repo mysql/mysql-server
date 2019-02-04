@@ -21085,7 +21085,7 @@
                 "is_virtual": false,
                 "hidden": 1,
                 "ordinal_position": 2,
-                "char_length": 777,
+                "char_length": 804,
                 "numeric_precision": 0,
                 "numeric_scale": 0,
                 "numeric_scale_null": true,
@@ -21106,7 +21106,7 @@
                 "options": "interval_count=0;",
                 "se_private_data": "table_id=X",
                 "column_key": 3,
-                "column_type_utf8": "varchar(259)",
+                "column_type_utf8": "varchar(268)",
                 "elements": [],
                 "collation_id": X,
                 "is_explicit_collation": true
@@ -21425,7 +21425,7 @@
                 "elements": [
                     {
                         "ordinal_position": 1,
-                        "length": 777,
+                        "length": 804,
                         "order": 2,
                         "column_opx": 1
                     },

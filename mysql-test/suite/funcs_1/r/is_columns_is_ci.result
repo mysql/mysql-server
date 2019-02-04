@@ -89,7 +89,7 @@ def	information_schema	EVENTS	DATABASE_COLLATION	24	NULL	NO	varchar	64	192	NULL	
 def	information_schema	FILES	FILE_ID	1	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	FILES	FILE_NAME	2	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	FILES	FILE_TYPE	3	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	FILES	TABLESPACE_NAME	4	NULL	NO	varchar	259	777	NULL	NULL	NULL	utf8	utf8_bin	varchar(259)			select			NULL
+def	information_schema	FILES	TABLESPACE_NAME	4	NULL	NO	varchar	268	804	NULL	NULL	NULL	utf8	utf8_bin	varchar(268)			select			NULL
 def	information_schema	FILES	TABLE_CATALOG	5		NO	char	0	0	NULL	NULL	NULL	utf8	utf8_general_ci	char(0)			select			NULL
 def	information_schema	FILES	TABLE_SCHEMA	6	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
 def	information_schema	FILES	TABLE_NAME	7	NULL	YES	binary	0	0	NULL	NULL	NULL	NULL	NULL	binary(0)			select			NULL
@@ -182,7 +182,7 @@ def	information_schema	PARTITIONS	CHECK_TIME	21	NULL	YES	datetime	NULL	NULL	NULL
 def	information_schema	PARTITIONS	CHECKSUM	22	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	PARTITIONS	PARTITION_COMMENT	23	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select			NULL
 def	information_schema	PARTITIONS	NODEGROUP	24	NULL	YES	varchar	256	768	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(256)			select			NULL
-def	information_schema	PARTITIONS	TABLESPACE_NAME	25	NULL	YES	varchar	259	777	NULL	NULL	NULL	utf8	utf8_bin	varchar(259)			select			NULL
+def	information_schema	PARTITIONS	TABLESPACE_NAME	25	NULL	YES	varchar	268	804	NULL	NULL	NULL	utf8	utf8_bin	varchar(268)			select			NULL
 def	information_schema	PLUGINS	PLUGIN_NAME	1		NO	varchar	21	64	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PLUGINS	PLUGIN_VERSION	2		NO	varchar	6	20	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select			NULL
 def	information_schema	PLUGINS	PLUGIN_STATUS	3		NO	varchar	3	10	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(10)			select			NULL
@@ -548,7 +548,7 @@ NULL	information_schema	EVENTS	ORIGINATOR	int	NULL	NULL	NULL	NULL	int(10) unsign
 NULL	information_schema	FILES	FILE_ID	bigint	NULL	NULL	NULL	NULL	bigint(21)
 1.0000	information_schema	FILES	FILE_NAME	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	FILES	FILE_TYPE	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-3.0000	information_schema	FILES	TABLESPACE_NAME	varchar	259	777	utf8	utf8_bin	varchar(259)
+3.0000	information_schema	FILES	TABLESPACE_NAME	varchar	268	804	utf8	utf8_bin	varchar(268)
 NULL	information_schema	FILES	TABLE_CATALOG	char	0	0	utf8	utf8_general_ci	char(0)
 NULL	information_schema	FILES	TABLE_SCHEMA	binary	0	0	NULL	NULL	binary(0)
 NULL	information_schema	FILES	TABLE_NAME	binary	0	0	NULL	NULL	binary(0)
@@ -641,7 +641,7 @@ NULL	information_schema	PARTITIONS	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datet
 NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21)
 1.0000	information_schema	PARTITIONS	PARTITION_COMMENT	text	65535	65535	utf8	utf8_bin	text
 3.0000	information_schema	PARTITIONS	NODEGROUP	varchar	256	768	utf8	utf8_general_ci	varchar(256)
-3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	259	777	utf8	utf8_bin	varchar(259)
+3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	268	804	utf8	utf8_bin	varchar(268)
 3.0476	information_schema	PLUGINS	PLUGIN_NAME	varchar	21	64	utf8	utf8_general_ci	varchar(64)
 3.3333	information_schema	PLUGINS	PLUGIN_VERSION	varchar	6	20	utf8	utf8_general_ci	varchar(20)
 3.3333	information_schema	PLUGINS	PLUGIN_STATUS	varchar	3	10	utf8	utf8_general_ci	varchar(10)
