@@ -12155,9 +12155,10 @@ create_table_info_t::create_table_update_dict()
 		dict_table_autoinc_unlock(innobase_table);
 	}
 
-	dict_table_close(innobase_table, FALSE, FALSE);
+        innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
 
-	innobase_parse_hint_from_comment(m_thd, innobase_table, m_form->s);
+        dict_table_close(innobase_table, FALSE, FALSE);
+
 
 	DBUG_RETURN(0);
 }
