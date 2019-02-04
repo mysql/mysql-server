@@ -1499,6 +1499,7 @@ bool Item_sum_bit::add_bits(const String *s1, ulonglong b1) {
   for (size_t i = 0; i < buff_length; i++) {
     std::bitset<8> s1_bits(s1_c_p[i]);
     for (uint bit = 0; bit < 8; bit++) {
+      DBUG_ASSERT((i * 8) + bit < m_digit_cnt_card);
       m_digit_cnt[(i * 8) + bit] += s1_bits[bit] ^ is_and();
     }
   }

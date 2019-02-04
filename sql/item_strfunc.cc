@@ -3507,9 +3507,17 @@ bool Item_func_export_set::resolve_type(THD *thd) {
 }
 
 bool Item_func_quote::resolve_type(THD *thd) {
-  uint32 max_result_length = args[0]->max_char_length() + 2U;
-  set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
-                       args[0]->collation);
+  /*
+    Since QUOTE may add escapes to potentially all the characters in its
+    argument, we need to compute the maximum by multiplying the argument's
+    maximum character length with 2, and then add 2 for the surrounding
+    single quotes added by QUOTE. NULLs print as NULL without single quotes
+    so their maximum length is 4.
+  */
+  ulonglong max_result_length = std::max<ulonglong>(
+      4, static_cast<ulonglong>(args[0]->max_char_length()) * 2U + 2U);
+  collation.set(args[0]->collation);
+  set_data_type_string(max_result_length);
   maybe_null = (maybe_null || max_length > thd->variables.max_allowed_packet);
   return false;
 }
