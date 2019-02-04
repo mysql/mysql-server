@@ -3835,3 +3835,29 @@ f1	f1 + 1	x
 2	3	2
 1	2	3
 DROP TABLE t1;
+# Bug#29240516: Count on nullable expression may return wrong result
+CREATE TABLE t1 (
+vc varchar(255) DEFAULT NULL,
+b tinyint DEFAULT NULL
+);
+INSERT INTO t1 (vc, b) VALUES (1, true), (2, false), (3, true), (4, false);
+INSERT INTO t1 (vc) VALUES (5), (6), (7), (8), (9), (10);
+SELECT COUNT(b), COUNT(*)
+FROM t1;
+COUNT(b)	COUNT(*)
+4	10
+SELECT COUNT(b)
+FROM t1
+HAVING COUNT(1) > 0;
+COUNT(b)
+4
+DROP TABLE t1;
+# Bug#28857990: Different result for COUNT with EXISTS subquery
+CREATE TABLE d (pk INT PRIMARY KEY);
+INSERT INTO d VALUES (1),(2),(3),(4),(5);
+CREATE TABLE c (col_varchar VARCHAR(1));
+INSERT INTO c VALUES ('a'),('b'),('c'),('d'),('e');
+SELECT COUNT(pk) FROM d WHERE EXISTS (SELECT col_varchar FROM c);
+COUNT(pk)
+5
+DROP TABLE c, d;

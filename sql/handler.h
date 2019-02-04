@@ -4584,7 +4584,7 @@ class handler {
 
   /**
     Number of rows in table counted using the secondary index chosen by
-    optimizer. See comments in opt_sum_query(...) .
+    optimizer. See comments in optimize_aggregated_query() .
 
       @param num_rows [out]  Number of rows in table.
       @param index           Index chosen by optimizer for counting.

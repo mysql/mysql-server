@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -595,8 +595,8 @@ class JOIN {
   Item *having_for_explain;  ///< Saved optimized HAVING for EXPLAIN
   /**
     Pointer set to select_lex->get_table_list() at the start of
-    optimization. May be changed (to NULL) only if opt_sum_query() optimizes
-    tables away.
+    optimization. May be changed (to NULL) only if optimize_aggregated_query()
+    optimizes tables away.
   */
   TABLE_LIST *tables_list;
   COND_EQUAL *cond_equal;
@@ -914,10 +914,11 @@ class JOIN {
 
  public:
   /*
-    When join->select_count is set, tables will not be optimized away. The call
-    to records() will be delayed until the execution phase and the counting
-    will be done on an index of Optimizer's choice. This flag will be set in
-    opt_sum_query. The index will be decided in find_shortest_key().
+    When join->select_count is set, tables will not be optimized away.
+    The call to records() will be delayed until the execution phase and
+    the counting will be done on an index of Optimizer's choice.
+    The index will be decided in find_shortest_key(), called from
+    optimize_aggregated_query().
   */
   bool select_count;
 

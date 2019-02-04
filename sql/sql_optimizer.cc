@@ -334,62 +334,58 @@ int JOIN::optimize() {
   */
   if (tables_list && implicit_grouping &&
       !(select_lex->active_options() & OPTION_NO_CONST_TABLES)) {
-    int res;
-    /*
-      opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
-      the WHERE condition,
-      or 1 if all items were resolved (optimized away),
-      or 0, or an error number HA_ERR_...
-
-      If all items were resolved by opt_sum_query, there is no need to
-      open any tables.
-    */
-    if ((res = opt_sum_query(thd, select_lex->leaf_tables, all_fields,
-                             where_cond, &select_count))) {
-      best_rowcount = 0;
-      if (res == HA_ERR_KEY_NOT_FOUND) {
+    aggregate_evaluated outcome;
+    if (optimize_aggregated_query(thd, select_lex, all_fields, where_cond,
+                                  &outcome)) {
+      error = 1;
+      DBUG_PRINT("error", ("Error from optimize_aggregated_query"));
+      DBUG_RETURN(1);
+    }
+    switch (outcome) {
+      case AGGR_REGULAR:
+        // Query was not (fully) evaluated. Revert to regular optimization.
+        break;
+      case AGGR_DELAYED:
+        // Query was not (fully) evaluated. Revert to regular optimization,
+        // but indicate that storage engine supports HA_COUNT_ROWS_INSTANT.
+        select_count = true;
+        break;
+      case AGGR_COMPLETE:
+        // All SELECT expressions are fully evaluated
+        DBUG_PRINT("info", ("Select tables optimized away"));
+        zero_result_cause = "Select tables optimized away";
+        tables_list = nullptr;  // All tables resolved
+        best_rowcount = 1;
+        const_tables = tables = primary_tables = select_lex->leaf_table_count;
+        /*
+          Extract all table-independent conditions and replace the WHERE
+          clause with them. All other conditions were computed by
+          optimize_aggregated_query() and the MIN/MAX/COUNT function(s) have
+          been replaced by constants, so there is no need to compute the whole
+          WHERE clause again.
+          Notice that make_cond_for_table() will always succeed to remove all
+          computed conditions, because optimize_aggregated_query() is applicable
+          only to conjunctions.
+          Preserve conditions for EXPLAIN.
+        */
+        if (where_cond && !thd->lex->is_explain()) {
+          Item *table_independent_conds = make_cond_for_table(
+              thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
+          DBUG_EXECUTE("where",
+                       print_where(thd, table_independent_conds,
+                                   "where after optimize_aggregated_query()",
+                                   QT_ORDINARY););
+          where_cond = table_independent_conds;
+        }
+        goto setup_subq_exit;
+      case AGGR_EMPTY:
+        // It was detected that the result tables are empty
         DBUG_PRINT("info", ("No matching min/max row"));
         zero_result_cause = "No matching min/max row";
-
         goto setup_subq_exit;
-      }
-      if (res > 1) {
-        error = res;
-        DBUG_PRINT("error", ("Error from opt_sum_query"));
-        DBUG_RETURN(1);
-      }
-      if (res < 0) {
-        DBUG_PRINT("info", ("No matching min/max row"));
-        zero_result_cause = "No matching min/max row";
-        goto setup_subq_exit;
-      }
-      DBUG_PRINT("info", ("Select tables optimized away"));
-      zero_result_cause = "Select tables optimized away";
-      tables_list = 0;  // All tables resolved
-      best_rowcount = 1;
-      const_tables = tables = primary_tables = select_lex->leaf_table_count;
-      /*
-        Extract all table-independent conditions and replace the WHERE
-        clause with them. All other conditions were computed by opt_sum_query
-        and the MIN/MAX/COUNT function(s) have been replaced by constants,
-        so there is no need to compute the whole WHERE clause again.
-        Notice that make_cond_for_table() will always succeed to remove all
-        computed conditions, because opt_sum_query() is applicable only to
-        conjunctions.
-        Preserve conditions for EXPLAIN.
-      */
-      if (where_cond && !thd->lex->is_explain()) {
-        Item *table_independent_conds = make_cond_for_table(
-            thd, where_cond, PSEUDO_TABLE_BITS, table_map(0), false);
-        DBUG_EXECUTE("where",
-                     print_where(thd, table_independent_conds,
-                                 "where after opt_sum_query()", QT_ORDINARY););
-        where_cond = table_independent_conds;
-      }
-      goto setup_subq_exit;
     }
   }
-  if (!tables_list) {
+  if (tables_list == nullptr) {
     DBUG_PRINT("info", ("No tables"));
     best_rowcount = 1;
     error = 0;
@@ -3120,8 +3116,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
         goto no_join_cache;
       }
 
-      if (join->select_count == false)
-        tab->set_use_join_cache(JOIN_CACHE::ALG_BNL);
+      if (!join->select_count) tab->set_use_join_cache(JOIN_CACHE::ALG_BNL);
       return false;
     case JT_SYSTEM:
     case JT_CONST:

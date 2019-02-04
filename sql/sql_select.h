@@ -885,8 +885,17 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
 
 /* functions from opt_sum.cc */
 bool simple_pred(Item_func *func_item, Item **args, bool *inv_order);
-int opt_sum_query(THD *thd, TABLE_LIST *tables, List<Item> &all_fields,
-                  Item *conds, bool *select_count);
+
+enum aggregate_evaluated {
+  AGGR_COMPLETE,  // All aggregates were evaluated
+  AGGR_REGULAR,   // Aggregates not fully evaluated, regular execution required
+  AGGR_DELAYED,   // Aggregates not fully evaluated, execute with ha_records()
+  AGGR_EMPTY      // Source tables empty, aggregates are NULL or 0 (for COUNT)
+};
+
+bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+                               List<Item> &all_fields, Item *conds,
+                               aggregate_evaluated *decision);
 
 /* from sql_delete.cc, used by opt_range.cc */
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
