@@ -576,16 +576,16 @@ bool MaterializeIterator::Init() {
     // initialize scanning of the index over that hash field. (This is entirely
     // separate from any index usage when reading back the materialized table;
     // m_table_iterator will do that for us.)
+    auto end_unique_index =
+        create_scope_guard([&] { table()->file->ha_index_end(); });
     if (!table()->file->inited && doing_hash_deduplication()) {
       if (table()->file->ha_index_init(0, 0)) {
         return true;
       }
+    } else {
+      // We didn't open the index, so we don't need to close it.
+      end_unique_index.commit();
     }
-    auto end_unique_index = create_scope_guard([&] {
-      if (doing_hash_deduplication()) {
-        table()->file->ha_index_end();
-      }
-    });
 
     PFSBatchMode pfs_batch_mode(&m_join->qep_tab[m_join->const_tables], m_join);
     ha_rows stored_rows = 0;
@@ -627,10 +627,7 @@ bool MaterializeIterator::Init() {
       }
     }
 
-    if (doing_hash_deduplication()) {
-      table()->file->ha_index_end();
-      end_unique_index.commit();
-    }
+    end_unique_index.rollback();
 
     table()->materialized = true;
   }
