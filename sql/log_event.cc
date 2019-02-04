@@ -7689,7 +7689,8 @@ int Rows_log_event::unpack_current_row(const Relay_log_info *const rli,
   // After the row is unpacked, we need to update all hidden generated columns
   // for functional indexes since those values are not included in the binlog
   // in any mode of binlog_row_image.
-  if (!bitmap_is_clear_all(&m_table->fields_for_functional_indexes)) {
+  if (is_after_image &&
+      !bitmap_is_clear_all(&m_table->fields_for_functional_indexes)) {
     // If there are a different number of columns on the master and slave, we
     // need to adjust the backup bitmap since the bitmap was initialized with
     // the number of columns on the master.
