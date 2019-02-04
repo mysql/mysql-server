@@ -247,6 +247,26 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	@return whether the table will be rebuilt */
 	bool need_rebuild () const { return(old_table != new_table); }
 
+	/** Set shared data between the passed in handler context
+	and current context.
+	@param[in] inplace_alter_handler_ctx        handler context */
+	void set_shared_data(
+		const inplace_alter_handler_ctx *ctx)
+	{
+		ut_ad(ctx != NULL);
+		if (this->add_autoinc == ULINT_UNDEFINED) {
+			return;
+		}
+		const ha_innobase_inplace_ctx* ha_ctx =
+			static_cast<const ha_innobase_inplace_ctx*> (ctx);
+
+		/* In InnoDB table, if it's adding AUTOINC column,
+		the sequence value should be shared among contexts.*/
+		ut_ad(ha_ctx->add_autoinc != ULINT_UNDEFINED);
+		this->sequence = ha_ctx->sequence;
+
+        }
+
 private:
 	// Disable copying
 	ha_innobase_inplace_ctx(const ha_innobase_inplace_ctx&);
@@ -9245,6 +9265,12 @@ ha_innopart::inplace_alter_table(
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
+
+		if (i != 0 && ha_alter_info->handler_ctx != NULL) {
+			ha_alter_info->handler_ctx->set_shared_data(
+				                  ctx_parts->ctx_array[i - 1]);
+                }
+
 		res = ha_innobase::inplace_alter_table(altered_table,
 						ha_alter_info);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
