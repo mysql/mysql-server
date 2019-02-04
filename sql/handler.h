@@ -2594,7 +2594,7 @@ class inplace_alter_handler_ctx {
   inplace_alter_handler_ctx() {}
 
   virtual void set_shared_data(
-      const inplace_alter_handler_ctx *ctx MY_ATTRIBUTE((unused))){};
+      const inplace_alter_handler_ctx *ctx MY_ATTRIBUTE((unused))) {}
   virtual ~inplace_alter_handler_ctx() {}
 };
 
