@@ -2465,18 +2465,12 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
  * calling this function to ensure that all currently running DML statements
  * commit before load begins.
  *
- * The MDL lock on the table is downgraded to MDL_SHARED_READ unless
- * #lock_tables_mode is true.
- *
  * @param thd              Thread handler.
  * @param table            Table in primary storage engine.
- * @param lock_tables_mode If LOCK TABLES mode or not.
  *
  * @return True if error, false otherwise.
  */
-static bool secondary_engine_load_table(THD *thd, const TABLE &table,
-                                        bool lock_tables_mode) {
-  MDL_ticket *mdl_ticket = table.mdl_ticket;
+static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, table.s->db.str, table.s->table_name.str, MDL_EXCLUSIVE));
   DBUG_ASSERT(table.s->has_secondary());
@@ -2514,18 +2508,8 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table,
   // server holds an MDL_EXCLUSIVE lock on the table.
   if (handler->ha_prepare_load_table(table)) return true;
 
-  // Unless in LOCK TABLES mode, downgrade lock to allow concurrent transactions
-  // to read from and write to the table while table data is being loaded into
-  // the secondary engine.
-  if (!lock_tables_mode) mdl_ticket->downgrade_lock(MDL_SHARED_READ);
-
   // Load table from primary into secondary engine.
-  if (handler->ha_load_table(table)) return true;
-
-  // Upgrade table lock back to EXCLUSIVE to return with the same lock level as
-  // when the function was invoked.
-  return thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
-                                              thd->variables.lock_wait_timeout);
+  return handler->ha_load_table(table);
 }
 
 /**
@@ -10492,13 +10476,12 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   MDL_ticket *mdl_ticket = table_list->table->mdl_ticket;
 
-  // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
-  // operations have completed.
-  const bool lock_tables_mode =
-      thd->locked_tables_mode == LTM_LOCK_TABLES ||
-      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES;
-  auto downgrade_guard = create_scope_guard([mdl_ticket, lock_tables_mode] {
-    if (lock_tables_mode) mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  auto downgrade_guard = create_scope_guard([mdl_ticket, thd] {
+    // Under LOCK TABLES, downgrade to MDL_SHARED_NO_READ_WRITE after all
+    // operations have completed.
+    if (secondary_engine_lock_tables_mode(*thd)) {
+      mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    }
   });
   if (thd->mdl_context.upgrade_shared_lock(mdl_ticket, MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
@@ -10524,8 +10507,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   // Initiate loading into or unloading from secondary engine.
   const bool error =
-      is_load ? secondary_engine_load_table(thd, *table_list->table,
-                                            lock_tables_mode)
+      is_load ? secondary_engine_load_table(thd, *table_list->table)
               : secondary_engine_unload_table(
                     thd, table_list->db, table_list->table_name, *table_def);
   if (error) return true;

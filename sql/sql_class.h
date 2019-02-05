@@ -4070,6 +4070,17 @@ class THD : public MDL_context_owner,
 };
 
 /**
+   Return lock_tables_mode for secondary engine.
+   @param cthd thread context
+   @retval true if lock_tables_mode is on
+   @retval false, otherwise
+ */
+inline bool secondary_engine_lock_tables_mode(const THD &cthd) {
+  return (cthd.locked_tables_mode == LTM_LOCK_TABLES ||
+          cthd.locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES);
+}
+
+/**
   A simple holder for Internal_error_handler.
   The class utilizes RAII technique to not forget to pop the handler.
 
