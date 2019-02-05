@@ -263,11 +263,11 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx) {
 
   /*
     Do not load check constraints if upgrade is from the DD version before
-    check constraints support. Check constraint support is introduced in 80015.
+    check constraints support. Check constraint support is introduced in 80016.
   */
   bool skip_check_constraints =
       (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015));
+          bootstrap::DD_VERSION_80016));
 
   return (
       Abstract_table_impl::restore_children(otx) ||
@@ -361,11 +361,11 @@ bool Table_impl::store_triggers(Open_dictionary_tables_ctx *otx) {
 bool Table_impl::store_children(Open_dictionary_tables_ctx *otx) {
   /*
     Do not store check constraints if upgrade is from the DD version before
-    check constraints support. Check constraint support is introduced in 80015.
+    check constraints support. Check constraint support is introduced in 80016.
   */
   bool skip_check_constraints =
       (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015));
+          bootstrap::DD_VERSION_80016));
 
   return Abstract_table_impl::store_children(otx) ||
          // Note that indexes has to be stored first, as
@@ -987,7 +987,7 @@ void Table_impl::register_tables(Open_dictionary_tables_ctx *otx) {
     before check constraints support. Check constraint is introduced in 8.0.15.
   */
   if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015))
+          bootstrap::DD_VERSION_80016))
     otx->register_tables<Check_constraint>();
 }
 

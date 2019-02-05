@@ -95,9 +95,9 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
 
   m_default_collation_id = r.read_ref_id(Schemata::FIELD_DEFAULT_COLLATION_ID);
 
-  // m_default_encryption is added in 80015
+  // m_default_encryption is added in 80016
   if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015)) {
+          bootstrap::DD_VERSION_80016)) {
     m_default_encryption = enum_encryption_type::ET_NO;
   } else {
     m_default_encryption = static_cast<enum_encryption_type>(
@@ -115,7 +115,7 @@ bool Schema_impl::store_attributes(Raw_record *r) {
 
   // Store m_default_encryption only if we're not upgrading
   if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80015) &&
+          bootstrap::DD_VERSION_80016) &&
       r->store(Schemata::FIELD_DEFAULT_ENCRYPTION,
                static_cast<int>(m_default_encryption))) {
     return true;

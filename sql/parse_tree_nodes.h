@@ -3275,13 +3275,13 @@ class PT_check_constraint final : public PT_table_constraint_def {
     /*
       On slave, add check constraint only if master server is on version
       supporting check constraints. Check constraint support is introduced
-      in 80015.
+      in 80016.
     */
     THD *thd = pc->thd;
     if ((thd->system_thread &
          (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
         (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
-         thd->variables.original_server_version < 80015))
+         thd->variables.original_server_version < 80016))
       return false;
 
     if (super::contextualize(pc) ||

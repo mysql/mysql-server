@@ -91,9 +91,14 @@ namespace info_schema {
   There are no changes from version 80013. Hence server version 80014 used
   I_S version 80013.
 
-  80015: Current
+  80015: Not published.
+  ----------------------------------------------------------------------------
+  There are no changes from version 80014. Hence server version 80015 used
+  I_S version 80013.
+
+  80016: Current
   ------------------------------------
-  Changes from version 80014.
+  Changes from version 80015.
 
   - WL#929 - CHECK CONSTRAINTS
     New INFORMATION_SCHMEA table CHECK_CONSTRAINTS is introduced and
@@ -104,9 +109,15 @@ namespace info_schema {
     - Add new column information_schema.schemata.default_encryption
     - information_schema.tables.options UDF definition is changed to pass
       schema default encryption.
+
+  80017: Next IS version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80016:
+  - No changes, this version number is not active yet.
+
 */
 
-static const uint IS_DD_VERSION = 80015;
+static const uint IS_DD_VERSION = 80016;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

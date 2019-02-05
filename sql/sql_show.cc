@@ -672,7 +672,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     }
     buffer.append(STRING_WITH_LEN(" */"));
   }
-  buffer.append(STRING_WITH_LEN(" /*!80014"));
+  buffer.append(STRING_WITH_LEN(" /*!80016"));
   buffer.append(STRING_WITH_LEN(" DEFAULT ENCRYPTION="));
   if (is_encrypted_schema)
     buffer.append(STRING_WITH_LEN("'Y'"));
@@ -1414,7 +1414,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         "NOT ENFORCED".
       */
       if (!cc->is_enforced()) {
-        packet->append(STRING_WITH_LEN(" /*!80015 NOT ENFORCED */"));
+        packet->append(STRING_WITH_LEN(" /*!80016 NOT ENFORCED */"));
       }
     }
   }

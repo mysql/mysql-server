@@ -426,7 +426,7 @@ view_character_set	CREATE ALGORITHM=UNDEFINED DEFINER=`jeffrey`@`localhost` SQL 
 # Data check after upgrade for Bug#25139901
 SHOW CREATE DATABASE db_charset_koi8r;
 Database	Create Database
-db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */ /*!80014 DEFAULT ENCRYPTION='N' */
+db_charset_koi8r	CREATE DATABASE `db_charset_koi8r` /*!40100 DEFAULT CHARACTER SET koi8r COLLATE koi8r_bin */ /*!80016 DEFAULT ENCRYPTION='N' */
 # Test case for Bug#24580586
 SET names utf8;
 Warnings:
