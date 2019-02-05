@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005-2007 MySQL AB
-    Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +33,8 @@ extern "C" {
 #define NDBT_FAILED 1
 #define NDBT_WRONGARGS 2
 #define NDBT_TEMPORARY 3
+#define NDBT_SKIPPED 4
+
 /**
  * NDBT_ProgramExit
  * This function will print the returncode together with a prefix on 
