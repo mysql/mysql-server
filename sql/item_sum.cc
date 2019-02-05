@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -917,9 +917,11 @@ bool Aggregator_distinct::setup(THD *thd) {
     DBUG_ASSERT(num_args);
     for (uint i = 0; i < num_args; i++) {
       Item *item = item_sum->get_arg(i);
-      if (list.push_back(item)) return true;  // End of memory
+      if (list.push_back(item)) return true;  // out of memory
       if (item->const_item()) {
-        if (item->is_null()) {
+        const bool is_null = item->is_null();
+        if (thd->is_error()) return true;  // is_null can fail
+        if (is_null) {
           const_distinct = CONST_NULL;
           return false;
         } else
