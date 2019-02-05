@@ -53,10 +53,7 @@ namespace temptable {
 using Tables = std::unordered_map<std::string, Table>;
 
 /** A list of the tables that currently exist for this OS thread. */
-static Tables &TlsTables() {
-  static thread_local Tables tls_tables;
-  return tls_tables;
-}
+static thread_local Tables tls_tables;
 
 #if defined(HAVE_WINNUMA)
 /** Page size used in memory allocation. */
@@ -133,7 +130,7 @@ int Handler::create(const char *table_name, TABLE *mysql_table,
     );
     // clang-format on
 
-    const auto insert_result = TlsTables().emplace(
+    const auto insert_result = tls_tables.emplace(
         std::piecewise_construct, std::make_tuple(table_name),
         std::forward_as_tuple(mysql_table, all_columns_are_fixed_size));
 
@@ -159,11 +156,11 @@ int Handler::delete_table(const char *table_name, const dd::Table *) {
   Result ret;
 
   try {
-    const auto pos = TlsTables().find(table_name);
+    const auto pos = tls_tables.find(table_name);
 
-    if (pos != TlsTables().end()) {
+    if (pos != tls_tables.end()) {
       if (&pos->second != m_opened_table) {
-        TlsTables().erase(pos);
+        tls_tables.erase(pos);
         ret = Result::OK;
       } else {
         /* Attempt to delete the currently opened table. */
@@ -197,8 +194,8 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   Result ret;
 
   try {
-    Tables::iterator iter = TlsTables().find(table_name);
-    if (iter == TlsTables().end()) {
+    Tables::iterator iter = tls_tables.find(table_name);
+    if (iter == tls_tables.end()) {
       ret = Result::NO_SUCH_TABLE;
     } else {
       m_opened_table = &iter->second;
