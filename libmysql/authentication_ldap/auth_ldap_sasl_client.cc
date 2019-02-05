@@ -286,8 +286,14 @@ void Sasl_client::set_user_info(std::string name, std::string pwd) {
   m_user_pwd[sizeof(m_user_pwd) - 1] = '\0';
 }
 
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
 static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio,
-                             MYSQL *mysql) SUPPRESS_UBSAN {
+                             MYSQL *mysql) SUPPRESS_UBSAN;
+#endif  // __clang__
+
+static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   int rc_sasl = SASL_FAIL;
   int rc_auth = CR_ERROR;
   unsigned char *server_packet = NULL;

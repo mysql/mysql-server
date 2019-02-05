@@ -4773,6 +4773,14 @@ end:
 
   DBUG_RETURN(NET_ASYNC_COMPLETE);
 }
+
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv,
+                                    uchar **buf) SUPPRESS_UBSAN;
+#endif  // __clang__
+
 /**
   vio->read_packet() callback method for client authentication plugins
 
@@ -4905,6 +4913,13 @@ static net_async_status client_mpvio_read_packet_nonblocking(
   DBUG_RETURN(NET_ASYNC_COMPLETE);
 }
 
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
+                                     int pkt_len) SUPPRESS_UBSAN;
+#endif  // __clang__
+
 /**
   vio->write_packet() callback method for client authentication plugins
 
@@ -4915,7 +4930,7 @@ static net_async_status client_mpvio_read_packet_nonblocking(
   handshake packet, if neccessary.
 */
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
-                                     int pkt_len) SUPPRESS_UBSAN {
+                                     int pkt_len) {
   int res;
   MCPVIO_EXT *mpvio = (MCPVIO_EXT *)mpv;
 
