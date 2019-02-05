@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -409,7 +409,7 @@ uint getNodeCount(NodeSet set, uint numNodes)
     abort();
     return 0;
   }
-};
+}
 
 
 /**
@@ -1985,7 +1985,7 @@ TESTCASE("Upgrade_Newer_LCP_FS_Fail",
   // No postupgradecheck required as the upgrade is expected to fail
 }
   
-NDBT_TESTSUITE_END(testUpgrade);
+NDBT_TESTSUITE_END(testUpgrade)
 
 int main(int argc, const char** argv){
   ndb_init();

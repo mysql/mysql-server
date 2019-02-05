@@ -1,5 +1,5 @@
  /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -467,7 +467,7 @@ int simple(int pos, int size)
     printf("dst: "); print(dst, size+31); printf("\n");
   }
   return (cmp(src, dst, size+31)?0 : -1);
-};
+}
 
 struct Alloc
 {

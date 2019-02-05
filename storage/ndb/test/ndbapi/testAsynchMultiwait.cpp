@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -515,7 +515,7 @@ TESTCASE("JustMisc", "Just run the Scan test") {
   STEP(sleepAndStop);
   FINALIZER(runCleanup);
 }
-NDBT_TESTSUITE_END(testAsynchMultiwait);
+NDBT_TESTSUITE_END(testAsynchMultiwait)
 
 int main(int argc, const char** argv){
   ndb_init();

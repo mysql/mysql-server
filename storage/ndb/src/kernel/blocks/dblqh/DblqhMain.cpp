@@ -7238,7 +7238,7 @@ void Dblqh::incrDeallocRefCount(Signal* signal,
   ndbrequire(countOpPtr.p->m_dealloc_data.m_dealloc_ref_count != RNIL);
 
   countOpPtr.p->m_dealloc_data.m_dealloc_ref_count++;
-};
+}
 
 /**
  * decrDeallocRefCount
@@ -30913,7 +30913,7 @@ Dblqh::stopLcpFragWatchdog()
   DEB_LCP(("(%u)stopLcpFragWatchdog", instance()));
   ndbrequire(c_lcpFragWatchdog.scan_running);
   c_lcpFragWatchdog.reset();
-};
+}
     
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */

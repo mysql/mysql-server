@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ Ndb_rep_tab_key::attempt_match(const char* keyptr,
 
   /* No match */
   return -1;
-};
+}
 
 int
 Ndb_rep_tab_key::get_match_quality(const Ndb_rep_tab_key* key,
@@ -149,7 +149,7 @@ Ndb_rep_tab_key::get_match_quality(const Ndb_rep_tab_key* key,
   }
 
   return quality;
-};
+}
 
 Ndb_rep_tab_row::Ndb_rep_tab_row()
   : binlog_type(0), cfs_is_null(true)

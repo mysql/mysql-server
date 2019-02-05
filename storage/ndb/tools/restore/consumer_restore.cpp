@@ -3309,7 +3309,7 @@ static Uint64 extract_auto_val(const char *data, int size)
     return 0;
   };
   return v;
-};
+}
 
 void
 BackupRestore::update_next_auto_val(Uint32 orig_table_id,

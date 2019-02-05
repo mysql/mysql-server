@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +311,7 @@ sectionVerify(SegmentUtils& su, Uint32 firstIVal)
 }
 
 
-SegmentListHead::SegmentListHead():headPtr(RNIL) {};
+SegmentListHead::SegmentListHead():headPtr(RNIL) {}
 
 bool
 SegmentListHead::isEmpty() const
@@ -681,7 +681,7 @@ static const TestVariant testVariants[] =
 static Uint32 getActualUsed(SegmentSubPool& ssp)
 {
   return g_sectionSegmentPool.getUsed() - ssp.getNumAvailable();
-};
+}
 
 bool testBasicFillAndDrain()
 {
@@ -773,7 +773,7 @@ bool testBasicFillAndDrain()
   VERIFY(slh.headPtr == RNIL);
 
   return true;
-};
+}
 
 bool testMixedEnqAndDeq()
 {

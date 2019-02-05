@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1996,7 +1996,7 @@ TableS::get_auto_data(const TupleS & tuple, Uint32 * syskey, Uint64 * nextid) co
     return true;
   }
   return false;
-};
+}
 
 Uint16 Twiddle16(Uint16 in)
 {

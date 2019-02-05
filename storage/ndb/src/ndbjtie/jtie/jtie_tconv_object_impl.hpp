@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -123,14 +123,14 @@ struct ObjectParam< _jtie_Object *, C * > {
             }
         }
         return c;
-    };
+    }
 
     static void
     release(C * c, _jtie_Object * j, JNIEnv * env) {
         TRACE("void ObjectParam.release(C *, _jtie_Object *, JNIEnv *)");
         //printf("    c = %lx\n", (unsigned long)c);
         (void)c; (void)j; (void)env;
-    };
+    }
 };
 
 // Implements the mapping of jtie_Objects parameters to references.
@@ -156,13 +156,13 @@ struct ObjectParam< _jtie_Object *, C & > {
 
         // never actually dereferenced if status indicates an error
         return *c;
-    };
+    }
 
     static void
     release(C & c, _jtie_Object * j, JNIEnv * env) {
         TRACE("void ObjectParam.release(C &, _jtie_Object *, JNIEnv *)");
         ObjectParam< _jtie_Object *, C * >::release(&c, j, env);
-    };
+    }
 };
 
 // Implements the mapping of jtie_Object invocation targets.
@@ -190,14 +190,14 @@ struct Target< _jtie_Object *, C > {
 
         // never actually dereferenced if status indicates an error
         return *c;
-    };
+    }
 
     static void
     release(C & c, _jtie_Object * j, JNIEnv * env) {
         TRACE("void Target.release(C &, _jtie_Object *, JNIEnv *)");
         // match delegation in convert()
         ObjectParam< _jtie_Object *, C * >::release(&c, j, env);
-    };
+    }
 };
 
 // Implements the mapping of jtie_Object results to pointers.

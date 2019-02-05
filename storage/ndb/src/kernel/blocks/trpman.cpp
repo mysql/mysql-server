@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -747,7 +747,7 @@ TrpmanProxy::newWorker(Uint32 instanceNo)
   return new Trpman(m_ctx, instanceNo);
 }
 
-BLOCK_FUNCTIONS(TrpmanProxy);
+BLOCK_FUNCTIONS(TrpmanProxy)
 
 // GSN_OPEN_COMORD
 

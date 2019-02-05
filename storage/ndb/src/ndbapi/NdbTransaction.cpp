@@ -3017,7 +3017,7 @@ NdbTransaction::getMaxPendingBlobReadBytes() const
   /* 0 == max */
   return (maxPendingBlobReadBytes == 
           (~Uint32(0)) ? 0 : maxPendingBlobReadBytes);
-};
+}
 
 Uint32
 NdbTransaction::getMaxPendingBlobWriteBytes() const
@@ -3025,7 +3025,7 @@ NdbTransaction::getMaxPendingBlobWriteBytes() const
   /* 0 == max */
   return (maxPendingBlobWriteBytes == 
           (~Uint32(0)) ? 0 : maxPendingBlobWriteBytes);
-};
+}
 
 void
 NdbTransaction::setMaxPendingBlobReadBytes(Uint32 bytes)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4656,7 +4656,7 @@ TESTCASE("StaleNodeTakeoverDuringSR",
   STEP(runCheckStaleNodeTakeoverDuringSR);
   STEP(runLoad);
 }
-NDBT_TESTSUITE_END(testSystemRestart);
+NDBT_TESTSUITE_END(testSystemRestart)
 
 int main(int argc, const char** argv){
   ndb_init();

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1578,7 +1578,7 @@ TESTCASE("ScanJoinError", ""){
   STEP(runScanJoinError);
   FINALIZER(runClearTable);
 }
-NDBT_TESTSUITE_END(testSpj);
+NDBT_TESTSUITE_END(testSpj)
 
 
 int main(int argc, const char** argv){

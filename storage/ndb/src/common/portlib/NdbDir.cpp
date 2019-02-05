@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,17 +190,17 @@ const char* NdbDir::Iterator::next_entry(void)
   return m_impl.next_entry(is_reg);
 }
 
-mode_t NdbDir::u_r(void) { return IF_WIN(0, S_IRUSR); };
-mode_t NdbDir::u_w(void) { return IF_WIN(0, S_IWUSR); };
-mode_t NdbDir::u_x(void) { return IF_WIN(0, S_IXUSR); };
+mode_t NdbDir::u_r(void) { return IF_WIN(0, S_IRUSR); }
+mode_t NdbDir::u_w(void) { return IF_WIN(0, S_IWUSR); }
+mode_t NdbDir::u_x(void) { return IF_WIN(0, S_IXUSR); }
 
-mode_t NdbDir::g_r(void) { return IF_WIN(0, S_IRGRP); };
-mode_t NdbDir::g_w(void) { return IF_WIN(0, S_IWGRP); };
-mode_t NdbDir::g_x(void) { return IF_WIN(0, S_IXGRP); };
+mode_t NdbDir::g_r(void) { return IF_WIN(0, S_IRGRP); }
+mode_t NdbDir::g_w(void) { return IF_WIN(0, S_IWGRP); }
+mode_t NdbDir::g_x(void) { return IF_WIN(0, S_IXGRP); }
 
-mode_t NdbDir::o_r(void) { return IF_WIN(0, S_IROTH); };
-mode_t NdbDir::o_w(void) { return IF_WIN(0, S_IWOTH); };
-mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); };
+mode_t NdbDir::o_r(void) { return IF_WIN(0, S_IROTH); }
+mode_t NdbDir::o_w(void) { return IF_WIN(0, S_IWOTH); }
+mode_t NdbDir::o_x(void) { return IF_WIN(0, S_IXOTH); }
 
 
 bool
