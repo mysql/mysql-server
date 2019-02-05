@@ -7832,6 +7832,107 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
 }
 
 /**
+   Struct for representing the result of checking if a table exists
+   before trying to create it. The result has two different
+   dimensions; if the table actually exists, and if an error
+   occurd. If the table exists m_error will still be false if this is
+   CREATE IF NOT EXISTS.
+*/
+struct Table_exists_result {
+  /** true if the table already exists */
+  bool m_table_exists;
+
+  /** true if my_error() has been called and an error must be propagated. */
+  bool m_error;
+};
+
+/**
+   Check if table already exists.
+
+   @param thd                     thread handle
+   @param schema_name             schema name.
+   @param table_name              table name.
+   @param alias                   alt representation of table_name.
+   @param ha_lex_create_tmp_table true if creating a tmp table.
+   @param ha_create_if_not_exists true if this is CREATE IF NOT EXISTS.
+   @param internal_tmp_table      true if this is an internal tmp table.
+
+   @return false if successful, true otherwise.
+*/
+static Table_exists_result check_if_table_exists(
+    THD *thd, const char *schema_name, const char *table_name,
+    const char *alias, bool ha_lex_create_tmp_table,
+    bool ha_create_if_not_exists, bool internal_tmp_table) {
+  if (ha_lex_create_tmp_table &&
+      find_temporary_table(thd, schema_name, table_name)) {
+    if (ha_create_if_not_exists) {
+      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_TABLE_EXISTS_ERROR,
+                          ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
+      return {true, false};
+    }
+    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
+    return {true, true};
+  }
+
+  if (!internal_tmp_table && !ha_lex_create_tmp_table &&
+      !dd::get_dictionary()->is_dd_table_name(schema_name, table_name)) {
+    const dd::Abstract_table *at = nullptr;
+    if (thd->dd_client()->acquire(schema_name, table_name, &at)) {
+      return {false, true};
+    }
+
+    if (at != nullptr) {
+      if (ha_create_if_not_exists) {
+        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_TABLE_EXISTS_ERROR,
+                            ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
+        return {true, false};
+      }
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+      return {true, true};
+    }
+  }
+
+  /*
+    Check that table with given name does not already
+    exist in any storage engine. In such a case it should
+    be discovered and the error ER_TABLE_EXISTS_ERROR be returned
+    unless user specified CREATE TABLE IF EXISTS
+    An exclusive metadata lock ensures that no
+    one else is attempting to discover the table. Since
+    it's not on disk as a frm file, no one could be using it!
+  */
+  if (!ha_lex_create_tmp_table &&
+      !dd::get_dictionary()->is_dd_table_name(schema_name, table_name)) {
+    int retcode = ha_table_exists_in_engine(thd, schema_name, table_name);
+    DBUG_PRINT("info", ("exists_in_engine: %u", retcode));
+    switch (retcode) {
+      case HA_ERR_NO_SUCH_TABLE:
+        /* Normal case, no table exists. we can go and create it */
+        break;
+
+      case HA_ERR_TABLE_EXIST:
+        DBUG_PRINT("info", ("Table existed in handler"));
+
+        if (ha_create_if_not_exists) {
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
+                              ER_TABLE_EXISTS_ERROR,
+                              ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
+          return {true, false};
+        }
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
+        return {true, true};
+        break;
+
+      default:
+        DBUG_PRINT("info", ("error: %u from storage engine", retcode));
+        my_error(retcode, MYF(0), table_name);
+        return {true, true};
+    }
+  }
+  return {false, false};
+}
+
+/**
   Create a table
 
   @param thd                 Thread object
@@ -8094,6 +8195,17 @@ static bool create_table_impl(
     }
   }
 
+  Table_exists_result ter = check_if_table_exists(
+      thd, db, table_name, alias,
+      (create_info->options & HA_LEX_CREATE_TMP_TABLE),
+      (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS), internal_tmp_table);
+  if (ter.m_error) {
+    DBUG_RETURN(true);
+  }
+  if (ter.m_table_exists) {
+    DBUG_RETURN(false);
+  }
+
   /* Suppress key length errors if this is a white listed table. */
   Key_length_error_handler error_handler;
   bool is_whitelisted_table =
@@ -8110,73 +8222,6 @@ static bool create_table_impl(
   if (is_whitelisted_table) thd->pop_internal_handler();
 
   if (prepare_error) DBUG_RETURN(true);
-
-  /* Check if table already exists */
-  if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      find_temporary_table(thd, db, table_name)) {
-    if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) {
-      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_TABLE_EXISTS_ERROR,
-                          ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
-      DBUG_RETURN(false);
-    }
-    my_error(ER_TABLE_EXISTS_ERROR, MYF(0), alias);
-    DBUG_RETURN(true);
-  }
-
-  if (!internal_tmp_table &&
-      !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !dd::get_dictionary()->is_dd_table_name(db, table_name)) {
-    const dd::Abstract_table *at = nullptr;
-    if (thd->dd_client()->acquire(db, table_name, &at)) DBUG_RETURN(true);
-
-    if (at != nullptr) {
-      if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) {
-        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_TABLE_EXISTS_ERROR,
-                            ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
-        DBUG_RETURN(false);
-      }
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-      DBUG_RETURN(true);
-    }
-  }
-
-  /*
-    Check that table with given name does not already
-    exist in any storage engine. In such a case it should
-    be discovered and the error ER_TABLE_EXISTS_ERROR be returned
-    unless user specified CREATE TABLE IF EXISTS
-    An exclusive metadata lock ensures that no
-    one else is attempting to discover the table. Since
-    it's not on disk as a frm file, no one could be using it!
-  */
-  if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      !dd::get_dictionary()->is_dd_table_name(db, table_name)) {
-    bool create_if_not_exists =
-        create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS;
-    int retcode = ha_table_exists_in_engine(thd, db, table_name);
-    DBUG_PRINT("info", ("exists_in_engine: %u", retcode));
-    switch (retcode) {
-      case HA_ERR_NO_SUCH_TABLE:
-        /* Normal case, no table exists. we can go and create it */
-        break;
-      case HA_ERR_TABLE_EXIST:
-        DBUG_PRINT("info", ("Table existed in handler"));
-
-        if (create_if_not_exists) {
-          push_warning_printf(thd, Sql_condition::SL_NOTE,
-                              ER_TABLE_EXISTS_ERROR,
-                              ER_THD(thd, ER_TABLE_EXISTS_ERROR), alias);
-          DBUG_RETURN(false);
-        }
-        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
-        DBUG_RETURN(true);
-        break;
-      default:
-        DBUG_PRINT("info", ("error: %u from storage engine", retcode));
-        my_error(retcode, MYF(0), table_name);
-        DBUG_RETURN(true);
-    }
-  }
 
   THD_STAGE_INFO(thd, stage_creating_table);
 
