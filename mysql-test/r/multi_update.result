@@ -655,8 +655,6 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 CREATE TABLE t1(a TEXT, FULLTEXT(a)) engine = blackhole;
 UPDATE IGNORE (SELECT 1 FROM t1 WHERE(MATCH(a) AGAINST(''))) `x`,`t1` SET a = 1;
-Warnings:
-Warning	1870	Row events are not logged for UPDATE statements that modify BLACKHOLE tables in row format. Table(s): 't1.'
 DROP TABLE t1;
 set @@optimizer_switch=@optimizer_switch_saved;
 # Bug#13256831 - ERROR 1032 (HY000): CAN'T FIND RECORD
