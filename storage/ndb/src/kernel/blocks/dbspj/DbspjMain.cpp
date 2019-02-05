@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4748,9 +4748,14 @@ Dbspj::common_execTRANSID_AI(Signal* signal,
          * to a list / fifo. Upon resume, we will then be able to 
          * relocate all BUFFER'ed parent rows for which to resume operations.
          */
-        LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-        Local_correlation_list correlations(pool, nextTreeNodePtr.p->m_deferred.m_correlations);
-        if (!correlations.append(&rowRef.m_src_correlation, 1))
+        bool appended;
+        {
+          // Need an own scope for correlation_list, as ::lookup_abort() will also
+          // construct such a list. Such nested usage is not allowed.
+          Local_correlation_list correlations(pool, nextTreeNodePtr.p->m_deferred.m_correlations);
+          appended = correlations.append(&rowRef.m_src_correlation, 1);
+        }
+        if (unlikely(!appended))
         {
           jam();
           abort(signal, requestPtr, DbspjErr::OutOfQueryMemory);
