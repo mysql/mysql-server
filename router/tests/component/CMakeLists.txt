@@ -30,7 +30,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
-  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS}
+  SYSTEM_INCLUDE_DIRS ${GTEST_INCLUDE_DIRS} ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
   LIB_DEPENDS mock_server_rest_client;http_client;http_common
   DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
           routing;metadata_cache;http_auth_realm;http_auth_backend

@@ -29,6 +29,8 @@
 
 #include <gmock/gmock.h>
 
+#include <event2/event.h>  // EVENT__HAVE_OPENSSL
+
 #include "config_builder.h"
 #include "dim.h"
 #include "gtest_testname.h"
