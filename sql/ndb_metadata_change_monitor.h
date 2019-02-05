@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ class Ndb_metadata_change_monitor : public Ndb_component {
  public:
   Ndb_metadata_change_monitor();
   Ndb_metadata_change_monitor(const Ndb_metadata_change_monitor &) = delete;
-  virtual ~Ndb_metadata_change_monitor();
+  virtual ~Ndb_metadata_change_monitor() override;
 
   /*
     @brief Signal that the check interval has been changed by the user
