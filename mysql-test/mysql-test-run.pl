@@ -1227,7 +1227,15 @@ sub create_unique_id_dir() {
       $build_thread_id_dir = $ENV{'TEMP'} . "/mysql-unique-ids";
     }
   } else {
-    $build_thread_id_dir = "/tmp/mysql-unique-ids";
+    if (exists $ENV{'MTR_UNIQUE_IDS_DIR'} && -w $ENV{'MTR_UNIQUE_IDS_DIR'}) {
+      mtr_warning("Using a customized location for unique ids. Please use " .
+                  "MTR_UNIQUE_IDS_DIR only if MTR is running in multiple " .
+                  "environments on the same host and set it to one path " .
+                  "which is accessible on all environments");
+      $build_thread_id_dir = $ENV{'MTR_UNIQUE_IDS_DIR'}."/mysql-unique-ids";
+    } else {
+      $build_thread_id_dir = "/tmp/mysql-unique-ids";
+    }
   }
 
   # Check if directory already exists
