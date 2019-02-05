@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms
 #
 # This program is free software; you can redistribute it and/or modify
@@ -37,16 +37,18 @@ fi
 
 STATEFILE=atrt-analyze-result.state
 OLDOK=0
+OLDSKIP=0
 OLDFAIL=0
 
 # Checksum of beginning of log file is used to determine if log file
 # is reused or not.  If it is reused the count of seen OK reports
 # and FAILED reports are updated.
 if [ -f "${STATEFILE}" ] ; then
-  while read file oks fails chars sum ; do
+  while read file oks skips fails chars sum ; do
     chk=`dd 2>/dev/null if="$file" bs="${chars}" count=1 | sum`
     if [ "${chk}" = "${sum}" ] ; then
       OLDOK=`expr ${OLDOK} + ${oks}`
+      OLDSKIP=`expr ${OLDSKIP} + ${skips}`
       OLDFAIL=`expr ${OLDFAIL} + ${fails}`
     fi
   done < "${STATEFILE}"
@@ -57,17 +59,31 @@ LOGFILES=`find result/ -name log.out -size +0c | xargs grep -l 'NDBT_ProgramExit
 
 # Save the number of OK reports and FAILED and checksum  per log file
 OK=0
+SKIP=0
+FAIL=0
 for file in ${LOGFILES} ; do
   oks=`grep -c 'NDBT_ProgramExit: .*OK' "${file}"`
+  skips=`grep -c 'NDBT_ProgramExit: .*Skipped' "${file}"`
   fails=`grep -c 'NDBT_ProgramExit: .*Failed' "${file}"`
   if [ $oks -gt 0 ] ; then
     OK=`expr ${OK} + ${oks}`
+    SKIP=`expr ${SKIP} + ${skips}`
     FAIL=`expr ${FAIL} + ${fails}`
     chars=`wc -c < "${file}" | awk '{ print $1 }'`
     sum=`dd 2>/dev/null if="$file" bs="${chars}" count=1 | sum`
-    echo "${file}" "${oks}" "${fails}" "${chars}" "${sum}"
+    echo "${file}" "${oks}" "${skips}" "${fails}" "${chars}" "${sum}"
   fi
 done > "${STATEFILE}"
 
-# Succeed only if found a new OK and there are no failed reports
-[ ${OK} -gt ${OLDOK} ] && [ ${OLDFAIL} -eq ${FAIL} ]
+if [ ${FAIL} -gt ${OLDFAIL} ]; then
+  RC=1  # NDBT_FAILED
+elif [ ${SKIP} -gt ${OLDSKIP} ]; then
+  RC=4  # NDBT_SKIPPED
+elif [ ${OK} -gt ${OLDOK} ]; then
+  RC=0  # NDBT_OK
+else
+  # Return failure if no status was found
+  RC=1  # NDBT_FAILED
+fi
+
+exit ${RC}

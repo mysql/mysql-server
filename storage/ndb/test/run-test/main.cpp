@@ -537,11 +537,26 @@ int main(int argc, char **argv) {
         goto end;
       }
 
-      g_logger.info("#%d %s(%d)", test_no, (result == 0 ? "OK" : "FAILED"),
-                    result);
-      restart = result != 0;
+      const char *test_status;
+      switch (result) {
+        case ErrorCodes::ERR_OK:
+          test_status = "OK";
+          break;
+        case ErrorCodes::ERR_TEST_SKIPPED:
+          test_status = "SKIPPED";
+          break;
+        default:
+          test_status = "FAILED";
+          break;
+      }
+      g_logger.info("#%d %s(%d)", test_no, test_status, result);
 
-      retry_test = result != 0 && testruns <= test_case.m_max_retries;
+      const bool failed = (result != ErrorCodes::ERR_OK &&
+                           result != ErrorCodes::ERR_TEST_SKIPPED);
+
+      restart = failed;
+
+      retry_test = failed && testruns <= test_case.m_max_retries;
       if (retry_test) {
         g_logger.info("Retrying test #%d - '%s', attempt (%d/%d)", test_no,
                       test_case.m_name.c_str(), testruns,
@@ -550,7 +565,8 @@ int main(int argc, char **argv) {
       }
     } while (retry_test);
 
-    if (result != 0) {
+    if (result != ErrorCodes::ERR_OK &&
+        result != ErrorCodes::ERR_TEST_SKIPPED) {
       return_code = TESTSUITE_FAILURES;
     }
 
