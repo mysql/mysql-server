@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -535,7 +535,7 @@ MDL_request *mdl_schema_req(THD *thd, const dd::String_type &schema_name) {
 
   if (lower_case_table_names == 2) {
     dd::String_type lc_schema_name =
-        casedn(Object_table_definition_impl::name_collation(), schema_name);
+        casedn(Object_table_definition_impl::fs_name_collation(), schema_name);
     MDL_REQUEST_INIT(r, MDL_key::SCHEMA, lc_schema_name.c_str(), "",
                      MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
   } else {
