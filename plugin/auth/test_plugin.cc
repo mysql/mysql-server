@@ -225,6 +225,13 @@ mysql_declare_plugin(test_plugin){
 
 #include "my_compiler.h"
 
+#ifdef __clang__
+// Clang UBSAN false positive?
+// Call to function through pointer to incorrect function type
+static int test_plugin_client(MYSQL_PLUGIN_VIO *vio,
+                              MYSQL *mysql) SUPPRESS_UBSAN;
+#endif  // __clang__
+
 /**
   The main function of the test plugin.
 
@@ -241,8 +248,7 @@ mysql_declare_plugin(test_plugin){
       and whether the input is a password (not echoed).
    3. the prompt is expected to be sent zero-terminated
 */
-static int test_plugin_client(MYSQL_PLUGIN_VIO *vio,
-                              MYSQL *mysql) SUPPRESS_UBSAN {
+static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   unsigned char *pkt, cmd = 0;
   int pkt_len, res;
   char *reply;
