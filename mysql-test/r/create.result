@@ -2287,3 +2287,18 @@ t2	CREATE TEMPORARY TABLE `t2` (
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE= @saved_mode;
+#
+# Bug #29283055: CREATE TABLE IF NOT EXISTS .. SHOULD NOT ALWAYS
+# FAIL ON SQL_REQUIRE_PRIMARY_KEY
+#
+# Create table without PK
+CREATE TABLE t1(i INT);
+SET SESSION sql_require_primary_key=1;
+# This must not fail when t1 already exists, even if it does not have
+# a pk
+CREATE TABLE IF NOT EXISTS t1(i INT);
+Warnings:
+Note	1050	Table 't1' already exists
+# Cleanup
+SET SESSION sql_require_primary_key=DEFAULT;
+DROP TABLE t1;

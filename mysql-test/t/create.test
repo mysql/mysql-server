@@ -2141,3 +2141,22 @@ SHOW CREATE TABLE t2;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 SET SQL_MODE= @saved_mode;
+
+--echo #
+--echo # Bug #29283055: CREATE TABLE IF NOT EXISTS .. SHOULD NOT ALWAYS
+--echo # FAIL ON SQL_REQUIRE_PRIMARY_KEY
+--echo #
+
+--echo # Create table without PK
+CREATE TABLE t1(i INT);
+
+SET SESSION sql_require_primary_key=1;
+
+--echo # This must not fail when t1 already exists, even if it does not have
+--echo # a pk
+CREATE TABLE IF NOT EXISTS t1(i INT);
+
+--echo # Cleanup
+SET SESSION sql_require_primary_key=DEFAULT;
+DROP TABLE t1;
+

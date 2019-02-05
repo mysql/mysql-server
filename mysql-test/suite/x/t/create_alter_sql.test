@@ -98,17 +98,17 @@ CREATE TABLE t1 ( col1 INVALID_DATA_TYPE , col2 JSON) ;
 -->endsql
 -->expecterror 1171
 -->sql
-CREATE TABLE t1 ( col1 INT NULL PRIMARY KEY , col2 JSON) ;
+CREATE TABLE t1_ ( col1 INT NULL PRIMARY KEY , col2 JSON) ;
 #-- "Incorrect constraint"
 -->endsql
 -->expecterror 1072
 -->sql
-CREATE TABLE t1 ( col1 INT NULL , col2 JSON,PRIMARY KEY(col3)) ;
+CREATE TABLE t1_ ( col1 INT NULL , col2 JSON,PRIMARY KEY(col3)) ;
 #-- "Incorrect table option"
 -->endsql
 -->expecterror 1286
 -->sql
-CREATE TABLE t1 ( col1 INT NULL , col2 JSON) ENGINE=INVALID;
+CREATE TABLE t1_ ( col1 INT NULL , col2 JSON) ENGINE=INVALID;
 #-- "Can not create table until lock is released"
 LOCK TABLES t1 READ;
 -->endsql
