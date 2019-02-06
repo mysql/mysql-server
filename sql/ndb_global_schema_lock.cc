@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #include <my_sys.h>               // my_sleep.h
 #include "sql_class.h"
+#include "debug_sync.h"
 
 
 /**
@@ -279,6 +280,9 @@ ndbcluster_global_schema_lock(THD *thd,
     DBUG_PRINT("info", ("schema_locks_count: %d",
                         thd_ndb->schema_locks_count));
 
+    // Sync point used when testing global schema lock concurrency
+    DEBUG_SYNC(thd, "ndb_global_schema_lock_acquired");
+
     DBUG_RETURN(0);
   }
   // Else, didn't get GSL: Deadlock or failure from ndbcluster:
@@ -290,7 +294,8 @@ ndbcluster_global_schema_lock(THD *thd,
   if (ndb_error.code != 4009)  //No cluster connection
   {
     DBUG_ASSERT(thd_ndb->global_schema_lock_count == 1);
-    thd_ndb->global_schema_lock_count= 0;
+    // This reset triggers the special case in ndbcluster_global_schema_unlock()
+    thd_ndb->global_schema_lock_count = 0;
   }
 
   if (ndb_error.code == 266)  //Deadlock resolution
@@ -327,9 +332,27 @@ ndbcluster_global_schema_unlock(THD *thd)
     ndb_set_gsl_participant(NULL);
     return 0;
   }
+
+  if (thd_ndb->global_schema_lock_error != 4009 &&
+      thd_ndb->global_schema_lock_count == 0)
+  {
+    // Special case to handle unlock after failure to acquire GSL due to
+    // any error other than 4009.
+    // - when error 4009 occurs the lock is granted anyway and the lock count is
+    // not reset, thus unlock() should be called.
+    // - for other errors the lock is not granted, lock count is reset and
+    // the exact same error code is returned. Thus it's impossible to know
+    // that there is actually no need to call unlock. Fix by allowing unlock
+    // without doing anything since the trans is already closed.
+    DBUG_ASSERT(thd_ndb->global_schema_lock_trans == NULL);
+    thd_ndb->global_schema_lock_count++;
+  }
+
   Ndb *ndb= thd_ndb->ndb;
   DBUG_ENTER("ndbcluster_global_schema_unlock");
   NdbTransaction *trans= thd_ndb->global_schema_lock_trans;
+  // Don't allow decrementing from zero
+  DBUG_ASSERT(thd_ndb->global_schema_lock_count > 0);
   thd_ndb->global_schema_lock_count--;
   DBUG_PRINT("exit", ("global_schema_lock_count: %d",
                       thd_ndb->global_schema_lock_count));
@@ -481,6 +504,10 @@ ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
     result =
       notify_mdl_lock(thd,
                       notification == HA_NOTIFY_PRE_EVENT, &victimized);
+    if (result && thd_killed(thd)) {
+      // Failed to acuire GSL and THD is killed -> give up!
+      break; // Terminate loop
+    }
   }
   while (victimized);
   DBUG_RETURN(result);
@@ -606,6 +633,10 @@ int Ndb_global_schema_lock_guard::lock(bool report_cluster_disconnected)
   {
     ret= ndbcluster_global_schema_lock(m_thd, report_cluster_disconnected,
                                        &victimized);
+    if (ret && thd_killed(m_thd)) {
+      // Failed to acuire GSL and THD is killed -> give up!
+      break; // Terminate loop
+    }
   }
   while (victimized);
 

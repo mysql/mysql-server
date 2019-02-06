@@ -1,0 +1,78 @@
+#
+# Test behaviour of SELECT query killed by MAX_EXECUTION_TIME while
+# waiting to acquire global schema lock(GSL).
+#
+# NOTE! The query will not be killed after the exact time specified, but rather
+# somewhat later when NDB returns control back to the MySQL Server
+# and it can detect that the query has been killed(because query exceeded
+# the max execution time).
+#
+--source include/have_ndb.inc
+# Test uses DEBUG_SYNC
+--source include/have_debug_sync.inc
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  value INT,
+  value2 VARCHAR(50),
+  INDEX(value, value2)
+) ENGINE=NDB;
+
+INSERT INTO t1 VALUES(1, 1, "val1");
+
+# Create another connection to first mysqld
+--connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,)
+
+--echo # Switch to second connection
+--connection con2
+
+--echo # Reset all DEBUG_SYNC points
+SET DEBUG_SYNC='RESET';
+--echo # Setup ALTER TABLE to wait after GSL acquired
+SET DEBUG_SYNC='ndb_global_schema_lock_acquired
+                  SIGNAL got_GSL WAIT_FOR alter_continue';
+
+--echo # Start ALTER TABLE query, should acquire GSL, reach the synch
+--echo # point, signal and wait
+--send ALTER TABLE t1 ADD COLUMN value3 BLOB DEFAULT NULL
+
+--echo # Switch to default connection
+--connection default
+
+--echo # Wait for the ALTER TABLE query to signal that it has acquired the GSL
+SET DEBUG_SYNC='now WAIT_FOR got_GSL';
+
+# Run query which need to take GSL and has limited execution time. Since the
+# query can't take the GSL while the ALTER is holding the lock, it's expected
+# to fail after a while with message saying that query was interrupted.
+#
+# What happens behind the scenes is that query will send to NDB in order
+# to take the GSL row-lock. Meanwhile inside the MySQL Server, the
+# query is marked as killed after the max execution time has elapsed. When
+# control is then later returned back to MySQL Server after it fails
+# to take the GSL row-lock in NDB(after waiting for
+# ~TransactionDeadlockDetectionTimeout milliseconds), the query will fail.
+#
+# NOTE! The max execution time must be set "large enough" to cater for slow
+# test machines but it must also be significantly smaller than the
+# TransactionDeadlockDetectionTimeout used in the cluster configuration.
+--error ER_QUERY_TIMEOUT
+SELECT /*+ MAX_EXECUTION_TIME(500) */ table_name
+  FROM information_schema.tables WHERE table_name = 't1';
+
+--echo # Tell the ALTER TABLE to continue processing
+SET DEBUG_SYNC='now SIGNAL alter_continue';
+
+--echo # Switch to second connection
+--connection con2
+
+--echo # Complete the ALTER TABLE query
+--reap
+
+--echo # Switch to default connection
+--connection default
+
+# Reset all DEBUG_SYNC points
+SET DEBUG_SYNC='RESET';
+
+DROP TABLE t1;
