@@ -125,8 +125,11 @@ SET DEBUG_SYNC= 'before_acos_function SIGNAL in_sync';
 --source include/turn_off_only_full_group_by.inc
 # This is a very long running query. If this test start failing,
 # it may be necessary to change to an even longer query.
+# Hash join will make the query run too long before hitting the DEBUG_SYNC-point
+# 'before_acos_function', because the hash join iterator will materialize a lot
+# of data before we get so far.
 send SELECT id FROM t1 WHERE id IN
-       (SELECT DISTINCT a.id FROM t2 a, t2 b, t2 c, t2 d
+       (SELECT /*+ NO_HASH_JOIN(a,b,c,d) */ DISTINCT a.id FROM t2 a, t2 b, t2 c, t2 d
           GROUP BY ACOS(1/a.id), b.id, c.id, d.id
           HAVING a.id BETWEEN 10 AND 20);
 

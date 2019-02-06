@@ -90,6 +90,8 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %token SET_VAR_HINT
 %token SKIP_SCAN_HINT
 %token NO_SKIP_SCAN_HINT
+%token HASH_JOIN_HINT
+%token NO_HASH_JOIN_HINT
 
 /* Other tokens */
 
@@ -460,6 +462,10 @@ table_level_hint_type_on:
           {
             $$= BNL_HINT_ENUM;
           }
+        | HASH_JOIN_HINT
+          {
+            $$= HASH_JOIN_HINT_ENUM;
+          }
         | DERIVED_MERGE_HINT
           {
             $$= DERIVED_MERGE_HINT_ENUM;
@@ -474,6 +480,10 @@ table_level_hint_type_off:
         | NO_BNL_HINT
           {
             $$= BNL_HINT_ENUM;
+          }
+        | NO_HASH_JOIN_HINT
+          {
+            $$= HASH_JOIN_HINT_ENUM;
           }
         | NO_DERIVED_MERGE_HINT
           {

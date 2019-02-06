@@ -1642,7 +1642,7 @@ struct TABLE {
 
   void mark_column_used(Field *field, enum enum_mark_columns mark);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
-                                           uint key_parts = 0);
+                                           uint key_parts = 0) const;
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns);
@@ -1687,7 +1687,7 @@ struct TABLE {
     @returns true if if index is defined over at least one virtual generated
     column
   */
-  inline bool index_contains_some_virtual_gcol(uint index_no) {
+  inline bool index_contains_some_virtual_gcol(uint index_no) const {
     DBUG_ASSERT(index_no < s->keys);
     return key_info[index_no].flags & HA_VIRTUAL_GEN_KEY;
   }

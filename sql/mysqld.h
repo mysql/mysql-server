@@ -503,6 +503,7 @@ extern PSI_file_key key_file_relaylog_cache;
 extern PSI_file_key key_file_relaylog_index;
 extern PSI_file_key key_file_relaylog_index_cache;
 extern PSI_file_key key_file_sdi;
+extern PSI_file_key key_file_hash_join;
 
 extern PSI_socket_key key_socket_tcpip;
 extern PSI_socket_key key_socket_unix;

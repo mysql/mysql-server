@@ -3038,6 +3038,7 @@ static const char *optimizer_switch_names[] = {
     "derived_merge",
     "use_invisible_indexes",
     "skip_scan",
+    "hash_join",
     "default",
     NullS};
 static Sys_var_flagset Sys_optimizer_switch(
@@ -3049,7 +3050,7 @@ static Sys_var_flagset Sys_optimizer_switch(
     ", materialization, semijoin, loosescan, firstmatch, duplicateweedout,"
     " subquery_materialization_cost_based, skip_scan"
     ", block_nested_loop, batched_key_access, use_index_extensions,"
-    " condition_fanout_filter, derived_merge} and val is one of "
+    " condition_fanout_filter, derived_merge, hash_join} and val is one of "
     "{on, off, default}",
     HINT_UPDATEABLE SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,

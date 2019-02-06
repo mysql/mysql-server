@@ -57,12 +57,14 @@
 
 class Arg_comparator;
 class Field;
+class Item_func_eq;
 class Item_in_subselect;
 class Item_subselect;
 class Item_sum_hybrid;
 class Json_scalar_holder;
 class Json_wrapper;
 class PT_item_list;
+class QEP_TAB;
 class SELECT_LEX;
 class THD;
 struct MY_BITMAP;
@@ -71,21 +73,67 @@ Item *make_condition(Parse_context *pc, Item *item);
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
+/// A class that represents a join condition in a hash join. The class holds an
+/// equality condition, as well as a pre-calculated bitmap of the used tables
+/// (Item::used_tables()) for each side of the condition.
+///
+/// The class also contains one Item for each side of the condition. In most
+/// cases, the Item is only a pointer to the left/right Item of the join
+/// condition. But for certain data types (DECIMAL, DOUBLE(M, N), FLOAT(M, N)),
+/// the Item might be a typecast. Either way, the caller should use these Items
+/// when i.e. reading the values from the join condition, so that the values are
+/// read in the right data type context. See the comments for
+/// Item_func_eq::create_cast_if_needed for more details around this.
+class HashJoinCondition {
+ public:
+  HashJoinCondition(Item_func_eq *join_condition, MEM_ROOT *mem_root);
+
+  Item_func_eq *join_condition() const { return m_join_condition; }
+
+  Item *left_extractor() const { return m_left_extractor; }
+  Item *right_extractor() const { return m_right_extractor; }
+  bool left_uses_any_table(table_map tables) const {
+    return (m_left_used_tables & tables) != 0;
+  }
+
+  bool right_uses_any_table(table_map tables) const {
+    return (m_right_used_tables & tables) != 0;
+  }
+
+  size_t max_character_length() const { return m_max_character_length; }
+
+ private:
+  Item_func_eq *m_join_condition;
+  Item *m_left_extractor;
+  Item *m_right_extractor;
+
+  // Item::used_tables() is heavily used during the join to determine which side
+  // of the condition we are to read the value from, so caching the result of
+  // used_tables() gives a nice speedup.
+  const table_map m_left_used_tables;
+  const table_map m_right_used_tables;
+
+  // The maximum number of characters among the two arguments. This is only
+  // relevant when we have a PAD SPACE collation and the SQL mode
+  // PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
+  // argument to the same length as the longest argument.
+  const size_t m_max_character_length{0};
+};
+
 class Arg_comparator {
-  Item **a, **b;
+  Item **left{nullptr};
+  Item **right{nullptr};
   arg_cmp_func func;
   Item_result_field *owner;
-  Arg_comparator *comparators;  // used only for compare_row()
-  uint16 comparator_count;
+  Arg_comparator *comparators{nullptr};  // used only for compare_row()
+  uint16 comparator_count{0};
   double precision;
   /* Fields used in DATE/DATETIME comparison. */
-  Item *a_cache, *b_cache;  // Cached values of a and b items
-  bool set_null;            // true <=> set owner->null_value
-                            //   when one of arguments is NULL.
-  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               const Item *warn_item, bool *is_null);
-  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
-                               const Item *warn_item, bool *is_null);
+  Item *left_cache{nullptr};  // Cached values of "left" and "right" items
+  Item *right_cache{nullptr};
+  bool set_null{true};  // true <=> set owner->null_value
+                        //   when one of arguments is NULL.
+
   bool try_year_cmp_func(Item_result type);
   static bool get_date_from_const(Item *date_arg, Item *str_arg,
                                   ulonglong *const_value);
@@ -95,7 +143,7 @@ class Arg_comparator {
     memory that can be used instead of the heap when converting the
     SQL value to a JSON value.
   */
-  Json_scalar_holder *json_scalar;
+  Json_scalar_holder *json_scalar{nullptr};
 
   /**
      When comparing strings, compare at most these many bytes.
@@ -108,32 +156,15 @@ class Arg_comparator {
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator()
-      : comparators(0),
-        comparator_count(0),
-        a_cache(0),
-        b_cache(0),
-        set_null(true),
-        get_value_a_func(0),
-        get_value_b_func(0),
-        json_scalar(0) {}
-  Arg_comparator(Item **a1, Item **a2)
-      : a(a1),
-        b(a2),
-        comparators(0),
-        comparator_count(0),
-        a_cache(0),
-        b_cache(0),
-        set_null(true),
-        get_value_a_func(0),
-        get_value_b_func(0),
-        json_scalar(0) {}
+  Arg_comparator() = default;
+
+  Arg_comparator(Item **left, Item **right) : left(left), right(right) {}
 
   bool set_compare_func(Item_result_field *owner, Item_result type);
-  bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
+  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
                     Item_result type);
 
-  bool set_cmp_func(Item_result_field *owner_arg, Item **a1, Item **a2,
+  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
                     bool set_null_arg);
   /**
      Comparison function are expected to operate on arguments having the
@@ -198,9 +229,51 @@ class Arg_comparator {
   */
   inline void set_cmp_context_for_datetime() {
     DBUG_ASSERT(func == &Arg_comparator::compare_datetime);
-    if ((*a)->is_temporal()) (*a)->cmp_context = INT_RESULT;
-    if ((*b)->is_temporal()) (*b)->cmp_context = INT_RESULT;
+    if ((*left)->is_temporal()) (*left)->cmp_context = INT_RESULT;
+    if ((*right)->is_temporal()) (*right)->cmp_context = INT_RESULT;
   }
+
+  Item_result get_compare_type() const { return m_compare_type; }
+
+  /// @returns true if the class has decided that values should be extracted
+  ///   from the Items using function pointers set up by this class.
+  bool use_custom_value_extractors() const {
+    return get_value_a_func != nullptr;
+  }
+
+  // Read the value from one of the Items (decided by "left_argument"), using
+  // the function pointers that this class has set up. This can happen for DATE,
+  // TIME, DATETIME and YEAR values, and the returned value is a temporal value
+  // in packed format.
+  longlong extract_value_from_argument(THD *thd, Item *item, bool left_argument,
+                                       bool *is_null) const;
+
+ private:
+  /// A function pointer that is used for retrieving the value from argument
+  /// "left". This function is only used when we are comparing in a datetime
+  /// context, and it retrieves the value as a DATE, TIME, DATETIME or YEAR,
+  /// depending on the comparison context.
+  ///
+  /// @param thd thread handle. Used to retrieve the SQL mode among other things
+  /// @param item_arg the item to retrieve the value from
+  /// @param cache_arg a pointer to an Item where we can cache the value
+  ///   from "item_arg". Can be nullptr
+  /// @param warn_item if rasing an conversion warning, the warning gets the
+  ///   data type and item name from this item
+  /// @param is_null whether or not "item_arg" returned SQL NULL
+  ///
+  /// @returns a DATE/TIME/YEAR/DATETIME value, in packed format
+  longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                               const Item *warn_item, bool *is_null){nullptr};
+
+  // This function does the same as "get_value_a_func", except that it returns
+  // the value from the argument "right" (the right side of the comparison).
+  longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
+                               const Item *warn_item, bool *is_null){nullptr};
+
+  // The data type that is used when comparing the two Items. I.e., if the type
+  // is INT_RESULT, we call val_int() on both sides and compare those.
+  Item_result m_compare_type{INVALID_RESULT};
 };
 
 class Item_bool_func : public Item_int_func {
@@ -595,6 +668,8 @@ class Item_func_comparison : public Item_bool_func2 {
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
+
+  bool has_any_non_equi_join_condition() const override;
 };
 
 /**
@@ -882,6 +957,45 @@ class Item_func_eq : public Item_func_comparison {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  bool has_any_hash_join_condition(const table_map left_tables,
+                                   const QEP_TAB &right_table) const override;
+
+  /// Read the value from the join condition, and append it to the output vector
+  /// "join_key_buffer". The function will determine which side of the condition
+  /// to read the value from by using the bitmap "tables".
+  ///
+  /// @param thd the thread handler
+  /// @param tables a bitmap that marks the tables that are involved in the join
+  /// @param join_condition an isntance containing the join condition together
+  ///   with some pre-calculated values
+  /// @param[out] join_key_buffer a buffer where the value from the join
+  ///   condition will be appended
+  ///
+  /// @returns true if an SQL NULL was encountered, false otherwise
+  bool append_join_key_for_hash_join(THD *thd, table_map tables,
+                                     const HashJoinCondition &join_condition,
+                                     String *join_key_buffer) const;
+
+  /// Wrap the argument in a typecast, if needed.
+  ///
+  /// When computing a hash of the join value during a hash join, we want to
+  /// create a hash value that is memcmp-able. This is quite straightforward
+  /// for most data types, but it can be tricky for some types. For the
+  /// straightforward cases, this function just returns the argument it was
+  /// given in. For the complex cases, the function returns the given argument,
+  /// wrapped in a typecast node. Which typecast node it is wrapped in is
+  /// determined by the comparison context of this equality condition. The
+  /// comparison context is given by the member "cmp"; a comparator class that
+  /// is set up during query resolving.
+  ///
+  /// @param mem_root the MEM_ROOT where the typecast node is allocated
+  /// @param argument the argument that we might wrap in a typecast. This is
+  ///   either the left or the right side of the Item_func_eq
+  ///
+  /// @returns either the argument it was given, or the argument wrapped in a
+  ///   typecast
+  Item *create_cast_if_needed(MEM_ROOT *mem_root, Item *argument) const;
 };
 
 /**
@@ -2369,6 +2483,11 @@ class Item_cond_and final : public Item_cond {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
+
+  bool has_any_hash_join_condition(const table_map left_tables,
+                                   const QEP_TAB &right_table) const override;
+
+  bool has_any_non_equi_join_condition() const override;
 };
 
 class Item_cond_or final : public Item_cond {

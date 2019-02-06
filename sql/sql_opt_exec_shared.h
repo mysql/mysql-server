@@ -507,7 +507,7 @@ class QEP_shared_owner {
   void mark_condition_as_pushed_to_sort() {
     m_qs->mark_condition_as_pushed_to_sort();
   }
-  Key_map &keys() { return m_qs->keys(); }
+  Key_map &keys() const { return m_qs->keys(); }
   ha_rows records() const { return m_qs->records(); }
   void set_records(ha_rows r) { return m_qs->set_records(r); }
   QUICK_SELECT_I *quick() const { return m_qs->quick(); }

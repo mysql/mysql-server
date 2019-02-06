@@ -15345,7 +15345,7 @@ a	SUM(t2.b) OVER(ORDER BY t1.a)
 1	1
 SHOW STATUS LIKE 'Created_tmp_tables';
 Variable_name	Value
-Created_tmp_tables	3
+Created_tmp_tables	2
 EXPLAIN FORMAT=JSON SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
 EXPLAIN
 {

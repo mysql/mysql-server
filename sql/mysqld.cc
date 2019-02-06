@@ -10557,6 +10557,7 @@ PSI_file_key key_file_relaylog_cache;
 PSI_file_key key_file_relaylog_index;
 PSI_file_key key_file_relaylog_index_cache;
 PSI_file_key key_file_sdi;
+PSI_file_key key_file_hash_join;
 
 /* clang-format off */
 static PSI_file_info all_server_files[]=
@@ -10588,7 +10589,8 @@ static PSI_file_info all_server_files[]=
   { &key_file_trg, "trigger_name", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_trn, "trigger", 0, 0, PSI_DOCUMENT_ME},
   { &key_file_init, "init", 0, 0, PSI_DOCUMENT_ME},
-  { &key_file_sdi, "SDI", 0, 0, PSI_DOCUMENT_ME}
+  { &key_file_sdi, "SDI", 0, 0, PSI_DOCUMENT_ME},
+  { &key_file_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 #endif /* HAVE_PSI_INTERFACE */

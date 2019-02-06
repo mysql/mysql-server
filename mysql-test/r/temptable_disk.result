@@ -59,7 +59,10 @@ ANALYZE TABLE t;
 Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 SET GLOBAL temptable_max_ram = 2097152;
-SELECT * FROM
+# Disable hash join, since that will trigger the new execution engine,
+# which in turn won't do the temporary materialization needed to trigger
+# overflow to disk.
+SELECT /*+ NO_HASH_JOIN(t1, t2, t3, t4, t5, t6) */ * FROM
 t AS t1,
 t AS t2,
 t AS t3,

@@ -70,6 +70,7 @@ class sp_rcontext;
 struct MY_BITMAP;
 template <class T>
 class List;
+class QEP_TAB;
 
 /* Function items used by mysql */
 
@@ -547,6 +548,28 @@ class Item_func : public Item_result_field {
       Item *arg MY_ATTRIBUTE((unused))) {
     return CACHE_NONE;
   }
+
+  /// Returns true if this Item has at least one condition that can be
+  /// implemented as hash join. A hash join condition is an equi-join condition
+  /// where one side of the condition refers to the right table, and the other
+  /// side of the condition refers to one or more of the left tables.
+  ///
+  /// @param left_tables the left tables in the join
+  /// @param right_table the right table of the join
+  ///
+  /// @retval true if the Item has at least one hash join condition
+  virtual bool has_any_hash_join_condition(
+      const table_map left_tables MY_ATTRIBUTE((unused)),
+      const QEP_TAB &right_table MY_ATTRIBUTE((unused))) const {
+    return false;
+  }
+
+  /// Returns true if this Item has at least one non equi-join condition.
+  /// A non equi-join condition is a condition where both sides refer to at
+  /// least one table, and the operator is not equals '='.
+  ///
+  /// @retval true if the Item has at least one non equi-join condition
+  virtual bool has_any_non_equi_join_condition() const { return false; }
 
  protected:
   /**

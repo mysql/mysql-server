@@ -697,7 +697,7 @@ bool Item_bool_func2::cast_incompatible_args(uchar *) {
 void Arg_comparator::cleanup() {
   if (comparators != NULL) {
     /*
-      We cannot rely on (*a)->cols(), since *a may be deallocated
+      We cannot rely on (*left)->cols(), since *left may be deallocated
       at this point, so use comparator_count to loop.
     */
     for (size_t i = 0; i < comparator_count; i++) {
@@ -712,13 +712,14 @@ void Arg_comparator::cleanup() {
 
 bool Arg_comparator::set_compare_func(Item_result_field *item,
                                       Item_result type) {
+  m_compare_type = type;
   owner = item;
   func = comparator_matrix[type];
 
   switch (type) {
     case ROW_RESULT: {
-      uint n = (*a)->cols();
-      if (n != (*b)->cols()) {
+      uint n = (*left)->cols();
+      if (n != (*right)->cols()) {
         my_error(ER_OPERAND_COLUMNS, MYF(0), n);
         comparators = 0;
         return true;
@@ -727,12 +728,14 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
       comparator_count = n;
 
       for (uint i = 0; i < n; i++) {
-        if ((*a)->element_index(i)->cols() != (*b)->element_index(i)->cols()) {
-          my_error(ER_OPERAND_COLUMNS, MYF(0), (*a)->element_index(i)->cols());
+        if ((*left)->element_index(i)->cols() !=
+            (*right)->element_index(i)->cols()) {
+          my_error(ER_OPERAND_COLUMNS, MYF(0),
+                   (*left)->element_index(i)->cols());
           return true;
         }
-        if (comparators[i].set_cmp_func(owner, (*a)->addr(i), (*b)->addr(i),
-                                        set_null))
+        if (comparators[i].set_cmp_func(owner, (*left)->addr(i),
+                                        (*right)->addr(i), set_null))
           return true;
       }
       break;
@@ -742,10 +745,11 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
         We must set cmp_charset here as we may be called from for an automatic
         generated item, like in natural join
       */
-      if (cmp_collation.set((*a)->collation, (*b)->collation,
+      if (cmp_collation.set((*left)->collation, (*right)->collation,
                             MY_COLL_CMP_CONV) ||
           cmp_collation.derivation == DERIVATION_NONE) {
-        my_coll_agg_error((*a)->collation, (*b)->collation, owner->func_name());
+        my_coll_agg_error((*left)->collation, (*right)->collation,
+                          owner->func_name());
         return true;
       }
       if (cmp_collation.collation == &my_charset_bin) {
@@ -764,20 +768,20 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
           which would be transformed to:
           WHERE col= 'j'
         */
-        (*a)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, NULL);
-        (*b)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, NULL);
+        (*left)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
+        (*right)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, nullptr);
       }
       break;
     }
     case INT_RESULT: {
-      if ((*a)->is_temporal() && (*b)->is_temporal()) {
+      if ((*left)->is_temporal() && (*right)->is_temporal()) {
         func = &Arg_comparator::compare_time_packed;
       } else if (func == &Arg_comparator::compare_int_signed) {
-        if ((*a)->unsigned_flag)
-          func = (((*b)->unsigned_flag)
+        if ((*left)->unsigned_flag)
+          func = (((*right)->unsigned_flag)
                       ? &Arg_comparator::compare_int_unsigned
                       : &Arg_comparator::compare_int_unsigned_signed);
-        else if ((*b)->unsigned_flag)
+        else if ((*right)->unsigned_flag)
           func = &Arg_comparator::compare_int_signed_unsigned;
       }
       break;
@@ -785,9 +789,9 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
     case DECIMAL_RESULT:
       break;
     case REAL_RESULT: {
-      if ((*a)->decimals < DECIMAL_NOT_SPECIFIED &&
-          (*b)->decimals < DECIMAL_NOT_SPECIFIED) {
-        precision = 5 / log_10[max((*a)->decimals, (*b)->decimals) + 1];
+      if ((*left)->decimals < DECIMAL_NOT_SPECIFIED &&
+          (*right)->decimals < DECIMAL_NOT_SPECIFIED) {
+        precision = 5 / log_10[max((*left)->decimals, (*right)->decimals) + 1];
         if (func == &Arg_comparator::compare_real)
           func = &Arg_comparator::compare_real_fixed;
       }
@@ -976,19 +980,19 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
 
   SYNOPSIS
     Arg_comparator::can_compare_as_dates()
-    a, b          [in]  items to be compared
+    left, right          [in]  items to be compared
 
   DESCRIPTION
     Checks several cases when the DATETIME comparator should be used.
     The following cases are accepted:
-      1. Both a and b is a DATE/DATETIME/TIMESTAMP field/function returning
-         string or int result.
-      2. Only a or b is a DATE/DATETIME/TIMESTAMP field/function returning
-         string or int result and the other item (b or a) is an item with
-         string result.
-    This doesn't mean that the string can necessarily be successfully
-    converted to a datetime value. But if it cannot this will lead to an error
-    later, @see Arg_comparator::get_date_from_const
+      1. Both left and right is a DATE/DATETIME/TIMESTAMP field/function
+         returning string or int result.
+      2. Only left or right is a DATE/DATETIME/TIMESTAMP field/function
+         returning string or int result and the other item (right or left) is an
+         item with string result.
+  This doesn't mean that the string can necessarily be successfully converted to
+  a datetime value. But if it cannot this will lead to an error later,
+  @see Arg_comparator::get_date_from_const
 
       In all other cases (date-[int|real|decimal]/[int|real|decimal]-date)
       the comparison is handled by other comparators.
@@ -997,14 +1001,16 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
           false otherwise
 */
 
-bool Arg_comparator::can_compare_as_dates(Item *a, Item *b) {
-  if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM) return false;
+bool Arg_comparator::can_compare_as_dates(Item *left, Item *right) {
+  if (left->type() == Item::ROW_ITEM || right->type() == Item::ROW_ITEM)
+    return false;
 
-  if (a->is_temporal_with_date() &&
-      (b->result_type() == STRING_RESULT || b->is_temporal_with_date()))
+  if (left->is_temporal_with_date() &&
+      (right->result_type() == STRING_RESULT || right->is_temporal_with_date()))
     return true;
   else
-    return a->result_type() == STRING_RESULT && b->is_temporal_with_date();
+    return left->result_type() == STRING_RESULT &&
+           right->is_temporal_with_date();
 }
 
 /**
@@ -1075,17 +1081,18 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
     Here we override the chosen result type for certain expression
     containing date or time or decimal expressions.
  */
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
-                                  Item **a2, Item_result type) {
+bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+                                  Item **right_arg, Item_result type) {
+  m_compare_type = type;
   owner = owner_arg;
   set_null = set_null && owner_arg;
-  a = a1;
-  b = a2;
+  left = left_arg;
+  right = right_arg;
 
-  if (type != ROW_RESULT && (((*a)->result_type() == STRING_RESULT &&
-                              (*a)->data_type() == MYSQL_TYPE_JSON) ||
-                             ((*b)->result_type() == STRING_RESULT &&
-                              (*b)->data_type() == MYSQL_TYPE_JSON))) {
+  if (type != ROW_RESULT && (((*left)->result_type() == STRING_RESULT &&
+                              (*left)->data_type() == MYSQL_TYPE_JSON) ||
+                             ((*right)->result_type() == STRING_RESULT &&
+                              (*right)->data_type() == MYSQL_TYPE_JSON))) {
     // Use the JSON comparator if at least one of the arguments is JSON.
     func = &Arg_comparator::compare_json;
     return false;
@@ -1095,38 +1102,38 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
     Checks whether at least one of the arguments is DATE/DATETIME/TIMESTAMP
     and the other one is also DATE/DATETIME/TIMESTAMP or a constant string.
   */
-  if (can_compare_as_dates(*a, *b)) {
-    a_cache = nullptr;
-    b_cache = nullptr;
+  if (can_compare_as_dates(*left, *right)) {
+    left_cache = nullptr;
+    right_cache = nullptr;
     ulonglong numeric_datetime = static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR);
 
     /*
       If one of the arguments is constant string, try to convert it
       to DATETIME and cache it.
     */
-    if (!(*a)->is_temporal_with_date()) {
-      if (!get_date_from_const(*b, *a, &numeric_datetime) &&
+    if (!(*left)->is_temporal_with_date()) {
+      if (!get_date_from_const(*right, *left, &numeric_datetime) &&
           numeric_datetime != static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR)) {
         auto *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
         // OOM
         if (!cache) return true; /* purecov: inspected */
-        cache->store_value((*a), numeric_datetime);
+        cache->store_value((*left), numeric_datetime);
         // Mark the cache as non-const to prevent re-caching.
         cache->set_used_tables(1);
-        a_cache = cache;
-        a = &a_cache;
+        left_cache = cache;
+        left = &left_cache;
       }
-    } else if (!(*b)->is_temporal_with_date()) {
-      if (!get_date_from_const(*a, *b, &numeric_datetime) &&
+    } else if (!(*right)->is_temporal_with_date()) {
+      if (!get_date_from_const(*left, *right, &numeric_datetime) &&
           numeric_datetime != static_cast<ulonglong>(MYSQL_TIMESTAMP_ERROR)) {
         auto *cache = new Item_cache_datetime(MYSQL_TYPE_DATETIME);
         // OOM
         if (!cache) return true; /* purecov: inspected */
-        cache->store_value((*b), numeric_datetime);
+        cache->store_value((*right), numeric_datetime);
         // Mark the cache as non-const to prevent re-caching.
         cache->set_used_tables(1);
-        b_cache = cache;
-        b = &b_cache;
+        right_cache = cache;
+        right = &right_cache;
       }
     }
     if (current_thd->is_error()) return true;
@@ -1139,36 +1146,40 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
   } else if ((type == STRING_RESULT ||
               // When comparing time field and cached/converted time constant
               type == REAL_RESULT) &&
-             (*a)->data_type() == MYSQL_TYPE_TIME &&
-             (*b)->data_type() == MYSQL_TYPE_TIME) {
+             (*left)->data_type() == MYSQL_TYPE_TIME &&
+             (*right)->data_type() == MYSQL_TYPE_TIME) {
     /* Compare TIME values as integers. */
-    a_cache = nullptr;
-    b_cache = nullptr;
+    left_cache = nullptr;
+    right_cache = nullptr;
     func = &Arg_comparator::compare_datetime;
     get_value_a_func = &get_time_value;
     get_value_b_func = &get_time_value;
     set_cmp_context_for_datetime();
     return false;
-  } else if (type == STRING_RESULT && (*a)->result_type() == STRING_RESULT &&
-             (*b)->result_type() == STRING_RESULT) {
+  } else if (type == STRING_RESULT && (*left)->result_type() == STRING_RESULT &&
+             (*right)->result_type() == STRING_RESULT) {
     DTCollation coll;
-    coll.set((*a)->collation, (*b)->collation, MY_COLL_CMP_CONV);
+    coll.set((*left)->collation, (*right)->collation, MY_COLL_CMP_CONV);
     /*
       DTCollation::set() may have chosen a charset that's a superset of both
-      and a and b, so we need to convert both items.
+      and "left" and "right", so we need to convert both items.
      */
-    if (agg_item_set_converter(coll, owner->func_name(), a, 1, MY_COLL_CMP_CONV,
-                               1) ||
-        agg_item_set_converter(coll, owner->func_name(), b, 1, MY_COLL_CMP_CONV,
-                               1))
+    if (agg_item_set_converter(coll, owner->func_name(), left, 1,
+                               MY_COLL_CMP_CONV, 1) ||
+        agg_item_set_converter(coll, owner->func_name(), right, 1,
+                               MY_COLL_CMP_CONV, 1))
       return true;
   } else if (try_year_cmp_func(type)) {
     return false;
   } else if (type == REAL_RESULT &&
-             (((*a)->result_type() == DECIMAL_RESULT && !(*a)->const_item() &&
-               (*b)->result_type() == STRING_RESULT && (*b)->const_item()) ||
-              ((*b)->result_type() == DECIMAL_RESULT && !(*b)->const_item() &&
-               (*a)->result_type() == STRING_RESULT && (*a)->const_item()))) {
+             (((*left)->result_type() == DECIMAL_RESULT &&
+               !(*left)->const_item() &&
+               (*right)->result_type() == STRING_RESULT &&
+               (*right)->const_item()) ||
+              ((*right)->result_type() == DECIMAL_RESULT &&
+               !(*right)->const_item() &&
+               (*left)->result_type() == STRING_RESULT &&
+               (*left)->const_item()))) {
     /*
      <non-const decimal expression> <cmp> <const string expression>
      or
@@ -1180,17 +1191,17 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
   }
 
   THD *thd = current_thd;
-  a = cache_converted_constant(thd, a, &a_cache, type);
-  b = cache_converted_constant(thd, b, &b_cache, type);
+  left = cache_converted_constant(thd, left, &left_cache, type);
+  right = cache_converted_constant(thd, right, &right_cache, type);
   return set_compare_func(owner_arg, type);
 }
 
-bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **a1,
-                                  Item **a2, bool set_null_arg) {
+bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+                                  Item **right_arg, bool set_null_arg) {
   set_null = set_null_arg;
   const Item_result item_result =
-      item_cmp_type((*a1)->result_type(), (*a2)->result_type());
-  return set_cmp_func(owner_arg, a1, a2, item_result);
+      item_cmp_type((*left_arg)->result_type(), (*right_arg)->result_type());
+  return set_cmp_func(owner_arg, left_arg, right_arg, item_result);
 }
 
 /**
@@ -1245,8 +1256,8 @@ bool Arg_comparator::inject_cast_nodes() {
   // If the comparator is set to one that compares as floating point numbers.
   if (func == &Arg_comparator::compare_real ||
       func == &Arg_comparator::compare_real_fixed) {
-    Item *aa = (*a)->real_item();
-    Item *bb = (*b)->real_item();
+    Item *aa = (*left)->real_item();
+    Item *bb = (*right)->real_item();
 
     // Check if one of the arguments is temporal and the other one is numeric
     if (!((aa->is_temporal() && (bb->result_type() == INT_RESULT ||
@@ -1263,13 +1274,13 @@ bool Arg_comparator::inject_cast_nodes() {
       return false;
 
     // If any of the arguments is not floating point number, wrap it in a CAST
-    if (aa->result_type() != REAL_RESULT && wrap_in_cast_to_double(a))
+    if (aa->result_type() != REAL_RESULT && wrap_in_cast_to_double(left))
       return true; /* purecov: inspected */
-    if (bb->result_type() != REAL_RESULT && wrap_in_cast_to_double(b))
+    if (bb->result_type() != REAL_RESULT && wrap_in_cast_to_double(right))
       return true; /* purecov: inspected */
   } else if (func == &Arg_comparator::compare_datetime) {
-    Item *aa = (*a)->real_item();
-    Item *bb = (*b)->real_item();
+    Item *aa = (*left)->real_item();
+    Item *bb = (*right)->real_item();
     // Check that both arguments are of temporal types, but not of type YEAR
     if (!(aa->is_temporal() || aa->result_type() != STRING_RESULT) ||
         !(bb->is_temporal() || bb->result_type() != STRING_RESULT) ||
@@ -1285,9 +1296,10 @@ bool Arg_comparator::inject_cast_nodes() {
       return false;
 
     // If any of the arguments is not DATETIME, wrap it in a CAST
-    if (!aa->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(a))
+    if (!aa->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(left))
       return true; /* purecov: inspected */
-    if (!bb->is_temporal_with_date_and_time() && wrap_in_cast_to_datetime(b))
+    if (!bb->is_temporal_with_date_and_time() &&
+        wrap_in_cast_to_datetime(right))
       return true; /* purecov: inspected */
   }
 
@@ -1301,18 +1313,18 @@ bool Arg_comparator::inject_cast_nodes() {
 bool Arg_comparator::try_year_cmp_func(Item_result type) {
   if (type == ROW_RESULT) return false;
 
-  bool a_is_year = (*a)->data_type() == MYSQL_TYPE_YEAR;
-  bool b_is_year = (*b)->data_type() == MYSQL_TYPE_YEAR;
+  bool a_is_year = (*left)->data_type() == MYSQL_TYPE_YEAR;
+  bool b_is_year = (*right)->data_type() == MYSQL_TYPE_YEAR;
 
   if (!a_is_year && !b_is_year) return false;
 
   if (a_is_year && b_is_year) {
     get_value_a_func = &get_year_value;
     get_value_b_func = &get_year_value;
-  } else if (a_is_year && (*b)->is_temporal_with_date()) {
+  } else if (a_is_year && (*right)->is_temporal_with_date()) {
     get_value_a_func = &get_year_value;
     get_value_b_func = &get_datetime_value;
-  } else if (b_is_year && (*a)->is_temporal_with_date()) {
+  } else if (b_is_year && (*left)->is_temporal_with_date()) {
     get_value_b_func = &get_year_value;
     get_value_a_func = &get_datetime_value;
   } else
@@ -1357,12 +1369,12 @@ Item **Arg_comparator::cache_converted_constant(THD *thd, Item **value,
 }
 
 void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
-                                           Item **a1, Item **b1) {
+                                           Item **left_arg, Item **right_arg) {
   owner = owner_arg;
-  a = a1;
-  b = b1;
-  a_cache = 0;
-  b_cache = 0;
+  left = left_arg;
+  right = right_arg;
+  left_cache = nullptr;
+  right_cache = nullptr;
   func = &Arg_comparator::compare_datetime;
   get_value_a_func = &get_datetime_value;
   get_value_b_func = &get_datetime_value;
@@ -1488,30 +1500,32 @@ static longlong get_year_value(THD *, Item ***item_arg, Item **, const Item *,
   the get_datetime_value() function.
 
   @returns
-    -1   a < b or at least one item is null
-     0   a == b
-     1   a > b
+    -1   left < right or at least one item is null
+     0   left == right
+     1   left > right
     See the table:
-    a_is_null   | 1 | 0 | 1 | 0 |
-    b_is_null   | 1 | 1 | 0 | 0 |
-    result      |-1 |-1 |-1 |-1/0/1|
+    left_is_null    | 1 | 0 | 1 | 0 |
+    right_is_null   | 1 | 1 | 0 | 0 |
+    result          |-1 |-1 |-1 |-1/0/1|
 */
 
 int Arg_comparator::compare_datetime() {
-  bool a_is_null, b_is_null;
-  longlong a_value, b_value;
+  bool left_is_null, right_is_null;
+  longlong left_value, right_value;
   THD *thd = current_thd;
 
-  /* Get DATE/DATETIME/TIME value of the 'a' item. */
-  a_value = (*get_value_a_func)(thd, &a, &a_cache, *b, &a_is_null);
-  if (a_is_null) {
+  /* Get DATE/DATETIME/TIME value of the 'left' item. */
+  left_value =
+      (*get_value_a_func)(thd, &left, &left_cache, *right, &left_is_null);
+  if (left_is_null) {
     if (set_null) owner->null_value = true;
     return -1;
   }
 
-  /* Get DATE/DATETIME/TIME value of the 'b' item. */
-  b_value = (*get_value_b_func)(thd, &b, &b_cache, *a, &b_is_null);
-  if (b_is_null) {
+  /* Get DATE/DATETIME/TIME value of the 'right' item. */
+  right_value =
+      (*get_value_b_func)(thd, &right, &right_cache, *left, &right_is_null);
+  if (right_is_null) {
     if (set_null) owner->null_value = true;
     return -1;
   }
@@ -1520,7 +1534,7 @@ int Arg_comparator::compare_datetime() {
   if (set_null) owner->null_value = false;
 
   /* Compare values. */
-  return a_value < b_value ? -1 : (a_value > b_value ? 1 : 0);
+  return left_value < right_value ? -1 : (left_value > right_value ? 1 : 0);
 }
 
 /**
@@ -1591,21 +1605,21 @@ int Arg_comparator::compare_json() {
   char buf[STRING_BUFFER_USUAL_SIZE];
   String tmp(buf, sizeof(buf), &my_charset_bin);
 
-  // Get the JSON value in the a Item.
+  // Get the JSON value in the left Item.
   Json_wrapper aw;
-  if (get_json_arg(*a, &value1, &tmp, &aw, &json_scalar)) return 1;
+  if (get_json_arg(*left, &value1, &tmp, &aw, &json_scalar)) return 1;
 
-  bool a_is_null = (*a)->null_value;
+  bool a_is_null = (*left)->null_value;
   if (a_is_null) {
     if (set_null) owner->null_value = true;
     return -1;
   }
 
-  // Get the JSON value in the b Item.
+  // Get the JSON value in the right Item.
   Json_wrapper bw;
-  if (get_json_arg(*b, &value1, &tmp, &bw, &json_scalar)) return 1;
+  if (get_json_arg(*right, &value1, &tmp, &bw, &json_scalar)) return 1;
 
-  bool b_is_null = (*b)->null_value;
+  bool b_is_null = (*right)->null_value;
   if (b_is_null) {
     if (set_null) owner->null_value = true;
     return -1;
@@ -1618,8 +1632,8 @@ int Arg_comparator::compare_json() {
 
 int Arg_comparator::compare_string() {
   String *res1, *res2;
-  if ((res1 = (*a)->val_str(&value1))) {
-    if ((res2 = (*b)->val_str(&value2))) {
+  if ((res1 = (*left)->val_str(&value1))) {
+    if ((res2 = (*right)->val_str(&value2))) {
       if (set_null) owner->null_value = 0;
       auto orig_len1 = res1->length(), orig_len2 = res2->length();
       if (m_max_str_length >
@@ -1643,17 +1657,17 @@ int Arg_comparator::compare_string() {
   Compare strings byte by byte. End spaces are also compared.
 
   @retval
-    <0  *a < *b
+    <0  *left < *right
   @retval
-     0  *b == *b
+     0  *right == *right
   @retval
-    >0  *a > *b
+    >0  *left > *right
 */
 
 int Arg_comparator::compare_binary_string() {
   String *res1, *res2;
-  if ((res1 = (*a)->val_str(&value1))) {
-    if ((res2 = (*b)->val_str(&value2))) {
+  if ((res1 = (*left)->val_str(&value1))) {
+    if ((res2 = (*right)->val_str(&value2))) {
       if (set_null) owner->null_value = 0;
       auto orig_len1 = res1->length();
       auto orig_len2 = res2->length();
@@ -1684,10 +1698,10 @@ int Arg_comparator::compare_real() {
     performing the comparison.
   */
   volatile double val1, val2;
-  val1 = (*a)->val_real();
-  if (!(*a)->null_value) {
-    val2 = (*b)->val_real();
-    if (!(*b)->null_value) {
+  val1 = (*left)->val_real();
+  if (!(*left)->null_value) {
+    val2 = (*right)->val_real();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (val1 < val2) return -1;
       if (val1 == val2) return 0;
@@ -1700,11 +1714,11 @@ int Arg_comparator::compare_real() {
 
 int Arg_comparator::compare_decimal() {
   my_decimal decimal1;
-  my_decimal *val1 = (*a)->val_decimal(&decimal1);
-  if (!(*a)->null_value) {
+  my_decimal *val1 = (*left)->val_decimal(&decimal1);
+  if (!(*left)->null_value) {
     my_decimal decimal2;
-    my_decimal *val2 = (*b)->val_decimal(&decimal2);
-    if (!(*b)->null_value) {
+    my_decimal *val2 = (*right)->val_decimal(&decimal2);
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       return my_decimal_cmp(val1, val2);
     }
@@ -1720,10 +1734,10 @@ int Arg_comparator::compare_real_fixed() {
     performing the comparison.
   */
   volatile double val1, val2;
-  val1 = (*a)->val_real();
-  if (!(*a)->null_value) {
-    val2 = (*b)->val_real();
-    if (!(*b)->null_value) {
+  val1 = (*left)->val_real();
+  if (!(*left)->null_value) {
+    val2 = (*right)->val_real();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (val1 == val2 || fabs(val1 - val2) < precision) return 0;
       if (val1 < val2) return -1;
@@ -1735,10 +1749,10 @@ int Arg_comparator::compare_real_fixed() {
 }
 
 int Arg_comparator::compare_int_signed() {
-  longlong val1 = (*a)->val_int();
-  if (!(*a)->null_value) {
-    longlong val2 = (*b)->val_int();
-    if (!(*b)->null_value) {
+  longlong val1 = (*left)->val_int();
+  if (!(*left)->null_value) {
+    longlong val2 = (*right)->val_int();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (val1 < val2) return -1;
       if (val1 == val2) return 0;
@@ -1755,8 +1769,8 @@ int Arg_comparator::compare_int_signed() {
 int Arg_comparator::compare_time_packed() {
   /*
     Note, we cannot do this:
-    DBUG_ASSERT((*a)->data_type() == MYSQL_TYPE_TIME);
-    DBUG_ASSERT((*b)->data_type() == MYSQL_TYPE_TIME);
+    DBUG_ASSERT((*left)->data_type() == MYSQL_TYPE_TIME);
+    DBUG_ASSERT((*right)->data_type() == MYSQL_TYPE_TIME);
 
     SELECT col_time_key FROM t1
     WHERE
@@ -1772,10 +1786,10 @@ int Arg_comparator::compare_time_packed() {
     AND
       col_time_key = MAKEDATE(43, -2852);
   */
-  longlong val1 = (*a)->val_time_temporal();
-  if (!(*a)->null_value) {
-    longlong val2 = (*b)->val_time_temporal();
-    if (!(*b)->null_value) {
+  longlong val1 = (*left)->val_time_temporal();
+  if (!(*left)->null_value) {
+    longlong val2 = (*right)->val_time_temporal();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       return val1 < val2 ? -1 : val1 > val2 ? 1 : 0;
     }
@@ -1789,10 +1803,10 @@ int Arg_comparator::compare_time_packed() {
 */
 
 int Arg_comparator::compare_int_unsigned() {
-  ulonglong val1 = (*a)->val_int();
-  if (!(*a)->null_value) {
-    ulonglong val2 = (*b)->val_int();
-    if (!(*b)->null_value) {
+  ulonglong val1 = (*left)->val_int();
+  if (!(*left)->null_value) {
+    ulonglong val2 = (*right)->val_int();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (val1 < val2) return -1;
       if (val1 == val2) return 0;
@@ -1804,14 +1818,14 @@ int Arg_comparator::compare_int_unsigned() {
 }
 
 /**
-  Compare signed (*a) with unsigned (*B)
+  Compare signed (*left) with unsigned (*B)
 */
 
 int Arg_comparator::compare_int_signed_unsigned() {
-  longlong sval1 = (*a)->val_int();
-  if (!(*a)->null_value) {
-    ulonglong uval2 = (ulonglong)(*b)->val_int();
-    if (!(*b)->null_value) {
+  longlong sval1 = (*left)->val_int();
+  if (!(*left)->null_value) {
+    ulonglong uval2 = static_cast<ulonglong>((*right)->val_int());
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (sval1 < 0 || (ulonglong)sval1 < uval2) return -1;
       if ((ulonglong)sval1 == uval2) return 0;
@@ -1823,14 +1837,14 @@ int Arg_comparator::compare_int_signed_unsigned() {
 }
 
 /**
-  Compare unsigned (*a) with signed (*B)
+  Compare unsigned (*left) with signed (*B)
 */
 
 int Arg_comparator::compare_int_unsigned_signed() {
-  ulonglong uval1 = (ulonglong)(*a)->val_int();
-  if (!(*a)->null_value) {
-    longlong sval2 = (*b)->val_int();
-    if (!(*b)->null_value) {
+  ulonglong uval1 = static_cast<ulonglong>((*left)->val_int());
+  if (!(*left)->null_value) {
+    longlong sval2 = (*right)->val_int();
+    if (!(*right)->null_value) {
       if (set_null) owner->null_value = 0;
       if (sval2 < 0) return 1;
       if (uval1 < (ulonglong)sval2) return -1;
@@ -1845,15 +1859,15 @@ int Arg_comparator::compare_int_unsigned_signed() {
 int Arg_comparator::compare_row() {
   int res = 0;
   bool was_null = 0;
-  (*a)->bring_value();
-  (*b)->bring_value();
+  (*left)->bring_value();
+  (*right)->bring_value();
 
-  if ((*a)->null_value || (*b)->null_value) {
+  if ((*left)->null_value || (*right)->null_value) {
     owner->null_value = 1;
     return -1;
   }
 
-  uint n = (*a)->cols();
+  uint n = (*left)->cols();
   for (uint i = 0; i < n; i++) {
     res = comparators[i].compare();
     /* Aggregate functions don't need special null handling. */
@@ -1935,7 +1949,7 @@ static bool compare_pair_for_nulls(Item *a, Item *b, bool *result) {
 */
 bool Arg_comparator::compare_null_values() {
   bool result;
-  (void)compare_pair_for_nulls(*a, *b, &result);
+  (void)compare_pair_for_nulls(*left, *right, &result);
   return result;
 }
 
@@ -6845,4 +6859,316 @@ bool Item_func_any_value::aggregate_check_distinct(uchar *arg) {
   if (dc->is_stopped(this)) return false;
   dc->stop_at(this);
   return false;
+}
+
+bool Item_func_comparison::has_any_non_equi_join_condition() const {
+  DBUG_ASSERT(arg_count == 2);
+  if (args[0]->used_tables() == 0 || args[1]->used_tables() == 0) {
+    // This is a filter.
+    return false;
+  }
+
+  return functype() != EQ_FUNC;
+}
+
+bool Item_cond_and::has_any_non_equi_join_condition() const {
+  for (const Item &item : list) {
+    if (item.type() != Item::FUNC_ITEM) {
+      continue;
+    }
+
+    const Item_func *item_func = down_cast<const Item_func *>(&item);
+    if (item_func->has_any_non_equi_join_condition()) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool Item_cond_and::has_any_hash_join_condition(
+    const table_map left_tables, const QEP_TAB &right_table) const {
+  for (const Item &item : list) {
+    if (item.type() != Item::FUNC_ITEM) {
+      continue;
+    }
+
+    const Item_func *item_func = down_cast<const Item_func *>(&item);
+    if (item_func->has_any_hash_join_condition(left_tables, right_table)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool Item_func_eq::has_any_hash_join_condition(
+    const table_map left_tables, const QEP_TAB &right_table) const {
+  const Item *left_arg = arguments()[0];
+  const Item *right_arg = arguments()[1];
+
+  const table_map left_arg_used_tables = left_arg->used_tables();
+  const table_map right_arg_used_tables = right_arg->used_tables();
+
+  if (left_arg_used_tables == 0 || right_arg_used_tables == 0) {
+    // This is a comparison agains a constant, and not a join condition.
+    return false;
+  }
+
+  // See if each side of the condition refers to two different tables
+  // (i.e., it is a join condition). If so, the condition can be used to execute
+  // hash join (we know that this an equality since we are inside Item_func_eq).
+  if (left_arg_used_tables == right_table.table_ref->map() &&
+      (right_arg_used_tables & left_tables) == right_arg_used_tables) {
+    return true;
+  }
+
+  if (right_arg_used_tables == right_table.table_ref->map() &&
+      (left_arg_used_tables & left_tables) == left_arg_used_tables) {
+    return true;
+  }
+
+  return false;
+}
+
+// Append a string value to join_key_buffer, extracted from "comparand".
+// In general, we append the sort key from the Item, which makes it memcmp-able.
+static bool append_string_value(Item *comparand,
+                                const CHARSET_INFO *character_set,
+                                size_t max_char_length,
+                                bool pad_char_to_full_length,
+                                String *join_key_buffer) {
+  // String results must be extracted using the correct character set and
+  // collation. This is given by the Arg_comparator, so we call strnxfrm
+  // to make the string values memcmp-able.
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> str_buffer;
+  String *str = comparand->val_str(&str_buffer);
+
+  if (comparand->null_value) {
+    return true;
+  }
+
+  // If the data type is CHAR, the collation is a PAD SPACE collation AND the
+  // SQL mode PAD_CHAR_TO_FULL_LENGTH is enabled, use the pre-calculated max
+  // length so that the shortest string is padded to the same length as the
+  // longest string.
+  if (comparand->data_type() != MYSQL_TYPE_STRING ||
+      character_set->pad_attribute != PAD_SPACE || !pad_char_to_full_length) {
+    max_char_length = str->numchars();
+  }
+
+  const size_t buffer_size = character_set->coll->strnxfrmlen(
+      character_set, max_char_length * character_set->mbmaxlen);
+
+  if (buffer_size > 0) {
+    // Reserve space in the buffer so we can insert the transformed string
+    // directly into the buffer.
+    join_key_buffer->reserve(buffer_size);
+
+    uchar *dptr = pointer_cast<uchar *>(join_key_buffer->ptr()) +
+                  join_key_buffer->length();
+    const size_t actual_length =
+        my_strnxfrm(character_set, dptr, buffer_size,
+                    pointer_cast<const uchar *>(str->ptr()), str->length());
+    DBUG_ASSERT(actual_length <= buffer_size);
+
+    // Increase the length of the buffer by the actual length of the
+    // string transformation.
+    join_key_buffer->length(join_key_buffer->length() + actual_length);
+  }
+  return false;
+}
+
+// Append a double or int value to join_key_buffer.
+static bool append_double_or_int_value(const char *value, size_t value_length,
+                                       bool is_null, String *join_key_buffer) {
+  if (is_null) {
+    return true;
+  }
+
+  join_key_buffer->append(value, value_length, static_cast<size_t>(0));
+  return false;
+}
+
+// Append a decimal value to join_key_buffer, extracted from "comparand".
+static bool append_decimal_value(Item *comparand, String *join_key_buffer) {
+  my_decimal decimal_buffer;
+  my_decimal *decimal = comparand->val_decimal(&decimal_buffer);
+  if (comparand->null_value) {
+    return true;
+  }
+
+  // Remove any leading zeroes, so that we get the same hash length for "1.0"
+  // and "001.0".
+  decimal->intg = my_decimal_intg(decimal);
+
+  const int buffer_size =
+      my_decimal_get_binary_size(decimal->precision(), decimal->frac);
+  join_key_buffer->reserve(buffer_size);
+
+  uchar *write_position =
+      pointer_cast<uchar *>(join_key_buffer->ptr()) + join_key_buffer->length();
+  my_decimal2binary(E_DEC_FATAL_ERROR, decimal, write_position,
+                    decimal->precision(), decimal->frac);
+  join_key_buffer->length(join_key_buffer->length() + buffer_size);
+  return false;
+}
+
+/// Extract the value from the item and append it to the output buffer
+/// "join_key_buffer" in a memcmp-able format.
+///
+/// The value extracted here will be used as the key in the hash table
+/// structure, where comparisons between keys are based on memcmp. Thus, it is
+/// important that the values extracted are memcmp-able, so for string values,
+/// we are basically creating a sort key. Other types (DECIMAL and FLOAT(M,N)
+/// and DOUBLE(M, N)) may be wrapped in a typecast in order to get a memcmp-able
+/// format from both sides of the condition.
+/// See Item_func_eq::create_cast_if_needed for more details.
+///
+/// @param thd the thread handler
+/// @param comparand the item we are extracting the value from
+/// @param comparator the comparator set up by Item_cmpfunc. This gives us the
+///   context in which the comparison is done. It is also needed for extracting
+///   the value in case of DATE/TIME/DATETIME/YEAR values in some cases
+/// @param is_left_argument whether or not the provided item is the left
+///   argument of the condition. This is needed in case the comparator has set
+///   up a custom function for extracting the value from the item, as there are
+///   two separate functions for each side of the condition
+/// @param max_char_length the maximum character length among the two arguments.
+///   This is only relevant when we have a PAD SPACE collation and the SQL mode
+///   PAD_CHAR_TO_FULL_LENGTH enabled, since we will have to pad the shortest
+///   argument to the same length as the longest argument
+/// @param[out] join_key_buffer the output buffer where the extracted value
+///   is appended
+///
+/// @returns true if a SQL NULL value was found
+static bool extract_value_for_hash_join(THD *thd, Item *comparand,
+                                        const Arg_comparator *comparator,
+                                        bool is_left_argument,
+                                        size_t max_char_length,
+                                        String *join_key_buffer) {
+  if (comparator->use_custom_value_extractors()) {
+    // The Arg_comparator has decided that the values should be extracted using
+    // the function pointer given by "get_value_[a|b]_func", so let us do the
+    // same. This can happen for DATE, DATETIME and YEAR, and there are separate
+    // function pointers for each side of the argument.
+    bool is_null;
+    longlong value = comparator->extract_value_from_argument(
+        thd, comparand, is_left_argument, &is_null);
+    if (is_null) {
+      return true;
+    }
+
+    join_key_buffer->append(pointer_cast<const char *>(&value), sizeof(value),
+                            static_cast<size_t>(0));
+    return false;
+  }
+
+  switch (comparator->get_compare_type()) {
+    case STRING_RESULT: {
+      return append_string_value(
+          comparand, comparator->cmp_collation.collation, max_char_length,
+          (thd->variables.sql_mode & MODE_PAD_CHAR_TO_FULL_LENGTH) > 0,
+          join_key_buffer);
+    }
+    case REAL_RESULT: {
+      const double value = comparand->val_real();
+      return append_double_or_int_value(pointer_cast<const char *>(&value),
+                                        sizeof(value), comparand->null_value,
+                                        join_key_buffer);
+    }
+    case INT_RESULT: {
+      const longlong value = comparand->val_int();
+      return append_double_or_int_value(pointer_cast<const char *>(&value),
+                                        sizeof(value), comparand->null_value,
+                                        join_key_buffer);
+    }
+    case DECIMAL_RESULT: {
+      return append_decimal_value(comparand, join_key_buffer);
+    }
+    default: {
+      // This should not happen.
+      DBUG_ASSERT(false);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+bool Item_func_eq::append_join_key_for_hash_join(
+    THD *thd, const table_map tables, const HashJoinCondition &join_condition,
+    String *join_key_buffer) const {
+  if (join_condition.left_uses_any_table(tables)) {
+    DBUG_ASSERT(!join_condition.right_uses_any_table(tables));
+    return extract_value_for_hash_join(
+        thd, join_condition.left_extractor(), &cmp, true,
+        join_condition.max_character_length(), join_key_buffer);
+  } else if (join_condition.right_uses_any_table(tables)) {
+    DBUG_ASSERT(!join_condition.left_uses_any_table(tables));
+    return extract_value_for_hash_join(
+        thd, join_condition.right_extractor(), &cmp, false,
+        join_condition.max_character_length(), join_key_buffer);
+  }
+
+  DBUG_ASSERT(false);
+  return true;
+}
+
+Item *Item_func_eq::create_cast_if_needed(MEM_ROOT *mem_root,
+                                          Item *argument) const {
+  // We wrap the argument in a typecast node in two cases:
+  // a) If the comparison is done in a DECIMAL context.
+  // b) If the comparison is done in a floating point context, AND both sides
+  //    have a data type where the number of decimals is specified. Note that
+  //    specifying the numbers of decimals for floating point types is
+  //    deprecated, so this should be a really rare case.
+  //
+  // In both cases, we cast the argument to a DECIMAL, where the precision and
+  // scale is the highest among the condition arguments.
+  const bool cast_to_decimal = cmp.get_compare_type() == DECIMAL_RESULT ||
+                               (cmp.get_compare_type() == REAL_RESULT &&
+                                args[0]->decimals < DECIMAL_NOT_SPECIFIED &&
+                                args[1]->decimals < DECIMAL_NOT_SPECIFIED);
+
+  if (cast_to_decimal) {
+    const int precision =
+        std::max(args[0]->decimal_precision(), args[1]->decimal_precision());
+    const int scale = std::max(args[0]->decimals, args[1]->decimals);
+
+    return new (mem_root)
+        Item_typecast_decimal(POS(), argument, precision, scale);
+  }
+
+  return argument;
+}
+
+HashJoinCondition::HashJoinCondition(Item_func_eq *join_condition,
+                                     MEM_ROOT *mem_root)
+    : m_join_condition(join_condition),
+      m_left_extractor(join_condition->create_cast_if_needed(
+          mem_root, join_condition->arguments()[0])),
+      m_right_extractor(join_condition->create_cast_if_needed(
+          mem_root, join_condition->arguments()[1])),
+      m_left_used_tables(join_condition->arguments()[0]->used_tables()),
+      m_right_used_tables(join_condition->arguments()[1]->used_tables()),
+      m_max_character_length(std::max(m_left_extractor->max_char_length(),
+                                      m_right_extractor->max_char_length())) {}
+
+longlong Arg_comparator::extract_value_from_argument(THD *thd, Item *item,
+                                                     bool left_argument,
+                                                     bool *is_null) const {
+  DBUG_ASSERT(use_custom_value_extractors());
+  DBUG_ASSERT(get_value_a_func != nullptr && get_value_b_func != nullptr);
+
+  // The Arg_comparator has decided that the values should be extracted using
+  // the function pointer given by "get_value_[a|b]_func", so let us do the
+  // same. This can happen for DATE, DATETIME and YEAR, and there are separate
+  // function pointers for each side of the argument.
+  Item **item_arg = &item;
+  if (left_argument) {
+    return get_value_a_func(thd, &item_arg, nullptr, item, is_null);
+  } else {
+    return get_value_b_func(thd, &item_arg, nullptr, item, is_null);
+  }
 }

@@ -10218,49 +10218,11 @@ void Field::set_default() {
     copy_data(table->default_values_offset());
 }
 
-bool Field::is_null(ptrdiff_t row_offset) const {
-  /*
-    if the field is NULLable, it returns NULLity based
-    on m_null_ptr[row_offset] value. Otherwise it returns
-    NULL flag depending on TABLE::has_null_row() value.
-
-    The table may have been marked as containing only NULL values
-    for all fields if it is a NULL-complemented row of an OUTER JOIN
-    or if the query is an implicitly grouped query (has aggregate
-    functions but no GROUP BY clause) with no qualifying rows. If
-    this is the case (in which TABLE::has_null_row() is true) and the
-    field is not nullable, the field is considered to be NULL.
-
-    Do not change the order of testing. Fields may be associated
-    with a TABLE object without being part of the current row.
-    For NULL value check to work for these fields, they must
-    have a valid m_null_ptr, and this pointer must be checked before
-    TABLE::has_null_row().
-  */
-  if (real_maybe_null()) return (m_null_ptr[row_offset] & null_bit);
-
-  if (is_tmp_nullable()) return m_is_tmp_null;
-
-  return table->has_null_row();
-}
-
 bool Field::maybe_null() const {
   return real_maybe_null() || table->is_nullable();
 }
 
 uint Field::null_offset() const { return null_offset(table->record[0]); }
-
-uchar *Field::pack(uchar *to, const uchar *from) const {
-  DBUG_TRACE;
-  uchar *result = this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
-  return result;
-}
-
-const uchar *Field::unpack(uchar *to, const uchar *from) {
-  DBUG_TRACE;
-  const uchar *result = unpack(to, from, 0U, table->s->db_low_byte_first);
-  return result;
-}
 
 void Field::init(TABLE *table_arg) {
   orig_table = table = table_arg;

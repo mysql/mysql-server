@@ -2640,7 +2640,11 @@ Note	1003	/* select#1 */ select `test`.`t1`.`col_int` AS `col_int`,`test`.`t1`.`
 EXPLAIN FORMAT=tree SELECT t1.*,t2.* FROM t1 straight_join t2
 ON t2.col_int_key = t1.col_int WHERE t2.pk < t1.pk;
 EXPLAIN
-<not executable by iterator executor>
+-> Filter: (t2.pk < t1.pk)  (cost=1.70 rows=4)
+    -> Inner hash join (t2.col_int_key = t1.col_int)  (cost=1.70 rows=4)
+        -> Table scan on t2  (cost=0.38 rows=6)
+        -> Hash
+            -> Table scan on t1  (cost=0.25 rows=2)
 
 Warnings:
 Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.

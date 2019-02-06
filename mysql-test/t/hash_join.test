@@ -1,0 +1,849 @@
+--echo #
+--echo # Start out by testing some simple in-memory inner hash joins.
+--echo #
+
+--echo # Join on two integer columns.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (3), (5), (7);
+INSERT INTO t2 VALUES (1), (2), (5), (6);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+DROP TABLE t1, t2;
+
+--echo # Join on a integer column and a string column.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (1), (3), (5), (7);
+INSERT INTO t2 VALUES (1), (2), (5), (6);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+DROP TABLE t1, t2;
+
+--echo # Join on two datetime columns.
+CREATE TABLE t1 (col1 DATETIME(6));
+CREATE TABLE t2 (col1 DATETIME(6));
+INSERT INTO t1 VALUES ('2018-01-01 00:00:00.000000'),
+                      ('2018-01-01 00:00:00.000001'),
+                      ('2018-01-02 00:00:00.000000'),
+                      ('2018-01-02 00:00:00.000001');
+INSERT INTO t2 VALUES ('2018-01-01 00:00:00.000000'),
+                      ('2018-01-01 00:00:00.000002'),
+                      ('2018-01-02 00:00:00.000001'),
+                      ('2019-01-02 00:00:00.000001');
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+DROP TABLE t1, t2;
+
+--echo # Join on a string and datetime column, where datetime comparison is
+--echo # picked.
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00');
+
+CREATE TABLE t2 (b VARCHAR(64));
+INSERT INTO t2 VALUES ('2001#01#01');
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE a=b;
+SELECT * FROM t1, t2 WHERE a=b;
+DROP TABLE t1, t2;
+
+--echo # Join on two double columns.
+CREATE TABLE t1 (col1 DOUBLE);
+CREATE TABLE t2 (col1 DOUBLE);
+INSERT INTO t1 VALUES (1.1), (3.3), (5.5), (7.7);
+INSERT INTO t2 VALUES (1.1), (1.11), (5.5), (6.6);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+DROP TABLE t1, t2;
+
+--echo # Join on two decimal columns.
+CREATE TABLE t1 (col1 DECIMAL(6, 2));
+CREATE TABLE t2 (col1 DECIMAL(6, 2));
+INSERT INTO t1 VALUES (1.1), (3.3), (5.5), (7.7);
+INSERT INTO t2 VALUES (1.1), (1.10), (5.5), (6.6);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree
+  SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SELECT t1.col1, t2.col1 FROM t1 JOIN t2 ON t1.col1 = t2.col1 ORDER BY t1.col1;
+DROP TABLE t1, t2;
+
+--echo # See that comparison between decimal and bigint works well. The main
+--echo # challenge is that decimals with different amount of leading/trailing
+--echo # zeroes should compare equally.
+CREATE TABLE t1 (col1 BIGINT);
+CREATE TABLE t2 (col1 DECIMAL(64,30));
+INSERT INTO t1 VALUES (5);
+INSERT INTO t2 VALUES (5.000000000000000000000000000000);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
+SELECT * FROM t1,t2 WHERE t1.col1 = t2.col1;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 (col1 DECIMAL(5));
+CREATE TABLE t2 (col1 BIGINT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1,t2 where t1.col1=t2.col1;
+SELECT * FROM t1,t2 where t1.col1=t2.col1;
+DROP TABLE t1, t2;
+
+
+--echo # Bit fields, which is a bit different depending on the storage engine.
+create table t1 (id1 int, b1 bit(1)) engine = myisam;
+create table t2 (id2 int, b2 bit(1)) engine = myisam;
+insert into t1 values (2, 0), (3, 1);
+insert into t2 values (2, 1), (3, 0);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
+SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
+DROP TABLE t1, t2;
+
+create table t1 (id1 int, b1 bit(64)) engine = innodb;
+create table t2 (id2 int, b2 bit(64)) engine = innodb;
+insert into t1 values (2, 0), (3, 2);
+insert into t2 values (2, 2), (3, 0);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE id1 = id2;
+SELECT id1, HEX(b1), id2, HEX(b2) FROM t1, t2 WHERE id1 = id2;
+DROP TABLE t1, t2;
+
+--echo # See that we handle NULL values properly.
+CREATE TABLE t1 (col1 VARCHAR(255));
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (NULL);
+INSERT INTO t2 VALUES ("");
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Now, do some queries where we end up with a GRACE hash join. That is,
+--echo # the right table of the join is bigger than the join_buffer_size.
+--echo #
+CREATE TABLE t1 (col1 BIGINT);
+CREATE TABLE t2 (col1 BIGINT);
+
+INSERT INTO t1 SELECT 1;
+INSERT INTO t1 SELECT col1 + 1 FROM t1;
+INSERT INTO t1 SELECT col1 + 2 FROM t1;
+INSERT INTO t1 SELECT col1 + 4 FROM t1;
+INSERT INTO t1 SELECT col1 + 8 FROM t1;
+INSERT INTO t1 SELECT col1 + 16 FROM t1;
+INSERT INTO t1 SELECT col1 + 32 FROM t1;
+INSERT INTO t1 SELECT col1 + 64 FROM t1;
+INSERT INTO t1 SELECT col1 + 128 FROM t1;
+INSERT INTO t1 SELECT col1 + 256 FROM t1;
+INSERT INTO t2 SELECT col1 FROM t1;
+
+ANALYZE TABLE t1, t2;
+
+SET join_buffer_size = 2048;  # 2 kB.
+
+let $hash_join_file_operations =
+  SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+    WHERE event_name LIKE '%hash_join%';
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+EXPLAIN FORMAT=tree
+  SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
+
+TRUNCATE performance_schema.file_summary_by_event_name;
+
+eval $hash_join_file_operations;
+SELECT SUM(t1.col1), SUM(t2.col1) FROM t1, t2 WHERE t1.col1 = t2.col1;
+eval $hash_join_file_operations;
+
+SET join_buffer_size = DEFAULT;
+DROP TABLE t1,t2;
+
+--echo # See that spill to disk (GRACE hash join) works with all kind of
+--echo # data types.
+CREATE TABLE t1 (
+  str_col VARCHAR(255),
+  blob_col LONGBLOB,
+  text_col LONGTEXT,
+  bit_col BIT(64),
+  tinyint_col TINYINT,
+  smallint_col SMALLINT,
+  mediumint_col MEDIUMINT,
+  int_col INTEGER,
+  bigint_col BIGINT,
+  float_col FLOAT,
+  double_col DOUBLE,
+  decimal_col DECIMAL(65, 30),
+  year_col YEAR,
+  date_col DATE,
+  time_col TIME(6),
+  datetime_col DATETIME(6),
+  timestamp_col TIMESTAMP(6),
+  json_col JSON,
+  geometry_col GEOMETRY
+);
+
+# Set time_zone since limits for TIMESTAMP is in UTC.
+SET time_zone = '+00:00';
+
+INSERT INTO t1 VALUES (
+  '',
+  '',
+  '',
+  b'0000000000000000000000000000000000000000000000000000000000000000',
+  -128,
+  -32768,
+  -8388608,
+  -2147483648,
+  -9223372036854775808,
+  -3.402823466E+38,
+  -1.7976931348623157E+308,
+  '-99999999999999999999999999999999999.999999999999999999999999999999',
+  1901,
+  '1000-01-01',
+  '-838:59:59.000000',
+  '1000-01-01 00:00:00.000000',
+  '1970-01-01 00:00:01.000000',
+  '{}',
+  ST_GeomFromText('GEOMETRYCOLLECTION()')
+);
+
+INSERT INTO t1 VALUES (
+  'a very long and interesting string',
+  'a very long and interesting blob',
+  'a very long and interesting text',
+  b'1111111111111111111111111111111111111111111111111111111111111111',
+  127,
+  32767,
+  8388607,
+  2147483647,
+  9223372036854775807,
+  3.402823466E+38,
+  1.7976931348623157E+308,
+  '99999999999999999999999999999999999.999999999999999999999999999999',
+  2155,
+  '9999-12-31',
+  '838:59:59.000000',
+  '9999-12-31 23:59:59.999999',
+  '2038-01-19 03:14:07.999999',
+  '{"key": [1, 2, 3]}',
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 2), POINT(3 4))')
+);
+
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+
+SET join_buffer_size = 99968;
+
+--echo # Just do a few aggregations for sanity checking. We don't want to
+--echo # pollute the result log with thousands of lines with binary data.
+let $query = SELECT
+  COUNT(*),
+  SUM(LENGTH(t1.text_col)),
+  SUM(t2.bigint_col)
+FROM
+  t1,
+  t1 AS t2
+WHERE
+  t1.int_col = t2.int_col
+ORDER BY
+  t1.int_col;
+
+ANALYZE TABLE t1;
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+SET join_buffer_size = DEFAULT;
+SET time_zone = DEFAULT;
+
+--echo #
+--echo # A query where we end up with a weedout + hash join. This forces hash
+--echo # join to keep the row ID for each row, so that the duplicate removal
+--echo # works.
+--echo #
+SET optimizer_switch="materialization=off,firstmatch=off";
+CREATE TABLE t1 (i BIGINT);
+CREATE TABLE t2 (i BIGINT);
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (2), (3);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+SELECT * FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+
+--echo # Increase the data volume, and reduce the join_buffer_size, in order to
+--echo # test that we can keep the row ID in case of GRACE hash join as well.
+let $count=8;
+while ($count)
+{
+  eval INSERT INTO t1 SELECT * FROM t1;
+  eval INSERT INTO t2 SELECT * FROM t2;
+  dec $count;
+}
+ANALYZE TABLE t1, t2;
+
+SET join_buffer_size = 2048;  # 2 kB.
+
+let $hash_join_file_operations =
+  SELECT COUNT_STAR > 0 FROM performance_schema.file_summary_by_event_name
+    WHERE event_name LIKE '%hash_join%';
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+EXPLAIN FORMAT=tree
+  SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+TRUNCATE performance_schema.file_summary_by_event_name;
+
+eval $hash_join_file_operations;
+SELECT COUNT(*) FROM t2 WHERE (t2.i) IN (SELECT t1.i FROM t1);
+eval $hash_join_file_operations;
+
+DROP TABLE t1, t2;
+SET join_buffer_size = DEFAULT;
+SET optimizer_switch = DEFAULT;
+
+
+--echo # Test a case where the RAND() function is pushed as late as possible in
+--echo # the join. The optimizer ends up rewriting t1.col1 = FLOOR(...) to
+--echo # t2.col1 = FLOOR(...), so this test case ensures that the executor is
+--echo # able to put the condition after the join. FLOOR and division/addition
+--echo # make this query deterministic.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+ANALYZE TABLE t1, t2;
+
+let $query = SELECT
+  t1.col1,
+  t2.col1
+FROM
+  t1,
+  t2
+WHERE
+  t1.col1 = t2.col1
+  AND t1.col1 = FLOOR(RAND() / 2 + 2);
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+DROP TABLE t1, t2;
+
+--echo # Ensure that the hash join picks the correct fields and tables when both
+--echo # sides of the join condition are from the same source table.
+CREATE TABLE c (
+  col1 varchar(1)
+) ENGINE = myisam;
+
+INSERT INTO c VALUES ('w');
+INSERT INTO c VALUES ('d');
+ANALYZE TABLE c;
+
+let $query = SELECT *
+FROM
+  (SELECT * FROM c) AS table1
+  JOIN (SELECT * FROM c) AS table2
+  ON table2.col1 = table1.col1;
+
+eval EXPLAIN format=tree $query;
+eval $query;
+DROP TABLE c;
+
+--echo # This query ends up with a BNL between t3 and t2. Ensure that we don't
+--echo # end up with a hash join like:
+--echo #
+--echo #  -> Constant row from <subquery2>
+--echo #    -> Materialize with deduplication
+--echo #        -> HashJoin inner join (t3.i = '2')
+--echo #            -> Table scan on t2
+--echo #            -> Table scan on t3
+--echo #
+--echo # We don't want a join condition on a constant, so it should be pushed as
+--echo # a filter.
+SET optimizer_switch='firstmatch=off';
+
+CREATE TABLE t1 (i INTEGER) ENGINE = MyISAM;
+CREATE TABLE t2 (i INTEGER) ENGINE = MyISAM;
+CREATE TABLE t3 (i INTEGER) ENGINE = MyISAM;
+
+INSERT INTO t1 VALUES (2);
+INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
+
+EXPLAIN FORMAT=tree
+  SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+SELECT * FROM t1 WHERE (t1.i) IN  (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+
+DROP TABLE t1,t2,t3;
+SET optimizer_switch=DEFAULT;
+
+--echo # A bit more complicated join condition where we have multiple join
+--echo # conditions, and one of them is an expression.
+CREATE TABLE t1 (a INTEGER, b INTEGER);
+INSERT INTO t1 (a) VALUES (1),(2);
+CREATE TABLE t3 (a INTEGER, b INTEGER);
+INSERT INTO t3 VALUES (1, 10), (1, 11), (2, 10), (2, 11);
+ANALYZE TABLE t1, t3;
+
+let $query = SELECT * FROM t1, t3 WHERE t3.b = t1.a + 9 AND t3.a = t1.a;
+
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1,t3;
+
+
+--echo # Ensure that outer joins doesn't degrade into a nested loop,
+--echo # but still uses join buffering.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (2);
+ANALYZE TABLE t1, t2;
+EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+EXPLAIN SELECT * FROM t1 LEFT JOIN t2 ON t1.col1 = t2.col1;
+DROP TABLE t1, t2;
+
+--echo # See that we can replace a BNL with hash join, even if we have extra
+--echo # join conditions that are not equi-join conditions. The result should be
+--echo # that the non-equi-join conditions should be attached as a filter after
+--echo # the join.
+CREATE TABLE t1 (col1 INTEGER, col2 INTEGER);
+CREATE TABLE t2 (col1 INTEGER, col2 INTEGER);
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES (1, 1), (2, 4), (3, 6);
+ANALYZE TABLE t1, t2;
+
+EXPLAIN FORMAT=tree
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1 AND t1.col2 < t2.col2;
+
+DROP TABLE t1, t2;
+
+
+CREATE TABLE t1 (col1 BIGINT);
+INSERT INTO t1 VALUES (1), (1), (1), (1), (1), (1), (1), (1), (1), (1);
+ANALYZE TABLE t1;
+EXPLAIN FORMAT=tree SELECT SUM(t1.col1)
+  FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+SELECT SUM(t1.col1) FROM t1, t1 t2, t1 t3, t1 t4, t1 t5, t1 t6;
+DROP TABLE t1;
+
+--echo # Test that comparison between FLOAT and DOUBLE works as expected if
+--echo # given an explicit number of decimals.
+CREATE TABLE t1 (col1 FLOAT(5,2), col2 DOUBLE(15,2));
+INSERT INTO t1 VALUES (1.01, 1.01);
+SELECT * FROM t1 a, t1 b WHERE a.col1 = b.col2;
+DROP TABLE t1;
+
+
+--echo # The point of the following test is to see that if the innermost hash
+--echo # join returns zero rows, the outermost hash join should not scan the
+--echo # probe table.
+CREATE TABLE t1 (col1 INT);
+CREATE TABLE t2 (col1 INT);
+CREATE TABLE t3 (col1 INT);
+
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (1), (2), (3);
+INSERT INTO t3 VALUES (1), (2), (3);
+ANALYZE TABLE t1, t2, t3;
+
+let $query = SELECT STRAIGHT_JOIN * FROM t1
+  JOIN t2 ON t1.col1 + 10 = t2.col1
+  JOIN t3 ON t2.col1 = t3.col1;
+
+eval EXPLAIN FORMAT=tree $query;
+
+--disable_query_log
+--disable_result_log
+# The first time we query session_status, the server will query additional
+# dictionary tables to get the necessary metadata. This extra query will be
+# counted in the performance schema, so we run a query against session_status
+# once here so we are sure that the necessary metadata is fetched.
+SELECT SUM(variable_value) AS Total_handler_reads
+   FROM performance_schema.session_status
+   WHERE variable_name LIKE 'Handler_read%';
+FLUSH STATUS;
+eval $query;
+--enable_result_log
+--enable_query_log
+
+SELECT SUM(variable_value) AS Total_handler_reads
+   FROM performance_schema.session_status
+   WHERE variable_name LIKE 'Handler_read%';
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#29898802	WL#2241: SIG6 IN HASH_JOIN_BUFFER::LOADINTOTABLEBUFFERS()
+--echo #              AT HASH_JOIN_BUFFER.CC
+--echo #
+CREATE TABLE t1 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_varchar varchar(1),
+  col_varchar_key varchar(1),
+  PRIMARY KEY (pk),
+  KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES (1,'n','X'),(2,'Y','8'),(3,'R','l');
+
+let $query = SELECT
+  t1.col_varchar_key AS field1
+FROM
+  (t1, t1 as alias1)
+WHERE
+  NOT
+    EXISTS(
+      SELECT
+        alias2.col_varchar_key
+      FROM
+        t1 AS alias2
+      WHERE
+        alias2.col_varchar_key >= t1.col_varchar
+    )
+GROUP BY
+  field1;
+
+ANALYZE TABLE t1;
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # See that typed arrays are handled as blobs. That is, we do not try to
+--echo # allocate 4GB of memory during the hash join.
+CREATE TABLE t1 (
+  col_int_key INTEGER,
+  col_json JSON,
+  KEY mv_idx ((CAST(col_json->'$[*]' AS CHAR(40) ARRAY)))
+);
+
+INSERT INTO t1 VALUES (NULL, '[1]'), (4, '[1]'), (1, '[2]');
+
+CREATE TABLE t2(col_int INTEGER);
+
+INSERT INTO t2 VALUES (1), (2), (3), (11), (12);
+
+let $query = SELECT t1.col_int_key AS field1, t2.col_int AS field2 FROM t2
+  JOIN t1 ON 1 WHERE (CAST("1" AS JSON) MEMBER OF( t1.col_json->'$[*]'));
+
+ANALYZE TABLE t1, t2;
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+eval EXPLAIN FORMAT=tree $query;
+
+# We do not care about the result. The only thing we want to see is that we do
+# not error out with "out of memory".
+--disable_result_log
+eval $query;
+--enable_result_log
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#29906372 WL#2241: SIG6 IN HASH_JOIN_BUFFER::STOREFROMTABLEBUFFERS
+--echo #              AT HASH_JOIN_BUFFER.CC
+--echo #
+CREATE TABLE a (
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_varchar VARCHAR(1),
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY varchar_key (col_varchar_key)
+);
+
+CREATE TABLE b (
+  pk INTEGER NOT NULL AUTO_INCREMENT,
+  col_varchar VARCHAR(1),
+  col_varchar_key VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY varchar_key (col_varchar_key)
+);
+
+INSERT INTO a VALUES (1, 'N', '0');
+INSERT INTO b VALUES (1, '8', 'r'), (2, 'v', 'C'), (3, 'b', 'p'), (4, '7', 'W');
+
+let $query = SELECT 1 FROM (b AS table1
+  INNER JOIN a AS table2 ON table2.pk = table1.pk OR table1.col_varchar < 'D')
+  WHERE (NOT EXISTS
+    (SELECT 1 FROM (b AS alias3 STRAIGHT_JOIN a AS alias4
+      ON alias4.col_varchar = alias3.col_varchar_key)
+      WHERE alias3.pk >= table1.pk));
+
+ANALYZE TABLE a, b;
+eval EXPLAIN FORMAT=tree $query;
+# The result is not important; we only want to see that we do not assert.
+--disable_result_log
+eval $query;
+--enable_result_log
+DROP TABLE a, b;
+
+--echo #
+--echo # Bug#29947439 WL#2241: FLOATING POINT EXCEPTION: INITIALIZECHUNKFILES AT
+--echo #              HASH_JOIN_ITERATOR.CC
+--echo #
+# We want to get the hash join to spill to disk while having exactly one row in
+# the hash table. Since the hash table checks for out of memory _before_ a row
+# is inserted, we will always manage to put one row in the hash table. Thus,
+# insert two large rows and reduce the join buffer size so that the hash join
+# spills to disk when trying to write the second row to the hash table.
+CREATE TABLE t1 (col1 TEXT);
+INSERT INTO t1 VALUES (REPEAT('A', 50000)), (REPEAT('A', 50000));
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+EXPLAIN FORMAT=tree SELECT a.col1 FROM t1 AS a, t1 AS b;
+--disable_result_log
+SET join_buffer_size = 128;
+SELECT a.col1 FROM t1 AS a, t1 AS b;
+--enable_result_log
+DROP TABLE t1;
+
+--echo # Set up a case where we have very skewed data in the probe input, and we
+--echo # degrade into an on-disk hash join. We want to trigger a code path where
+--echo # we have empty chunk files from the probe input.
+CREATE TABLE t1 (col1 VARCHAR(255));
+CREATE TABLE t2 (col1 VARCHAR(255));
+INSERT INTO t1 VALUES (SHA2(UUID(), 512));
+let $count=9;
+while ($count)
+{
+  eval INSERT INTO t1 SELECT SHA2(UUID(), 512) FROM t1;
+  dec $count;
+}
+INSERT INTO t2 SELECT REPEAT("a", 255) FROM t1;
+
+# Increase the number of pages sampled by InnoDB during ANALYZE TABLE to get
+# more stable row count estimates.
+SET GLOBAL innodb_stats_persistent_sample_pages = 2000;
+ANALYZE TABLE t1, t2;
+SET GLOBAL innodb_stats_persistent_sample_pages = DEFAULT;
+
+let $query = SELECT STRAIGHT_JOIN COUNT(*) FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+
+# Mask out the cost estimates, since they will differ with innodb_page_size.
+--replace_regex /cost=\d+.\d+/cost=***/
+eval EXPLAIN FORMAT=tree $query;
+--disable_result_log
+SET join_buffer_size = 1024;
+eval $query;
+--enable_result_log
+
+DROP TABLE t1, t2;
+SET join_buffer_size = DEFAULT;
+
+--echo # See that the hints for hash join works as expected.
+CREATE TABLE t1 (col1 INTEGER);
+CREATE TABLE t2 (col1 INTEGER);
+
+--echo # By default, hash join should be used.
+EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
+
+--echo # Try disabling hash join using the hint.
+EXPLAIN FORMAT=tree SELECT /*+ NO_HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
+
+--echo # Turn off hash join using the optimizer switch, and then enable it again
+--echo # using the hint.
+SET optimizer_switch="hash_join=off";
+EXPLAIN FORMAT=tree SELECT t1.col1 FROM t1, t2;
+EXPLAIN FORMAT=tree SELECT /*+ HASH_JOIN(t1, t2) */ t1.col1 FROM t1, t2;
+SET optimizer_switch=DEFAULT;
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#29964536 WL#2241: ASSERTION FAILURE IN
+--echo #              TEMPTABLE::HANDLER::POSITION() AT SRC/HANDLER.CC
+--echo #
+
+CREATE TABLE tc (
+  col_int INTEGER,
+  col_varchar VARCHAR(1)
+);
+INSERT INTO tc VALUES (0,'x');
+
+CREATE TABLE tcc (
+  col_varchar VARCHAR(1)
+);
+INSERT INTO tcc VALUES ('r'), ('f'), ('y'), ('u'), ('m'), (NULL);
+
+CREATE TABLE t1 (field1 INTEGER);
+INSERT INTO t1 VALUES (0);
+
+# Set up a query where we have hash join of a streamed materialization, which
+# verifies that hash join does not try and ask the StreamingIterator for
+# row IDs; the StreamingIterator will provide the row IDs automatically.
+#
+# The output of the query does not matter; it should just not assert.
+SET optimizer_switch="firstmatch=off";
+UPDATE t1 SET field1 = 9999 WHERE field1 NOT IN ( SELECT alias1.col_int AS
+field1 FROM ( tcc, ( SELECT * FROM tc WHERE col_int < 1 ) AS alias1 ) WHERE (
+alias1.col_varchar IN ( SELECT col_varchar FROM tcc ) ) GROUP BY field1
+HAVING field1 <> 1 );
+SET optimizer_switch="firstmatch=on";
+DROP TABLE tc,tcc,t1;
+
+--echo # Do a join between DECIMAL and INTEGER to verify that we get a match
+--echo # between these two types.
+CREATE TABLE t1 (col1 DECIMAL(4, 2));
+INSERT INTO t1 VALUES (0);
+
+CREATE TABLE t2 (col1 INTEGER);
+INSERT INTO t2 VALUES (0);
+
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+DROP TABLE t1, t2;
+
+--echo # See that we get the correct results with a PAD SPACE collation and
+--echo # PAD_CHAR_TO_FULL_LENGTH. Note that the latter is deprecated, so this
+--echo # test should go away once the SQL mode is removed.
+CREATE TABLE t1 (
+  col1 CHAR(4)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
+INSERT INTO t1 VALUES ("foo");
+
+CREATE TABLE t2 (
+  col1 CHAR(40)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_cs;
+INSERT INTO t2 VALUES ("foo");
+
+SET sql_mode="PAD_CHAR_TO_FULL_LENGTH";
+EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SELECT * FROM t1 JOIN t2 ON t1.col1 = t2.col1;
+SET sql_mode=DEFAULT;
+DROP TABLE t1, t2;
+
+--echo # Set up a case where the join planner will set up a BNL with linked
+--echo # join buffers, and where the row ID should be kept due to duplicate
+--echo # removal. keep_current_rowid will be marked for several QEP_TABs, even
+--echo # though we should not request the row ID on all of them.
+CREATE TABLE b1 (col_int INTEGER);
+
+INSERT INTO b1 VALUES (1);
+
+CREATE TABLE c1 (
+  col_int INTEGER,
+  col_timestamp TIMESTAMP NULL,
+  col_decimal DECIMAL(10, 4)
+);
+
+INSERT INTO c1 VALUES
+  (1741569678,'2004-01-07 20:47:51',-4.7563),
+  (-1533615975,'2037-10-27 16:40:24',7.7785);
+
+CREATE TABLE cc1 (
+  col_int INTEGER,
+  col_decimal DECIMAL(10, 4),
+  col_timestamp TIMESTAMP NULL
+);
+
+INSERT INTO cc1 VALUES
+  (-190646953,6.4052,'2007-11-21 09:45:29'),
+  (-423321712,6.9636,'1988-01-04 13:34:47');
+
+
+SELECT
+  1
+FROM
+  b1
+  LEFT JOIN (
+      c1
+      RIGHT JOIN (SELECT DISTINCT * FROM cc1) AS alias3 ON
+          alias3.col_timestamp = c1.col_timestamp
+    ) ON b1.col_int = c1.col_int AND 1
+WHERE
+  EXISTS(
+    SELECT
+      1
+    FROM
+      cc1 JOIN c1 ON c1.col_decimal = cc1.col_decimal AND 1
+    WHERE
+      cc1.col_int <= b1.col_int OR cc1.col_int = c1.col_int
+  );
+DROP TABLE b1, c1, cc1;
+
+--echo # Yet another problematic case involing duplicate weedout.
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) charset utf8mb4;
+
+INSERT INTO t1 VALUES (4,'v','v');
+INSERT INTO t1 VALUES (62,'v','v');
+INSERT INTO t1 VALUES (7,'c','c');
+INSERT INTO t1 VALUES (1,NULL,NULL);
+
+set optimizer_switch='firstmatch=off';
+set optimizer_switch='materialization=off';
+
+--sorted_result
+SELECT
+  alias1.col_varchar_nokey AS a1_nokey,
+  alias1.col_varchar_key AS a1_key,
+  alias2.col_varchar_nokey AS a2_nokey
+FROM
+  t1 AS alias1, t1 AS alias2
+WHERE
+  (alias1.col_varchar_nokey,alias2.col_varchar_nokey)
+  IN
+  (
+    SELECT
+      sq2_alias2.col_varchar_nokey, sq2_alias1.col_varchar_key
+    FROM
+      t1 AS sq2_alias1, t1 AS sq2_alias2
+  )
+;
+set optimizer_switch=DEFAULT;
+DROP TABLE t1;
+
+
+--echo # A case where we have a hash join iterator both above and below a
+--echo # WeedoutIterator.
+
+CREATE TABLE t1(f1 INT(11) NOT NULL);
+INSERT INTO t1 VALUES (10);
+
+CREATE TABLE t2
+(
+  f1 INT(11) NOT NULL AUTO_INCREMENT,
+  f2 INT(11) DEFAULT NULL,
+  PRIMARY KEY (f1),
+  KEY (f2)
+);
+INSERT INTO t2 VALUES (1, 7), (2, 1), (4, 7);
+
+CREATE TABLE t4(f1 INT DEFAULT NULL);
+INSERT INTO t4 VALUES (2);
+
+ANALYZE TABLE t1, t2, t4;
+
+let $query=
+SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
+COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
+WHERE ta4.f1 IN (SELECT /*+ QB_NAME(qb1) */ f1 FROM t4) AND
+      ta3.f2 IN (SELECT /*+ QB_NAME(qb2) */ f2 FROM t2);
+eval EXPLAIN FORMAT=tree $query;
+eval $query;
+eval $query;
+
+DROP TABLE t1, t2, t4;

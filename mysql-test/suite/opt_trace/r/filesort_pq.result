@@ -4356,31 +4356,14 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 5,
-                "row_length": 235,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -4395,7 +4378,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
               "key_size": 9,
               "row_size": 244,
               "max_rows_per_buffer": 31,
-              "num_rows_estimate": 1510,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -4683,31 +4666,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 5,
-                "row_length": 235,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -4722,7 +4688,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "key_size": 9,
               "row_size": 244,
               "max_rows_per_buffer": 61,
-              "num_rows_estimate": 1510,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5019,31 +4985,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 5,
-                "row_length": 235,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -5058,7 +5007,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "key_size": 9,
               "row_size": 246,
               "max_rows_per_buffer": 1290,
-              "num_rows_estimate": 1510,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1500,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
@@ -5414,31 +5363,14 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 2,
-                "columns": 5,
-                "row_length": 235,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              }
-            }
-          },
-          {
             "sorting_table_in_plan_at_position": 2,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f1"
               },
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f0"
               }
             ],
@@ -5452,8 +5384,8 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
               "memory_available": 327680,
               "key_size": 9,
               "row_size": 246,
-              "max_rows_per_buffer": 1195,
-              "num_rows_estimate": 1195,
+              "max_rows_per_buffer": 1290,
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 1185,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",

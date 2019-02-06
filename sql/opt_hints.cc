@@ -77,6 +77,7 @@ struct st_opt_hint_info opt_hint_info[] = {
     {"INDEX_MERGE", false, false, false},
     {"RESOURCE_GROUP", false, false, false},
     {"SKIP_SCAN", false, false, false},
+    {"HASH_JOIN", true, true, false},
     {0, 0, 0, 0}};
 
 /**

@@ -72,6 +72,7 @@
 #include "sql/field.h"
 #include "sql/filesort.h"  // Filesort
 #include "sql/handler.h"
+#include "sql/hash_join_iterator.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
 #include "sql/item_sum.h"  // Item_sum
@@ -1950,6 +1951,85 @@ void SetCostOnNestedLoopIterator(const POSITION *pos_right,
                                joined_rows * constants.row_evaluate_cost());
 }
 
+void SetCostOnHashJoinIterator(const POSITION *pos_right,
+                               RowIterator *iterator) {
+  if (pos_right == nullptr) {
+    // No cost information.
+    return;
+  }
+
+  DBUG_ASSERT(iterator->children().size() == 2);
+  RowIterator *left = iterator->children()[1].iterator;
+  RowIterator *right = iterator->children()[0].iterator;
+
+  if (left->expected_rows() == -1.0 || right->expected_rows() == -1.0) {
+    // Missing cost information on at least one child.
+    return;
+  }
+
+  // Mirrors set_prefix_join_cost(), even though the cost calculation doesn't
+  // make a lot of sense.
+  Server_cost_constants constants;
+  double joined_rows = left->expected_rows() * right->expected_rows();
+  iterator->set_expected_rows(joined_rows * pos_right->filter_effect);
+  iterator->set_estimated_cost(left->estimated_cost() + pos_right->read_cost +
+                               joined_rows * constants.row_evaluate_cost());
+}
+
+// Move all the hash join conditions from the vector "predicates" over to the
+// vector "hash_join_conditions". Only join conditions that are suitable for
+// hash join are moved. If there are any condition that has to be evaluated
+// after the join (i.e. non equi-join conditions), they are placed in the vector
+// "conditions_after_hash_join" so that they can be attached as filters after
+// the join.
+static void ExtractHashJoinConditions(
+    const QEP_TAB *current_table, const std::vector<QEP_TAB *> &left_tables,
+    vector<Item *> *predicates, vector<Item_func_eq *> *hash_join_conditions,
+    vector<Item *> *conditions_after_hash_join) {
+  table_map left_tables_map = 0;
+  for (QEP_TAB *qep_tab : left_tables) {
+    left_tables_map = left_tables_map | qep_tab->table_ref->map();
+  }
+
+  for (Item *item : *predicates) {
+    if (item->type() != Item::FUNC_ITEM) {
+      continue;
+    }
+
+    Item_func *func_item = down_cast<Item_func *>(item);
+    if (func_item->functype() != Item_func::EQ_FUNC) {
+      continue;
+    }
+
+    Item_func_eq *item_func_eq = down_cast<Item_func_eq *>(func_item);
+    if (item_func_eq->has_any_hash_join_condition(left_tables_map,
+                                                  *current_table)) {
+      hash_join_conditions->emplace_back(item_func_eq);
+    }
+  }
+
+  // Remove all hash join conditions from the vector "predicates".
+  predicates->erase(remove_if(predicates->begin(), predicates->end(),
+                              [&hash_join_conditions](const Item *item) {
+                                return find(hash_join_conditions->begin(),
+                                            hash_join_conditions->end(),
+                                            item) !=
+                                       hash_join_conditions->end();
+                              }),
+                    predicates->end());
+
+  // See if any of the remaining conditions should be attached as filter after
+  // the join. If so, place them in a separate vector.
+  for (int i = predicates->size() - 1; i >= 0; --i) {
+    Item *item = predicates->at(i);
+    table_map used_tables = item->used_tables();
+    if ((~current_table->table_ref->map() & used_tables) > 0) {
+      conditions_after_hash_join->emplace_back(item);
+      predicates->erase(predicates->begin() + i);
+    }
+  }
+}
+
 /**
   For a given slice of the table list, build up the iterator tree corresponding
   to the tables in that slice. It handles inner and outer joins, as well as
@@ -2248,9 +2328,39 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
                          pending_invalidators, unhandled_duplicates);
 
     vector<Item *> predicates_below_join;
+    vector<Item_func_eq *> hash_join_conditions;
+    vector<Item *> conditions_after_hash_join;
     vector<PendingCondition> predicates_above_join;
     SplitConditions(qep_tab->condition(), &predicates_below_join,
                     &predicates_above_join);
+
+    vector<QEP_TAB *> left_tables;
+
+    // If this is a BNL, we should replace it with hash join. We did decide
+    // during create_iterators that we actually can replace the BNL with a hash
+    // join, so we don't bother checking any further that we actually can
+    // replace the BNL with a hash join.
+    const bool replace_with_hash_join =
+        qep_tab->op != nullptr &&
+        qep_tab->op->type() == QEP_operation::OT_CACHE;
+
+    if (replace_with_hash_join) {
+      // Get the left tables of this join.
+      for (plan_idx j = first_idx; j < i; ++j) {
+        left_tables.push_back(&qep_tabs[j]);
+      }
+
+      // All join conditions are now contained in "predicates_below_join". We
+      // will now take all the hash join conditions (equi-join conditions) and
+      // move them to a separate vector so we can attach them to the hash join
+      // iterator later. Also, "predicates_below_join" might contain conditions
+      // that should be applied after the join (for instance non equi-join
+      // conditions). Put them in a separate vector, and attach them as a filter
+      // after the hash join.
+      ExtractHashJoinConditions(qep_tab, left_tables, &predicates_below_join,
+                                &hash_join_conditions,
+                                &conditions_after_hash_join);
+    }
 
     if (!qep_tab->condition_is_pushed_to_sort()) {  // See the comment on #2.
       double expected_rows = table_iterator->expected_rows();
@@ -2313,13 +2423,17 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // on one of the columns; for the latter: queries with multiple unused
       // tables).
       //
+      // Note that if we are to attach a hash join iterator, we cannot add this
+      // optimization as it would limit the probe input to only one row before
+      // the join condition is even applied.
+      //
       // TODO: Consider pushing this limit up the tree together with the filter.
       // Note that this would require some trickery to reset the filter for
       // each new row on the left side of the join, so it's probably not worth
       // it.
       if (qep_tab->not_used_in_distinct && pending_conditions == nullptr &&
           i == static_cast<plan_idx>(qep_tab->join()->primary_tables - 1) &&
-          !add_limit_1) {
+          !add_limit_1 && !replace_with_hash_join) {
         table_iterator = NewIterator<LimitOffsetIterator>(
             thd, move(table_iterator), /*limit=*/1, /*offset=*/0,
             /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
@@ -2329,10 +2443,25 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
       // Inner joins are always left-deep, so we can just attach the tables as
       // we find them.
       DBUG_ASSERT(qep_tab->last_inner() == NO_PLAN_IDX);
-      iterator = CreateNestedLoopIterator(
-          thd, move(iterator), move(table_iterator), JoinType::INNER,
-          qep_tab->pfs_batch_update(qep_tab->join()));
-      SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+
+      if (replace_with_hash_join) {
+        // The numerically lower QEP_TAB is often (if not always) the smaller
+        // input, so use that as the build input.
+        iterator = NewIterator<HashJoinIterator>(
+            thd, move(iterator), left_tables, move(table_iterator), qep_tab,
+            thd->variables.join_buff_size, hash_join_conditions);
+        SetCostOnHashJoinIterator(qep_tab->position(), iterator.get());
+
+        // Attach the conditions that must be evaluated after the join, such as
+        // non equi-join conditions.
+        iterator = PossiblyAttachFilterIterator(
+            move(iterator), conditions_after_hash_join, thd);
+      } else {
+        iterator = CreateNestedLoopIterator(
+            thd, move(iterator), move(table_iterator), JoinType::INNER,
+            qep_tab->pfs_batch_update(qep_tab->join()));
+        SetCostOnNestedLoopIterator(qep_tab->position(), iterator.get());
+      }
     }
     ++i;
 
@@ -2441,7 +2570,7 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
   // executor:
   //
   //   1. We have a child query expression that needs to run in it.
-  //   2. We have join buffering (BNL/BKA).
+  //   2. We have join buffering (BNL with non equi-join condition/BKA).
   //
   // If either #1 or #2 is detected, revert to the pre-iterator executor.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
@@ -2457,26 +2586,30 @@ unique_ptr_destroy_only<RowIterator> JOIN::create_root_iterator_for_join() {
       }
     }
     if (qep_tab->next_select == sub_select_op) {
-      // We don't support join buffering, but we do support temporary tables.
       QEP_operation *op = qep_tab[1].op;
       if (op->type() != QEP_operation::OT_TMP_TABLE) {
-        return nullptr;
-      }
-
-      QEP_tmp_table *tmp_op = down_cast<QEP_tmp_table *>(op);
-      if (tmp_op->get_write_func() == end_write) {
-        DBUG_ASSERT(need_tmp_before_win);
-        final_materializations.push_back(MaterializeOperation{
-            qep_tab + 1, MaterializeOperation::MATERIALIZE});
-      } else if (tmp_op->get_write_func() == end_write_group) {
-        final_materializations.push_back(MaterializeOperation{
-            qep_tab + 1, MaterializeOperation::AGGREGATE_THEN_MATERIALIZE});
-      } else if (tmp_op->get_write_func() == end_update) {
-        final_materializations.push_back(MaterializeOperation{
-            qep_tab + 1, MaterializeOperation::AGGREGATE_INTO_TMP_TABLE});
-      } else if (tmp_op->get_write_func() == end_write_wf) {
-        final_materializations.push_back(MaterializeOperation{
-            qep_tab + 1, MaterializeOperation::WINDOWING_FUNCTION});
+        // See if it's possible to replace the BNL with a hash join.
+        const JOIN_CACHE *join_cache = down_cast<const JOIN_CACHE *>(op);
+        if (!join_cache->can_be_replaced_with_hash_join()) {
+          return nullptr;
+        }
+      } else {
+        DBUG_ASSERT(op->type() == QEP_operation::OT_TMP_TABLE);
+        QEP_tmp_table *tmp_op = down_cast<QEP_tmp_table *>(op);
+        if (tmp_op->get_write_func() == end_write) {
+          DBUG_ASSERT(need_tmp_before_win);
+          final_materializations.push_back(MaterializeOperation{
+              qep_tab + 1, MaterializeOperation::MATERIALIZE});
+        } else if (tmp_op->get_write_func() == end_write_group) {
+          final_materializations.push_back(MaterializeOperation{
+              qep_tab + 1, MaterializeOperation::AGGREGATE_THEN_MATERIALIZE});
+        } else if (tmp_op->get_write_func() == end_update) {
+          final_materializations.push_back(MaterializeOperation{
+              qep_tab + 1, MaterializeOperation::AGGREGATE_INTO_TMP_TABLE});
+        } else if (tmp_op->get_write_func() == end_write_wf) {
+          final_materializations.push_back(MaterializeOperation{
+              qep_tab + 1, MaterializeOperation::WINDOWING_FUNCTION});
+        }
       }
     }
   }

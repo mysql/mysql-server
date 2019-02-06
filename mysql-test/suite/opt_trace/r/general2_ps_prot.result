@@ -1180,26 +1180,10 @@ TRACE
         "select#": 1,
         "steps": [
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "in_plan_at_position": 3,
-                "columns": 1,
-                "row_length": 6,
-                "key_length": 0,
-                "unique_constraint": false,
-                "makes_grouped_rows": false,
-                "cannot_insert_duplicates": false,
-                "location": "TempTable"
-              } /* tmp_table_info */
-            } /* creating_tmp_table */
-          },
-          {
             "sorting_table_in_plan_at_position": 3,
             "filesort_information": [
               {
                 "direction": "asc",
-                "table": "intermediate_tmp_table",
                 "field": "f2"
               }
             ] /* filesort_information */,
@@ -1213,8 +1197,8 @@ TRACE
               "memory_available": 262144,
               "key_size": "XXX",
               "row_size": "XXX",
-              "max_rows_per_buffer": 15,
-              "num_rows_estimate": 15,
+              "max_rows_per_buffer": "XXX",
+              "num_rows_estimate": 18446744073709551615,
               "num_rows_found": 4,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",

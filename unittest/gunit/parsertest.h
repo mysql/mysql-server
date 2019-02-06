@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,44 @@ using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
 
 /*
+  Parses a query and returns a parse tree. In our parser this is
+  called a SELECT_LEX.
+*/
+static SELECT_LEX *parse(const Server_initializer *initializer,
+                         const char *query, int expected_error_code) {
+  Parser_state state;
+
+  size_t length = strlen(query);
+  char *mutable_query = const_cast<char *>(query);
+
+  state.init(initializer->thd(), mutable_query, length);
+
+  /*
+    This tricks the server to parse the query and then stop,
+    without executing.
+  */
+  initializer->set_expected_error(ER_MUST_CHANGE_PASSWORD);
+  initializer->thd()->security_context()->set_password_expired(true);
+
+  Mock_error_handler handler(initializer->thd(), expected_error_code);
+  lex_start(initializer->thd());
+
+  if (initializer->thd()->db().str == nullptr) {
+    // The THD DTOR will do my_free() on this.
+    char *db = static_cast<char *>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
+    sprintf(db, "db");
+    LEX_CSTRING db_lex_cstr = {db, strlen(db)};
+    initializer->thd()->reset_db(db_lex_cstr);
+  }
+
+  lex_start(initializer->thd());
+  mysql_reset_thd_for_next_command(initializer->thd());
+  parse_sql(initializer->thd(), &state, nullptr);
+
+  return initializer->thd()->lex->current_select();
+}
+
+/*
   A class for unit testing the parser.
 */
 class ParserTest : public ::testing::Test {
@@ -47,45 +85,11 @@ class ParserTest : public ::testing::Test {
 
   Server_initializer initializer;
 
-  /*
-    Parses a query and returns a parse tree. In our parser this is
-    called a SELECT_LEX.
-  */
-  SELECT_LEX *parse(const char *query, int expected_error_code) const {
-    Parser_state state;
-
-    size_t length = strlen(query);
-    char *mutable_query = const_cast<char *>(query);
-
-    state.init(thd(), mutable_query, length);
-
-    /*
-      This tricks the server to parse the query and then stop,
-      without executing.
-    */
-    initializer.set_expected_error(ER_MUST_CHANGE_PASSWORD);
-    thd()->security_context()->set_password_expired(true);
-
-    Mock_error_handler handler(thd(), expected_error_code);
-    lex_start(thd());
-
-    if (thd()->db().str == NULL) {
-      // The THD DTOR will do my_free() on this.
-      char *db =
-          static_cast<char *>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
-      sprintf(db, "db");
-      LEX_CSTRING db_lex_cstr = {db, strlen(db)};
-      thd()->reset_db(db_lex_cstr);
-    }
-
-    lex_start(thd());
-    mysql_reset_thd_for_next_command(thd());
-    bool err = parse_sql(thd(), &state, NULL);
-    assert_eq(0, err);
-    return thd()->lex->current_select();
-  }
-
   void assert_eq(int x, int y) const { ASSERT_EQ(x, y); }
+
+  SELECT_LEX *parse(const char *query, int expected_error_code) const {
+    return ::parse(&initializer, query, expected_error_code);
+  }
 
   SELECT_LEX *parse(const char *query) const { return parse(query, 0); }
 };

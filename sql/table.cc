@@ -4091,6 +4091,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   fulltext_searched = 0;
   file->ft_handler = 0;
   reginfo.impossible_range = 0;
+  ref_is_set_without_position_call = false;
 
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!auto_increment_field_not_null);
@@ -5535,7 +5536,7 @@ void TABLE::mark_columns_used_by_index(uint index) {
 */
 
 void TABLE::mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *bitmap,
-                                                uint key_parts) {
+                                                uint key_parts) const {
   // If key_parts has the default value, then include user defined key parts
   if (key_parts == 0)
     key_parts = key_info[index].user_defined_key_parts;

@@ -381,6 +381,7 @@ SET(SERVER_TESTS
   gis_wkb_parser
   gis_wkb_writer
   handler
+  hash_join
   histograms
   initialize_password
   insert_delayed

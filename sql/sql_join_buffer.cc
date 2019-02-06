@@ -46,7 +46,9 @@
 #include "my_table_map.h"
 #include "sql/field.h"
 #include "sql/item.h"
+#include "sql/item_func.h"
 #include "sql/key.h"
+#include "sql/opt_hints.h"
 #include "sql/opt_trace.h"       // Opt_trace_object
 #include "sql/psi_memory_key.h"  // key_memory_JOIN_CACHE
 #include "sql/records.h"
@@ -59,6 +61,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
+#include "template_utils.h"
 
 using std::max;
 using std::min;
@@ -496,7 +499,7 @@ bool JOIN_CACHE::alloc_buffer() {
   @param tab the query execution tab
 */
 
-static void filter_gcol_for_dynamic_range_scan(QEP_TAB *const tab) {
+static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
   TABLE *table = tab->table();
   DBUG_ASSERT(tab->dynamic_range() && table->vfield);
 
@@ -522,91 +525,64 @@ static void filter_gcol_for_dynamic_range_scan(QEP_TAB *const tab) {
   }
 }
 
-/**
-  Filter the base columns of virtual generated columns if using a covering index
-  scan.
+void filter_virtual_gcol_base_cols(
+    const QEP_TAB *qep_tab, MEM_ROOT *mem_root,
+    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
+  TABLE *table = qep_tab->table();
+  if (table->vfield == nullptr) return;
 
-  When setting up the join buffer, adjust read_set temporarily so that
-  only contains the columns that are needed in the join operation and
-  afterwards. Afterwards, the regular contents are restored (the
-  columns to be read from input tables).
+  const uint index = qep_tab->effective_index();
+  const bool cov_index =
+      index != MAX_KEY && table->index_contains_some_virtual_gcol(index) &&
+      /*
+        There are two cases:
+        - If the table scan uses covering index scan, we can get the value
+          of virtual generated column from index
+        - If not, JOIN_CACHE only needs the value of virtual generated
+          columns (This is why the index can be chosen as a covering index).
+          After restore the base columns, the value of virtual generated
+          columns can be calculated correctly.
+      */
+      table->covering_keys.is_set(index);
+  if (!(cov_index || qep_tab->dynamic_range())) return;
 
-  For a virtual generated column, all base columns are added to the read_set
-  of the table. The storage engine will then copy all base column values so
-  that the value of the GC can be calculated inside the executor.
-  But when a virtual GC is fetched using a covering index, the actual GC
-  value is fetched by the storage engine and the base column values are not
-  needed. Join buffering code must not try to copy them (in
-  create_remaining_fields()).
-  So, we eliminate from read_set those columns that are available from the
-  covering index.
-*/
+  /*
+    Save of a copy of table->read_set in save_read_set so that it can be
+    restored. tmp_set cannot be used as recipient for this as it's already
+    used in other parts of JOIN_CACHE::init().
+  */
+  auto bitbuf =
+      mem_root->ArrayAlloc<my_bitmap_map>(table->s->column_bitmap_size);
+  auto save_read_set = new (mem_root) MY_BITMAP;
+  bitmap_init(save_read_set, bitbuf, table->s->fields, false);
+  bitmap_copy(save_read_set, table->read_set);
+  /*
+    restore_virtual_gcol_base_cols() will need old bitmap so we save a
+    reference to it.
+  */
+  saved_bitmaps->emplace(qep_tab, save_read_set);
 
-void JOIN_CACHE::filter_virtual_gcol_base_cols() {
-  DBUG_ASSERT(save_read_set_for_gcol.empty());
-
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    TABLE *table = tab->table();
-    if (table->vfield == NULL) continue;
-
-    const uint index = tab->effective_index();
-    const bool cov_index =
-        index != MAX_KEY && table->index_contains_some_virtual_gcol(index) &&
-        /*
-          There are two cases:
-          - If the table scan uses covering index scan, we can get the value
-            of virtual generated column from index
-          - If not, JOIN_CACHE only needs the value of virtual generated
-            columns (This is why the index can be chosen as a covering index).
-            After restore the base columns, the value of virtual generated
-            columns can be calculated correctly.
-        */
-        table->covering_keys.is_set(index);
-    if (!(cov_index || tab->dynamic_range())) continue;
-
-    /*
-      Save of a copy of table->read_set in save_read_set so that it can be
-      restored. tmp_set cannot be used as recipient for this as it's already
-      used in other parts of JOIN_CACHE::init().
-    */
-    auto bitbuf =
-        (my_bitmap_map *)(*THR_MALLOC)->Alloc(table->s->column_bitmap_size);
-    auto save_read_set = (MY_BITMAP *)(*THR_MALLOC)->Alloc(sizeof(MY_BITMAP));
-    bitmap_init(save_read_set, bitbuf, table->s->fields, false);
-    bitmap_copy(save_read_set, table->read_set);
-    /*
-      restore_virtual_gcol_base_cols() will need old bitmap so we save a
-      reference to it.
-    */
-    save_read_set_for_gcol.insert(std::make_pair(tab, save_read_set));
-
-    if (cov_index) {
-      bitmap_clear_all(table->read_set);
-      table->mark_columns_used_by_index_no_reset(index, table->read_set);
-      if (table->s->primary_key != MAX_KEY)
-        table->mark_columns_used_by_index_no_reset(table->s->primary_key,
-                                                   table->read_set);
-      bitmap_intersect(table->read_set, save_read_set);
-    } else if (tab->dynamic_range()) {
-      filter_gcol_for_dynamic_range_scan(tab);
-    }
+  if (cov_index) {
+    bitmap_clear_all(table->read_set);
+    table->mark_columns_used_by_index_no_reset(index, table->read_set);
+    if (table->s->primary_key != MAX_KEY)
+      table->mark_columns_used_by_index_no_reset(table->s->primary_key,
+                                                 table->read_set);
+    bitmap_intersect(table->read_set, save_read_set);
+  } else if (qep_tab->dynamic_range()) {
+    filter_gcol_for_dynamic_range_scan(qep_tab);
   }
 }
 
-/**
-  After JOIN_CACHE initialization, the table->read_set is restored so that the
-  virtual generated column can be calculated during later time.
-*/
+void restore_virtual_gcol_base_cols(
+    const QEP_TAB *qep_tab,
+    memroot_unordered_map<const QEP_TAB *, MY_BITMAP *> *saved_bitmaps) {
+  TABLE *table = qep_tab->table();
+  if (table->vfield == nullptr) return;
 
-void JOIN_CACHE::restore_virtual_gcol_base_cols() {
-  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
-    TABLE *table = tab->table();
-    if (table->vfield == NULL) continue;
-
-    auto saved = save_read_set_for_gcol.find(tab);
-    if (saved != save_read_set_for_gcol.end())
-      bitmap_copy(table->read_set, saved->second);
-  }
+  auto saved = saved_bitmaps->find(qep_tab);
+  if (saved != saved_bitmaps->end())
+    bitmap_copy(table->read_set, saved->second);
 }
 
 /*
@@ -651,7 +627,10 @@ int JOIN_CACHE_BNL::init() {
 
   tables = qep_tab - tab;
 
-  filter_virtual_gcol_base_cols();
+  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
+    filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
+                                  &save_read_set_for_gcol);
+  }
 
   calc_record_fields();
 
@@ -661,7 +640,9 @@ int JOIN_CACHE_BNL::init() {
 
   create_remaining_fields(true);
 
-  restore_virtual_gcol_base_cols();
+  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
+    restore_virtual_gcol_base_cols(tab, &save_read_set_for_gcol);
+  }
 
   set_constants();
 
@@ -688,6 +669,69 @@ int JOIN_CACHE_BNL::init() {
   }
 
   return 0;
+}
+
+bool JOIN_CACHE_BNL::can_be_replaced_with_hash_join() const {
+  if (!hint_table_state(join->thd, qep_tab->table_ref, HASH_JOIN_HINT_ENUM,
+                        OPTIMIZER_SWITCH_HASH_JOIN)) {
+    // Disabled by optimizer switch.
+    return false;
+  }
+
+  if (qep_tab->last_inner() != NO_PLAN_IDX) {
+    // Outer join.
+    return false;
+  }
+
+  if (qep_tab->firstmatch_return != NO_PLAN_IDX) {
+    // Semijoin.
+    return false;
+  }
+
+  if (qep_tab->condition() == nullptr) {
+    // No condition attached to this table, so the join condition is always
+    // true.
+    return true;
+  }
+
+  const Item *condition = qep_tab->condition();
+  if (condition->type() != Item::FUNC_ITEM &&
+      condition->type() != Item::COND_ITEM) {
+    return false;
+  }
+
+  // Find the first table in the join, so that we can build a bitmap of the
+  // tables in the join. The bitmap will later be used to determine whether or
+  // not we have a join condition that can be implemented as hash join.
+  //
+  // Since the join cache objects are linked, traverse to the beginning and add
+  // up the number of tables.
+  const JOIN_CACHE *prev_join_cache = this;
+  int num_tables = 0;
+  do {
+    num_tables += prev_join_cache->tables;
+    prev_join_cache = prev_join_cache->prev_cache;
+  } while (prev_join_cache != nullptr);
+
+  // Now that we know how many tables we have in the left side of the join,
+  // we can build a bitmap from the range of the tables.
+  QEP_TAB *tab = qep_tab - num_tables;
+  table_map prefix_tables = 0;
+  for (; tab < qep_tab; tab++) {
+    prefix_tables |= tab->table_ref->map();
+  }
+
+  const Item_func *func_item =
+      down_cast<const Item_func *>(qep_tab->condition());
+  if (func_item->has_any_hash_join_condition(prefix_tables, *qep_tab)) {
+    return true;
+  }
+
+  // If we have at least one non equi-join conditions, use BNL to execute the
+  // join. Seen the other way around; we replace BNL with hash join if the join
+  // is the Cartesian product, and the conditions attached to the QEP_TAB are
+  // filters that should be attached to the table.
+  return !func_item->has_any_non_equi_join_condition();
 }
 
 /*
@@ -735,7 +779,10 @@ int JOIN_CACHE_BKA::init() {
 
   tables = qep_tab - tab;
 
-  filter_virtual_gcol_base_cols();
+  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
+    filter_virtual_gcol_base_cols(tab, join->thd->mem_root,
+                                  &save_read_set_for_gcol);
+  }
   calc_record_fields();
 
   /* Mark all fields that can be used as arguments for this key access */
@@ -834,7 +881,9 @@ int JOIN_CACHE_BKA::init() {
   use_emb_key = check_emb_key_usage();
 
   create_remaining_fields(false);
-  restore_virtual_gcol_base_cols();
+  for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
+    restore_virtual_gcol_base_cols(tab, &save_read_set_for_gcol);
+  }
   bitmap_clear_all(&qep_tab->table()->tmp_set);
 
   set_constants();

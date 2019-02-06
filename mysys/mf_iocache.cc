@@ -304,13 +304,17 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
 
   NOTE
     This function should be used if the IO_CACHE tempfile is not instrumented.
+    However, if a PSI key other than PSI_NOT_INSTRUMENTED is set explicitly,
+    that key will be used for instrumentation.
 */
 
 int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
                   enum cache_type type, my_off_t seek_offset, bool use_async_io,
                   myf cache_myflags) {
-  return init_io_cache_ext(info, file, cachesize, type, seek_offset,
-                           use_async_io, cache_myflags, key_file_io_cache);
+  return init_io_cache_ext(
+      info, file, cachesize, type, seek_offset, use_async_io, cache_myflags,
+      info->file_key != PSI_NOT_INSTRUMENTED ? info->file_key
+                                             : key_file_io_cache);
 }
 
 /*
