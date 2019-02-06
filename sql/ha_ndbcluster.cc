@@ -13502,6 +13502,11 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
   HASH ndb_tables, ok_tables;
   NDBDICT::List list;
 
+  // This function may take some time to complete and caller does not
+  // regularly check killed -> return error immediately if THD has been killed
+  if (thd_killed(thd))
+    DBUG_RETURN(-1);
+
   if (!(ndb= check_ndb_in_thd(thd)))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   thd_ndb= get_thd_ndb(thd);
