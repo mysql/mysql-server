@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,7 @@
 #include "sql/table.h"
 #include "sql_string.h"
 
+using std::min;
 using std::string;
 
 static collation_unordered_map<string, sys_var *> *system_variable_hash;
@@ -426,13 +427,15 @@ bool sys_var::is_default(THD *, set_var *var) {
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
   /* set client user */
-  if (thd->security_context()->user().length)
+  if (thd->security_context()->user().length > 0)
     strncpy(user, thd->security_context()->user().str,
             thd->security_context()->user().length);
   memset(host, 0, sizeof(host));
-  if (thd->security_context()->host().length)
-    strncpy(host, thd->security_context()->host().str,
-            thd->security_context()->host().length);
+  if (thd->security_context()->host().length > 0) {
+    int host_len =
+        min<size_t>(sizeof(host), thd->security_context()->host().length);
+    strncpy(host, thd->security_context()->host().str, host_len);
+  }
 }
 
 void sys_var::do_deprecated_warning(THD *thd) {
