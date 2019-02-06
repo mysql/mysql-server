@@ -8841,6 +8841,9 @@ ER_TARGET_TABLESPACE_UNENCRYPTED
 ER_CANNOT_USE_ENCRYPTION_CLAUSE
   eng "ENCRYPTION clause is not valid for %s tablespace."
 
+ER_INVALID_MULTIPLE_CLAUSES
+  eng "Multiple %s clauses"
+
 #
 #  End of 8.0 error messages.
 #
