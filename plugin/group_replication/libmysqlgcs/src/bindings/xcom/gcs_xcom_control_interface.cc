@@ -1089,6 +1089,16 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
   // ignore
   if (xcom_nodes->get_size() <= 0) goto end;
 
+  // Ignore view if member has been expelled
+  if (current_view != NULL &&
+      !current_view->has_member(
+          m_local_node_info->get_member_id().get_member_id())) {
+    MYSQL_GCS_LOG_DEBUG(
+        "Local view discarded: local node is no "
+        "longer in a group");
+    goto end;
+  }
+
   // if I am not aware of any view at all
   if (current_view != NULL) {
     std::vector<Gcs_member_identifier *> alive_members;
@@ -1240,6 +1250,7 @@ bool Gcs_xcom_control::xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
          it != non_member_suspect_nodes.end(); it++)
       delete *it;
     non_member_suspect_nodes.clear();
+    return true;
   }
 end:
   return false;

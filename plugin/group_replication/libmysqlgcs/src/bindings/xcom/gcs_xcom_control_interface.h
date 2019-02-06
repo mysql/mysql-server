@@ -447,8 +447,14 @@ class Gcs_xcom_control : public Gcs_control_interface {
     This method is called in order to give a hint on what the node thinks
     about other nodes.
 
+    The view is ignored if 1) it has no nodes, 2) the local node does not
+    have a view installed or 3) the local node is not present in its current
+    view (i.e., it has been expelled).
+
     @param[in] xcom_nodes Set of nodes that participated in the consensus
-                            to deliver the message
+                          to deliver the message
+    @return   True if the view was processed;
+              False otherwise.
   */
   bool xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes,
                                synode_no max_synode);
