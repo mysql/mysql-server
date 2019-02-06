@@ -10705,8 +10705,16 @@ int ha_innopart::exchange_partition_low(const char *part_table_path,
   }
 
   /* Swap the se_private_id between partition and table */
+
   dd_part->set_se_private_id(swap_table->se_private_id());
   swap_table->set_se_private_id(p_se_id);
+
+  for (auto dd_column : *swap_table->columns()) {
+    dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                     p_se_id);
+  }
+
+  dd_part_adjust_table_id(part_table);
 
 func_exit:
   free(swap_name);

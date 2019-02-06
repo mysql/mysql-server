@@ -950,3 +950,50 @@ DROP table t1,t2;
 --rmdir $mysql_tmp_dir/t1_dir
 --rmdir $mysql_tmp_dir/sp0_dir
 --rmdir $mysql_tmp_dir/sp3_dir
+
+
+--echo check table_id after exchange partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+
+### table_id swaps with test/t1
+let $table_id_before_exchange = `SELECT table_id FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t1%'`;
+
+ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
+
+let  $table_id_after_exchange = `SELECT DISTINCT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE TABLE_ID IN (SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%')`;
+
+--let $assert_cond = $table_id_before_exchange = $table_id_after_exchange
+--let $assert_text = Table id of t2 exchanged with t1
+--source include/assert.inc
+
+-- echo add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+
+ DROP TABLE t1,t2;
+
+ --echo exchange second partition
+CREATE TABLE t1 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB ;
+
+CREATE TABLE t2 (a INT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b VARCHAR(64)) ENGINE = INNODB PARTITION BY LIST (a) (PARTITION p1 VALUES IN (1,3,5,7,9) ,PARTITION p2 VALUES IN (0,2,4,6,8) );
+
+
+### table id remains same when changing other than first partition
+let $table_id_before_exchange = `SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%p1' OR NAME LIKE '%test%t2%p1'`;
+
+ALTER TABLE t2 EXCHANGE PARTITION p2 WITH TABLE t1;
+
+let  $table_id_after_exchange = `SELECT DISTINCT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE TABLE_ID IN (SELECT TABLE_ID FROM INFORMATION_SCHEMA.INNODB_TABLES WHERE NAME LIKE '%test%t2%')`;
+
+--let $assert_cond = $table_id_before_exchange = $table_id_after_exchange
+--let $assert_text = Table id of t2  is same after exchange it's 2nd partition with table t1
+--source include/assert.inc
+
+-- echo add column after exchange partition
+ALTER TABLE t2 ADD COLUMN j INT,ALGORITHM=INSTANT;
+ALTER TABLE t2 ADD COLUMN k INT,ALGORITHM=COPY;
+
+DROP TABLE t1,t2;
+
