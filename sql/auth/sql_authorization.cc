@@ -5722,7 +5722,8 @@ bool find_if_granted_role(Role_vertex_descriptor v, LEX_CSTRING role,
     if ((role.length == strlen(acl_user.user)) &&
         (role_host.length == acl_user.host.get_host_len()) &&
         !strncmp(role.str, acl_user.user, role.length) &&
-        !strncmp(role_host.str, acl_user.host.get_host(), role_host.length)) {
+        (role_host.length == 0 ||
+         !strncmp(role_host.str, acl_user.host.get_host(), role_host.length))) {
       /* Found a vertex matching the active role */
       if (found_vertex != 0)
         *found_vertex = boost::target(*ei, *g_granted_roles);
