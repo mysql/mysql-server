@@ -19569,12 +19569,7 @@ static MYSQL_SYSVAR_BOOL(
   "with the DD",
   NULL,                                     /* check func. */
   NULL,                                     /* update func. */
-#ifndef BUG29175268_FIXED
-  // Temporarily turn ndb_metadata_check off by default
-  false                                     /* default */
-#else
   true                                      /* default */
-#endif
 );
 
 ulong opt_ndb_metadata_check_interval;
