@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,6 +81,13 @@ namespace lob {
 
 /** The maximum size possible for an LOB */
 const ulint MAX_SIZE = UINT32_MAX;
+
+/** The compressed LOB is stored as a collection of zlib streams.  The
+ * uncompressed LOB is divided into chunks of size Z_CHUNK_SIZE and each of
+ * these chunks are compressed individually and stored as compressed LOB.
+data. */
+#define KB128 (128 * 1024)
+#define Z_CHUNK_SIZE KB128
 
 /** The reference in a field for which data is stored on a different page.
 The reference is at the end of the 'locally' stored part of the field.
@@ -198,6 +205,14 @@ struct ref_t {
   /** Constructor.
   @param[in]	ptr	Pointer to the external field reference. */
   explicit ref_t(byte *ptr) : m_ref(ptr) {}
+
+  /** For compressed LOB, if the length is less than or equal to Z_CHUNK_SIZE
+  then use the older single z stream format to store the LOB.  */
+  bool use_single_z_stream() const { return (length() <= Z_CHUNK_SIZE); }
+
+  /** For compressed LOB, if the length is less than or equal to Z_CHUNK_SIZE
+  then use the older single z stream format to store the LOB.  */
+  static bool use_single_z_stream(ulint len) { return (len <= Z_CHUNK_SIZE); }
 
   /** Check if this LOB is big enough to do partial update.
   @param[in]	page_size	the page size

@@ -5,17 +5,17 @@
 SET GLOBAL innodb_compression_level = 0;
 CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
 SET DEBUG = '+d,innodb_alloc_lob_page_failed';
-INSERT INTO t1 VALUES (1, REPEAT('x', 81920));
+INSERT INTO t1 VALUES (1, REPEAT('x', 128*1024+1));
 ERROR HY000: The table 't1' is full
 SET DEBUG = '-d,innodb_alloc_lob_page_failed';
 CREATE TABLE t2 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
 SET DEBUG = '+d,innodb_lob_alloc_z_data_page_failed';
-INSERT INTO t2 VALUES (1, REPEAT('x', 81920));
+INSERT INTO t2 VALUES (1, REPEAT('x', 128*1024+1));
 ERROR HY000: The table 't2' is full
 SET DEBUG = '-d,innodb_lob_alloc_z_data_page_failed';
 CREATE TABLE t3 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
 SET DEBUG = '+d,innodb_lob_alloc_z_frag_page_failed';
-INSERT INTO t3 VALUES (1, repeat('x', 81920));
+INSERT INTO t3 VALUES (1, repeat('x', 128*1024+1));
 ERROR HY000: The table 't3' is full
 SET DEBUG = '-d,innodb_lob_alloc_z_frag_page_failed';
 CREATE TABLE t4 (f1 INT PRIMARY KEY, f2 LONGBLOB) ROW_FORMAT=compressed;
