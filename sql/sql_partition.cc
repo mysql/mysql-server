@@ -843,8 +843,8 @@ static bool init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex) {
   */
   thd->lex = lex;
   auto table_ident = new (thd->mem_root)
-      Table_ident(thd->get_protocol(), to_lex_cstring(table->s->table_name),
-                  to_lex_cstring(table->s->db), true);
+      Table_ident(thd->get_protocol(), to_lex_cstring(table->s->db),
+                  to_lex_cstring(table->s->table_name), true);
   if (table_ident == nullptr) return true;
 
   TABLE_LIST *table_list =
