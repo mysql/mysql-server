@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,10 +239,10 @@ public:
     Uint32 pkhash;      // PK hash
   };
 
-  static Uint32 getpkhash(NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
-  static bool getpkequal(NdbEventOperationImpl* op, LinearSectionPtr ptr1[3], LinearSectionPtr ptr2[3]);
+  static Uint32 getpkhash(NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
+  static bool getpkequal(NdbEventOperationImpl* op, const LinearSectionPtr ptr1[3], const LinearSectionPtr ptr2[3]);
 
-  void search(Pos& hpos, NdbEventOperationImpl* op, LinearSectionPtr ptr[3]);
+  void search(Pos& hpos, NdbEventOperationImpl* op, const LinearSectionPtr ptr[3]);
   void append(Pos& hpos, EventBufData* data);
 
   enum { GCI_EVENT_HASH_SIZE = 101 };
@@ -793,7 +793,7 @@ public:
   // accessed from the "receive thread"
   int insertDataL(NdbEventOperationImpl *op,
 		  const SubTableData * const sdata, Uint32 len,
-		  LinearSectionPtr ptr[3]);
+                  const LinearSectionPtr ptr[3]);
   void execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const, Uint32 len,
                                 int complete_cluster_failure= 0);
   void execSUB_START_CONF(const SubStartConf * const, Uint32 len);
@@ -851,12 +851,12 @@ public:
   // routines to copy/merge events
   EventBufData* alloc_data();
   int alloc_mem(EventBufData* data,
-                LinearSectionPtr ptr[3]);
+                const LinearSectionPtr ptr[3]);
   int copy_data(const SubTableData * const sdata, Uint32 len,
-                LinearSectionPtr ptr[3],
+                const LinearSectionPtr ptr[3],
                 EventBufData* data);
   int merge_data(const SubTableData * const sdata, Uint32 len,
-                 LinearSectionPtr ptr[3],
+                 const LinearSectionPtr ptr[3],
                  EventBufData* data);
   int get_main_data(Gci_container* bucket,
                     EventBufData_hash::Pos& hpos,
@@ -942,7 +942,7 @@ public:
 private:
   void insert_event(NdbEventOperationImpl* impl,
                     SubTableData &data,
-                    LinearSectionPtr *ptr,
+                    const LinearSectionPtr *ptr,
                     Uint32 &oid_ref);
   
   EventMemoryBlock* expand_memory_blocks();
@@ -1000,9 +1000,6 @@ private:
 
   void handle_change_nodegroup(const SubGcpCompleteRep*);
 
-  // Create an epoch with only a exceptional event and an empty gci_op list.
-  EpochData* create_empty_exceptional_epoch(Uint64 gci, Uint32 type);
-
   Uint16 find_sub_data_stream_number(Uint16 sub_data_stream);
   void crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
                                       const SubGcpCompleteRep * const rep,
@@ -1010,6 +1007,9 @@ private:
                                       Uint32 remcnt,
                                       Uint32 repcnt) const;
 public:
+  // Create an epoch with only a exceptional event and an empty gci_op list.
+  EpochData* create_empty_exceptional_epoch(Uint64 gci, Uint32 type);
+
   void set_total_buckets(Uint32);
 };
 

@@ -2682,7 +2682,7 @@ NdbEventBuffer::complete_outof_order_gcis()
 void
 NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                              SubTableData &data,
-                             LinearSectionPtr *ptr,
+                             const LinearSectionPtr *ptr,
                              Uint32 &oid_ref)
 {
   DBUG_PRINT("info", ("gci{hi/lo}: %u/%u 0x%x %s",
@@ -3124,7 +3124,7 @@ int
 NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 			    const SubTableData * const sdata, 
                             Uint32 len,
-			    LinearSectionPtr ptr[3])
+                            const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::insertDataL");
   const Uint32 ri = sdata->requestInfo;
@@ -3331,6 +3331,7 @@ NdbEventBuffer::crashMemAllocError(const char *error_text)
 	  m_ndb->getNdbObjectName());
   g_eventLogger->error("Ndb Event Buffer : %s", error_text);
   g_eventLogger->error("Ndb Event Buffer : Fatal error.");
+abort();
   exit(-1);
 }
 
@@ -3349,7 +3350,7 @@ NdbEventBuffer::alloc_data()
 // meta EventBufData. Takes sizes from given ptr and sets up data->ptr
 int
 NdbEventBuffer::alloc_mem(EventBufData* data,
-                          LinearSectionPtr ptr[3])
+                          const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER("NdbEventBuffer::alloc_mem");
   DBUG_PRINT("info", ("ptr sz %u + %u + %u 0x%x %s",
@@ -3592,7 +3593,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
 
 int 
 NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
-                          LinearSectionPtr ptr[3],
+                          const LinearSectionPtr ptr[3],
                           EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::copy_data");
@@ -3683,7 +3684,7 @@ copy_attr(AttributeHeader ah,
 
 int 
 NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
-                           LinearSectionPtr ptr2[3],
+                           const LinearSectionPtr ptr2[3],
                            EventBufData* data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::merge_data");
@@ -4458,7 +4459,7 @@ EpochDataList::count_event_data() const
 // could optimize the all-fixed case
 Uint32
 EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
-                             LinearSectionPtr ptr[3])
+                             const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkhash");
   DBUG_DUMP_EVENT("ah", (char*)ptr[0].p, ptr[0].sz << 2);
@@ -4503,8 +4504,8 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
 bool
 EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
-                              LinearSectionPtr ptr1[3],
-                              LinearSectionPtr ptr2[3])
+                              const LinearSectionPtr ptr1[3],
+                              const LinearSectionPtr ptr2[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::getpkequal");
   DBUG_DUMP_EVENT("ah1", (char*)ptr1[0].p, ptr1[0].sz << 2);
@@ -4562,7 +4563,7 @@ EventBufData_hash::getpkequal(NdbEventOperationImpl* op,
 void
 EventBufData_hash::search(Pos& hpos,
                           NdbEventOperationImpl* op,
-                          LinearSectionPtr ptr[3])
+                          const LinearSectionPtr ptr[3])
 {
   DBUG_ENTER_EVENT("EventBufData_hash::search");
   Uint32 pkhash = getpkhash(op, ptr);

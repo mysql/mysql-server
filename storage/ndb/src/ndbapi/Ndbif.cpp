@@ -41,6 +41,8 @@
 #include <signaldata/NFCompleteRep.hpp>
 #include <signaldata/AllocNodeId.hpp>
 
+#include "AssembleFragments.hpp"
+
 #include <ndb_limits.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
@@ -328,6 +330,87 @@ NdbImpl::lookupTransactionFromOperation(const TcKeyConf * conf)
     }
   }
   return 0;
+}
+
+void
+NdbImpl::drop_batched_fragments(AssembleBatchedFragments* batched_fragments)
+{
+  NdbApiSignal signal(BlockReference(0));
+  batched_fragments->extract_signal_only(&signal);
+
+  require(signal.readSignalNumber() == GSN_SUB_TABLE_DATA);
+  const SubTableData * sdata=
+      CAST_CONSTPTR(SubTableData, signal.getDataPtr());
+  const Uint64 gci = (Uint64(sdata->gci_hi) << 32) | sdata->gci_lo;
+  m_ndb.theEventBuffer->create_empty_exceptional_epoch(
+      gci,
+      NdbDictionary::Event::_TE_INCONSISTENT);
+}
+
+/** NdbImpl::assemble_data_event_signal() assembles the fragments of a data
+ * event sent in GSN_SUB_TABLE_DATA into one signal.
+ * returns
+ *   -2 some error occured, batched fragments state is cleaned up
+ *   -1 more fragments is needed
+ *    0 signal was not fragmented, use as is, no cleanup needed.
+ *   >0 signal complete, call cleanup after use
+ */
+Int32
+NdbImpl::assemble_data_event_signal(AssembleBatchedFragments* batched_fragments, NdbApiSignal* signal, LinearSectionPtr ptr[3])
+{
+  AssembleBatchedFragments::Result result;
+
+  result = batched_fragments->assemble(signal, ptr);
+  if (unlikely(result == AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS))
+  {
+    /* Previous signal was a fragmented signal that should be completed by
+     * consecutive signals.  But some other signal come in between.
+     * This should not happen, bug in Suma?
+     */
+    drop_batched_fragments(batched_fragments);
+    result = batched_fragments->assemble(signal, ptr);
+    assert(result != AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS);
+  }
+
+  if (likely(result == AssembleBatchedFragments::MESSAGE_OK))
+  {
+    return 0;
+  }
+
+  if (result == AssembleBatchedFragments::NEED_SETUP)
+  {
+    const SubTableData * sdata=
+      CAST_CONSTPTR(SubTableData, signal->getDataPtr());
+
+    const bool setup_ok = batched_fragments->setup(sdata->totalLen);
+    if (unlikely(!setup_ok))
+    {
+      const Uint64 gci = (Uint64(sdata->gci_hi) << 32) | sdata->gci_lo;
+      m_ndb.theEventBuffer->create_empty_exceptional_epoch(
+          gci,
+          NdbDictionary::Event::_TE_OUT_OF_MEMORY);
+      return -2;
+    }
+    result = batched_fragments->assemble(signal, ptr);
+    assert(result != AssembleBatchedFragments::NEED_SETUP);
+    assert(result != AssembleBatchedFragments::ERR_BATCH_IN_PROGRESS);
+    assert(result != AssembleBatchedFragments::MESSAGE_OK);
+  }
+
+  if (result == AssembleBatchedFragments::NEED_MORE)
+  {
+    return -1;
+  }
+
+  if (unlikely(result != AssembleBatchedFragments::MESSAGE_COMPLETE))
+  {
+    drop_batched_fragments(batched_fragments);
+    return -2;
+  }
+
+  Uint32 num_secs = batched_fragments->extract(signal, ptr);
+  require(num_secs > 0);
+  return num_secs;
 }
 
 /****************************************************************************
@@ -1167,6 +1250,16 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_SUB_GCP_COMPLETE_REP:
   {
+    /* SUB_GCP_COMPLETE_REP signal will not be fragmented but must check if
+     * there is some fragmented data event ongoing to guarantee correct signal
+     * order from Suma.
+     */
+    const Uint32 sender_node = aSignal->get_sender_node();
+    if (unlikely(m_suma_fragmented_signals[sender_node].is_in_progress()))
+    {
+      drop_batched_fragments(&m_suma_fragmented_signals[sender_node]);
+    }
+
     const Uint64 latestGCI = myNdb->getLatestGCI();
     const SubGcpCompleteRep * const rep=
       CAST_CONSTPTR(SubGcpCompleteRep, aSignal->getDataPtr());
@@ -1180,11 +1273,24 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
   }
   case GSN_SUB_TABLE_DATA:
   {
-    const SubTableData * const sdata=
+    NdbApiSignal copy_signal(BlockReference(0));
+    LinearSectionPtr copy_ptr[3];
+
+    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    {
+      copy_ptr[i] = ptr[i];
+    }
+    for (int i = aSignal->m_noOfSections; i < 3; i++)
+    {
+      copy_ptr[i].p = NULL;
+      copy_ptr[i].sz = 0;
+    }
+
+    const SubTableData * sdata=
       CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
+
     const Uint32 oid = sdata->senderData;
     NdbEventOperationImpl *op= (NdbEventOperationImpl*)int2void(oid);
-
     if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
     {
       g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
@@ -1193,31 +1299,69 @@ NdbImpl::trp_deliver_signal(const NdbApiSignal * aSignal,
       return ;
     }
 
-    // Accumulate DIC_TAB_INFO for TE_ALTER events
-    if (SubTableData::getOperation(sdata->requestInfo) == 
-	NdbDictionary::Event::_TE_ALTER &&
-        !op->execSUB_TABLE_DATA(aSignal, ptr))
+    const Uint32 event = SubTableData::getOperation(sdata->requestInfo);
+    const bool is_data_event = event < NdbDictionary::Event::_TE_FIRST_NON_DATA_EVENT;
+    bool do_cleanup = false;
+
+    const Uint32 sender_node = aSignal->get_sender_node();
+
+    if (unlikely(!is_data_event))
     {
-      return;
+      if (m_suma_fragmented_signals[sender_node].is_in_progress())
+      {
+        drop_batched_fragments(&m_suma_fragmented_signals[sender_node]);
+      }
+
+      const bool is_alter_event = event == NdbDictionary::Event::_TE_ALTER;
+      if (is_alter_event)
+      {
+        if (!op->execSUB_TABLE_DATA(aSignal, copy_ptr))
+        {
+          return;
+        }
+      }
     }
-    
-    LinearSectionPtr copy[3];
-    for (int i = 0; i<aSignal->m_noOfSections; i++)
+    else
     {
-      copy[i] = ptr[i];
+      copy_signal = *aSignal;
+      Int32 num_secs = assemble_data_event_signal(&m_suma_fragmented_signals[sender_node],
+                                                  &copy_signal,
+                                                  copy_ptr);
+      if (num_secs < 0)
+      {
+        // Need more fragments.
+        return;
+      }
+
+      /* num_secs == 0 is in the case the signal was not fragmented which we
+       * take as the fast path.  Note that in this case the number of sections
+       * for is unchanged by assemble and is still likely more than 0.
+       */
+      if (unlikely(num_secs > 0))
+      {
+        aSignal = &copy_signal;
+        for (int i = num_secs; i < 3; i++)
+        {
+          copy_ptr[i].p = NULL;
+          copy_ptr[i].sz = 0;
+        }
+        do_cleanup = true;
+      }
+      sdata = CAST_CONSTPTR(SubTableData, aSignal->getDataPtr());
+      require(oid == sdata->senderData);
     }
-    for (int i = aSignal->m_noOfSections; i < 3; i++)
-    {
-      copy[i].p = NULL;
-      copy[i].sz = 0;
-    }
+
     DBUG_PRINT("info",("oid=senderData: %d, gci{hi/lo}: %d/%d, operation: %d, "
 		       "tableId: %d",
 		       sdata->senderData, sdata->gci_hi, sdata->gci_lo,
 		       SubTableData::getOperation(sdata->requestInfo),
 		       sdata->tableId));
 
-    myNdb->theEventBuffer->insertDataL(op, sdata, tLen, copy);
+    myNdb->theEventBuffer->insertDataL(op, sdata, tLen, copy_ptr);
+    if (do_cleanup)
+    {
+      m_suma_fragmented_signals[sender_node].cleanup();
+    }
     return;
   }
   case GSN_API_REGCONF:

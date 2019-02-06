@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include <NdbTick.h>
 #include <stat_utils.hpp>
 
+#include "AssembleFragments.hpp"
 #include "NdbQueryOperationImpl.hpp"
 #include "ndb_cluster_connection_impl.hpp"
 #include "NdbDictionaryImpl.hpp"
@@ -143,6 +144,7 @@ public:
 
   WakeupHandler* wakeHandler;
 
+  AssembleBatchedFragments m_suma_fragmented_signals[MAX_NDB_NODES];
   NdbEventOperationImpl *m_ev_op;
 
   int m_optimized_node_selection;
@@ -263,6 +265,9 @@ public:
                                   const LinearSectionPtr p[3]);
   virtual void trp_wakeup();
   virtual void recordWaitTimeNanos(Uint64 nanos);
+
+  void drop_batched_fragments(AssembleBatchedFragments* batched_fragments);
+  Int32 assemble_data_event_signal(AssembleBatchedFragments* batched_fragments, NdbApiSignal* signal, LinearSectionPtr ptr[3]);
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
   bool   get_node_stopping(NodeId nodeId) const;
