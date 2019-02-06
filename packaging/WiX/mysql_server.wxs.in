@@ -76,23 +76,38 @@
 
 
     <?if "@LINK_STATIC_RUNTIME_LIBRARIES@"="OFF" AND "@BUNDLE_RUNTIME_LIBRARIES@"="OFF" ?>
-      <Property Id="VS14REDISTX64"> 
-        <RegistrySearch Id="FindRedistVS14"
+      <Property Id="VS14REDISTX64_64"> 
+        <RegistrySearch Id="FindRedistVS14_64"
             Root="HKLM"
-            Win64="yes"
             Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
             Name="Version"
+            Win64="yes"
             Type="raw" />
       </Property>
-      <Property Id="VS14UPGRADE64">
-        <RegistrySearch Id="FindVS14Upgrade64"
+      <Property Id="VS14UPGRADE64_64">
+        <RegistrySearch Id="FindVS14Upgrade64_64"
             Root="HKLM"
-            Win64="yes"
             Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UpgradeCodes\09A86F63C932FD435BC8463B1035EC53"
+            Win64="yes"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14REDISTX64_32"> 
+        <RegistrySearch Id="FindRedistVS14_32"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+            Name="Version"
+            Win64="no"
+            Type="raw" />
+      </Property>
+      <Property Id="VS14UPGRADE64_32">
+        <RegistrySearch Id="FindVS14Upgrade64_32"
+            Root="HKLM"
+            Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UpgradeCodes\09A86F63C932FD435BC8463B1035EC53"
+            Win64="no"
             Type="raw" />
       </Property>
       <Condition Message="This application requires Visual Studio 2015 x64 Redistributable. Please install the Redistributable then run this installer again.">
-        Installed OR VS14REDISTX64 OR VS14UPGRADE64
+        Installed OR VS14REDISTX64_64 OR VS14UPGRADE64_64 OR VS14REDISTX64_32 OR VS14UPGRADE64_32
       </Condition>
     <?endif?> 
  
