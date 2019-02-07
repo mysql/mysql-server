@@ -99,7 +99,7 @@ ndb.ndb_addnode_restart2: Bug#29192097 IMPROVE ABORT HANDLING OF ALTER TABLE
 # to hardcode "magic" numbers into the test. Test should also be fixed
 # to switch binlog_format itself if that is necessary for the test to properly
 # test everything.
-rpl_ndb.rpl_ndb_mixed_implicit_commit_binlog : BUG#29110714 Unstable, magic numbers causes errors
+rpl_ndb.rpl_ndb_mixed_implicit_commit_binlog : BUG#29284229 Unstable, magic numbers causes errors
 rpl_ndb.rpl_ndb_row_implicit_commit_binlog   : BUG#12586131 Fails on SET PASSWORD
 
 # Below test disabled due to result content mismatch, test needs to be made more stable.
