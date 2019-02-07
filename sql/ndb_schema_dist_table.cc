@@ -39,6 +39,7 @@ static const char* COL_SLOCK = "slock";
 static const char* COL_NODEID = "node_id";
 static const char* COL_EPOCH = "epoch";
 static const char* COL_TYPE = "type";
+static const char* COL_SCHEMA_OP_ID = "schema_op_id";
 
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)
     : Ndb_util_table(thd_ndb, NDB_REP_DB, NDB_SCHEMA_TABLE, true) {}
@@ -111,6 +112,21 @@ bool Ndb_schema_dist_table::check_schema() const {
   // unsigned int
   if (!(check_column_exist(COL_TYPE) && check_column_unsigned(COL_TYPE))) {
     return false;
+  }
+
+  // schema_op_id
+  // unsigned int
+  if (!check_column_exist(COL_SCHEMA_OP_ID)) {
+    // This is an optional column added in 8.0.17. Functionality depending on
+    // this column will be conditional but warnings are pushed to alert the user
+    // that upgrade is eventually necessary
+    ;
+  } else {
+    // Column exists, check proper type
+    if (!(check_column_unsigned(COL_SCHEMA_OP_ID) &&
+          check_column_nullable(COL_SCHEMA_OP_ID, true))) {
+      return false;
+    }
   }
 
   return true;
@@ -268,12 +284,26 @@ bool Ndb_schema_dist_table::define_table_ndb(NdbDictionary::Table &new_table,
     if (!define_table_add_column(new_table, col_type)) return false;
   }
 
-  (void)mysql_version; // Only one version can be created
+  if (mysql_version >= 80017) {
+    // schema_op_id INT UNSIGNED NULL
+    NdbDictionary::Column col_schema_op_id(COL_SCHEMA_OP_ID);
+    col_schema_op_id.setType(NdbDictionary::Column::Unsigned);
+    col_schema_op_id.setNullable(true); // NULL!
+    if (!define_table_add_column(new_table, col_schema_op_id)) return false;
+  }
 
   return true;
 }
 
-bool Ndb_schema_dist_table::need_upgrade() const { return false; }
+bool Ndb_schema_dist_table::need_upgrade() const {
+  // Check that 'schema_op_id' column exists. If exists, it's used for sending
+  // the schema_op_id from client to participants who can then use it when
+  // replying using ndb_schema_result (if they support that table)
+  if (!have_schema_op_id_column()) {
+    return true;
+  }
+  return false;
+}
 
 bool Ndb_schema_dist_table::drop_events_in_NDB() const
 {
@@ -300,12 +330,20 @@ std::string Ndb_schema_dist_table::define_table_dd() const {
         "epoch BIGINT UNSIGNED NOT NULL,"
         "id INT UNSIGNED NOT NULL,"
         "version INT UNSIGNED NOT NULL,"
-        "type INT UNSIGNED NOT NULL,"
-        "PRIMARY KEY USING HASH (db,name)"
+        "type INT UNSIGNED NOT NULL,";
+  if (have_schema_op_id_column()) {
+    ss << "schema_op_id INT UNSIGNED NULL,";
+  }
+  ss << "PRIMARY KEY USING HASH (db,name)"
      << ") ENGINE=ndbcluster CHARACTER SET latin1";
   return ss.str();
 }
 
 int Ndb_schema_dist_table::get_slock_bytes() const {
   return get_column_max_length(COL_SLOCK);
+}
+
+bool Ndb_schema_dist_table::have_schema_op_id_column() const {
+  const NdbDictionary::Table *ndb_tab = get_table();
+  return ndb_tab->getColumn(COL_SCHEMA_OP_ID);
 }

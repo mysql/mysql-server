@@ -1,4 +1,7 @@
 --source include/have_debug.inc
+# Test need restart to make sure ndb_schema table is created the "old" way
+--source include/force_restart.inc
+
 --source connect.inc
 
 #
@@ -16,3 +19,98 @@ select @@ndb_schema_dist_upgrade_allowed;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 set @@ndb_schema_dist_upgrade_allowed = true;
 
+# 1) The MySQL Servers are started with --ndb-schema-dist-upgrade-allowed=false
+# and a special debug flag forcing the ndb_schema table to be created without
+# the new "schema_op_id" column. This will produce warnings in the log file, the
+# MySQL Server will start as usual and allow DDL(although with any
+# functionality that requires the new column disabled)
+
+# Supress warnings in all MySQL Servers, any of them may create the table
+let $i = $NUM_MYSQLDS;
+while($i)
+{
+  connection mysqld$i;
+  --disable_query_log
+  call mtr.add_suppression("Creating table definition without .* column");
+  call mtr.add_suppression("table need upgrade");
+  --enable_query_log
+  dec $i;
+}
+connection default;
+
+# 2) Check that DDL works without the "schema_op_id" column
+CREATE TABLE t1(
+  pk int not null,
+  a varchar(37) not null
+) ENGINE = NDB;
+
+INSERT INTO t1 VALUES(1, "hello");
+
+ALTER TABLE t1 ADD COLUMN b int NULL DEFAULT 24;
+ALTER TABLE t1 MODIFY COLUMN b int NOT NULL;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# 3) Restart the first MySQL Server with ndb-schema-dist-upgrade-allowed=true
+# and pop off the special debug flag. The ndb_schema table will now be upgraded
+# during restart.
+let $param1 = --ndb-schema-dist-upgrade-allowed=true;
+let $param2 = --debug=-d,ndb_schema_skip_create_schema_op_id;
+let $restart_parameters = restart: $param1 $param2;
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+
+# Check that variable is on after mysqld restart
+select @@ndb_schema_dist_upgrade_allowed;
+
+# Supress warning which occurs when restarting
+--disable_query_log ONCE
+call mtr.add_suppression("incident event has been written to the binary log");
+
+# 4) Check that DDL works _with_ the "schema_op_id" column
+CREATE TABLE t1(
+  pk int not null,
+  a varchar(37) not null
+) ENGINE = NDB;
+
+INSERT INTO t1 VALUES(1, "hello");
+
+ALTER TABLE t1 ADD COLUMN b int NULL DEFAULT 24;
+ALTER TABLE t1 MODIFY COLUMN b int NOT NULL;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# 5) Check DDL on the other MySQL Servers. The ndb binlog thread should have a
+# "hickup", then restart and becoming ready for schema distribution again.
+
+let $i = $NUM_MYSQLDS;
+while($i > 1)
+{
+  connection mysqld$i;
+
+  echo Checking mysqld$i;
+
+  # Wait until not readonly after binlog thread restart
+  --source include/ndb_not_readonly.inc
+  CREATE TABLE t1(
+    pk int not null,
+    a varchar(37) not null
+  ) ENGINE = NDB;
+
+  INSERT INTO t1 VALUES(1, "hello");
+
+  ALTER TABLE t1 ADD COLUMN b int NULL DEFAULT 24;
+  ALTER TABLE t1 MODIFY COLUMN b int NOT NULL;
+
+  SELECT * FROM t1;
+
+  DROP TABLE t1;
+
+  dec $i;
+}
+
+connection default;

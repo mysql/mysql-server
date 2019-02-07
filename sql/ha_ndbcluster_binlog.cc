@@ -2597,6 +2597,7 @@ constexpr uint SCHEMA_EPOCH_I = 5;
 constexpr uint SCHEMA_ID_I = 6;
 constexpr uint SCHEMA_VERSION_I = 7;
 constexpr uint SCHEMA_TYPE_I = 8;
+constexpr uint SCHEMA_OP_ID_I = 9;
 
 static void ndb_report_waiting(const char *key,
                                int the_time,
@@ -2661,12 +2662,13 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     DBUG_RETURN(0);
   }
 
+
   // Get NDB_SCHEMA_OBJECT
   std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
-      ndb_schema_object(
-          NDB_SCHEMA_OBJECT::get(db, table_name, ndb_table_id,
-                                 ndb_table_version, m_max_participants, true),
-          NDB_SCHEMA_OBJECT::release);
+      ndb_schema_object(NDB_SCHEMA_OBJECT::get(
+                            db, table_name, ndb_table_id, ndb_table_version,
+                            m_max_participants, true),
+                        NDB_SCHEMA_OBJECT::release);
 
   if (DBUG_EVALUATE_IF("ndb_binlog_random_tableid", true, false)) {
     /**
@@ -2770,6 +2772,11 @@ int Ndb_schema_dist_client::log_schema_op_impl(
       /* type */
       r|= op->setValue(SCHEMA_TYPE_I, log_type);
       DBUG_ASSERT(r == 0);
+      /* schema_op_id */
+      if (schema_dist_table.have_schema_op_id_column()){
+        r|= op->setValue(SCHEMA_OP_ID_I, ndb_schema_object->schema_op_id());
+        DBUG_ASSERT(r == 0);
+      }
       /* any value */
       Uint32 anyValue = 0;
       if (! m_thd->slave_thread)
@@ -3107,6 +3114,7 @@ public:
 
   void init(Ndb_cluster_connection *cluster_connection, uint max_subscribers) {
     m_own_nodeid = cluster_connection->node_id();
+    NDB_SCHEMA_OBJECT::init(m_own_nodeid);
 
     // Add one subscriber bitmap per data node in the current configuration
     unsigned node_id;
@@ -3377,6 +3385,14 @@ class Ndb_schema_event_handler {
       /* type */
       field++;
       type= (Uint32)((Field_long *)*field)->val_int();
+      /* schema_op_id */
+      field++;
+      if (*field) {
+         // Optional column
+        schema_op_id = (Uint32)((Field_long *)*field)->val_int();
+      } else {
+        schema_op_id = 0;
+      }
 
       dbug_tmp_restore_column_map(table->read_set, old_map);
     }
@@ -3404,6 +3420,7 @@ class Ndb_schema_event_handler {
     uint32 version;
     uint32 type;
     uint32 any_value;
+    uint32 schema_op_id;
 
     /**
       Create a Ndb_schema_op from event_data

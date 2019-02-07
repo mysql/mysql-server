@@ -64,6 +64,12 @@ class Ndb_schema_dist_table : public Ndb_util_table {
      @return number of bytes
   */
   int get_slock_bytes() const;
+
+  /**
+     @brief Check if the table has been upgraded with schema_op_id column
+     @return  true if table have the schema_op_id column
+   */
+  bool have_schema_op_id_column() const;
 };
 
 #endif

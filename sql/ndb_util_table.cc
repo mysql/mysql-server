@@ -200,6 +200,15 @@ bool Ndb_util_table::check_column_blob(const char* name) const {
                            "BLOB");
 }
 
+bool Ndb_util_table::check_column_nullable(const char* name, bool nullable) const {
+  if (get_column(name)->getNullable() != nullable) {
+    push_warning("Column '%s' must be defined to %sallow NULL values", name,
+                 nullable ? "" : "not ");
+    return false;
+  }
+  return true;
+}
+
 bool Ndb_util_table::define_table_add_column(
     NdbDictionary::Table &new_table,
     const NdbDictionary::Column &new_column) const {
@@ -264,7 +273,14 @@ bool Ndb_util_table::drop_event_in_NDB(const char *event_name) const {
 bool Ndb_util_table::create() const {
   NdbDictionary::Table new_table(m_table_name.c_str());
 
-  const unsigned mysql_version = MYSQL_VERSION_ID;
+  unsigned mysql_version = MYSQL_VERSION_ID;
+#ifndef DBUG_OFF
+  if (m_table_name == "ndb_schema" &&
+      DBUG_EVALUATE_IF("ndb_schema_skip_create_schema_op_id", true, false)) {
+    push_warning("Creating table definition without schema_op_id column");
+    mysql_version = 50725;
+  }
+#endif
   if (!define_table_ndb(new_table, mysql_version))
     return false;
 

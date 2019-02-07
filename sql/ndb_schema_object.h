@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,13 +50,28 @@ class NDB_SCHEMA_OBJECT {
   // active NDB_SCHEMA_OBJECTs
   const std::string m_key;
 
+  // The first part of key, normally used for db
+  const std::string m_db;
+  // The second part of key, normally used for name
+  const std::string m_name;
+  // The third part of key, normally used for id
+  const uint32 m_id;
+  // The fourth part of key, normally used for version
+  const uint32 m_version;
+
   // Use counter controlling lifecycle of the NDB_SCHEMA_OBJECT
   // Normally there are only two users(the Client and the Coordinator)
   uint m_use_count{0};
 
+  // Unique identifier giving each NDB_SCHEMA_OBJECT(and thus each schema
+  // operation) a global id in combination with the nodeid of the node who
+  // starts the schema operation
+  const uint32 m_schema_op_id;
+
   NDB_SCHEMA_OBJECT() = delete;
   NDB_SCHEMA_OBJECT(const NDB_SCHEMA_OBJECT&) = delete;
-  NDB_SCHEMA_OBJECT(const char* key, uint slock_bits);
+  NDB_SCHEMA_OBJECT(const char *key, const char *db, const char *name,
+                    uint32 id, uint32 version, uint slock_bits);
   ~NDB_SCHEMA_OBJECT();
 
   void check_waiter(const MY_BITMAP &new_participants);
@@ -72,8 +87,23 @@ public:
   // Return bitmap bits as hexadecimal string
   std::string slock_bitmap_to_string() const;
 
+  const char * db() const { return m_db.c_str(); }
+  const char * name() const { return m_name.c_str(); }
+  uint32 id() const { return m_id; }
+  uint32 version() const { return m_version; }
+
+  // Return the schema operation id
+  uint32 schema_op_id() const { return m_schema_op_id; }
+
   // Check if NDB_SCHEMA_OBJECTs should wakeup due to new participant status
   static void check_waiters(const MY_BITMAP &new_participants);
+
+  /**
+     @brief Initialize the NDB_SCHEMA_OBJECT facility
+
+     @param nodeid The nodeid of this node
+   */
+  static void init(uint32 nodeid);
 
   /**
     @brief Get NDB_SCHEMA_OBJECT to be used for communication between Client
@@ -99,6 +129,21 @@ public:
                                 uint32 id, uint32 version,
                                 uint participants = 0,
                                 bool create_if_not_exists = false);
+
+  /**
+    @brief Get NDB_SCHEMA_OBJECT by schema operation id
+
+    @param nodeid Nodeid of the node which started the schema operation
+    @param schema_op_id  Id of the schema operation in the node which started
+                         the schema operation
+
+    @note This function should only be used on the Coordinator(i.e where the
+    nodeid in the schema operation matches own nodeid)
+
+    @return pointer to NDB_SCHEMA_OBJECT if it existed
+    @return nullptr if NDB_SCHEMA_OBJECT didn't exist
+  */
+  static NDB_SCHEMA_OBJECT *get(uint32 nodeid, uint32 schema_op_id);
 
   /**
      @brief Release NDB_SCHEMA_OBJECT which has been acquired with get()

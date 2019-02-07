@@ -66,6 +66,8 @@ class Ndb_util_table {
   bool check_column_bigunsigned(const char* name) const;
   bool check_column_blob(const char* name) const;
 
+  bool check_column_nullable(const char* name, bool nullable) const;
+
   bool check_column_minlength(const char* name, int min_length) const;
 
   bool check_primary_key(const std::vector<const char*> columns) const;
