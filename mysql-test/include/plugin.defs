@@ -10,6 +10,7 @@
 # PLUGVAR_OPT: mysqld option --plugin_dir=....
 # PLUGVAR_LOAD: option --plugin_load=.... if the 4th element is present
 # PLUGVAR_LOAD_ADD: option --plugin_load_add=.... if the 4th element is present
+# PLUGVAR_LOAD_EARLY: option --early_plugin_load=.... if the 4th element is present
 #
 # If a listed plugin is not found, the corresponding variables will be
 # set to empty, they will not be unset.

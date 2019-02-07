@@ -96,7 +96,7 @@ struct MYSQL_XID {
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0109
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x010A
 
 /*
   The allowable types of plugins
@@ -159,6 +159,7 @@ struct MYSQL_XID {
 
 #define PLUGIN_OPT_NO_INSTALL 1UL   /* Not dynamically loadable */
 #define PLUGIN_OPT_NO_UNINSTALL 2UL /* Not dynamically unloadable */
+#define PLUGIN_OPT_ALLOW_EARLY 4UL  /* allow --early-plugin-load */
 
 /*
   declarations for server variables and command line options

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -453,7 +453,7 @@ mysql_declare_plugin(pfs_example_plugin_employee)
   0x0100 /* 1.0 */, NULL,             /* status variables */
   NULL,                               /* system variables */
   NULL,                               /* config options   */
-  0,                                  /* flags            */
+  PLUGIN_OPT_ALLOW_EARLY,             /* flags            */
 }
 mysql_declare_plugin_end;
 /* clang-format on */

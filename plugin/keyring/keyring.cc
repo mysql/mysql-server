@@ -261,5 +261,5 @@ mysql_declare_plugin(keyring_file){
     NULL,                          /*   status variables                */
     keyring_file_system_variables, /*   system variables                */
     NULL,
-    0,
+    PLUGIN_OPT_ALLOW_EARLY,
 } mysql_declare_plugin_end;

@@ -8847,6 +8847,11 @@ ER_UNSUPPORTED_USE_OF_GRANT_AS
 ER_UKNOWN_AUTH_ID_OR_ACCESS_DENIED_FOR_GRANT_AS
   eng "Either some of the authorization IDs in the AS clause are invalid or the current user lacks privileges to execute the statement."
 
+ER_PLUGIN_NOT_EARLY
+  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
+
+
 #
 #  End of 8.0 error messages.
 #
@@ -19118,6 +19123,14 @@ ER_NETWORK_NAMESPACE_FILE_PATH_TOO_LONG
 
 ER_IB_MSG_TOO_LONG_PATH
   eng "Cannot create tablespace '%s'. The filepath is too long for this OS."
+
+ER_PLUGIN_NOT_EARLY_DUP
+  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
+
+ER_PLUGIN_NO_INSTALL_DUP
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

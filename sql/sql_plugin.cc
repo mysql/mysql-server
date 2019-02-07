@@ -467,7 +467,7 @@ static malloc_unordered_map<std::string, st_bookmark *>
 /* prototypes */
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
-                             const char *list);
+                             const char *list, bool load_early);
 static bool check_if_option_is_deprecated(int optid,
                                           const struct my_option *opt,
                                           char *argument);
@@ -489,6 +489,13 @@ malloc_unordered_map<std::string, st_bookmark *> *get_bookmark_hash(void) {
   return bookmark_hash;
 }
 
+/**
+ @warning Make sure all errors reported to the log here are
+ defined at least twice in share/errmsg-utf8.txt
+
+ @arg where_to  a combination of @ref REPORT_TO_USER and @ref REPORT_TO_LOG
+ @arg error  the code for the mysql_error()
+*/
 static void report_error(int where_to, uint error, ...) {
   va_list args;
   if (where_to & REPORT_TO_USER) {
@@ -513,6 +520,12 @@ static void report_error(int where_to, uint error, ...) {
         break;
       case ER_UDF_EXISTS:
         ecode = ER_UDF_ALREADY_EXISTS;
+        break;
+      case ER_PLUGIN_NO_INSTALL:
+        ecode = ER_PLUGIN_NO_INSTALL_DUP;
+        break;
+      case ER_PLUGIN_NOT_EARLY:
+        ecode = ER_PLUGIN_NOT_EARLY_DUP;
         break;
       default:
         DBUG_ASSERT(false);
@@ -610,11 +623,13 @@ static inline void free_plugin_mem(st_plugin_dl *p) {
 
   @arg dl      The path to the plugin binary to load
   @arg report  a bitmask that's passed down to report_error()
+  @arg load_early true if loading the "early" plugins (--early-plugin-load etc)
 
   @return      A plugin reference.
   @retval      NULL      failed to load the plugin
 */
-static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report) {
+static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report,
+                                   bool load_early) {
   char dlpath[FN_REFLEN];
   uint dummy_errors, i;
   size_t plugin_dir_len, dlpathlen;
@@ -801,6 +816,18 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report) {
       }
   }
 
+  if (load_early) {
+    st_mysql_plugin *plugin = plugin_dl.plugins;
+    for (; plugin->info; ++plugin)
+      if (!(plugin->flags & PLUGIN_OPT_ALLOW_EARLY)) {
+        mysql_rwlock_unlock(&LOCK_system_variables_hash);
+        mysql_mutex_unlock(&LOCK_plugin);
+        report_error(report, ER_PLUGIN_NOT_EARLY, plugin->name);
+        free_plugin_mem(&plugin_dl);
+        DBUG_RETURN(NULL);
+      }
+  }
+
   /* Duplicate and convert dll name */
   plugin_dl.dl.length = dl->length * files_charset_info->mbmaxlen + 1;
   if (!(plugin_dl.dl.str = (char *)my_malloc(key_memory_mysql_plugin_dl,
@@ -974,8 +1001,8 @@ static st_plugin_int *plugin_insert_or_reuse(st_plugin_int *plugin) {
   ::LOCK_system_variables_hash
 */
 static bool plugin_add(MEM_ROOT *tmp_root, const LEX_STRING *name,
-                       const LEX_STRING *dl, int *argc, char **argv,
-                       int report) {
+                       const LEX_STRING *dl, int *argc, char **argv, int report,
+                       bool load_early) {
   st_plugin_int tmp;
   st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_add");
@@ -988,7 +1015,8 @@ static bool plugin_add(MEM_ROOT *tmp_root, const LEX_STRING *name,
     report_error(report, ER_UDF_EXISTS, name->str);
     DBUG_RETURN(true);
   }
-  if (!(tmp.plugin_dl = plugin_dl_add(dl, report))) DBUG_RETURN(true);
+  if (!(tmp.plugin_dl = plugin_dl_add(dl, report, load_early)))
+    DBUG_RETURN(true);
   /* Find plugin by name */
   for (plugin = tmp.plugin_dl->plugins; plugin->info; plugin++) {
     size_t name_len = strlen(plugin->name);
@@ -1449,7 +1477,7 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags) {
   I_List_iterator<i_string> iter(opt_early_plugin_load_list);
   i_string *item;
   while (NULL != (item = iter++))
-    plugin_load_list(&tmp_root, argc, argv, item->ptr);
+    plugin_load_list(&tmp_root, argc, argv, item->ptr, true);
 
   /* Temporary mem root not needed anymore, can free it here */
   free_root(&tmp_root, MYF(0));
@@ -1608,7 +1636,7 @@ bool plugin_register_dynamic_and_init_all(int *argc, char **argv, int flags) {
     I_List_iterator<i_string> iter(opt_plugin_load_list);
     i_string *item;
     while (NULL != (item = iter++))
-      plugin_load_list(&tmp_root, argc, argv, item->ptr);
+      plugin_load_list(&tmp_root, argc, argv, item->ptr, false);
 
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
@@ -1714,7 +1742,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     */
     mysql_mutex_lock(&LOCK_plugin);
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG)) {
+    if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG, false)) {
       LogErr(WARNING_LEVEL, ER_PLUGIN_CANT_LOAD, str_name.c_ptr(),
              str_dl.c_ptr());
     } else {
@@ -1746,11 +1774,12 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   @arg argc      number of command line arguments to process
   @arg argv      array of command line argument to read values from
   @arg list      list of plugins to load. Ends with a NULL pointer
+  @arg load_early true if loading plugins via --early-plugin-load or migration
   @retval true   failure
   @retval false  success
 */
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
-                             const char *list) {
+                             const char *list, bool load_early) {
   char buffer[FN_REFLEN];
   LEX_STRING name = {buffer, 0}, dl = {NULL, 0}, *str = &name;
   st_plugin_dl *plugin_dl;
@@ -1787,13 +1816,14 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           */
           mysql_mutex_lock(&LOCK_plugin);
           mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-          if ((plugin_dl = plugin_dl_add(&dl, REPORT_TO_LOG))) {
+          if ((plugin_dl = plugin_dl_add(&dl, REPORT_TO_LOG, load_early))) {
             for (plugin = plugin_dl->plugins; plugin->info; plugin++) {
               name.str = (char *)plugin->name;
               name.length = strlen(name.str);
 
               free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
-              if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+              if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG,
+                             load_early))
                 goto error;
             }
             plugin_dl_del(&dl);  // reduce ref count
@@ -1808,7 +1838,8 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           */
           mysql_mutex_lock(&LOCK_plugin);
           mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-          if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+          if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG,
+                         load_early))
             goto error;
         }
         mysql_rwlock_unlock(&LOCK_system_variables_hash);
@@ -2045,7 +2076,7 @@ bool plugin_early_load_one(int *argc, char **argv, const char *plugin) {
   MEM_ROOT tmp_root;
   init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_root, 4096, 4096);
 
-  plugin_load_list(&tmp_root, argc, argv, plugin);
+  plugin_load_list(&tmp_root, argc, argv, plugin, true);
 
   /* Temporary mem root not needed anymore, can free it here */
   free_root(&tmp_root, MYF(0));
@@ -2135,7 +2166,8 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
       goto err;
     }
-    error = plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER);
+    error =
+        plugin_add(thd->mem_root, name, dl, &argc, argv, REPORT_TO_USER, false);
   }
 
   /* LOCK_plugin and LOCK_system_variables_hash already unlocked by plugin_add()

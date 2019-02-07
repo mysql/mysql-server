@@ -2612,18 +2612,21 @@ sub read_plugin_defs($) {
       $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
 
       if ($plug_names) {
-        my $lib_name     = basename($plugin);
-        my $load_var     = "--plugin_load=";
-        my $load_add_var = "--plugin_load_add=";
-        my $semi         = '';
+        my $lib_name       = basename($plugin);
+        my $load_var       = "--plugin_load=";
+        my $early_load_var = "--early-plugin_load=";
+        my $load_add_var   = "--plugin_load_add=";
+        my $semi           = '';
 
         foreach my $plug_name (split(',', $plug_names)) {
-          $load_var     .= $semi . "$plug_name=$lib_name";
-          $load_add_var .= $semi . "$plug_name=$lib_name";
+          $load_var       .= $semi . "$plug_name=$lib_name";
+          $early_load_var .= $semi . "$plug_name=$lib_name";
+          $load_add_var   .= $semi . "$plug_name=$lib_name";
           $semi = ';';
         }
 
         $ENV{ $plug_var . '_LOAD' }     = $load_var;
+        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
         $ENV{ $plug_var . '_LOAD_ADD' } = $load_add_var;
       }
     } else {
