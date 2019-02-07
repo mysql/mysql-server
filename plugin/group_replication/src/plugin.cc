@@ -1387,8 +1387,10 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     Group Partition Handler module.
   */
   if (modules_to_terminate[gr_modules::GROUP_PARTITION_HANDLER]) {
+    if (group_partition_handler != nullptr)
+      group_partition_handler->terminate_partition_handler_thread();
     delete group_partition_handler;
-    group_partition_handler = NULL;
+    group_partition_handler = nullptr;
   }
 
   /*
