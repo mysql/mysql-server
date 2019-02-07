@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source suite/ndb/include/have_little_endian.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
 # test ndb_restore between old types and new types of precision 0
