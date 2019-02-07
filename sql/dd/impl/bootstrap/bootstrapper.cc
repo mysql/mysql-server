@@ -1658,7 +1658,7 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
             thd, "MINOR_DOWNGRADE_THRESHOLD",
             dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD) ||
         dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
-                                                  dd::sdi_version) ||
+                                                  dd::SDI_VERSION) ||
         dd::tables::DD_properties::instance().set(thd, "LCTN",
                                                   lower_case_table_names) ||
         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_LO",
@@ -1734,9 +1734,9 @@ bool update_versions(THD *thd, bool is_dd_upgrade_57) {
     if ((dd::tables::DD_properties::instance().get(
              thd, "SDI_VERSION", &stored_sdi_version, &exists_sdi) ||
          !exists_sdi) ||
-        (stored_sdi_version < dd::sdi_version &&
+        (stored_sdi_version < dd::SDI_VERSION &&
          dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
-                                                   dd::sdi_version)))
+                                                   dd::SDI_VERSION)))
       return dd::end_transaction(thd, true);
 
     /*

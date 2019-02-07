@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,7 +171,7 @@ String_type generic_serialize(THD *thd, const char *dd_object_type,
   w.Uint(Dictionary_impl::get_target_dd_version());
 
   w.String(STRING_WITH_LEN("sdi_version"));
-  w.Uint64(sdi_version);
+  w.Uint64(SDI_VERSION);
 
   w.String(STRING_WITH_LEN("dd_object_type"));
   w.String(dd_object_type, dd_object_type_size);
@@ -404,10 +404,10 @@ bool generic_deserialize(
   RJ_Value &sdi_version_val = doc["sdi_version"];
   DBUG_ASSERT(sdi_version_val.IsUint64());
   std::uint64_t sdi_version_ = sdi_version_val.GetUint64();
-  if (sdi_version_ != sdi_version) {
+  if (sdi_version_ != SDI_VERSION) {
     // Incompatible change
     my_error(ER_IMP_INCOMPATIBLE_SDI_VERSION, MYF(0), sdi_version_,
-             sdi_version);
+             SDI_VERSION);
     return true;
   }
 

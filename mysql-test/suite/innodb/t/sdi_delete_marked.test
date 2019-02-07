@@ -3,6 +3,7 @@
 --source suite/innodb/include/ibd2sdi_replace_pattern.inc
 
 --let $MYSQLD_DATADIR=`SELECT @@datadir`
+
 CREATE TABLE t1(a INT PRIMARY KEY, b JSON, c BLOB, d LONGBLOB, e MEDIUMBLOB, f TINYBLOB);
 
 --echo # stop purge so that ibd2sdi can see delete-marked

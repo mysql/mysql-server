@@ -7,7 +7,7 @@
 		{
     "mysqld_version_id": X,
     "dd_version": X,
-    "sdi_version": 1,
+    "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t6",
@@ -484,78 +484,91 @@
                         "ordinal_position": 1,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 2,
                         "length": 186,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 7
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 10
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 11
                     },
                     {
                         "ordinal_position": 5,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 0
                     },
                     {
                         "ordinal_position": 6,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 1
                     },
                     {
                         "ordinal_position": 7,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 8,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 3
                     },
                     {
                         "ordinal_position": 9,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 4
                     },
                     {
                         "ordinal_position": 10,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 6
                     },
                     {
                         "ordinal_position": 11,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     },
                     {
                         "ordinal_position": 12,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 8
                     },
                     {
                         "ordinal_position": 13,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 9
                     }
                 ],
@@ -579,18 +592,21 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 3
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -614,18 +630,21 @@
                         "ordinal_position": 1,
                         "length": 102,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 7
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -649,30 +668,35 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 8
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 1
                     },
                     {
                         "ordinal_position": 3,
                         "length": 3,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 6
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 5,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -696,18 +720,21 @@
                         "ordinal_position": 1,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 2,
                         "length": 5,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -731,36 +758,42 @@
                         "ordinal_position": 1,
                         "length": 3,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 6
                     },
                     {
                         "ordinal_position": 2,
                         "length": 240,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 7
                     },
                     {
                         "ordinal_position": 3,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 4,
                         "length": 5,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 5,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 3
                     },
                     {
                         "ordinal_position": 6,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -784,36 +817,42 @@
                         "ordinal_position": 1,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 2,
                         "length": 1,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 4
                     },
                     {
                         "ordinal_position": 3,
                         "length": 5,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 95,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 0
                     },
                     {
                         "ordinal_position": 5,
                         "length": 215,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 7
                     },
                     {
                         "ordinal_position": 6,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -837,18 +876,21 @@
                         "ordinal_position": 1,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 2,
                         "length": 26,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 0
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -872,30 +914,35 @@
                         "ordinal_position": 1,
                         "length": 3,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 6
                     },
                     {
                         "ordinal_position": 2,
                         "length": 8,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 3,
                         "length": 5,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 3
                     },
                     {
                         "ordinal_position": 5,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -919,30 +966,35 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 8
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 1
                     },
                     {
                         "ordinal_position": 3,
                         "length": 25,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 9
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 5
                     },
                     {
                         "ordinal_position": 5,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 7
                     }
                 ],
@@ -964,7 +1016,7 @@
 		{
     "mysqld_version_id": X,
     "dd_version": X,
-    "sdi_version": 1,
+    "sdi_version": X,
     "dd_object_type": "Tablespace",
     "dd_object": {
         "name": "test/t6",
