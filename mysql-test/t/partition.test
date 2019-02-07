@@ -2778,3 +2778,13 @@ SELECT * FROM t;
 DROP TABLE t;
 # Cleanup
 --force-rmdir $MYSQLTEST_VARDIR/tmp/test/
+
+--echo #
+--echo # Bug#29317007: INIT_LEX_WITH_SINGLE_TABLE() CONFUSES TABLE
+--echo #               AND SCHEMA NAME
+--echo #
+
+CREATE SCHEMA tables;
+CREATE TABLE tables.mysql(a INT);
+ALTER TABLE tables.mysql PARTITION BY HASH (a);
+DROP SCHEMA tables;
