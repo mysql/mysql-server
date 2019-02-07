@@ -172,7 +172,7 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     EXPECT_THAT(router.get_full_output(),
-                StartsWith("Could not find service 'MySQLRouter'!\n"
+                StartsWith("ERROR: Could not find service 'MySQLRouter'!\n"
                            "Use --install-service or --install-service-manual "
                            "option to install the service first.\n"));
   }

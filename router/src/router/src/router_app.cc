@@ -429,7 +429,13 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
 
 /*static*/
 void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
-                                   bool raw_mode /*= false*/) {
+                                   bool raw_mode /*= false*/,
+                                   bool use_os_log /*= false*/) {
+// currently logging to OS log is only supported on Windows
+#ifndef _WIN32
+  harness_assert(use_os_log == false);
+#endif
+
   if (!config.has_default("logging_folder"))
     config.set_default("logging_folder", "");
 
@@ -461,8 +467,8 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
     mysql_harness::logging::create_logger(*registry, level, "sql");
 
     // attach all loggers to main handler (throws std::runtime_error)
-    mysql_harness::logging::create_main_log_handler(*registry, kProgramName,
-                                                    logging_folder, !raw_mode);
+    mysql_harness::logging::create_main_log_handler(
+        *registry, kProgramName, logging_folder, !raw_mode, use_os_log);
 
     // nothing threw - we're good. Now let's replace the new registry with the
     // old one
@@ -479,6 +485,10 @@ void MySQLRouter::init_main_logger(mysql_harness::LoaderConfig &config,
   if (config.logging_to_file())
     log_debug("Main logger initialized, logging to '%s'",
               config.get_log_file().c_str());
+#ifdef _WIN32
+  else if (use_os_log)
+    log_debug("Main logger initialized, logging to Windows EventLog");
+#endif
   else
     log_debug("Main logger initialized, logging to STDERR");
 }

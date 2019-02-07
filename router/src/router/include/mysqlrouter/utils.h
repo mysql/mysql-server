@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +231,10 @@ void set_prompt_password(
 bool is_running_as_service();
 
 /** @brief Writes to the Windows event log.
+ *
+ * @param msg Message to log
+ *
+ * @throws std::runtime_error in case of an error
  */
 void write_windows_event_log(const std::string &msg);
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 
 #include "builtin_plugins.h"
 #ifdef _WIN32
-#include "logging/eventlog_plugin.h"
+#include "mysql/harness/logging/eventlog_plugin.h"
 #else
 #include "logging/syslog_plugin.h"
 #endif
