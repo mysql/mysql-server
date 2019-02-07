@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@
 
 #include "Ndbinfo.hpp"
 #include "portlib/NdbMem.h"
+#include <ndb_global.h>
 
 struct CHARSET_INFO;
 
@@ -413,7 +414,7 @@ enum OverloadStatus
    live system.
 */
 
-class SimulatedBlock :
+class alignas(NDB_CL) SimulatedBlock :
   public SegmentUtils  /* SimulatedBlock implements the Interface */
 {
   friend class TraceLCP;
