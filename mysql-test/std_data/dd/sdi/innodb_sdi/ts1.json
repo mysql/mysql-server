@@ -7,7 +7,7 @@
 		{
     "mysqld_version_id": X,
     "dd_version": X,
-    "sdi_version": 1,
+    "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t8",
@@ -160,18 +160,21 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 0
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 1
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 2
                     }
                 ],
@@ -194,7 +197,7 @@
 		{
     "mysqld_version_id": X,
     "dd_version": X,
-    "sdi_version": 1,
+    "sdi_version": X,
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t9",
@@ -419,24 +422,28 @@
                         "ordinal_position": 1,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 2
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 3
                     },
                     {
                         "ordinal_position": 3,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 4
                     },
                     {
                         "ordinal_position": 4,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 0
                     }
                 ],
@@ -460,12 +467,14 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 0
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 2
                     }
                 ],
@@ -489,12 +498,14 @@
                         "ordinal_position": 1,
                         "length": 4,
                         "order": 2,
+                        "hidden": false,
                         "column_opx": 1
                     },
                     {
                         "ordinal_position": 2,
                         "length": 4294967295,
                         "order": 2,
+                        "hidden": true,
                         "column_opx": 2
                     }
                 ],
@@ -535,7 +546,7 @@
 		{
     "mysqld_version_id": X,
     "dd_version": X,
-    "sdi_version": 1,
+    "sdi_version": X,
     "dd_object_type": "Tablespace",
     "dd_object": {
         "name": "ts1",

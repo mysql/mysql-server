@@ -122,6 +122,7 @@ void Index_element_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
   write(w, m_length, STRING_WITH_LEN("length"));
   write_enum(w, m_order, STRING_WITH_LEN("order"));
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
   write_opx_reference(w, m_column, STRING_WITH_LEN("column_opx"));
   w->EndObject();
 }
@@ -132,6 +133,7 @@ bool Index_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_ordinal_position, val, "ordinal_position");
   read(&m_length, val, "length");
   read_enum(&m_order, val, "order");
+  read(&m_hidden, val, "hidden");
   read_opx_reference(rctx, &m_column, val, "column_opx");
   return false;
 }

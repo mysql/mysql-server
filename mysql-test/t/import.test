@@ -191,7 +191,9 @@ EOF
 --echo # Copy SDI file back into data dir
 --copy_files_wildcard $EXPORT_DIR $MYSQLD_DATADIR/test/ t1_.sdi
 
---error ER_IMP_INCOMPATIBLE_SDI_VERSION
+# List error twice to avoid echoing error message, which will contain the
+# current server version number
+--error ER_IMP_INCOMPATIBLE_SDI_VERSION,ER_IMP_INCOMPATIBLE_SDI_VERSION
 IMPORT TABLE FROM 't1_.sdi';
 DROP TABLE t1;
 --remove_files_wildcard $EXPORT_DIR *

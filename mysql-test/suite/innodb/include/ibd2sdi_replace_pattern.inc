@@ -37,8 +37,8 @@
 # Remove extra path separator seen on windows and partition names
 --let $p13=/\/\//\// /#P#/#p#/ /#SP#/#sp#/
 
-# Remove dd version id
---let $p15=/("dd_version": )[0-9]+/\1X/
+# Remove any version id
+--let $p15=/("[a-z_]+_version": )[0-9]+/\1X/
 
 --let $ibd2sdi_pattern=$p1 $p2 $p3 $p4 $p5 $p6 $p7 $p8 $p9 $p10 $p11 $p12 $p13 $p15
 

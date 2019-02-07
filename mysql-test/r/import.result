@@ -127,7 +127,7 @@ CREATE TABLE t1(i INT) ENGINE=MYISAM;
 # Use perl to patch sdi_version in SDI file
 # Copy SDI file back into data dir
 IMPORT TABLE FROM 't1_.sdi';
-ERROR HY000: Imported sdi version (42) is not compatible with current (1)
+Got one of the listed errors
 DROP TABLE t1;
 #
 # IM-NEG-8 Verify that CREATE and FILE privileges are required
