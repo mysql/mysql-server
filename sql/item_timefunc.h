@@ -294,6 +294,7 @@ class Item_func_week final : public Item_int_func {
 
   longlong val_int() override;
   const char *func_name() const override { return "week"; }
+  enum Functype functype() const override { return WEEK_FUNC; }
   bool resolve_type(THD *) override {
     fix_char_length(2); /* 0..54 */
     maybe_null = true;
@@ -367,6 +368,7 @@ class Item_func_weekday : public Item_func {
   const char *func_name() const override {
     return (odbc_type ? "dayofweek" : "weekday");
   }
+  enum Functype functype() const override { return WEEKDAY_FUNC; }
   enum Item_result result_type() const override { return INT_RESULT; }
   bool resolve_type(THD *) override {
     fix_char_length(1);
