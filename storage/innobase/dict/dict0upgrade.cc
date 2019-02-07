@@ -1152,14 +1152,23 @@ int dd_upgrade_tablespace(THD *thd) {
       } else if (is_file_per_table) {
         /* Validate whether the tablespace file exists before making
         the entry in dd::tablespaces*/
-        Datafile df;
-        df.set_filepath(orig_name.c_str());
-        if (df.open_read_only(false) != DB_SUCCESS) {
-          mem_heap_free(heap);
-          btr_pcur_close(&pcur);
-          DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+
+        mutex_enter(&dict_sys->mutex);
+        fil_space_t *fil_space = fil_space_get(space);
+        mutex_exit(&dict_sys->mutex);
+
+        /* If the file is not already opened, check for its existence
+        by opening it in read-only mode. */
+        if (fil_space == nullptr) {
+          Datafile df;
+          df.set_filepath(orig_name.c_str());
+          if (df.open_read_only(false) != DB_SUCCESS) {
+            mem_heap_free(heap);
+            btr_pcur_close(&pcur);
+            DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+          }
+          df.close();
         }
-        df.close();
       }
 
       ut_ad(filename != NULL);
