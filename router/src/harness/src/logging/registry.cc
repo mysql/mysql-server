@@ -33,6 +33,9 @@
 #include "mysql/harness/logging/handler.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/logging/registry.h"
+#ifdef _WIN32
+#include "mysql/harness/logging/eventlog_plugin.h"
+#endif
 
 #include "common.h"
 #include "dim.h"
@@ -221,15 +224,16 @@ std::ostream *get_default_logger_stream() { return &std::cerr; }
 
 void create_main_log_handler(Registry &registry, const std::string &program,
                              const std::string &logging_folder,
-                             bool format_messages) {
-  // Register the console as the handler if the logging folder is
-  // undefined. Otherwise, register a file handler.
-  if (logging_folder.empty()) {
-    registry.add_handler(kMainConsoleHandler,
-                         std::make_shared<StreamHandler>(
-                             *get_default_logger_stream(), format_messages));
-    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
-  } else {
+                             bool format_messages,
+                             bool use_os_log /*= false*/) {
+#ifndef _WIN32
+  // currently logging to OS log is only supported on Windows
+  // (maybe in the future we'll add Syslog on the Unix side)
+  harness_assert(use_os_log == false);
+#endif
+
+  // if logging folder is provided, make filelogger our main handler
+  if (!logging_folder.empty()) {
     Path log_file = Path::make_path(logging_folder, program, "log");
 
     // throws std::runtime_error on failure to open file
@@ -237,6 +241,30 @@ void create_main_log_handler(Registry &registry, const std::string &program,
                                               log_file, format_messages));
 
     attach_handler_to_all_loggers(registry, kMainLogHandler);
+    return;
+  }
+
+    // if user wants to log to OS log, make that our main handler
+#ifdef _WIN32  // only Windows Eventlog is supported at the moment
+  if (use_os_log) {
+    // throws std::runtime_error on failure to init Windows Eventlog
+    registry.add_handler(
+        EventlogHandler::kDefaultName,
+        std::make_shared<EventlogHandler>(
+            format_messages, mysql_harness::logging::LogLevel::kWarning,
+            false));
+
+    attach_handler_to_all_loggers(registry, EventlogHandler::kDefaultName);
+    return;
+  }
+#endif
+
+  // fall back to logging to console
+  {
+    registry.add_handler(kMainConsoleHandler,
+                         std::make_shared<StreamHandler>(
+                             *get_default_logger_stream(), format_messages));
+    attach_handler_to_all_loggers(registry, kMainConsoleHandler);
   }
 }
 

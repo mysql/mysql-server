@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "mysqlrouter/utils.h"
+
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/string_utils.h"
@@ -502,7 +503,12 @@ void write_windows_event_log(const std::string &msg) {
     strings[1] = msg.c_str();
     ReportEventA(event_src, EVENTLOG_ERROR_TYPE, 0, 0, NULL, 2, 0, strings,
                  NULL);
-    DeregisterEventSource(event_src);
+    BOOL ok = DeregisterEventSource(event_src);
+    if (!ok) {
+      throw std::runtime_error(
+          "Cannot destroy event log source after logging '" + msg +
+          "', error: " + std::to_string(GetLastError()));
+    }
   } else {
     throw std::runtime_error("Cannot create event log source, error: " +
                              std::to_string(GetLastError()));

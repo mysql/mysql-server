@@ -277,23 +277,29 @@ void create_logger(Registry &registry, const LogLevel level,
  * Initialize logfile handler
  *
  * Initializes handler which will handle application's log. This handler
- * will be attached to all currently-registered loggers. If `logging_folder`
- * is empty, handler will log messages to console, otherwise, logfile will be
- * used and its path and filename will be derived from `program` and
- * `logging_folder` parameters.
+ * will be attached to all currently-registered loggers.
+ * If `logging_folder` is provided, handler will log messages to logfile; its
+ * path and filename will be derived from `program` and `logging_folder`
+ * parameters.
+ * If `logging_folder` is empty, handler will log messages to console, unless
+ * `use_os_log` is set to true, in which case it will log to system logger
+ * instead (i.e. Syslog, Windows Eventlog, etc. Currently, only Windows
+ * Eventlog is supported).
  *
  * @param registry Registry object, typically managed by DIM
  * @param program Name of the main program (Router)
  * @param logging_folder logging_folder provided in configuration file
  * @param format_messages If set to true, log messages will be formatted
  *        (prefixed with log level, timestamp, etc) before logging
+ * @param use_os_log If true, use system logger instead of STDERR (currently,
+ *        only Windows Eventlog is supported)
  *
- * @throws std::runtime_error if opening log file fails
+ * @throws std::runtime_error if opening log file or OS log fails
  */
 HARNESS_EXPORT
 void create_main_log_handler(Registry &registry, const std::string &program,
                              const std::string &logging_folder,
-                             bool format_messages);
+                             bool format_messages, bool use_os_log = false);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
