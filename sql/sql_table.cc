@@ -7261,6 +7261,22 @@ static const char *make_functional_index_column_name(
 }
 
 /**
+  Whether or not we have a replication setup, _and_ the master sorts
+  functional index columns last in the table. Sorting said columns last was
+  introduced in version 8.0.18, and this function helps us keep consistent
+  behavior in a OLD->NEW replication setup.
+
+  @returns false if we have a replication setup, _and_ the server is on a old
+    version that doesn't sort functional index columns last.
+*/
+static bool is_not_slave_or_master_sorts_functional_index_columns_last(
+    uint32_t master_version) {
+  // From version 8.0.18, the server will sort functional index columns last in
+  // the table.
+  return master_version >= 80018 && master_version != UNKNOWN_SERVER_VERSION;
+}
+
+/**
   Prepares a functional index by adding a hidden indexed generated column for
   the key part.
 
@@ -7280,18 +7296,15 @@ static const char *make_functional_index_column_name(
   @param key_part_number The number of the key part.
   @param create_info A structure describing the table to be created
 
-  @retval true on error
-  @retval false on success
+  @returns The newly added Create_field on success, of nullptr in case of errors
 */
-static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
-                                                Alter_info *alter_info,
-                                                Key_part_spec *kp,
-                                                uint key_part_number,
-                                                HA_CREATE_INFO *create_info) {
+static Create_field *add_functional_index_to_create_list(
+    THD *thd, Key_spec *key_spec, Alter_info *alter_info, Key_part_spec *kp,
+    uint key_part_number, HA_CREATE_INFO *create_info) {
   // A functional index cannot be a primary key
   if (key_spec->type == KEYTYPE_PRIMARY) {
     my_error(ER_FUNCTIONAL_INDEX_PRIMARY_KEY, MYF(0));
-    return true;
+    return nullptr;
   }
 
   // If the key isn't given a name explicitly by the user, we must auto-generate
@@ -7324,7 +7337,7 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
                         {key_spec->name.str, key_spec->name.length},
                         key_spec)) {
       my_error(ER_DUP_KEYNAME, MYF(0), key_spec->name.str);
-      return true;
+      return nullptr;
     }
   }
 
@@ -7345,22 +7358,22 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
     Item *expr = kp->get_expression();
     if (expr->type() == Item::FIELD_ITEM) {
       my_error(ER_FUNCTIONAL_INDEX_ON_FIELD, MYF(0));
-      return true;
+      return nullptr;
     }
 
     if (pre_validate_value_generator_expr(
             kp->get_expression(), key_spec->name.str, VGS_GENERATED_COLUMN)) {
-      return true;
+      return nullptr;
     }
 
     Replace_field_processor_arg replace_field_argument(
         thd, &alter_info->create_list, create_info, key_spec->name.str);
     if (expr->walk(&Item::replace_field_processor, enum_walk::PREFIX,
                    reinterpret_cast<uchar *>(&replace_field_argument))) {
-      return true;
+      return nullptr;
     }
 
-    if (kp->resolve_expression(thd)) return true;
+    if (kp->resolve_expression(thd)) return nullptr;
   }
 
   const char *field_name = make_functional_index_column_name(
@@ -7383,12 +7396,12 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
 
   Create_field *cr = generate_create_field(thd, item, &tmp_table);
   if (cr == nullptr) {
-    return true; /* purecov: deadcode */
+    return nullptr; /* purecov: deadcode */
   }
 
   if (is_blob(cr->sql_type)) {
     my_error(ER_FUNCTIONAL_INDEX_ON_LOB, MYF(0));
-    return true;
+    return nullptr;
   }
 
   cr->field_name = field_name;
@@ -7401,11 +7414,39 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
   gcol_info->set_field_stored(false);
   gcol_info->set_field_type(cr->sql_type);
   cr->gcol_info = gcol_info;
-  alter_info->create_list.push_back(cr);
-  alter_info->flags |= Alter_info::ALTER_ADD_COLUMN;
 
+  if (is_not_slave_or_master_sorts_functional_index_columns_last(
+          thd->variables.original_server_version)) {
+    // Ensure that we insert the new hidden column in the correct place. That
+    // is, hidden generated columns for functional indexes should be placed at
+    // the end, sorted on their column name.
+    List_iterator<Create_field> insert_iterator(alter_info->create_list);
+    for (const Create_field &current : alter_info->create_list) {
+      if (is_field_for_functional_index(&current)) {
+        if (my_strcasecmp(system_charset_info, cr->field_name,
+                          current.field_name) < 0) {
+          break;
+        }
+      }
+
+      insert_iterator++;
+    }
+
+    // insert_iterator points to the last element where the field name is
+    // "less than" the new Create_fields field name. So the correct place to
+    // insert the new Create_field is _after_ the element that insert_iterator
+    // points to.
+    DBUG_ASSERT(!insert_iterator.is_before_first());
+    insert_iterator.after(cr);
+  } else {
+    // If the master doesn't sort functional index columns last, the slave
+    // shouldn't do it either.
+    alter_info->create_list.push_back(cr);
+  }
+
+  alter_info->flags |= Alter_info::ALTER_ADD_COLUMN;
   kp->set_name_and_prefix_length(field_name, 0);
-  return false;
+  return cr;
 }
 
 /**
@@ -7537,15 +7578,14 @@ bool mysql_prepare_create_table(
         continue;
       }
 
-      if (add_functional_index_to_create_list(thd, key, alter_info,
-                                              key_part_spec, j, create_info)) {
+      Create_field *new_create_field = add_functional_index_to_create_list(
+          thd, key, alter_info, key_part_spec, j, create_info);
+      if (new_create_field == nullptr) {
         return true;
       }
 
       // Call prepare_create_field on the Create_field that was added by
       // add_functional_index_to_create_list().
-      Create_field *new_create_field =
-          alter_info->create_list[alter_info->create_list.elements - 1];
       DBUG_ASSERT(is_field_for_functional_index(new_create_field));
       if (prepare_create_field(thd, create_info, &alter_info->create_list,
                                &select_field_pos, file, new_create_field,
@@ -13663,6 +13703,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   if (table->record[0] != table->s->default_values)
     restore_record(table, s->default_values);  // Empty record for DEFAULT
 
+  std::vector<Create_field *> functional_index_columns;
   Create_field *def;
 
   /*
@@ -13774,7 +13815,17 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         def->is_explicit_collation =
             obj->get_column(field->field_name)->is_explicit_collation();
 
-      new_create_list.push_back(def);
+      // If we have a replication setup _and_ the master doesn't sort
+      // functional index columns last in the table, we will not do it either.
+      // Otherwise, we will position the functional index columns last in the
+      // table, sorted on their name.
+      if (is_field_for_functional_index(def) &&
+          is_not_slave_or_master_sorts_functional_index_columns_last(
+              thd->variables.original_server_version)) {
+        functional_index_columns.push_back(def);
+      } else {
+        new_create_list.push_back(def);
+      }
 
       // Change the column default OR rename just the column name.
       if (alter_column_name_or_default(alter_info, &alter_list, def))
@@ -13896,6 +13947,19 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
              table->s->table_name.str);
     return true;
   }
+
+  // Ensure that hidden generated column for functional indexes are inserted at
+  // the end, sorted by their column name.
+  std::sort(functional_index_columns.begin(), functional_index_columns.end(),
+            [](const Create_field *a, const Create_field *b) {
+              return my_strcasecmp(system_charset_info, a->field_name,
+                                   b->field_name) < 0;
+            });
+
+  for (Create_field *field : functional_index_columns) {
+    new_create_list.push_back(field);
+  }
+
   if (!new_create_list.elements) {
     my_error(ER_CANT_REMOVE_ALL_FIELDS, MYF(0));
     return true;

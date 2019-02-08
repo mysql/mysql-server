@@ -236,3 +236,35 @@ SET SESSION debug="-d,show_hidden_columns";
 
 EXPLAIN SELECT * FROM t1 WHERE SOUNDEX(col1) = "aa";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29317684 REPLICATION IS SENSITIVE TO ORDER OF HIDDEN COLUMNS FOR
+--echo #              FUNCTIONAL INDEXES
+--echo #
+
+--echo # See that hidden columns are inserted at the end, sorted by their name
+SET SESSION debug="+d,show_hidden_columns";
+CREATE TABLE t1 (col1 INT, INDEX functional_index_1 ((col1 + 1)));
+SHOW CREATE TABLE t1;
+CREATE INDEX functional_index_2 ON t1 ((col1 + 2));
+SHOW CREATE TABLE t1;
+CREATE INDEX functional_index_3 ON t1 ((col1 + 3));
+SHOW CREATE TABLE t1;
+CREATE INDEX functional_index_4 ON t1 ((col1 + 4));
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN col2 INT;
+SHOW CREATE TABLE t1;
+CREATE INDEX functional_index_5 ON t1 ((col1 + col2));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  col1 BIT(5),
+  col2 BIT(10),
+  KEY functional_index_1 ((NULLIF(col1, NULL))),
+  KEY functional_index_2 ((NULLIF(col2, NULL)))
+);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET SESSION debug="-d,show_hidden_columns";
