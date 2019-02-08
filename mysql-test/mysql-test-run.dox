@@ -3855,6 +3855,23 @@
       </td>
     </tr>
     <tr>
+      <td><tt>MTR_UNIQUE_IDS_DIR</tt></td>
+      <td>
+        The method in which the free ports are allocated is by maintaining
+        a list under the unique ids directory. In case there are multiple
+        chroot environments on the same host, then the same set of ports may
+        get allocated for all environments, because there will be
+        multiple unique ids directories in different physical locations,
+        but MTR assumes it is the same directory.
+        This will lead to a conflict while reserving ports for the
+        different MTR runs. To avoid this problem, when using chroot
+        environments, <b>MTR_UNIQUE_IDS_DIR</b> environment variable can
+        be set to a common location, so that all the MTR processes will
+        use the same unique ids directory.
+        Users have to make sure this variable is set to the same path
+        on all environments, and that this common path is mounted on
+        all the environments.
+    <tr>
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
         Path name to <b>mysql_config_editor</b> binary.
