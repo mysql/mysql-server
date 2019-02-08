@@ -240,6 +240,8 @@ extern const char* g_ndbmtd_bin_path;
 extern const char* g_mysqld_bin_path;
 extern const char* g_mysql_install_db_bin_path;
 extern const char* g_libmysqlclient_so_path;
+const char *get_atrt_path(const char *arg);
+bool set_atrt_scripts_path(const char *path);
 
 extern const char* g_search_path[];
 
