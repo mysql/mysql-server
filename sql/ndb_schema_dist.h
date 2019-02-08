@@ -207,13 +207,23 @@ class Ndb_schema_dist_client {
   bool check_identifier_limits(std::string& invalid_identifier);
 
   /**
-   * @brief Check if given name is the schema distribtution table, special
+   * @brief Check if given name is the schema distribution table, special
             handling for that table is required in a few places.
      @param db database name
      @param table_name table name
      @return true if table is the schema distribution table
    */
   static bool is_schema_dist_table(const char* db, const char* table_name);
+
+  /**
+   * @brief Check if given name is the schema distribution result table, special
+            handling for that table is required in a few places.
+     @param db database name
+     @param table_name table name
+     @return true if table is the schema distribution result table
+   */
+  static bool is_schema_dist_result_table(const char *db,
+                                          const char *table_name);
 
   /**
    * @brief Convert SCHEMA_OP_TYPE to string

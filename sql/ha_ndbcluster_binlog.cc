@@ -6427,6 +6427,13 @@ Ndb_binlog_client::create_event(Ndb *ndb, const NdbDictionary::Table*ndbtab,
                           NDBEVENT::ER_DDL));
       DBUG_PRINT("info", ("subscription all and subscribe"));
     }
+    else if (Ndb_schema_dist_client::is_schema_dist_result_table(
+               share->db, share->table_name)) {
+
+      my_event.setReport((NDBEVENT::EventReport)
+                         (NDBEVENT::ER_ALL | NDBEVENT::ER_DDL));
+      DBUG_PRINT("info", ("subscription all"));
+    }
     else
     {
       if (share->get_binlog_full())
@@ -6548,10 +6555,14 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
   // Never create event op on the blob table(s)
   DBUG_ASSERT(!ndb_name_is_blob_prefix(ndbtab->getName()));
 
-  // Check if this is the event operation on mysql.ndb_schema
-  // as it need special processing
+  // Schema dist table need special processing
   const bool do_ndb_schema_share = Ndb_schema_dist_client::is_schema_dist_table(
       share->db, share->table_name);
+
+  // Schema dist result table need special processing
+  const bool is_ndb_schema_result =
+      Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
+                                                          share->table_name);
 
   // Check if this is the event operation on mysql.ndb_apply_status
   // as it need special processing
@@ -6577,14 +6588,14 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     }
     Mutex_guard injector_mutex_g(injector_event_mutex);
     Ndb *ndb= injector_ndb;
-    if (do_ndb_schema_share)
+    if (do_ndb_schema_share || is_ndb_schema_result)
       ndb= schema_ndb;
 
     if (ndb == NULL)
       DBUG_RETURN(-1);
 
     NdbEventOperation* op;
-    if (do_ndb_schema_share)
+    if (do_ndb_schema_share || is_ndb_schema_result)
       op= ndb->createEventOperation(event_name.c_str());
     else
     {

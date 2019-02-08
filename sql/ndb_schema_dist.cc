@@ -40,6 +40,7 @@
 
 static const std::string NDB_SCHEMA_TABLE_DB = NDB_REP_DB;
 static const std::string NDB_SCHEMA_TABLE_NAME = NDB_SCHEMA_TABLE;
+static const std::string NDB_SCHEMA_RESULT_TABLE_NAME = "ndb_schema_result";
 
 #ifdef _WIN32
 #define DIR_SEP "\\"
@@ -63,6 +64,15 @@ bool Ndb_schema_dist_client::is_schema_dist_table(const char* db,
       table_name == NDB_SCHEMA_TABLE_NAME)
   {
     // This is the NDB table used for schema distribution
+    return true;
+  }
+  return false;
+}
+
+bool Ndb_schema_dist_client::is_schema_dist_result_table(
+    const char *db, const char *table_name) {
+  if (db == NDB_SCHEMA_TABLE_DB && table_name == NDB_SCHEMA_RESULT_TABLE_NAME) {
+    // This is the NDB table used for schema distribution results
     return true;
   }
   return false;
