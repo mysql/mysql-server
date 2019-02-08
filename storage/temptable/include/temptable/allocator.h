@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -774,11 +774,9 @@ inline void *Allocator<T>::mem_fetch_from_disk(size_t bytes) {
 
   char file_path[FN_REFLEN];
   File f = create_temp_file(file_path, mysql_tmpdir, "mysql_temptable.", mode,
-                            MYF(MY_WME));
+                            UNLINK_FILE, MYF(MY_WME));
 
-  if (f >= 0) {
-    unlink(file_path);
-  } else {
+  if (f < 0) {
     return nullptr;
   }
 

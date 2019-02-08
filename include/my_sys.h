@@ -293,6 +293,10 @@ enum flush_type {
   FLUSH_FORCE_WRITE
 };
 
+/*
+ How was this file opened (for debugging purposes).
+ The important part is whether it is UNOPEN or not.
+ */
 enum file_type {
   UNOPEN = 0,
   FILE_BY_OPEN,
@@ -300,7 +304,7 @@ enum file_type {
   STREAM_BY_FOPEN,
   STREAM_BY_FDOPEN,
   FILE_BY_MKSTEMP,
-  FILE_BY_DUP
+  FILE_BY_O_TMPFILE
 };
 
 struct st_my_file_info {
@@ -768,8 +772,10 @@ extern bool open_cached_file(IO_CACHE *cache, const char *dir,
                              myf cache_myflags);
 extern bool real_open_cached_file(IO_CACHE *cache);
 extern void close_cached_file(IO_CACHE *cache);
+
+enum UnlinkOrKeepFile { UNLINK_FILE, KEEP_FILE };
 File create_temp_file(char *to, const char *dir, const char *pfx, int mode,
-                      myf MyFlags);
+                      UnlinkOrKeepFile unlink_or_keep, myf MyFlags);
 
 // Use Prealloced_array or std::vector or something similar in C++
 extern bool my_init_dynamic_array(DYNAMIC_ARRAY *array, PSI_memory_key key,

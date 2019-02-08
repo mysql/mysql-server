@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -157,6 +157,7 @@
 #cmakedefine FIONREAD_IN_SYS_IOCTL 1
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 #cmakedefine HAVE_MADV_DONTDUMP 1
+#cmakedefine HAVE_O_TMPFILE
 
 #cmakedefine HAVE_ISINF 1
 

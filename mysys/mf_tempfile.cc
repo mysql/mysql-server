@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,9 @@
 #include "my_config.h"
 
 #include <errno.h>
+#ifdef HAVE_O_TMPFILE
+#include <fcntl.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -82,7 +85,8 @@
 */
 
 File create_temp_file(char *to, const char *dir, const char *prefix,
-                      int mode MY_ATTRIBUTE((unused)), myf MyFlags) {
+                      int mode MY_ATTRIBUTE((unused)),
+                      UnlinkOrKeepFile unlink_or_keep, myf MyFlags) {
   File file = -1;
 #ifdef _WIN32
   TCHAR path_buf[MAX_PATH - 14];
@@ -119,10 +123,42 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     int tmp = my_errno();
     (void)my_delete(to, MYF(0));
     set_my_errno(tmp);
+    DBUG_RETURN(file);
+  }
+  if (unlink_or_keep == UNLINK_FILE) {
+    my_delete(to, MYF(0));
   }
 
 #else /* mkstemp() is available on all non-Windows supported platforms. */
-  {
+#ifdef HAVE_O_TMPFILE
+  if (unlink_or_keep == UNLINK_FILE) {
+    if (!dir && !(dir = getenv("TMPDIR"))) dir = DEFAULT_TMPDIR;
+
+    char dirname_buf[FN_REFLEN];
+    convert_dirname(dirname_buf, dir, nullptr);
+
+    // Verify that the generated filename will fit in a FN_REFLEN size buffer.
+    int max_filename_len = snprintf(to, FN_REFLEN, "%s%.20sfd=%d", dirname_buf,
+                                    prefix ? prefix : "tmp.", 4 * 1024 * 1024);
+    if (max_filename_len >= FN_REFLEN) {
+      errno = ENAMETOOLONG;
+      set_my_errno(ENAMETOOLONG);
+      DBUG_RETURN(file);
+    }
+
+    /* Explicitly don't use O_EXCL here as it has a different
+       meaning with O_TMPFILE.
+    */
+    file = open(dirname_buf, O_RDWR | O_TMPFILE | O_CLOEXEC, S_IRUSR | S_IWUSR);
+    if (file >= 0) {
+      sprintf(to, "%s%.20sfd=%d", dirname_buf, prefix ? prefix : "tmp.", file);
+      file = my_register_filename(file, to, FILE_BY_O_TMPFILE,
+                                  EE_CANTCREATEFILE, MyFlags);
+    }
+  }
+    // Fall through, in case open() failed above (or we have KEEP_FILE).
+#endif /* HAVE_O_TMPFILE */
+  if (file == -1) {
     char prefix_buff[30];
     uint pfx_len;
     File org_file;
@@ -147,6 +183,10 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       close(org_file);
       (void)my_delete(to, MYF(MY_WME));
       set_my_errno(tmp);
+      DBUG_RETURN(file);
+    }
+    if (unlink_or_keep == UNLINK_FILE) {
+      unlink(to);
     }
   }
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -261,9 +261,7 @@ int mysql_tmpfile_path(const char *path, const char *prefix) {
                              O_TRUNC | O_SEQUENTIAL |
 #endif /* _WIN32 */
                                  O_CREAT | O_EXCL | O_RDWR,
-                             MYF(MY_WME));
-  if (fd >= 0) unlink(filename);
-
+                             UNLINK_FILE, MYF(MY_WME));
   return fd;
 }
 

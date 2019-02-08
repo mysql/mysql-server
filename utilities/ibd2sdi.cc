@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -257,7 +257,7 @@ static FILE *create_tmp_file(char *temp_file_buf, const char *dir,
                              const char *prefix_pattern) {
   FILE *file = NULL;
   File fd = create_temp_file(temp_file_buf, dir, prefix_pattern,
-                             O_CREAT | O_RDWR, MYF(0));
+                             O_CREAT | O_RDWR, KEEP_FILE, MYF(0));
 
   if (fd >= 0) {
     file = my_fdopen(fd, temp_file_buf, O_RDWR, MYF(0));

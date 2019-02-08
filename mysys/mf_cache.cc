@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,13 +77,8 @@ bool real_open_cached_file(IO_CACHE *cache) {
   DBUG_ENTER("real_open_cached_file");
   if ((cache->file = mysql_file_create_temp(
            cache->file_key, name_buff, cache->dir, cache->prefix,
-           (O_RDWR | O_TRUNC), MYF(MY_WME))) >= 0) {
+           (O_RDWR | O_TRUNC), UNLINK_FILE, MYF(MY_WME))) >= 0) {
     error = 0;
-    /*
-      Remove an open tempfile so that it doesn't survive
-      if we crash.
-    */
-    (void)my_delete(name_buff, MYF(MY_WME));
   }
   DBUG_RETURN(error);
 }

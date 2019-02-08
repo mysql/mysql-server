@@ -4745,8 +4745,9 @@ static void do_perl(struct st_command *command) {
     DBUG_PRINT("info", ("Executing perl: %s", ds_script.str));
 
     /* Create temporary file name */
-    if ((fd = create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"),
-                               "tmp", O_CREAT | O_RDWR, MYF(MY_WME))) < 0)
+    if ((fd =
+             create_temp_file(temp_file_path, getenv("MYSQLTEST_VARDIR"), "tmp",
+                              O_CREAT | O_RDWR, KEEP_FILE, MYF(MY_WME))) < 0)
       die("Failed to create temporary file for perl command");
     my_close(fd, MYF(0));
 

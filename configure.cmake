@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -352,6 +352,13 @@ CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
 CHECK_SYMBOL_EXISTS(MADV_DONTDUMP "sys/mman.h" HAVE_MADV_DONTDUMP)
+CHECK_CXX_SOURCE_COMPILES(
+"#include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+int main() {
+  long long int foo = O_TMPFILE;
+}" HAVE_O_TMPFILE)
 
 # On Solaris, it is only visible in C99 mode
 CHECK_SYMBOL_EXISTS(isinf "math.h" HAVE_C_ISINF)

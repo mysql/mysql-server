@@ -3961,7 +3961,7 @@ static int com_edit(String *buffer, char *line MY_ATTRIBUTE((unused))) {
   const char *editor;
 
   if ((fd = create_temp_file(filename, NullS, "sql", O_CREAT | O_WRONLY,
-                             MYF(MY_WME))) < 0)
+                             KEEP_FILE, MYF(MY_WME))) < 0)
     goto err;
   if (buffer->is_empty() && !old_buffer.is_empty())
     (void)my_write(fd, (uchar *)old_buffer.ptr(), old_buffer.length(),

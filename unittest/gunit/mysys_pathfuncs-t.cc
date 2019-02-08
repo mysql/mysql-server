@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <algorithm>
@@ -32,6 +33,9 @@
 // Check that various mysys path functions produce a valid
 // ('\0'-terminated) c-string, do not write more than FN_REFLEN bytes
 // into the destination buffer.
+
+using ::testing::MatchesRegex;
+using ::testing::StartsWith;
 
 namespace mysys_pathfuncs {
 char dest[FN_REFLEN];
@@ -135,4 +139,35 @@ TEST(Mysys, LoadPathOverflow) {
   EXPECT_EQ('\0', dst[FN_REFLEN - 1]);
   EXPECT_EQ('a', dst[FN_REFLEN - 2]);
 }
+
+#ifdef HAVE_O_TMPFILE
+TEST(Mysys, CreateTempFile) {
+  char dst[FN_REFLEN];
+  aset(dst, 0xaa);
+
+  char prefix[FN_REFLEN + 5];
+  aset(prefix, 'a');
+  prefix[sizeof(prefix) - 1] = '\0';
+
+  File fileno = create_temp_file(dst, "/tmp", prefix, 42, UNLINK_FILE, 0);
+  EXPECT_GE(fileno, 0);
+  my_close(fileno, 0);
+  EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+fd=[0-9]+"));
+  aset(dst, 0xaa);
+
+  fileno = create_temp_file(dst, nullptr, prefix, 42, UNLINK_FILE, 0);
+  EXPECT_GE(fileno, 0);
+  EXPECT_THAT(dst, StartsWith("/tmp"));
+  my_close(fileno, 0);
+  aset(dst, 0xaa);
+
+  char longdirname[FN_REFLEN];
+  aset(longdirname, 'x');
+  longdirname[0] = '/';
+  fileno = create_temp_file(dst, longdirname, "hello", 42, UNLINK_FILE, 0);
+  EXPECT_LT(fileno, 0);
+  EXPECT_EQ(errno, ENAMETOOLONG);
+}
+#endif  // HAVE_O_TMPFILE
+
 }  // namespace mysys_pathfuncs
