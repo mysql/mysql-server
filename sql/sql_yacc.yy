@@ -890,7 +890,7 @@ void warn_about_deprecated_national(THD *thd)
 %token  ORDER_SYM                     /* SQL-2003-R */
 %token  OR_OR_SYM                     /* OPERATOR */
 %token  OR_SYM                        /* SQL-2003-R */
-%token  OUTER
+%token  OUTER_SYM
 %token  OUTFILE
 %token  OUT_SYM                       /* SQL-2003-R */
 %token<keyword> OWNER_SYM
@@ -10829,7 +10829,7 @@ opt_inner:
 
 opt_outer:
           /* empty */
-        | OUTER
+        | OUTER_SYM
         ;
 
 /*

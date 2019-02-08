@@ -479,7 +479,7 @@ static const SYMBOL symbols[] = {
     {SYM("ORDER", ORDER_SYM)},
     {SYM("ORDINALITY", ORDINALITY_SYM)},
     {SYM("OUT", OUT_SYM)},
-    {SYM("OUTER", OUTER)},
+    {SYM("OUTER", OUTER_SYM)},
     {SYM("OUTFILE", OUTFILE)},
     {SYM("OVER", OVER_SYM)},
     {SYM("OWNER", OWNER_SYM)},
