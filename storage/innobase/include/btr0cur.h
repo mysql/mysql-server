@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -357,7 +357,7 @@ dberr_t btr_cur_update_in_place(
     MY_ATTRIBUTE((warn_unused_result));
 /** Writes a redo log record of updating a record in-place. */
 void btr_cur_update_in_place_log(
-    ulint flags,         /*!< in: flags */
+    ulint flags,         /*!< in: undo logging and locking flags */
     const rec_t *rec,    /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
     const upd_t *update, /*!< in: update vector */

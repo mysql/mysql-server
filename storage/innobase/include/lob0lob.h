@@ -1365,7 +1365,7 @@ struct DeleteContext : public BtrContext {
   @return true if tablespace has atomic blobs. */
   bool has_atomic_blobs() const {
     space_id_t space_id = m_blobref.space_id();
-    ulint flags = fil_space_get_flags(space_id);
+    uint32_t flags = fil_space_get_flags(space_id);
     return (DICT_TF_HAS_ATOMIC_BLOBS(flags));
   }
 

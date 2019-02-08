@@ -2480,7 +2480,7 @@ bool srv_enable_undo_encryption() {
       return true;
     }
 
-    FSP_FLAGS_SET_ENCRYPTION(space->flags);
+    fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_1054, undo_space->space_name(), int{err},

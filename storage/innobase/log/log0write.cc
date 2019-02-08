@@ -2621,7 +2621,7 @@ bool log_read_encryption() {
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
       redo log blocks. */
-      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+      fsp_flags_set_encryption(space->flags);
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
 
       if (err == DB_SUCCESS) {

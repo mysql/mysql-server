@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -6530,7 +6530,7 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in,out]  table_to_fill   fill this table
 @return 0 on success */
 static int i_s_dict_fill_innodb_tablespaces(
-    THD *thd, space_id_t space_id, const char *name, ulint flags,
+    THD *thd, space_id_t space_id, const char *name, uint32_t flags,
     uint32 server_version, uint32 space_version, bool is_encrypted,
     const char *state, TABLE *table_to_fill) {
   Field **fields;
@@ -6698,7 +6698,7 @@ static int i_s_innodb_tablespaces_fill_table(THD *thd, TABLE_LIST *tables,
        rec != NULL; rec = dd_getnext_system_rec(&pcur, &mtr)) {
     space_id_t space;
     char *name;
-    uint flags;
+    uint32_t flags;
     uint32 server_version;
     uint32 space_version;
     bool is_encrypted = false;
@@ -7064,7 +7064,7 @@ static int i_s_innodb_session_temp_tablespaces_fill_one(
     THD *thd, const ibt::Tablespace *ts, TABLE *table_to_fill) {
   Field **fields;
 
-  DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
+  DBUG_ENTER("i_s_innodb_session_temp_tablespaces_fill_one");
 
   fields = table_to_fill->field;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -730,9 +730,13 @@ static const uint CLONE_DESC_STATE_FLAGS = CLONE_DESC_STATE_EST_BYTES + 8;
 /** Clone State: Total length */
 static const uint CLONE_DESC_STATE_LEN = CLONE_DESC_STATE_FLAGS + 2;
 
-#define DESC_CHECK_FLAG(flag, bit) (((flag) & (1UL << (bit - 1))) > 0)
+UNIV_INLINE bool DESC_CHECK_FLAG(ulint flag, ulint bit) {
+  return (!!((flag & (1ULL << (bit - 1))) > 0));
+}
 
-#define DESC_SET_FLAG(flag, bit) ((flag) |= (1UL << (bit - 1)))
+UNIV_INLINE void DESC_SET_FLAG(ulint &flag, ulint bit) {
+  flag |= static_cast<ulint>(1ULL << (bit - 1));
+}
 
 /** Clone State Flag: Start processing state */
 static const uint CLONE_DESC_STATE_FLAG_START = 1;

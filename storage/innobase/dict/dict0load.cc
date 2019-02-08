@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -918,7 +918,7 @@ const char *dict_process_sys_tablespaces(
     const rec_t *rec,  /*!< in: current SYS_TABLESPACES rec */
     space_id_t *space, /*!< out: space id */
     const char **name, /*!< out: tablespace name */
-    ulint *flags)      /*!< out: tablespace flags */
+    uint32_t *flags)   /*!< out: tablespace flags */
 {
   ulint len;
   const byte *field;
@@ -926,7 +926,7 @@ const char *dict_process_sys_tablespaces(
   /* Initialize the output values */
   *space = SPACE_UNKNOWN;
   *name = NULL;
-  *flags = ULINT_UNDEFINED;
+  *flags = UINT32_UNDEFINED;
 
   if (rec_get_deleted_flag(rec, 0)) {
     return ("delete-marked record in SYS_TABLESPACES");
@@ -1205,7 +1205,7 @@ static const char *dict_sys_tables_rec_check(const rec_t *rec) {
 @param[out]	flags	Pointer to tablespace flags
 @return true if the record was read correctly, false if not. */
 static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
-                                          char *name, ulint *flags) {
+                                          char *name, uint32_t *flags) {
   const byte *field;
   ulint len;
 
@@ -1264,7 +1264,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
        rec = dict_getnext_system(&pcur, &mtr)) {
     char space_name[NAME_LEN + 1];
     space_id_t space_id = 0;
-    ulint fsp_flags;
+    uint32_t fsp_flags;
 
     if (!dict_sys_tablespaces_rec_read(rec, &space_id, space_name,
                                        &fsp_flags)) {
@@ -1321,11 +1321,11 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
 static bool dict_sys_tables_rec_read(const rec_t *rec,
                                      const table_name_t &table_name,
                                      table_id_t *table_id, space_id_t *space_id,
-                                     ulint *n_cols, ulint *flags,
-                                     ulint *flags2) {
+                                     uint32_t *n_cols, uint32_t *flags,
+                                     uint32_t *flags2) {
   const byte *field;
   ulint len;
-  ulint type;
+  uint32_t type;
 
   *flags2 = 0;
 
@@ -1356,13 +1356,13 @@ static bool dict_sys_tables_rec_read(const rec_t *rec,
   flag in n_cols into the type field to effectively make it a
   dict_table_t::flags. */
 
-  if (ULINT_UNDEFINED == dict_sys_tables_type_validate(type, *n_cols)) {
+  if (UINT32_UNDEFINED == dict_sys_tables_type_validate(type, *n_cols)) {
     ib::error(ER_IB_MSG_192) << "Table " << table_name
                              << " in InnoDB"
                                 " data dictionary contains invalid flags."
                                 " SYS_TABLES.TYPE="
                              << type << " SYS_TABLES.N_COLS=" << *n_cols;
-    *flags = ULINT_UNDEFINED;
+    *flags = UINT32_UNDEFINED;
     return (false);
   }
 
@@ -1418,9 +1418,9 @@ space_id_t dict_check_sys_tables(bool validate) {
     table_name_t table_name;
     table_id_t table_id;
     space_id_t space_id;
-    ulint n_cols;
-    ulint flags;
-    ulint flags2;
+    uint32_t n_cols;
+    uint32_t flags;
+    uint32_t flags2;
     std::string tablespace_name;
     const char *tbl_name;
 
@@ -1438,7 +1438,7 @@ space_id_t dict_check_sys_tables(bool validate) {
 
     dict_sys_tables_rec_read(rec, table_name, &table_id, &space_id, &n_cols,
                              &flags, &flags2);
-    if (flags == ULINT_UNDEFINED ||
+    if (flags == UINT32_UNDEFINED ||
         fsp_is_system_or_temp_tablespace(space_id)) {
       ut_ad(!fsp_is_undo_tablespace(space_id));
       ut_free(table_name.m_name);
@@ -1501,10 +1501,10 @@ space_id_t dict_check_sys_tables(bool validate) {
                          : dict_get_first_path(space_id);
 
     /* Check that the .ibd file exists. */
-    ulint fsp_flags = dict_tf_to_fsp_flags(flags);
+    uint32_t fsp_flags = dict_tf_to_fsp_flags(flags);
     /* Set tablespace encryption flag */
     if (flags2 & DICT_TF2_ENCRYPTION_FILE_PER_TABLE) {
-      FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
+      fsp_flags_set_encryption(fsp_flags);
     }
 
     dberr_t err =
@@ -1955,11 +1955,11 @@ static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
                                        dict_table_t **table) {
   table_id_t table_id;
   space_id_t space_id;
-  ulint n_cols;
-  ulint t_num;
-  ulint flags;
-  ulint flags2;
-  ulint n_v_col;
+  uint32_t n_cols;
+  uint32_t t_num;
+  uint32_t flags;
+  uint32_t flags2;
+  uint32_t n_v_col;
 
   const char *error_text = dict_sys_tables_rec_check(rec);
   if (error_text != NULL) {
@@ -1969,7 +1969,7 @@ static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
   dict_sys_tables_rec_read(rec, name, &table_id, &space_id, &t_num, &flags,
                            &flags2);
 
-  if (flags == ULINT_UNDEFINED) {
+  if (flags == UINT32_UNDEFINED) {
     return ("incorrect flags in SYS_TABLES");
   }
 
@@ -2239,10 +2239,10 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
 
   /* Try to open the tablespace.  We set the 2nd param (fix_dict) to
   false because we do not have an x-lock on dict_operation_lock */
-  ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
+  uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
   /* Set tablespace encryption flag */
   if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION_FILE_PER_TABLE)) {
-    FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
+    fsp_flags_set_encryption(fsp_flags);
   }
 
   /* This dict_load_tablespace() is only used on old 5.7 database during

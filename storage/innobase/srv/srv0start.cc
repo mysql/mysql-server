@@ -119,7 +119,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 /** fil_space_t::flags for hard-coded tablespaces */
-extern ulint predefined_flags;
+extern uint32_t predefined_flags;
 
 /** Recovered persistent metadata */
 static MetadataRecover *srv_dict_metadata;
@@ -397,7 +397,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
       return (DB_ERROR);
     }
 
-    FSP_FLAGS_SET_ENCRYPTION(log_space->flags);
+    fsp_flags_set_encryption(log_space->flags);
     err = fil_set_encryption(log_space->id, Encryption::AES, NULL, NULL);
     ut_ad(err == DB_SUCCESS);
   }
@@ -625,7 +625,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
   will be generated in fsp_header_init later. */
   fil_space_t *space = fil_space_get(space_id);
   if (!FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-    FSP_FLAGS_SET_ENCRYPTION(space->flags);
+    fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space_id, Encryption::AES, NULL, NULL);
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_1075, space->name);
@@ -681,7 +681,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
   byte key[ENCRYPTION_KEY_LEN];
   byte iv[ENCRYPTION_KEY_LEN];
   if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
-    FSP_FLAGS_SET_ENCRYPTION(space->flags);
+    fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
   } else {
@@ -856,7 +856,7 @@ static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
 
   pfs_os_file_t fh;
   bool success;
-  ulint flags;
+  uint32_t flags;
   bool atomic_write;
   dberr_t err = DB_ERROR;
   space_id_t space_id = undo_space.id();

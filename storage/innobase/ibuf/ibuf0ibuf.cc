@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3836,7 +3836,7 @@ static ibool ibuf_restore_pos(
     return (TRUE);
   }
 
-  if (fil_space_get_flags(space) == ULINT_UNDEFINED) {
+  if (fil_space_get_flags(space) == UINT32_UNDEFINED) {
     /* The tablespace has been dropped.  It is possible
     that another thread has deleted the insert buffer
     entry.  Do not complain. */

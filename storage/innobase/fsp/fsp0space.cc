@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -127,9 +127,7 @@ dberr_t Tablespace::open_or_create(bool is_temp) {
     if (it == begin) {
       /* First data file. */
 
-      ulint flags;
-
-      flags = fsp_flags_set_page_size(0, univ_page_size);
+      uint32_t flags = fsp_flags_set_page_size(0, univ_page_size);
 
       /* Create the tablespace entry for the multi-file
       tablespace in the tablespace manager. */

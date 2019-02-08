@@ -706,7 +706,7 @@ static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
   ut_a(page_no == page_get_page_no(page));
 
   switch (type) {
-    ulint flags;
+    uint32_t flags;
     case FIL_PAGE_TYPE_BLOB:
     case FIL_PAGE_SDI_BLOB:
       break;

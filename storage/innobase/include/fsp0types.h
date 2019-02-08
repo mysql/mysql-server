@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,7 +195,8 @@ The newer row formats, COMPRESSED and DYNAMIC, will have at least
 the DICT_TF_COMPACT bit set.
 @param[in]	flags	Tablespace flags
 @return true if valid, false if not */
-bool fsp_flags_is_valid(ulint flags) MY_ATTRIBUTE((warn_unused_result, const));
+bool fsp_flags_is_valid(uint32_t flags)
+    MY_ATTRIBUTE((warn_unused_result, const));
 
 /** Check if a space_id is the system temporary space ID.
 @param[in]	space_id	tablespace ID
@@ -354,18 +355,24 @@ tablespace dictionary.*/
 #define FSP_FLAGS_ARE_NOT_SET(flags) ((flags & FSP_FLAGS_MASK) == 0)
 
 /** Set ENCRYPTION bit in tablespace flags */
-#define FSP_FLAGS_SET_ENCRYPTION(flags) \
-  { flags |= FSP_FLAGS_MASK_ENCRYPTION; }
+UNIV_INLINE void fsp_flags_set_encryption(uint32_t &flags) {
+  flags |= FSP_FLAGS_MASK_ENCRYPTION;
+}
+
 /** Set ENCRYPTION bit in tablespace flags */
-#define FSP_FLAGS_UNSET_ENCRYPTION(flags) \
-  { flags &= ~FSP_FLAGS_MASK_ENCRYPTION; }
+UNIV_INLINE void fsp_flags_unset_encryption(uint32_t &flags) {
+  flags &= ~FSP_FLAGS_MASK_ENCRYPTION;
+}
 
 /** Set SDI Index bit in tablespace flags */
-#define FSP_FLAGS_SET_SDI(flags) \
-  { flags |= FSP_FLAGS_MASK_SDI; }
+UNIV_INLINE void fsp_flags_set_sdi(uint32_t &flags) {
+  flags |= FSP_FLAGS_MASK_SDI;
+}
+
 /** Set SDI Index bit in tablespace flags */
-#define FSP_FLAGS_UNSET_SDI(flags) \
-  { flags &= ~FSP_FLAGS_MASK_SDI; }
+UNIV_INLINE void fsp_flags_unset_sdi(uint32_t &flags) {
+  flags &= ~FSP_FLAGS_MASK_SDI;
+}
 
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED

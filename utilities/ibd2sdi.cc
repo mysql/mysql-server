@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -992,7 +992,7 @@ reading some other pages and calculating checksums.
 @return true if page_size is determined, else false */
 bool tablespace_creator::get_page_size(const byte *buf, File file_in,
                                        page_size_t &page_size) {
-  const ulint flags = fsp_header_get_flags(buf);
+  const uint32_t flags = fsp_header_get_flags(buf);
   bool is_valid_flags = fsp_flags_is_valid(flags);
 
   if (is_valid_flags) {
