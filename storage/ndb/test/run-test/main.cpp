@@ -30,12 +30,14 @@
 #include <NdbOut.hpp>
 #include "atrt.hpp"
 
+#include <util/File.hpp>
 #include <FileLogHandler.hpp>
 #include <SysLogHandler.hpp>
 
 #include <NdbSleep.h>
 #include "my_alloc.h"  // MEM_ROOT
 #include <ndb_version.h>
+#include <vector>
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
@@ -98,6 +100,7 @@ const char *g_ndbmtd_bin_path = 0;
 const char *g_mysqld_bin_path = 0;
 const char *g_mysql_install_db_bin_path = 0;
 const char *g_libmysqlclient_so_path = 0;
+const char *g_atrt_path;
 
 static struct {
   bool is_required;
@@ -229,6 +232,14 @@ int main(int argc, char **argv) {
 
   if (!find_binaries()) {
     g_logger.critical("Failed to find required binaries for execution");
+    return_code = ATRT_FAILURE;
+    goto end;
+  }
+
+  g_atrt_path = get_atrt_path(argv[0]);
+  if (!set_atrt_scripts_path(g_atrt_path))
+  {
+    g_logger.critical("Failed to set atrt scripts path");
     return_code = ATRT_FAILURE;
     goto end;
   }
@@ -1803,6 +1814,44 @@ static bool find_binaries() {
     }
   }
   return ok;
+}
+
+const char *get_atrt_path(const char *arg)
+{
+  char atrt_path[PATH_MAX];
+  realpath(arg, atrt_path);
+  char *pos = strrchr(atrt_path, '/');
+  atrt_path[int(pos - atrt_path)] = '\0';
+  return strdup(atrt_path);
+}
+
+bool set_atrt_scripts_path(const char *g_atrt_path)
+{
+  g_logger.info("Locating scripts...");
+  struct script_path
+  {
+    const char *name;
+    const char **path;
+  };
+
+  std::vector<struct script_path> scripts = {
+      {"atrt-gather-result.sh", &g_gather_progname},
+      {"atrt-analyze-result.sh", &g_analyze_progname},
+      {"atrt-setup.sh", &g_setup_progname}};
+
+  for (auto &script : scripts)
+  {
+    BaseString script_full_path;
+    script_full_path.assfmt("%s/%s", g_atrt_path, script.name);
+    if (!File_class::exists(script_full_path.c_str()))
+    {
+      g_logger.critical(
+          "atrt script %s could not be found in %s", script.name, g_atrt_path);
+      return false;
+    }
+    *script.path = strdup(script_full_path.c_str());
+  }
+  return true;
 }
 
 static bool find_config_ini_files() {
