@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -903,6 +903,21 @@ Tsman::open_file(Signal* signal,
   // TODO check overflow in cast
   ptr.p->m_create.m_extent_pages = Uint32(extent_pages);
   ptr.p->m_create.m_data_pages = Uint32(data_pages);
+
+  /**
+   * Check whether there are enough free slots in the disk page buffer
+   * for extent pages, which will be locked in the buffer.
+   */
+  {
+    Page_cache_client pgman(this, m_pgman);
+    if (!pgman.extent_pages_available(extent_pages))
+    {
+      return CreateFileImplRef::OutOfDiskPageBufferMemory;
+
+      // CreateFileImplReq::Abort from DBDICT will free the
+      // PGMAN datafile already created
+    }
+  }
 
   /**
    * Update file size
