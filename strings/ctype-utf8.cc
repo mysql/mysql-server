@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5578,13 +5578,13 @@ static size_t my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
-                              size_t slen, ulong *n1, ulong *n2) {
+                              size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -7564,13 +7564,13 @@ static size_t my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src,
 }
 
 static void my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *n2) {
+                                 size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
   uint ch;
 
   /*

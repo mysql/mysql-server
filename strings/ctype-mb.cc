@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -557,7 +557,8 @@ int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 
 void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *key, size_t len, ulong *nr1, ulong *nr2) {
+                         const uchar *key, size_t len, uint64 *nr1,
+                         uint64 *nr2) {
   const uchar *pos = key;
 
   /*
@@ -568,7 +569,7 @@ void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
   for (; pos < key; pos++) {
     nr1[0] ^=
-        (ulong)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
+        (uint64)((((uint)nr1[0] & 63) + nr2[0]) * ((uint)*pos)) + (nr1[0] << 8);
     nr2[0] += 3;
   }
 }

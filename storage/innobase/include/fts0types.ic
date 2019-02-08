@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -149,8 +149,6 @@ UNIV_INLINE
 ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
                                ulint len) {
   int char_len;
-  ulong nr1 = 1;
-  ulong nr2 = 4;
 
   ut_ad(!(str == NULL && len > 0));
 
@@ -163,10 +161,16 @@ ulint fts_select_index_by_hash(const CHARSET_INFO *cs, const byte *str,
                               reinterpret_cast<const char *>(str + len));
   ut_ad(static_cast<ulint>(char_len) <= len);
 
-  /* Get collation hash code */
+  /*
+    Get collation hash code. Force truncation to ulong for legacy reasons;
+    it gives different results for Windows and Linux, but it needs to match
+    on-disk data.
+   */
+  uint64 nr1 = 1;
+  uint64 nr2 = 4;
   cs->coll->hash_sort(cs, str, char_len, &nr1, &nr2);
 
-  return (nr1 % FTS_NUM_AUX_INDEX);
+  return (static_cast<ulong>(nr1) % FTS_NUM_AUX_INDEX);
 }
 
 /** Select the FTS auxiliary index for the given character.

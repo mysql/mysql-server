@@ -140,7 +140,7 @@ class Collation_hasher {
       : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
 
   size_t operator()(const std::string &s) const {
-    ulong nr1 = 1, nr2 = 4;
+    uint64 nr1 = 1, nr2 = 4;
     hash_sort(cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
     return nr1;
   }

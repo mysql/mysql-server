@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1030,13 +1030,13 @@ static size_t my_caseup_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 static void my_hash_sort_utf16(const CHARSET_INFO *cs, const uchar *s,
-                               size_t slen, ulong *n1, ulong *n2) {
+                               size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + cs->cset->lengthsp(cs, (const char *)s, slen);
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   tmp1 = *n1;
   tmp2 = *n2;
@@ -1329,16 +1329,16 @@ static int my_strnncollsp_utf16_bin(const CHARSET_INFO *cs, const uchar *s,
 }
 
 static void my_hash_sort_utf16_bin(const CHARSET_INFO *cs, const uchar *pos,
-                                   size_t len, ulong *nr1, ulong *nr2) {
+                                   size_t len, uint64 *nr1, uint64 *nr2) {
   const uchar *end = pos + cs->cset->lengthsp(cs, (const char *)pos, len);
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   tmp1 = *nr1;
   tmp2 = *nr2;
 
   for (; pos < end; pos++) {
-    tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
     tmp2 += 3;
   }
 
@@ -1696,13 +1696,13 @@ static size_t my_caseup_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 static void my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s,
-                               size_t slen, ulong *n1, ulong *n2) {
+                               size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
   uint ch;
 
   /* Skip trailing spaces */
@@ -2526,13 +2526,13 @@ static size_t my_caseup_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 static void my_hash_sort_ucs2(const CHARSET_INFO *cs, const uchar *s,
-                              size_t slen, ulong *n1, ulong *n2) {
+                              size_t slen, uint64 *n1, uint64 *n2) {
   my_wc_t wc;
   int res;
   const uchar *e = s + slen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   while (e > s + 1 && e[-1] == ' ' && e[-2] == '\0') e -= 2;
 
@@ -2788,11 +2788,11 @@ static int my_strnncollsp_ucs2_bin(
 }
 
 static void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                                  const uchar *key, size_t len, ulong *nr1,
-                                  ulong *nr2) {
+                                  const uchar *key, size_t len, uint64 *nr1,
+                                  uint64 *nr2) {
   const uchar *pos = key;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   key += len;
 
@@ -2802,7 +2802,7 @@ static void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   tmp2 = *nr2;
 
   for (; pos < key; pos++) {
-    tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
     tmp2 += 3;
   }
 

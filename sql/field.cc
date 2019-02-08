@@ -1721,7 +1721,13 @@ void Field::hash(ulong *nr, ulong *nr2) {
   } else {
     uint len = pack_length();
     const CHARSET_INFO *cs = sort_charset();
-    cs->coll->hash_sort(cs, ptr, len, nr, nr2);
+    uint64 tmp1 = *nr;
+    uint64 tmp2 = *nr2;
+    cs->coll->hash_sort(cs, ptr, len, &tmp1, &tmp2);
+
+    // NOTE: This truncates to 32-bit on Windows, to keep on-disk stability.
+    *nr = static_cast<ulong>(tmp1);
+    *nr2 = static_cast<ulong>(tmp2);
   }
 }
 
@@ -6992,7 +6998,13 @@ void Field_varstring::hash(ulong *nr, ulong *nr2) {
   } else {
     uint len = length_bytes == 1 ? (uint)*ptr : uint2korr(ptr);
     const CHARSET_INFO *cs = charset();
-    cs->coll->hash_sort(cs, ptr + length_bytes, len, nr, nr2);
+    uint64 tmp1 = *nr;
+    uint64 tmp2 = *nr2;
+    cs->coll->hash_sort(cs, ptr + length_bytes, len, &tmp1, &tmp2);
+
+    // NOTE: This truncates to 32-bit on Windows, to keep on-disk stability.
+    *nr = static_cast<ulong>(tmp1);
+    *nr2 = static_cast<ulong>(tmp2);
   }
 }
 
@@ -8749,7 +8761,14 @@ void Field_bit::hash(ulong *nr, ulong *nr2) {
     longlong value = Field_bit::val_int();
     uchar tmp[8];
     mi_int8store(tmp, value);
-    cs->coll->hash_sort(cs, tmp, 8, nr, nr2);
+
+    uint64 tmp1 = *nr;
+    uint64 tmp2 = *nr2;
+    cs->coll->hash_sort(cs, tmp, 8, &tmp1, &tmp2);
+
+    // NOTE: This truncates to 32-bit on Windows, to keep on-disk stability.
+    *nr = static_cast<ulong>(tmp1);
+    *nr2 = static_cast<ulong>(tmp2);
   }
 }
 

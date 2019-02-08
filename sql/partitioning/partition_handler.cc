@@ -884,8 +884,17 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           }
           /* Force this to my_hash_sort_bin, which was used in 5.1! */
           uint len = field->pack_length();
-          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len, &nr1,
-                                         &nr2);
+          uint64 tmp1 = nr1;
+          uint64 tmp2 = nr2;
+
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
+                                         &tmp1, &tmp2);
+
+          // NOTE: This truncates to 32-bit on Windows, to keep on-disk
+          // stability.
+          nr1 = static_cast<ulong>(tmp1);
+          nr2 = static_cast<ulong>(tmp2);
+
           /* Done with this field, continue with next one. */
           continue;
         }
@@ -906,8 +915,16 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
           }
           /* Force this to my_hash_sort_bin, which was used in 5.1! */
           uint len = field->pack_length();
+          uint64 tmp1 = nr1;
+          uint64 tmp2 = nr2;
+
           my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr, len,
-                                            &nr1, &nr2);
+                                            &tmp1, &tmp2);
+
+          // NOTE: This truncates to 32-bit on Windows, to keep on-disk
+          // stability.
+          nr1 = static_cast<ulong>(tmp1);
+          nr2 = static_cast<ulong>(tmp2);
           continue;
         }
         /* New types in mysql-5.6. */

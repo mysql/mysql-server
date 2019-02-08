@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -251,11 +251,11 @@ static int my_wc_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 extern "C" {
 static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                                  const uchar *key, size_t len, ulong *nr1,
-                                  ulong *nr2) {
+                                  const uchar *key, size_t len, uint64 *nr1,
+                                  uint64 *nr2) {
   const uchar *pos = key;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
      Remove trailing spaces. We have to do this to be able to compare
@@ -267,7 +267,7 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   tmp2 = *nr2;
 
   for (; pos < key; pos++) {
-    tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
     tmp2 += 3;
   }
 
@@ -276,11 +276,11 @@ static void my_hash_sort_8bit_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 }
 
 static void my_hash_sort_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                             const uchar *key, size_t len, ulong *nr1,
-                             ulong *nr2) {
+                             const uchar *key, size_t len, uint64 *nr1,
+                             uint64 *nr2) {
   const uchar *pos = key;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   key += len;
 
@@ -288,7 +288,7 @@ static void my_hash_sort_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   tmp2 = *nr2;
 
   for (; pos < key; pos++) {
-    tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
+    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)*pos)) + (tmp1 << 8);
     tmp2 += 3;
   }
 

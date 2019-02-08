@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,8 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <memory>
+#include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -61,7 +63,9 @@
 using std::make_pair;
 using std::max;
 using std::pair;
+using std::string;
 using std::to_string;
+using std::unordered_map;
 
 namespace strnxfrm_unittest {
 
@@ -1499,7 +1503,7 @@ static void BM_HashSimpleUTF8MB4(size_t num_iterations) {
       "and collation supports much more complicated scenarios.";
   const int len = strlen(content);
 
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
@@ -2186,8 +2190,8 @@ TEST(BitfiddlingTest, FastOutOfRange16) {
   }
 }
 
-ulong hash(CHARSET_INFO *cs, const char *str) {
-  ulong nr1 = 1, nr2 = 4;
+uint64 hash(CHARSET_INFO *cs, const char *str) {
+  uint64 nr1 = 1, nr2 = 4;
   cs->coll->hash_sort(cs, pointer_cast<const uchar *>(str), strlen(str), &nr1,
                       &nr2);
   return nr1;
@@ -2231,7 +2235,7 @@ TEST(PadCollationTest, HashSort) {
 
 TEST(HashTest, NullPointer) {
   CHARSET_INFO *cs = init_collation("utf8mb4_0900_ai_ci");
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
 
   /*
     We should get the same hash from the empty string no matter what
@@ -2291,6 +2295,330 @@ TEST(StrxfrmLenTest, StrnxfrmLenIsLongEnoughForAllCharacters) {
     if (cs && (cs->state & MY_CS_AVAILABLE)) {
       SCOPED_TRACE(cs->name);
       test_strnxfrmlen(init_collation(cs->name));
+    }
+  }
+}
+
+// Golden hashes for a test string. These may be stored on disk, so we need to
+// make sure that they never change.
+struct GoldenHashResult {
+  pair<uint64, uint64> hash_value;
+};
+
+TEST(StrmxfrmHashTest, HashStability) {
+  // Load one collation to get everything going.
+  init_collation("utf8mb4_0900_ai_ci");
+
+  // Reference values. Please keep this list sorted.
+  unordered_map<string, GoldenHashResult> expected = {
+      {"armscii8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"armscii8_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"ascii_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"ascii_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"big5_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"big5_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"binary", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_croatian_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"cp1250_czech_cs", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1250_general_ci", {{0x81c46f6c6b06f8fcLL, 0x000002b0LL}}},
+      {"cp1250_polish_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"cp1251_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1251_bulgarian_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"cp1251_general_ci", {{0xce71da5364c300a4LL, 0x000002b0LL}}},
+      {"cp1251_general_cs", {{0xff44ce45c6d3d142LL, 0x000002b0LL}}},
+      {"cp1251_ukrainian_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"cp1256_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1256_general_ci", {{0x44ed84e7ad4a6c1cLL, 0x000002b0LL}}},
+      {"cp1257_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp1257_general_ci", {{0x15219f243a38ad58LL, 0x000002b0LL}}},
+      {"cp1257_lithuanian_ci", {{0xaa3ef638e5e056e8LL, 0x000002b0LL}}},
+      {"cp850_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp850_general_ci", {{0xf32b1cf4087a0b08LL, 0x000002b0LL}}},
+      {"cp852_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp852_general_ci", {{0x60dce9bffdeccd52LL, 0x000002b0LL}}},
+      {"cp866_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp866_general_ci", {{0xce71da5364c300a4LL, 0x000002b0LL}}},
+      {"cp932_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"cp932_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"dec8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"dec8_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"eucjpms_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"eucjpms_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"euckr_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"euckr_korean_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"gb18030_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gb18030_chinese_ci", {{0xb7b6676124243e73LL, 0x00000abdLL}}},
+      {"gb18030_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"gb2312_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gb2312_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"gbk_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"gbk_chinese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"geostd8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"geostd8_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"greek_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"greek_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"hebrew_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"hebrew_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"hp8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"hp8_english_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"keybcs2_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"keybcs2_general_ci", {{0xd2d54c0201229650LL, 0x000002b0LL}}},
+      {"koi8r_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"koi8r_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"koi8u_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"koi8u_general_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin1_danish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_general_ci", {{0xd7d424d55cb8f402LL, 0x000002b0LL}}},
+      {"latin1_general_cs", {{0x96b2a3f94ffe41f9LL, 0x000002b0LL}}},
+      {"latin1_german1_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_german2_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin1_spanish_ci", {{0xd7d424d55cb8f402LL, 0x000002b0LL}}},
+      {"latin1_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"latin2_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin2_croatian_ci", {{0xe25aa32298f78f4aLL, 0x000002b0LL}}},
+      {"latin2_czech_cs", {{0xba89a4855c3a88b6LL, 0x000002b0LL}}},
+      {"latin2_general_ci", {{0xd9179195a5ddebf8LL, 0x000002b0LL}}},
+      {"latin2_hungarian_ci", {{0xba89a4855c3a88b6LL, 0x000002b0LL}}},
+      {"latin5_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin5_turkish_ci", {{0x68989a162aab9f1cLL, 0x000002b0LL}}},
+      {"latin7_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"latin7_estonian_cs", {{0xa281f3df87b89fe1LL, 0x000002b0LL}}},
+      {"latin7_general_ci", {{0xc6808727382ffb41LL, 0x000002b0LL}}},
+      {"latin7_general_cs", {{0xf70d2b9f0d640804LL, 0x000002b0LL}}},
+      {"macce_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"macce_general_ci", {{0xb27ca521eb9b7492LL, 0x000002b0LL}}},
+      {"macroman_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"macroman_general_ci", {{0x3254bac0fa3625efLL, 0x000002b0LL}}},
+      {"sjis_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"sjis_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"swe7_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"swe7_swedish_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"tis620_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"tis620_thai_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"ucs2_bin", {{0x1877f0a25b18b4c6LL, 0x0000055fLL}}},
+      {"ucs2_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"ucs2_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"ucs2_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"ucs2_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"ucs2_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"ucs2_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"ucs2_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"ucs2_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"ucs2_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"ucs2_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"ucs2_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ucs2_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"ujis_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"ujis_japanese_ci", {{0xdae43ea5cabac97cLL, 0x000002b0LL}}},
+      {"utf16_bin", {{0x1877f0a25b18b4c6LL, 0x0000055fLL}}},
+      {"utf16_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf16_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf16_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf16_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf16_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf16_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf16_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf16_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf16_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf16_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf16le_bin", {{0x3da26ce08ecbfaf9LL, 0x0000055fLL}}},
+      {"utf16le_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf32_bin", {{0x353330032692faLL, 0x00000abdLL}}},
+      {"utf32_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf32_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_general_ci", {{0x353330032692faLL, 0x00000abdLL}}},
+      {"utf32_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf32_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf32_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf32_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf32_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf32_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf32_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf32_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf32_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8_general_mysql500_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf8_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf8_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf8_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf8_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_tolower_ci", {{0x8eab9a2c403c8eb9LL, 0x0000055fLL}}},
+      {"utf8_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf8_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf8_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_0900_as_ci", {{0xfc978781d49d0d9bLL, 0x00000001LL}}},
+      {"utf8mb4_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
+      {"utf8mb4_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_cs_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
+      {"utf8mb4_cs_0900_as_cs", {{0xac403419684d8c71LL, 0x00000001LL}}},
+      {"utf8mb4_czech_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb4_da_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_da_0900_as_cs", {{0xbd24fdcb7b0cf519LL, 0x00000001LL}}},
+      {"utf8mb4_danish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_de_pb_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_de_pb_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_eo_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_eo_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_es_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_es_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_es_trad_0900_ai_ci", {{0x555a77b8a263f17fLL, 0x00000001LL}}},
+      {"utf8mb4_es_trad_0900_as_cs", {{0xae993a138c5c030dLL, 0x00000001LL}}},
+      {"utf8mb4_esperanto_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_estonian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_et_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_et_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_general_ci", {{0xfb66c3f2301bd579LL, 0x0000055fLL}}},
+      {"utf8mb4_german2_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_hr_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_hr_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_hu_0900_ai_ci", {{0x3162e9e9cebb9148LL, 0x00000001LL}}},
+      {"utf8mb4_hu_0900_as_cs", {{0x88842661c548eec1LL, 0x00000001LL}}},
+      {"utf8mb4_hungarian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_icelandic_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_is_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_is_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_ja_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_ja_0900_as_cs_ks", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_la_0900_ai_ci", {{0x2928cd07bca9a85dLL, 0x00000001LL}}},
+      {"utf8mb4_la_0900_as_cs", {{0x29a7f3eb43a9819LL, 0x00000001LL}}},
+      {"utf8mb4_latvian_ci", {{0x6473871765c3455cLL, 0x0000055fLL}}},
+      {"utf8mb4_lithuanian_ci", {{0xccb8395ef1969f40LL, 0x00000553LL}}},
+      {"utf8mb4_lt_0900_ai_ci", {{0xcd5ce469f67f6792LL, 0x00000001LL}}},
+      {"utf8mb4_lt_0900_as_cs", {{0xe2e6dc41a4d6b3c1LL, 0x00000001LL}}},
+      {"utf8mb4_lv_0900_ai_ci", {{0xcd5ce469f67f6792LL, 0x00000001LL}}},
+      {"utf8mb4_lv_0900_as_cs", {{0xfe377cec9551f0f4LL, 0x00000001LL}}},
+      {"utf8mb4_persian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_pl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_pl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_polish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_ro_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_ro_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_roman_ci", {{0xf40d4b3c957fccdcLL, 0x0000055fLL}}},
+      {"utf8mb4_romanian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_ru_0900_ai_ci", {{0xb55bc2bf5ab2bf53LL, 0x00000001LL}}},
+      {"utf8mb4_ru_0900_as_cs", {{0x36f5a31292841899LL, 0x00000001LL}}},
+      {"utf8mb4_sinhala_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_sk_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
+      {"utf8mb4_sk_0900_as_cs", {{0xac403419684d8c71LL, 0x00000001LL}}},
+      {"utf8mb4_sl_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_sl_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_slovak_ci", {{0x1dc65c2738ed47c0LL, 0x00000553LL}}},
+      {"utf8mb4_slovenian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_spanish2_ci", {{0x3e79d9277da1beb4LL, 0x00000547LL}}},
+      {"utf8mb4_spanish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_sv_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_sv_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_swedish_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_tr_0900_ai_ci", {{0x7ea67be76364740fLL, 0x00000001LL}}},
+      {"utf8mb4_tr_0900_as_cs", {{0xfa4556e24336675eLL, 0x00000001LL}}},
+      {"utf8mb4_turkish_ci", {{0x3fb28acb6e515c9cLL, 0x0000055fLL}}},
+      {"utf8mb4_unicode_520_ci", {{0x5c1f019a21e3d464LL, 0x0000055fLL}}},
+      {"utf8mb4_unicode_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_vi_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
+      {"utf8mb4_vi_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_vietnamese_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
+      {"utf8mb4_zh_0900_as_cs", {{0x23c370d9ac589d1fLL, 0x00000001LL}}},
+  };
+
+  string test_str =
+      "This is a fairly long string. It does not contain any special "
+      "characters since they are probably not universally supported across all "
+      "character sets, but should at least be enough to make the nr1 value go "
+      "up past the 32-bit mark.";
+
+  for (CHARSET_INFO *cs : all_charsets) {
+    if (cs && (cs->state & MY_CS_AVAILABLE)) {
+      init_collation(cs->name);
+
+      char buf[4096];
+      uint errors;
+      size_t len =
+          my_convert(buf, sizeof(buf), cs, test_str.data(), test_str.size(),
+                     &my_charset_utf8mb4_0900_ai_ci, &errors);
+      ASSERT_EQ(0, errors);
+
+      uint64 nr1 = 4, nr2 = 1;
+      cs->coll->hash_sort(cs, pointer_cast<const uchar *>(buf), len, &nr1,
+                          &nr2);
+
+      // Change this from false to true to output source code you can paste
+      // into “expected” above.
+      if (false) {
+        printf("    {\"%s\", {{0x%016llxLL, 0x%08llxLL}}},\n", cs->name, nr1,
+               nr2);
+        continue;
+      }
+
+      ASSERT_EQ(1, expected.count(cs->name))
+          << "Character set " << cs->name << " is missing in the database";
+      SCOPED_TRACE(cs->name);
+
+      EXPECT_EQ(expected[cs->name].hash_value.first, nr1);
+      EXPECT_EQ(expected[cs->name].hash_value.second, nr2);
     }
   }
 }

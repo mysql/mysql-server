@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,6 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record) {
   uchar *pos;
   const uchar *end;
   ha_checksum crc = 0;
-  ulong seed1 = 0, seed2 = 4;
   HA_KEYSEG *keyseg;
 
   for (keyseg = def->seg; keyseg < def->end; keyseg++) {
@@ -115,9 +114,10 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record) {
     end = pos + length;
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2) {
+      uint64 seed1 = 0, seed2 = 4;
       keyseg->charset->coll->hash_sort(keyseg->charset, (const uchar *)pos,
                                        length, &seed1, &seed2);
-      crc ^= seed1;
+      crc ^= static_cast<ulong>(seed1);
     } else
       while (pos != end)
         crc = ((crc << 8) + (((uchar) * (uchar *)pos++))) +

@@ -4529,7 +4529,7 @@ static bool table_rec_cmp(TABLE *table) {
 
 ulonglong unique_hash(Field *field, ulonglong *hash_val) {
   uchar *pos, *end;
-  ulong seed1 = 0, seed2 = 4;
+  uint64 seed1 = 0, seed2 = 4;
   ulonglong crc = *hash_val;
 
   if (field->is_null()) {
