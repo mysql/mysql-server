@@ -260,3 +260,15 @@ ERROR HY000: Lost connection to MySQL server during query
 t1.MYD
 # And that DROP DATABASE can remove this table, without problems.
 DROP DATABASE mysqltest;
+#
+# Bug#28923782: DD CRASHES ON ASSERT IF HA_COMMIT_TRANS() RETURNS ERROR
+#
+# Check result of ha_commit_trans() before committing changes of the DD
+# objects.
+#
+CREATE TABLE t(i INT);
+SET debug = '+d,simulate_failure_in_before_commit_hook';
+DROP TABLE t;
+ERROR HY000: Error on observer while running replication hook 'before_commit'.
+SET debug = '-d,simulate_failure_in_before_commit_hook';
+DROP TABLE t;
