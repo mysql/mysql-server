@@ -70,6 +70,7 @@ protected:
     case Item::NULL_ITEM:
     case Item::VARBIN_ITEM:
     case Item::CACHE_ITEM:
+    case Item::FUNC_ITEM:
       return m_processor(item, m_arg);
     default:
       break;
