@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,12 +60,9 @@ class Ndb_binlog_client {
    * @param db             database of table
    * @param tbl            name of table
    * @param full           create name for event with all columns
-   * @param allow_hardcoded_name allow the function for disregard the
-   *                             "full" parameter
    */
   static std::string event_name_for_table(const char *db,
-                                          const char *table_name, bool full,
-                                          bool allow_hardcoded_name = true);
+                                          const char *table_name, bool full);
 
  public:
   Ndb_binlog_client(class THD *, const char *dbname, const char *tabname);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ class Ndb_schema_result_table : public Ndb_util_table {
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
+  bool drop_events_in_NDB() const override;
  public:
   static const char* COL_NODEID;
   static const char* COL_SCHEMA_OP_ID;

@@ -6771,8 +6771,7 @@ Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   for (uint i= 0; i < 2; i++)
   {
     std::string event_name =
-        event_name_for_table(db, table_name, i,
-                             false /* don't allow hardcoded event name */);
+        event_name_for_table(db, table_name, i);
     
     NDBDICT *dict= ndb->getDictionary();
     if (dict->dropEvent(event_name.c_str()) == 0)

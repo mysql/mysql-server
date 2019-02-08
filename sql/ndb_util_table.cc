@@ -211,8 +211,7 @@ bool Ndb_util_table::define_table_add_column(
 }
 
 bool Ndb_util_table::create_table_in_NDB(
-    NdbDictionary::Table &new_table) const {
-
+    const NdbDictionary::Table &new_table) const {
   // Set correct database name on the Ndb object
   Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
 
@@ -229,16 +228,38 @@ bool Ndb_util_table::drop_table_in_NDB(
     const NdbDictionary::Table &old_table) const {
   // Set correct database name on the Ndb object
   Db_name_guard db_guard(m_thd_ndb->ndb, m_db_name.c_str());
-
   NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+
+  if (!drop_events_in_NDB())
+  {
+    push_warning("Failed to drop events for table '%s'",
+                 m_table_name.c_str());
+    return false;
+  }
+
   if (dict->dropTableGlobal(old_table) != 0) {
     push_ndb_error_warning(dict->getNdbError());
     push_warning("Failed to drop table '%s'", old_table.getName());
     return false;
   }
+
   return true;
 }
 
+bool Ndb_util_table::drop_event_in_NDB(const char *event_name) const {
+  NdbDictionary::Dictionary *dict = m_thd_ndb->ndb->getDictionary();
+  if (dict->dropEvent(event_name) != 0) {
+    if (dict->getNdbError().code == 4710 || dict->getNdbError().code == 1419) {
+      // Failed to drop event but return code says it was
+      // because the event didn't exist -> all ok
+      return true;
+    }
+    push_ndb_error_warning(dict->getNdbError());
+    push_warning("Failed to drop event '%s'", event_name);
+    return false;
+  }
+  return true;
+}
 
 bool Ndb_util_table::create() const {
   NdbDictionary::Table new_table(m_table_name.c_str());

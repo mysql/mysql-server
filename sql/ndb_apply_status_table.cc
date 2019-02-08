@@ -1,5 +1,5 @@
 ﻿/*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,6 +173,14 @@ bool Ndb_apply_status_table::define_table_ndb(NdbDictionary::Table &new_table,
 
   (void)mysql_version; // Only one version can be created
 
+  return true;
+}
+
+bool Ndb_apply_status_table::drop_events_in_NDB() const
+{
+  // Drop the default event
+  if (!drop_event_in_NDB("REPL$mysql/ndb_apply_status"))
+    return false;
   return true;
 }
 

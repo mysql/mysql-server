@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,12 +128,10 @@ bool Ndb_binlog_client::table_should_have_event_op(const NDB_SHARE* share) {
 
 std::string Ndb_binlog_client::event_name_for_table(const char* db,
                                                     const char* table_name,
-                                                    bool full,
-                                                    bool allow_hardcoded_name) {
-  if (allow_hardcoded_name && strcmp(db, NDB_REP_DB) == 0 &&
+                                                    bool full) {
+  if (strcmp(db, NDB_REP_DB) == 0 &&
       strcmp(table_name, NDB_SCHEMA_TABLE) == 0) {
     // Always use REPL$ as prefix for the event on mysql.ndb_schema
-    // (unless when dropping events and allow_hardcoded_name is set to false)
     full = false;
   }
 

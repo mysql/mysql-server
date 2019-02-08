@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,3 +157,11 @@ std::string Ndb_schema_result_table::define_table_dd() const {
   return ss.str();
 }
 
+bool Ndb_schema_result_table::drop_events_in_NDB() const
+{
+  // Drop the default event
+  if (!drop_event_in_NDB("REPL$mysql/ndb_schema_result"))
+    return false;
+
+  return true;
+}

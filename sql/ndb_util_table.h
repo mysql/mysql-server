@@ -84,8 +84,20 @@ class Ndb_util_table {
   bool define_table_add_column(NdbDictionary::Table &new_table,
                                const NdbDictionary::Column &new_column) const;
 
-  bool create_table_in_NDB(NdbDictionary::Table &new_table) const;
+  bool create_table_in_NDB(const NdbDictionary::Table &new_table) const;
   bool drop_table_in_NDB(const NdbDictionary::Table &old_table) const;
+
+  /**
+     @brief Drop the events related to this table from NDB
+     @return true if events was dropped successfully
+  */
+  virtual bool drop_events_in_NDB() const = 0;
+
+  /**
+    @brief Drop one event from NDB
+    @return true if events was dropped successfully
+    */
+  bool drop_event_in_NDB(const char* event_name) const;
 
  public:
   /**

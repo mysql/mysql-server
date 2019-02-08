@@ -37,6 +37,8 @@ class Ndb_schema_dist_table : public Ndb_util_table {
   bool define_table_ndb(NdbDictionary::Table &table,
                         unsigned mysql_version) const override;
 
+  bool drop_events_in_NDB() const override;
+
  public:
   static const char* COL_DB;
   static const char* COL_NAME;

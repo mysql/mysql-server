@@ -275,6 +275,20 @@ bool Ndb_schema_dist_table::define_table_ndb(NdbDictionary::Table &new_table,
 
 bool Ndb_schema_dist_table::need_upgrade() const { return false; }
 
+bool Ndb_schema_dist_table::drop_events_in_NDB() const
+{
+  // Drop the default event on ndb_schema table
+  if (!drop_event_in_NDB("REPL$mysql/ndb_schema"))
+    return false;
+
+  // Legacy event on ndb_schema table, drop since it might
+  // have been created(although ages ago)
+  if (!drop_event_in_NDB("REPLF$mysql/ndb_schema"))
+    return false;
+
+  return true;
+}
+
 std::string Ndb_schema_dist_table::define_table_dd() const {
   std::stringstream ss;
   ss << "CREATE TABLE " << db_name() << "." << table_name() << "(\n";
