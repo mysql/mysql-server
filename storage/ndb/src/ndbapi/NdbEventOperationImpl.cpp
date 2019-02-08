@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4474,8 +4474,8 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
   const uchar* dptr = (uchar*)ptr[1].p;
 
   // hash registers
-  ulong nr1 = 0;
-  ulong nr2 = 0;
+  uint64 nr1 = 0;
+  uint64 nr2 = 0;
   while (nkey-- != 0)
   {
     AttributeHeader ah(*hptr++);
@@ -4492,6 +4492,9 @@ EventBufData_hash::getpkhash(NdbEventOperationImpl* op,
 
     CHARSET_INFO* cs = col->m_cs ? col->m_cs : &my_charset_bin;
     (*cs->coll->hash_sort)(cs, dptr + lb, len, &nr1, &nr2);
+    // TODO: Do we need hash stability here?
+    nr1 = static_cast<ulong>(nr1);
+    nr2 = static_cast<ulong>(nr2);
     dptr += ((bytesize + 3) / 4) * 4;
   }
   DBUG_PRINT_EVENT("info", ("hash result=%08x", nr1));

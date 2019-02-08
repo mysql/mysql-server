@@ -199,7 +199,7 @@ uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
     Array index, in [0..maxlength)
 */
 
-ulong hp_mask(ulong hashnr, ulong buffmax, ulong maxlength) {
+uint64 hp_mask(uint64 hashnr, uint64 buffmax, uint64 maxlength) {
   if ((hashnr & (buffmax - 1)) < maxlength) return (hashnr & (buffmax - 1));
   return (hashnr & ((buffmax >> 1) - 1));
 }
@@ -222,9 +222,9 @@ void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink) {
 
 /* Calc hashvalue for a key */
 
-ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
+uint64 hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
   /*register*/
-  ulong nr = 1, nr2 = 4;
+  uint64 nr = 1, nr2 = 4;
   HA_KEYSEG *seg, *endseg;
 
   for (seg = keydef->seg, endseg = seg + keydef->keysegs; seg < endseg; seg++) {
@@ -278,19 +278,19 @@ ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key) {
       key += pack_length;
     } else {
       for (; pos < key; pos++) {
-        nr ^= (ulong)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
+        nr ^= (uint64)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
         nr2 += 3;
       }
     }
   }
-  DBUG_PRINT("exit", ("hash: 0x%lx", nr));
-  return ((ulong)nr);
+  DBUG_PRINT("exit", ("hash: 0x%llx", nr));
+  return nr;
 }
 
 /* Calc hashvalue for a key in a record */
 
-ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
-  ulong nr = 1, nr2 = 4;
+uint64 hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
+  uint64 nr = 1, nr2 = 4;
   HA_KEYSEG *seg, *endseg;
 
   for (seg = keydef->seg, endseg = seg + keydef->keysegs; seg < endseg; seg++) {
@@ -337,12 +337,12 @@ ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec) {
       cs->coll->hash_sort(cs, pos + pack_length, length, &nr, &nr2);
     } else {
       for (; pos < end; pos++) {
-        nr ^= (ulong)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
+        nr ^= (uint64)((((uint)nr & 63) + nr2) * ((uint)*pos)) + (nr << 8);
         nr2 += 3;
       }
     }
   }
-  DBUG_PRINT("exit", ("hash: 0x%lx", nr));
+  DBUG_PRINT("exit", ("hash: 0x%llx", nr));
   return (nr);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -580,10 +580,10 @@ static size_t my_strnxfrm_latin1_de(const CHARSET_INFO *cs, uchar *dst,
 
 static void my_hash_sort_latin1_de(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const uchar *key, size_t len,
-    ulong *nr1, ulong *nr2) {
+    uint64 *nr1, uint64 *nr2) {
   const uchar *end;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -596,10 +596,10 @@ static void my_hash_sort_latin1_de(
 
   for (; key < end; key++) {
     uint X = (uint)combo1map[(uint)*key];
-    tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+    tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
     tmp2 += 3;
     if ((X = combo2map[*key])) {
-      tmp1 ^= (ulong)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+      tmp1 ^= (uint64)((((uint)tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
       tmp2 += 3;
     }
   }

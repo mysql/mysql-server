@@ -254,7 +254,7 @@ typedef struct MY_COLLATION_HANDLER {
     nr2 holds extra state between invocations.
   */
   void (*hash_sort)(const CHARSET_INFO *cs, const uchar *key, size_t len,
-                    ulong *nr1, ulong *nr2);
+                    uint64 *nr1, uint64 *nr2);
   bool (*propagate)(const CHARSET_INFO *cs, const uchar *str, size_t len);
 } MY_COLLATION_HANDLER;
 
@@ -440,7 +440,7 @@ extern int my_strnncollsp_simple(const CHARSET_INFO *, const uchar *, size_t,
                                  const uchar *, size_t);
 
 extern void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key,
-                                size_t len, ulong *nr1, ulong *nr2);
+                                size_t len, uint64 *nr1, uint64 *nr2);
 
 extern size_t my_lengthsp_8bit(const CHARSET_INFO *cs, const char *ptr,
                                size_t length);
@@ -583,7 +583,8 @@ int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                          const char *s, const char *t);
 
 void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const uchar *key, size_t len, ulong *nr1, ulong *nr2);
+                         const uchar *key, size_t len, uint64 *nr1,
+                         uint64 *nr2);
 
 size_t my_strnxfrm_mb(const CHARSET_INFO *, uchar *dst, size_t dstlen,
                       uint nweights, const uchar *src, size_t srclen,

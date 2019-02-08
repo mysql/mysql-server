@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1107,7 +1107,7 @@ NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
   if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
   {
     // Hash the string using the collations hash function.
-    ulong hash = 0, n2 = 0;
+    uint64 hash = 0, n2 = 0;
     (*cs->coll->hash_sort)(cs, src, srcLen, &hash, &n2);
 
     if (verify_hash_only_usage)  //Debug only
@@ -1161,7 +1161,7 @@ NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,
   if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
   {
     //The hash_sort() value, see strnxfrm_hash
-    return sizeof(ulong);
+    return sizeof(uint64);
   }
   else if (likely(cs->strxfrm_multiply > 0))
   {

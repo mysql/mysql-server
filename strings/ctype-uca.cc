@@ -2002,11 +2002,11 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
 
 template <class Mb_wc>
 static void my_hash_sort_uca(const CHARSET_INFO *cs, Mb_wc mb_wc,
-                             const uchar *s, size_t slen, ulong *n1,
-                             ulong *n2) {
+                             const uchar *s, size_t slen, uint64 *n1,
+                             uint64 *n2) {
   int s_res;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   slen = cs->cset->lengthsp(cs, pointer_cast<const char *>(s), slen);
   uca_scanner_any<Mb_wc> scanner(mb_wc, cs, s, slen);
@@ -4876,7 +4876,7 @@ static int my_strnncollsp_any_uca(const CHARSET_INFO *cs, const uchar *s,
 }
 
 static void my_hash_sort_any_uca(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *n2) {
+                                 size_t slen, uint64 *n1, uint64 *n2) {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
     my_hash_sort_uca(cs, Mb_wc_utf8mb4(), s, slen, n1, n2);
   } else {
@@ -4949,14 +4949,12 @@ static int my_strnncollsp_uca_900(const CHARSET_INFO *cs, const uchar *s,
 
 template <class Mb_wc, int LEVELS_FOR_COMPARE>
 static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs, const Mb_wc mb_wc,
-                                      const uchar *s, size_t slen, ulong *n1) {
+                                      const uchar *s, size_t slen, uint64 *n1) {
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, s, slen);
 
   /*
-    A variation of the FNV-1a hash. Since ulong is different between platforms,
-    we have to use different constants (32-bit and 64-bit FNV) for the two.
-    The differences between this and standard FNV-1a as described in literature
-    are:
+    A variation of the FNV-1a hash. The differences between this and
+    standard FNV-1a as described in literature are:
 
      - We work naturally on 16-bit weights, so we XOR in the entire weight
        instead of hashing byte-by-byte. (This is effectively a speed/quality
@@ -4975,10 +4973,6 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs, const Mb_wc mb_wc,
 
     We ignore the n2 seed entirely, since we don't need it. The caller is
     responsible for doing hash folding at the end; we can't do that.
-    We always work in 64-bit precision, so that we have a result that's
-    as equal as possible between different platforms. If ulong is too small
-    for 64-bit, we just have to hope that the upper bits are not used
-    (this is basically equivalent to what all the other hash functions do).
 
     See http://isthe.com/chongo/tech/comp/fnv/#FNV-param for constants.
   */
@@ -4994,13 +4988,13 @@ static void my_hash_sort_uca_900_tmpl(const CHARSET_INFO *cs, const Mb_wc mb_wc,
       },
       [](int) { return true; });
 
-  *n1 = static_cast<ulong>(h);
+  *n1 = h;
 }
 
 extern "C" {
 
 static void my_hash_sort_uca_900(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *) {
+                                 size_t slen, uint64 *n1, uint64 *) {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
     switch (cs->levels_for_compare) {
       case 1:
@@ -5182,7 +5176,7 @@ static int my_strnncollsp_ucs2_uca(const CHARSET_INFO *cs, const uchar *s,
 }
 
 static void my_hash_sort_ucs2_uca(const CHARSET_INFO *cs, const uchar *s,
-                                  size_t slen, ulong *n1, ulong *n2) {
+                                  size_t slen, uint64 *n1, uint64 *n2) {
   Mb_wc_through_function_pointer mb_wc(cs);
   my_hash_sort_uca(cs, mb_wc, s, slen, n1, n2);
 }

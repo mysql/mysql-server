@@ -276,11 +276,11 @@ size_t my_snprintf_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *to,
 }
 
 void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key, size_t len,
-                         ulong *nr1, ulong *nr2) {
+                         uint64 *nr1, uint64 *nr2) {
   const uchar *sort_order = cs->sort_order;
   const uchar *end;
-  ulong tmp1;
-  ulong tmp2;
+  uint64 tmp1;
+  uint64 tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -293,7 +293,7 @@ void my_hash_sort_simple(const CHARSET_INFO *cs, const uchar *key, size_t len,
 
   for (; key < end; key++) {
     tmp1 ^=
-        (ulong)((((uint)tmp1 & 63) + tmp2) * ((uint)sort_order[(uint)*key])) +
+        (uint64)((((uint)tmp1 & 63) + tmp2) * ((uint)sort_order[(uint)*key])) +
         (tmp1 << 8);
     tmp2 += 3;
   }

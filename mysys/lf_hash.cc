@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -412,7 +412,7 @@ static int initialize_bucket(LF_HASH *, std::atomic<LF_SLIST *> *, uint,
 */
 static uint cset_hash_sort_adapter(const LF_HASH *hash, const uchar *key,
                                    size_t length) {
-  ulong nr1 = 1, nr2 = 4;
+  uint64 nr1 = 1, nr2 = 4;
   hash->charset->coll->hash_sort(hash->charset, key, length, &nr1, &nr2);
   return (uint)nr1;
 }

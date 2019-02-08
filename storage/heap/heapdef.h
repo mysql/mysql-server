@@ -90,9 +90,9 @@ extern uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
                         uint nextflag);
 extern uchar *hp_search_next(HP_INFO *info, HP_KEYDEF *keyinfo,
                              const uchar *key, HASH_INFO *pos);
-extern ulong hp_hashnr(HP_KEYDEF *keyinfo, const uchar *key);
-extern ulong hp_rec_hashnr(HP_KEYDEF *keyinfo, const uchar *rec);
-extern ulong hp_mask(ulong hashnr, ulong buffmax, ulong maxlength);
+extern uint64 hp_hashnr(HP_KEYDEF *keyinfo, const uchar *key);
+extern uint64 hp_rec_hashnr(HP_KEYDEF *keyinfo, const uchar *rec);
+extern uint64 hp_mask(uint64 hashnr, uint64 buffmax, uint64 maxlength);
 extern void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link,
                         HASH_INFO *newlink);
 extern int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1,

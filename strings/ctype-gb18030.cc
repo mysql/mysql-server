@@ -20308,9 +20308,9 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
   @param[in,out] n2   n2
 */
 static void my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s,
-                                 size_t slen, ulong *n1, ulong *n2) {
+                                 size_t slen, uint64 *n1, uint64 *n2) {
   const uchar *e = s + slen;
-  ulong tmp1, tmp2;
+  uint64 tmp1, tmp2;
   size_t len;
   size_t s_gb;
   uint ch;
