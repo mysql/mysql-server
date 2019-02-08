@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2553,9 +2553,8 @@ bool Item_subselect::subq_opt_away_processor(uchar *) {
  */
 bool Item_subselect::clean_up_after_removal(uchar *arg) {
   /*
-    When removing a constant condition in a HAVING clause the condition
-    may reference a subselect in the SELECT list via an alias.
-    (Such use is not allowed in a WHERE clause or in the JOIN condition.)
+    When removing a constant condition, it may reference a subselect
+    in the SELECT list via an alias.
     In that case, do not remove this subselect.
   */
   auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
