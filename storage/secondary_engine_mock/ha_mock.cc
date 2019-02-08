@@ -131,6 +131,12 @@ int ha_mock::info(unsigned int flags) {
   return ret;
 }
 
+handler::Table_flags ha_mock::table_flags() const {
+  // Secondary engines do not support index access. Indexes are only used for
+  // cost estimates.
+  return HA_NO_INDEX_ACCESS;
+}
+
 unsigned long ha_mock::index_flags(unsigned int idx, unsigned int part,
                                    bool all_parts) const {
   const handler *primary = ha_get_primary_handler();

@@ -487,6 +487,12 @@ enum enum_alter_inplace_result {
 */
 #define HA_DELETE_NOT_SUPPORTED (1LL << 53)
 
+/**
+  The storage engine does not support using indexes for access. Indexes can only
+  be used for estimating cost.
+*/
+#define HA_NO_INDEX_ACCESS (1LL << 54)
+
 /*
   Bits in index_flags(index_number) for what you can do with index.
   If you do not implement indexes, just return zero here.

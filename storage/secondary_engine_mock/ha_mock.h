@@ -85,7 +85,7 @@ class ha_mock : public handler {
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              thr_lock_type lock_type) override;
 
-  Table_flags table_flags() const override { return 0; }
+  Table_flags table_flags() const override;
 
   const char *table_type() const override { return "MOCK"; }
 

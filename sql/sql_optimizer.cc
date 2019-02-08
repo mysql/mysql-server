@@ -8932,8 +8932,9 @@ static bool make_join_select(JOIN *join, Item *cond) {
                    !join->calc_found_rows)                // 2d
             recheck_reason = LOW_LIMIT;
 
-          // Secondary storage engines do not support index access.
-          if (tab->table()->s->is_secondary()) recheck_reason = DONT_RECHECK;
+          // Don't recheck if the storage engine does not support index access.
+          if ((tab->table()->file->ha_table_flags() & HA_NO_INDEX_ACCESS) != 0)
+            recheck_reason = DONT_RECHECK;
 
           if (tab->position()->sj_strategy == SJ_OPT_LOOSE_SCAN) {
             /*
