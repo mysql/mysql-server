@@ -3249,7 +3249,7 @@ bool SELECT_LEX::is_in_select_list(Item *cand) {
   while ((item = li++)) {
     // Use a walker to detect if cand is present in this select item
 
-    if (item->walk(&Item::find_item_processor, Item::WALK_POSTFIX,
+    if (item->walk(&Item::find_item_processor, walk_subquery,
                    pointer_cast<uchar *>(cand)))
       return true;
   }

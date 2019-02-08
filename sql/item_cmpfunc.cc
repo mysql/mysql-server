@@ -4790,7 +4790,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     return true;  // Fatal error flag is set!
   Item *new_item = NULL;
-  bool remove_condition = false;
+  bool remove_condition = false, can_remove_cond = true;
 
   /*
     The following optimization reduces the depth of an AND-OR tree.
@@ -4832,6 +4832,14 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       with an ALWAYS TRUE item. Else only the const item is removed.
     */
     /*
+      Make a note if this item has been created by IN to EXISTS
+      transformation. If so we cannot remove the entire condition.
+    */
+    if (item->created_by_in2exists()) {
+      remove_condition = false;
+      can_remove_cond = false;
+    }
+    /*
       If it is indicated that we can remove the condition because
       of a possible ALWAYS FALSE or ALWAYS TRUE condition, continue to
       just call fix_fields on the items.
@@ -4854,7 +4862,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         !item->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
                     NULL) &&
         !thd->lex->is_view_context_analysis() && is_top_level_item() &&
-        !select->has_ft_funcs()) {
+        !select->has_ft_funcs() && can_remove_cond) {
       if (remove_const_conds(thd, item, &new_item)) return true;
       /*
         If a new_item is returned, indicate that all the items can be removed
