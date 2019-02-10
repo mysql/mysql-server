@@ -12,7 +12,7 @@ DROP TABLE mysql.component;
 # shutdown the server from mtr.
 # restart the server.
 # running mysql_upgrade
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 INSTALL COMPONENT "file://component_example_component1";
 # a component should present
 SELECT COUNT(*) FROM mysql.component;

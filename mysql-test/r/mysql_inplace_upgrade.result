@@ -4,7 +4,7 @@
 CREATE DATABASE db1;
 CREATE DATABASE db2;
 CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
-# restart: --force-upgrade --debug=+d,force_fix_user_schemas --log-error=MYSQLD_LOG
+# restart: --upgrade=FORCE --debug=+d,force_fix_user_schemas --log-error=MYSQLD_LOG
 Pattern "Table 'db1.t1' requires repair." found
 Pattern "Table 'db1.t1' repair failed." found
 DROP DATABASE db1;

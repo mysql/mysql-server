@@ -356,7 +356,7 @@ NO	plugin
 ALTER TABLE mysql.user MODIFY plugin char(64) DEFAULT '' NOT NULL;
 ALTER TABLE mysql.user MODIFY authentication_string TEXT NOT NULL;
 Run mysql_upgrade on a 5.5.10 external authentication column layout
-# restart:--force-upgrade
+# restart:--upgrade=FORCE
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')

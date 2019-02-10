@@ -83,6 +83,7 @@
 #include "sql/transaction.h"  // trans_rollback
 
 #include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/upgrade/server.h"
 
 namespace dd {
 
@@ -871,7 +872,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
 
   // Upgrade data directory from mysql-5.7
   if (!exists_mysql_tablespace && !upgrade_status_exists) {
-    if (opt_no_upgrade) {
+    if (opt_upgrade_mode == UPGRADE_NONE) {
       LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_OFF);
       return true;
     }

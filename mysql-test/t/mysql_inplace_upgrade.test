@@ -18,7 +18,7 @@ CREATE TABLE db1.t1 (a INT) ENGINE=MYISAM;
 EOF
 
 --replace_result $MYSQLD_LOG MYSQLD_LOG $MYSQLD MYSQLD
---let $restart_parameters = restart: --force-upgrade --debug="+d,force_fix_user_schemas" --log-error=$MYSQLD_LOG
+--let $restart_parameters = restart: --upgrade=FORCE --debug="+d,force_fix_user_schemas" --log-error=$MYSQLD_LOG
 --let $wait_counter=10000
 --source include/restart_mysqld.inc
 
@@ -69,7 +69,7 @@ DROP DATABASE db2;
 --echo ###########################################################################
 
 --error 1
---exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --skip-upgrade --log-error=$MYSQLD_LOG --debug="+d,simulate_mysql_upgrade_skip_pending"
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=MINIMAL --log-error=$MYSQLD_LOG --debug="+d,simulate_mysql_upgrade_skip_pending"
 
 --let SEARCH_FILE= $MYSQLD_LOG
 --let SEARCH_PATTERN= Server upgrade started with version \\d+, but server upgrade of version \\d+ is still pending\.

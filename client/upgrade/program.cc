@@ -47,14 +47,15 @@ string deprecation_msg =
     "new MySQL binary with the older data directory. Repairing user tables is "
     "done automatically. Restart is not required after upgrade.\nThe upgrade "
     "process automatically starts on running a new MySQL binary with an older "
-    "data directory. To avoid accidental upgrades, please use the --no-upgrade "
-    "option with the MySQL binary. The option --force-upgrade is also provided "
-    "to run the server upgrade sequence on demand.\nIt may be possible that "
-    "the server upgrade fails due to a number of reasons. In that case, the "
-    "upgrade sequence will run again during the next MySQL server start. If "
-    "the server upgrade fails repeatedly, the server can be started with the "
-    "--minimal-upgrade option to start the server without executing the "
-    "upgrade sequence, thus allowing users to manually rectify the problem.";
+    "data directory. To avoid accidental upgrades, please use the "
+    "--upgrade=NONE option with the MySQL binary. The option --upgrade=FORCE "
+    "is also provided to run the server upgrade sequence on demand.\nIt may be "
+    "possible that the server upgrade fails due to a number of reasons. In "
+    "that case, the upgrade sequence will run again during the next MySQL "
+    "server start. If the server upgrade fails repeatedly, the server can be "
+    "started with the --upgrade=MINIMAL option to start the server without "
+    "executing the upgrade sequence, thus allowing users to manually rectify "
+    "the problem.";
 
 enum exit_codes {
   EXIT_INIT_ERROR = 1,

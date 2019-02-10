@@ -38,26 +38,26 @@
 --force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
 
 --echo ###########################################################################
---echo # Test the --no-upgrade option with a 5.7 data directory
+--echo # Test the --upgrade=NONE option with a 5.7 data directory
 --echo ###########################################################################
 
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_no_upgrade.log
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --error 1
---exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --no-upgrade --log-error=$MYSQLD_LOG
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=NONE --log-error=$MYSQLD_LOG
 
 --let SEARCH_FILE= $MYSQLD_LOG
 --echo # Search for the error messege in the server error log.
---let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\.
+--let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\.
 --source include/search_pattern.inc
 
 --echo ###########################################################################
---echo # Test the --minimal-upgrade option with a 5.7 data directory
+--echo # Test the --upgrade=MINIMAL option with a 5.7 data directory
 --echo ###########################################################################
 
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_skip_upgrade.log
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
---exec echo "restart: --datadir=$MYSQLD_DATADIR1 --minimal-upgrade  --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$MYSQLD_DATADIR1 --upgrade=MINIMAL  --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --let $wait_counter= 10000
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -128,22 +128,22 @@
 --let SEARCH_PATTERN= Failed to create or recover replication info repositories\.
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= Server upgrade is required, but skipped by command line option \'--minimal-upgrade\'\.
+--let SEARCH_PATTERN= Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\.
 --source include/search_pattern.inc
 
 --echo ###########################################################################
---echo # Test the --no-upgrade option with a 5.7 data directory with upgraded
+--echo # Test the --upgrade=NONE option with a 5.7 data directory with upgraded
 --echo # data dictionary but skipped server upgrade
 --echo ###########################################################################
 
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_no_upgrade_after_skip.log
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
 --error 1
---exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --no-upgrade --log-error=$MYSQLD_LOG
+--exec $MYSQLD --no-defaults --secure-file-priv="" --datadir=$MYSQLD_DATADIR1 --upgrade=NONE --log-error=$MYSQLD_LOG
 
 --let SEARCH_FILE= $MYSQLD_LOG
 --echo # Search for the error messege in the server error log.
---let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--no-upgrade\'\.
+--let SEARCH_PATTERN= Server shutting down because upgrade is required, yet prohibited by the command line option \'--upgrade=NONE\'\.
 --source include/search_pattern.inc
 
 --echo ###########################################################################
@@ -177,7 +177,7 @@ SELECT COUNT(*) = 0 FROM mysql.help_topic;
 
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/mysql57_upgrade_help_tables.log
 --replace_result $MYSQLD_LOG MYSQLD_LOG
---let $restart_parameters = restart: --force-upgrade --log-error=$MYSQLD_LOG
+--let $restart_parameters = restart: --upgrade=FORCE --log-error=$MYSQLD_LOG
 --let $wait_counter=10000
 --source include/restart_mysqld.inc
 

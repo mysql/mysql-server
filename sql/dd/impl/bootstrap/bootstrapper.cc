@@ -64,6 +64,7 @@
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
+#include "sql/dd/upgrade/server.h"         // UPGRADE_NONE
 #include "sql/dd/upgrade_57/upgrade.h"     // upgrade_57::Upgrade_status
 #include "sql/handler.h"                   // dict_init_mode_t
 #include "sql/mdl.h"
@@ -779,7 +780,7 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     }
 
     if (server_version != MYSQL_VERSION_ID) {
-      if (opt_no_upgrade) {
+      if (opt_upgrade_mode == UPGRADE_NONE) {
         LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_OFF);
         return true;
       }
@@ -1096,7 +1097,7 @@ bool initialize_dd_properties(THD *thd) {
       bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
           actual_version);
       if (opt_no_dd_upgrade) {
-        push_deprecated_warn(thd, "--no-dd-upgrade", "--no-upgrade");
+        push_deprecated_warn(thd, "--no-dd-upgrade", "--upgrade=NONE");
         LogErr(ERROR_LEVEL, ER_DD_UPGRADE_OFF);
         return true;
       }
@@ -1194,7 +1195,7 @@ bool initialize_dd_properties(THD *thd) {
       LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
       // This condition is hit only if upgrade has been skipped before
-      if (opt_no_upgrade) {
+      if (opt_upgrade_mode == UPGRADE_NONE) {
         LogErr(ERROR_LEVEL, ER_SERVER_UPGRADE_OFF);
         return true;
       }

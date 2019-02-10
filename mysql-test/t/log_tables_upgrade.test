@@ -18,7 +18,7 @@ RENAME TABLE test.bug49823 TO general_log;
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb. Always report check-for-upgrade status as OK, as it depends
 # on the order in which tests are run.
---let $restart_parameters = restart:--force-upgrade --general-log=0
+--let $restart_parameters = restart:--upgrade=FORCE --general-log=0
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

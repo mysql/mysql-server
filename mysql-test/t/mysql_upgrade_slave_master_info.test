@@ -32,7 +32,7 @@ SELECT COLUMN_NAME, ORDINAL_POSITION
 --echo # Verify that the upgrade script works correctly when upgrading from the same version
 --echo # i.e. when both the columns Channel_name and Tls_version are in the correct order.
 --disable_result_log
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 --enable_result_log
@@ -57,7 +57,7 @@ ALTER TABLE mysql.slave_master_info
 
 --echo # Running mysql_upgrade to update slave_master_info table
 --disable_result_log
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 --enable_result_log
@@ -106,7 +106,7 @@ CREATE TABLE `mysql`.`slave_master_info` (
 
 --echo #Running mysql_upgrade to update slave_master_info table
 --disable_result_log
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 --enable_result_log

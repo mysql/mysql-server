@@ -18,7 +18,7 @@ DROP DATABASE sys;
 SHOW DATABASES;
 
 # Finally reload the sys schema to return to normal
---let $restart_parameters = restart:--force-upgrade
+--let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
 

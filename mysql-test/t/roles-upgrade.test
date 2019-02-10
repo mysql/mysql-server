@@ -39,7 +39,7 @@ GRANT SELECT ON *.* TO u1;
 --echo # Run mysql_upgrade
 # Filter out ndb_binlog_index to mask differences due to running with or without
 # ndb.
---let $restart_parameters = restart:--force-upgrade --log-error=$server_log
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$server_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
