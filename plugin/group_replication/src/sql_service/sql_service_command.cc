@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -409,13 +409,16 @@ long Sql_service_commands::internal_wait_for_server_gtid_executed(
   }
 
   std::string query = ss.str();
-  long srv_err = sql_interface->execute_query(query);
+  Sql_resultset rset;
+  long srv_err = sql_interface->execute_query(query, &rset);
   if (srv_err) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INTERNAL_QUERY, query.c_str(),
                  srv_err);
     DBUG_RETURN(1);
     /* purecov: end */
+  } else if (rset.get_rows() > 0) {
+    if (rset.getLong(0) == 1) DBUG_RETURN(-1);
   }
   DBUG_RETURN(0);
 }
