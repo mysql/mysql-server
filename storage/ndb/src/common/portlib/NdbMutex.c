@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,6 +146,7 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
 #else
 #if defined(HAVE_PTHREAD_MUTEXATTR_INIT) && \
     defined(HAVE_PTHREAD_MUTEXATTR_SETPSHARED)
+  {
     pthread_mutexattr_t t;
     pthread_mutexattr_init(&t);
     pthread_mutexattr_setpshared(&t, PTHREAD_PROCESS_SHARED);
@@ -156,6 +157,7 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
 
     require(result == 0);
     pthread_mutexattr_destroy(&t);
+  }
 #else
     if (shared)
       result = 1;
