@@ -305,7 +305,7 @@ int Applier_module::apply_view_change_packet(
   }
 
   error = inject_event_into_pipeline(pevent, cont);
-  delete pevent;
+  if (!cont->is_transaction_discarded()) delete pevent;
 
   return error;
 }
