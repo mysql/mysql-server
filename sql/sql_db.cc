@@ -354,9 +354,6 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
     }
   }
 
-  ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB, thd->query().str,
-                      thd->query().length, db, "");
-
   /*
     Create schema in DD. This is done even when initializing the server
     and creating the system schema. In that case, the shared cache will
@@ -380,14 +377,15 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
         database operation. Even if the call fails due to some
         other error we ignore the error as we anyway return
         failure (true) here.
-
-        We rely on called to do rollback in case of error and thus
-        revert change to the binary log.
       */
       if (!schema_dir_exists) rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
     }
   }
+
+  // Log the query in the handler's binlog
+  ha_binlog_log_query(thd, nullptr, LOGCOM_CREATE_DB, thd->query().str,
+                      thd->query().length, db, "");
 
   /*
     If we have not added database to the data-dictionary we don't have
