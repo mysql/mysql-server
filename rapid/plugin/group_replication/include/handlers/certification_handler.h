@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,16 +16,15 @@
 #ifndef CERTIFICATION_HANDLER_INCLUDE
 #define CERTIFICATION_HANDLER_INCLUDE
 
-#include <string>
 #include "certifier.h"
 #include <mysql/group_replication_priv.h>
+#include <string>
 
-class Certification_handler : public Event_handler
-{
+class Certification_handler : public Event_handler {
 public:
   Certification_handler();
   virtual ~Certification_handler();
-  int handle_event(Pipeline_event *ev,Continuation *cont);
+  int handle_event(Pipeline_event *ev, Continuation *cont);
   int handle_action(Pipeline_action *action);
   int initialize();
   int terminate();
@@ -34,17 +33,34 @@ public:
 
   Certifier_interface *get_certifier();
 
-  int set_certification_info(std::map<std::string, std::string>* cert_info);
+  int set_certification_info(std::map<std::string, std::string> *cert_info);
 
 private:
-  Certifier* cert_module;
+  Certifier *cert_module;
 
-  THD* applier_module_thd;
+  THD *applier_module_thd;
 
   rpl_sidno group_sidno;
 
   Data_packet *transaction_context_packet;
   Pipeline_event *transaction_context_pevent;
+
+  /** Are view change on wait for application */
+  bool m_view_change_event_on_wait;
+
+  /** View change information information stored for delay */
+  struct View_change_stored_info {
+    Pipeline_event *view_change_pevent;
+    std::string local_gtid_certified;
+    rpl_gno view_change_event_gno;
+    View_change_stored_info(Pipeline_event *vc_pevent, std::string &local_gtid_string, rpl_gno gno)
+        : view_change_pevent(vc_pevent),
+          local_gtid_certified(local_gtid_string),
+          view_change_event_gno(gno)  {}
+  };
+
+  /** All the VC events pending application due to timeout */
+  std::list<View_change_stored_info*> pending_view_change_events;
 
   /**
     Set transaction context for next event handler.
@@ -117,8 +133,14 @@ private:
   /**
     This methods guarantees that the view change event is logged after local
     transactions are executed.
+
+    @param local_gtid_certified_string  The set to wait.
+                                        If not defined, it extracts the current certified set
+    @retval 0                        OK
+    @retval LOCAL_WAIT_TIMEOUT_ERROR Timeout error on wait
+    @retval !=0                      Wait or interface error
   */
-  int wait_for_local_transaction_execution();
+  int wait_for_local_transaction_execution(std::string& local_gtid_certified_string);
 
   /**
     Create a transactional block for the received log event
@@ -126,8 +148,75 @@ private:
     BEGIN
     EVENT
     COMMIT
+
+    @param[in] pevent          the event to be injected
+    @param[in, out] event_gno  The transaction GTID gno
+                               If -1, one will be generated.
+    @param[in] cont            the object used to wait
+
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
   */
-  int inject_transactional_events(Pipeline_event *pevent, Continuation *cont);
+  int inject_transactional_events(Pipeline_event *pevent, rpl_gno *event_gno, Continuation *cont);
+
+  /**
+    Try to log a view change event waiting for local certified transactions to finish.
+
+    @param[in] view_pevent             the event to be injected
+    @param[in, out] local_gtid_string  The local certified transaction set to wait
+                                       If empty, one will be assigned even on timeout
+    @param[in, out] event_gno          The transaction GTID gno
+                                       If -1, one will be generated.
+    @param[in] cont                    the object used to wait
+
+
+    @return the operation status
+      @retval 0      OK
+      @retval LOCAL_WAIT_TIMEOUT_ERROR Timeout error on wait for local transactions
+      @retval !=0    Error
+  */
+  int log_view_change_event_in_order(Pipeline_event *view_pevent,
+                                     std::string &local_gtid_string,
+                                     rpl_gno *event_gno,
+                                     Continuation *cont);
+
+  /**
+    Store the event for future logging as a timeout occurred.
+    This method does 2 things:
+      1. If not stored in the past, it stores the Pipeline event to
+      be logged in the future
+      2. It queues again in the applier a fake View change log event
+      to ensure the logging method will be invoked eventually
+
+    @param[in] view_pevent        the event to be stored
+    @param[in] local_gtid_string  The local certified transaction set to wait
+    @param[in] event_gno          The transaction GTID gno
+    @param[in] cont               Used to discard or not the transaction
+
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int store_view_event_for_delayed_logging(Pipeline_event *pevent,
+                                           std::string& local_gtid_certified_string,
+                                           rpl_gno event_gno,
+                                           Continuation *cont);
+
+  /**
+    Logs all the delayed View Change log events stored.
+
+    @param[in] cont       the object used to mark error or success
+
+    @return the operation status
+      @retval 0      OK
+      @retval LOCAL_WAIT_TIMEOUT_ERROR Timeout error on wait for local transactions
+      @retval !=0    Error
+  */
+  int log_delayed_view_change_events(Continuation *cont);
+
 };
 
 #endif /* CERTIFICATION_HANDLER_INCLUDE */
