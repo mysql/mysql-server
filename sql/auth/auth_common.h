@@ -167,7 +167,7 @@ class ACL_internal_schema_access {
 */
 class ACL_internal_schema_registry {
  public:
-  static void register_schema(const LEX_STRING &name,
+  static void register_schema(const LEX_CSTRING &name,
                               const ACL_internal_schema_access *access);
   static const ACL_internal_schema_access *lookup(const char *name);
 };

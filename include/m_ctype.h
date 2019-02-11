@@ -341,8 +341,8 @@ typedef struct MY_CHARSET_HANDLER {
                        const char **e, int *err);
   ulonglong (*strntoull)(const CHARSET_INFO *, const char *s, size_t l,
                          int base, const char **e, int *err);
-  double (*strntod)(const CHARSET_INFO *, char *s, size_t l, const char **e,
-                    int *err);
+  double (*strntod)(const CHARSET_INFO *, const char *s, size_t l,
+                    const char **e, int *err);
   longlong (*strtoll10)(const CHARSET_INFO *cs, const char *nptr,
                         const char **endptr, int *error);
   ulonglong (*strntoull10rnd)(const CHARSET_INFO *cs, const char *str,
@@ -482,8 +482,8 @@ longlong my_strntoll_8bit(const CHARSET_INFO *, const char *s, size_t l,
                           int base, const char **e, int *err);
 ulonglong my_strntoull_8bit(const CHARSET_INFO *, const char *s, size_t l,
                             int base, const char **e, int *err);
-double my_strntod_8bit(const CHARSET_INFO *, char *s, size_t l, const char **e,
-                       int *err);
+double my_strntod_8bit(const CHARSET_INFO *, const char *s, size_t l,
+                       const char **e, int *err);
 size_t my_long10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,
                              int radix, long int val);
 size_t my_longlong10_to_str_8bit(const CHARSET_INFO *, char *to, size_t l,

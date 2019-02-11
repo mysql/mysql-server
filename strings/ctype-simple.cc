@@ -630,8 +630,9 @@ noconv:
     Value of number in string
 */
 
-double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *str,
-                       size_t length, const char **end, int *err) {
+double my_strntod_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+                       const char *str, size_t length, const char **end,
+                       int *err) {
   if (length == INT_MAX32) length = 65535; /* Should be big enough */
   *end = str + length;
   return my_strtod(str, end, err);

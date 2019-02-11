@@ -720,9 +720,9 @@ struct TABLE_SHARE {
     should correspond to each other.
     To ensure this one can use set_table_cache() methods.
   */
-  LEX_STRING table_cache_key{nullptr, 0};
-  LEX_STRING db{nullptr, 0};              /* Pointer to db */
-  LEX_STRING table_name{nullptr, 0};      /* Table name (for open) */
+  LEX_CSTRING table_cache_key{nullptr, 0};
+  LEX_CSTRING db{nullptr, 0};             /* Pointer to db */
+  LEX_CSTRING table_name{nullptr, 0};     /* Table name (for open) */
   LEX_STRING path{nullptr, 0};            /* Path to .frm file (from datadir) */
   LEX_STRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
   LEX_STRING connect_string{nullptr, 0};
@@ -3744,7 +3744,8 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr, int min_zone, int max_zone);
 void append_unescaped(String *res, const char *pos, size_t length);
 char *fn_rext(char *name);
-TABLE_CATEGORY get_table_category(const LEX_STRING &db, const LEX_STRING &name);
+TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
+                                  const LEX_CSTRING &name);
 
 /* performance schema */
 extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
@@ -3753,7 +3754,7 @@ extern LEX_STRING GENERAL_LOG_NAME;
 extern LEX_STRING SLOW_LOG_NAME;
 
 /* information schema */
-extern LEX_STRING INFORMATION_SCHEMA_NAME;
+extern LEX_CSTRING INFORMATION_SCHEMA_NAME;
 
 /* mysql schema name and DD ID */
 extern LEX_STRING MYSQL_SCHEMA_NAME;

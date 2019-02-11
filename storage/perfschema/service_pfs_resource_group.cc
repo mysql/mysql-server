@@ -95,7 +95,8 @@ int register_pfs_resource_group_service() {
 
   if (reg->register_service(
           "pfs_resource_group.mysql_server",
-          (my_h_service)&imp_mysql_server_pfs_resource_group)) {
+          pointer_cast<my_h_service>(const_cast<s_mysql_pfs_resource_group *>(
+              &imp_mysql_server_pfs_resource_group)))) {
     result = 1;
   }
 

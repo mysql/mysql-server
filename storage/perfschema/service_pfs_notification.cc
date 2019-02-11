@@ -494,8 +494,10 @@ int register_pfs_notification_service() {
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
-  if (reg->register_service("pfs_notification.mysql_server",
-                            (my_h_service)&imp_mysql_server_pfs_notification)) {
+  if (reg->register_service(
+          "pfs_notification.mysql_server",
+          pointer_cast<my_h_service>(const_cast<s_mysql_pfs_notification *>(
+              &imp_mysql_server_pfs_notification)))) {
     result = 1;
   }
 

@@ -2042,7 +2042,7 @@ class Item_func_udf_str : public Item_udf_func {
     const char *end_not_used;
     String *res;
     res = val_str(&str_value);
-    return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
+    return res ? my_strntod(res->charset(), res->ptr(), res->length(),
                             &end_not_used, &err_not_used)
                : 0.0;
   }
@@ -2817,15 +2817,15 @@ class user_var_entry {
     String values with length longer than 8 are stored in a separate
     memory buffer, which is allocated when needed using the method realloc().
   */
-  char *internal_buffer_ptr() const {
-    return (char *)this + ALIGN_SIZE(sizeof(user_var_entry));
+  char *internal_buffer_ptr() {
+    return pointer_cast<char *>(this) + ALIGN_SIZE(sizeof(user_var_entry));
   }
 
   /**
     Position inside a user_var_entry where a null-terminates array
     of characters representing the variable name is stored.
   */
-  char *name_ptr() const { return internal_buffer_ptr() + extra_size; }
+  char *name_ptr() { return internal_buffer_ptr() + extra_size; }
 
   /**
     Initialize m_ptr to the internal buffer (if the value is small enough),

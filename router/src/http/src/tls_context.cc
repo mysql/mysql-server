@@ -69,7 +69,8 @@ void TlsContext::curves_list(const std::string &curves) {
   if (curves.empty()) return;
 
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
-  if (1 != SSL_CTX_set1_curves_list(ssl_ctx_.get(), curves.c_str())) {
+  if (1 != SSL_CTX_set1_curves_list(ssl_ctx_.get(),
+                                    const_cast<char *>(curves.c_str()))) {
     throw TlsError("setting curves to " + curves + " failed");
   }
 #else

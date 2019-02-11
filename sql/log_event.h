@@ -1298,7 +1298,7 @@ class Query_log_event : public virtual binary_log::Query_event,
       mts_accessed_db_names[0][0] = 0;
     } else {
       for (uchar i = 0; i < mts_accessed_dbs; i++) {
-        char *db_name = mts_accessed_db_names[i];
+        const char *db_name = mts_accessed_db_names[i];
 
         // Only default database is rewritten.
         if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name)) {
@@ -1306,7 +1306,7 @@ class Query_log_event : public virtual binary_log::Query_event,
           const char *db_filtered =
               rpl_filter->get_rewrite_db(db_name, &dummy_len);
           // db_name != db_filtered means that db_name is rewritten.
-          if (strcmp(db_name, db_filtered)) db_name = (char *)db_filtered;
+          if (strcmp(db_name, db_filtered)) db_name = db_filtered;
         }
         arg->name[i] = db_name;
       }

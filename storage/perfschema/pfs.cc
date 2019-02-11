@@ -2198,7 +2198,7 @@ static enum_operation_type socket_operation_map[] = {
   @param [out] output_length  Length of the resulting output string.
   @return 0 for success, non zero for errors
 */
-static int build_prefix(const LEX_STRING *prefix, const char *category,
+static int build_prefix(const LEX_CSTRING *prefix, const char *category,
                         char *output, size_t *output_length) {
   size_t len = strlen(category);
   char *out_ptr = output;
@@ -5862,7 +5862,7 @@ PSI_statement_locker *pfs_get_thread_statement_locker_v2(
   state->m_no_good_index_used = 0;
 
   state->m_digest = NULL;
-  state->m_cs_number = ((CHARSET_INFO *)charset)->number;
+  state->m_cs_number = static_cast<const CHARSET_INFO *>(charset)->number;
 
   state->m_schema_name_length = 0;
   state->m_parent_sp_share = sp_share;
@@ -6688,7 +6688,7 @@ PSI_transaction_locker *pfs_get_thread_transaction_locker_v1(
       pfs->m_timer_start = 0;
       pfs->m_timer_end = 0;
       if (xid != NULL) {
-        pfs->m_xid = *(PSI_xid *)xid;
+        pfs->m_xid = *static_cast<const PSI_xid *>(xid);
       }
       pfs->m_xa = false;
       pfs->m_xa_state = TRANS_STATE_XA_NOTR;
@@ -6773,8 +6773,8 @@ void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
     PFS_events_transactions *pfs =
         reinterpret_cast<PFS_events_transactions *>(state->m_transaction);
     DBUG_ASSERT(pfs != NULL);
-    pfs->m_sid = *(rpl_sid *)sid;
-    pfs->m_gtid_spec = *(Gtid_specification *)gtid_spec;
+    pfs->m_sid = *static_cast<const rpl_sid *>(sid);
+    pfs->m_gtid_spec = *static_cast<const Gtid_specification *>(gtid_spec);
   }
 }
 
@@ -6790,7 +6790,7 @@ void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker, const void *xid,
     DBUG_ASSERT(pfs != NULL);
     DBUG_ASSERT(xid != NULL);
 
-    pfs->m_xid = *(PSI_xid *)xid;
+    pfs->m_xid = *static_cast<const PSI_xid *>(xid);
     pfs->m_xa_state = (enum_xa_transaction_state)xa_state;
     pfs->m_xa = true;
   }

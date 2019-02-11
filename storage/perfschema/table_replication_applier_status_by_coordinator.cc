@@ -293,7 +293,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
 
   /** if error, set error message and timestamp */
   if (m_row.last_error_number) {
-    char *temp_store = (char *)mi->rli->last_error().message;
+    const char *temp_store = mi->rli->last_error().message;
     m_row.last_error_message_length = strlen(temp_store);
     memcpy(m_row.last_error_message, temp_store,
            m_row.last_error_message_length);

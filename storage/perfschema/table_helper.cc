@@ -1979,7 +1979,7 @@ bool PFS_key_bucket_number::match(ulong value) {
   return do_match(false, value);
 }
 
-bool PFS_key_name::match(const LEX_STRING *name) {
+bool PFS_key_name::match(const LEX_CSTRING *name) {
   bool record_null = (name->length == 0);
   return do_match(record_null, name->str, name->length);
 }

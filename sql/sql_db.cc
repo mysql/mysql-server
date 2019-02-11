@@ -1049,7 +1049,7 @@ static void mysql_change_db_impl(THD *thd, const LEX_CSTRING &new_db_name,
       INFORMATION_SCHEMA_NAME constant.
     */
 
-    thd->set_db(to_lex_cstring(INFORMATION_SCHEMA_NAME));
+    thd->set_db(INFORMATION_SCHEMA_NAME);
   } else {
     /*
       Here we already have a copy of database name to be used in THD. So,
@@ -1226,8 +1226,8 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   if (is_infoschema_db(new_db_name.str, new_db_name.length)) {
     /* Switch the current database to INFORMATION_SCHEMA. */
 
-    mysql_change_db_impl(thd, to_lex_cstring(INFORMATION_SCHEMA_NAME),
-                         SELECT_ACL, system_charset_info);
+    mysql_change_db_impl(thd, INFORMATION_SCHEMA_NAME, SELECT_ACL,
+                         system_charset_info);
     goto done;
   }
 

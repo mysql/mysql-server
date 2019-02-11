@@ -120,7 +120,7 @@
 #include "thr_mutex.h"
 
 /* INFORMATION_SCHEMA name */
-LEX_STRING INFORMATION_SCHEMA_NAME = {C_STRING_WITH_LEN("information_schema")};
+LEX_CSTRING INFORMATION_SCHEMA_NAME = {STRING_WITH_LEN("information_schema")};
 
 /* PERFORMANCE_SCHEMA name */
 LEX_STRING PERFORMANCE_SCHEMA_DB_NAME = {
@@ -296,8 +296,8 @@ char *fn_rext(char *name) {
   return name + strlen(name);
 }
 
-TABLE_CATEGORY get_table_category(const LEX_STRING &db,
-                                  const LEX_STRING &name) {
+TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
+                                  const LEX_CSTRING &name) {
   DBUG_ASSERT(db.str != NULL);
   DBUG_ASSERT(name.str != NULL);
 

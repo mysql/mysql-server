@@ -946,7 +946,7 @@ int Mts_submode_logical_clock::wait_for_workers_to_finish(
 std::pair<uint, my_thread_id>
 Mts_submode_logical_clock::get_server_and_thread_id(TABLE *table) {
   DBUG_ENTER("get_server_and_thread_id");
-  char *extra_string = table->s->table_cache_key.str;
+  const char *extra_string = table->s->table_cache_key.str;
   size_t extra_string_len = table->s->table_cache_key.length;
   // assert will fail when called with non temporary tables.
   DBUG_ASSERT(table->s->table_cache_key.length > 0);

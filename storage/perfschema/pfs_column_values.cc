@@ -28,44 +28,44 @@
 
 #include "storage/perfschema/pfs_column_values.h"
 
-LEX_STRING PERFORMANCE_SCHEMA_str = {C_STRING_WITH_LEN("performance_schema")};
+LEX_CSTRING PERFORMANCE_SCHEMA_str = {STRING_WITH_LEN("performance_schema")};
 
-LEX_STRING mutex_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/mutex")};
+LEX_CSTRING mutex_instrument_prefix = {STRING_WITH_LEN("wait/synch/mutex")};
 
-LEX_STRING prlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/prlock")};
+LEX_CSTRING prlock_instrument_prefix = {STRING_WITH_LEN("wait/synch/prlock")};
 
-LEX_STRING rwlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/rwlock")};
+LEX_CSTRING rwlock_instrument_prefix = {STRING_WITH_LEN("wait/synch/rwlock")};
 
-LEX_STRING sxlock_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/sxlock")};
+LEX_CSTRING sxlock_instrument_prefix = {STRING_WITH_LEN("wait/synch/sxlock")};
 
-LEX_STRING cond_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/cond")};
+LEX_CSTRING cond_instrument_prefix = {STRING_WITH_LEN("wait/synch/cond")};
 
-LEX_STRING file_instrument_prefix = {C_STRING_WITH_LEN("wait/io/file")};
+LEX_CSTRING file_instrument_prefix = {STRING_WITH_LEN("wait/io/file")};
 
-LEX_STRING table_io_class_name = {
-    C_STRING_WITH_LEN("wait/io/table/sql/handler")};
+LEX_CSTRING table_io_class_name = {
+    STRING_WITH_LEN("wait/io/table/sql/handler")};
 
-LEX_STRING table_lock_class_name = {
-    C_STRING_WITH_LEN("wait/lock/table/sql/handler")};
+LEX_CSTRING table_lock_class_name = {
+    STRING_WITH_LEN("wait/lock/table/sql/handler")};
 
-LEX_STRING socket_instrument_prefix = {C_STRING_WITH_LEN("wait/io/socket")};
+LEX_CSTRING socket_instrument_prefix = {STRING_WITH_LEN("wait/io/socket")};
 
-LEX_STRING idle_class_name = {C_STRING_WITH_LEN("idle")};
+LEX_CSTRING idle_class_name = {STRING_WITH_LEN("idle")};
 
-LEX_STRING metadata_lock_class_name = {
-    C_STRING_WITH_LEN("wait/lock/metadata/sql/mdl")};
+LEX_CSTRING metadata_lock_class_name = {
+    STRING_WITH_LEN("wait/lock/metadata/sql/mdl")};
 
-LEX_STRING thread_instrument_prefix = {C_STRING_WITH_LEN("thread")};
+LEX_CSTRING thread_instrument_prefix = {STRING_WITH_LEN("thread")};
 
-LEX_STRING stage_instrument_prefix = {C_STRING_WITH_LEN("stage")};
+LEX_CSTRING stage_instrument_prefix = {STRING_WITH_LEN("stage")};
 
-LEX_STRING statement_instrument_prefix = {C_STRING_WITH_LEN("statement")};
+LEX_CSTRING statement_instrument_prefix = {STRING_WITH_LEN("statement")};
 
-LEX_STRING transaction_instrument_prefix = {C_STRING_WITH_LEN("transaction")};
+LEX_CSTRING transaction_instrument_prefix = {STRING_WITH_LEN("transaction")};
 
-LEX_STRING builtin_memory_instrument_prefix = {
-    C_STRING_WITH_LEN("memory/performance_schema/")};
+LEX_CSTRING builtin_memory_instrument_prefix = {
+    STRING_WITH_LEN("memory/performance_schema/")};
 
-LEX_STRING memory_instrument_prefix = {C_STRING_WITH_LEN("memory")};
+LEX_CSTRING memory_instrument_prefix = {STRING_WITH_LEN("memory")};
 
-LEX_STRING error_class_name = {C_STRING_WITH_LEN("error")};
+LEX_CSTRING error_class_name = {STRING_WITH_LEN("error")};

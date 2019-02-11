@@ -33,43 +33,43 @@
 */
 
 /** String, "PERFORMANCE_SCHEMA". */
-extern LEX_STRING PERFORMANCE_SCHEMA_str;
+extern LEX_CSTRING PERFORMANCE_SCHEMA_str;
 
 /** String prefix for all mutex instruments. */
-extern LEX_STRING mutex_instrument_prefix;
+extern LEX_CSTRING mutex_instrument_prefix;
 /** String prefix for all prlock instruments. */
-extern LEX_STRING prlock_instrument_prefix;
+extern LEX_CSTRING prlock_instrument_prefix;
 /** String prefix for all rwlock instruments. */
-extern LEX_STRING rwlock_instrument_prefix;
+extern LEX_CSTRING rwlock_instrument_prefix;
 /** String prefix for all sxlock instruments. */
-extern LEX_STRING sxlock_instrument_prefix;
+extern LEX_CSTRING sxlock_instrument_prefix;
 /** String prefix for all cond instruments. */
-extern LEX_STRING cond_instrument_prefix;
+extern LEX_CSTRING cond_instrument_prefix;
 /** String prefix for all file instruments. */
-extern LEX_STRING file_instrument_prefix;
+extern LEX_CSTRING file_instrument_prefix;
 /** Name of the global table I/O class. */
-extern LEX_STRING table_io_class_name;
+extern LEX_CSTRING table_io_class_name;
 /** Name of the global table lock class. */
-extern LEX_STRING table_lock_class_name;
+extern LEX_CSTRING table_lock_class_name;
 /** String prefix for all socket instruments. */
-extern LEX_STRING socket_instrument_prefix;
+extern LEX_CSTRING socket_instrument_prefix;
 /** Name of the global idle class. */
-extern LEX_STRING idle_class_name;
+extern LEX_CSTRING idle_class_name;
 /** Name of the global metadata lock class. */
-extern LEX_STRING metadata_lock_class_name;
+extern LEX_CSTRING metadata_lock_class_name;
 /** String prefix for all thread instruments. */
-extern LEX_STRING thread_instrument_prefix;
+extern LEX_CSTRING thread_instrument_prefix;
 /** String prefix for all stage instruments. */
-extern LEX_STRING stage_instrument_prefix;
+extern LEX_CSTRING stage_instrument_prefix;
 /** String prefix for all statement instruments. */
-extern LEX_STRING statement_instrument_prefix;
+extern LEX_CSTRING statement_instrument_prefix;
 /** String prefix for all transaction instruments. */
-extern LEX_STRING transaction_instrument_prefix;
+extern LEX_CSTRING transaction_instrument_prefix;
 /** String prefix for built-in memory instruments. */
-extern LEX_STRING builtin_memory_instrument_prefix;
+extern LEX_CSTRING builtin_memory_instrument_prefix;
 /** String prefix for all memory instruments. */
-extern LEX_STRING memory_instrument_prefix;
+extern LEX_CSTRING memory_instrument_prefix;
 /** Name of the global error class. */
-extern LEX_STRING error_class_name;
+extern LEX_CSTRING error_class_name;
 
 #endif

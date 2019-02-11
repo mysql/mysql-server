@@ -7090,7 +7090,7 @@ static void my_missing_function_error(const LEX_STRING &token,
 */
 
 bool Item_func_sp::init_result_field(THD *thd) {
-  LEX_STRING empty_name = {C_STRING_WITH_LEN("")};
+  LEX_CSTRING empty_name = {STRING_WITH_LEN("")};
   TABLE_SHARE *share;
   DBUG_ENTER("Item_func_sp::init_result_field");
 

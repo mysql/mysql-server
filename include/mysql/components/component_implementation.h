@@ -241,8 +241,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   @param service A referenced Service name.
 */
-#define REQUIRES_SERVICE(service) \
-  { #service, (void **)&mysql_service_##service }
+#define REQUIRES_SERVICE(service)                                              \
+  {                                                                            \
+    #service,                                                                  \
+        static_cast < void ** >                                                \
+            (static_cast <void *>(const_cast <mysql_service_##service##_t **>( \
+                &mysql_service_##service)))                                    \
+  }
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_REQUIRES.

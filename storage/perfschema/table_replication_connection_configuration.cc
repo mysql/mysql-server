@@ -209,7 +209,7 @@ int table_replication_connection_configuration::index_next(void) {
 }
 
 int table_replication_connection_configuration::make_row(Master_info *mi) {
-  char *temp_store;
+  const char *temp_store;
 
   DBUG_ASSERT(mi != NULL);
 
@@ -226,7 +226,7 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
   m_row.port = (unsigned int)mi->port;
 
   /* can't the user be NULL? */
-  temp_store = (char *)mi->get_user();
+  temp_store = mi->get_user();
   m_row.user_length = strlen(temp_store);
   memcpy(m_row.user, temp_store, m_row.user_length);
 

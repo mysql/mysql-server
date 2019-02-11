@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -553,8 +553,8 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
 
   // Update view metadata for only non temporary user tables.
   auto is_non_temp_user_table = [](THD *thd, const char *db, const char *name) {
-    LEX_STRING lex_db = {const_cast<char *>(db), strlen(db)};
-    LEX_STRING lex_name = {const_cast<char *>(name), strlen(name)};
+    LEX_CSTRING lex_db = {db, strlen(db)};
+    LEX_CSTRING lex_name = {name, strlen(name)};
 
     if (dd::get_dictionary()->is_dd_schema_name(db) ||
         get_table_category(lex_db, lex_name) != TABLE_CATEGORY_USER ||

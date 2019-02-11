@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,8 @@ class Select_lex_builder {
             true  on failure.
   */
 
-  bool add_from_item(const LEX_STRING schema_name, const LEX_STRING table_name);
+  bool add_from_item(const LEX_CSTRING &schema_name,
+                     const LEX_CSTRING &table_name);
 
   /**
     Add item representing a FROM clause table as,
@@ -209,7 +210,7 @@ class Select_lex_builder {
             nullptr on failure.
   */
 
-  PT_derived_table *prepare_derived_table(const LEX_STRING table_alias);
+  PT_derived_table *prepare_derived_table(const LEX_CSTRING &table_alias);
 
   /**
     Prepare a SELECT_LEX using all the information information

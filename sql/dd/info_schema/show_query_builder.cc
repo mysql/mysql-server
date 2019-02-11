@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +122,8 @@ bool Select_lex_builder::add_select_expr(Item *select_list_item,
   Add item representing a FROM clause table as,
   "SELECT ... FROM <schema_name>.<table_name> ...".
 */
-bool Select_lex_builder::add_from_item(const LEX_STRING schema_name,
-                                       const LEX_STRING table_name) {
+bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
+                                       const LEX_CSTRING &table_name) {
   /*
     make_table_list() might alter the database and table name
     strings. Create copies and leave the original values
@@ -274,7 +274,7 @@ bool Select_lex_builder::add_order_by(const LEX_STRING field_name) {
   Select_lex_builder as sub-query.
 */
 PT_derived_table *Select_lex_builder::prepare_derived_table(
-    const LEX_STRING table_alias) {
+    const LEX_CSTRING &table_alias) {
   Item *where_cond = nullptr;
   if (m_where_clause != nullptr)
     where_cond =
@@ -303,8 +303,8 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
   Create_col_name_list column_names;
   column_names.init(m_thd->mem_root);
   PT_derived_table *derived_table;
-  derived_table = new (m_thd->mem_root) PT_derived_table(
-      false, sub_query, to_lex_cstring(table_alias), &column_names);
+  derived_table = new (m_thd->mem_root)
+      PT_derived_table(false, sub_query, table_alias, &column_names);
 
   return derived_table;
 }

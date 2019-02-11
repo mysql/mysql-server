@@ -7497,7 +7497,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   apply_status_table->field[3]->store((longlong)0, true);
   apply_status_table->field[4]->store((longlong)0, true);
 #ifndef DBUG_OFF
-  const LEX_STRING &name= apply_status_table->s->table_name;
+  const LEX_CSTRING &name= apply_status_table->s->table_name;
   DBUG_PRINT("info", ("use_table: %.*s",
                       (int) name.length, name.str));
 #endif
@@ -8324,7 +8324,7 @@ restart_cluster_failure:
             }
             TABLE *table= event_data->shadow_table;
 #ifndef DBUG_OFF
-            const LEX_STRING &name= table->s->table_name;
+            const LEX_CSTRING &name= table->s->table_name;
 #endif
             if ((event_types & (NdbDictionary::Event::TE_INSERT |
                                 NdbDictionary::Event::TE_UPDATE |

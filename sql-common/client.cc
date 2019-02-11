@@ -7685,7 +7685,7 @@ int STDCALL mysql_get_option(MYSQL *mysql, enum mysql_option option,
           mysql->options.compress;
       break;
     case MYSQL_OPT_LOCAL_INFILE: /* Allow LOAD DATA LOCAL ?*/
-      *(const_cast<bool *>(static_cast<const bool *>(arg))) =
+      *(const_cast<uint *>(static_cast<const uint *>(arg))) =
           (mysql->options.client_flag & CLIENT_LOCAL_FILES) != 0;
       break;
     case MYSQL_READ_DEFAULT_FILE:

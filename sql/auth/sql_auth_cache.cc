@@ -111,7 +111,7 @@ extern Granted_roles_graph *g_granted_roles;
 #include <boost/property_map/property_map.hpp>
 
 struct ACL_internal_schema_registry_entry {
-  const LEX_STRING *m_name;
+  const LEX_CSTRING *m_name;
   const ACL_internal_schema_access *m_access;
 };
 /**
@@ -190,7 +190,7 @@ void init_acl_memory() {
   @param access the schema ACL specific rules
 */
 void ACL_internal_schema_registry::register_schema(
-    const LEX_STRING &name, const ACL_internal_schema_access *access) {
+    const LEX_CSTRING &name, const ACL_internal_schema_access *access) {
   DBUG_ASSERT(m_registry_array_size < array_elements(registry_array));
 
   /* Not thread safe, and does not need to be. */

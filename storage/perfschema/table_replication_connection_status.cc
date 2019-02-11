@@ -365,7 +365,7 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
   /** If error, set error message and timestamp */
   if (m_row.last_error_number) {
-    char *temp_store = (char *)mi->last_error().message;
+    const char *temp_store = mi->last_error().message;
     m_row.last_error_message_length = strlen(temp_store);
     memcpy(m_row.last_error_message, temp_store,
            m_row.last_error_message_length);

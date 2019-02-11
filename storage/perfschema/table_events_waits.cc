@@ -687,97 +687,97 @@ int table_events_waits_common::make_row(PFS_events_waits *wait) {
   Different similar operations (CLOSE vs STREAMCLOSE) are displayed
   with the same name 'close'.
 */
-static const LEX_STRING operation_names_map[] = {
+static const LEX_CSTRING operation_names_map[] = {
     /* Mutex operations */
-    {C_STRING_WITH_LEN("lock")},
-    {C_STRING_WITH_LEN("try_lock")},
+    {STRING_WITH_LEN("lock")},
+    {STRING_WITH_LEN("try_lock")},
 
     /* RWLock operations (RW-lock) */
-    {C_STRING_WITH_LEN("read_lock")},
-    {C_STRING_WITH_LEN("write_lock")},
-    {C_STRING_WITH_LEN("try_read_lock")},
-    {C_STRING_WITH_LEN("try_write_lock")},
-    {C_STRING_WITH_LEN("unlock")},
+    {STRING_WITH_LEN("read_lock")},
+    {STRING_WITH_LEN("write_lock")},
+    {STRING_WITH_LEN("try_read_lock")},
+    {STRING_WITH_LEN("try_write_lock")},
+    {STRING_WITH_LEN("unlock")},
 
     /* RWLock operations (SX-lock) */
-    {C_STRING_WITH_LEN("shared_lock")},
-    {C_STRING_WITH_LEN("shared_exclusive_lock")},
-    {C_STRING_WITH_LEN("exclusive_lock")},
-    {C_STRING_WITH_LEN("try_shared_lock")},
-    {C_STRING_WITH_LEN("try_shared_exclusive_lock")},
-    {C_STRING_WITH_LEN("try_exclusive_lock")},
-    {C_STRING_WITH_LEN("shared_unlock")},
-    {C_STRING_WITH_LEN("shared_exclusive_unlock")},
-    {C_STRING_WITH_LEN("exclusive_unlock")},
+    {STRING_WITH_LEN("shared_lock")},
+    {STRING_WITH_LEN("shared_exclusive_lock")},
+    {STRING_WITH_LEN("exclusive_lock")},
+    {STRING_WITH_LEN("try_shared_lock")},
+    {STRING_WITH_LEN("try_shared_exclusive_lock")},
+    {STRING_WITH_LEN("try_exclusive_lock")},
+    {STRING_WITH_LEN("shared_unlock")},
+    {STRING_WITH_LEN("shared_exclusive_unlock")},
+    {STRING_WITH_LEN("exclusive_unlock")},
 
     /* Condition operations */
-    {C_STRING_WITH_LEN("wait")},
-    {C_STRING_WITH_LEN("timed_wait")},
+    {STRING_WITH_LEN("wait")},
+    {STRING_WITH_LEN("timed_wait")},
 
     /* File operations */
-    {C_STRING_WITH_LEN("create")},
-    {C_STRING_WITH_LEN("create")}, /* create tmp */
-    {C_STRING_WITH_LEN("open")},
-    {C_STRING_WITH_LEN("open")}, /* stream open */
-    {C_STRING_WITH_LEN("close")},
-    {C_STRING_WITH_LEN("close")}, /* stream close */
-    {C_STRING_WITH_LEN("read")},
-    {C_STRING_WITH_LEN("write")},
-    {C_STRING_WITH_LEN("seek")},
-    {C_STRING_WITH_LEN("tell")},
-    {C_STRING_WITH_LEN("flush")},
-    {C_STRING_WITH_LEN("stat")},
-    {C_STRING_WITH_LEN("stat")}, /* fstat */
-    {C_STRING_WITH_LEN("chsize")},
-    {C_STRING_WITH_LEN("delete")},
-    {C_STRING_WITH_LEN("rename")},
-    {C_STRING_WITH_LEN("sync")},
+    {STRING_WITH_LEN("create")},
+    {STRING_WITH_LEN("create")}, /* create tmp */
+    {STRING_WITH_LEN("open")},
+    {STRING_WITH_LEN("open")}, /* stream open */
+    {STRING_WITH_LEN("close")},
+    {STRING_WITH_LEN("close")}, /* stream close */
+    {STRING_WITH_LEN("read")},
+    {STRING_WITH_LEN("write")},
+    {STRING_WITH_LEN("seek")},
+    {STRING_WITH_LEN("tell")},
+    {STRING_WITH_LEN("flush")},
+    {STRING_WITH_LEN("stat")},
+    {STRING_WITH_LEN("stat")}, /* fstat */
+    {STRING_WITH_LEN("chsize")},
+    {STRING_WITH_LEN("delete")},
+    {STRING_WITH_LEN("rename")},
+    {STRING_WITH_LEN("sync")},
 
     /* Table I/O operations */
-    {C_STRING_WITH_LEN("fetch")},
-    {C_STRING_WITH_LEN("insert")}, /* write row */
-    {C_STRING_WITH_LEN("update")}, /* update row */
-    {C_STRING_WITH_LEN("delete")}, /* delete row */
+    {STRING_WITH_LEN("fetch")},
+    {STRING_WITH_LEN("insert")}, /* write row */
+    {STRING_WITH_LEN("update")}, /* update row */
+    {STRING_WITH_LEN("delete")}, /* delete row */
 
     /* Table lock operations */
-    {C_STRING_WITH_LEN("read normal")},
-    {C_STRING_WITH_LEN("read with shared locks")},
-    {C_STRING_WITH_LEN("read high priority")},
-    {C_STRING_WITH_LEN("read no inserts")},
-    {C_STRING_WITH_LEN("write allow write")},
-    {C_STRING_WITH_LEN("write concurrent insert")},
-    {C_STRING_WITH_LEN("write low priority")},
-    {C_STRING_WITH_LEN("write normal")},
-    {C_STRING_WITH_LEN("read external")},
-    {C_STRING_WITH_LEN("write external")},
+    {STRING_WITH_LEN("read normal")},
+    {STRING_WITH_LEN("read with shared locks")},
+    {STRING_WITH_LEN("read high priority")},
+    {STRING_WITH_LEN("read no inserts")},
+    {STRING_WITH_LEN("write allow write")},
+    {STRING_WITH_LEN("write concurrent insert")},
+    {STRING_WITH_LEN("write low priority")},
+    {STRING_WITH_LEN("write normal")},
+    {STRING_WITH_LEN("read external")},
+    {STRING_WITH_LEN("write external")},
 
     /* Socket operations */
-    {C_STRING_WITH_LEN("create")},
-    {C_STRING_WITH_LEN("connect")},
-    {C_STRING_WITH_LEN("bind")},
-    {C_STRING_WITH_LEN("close")},
-    {C_STRING_WITH_LEN("send")},
-    {C_STRING_WITH_LEN("recv")},
-    {C_STRING_WITH_LEN("sendto")},
-    {C_STRING_WITH_LEN("recvfrom")},
-    {C_STRING_WITH_LEN("sendmsg")},
-    {C_STRING_WITH_LEN("recvmsg")},
-    {C_STRING_WITH_LEN("seek")},
-    {C_STRING_WITH_LEN("opt")},
-    {C_STRING_WITH_LEN("stat")},
-    {C_STRING_WITH_LEN("shutdown")},
-    {C_STRING_WITH_LEN("select")},
+    {STRING_WITH_LEN("create")},
+    {STRING_WITH_LEN("connect")},
+    {STRING_WITH_LEN("bind")},
+    {STRING_WITH_LEN("close")},
+    {STRING_WITH_LEN("send")},
+    {STRING_WITH_LEN("recv")},
+    {STRING_WITH_LEN("sendto")},
+    {STRING_WITH_LEN("recvfrom")},
+    {STRING_WITH_LEN("sendmsg")},
+    {STRING_WITH_LEN("recvmsg")},
+    {STRING_WITH_LEN("seek")},
+    {STRING_WITH_LEN("opt")},
+    {STRING_WITH_LEN("stat")},
+    {STRING_WITH_LEN("shutdown")},
+    {STRING_WITH_LEN("select")},
 
     /* Idle operations */
-    {C_STRING_WITH_LEN("idle")},
+    {STRING_WITH_LEN("idle")},
 
     /* Medatada lock operations */
-    {C_STRING_WITH_LEN("metadata lock")}};
+    {STRING_WITH_LEN("metadata lock")}};
 
 int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
                                                Field **fields, bool read_all) {
   Field *f;
-  const LEX_STRING *operation;
+  const LEX_CSTRING *operation;
 
   static_assert(COUNT_OPERATION_TYPE == array_elements(operation_names_map),
                 "COUNT_OPERATION_TYPE needs to be the last element.");

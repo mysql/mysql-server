@@ -620,7 +620,6 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   bool is_encrypted_schema = false;
   if (is_infoschema_db(dbname)) {
-    dbname = INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset = system_charset_info;
   } else {
     dd::Schema_MDL_locker mdl_handler(thd);
@@ -1136,7 +1135,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     it also saves a few bytes of the binary log.
    */
   if (show_database) {
-    const LEX_STRING *const db =
+    const LEX_CSTRING *const db =
         table_list->schema_table ? &INFORMATION_SCHEMA_NAME : &table->s->db;
     if (!thd->db().str || strcmp(db->str, thd->db().str)) {
       append_identifier(thd, packet, db->str, db->length);

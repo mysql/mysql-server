@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@ namespace info_schema {
 SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
                                            const String *wild,
                                            Item *where_cond) {
-  static const LEX_STRING system_view_name = {
-      C_STRING_WITH_LEN("CHARACTER_SETS")};
+  static const LEX_CSTRING system_view_name = {
+      STRING_WITH_LEN("CHARACTER_SETS")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_charset = {
@@ -160,7 +160,7 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
                                        const String *wild, Item *where_cond) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("COLLATIONS")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLLATIONS")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_collation = {
@@ -307,7 +307,7 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
                                        Item *where_cond) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("SCHEMATA")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("SCHEMATA")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_schema_name = {
@@ -509,7 +509,7 @@ static bool add_table_status_fields(Select_lex_builder *query,
 SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
                                     Item *where_cond,
                                     bool include_status_fields) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("TABLES")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TABLES")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_table = {C_STRING_WITH_LEN("TABLE_NAME")};
@@ -628,7 +628,7 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
 SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
                                      Table_ident *table_ident,
                                      const String *wild, Item *where_cond) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("COLUMNS")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLUMNS")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_database = {C_STRING_WITH_LEN("TABLE_SCHEMA")};
@@ -772,7 +772,7 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
                                   Table_ident *table_ident, Item *where_cond) {
-  LEX_STRING system_view_name = {C_STRING_WITH_LEN("SHOW_STATISTICS")};
+  LEX_CSTRING system_view_name = {STRING_WITH_LEN("SHOW_STATISTICS")};
 
   // Define field name literal used in query to be built.
 
@@ -941,7 +941,7 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
 
 SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
                                       Item *where_cond) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("TRIGGERS")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TRIGGERS")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_database = {
@@ -1093,7 +1093,7 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
                                         Item *where_cond) {
   enum_sql_command current_cmd = thd->lex->sql_command;
 
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("ROUTINES")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("ROUTINES")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_db = {C_STRING_WITH_LEN("ROUTINE_SCHEMA")};
@@ -1206,7 +1206,7 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
 
 SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
                                     Item *where_cond) {
-  static const LEX_STRING system_view_name = {C_STRING_WITH_LEN("EVENTS")};
+  static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("EVENTS")};
 
   // Define field name literal used in query to be built.
   static const LEX_STRING field_db = {C_STRING_WITH_LEN("EVENT_SCHEMA")};

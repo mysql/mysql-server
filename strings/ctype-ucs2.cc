@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -458,7 +458,7 @@ bs:
   return (negative ? -((longlong)res) : (longlong)res);
 }
 
-static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, char *nptr,
+static double my_strntod_mb2_or_mb4(const CHARSET_INFO *cs, const char *nptr,
                                     size_t length, const char **endptr,
                                     int *err) {
   char buf[256];
