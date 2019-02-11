@@ -96,7 +96,7 @@ public:
   ~Ndb_dd_client();
 
   // Metadata lock functions
-  bool mdl_lock_schema(const char* schema_name);
+  bool mdl_lock_schema(const char* schema_name, bool exclusive_lock = false);
   bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
                                    const char* table_name);
@@ -152,6 +152,8 @@ public:
   bool have_local_tables_in_schema(const char* schema_name,
                                    bool* found_local_tables);
   bool schema_exists(const char* schema_name, bool* schema_exists);
+  bool update_schema_version(const char* schema_name,
+                             unsigned int counter, unsigned int node_id);
 
   /*
      @brief Lookup tablespace id from tablespace name

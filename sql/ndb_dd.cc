@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,3 +189,52 @@ ndb_dd_get_engine_for_table(THD *thd,
   DBUG_RETURN(true); // OK
 }
 
+
+/**
+  Update the version of the Schema object in DD. All the DDLs
+  creating/altering a database will be associated with a unique counter
+  value and the node id from which they originated in the ndb_schema table.
+  These two values, the counter and node id, together form the version of
+  the schema and are set in the se_private_data field of the Schema.
+
+  @param thd                  Thread object
+  @param schema_name          The name of the Schema to be updated.
+  @param counter              The unique counter associated with the DDL that
+                              created/altered the database.
+  @param node_id              The node id in which the DDL originated.
+  @param skip_commit          If set true, function will skip the commit,
+                              disable auto rollback.
+                              If set false, function will commit the changes.
+                              (default)
+  @return true        On success.
+  @return false       On failure
+*/
+bool
+ndb_dd_update_schema_version(THD *thd, const char* schema_name,
+                             unsigned int counter, unsigned int node_id,
+                             bool skip_commit)
+{
+  DBUG_ENTER("ndb_dd_update_schema_version");
+  DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u",
+                        schema_name, counter, node_id));
+
+  Ndb_dd_client dd_client(thd);
+
+  if (!dd_client.mdl_lock_schema(schema_name, true)) {
+    DBUG_PRINT("error", ("Failed to acquire exclusive locks on Schema : '%s'",
+                         schema_name));
+    DBUG_RETURN(false);
+  }
+
+  if (!dd_client.update_schema_version(schema_name, counter, node_id)) {
+    DBUG_RETURN(false);
+  }
+
+  if (!skip_commit) {
+    dd_client.commit();
+  } else {
+    dd_client.disable_auto_rollback();
+  }
+
+  DBUG_RETURN(true);
+}

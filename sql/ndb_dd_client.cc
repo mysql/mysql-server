@@ -36,6 +36,7 @@
 #include "sql/dd/types/schema.h"
 #include "sql/mdl.h"            // MDL_*
 #include "sql/ndb_dd_disk_data.h"
+#include "sql/ndb_dd_schema.h"
 #include "sql/ndb_dd_sdi.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_dd_upgrade_table.h"
@@ -118,14 +119,41 @@ Ndb_dd_client::mdl_lock_table(const char* schema_name,
 }
 
 
+/**
+  Acquire MDL locks for the Schema.
+
+  @param schema_name          Schema name.
+  @param exclusive_lock       If true, acquire exclusive locks on the Schema
+                              for updating it. If false, acquire the default
+                              intention_exclusive lock.
+
+  @return true        On success.
+  @return false       On failure
+*/
 bool
-Ndb_dd_client::mdl_lock_schema(const char* schema_name)
+Ndb_dd_client::mdl_lock_schema(const char* schema_name, bool exclusive_lock)
 {
   MDL_request_list mdl_requests;
   MDL_request schema_request;
-  MDL_REQUEST_INIT(&schema_request,
-                   MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
-                   MDL_EXPLICIT);
+  MDL_request backup_lock_request;
+  MDL_request grl_request;
+
+  // By default acquire MDL_INTENTION_EXCLUSIVE lock on Schema
+  enum_mdl_type schema_lock_type = MDL_INTENTION_EXCLUSIVE;
+
+  if (exclusive_lock) {
+    // exclusive lock has been requested
+    schema_lock_type = MDL_EXCLUSIVE;
+    // Also acquire the backup and global locks
+    MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+    MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_EXPLICIT);
+    mdl_requests.push_front(&backup_lock_request);
+    mdl_requests.push_front(&grl_request);
+  }
+  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, schema_name, "",
+                   schema_lock_type, MDL_EXPLICIT);
   mdl_requests.push_front(&schema_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
@@ -134,8 +162,12 @@ Ndb_dd_client::mdl_lock_schema(const char* schema_name)
     return false;
   }
 
-  // Remember ticket of the acquired mdl lock
+  // Remember ticket(s) of the acquired mdl lock
   m_acquired_mdl_tickets.push_back(schema_request.ticket);
+  if (exclusive_lock) {
+    m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
+    m_acquired_mdl_tickets.push_back(grl_request.ticket);
+  }
 
   return true;
 }
@@ -949,6 +981,41 @@ Ndb_dd_client::schema_exists(const char* schema_name,
 
   // The schema exists
   *schema_exists = true;
+  DBUG_RETURN(true);
+}
+
+
+bool
+Ndb_dd_client::update_schema_version(const char* schema_name,
+                                     unsigned int counter,
+                                     unsigned int node_id)
+{
+  DBUG_ENTER("Ndb_dd_client::update_schema_version");
+  DBUG_PRINT("enter", ("Schema : %s, counter : %u, node_id : %u",
+                       schema_name, counter, node_id));
+
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
+              MDL_key::SCHEMA, schema_name, "", MDL_EXCLUSIVE));
+
+  dd::Schema *schema;
+
+  if (m_client->acquire_for_modification(schema_name, &schema) ||
+      schema == nullptr)
+  {
+    DBUG_PRINT("error", ("Failed to fetch the Schema object"));
+    DBUG_RETURN(false);
+  }
+
+  // Set the values
+  ndb_dd_schema_set_counter_and_nodeid(schema, counter, node_id);
+
+  // Update Schema in DD
+  if (m_client->update(schema))
+  {
+    DBUG_PRINT("error", ("Failed to update the Schema in DD"));
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,5 +56,9 @@ bool ndb_dd_get_engine_for_table(THD *thd,
                                  const char *schema_name,
                                  const char *table_name,
                                  dd::String_type* engine);
+
+bool ndb_dd_update_schema_version(class THD *thd, const char* schema_name,
+                                  unsigned int counter, unsigned int node_id,
+                                  bool skip_commit = false);
 
 #endif
