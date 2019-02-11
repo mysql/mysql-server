@@ -55,6 +55,7 @@ class Schemata : public Entity_object_table_impl {
     FIELD_LAST_ALTERED,
     FIELD_OPTIONS,
     FIELD_DEFAULT_ENCRYPTION,
+    FIELD_SE_PRIVATE_DATA,
     NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 

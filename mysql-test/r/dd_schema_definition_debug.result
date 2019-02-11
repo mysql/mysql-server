@@ -165,7 +165,7 @@ SET debug = '+d,skip_dd_table_access_check';
 ########################################################################
 # The actual DD version stored on disk.
 ########################################################################
-DD_VERSION=80016
+DD_VERSION=80017
 ########################################################################
 # List the CREATE TABLE statements for the DD tables.
 # Mask the AUTO INCREMENT counter, which is not
@@ -522,6 +522,7 @@ schemata	CREATE TABLE `schemata` (
   `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `default_encryption` enum('NO','YES') COLLATE utf8_bin NOT NULL,
+  `se_private_data` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
   KEY `default_collation_id` (`default_collation_id`),
@@ -720,5 +721,5 @@ SET debug = '-d,skip_dd_table_access_check';
 SET debug = '+d,skip_dd_table_access_check';
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80016.
+The schema checksum corresponds to DD version 80017.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

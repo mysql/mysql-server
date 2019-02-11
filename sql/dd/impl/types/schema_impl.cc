@@ -70,9 +70,26 @@ using dd::tables::Tables;
 
 namespace dd {
 
+/*
+  The se_private_data column of a schema might be used by several storage
+  engines at the same time as the schema is not associated with any specific
+  engine. So to avoid any naming conflicts, we have the convention that the
+  keys should be prefixed with the engine name.
+*/
+static const std::set<String_type> default_valid_se_private_data_keys = {
+    // NDB keys:
+    "ndb_counter", "ndb_node_id"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
+
+Schema_impl::Schema_impl()
+    : m_created(0),
+      m_last_altered(0),
+      m_default_encryption(enum_encryption_type::ET_NO),
+      m_se_private_data(default_valid_se_private_data_keys),
+      m_default_collation_id(INVALID_OBJECT_ID) {}
 
 bool Schema_impl::validate() const {
   if (m_default_collation_id == INVALID_OBJECT_ID) {
@@ -104,6 +121,14 @@ bool Schema_impl::restore_attributes(const Raw_record &r) {
         r.read_int(Schemata::FIELD_DEFAULT_ENCRYPTION));
   }
 
+  // m_se_private_data is added in 80017
+  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80017)) {
+    set_se_private_data("");
+  } else {
+    set_se_private_data(r.read_str(Schemata::FIELD_SE_PRIVATE_DATA, ""));
+  }
+
   return false;
 }
 
@@ -118,6 +143,13 @@ bool Schema_impl::store_attributes(Raw_record *r) {
           bootstrap::DD_VERSION_80016) &&
       r->store(Schemata::FIELD_DEFAULT_ENCRYPTION,
                static_cast<int>(m_default_encryption))) {
+    return true;
+  }
+
+  // Store m_se_private_data only if we're not upgrading from before 8.0.17
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+          bootstrap::DD_VERSION_80017) &&
+      r->store(Schemata::FIELD_SE_PRIVATE_DATA, m_se_private_data)) {
     return true;
   }
 

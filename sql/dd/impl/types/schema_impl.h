@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <string>
 
 #include "my_inttypes.h"
+#include "sql/dd/impl/properties_impl.h"           // Properties_impl
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
@@ -60,11 +61,7 @@ class Object_table;
 
 class Schema_impl : public Entity_object_impl, public Schema {
  public:
-  Schema_impl()
-      : m_created(0),
-        m_last_altered(0),
-        m_default_encryption(enum_encryption_type::ET_NO),
-        m_default_collation_id(INVALID_OBJECT_ID) {}
+  Schema_impl();
 
  public:
   virtual const Object_table &object_table() const;
@@ -126,6 +123,24 @@ class Schema_impl : public Entity_object_impl, public Schema {
     m_last_altered = last_altered;
   }
 
+  /////////////////////////////////////////////////////////////////////////
+  // se_private_data.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Properties &se_private_data() const {
+    return m_se_private_data;
+  }
+
+  virtual Properties &se_private_data() { return m_se_private_data; }
+
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) {
+    return m_se_private_data.insert_values(se_private_data_raw);
+  }
+
+  virtual bool set_se_private_data(const Properties &se_private_data) {
+    return m_se_private_data.insert_values(se_private_data);
+  }
+
   // Fix "inherits ... via dominance" warnings
   virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
   virtual const Entity_object_impl *impl() const {
@@ -160,9 +175,11 @@ class Schema_impl : public Entity_object_impl, public Schema {
             "SCHEMA OBJECT: id= {OID: %lld}, name= %s, "
             "collation_id={OID: %lld},"
             "m_created= %llu, m_last_altered= %llu,"
-            "m_default_encryption= %d",
+            "m_default_encryption= %d, "
+            "se_private_data= %s",
             id(), name().c_str(), m_default_collation_id, m_created,
-            m_last_altered, static_cast<int>(m_default_encryption));
+            m_last_altered, static_cast<int>(m_default_encryption),
+            m_se_private_data.raw_string().c_str());
     outb = String_type(outbuf);
   }
 
@@ -171,6 +188,7 @@ class Schema_impl : public Entity_object_impl, public Schema {
   ulonglong m_created;
   ulonglong m_last_altered;
   enum_encryption_type m_default_encryption;
+  Properties_impl m_se_private_data;
 
   // References to other objects
   Object_id m_default_collation_id;

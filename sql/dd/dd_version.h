@@ -149,7 +149,7 @@
   No changes from version 80014.
 
 
-  80016: Current
+  80016: Published in 8.0.16
   ----------------------------------------------------------------------------
   Changes from version 80014:
 
@@ -161,9 +161,16 @@
 
   - Bug#29053560 Increases DD column mysql.tablespaces.name length to 268.
 
-  80017: Next DD version number after the previous is public.
+  80017: Current
   ----------------------------------------------------------------------------
   Changes from version 80016:
+
+  - WL#12731 adds new mysql.schemata.se_private_data DD column.
+
+
+  80018: Next DD version number after the previous is public.
+  ----------------------------------------------------------------------------
+  Changes from version 80017:
   - No changes, this version number is not active yet.
 
 
@@ -176,9 +183,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80016;
+static const uint DD_VERSION = 80017;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80016;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80017;
 
 }  // namespace dd
 

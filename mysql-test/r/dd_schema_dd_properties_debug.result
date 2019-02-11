@@ -2197,6 +2197,7 @@ routines=
 schemata=
   col0=table_id=24
   col1=table_id=24
+  col10=table_id=24
   col2=table_id=24
   col3=table_id=24
   col4=table_id=24
@@ -2233,6 +2234,9 @@ schemata=
       elem7=def=options MEDIUMTEXT
             lbl=FIELD_OPTIONS
             pos=6
+      elem8=def=se_private_data MEDIUMTEXT
+            lbl=FIELD_SE_PRIVATE_DATA
+            pos=8
     foreign_keys=
       elem0=def=FOREIGN KEY (catalog_id) REFERENCES                                 catalogs(id)
             lbl=FK_CATALOG_ID

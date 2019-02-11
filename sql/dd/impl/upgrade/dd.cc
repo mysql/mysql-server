@@ -624,14 +624,32 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
   }
 
   /********************* Migration of mysql.schemata *********************/
-  /* Upgrade from 80014 or earlier. */
-  static_assert(dd::tables::Schemata::NUMBER_OF_FIELDS == 8,
+  /*
+    DD version 80016 adds a new column 'default_encryption' and
+    DD version 80017 adds a new column 'se_private_data' to the schemata table.
+    Handle them both during upgrade.
+  */
+  static_assert(dd::tables::Schemata::NUMBER_OF_FIELDS == 9,
                 "SQL statements rely on a specific table definition");
   if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80016)) {
-    /* Store 'NO' for new mysql.schemata.default_encryption column. */
+    /*
+      Upgrade from 80014 and before.
+      Store 'NO' for new mysql.schemata.default_encryption column and
+      store NULL for new mysql.schemata.se_private_data column
+    */
     if (migrate_table(
             "schemata",
-            "INSERT INTO schemata SELECT *, 'NO' FROM mysql.schemata")) {
+            "INSERT INTO schemata SELECT *, 'NO', NULL FROM mysql.schemata")) {
+      return true;
+    }
+  } else if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80017)) {
+    /*
+      Upgrade from 80016.
+      Store NULL for new mysql.schemata.se_private_data column
+    */
+    if (migrate_table(
+            "schemata",
+            "INSERT INTO schemata SELECT *, NULL FROM mysql.schemata")) {
       return true;
     }
   }
