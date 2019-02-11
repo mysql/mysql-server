@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/have_innodb_16k.inc
 
 CREATE TABLE abc(a int auto_increment PRIMARY KEY, b char(10), c
 char(10))ENGINE=INNODB;
