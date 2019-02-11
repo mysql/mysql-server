@@ -248,17 +248,15 @@ class Transaction_ctx {
         m_scope_info[STMT].get_unsafe_rollback_flags());
   }
 
-  void init_mem_root_defaults(ulong trans_alloc_block_size,
-                              ulong trans_prealloc_size) {
-    reset_root_defaults(&m_mem_root, trans_alloc_block_size,
-                        trans_prealloc_size);
+  void init_mem_root_defaults(ulong trans_alloc_block_size, ulong) {
+    m_mem_root.set_block_size(trans_alloc_block_size);
   }
 
   MEM_ROOT *transaction_memroot() { return &m_mem_root; }
 
   void *allocate_memory(unsigned int size) { return m_mem_root.Alloc(size); }
 
-  void claim_memory_ownership() { claim_root(&m_mem_root); }
+  void claim_memory_ownership() { m_mem_root.Claim(); }
 
   void free_memory(myf root_alloc_flags) {
     free_root(&m_mem_root, root_alloc_flags);

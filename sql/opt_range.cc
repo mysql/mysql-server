@@ -3214,9 +3214,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
     init_sql_alloc(key_memory_test_quick_select_exec, &alloc,
                    thd->variables.range_alloc_block_size, 0);
-    set_memroot_max_capacity(&alloc,
-                             thd->variables.range_optimizer_max_mem_size);
-    set_memroot_error_reporting(&alloc, true);
+    alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
+    alloc.set_error_for_capacity_exceeded(true);
     thd->push_internal_handler(&param.error_handler);
     if (!(param.key_parts =
               (KEY_PART *)alloc.Alloc(sizeof(KEY_PART) * head->s->key_parts)) ||
@@ -3738,8 +3737,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond) {
   prune_param.part_info = part_info;
   init_sql_alloc(key_memory_prune_partitions_exec, &alloc,
                  thd->variables.range_alloc_block_size, 0);
-  set_memroot_max_capacity(&alloc, thd->variables.range_optimizer_max_mem_size);
-  set_memroot_error_reporting(&alloc, true);
+  alloc.set_max_capacity(thd->variables.range_optimizer_max_mem_size);
+  alloc.set_error_for_capacity_exceeded(true);
   thd->push_internal_handler(&range_par->error_handler);
   range_par->mem_root = &alloc;
   range_par->old_root = thd->mem_root;

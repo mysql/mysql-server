@@ -313,22 +313,6 @@ static inline void init_alloc_root(PSI_memory_key key, MEM_ROOT *root,
 
 void free_root(MEM_ROOT *root, myf flags);
 
-static inline void claim_root(MEM_ROOT *root) { root->Claim(); }
-
-static inline void set_memroot_max_capacity(MEM_ROOT *root, size_t max_value) {
-  root->set_max_capacity(max_value);
-}
-
-static inline void set_memroot_error_reporting(MEM_ROOT *root,
-                                               bool report_error) {
-  root->set_error_for_capacity_exceeded(report_error);
-}
-
-static inline void reset_root_defaults(MEM_ROOT *root, size_t block_size,
-                                       size_t) {
-  root->set_block_size(block_size);
-}
-
 /**
  * Allocate an object of the given type. Use like this:
  *

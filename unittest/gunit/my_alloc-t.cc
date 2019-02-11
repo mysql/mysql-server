@@ -119,7 +119,7 @@ TEST_P(MyAllocTest, NoMemoryLimit) {
 
 TEST_P(MyAllocTest, WithMemoryLimit) {
   m_num_objects = GetParam();
-  set_memroot_max_capacity(&m_root, num_iterations * m_num_objects * 100);
+  m_root.set_max_capacity(num_iterations * m_num_objects * 100);
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
       m_root.Alloc(100);
@@ -129,9 +129,9 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
 TEST_F(MyAllocTest, CheckErrorReporting) {
   const void *null_pointer = NULL;
   EXPECT_TRUE(m_root.Alloc(1000));
-  set_memroot_max_capacity(&m_root, 100);
+  m_root.set_max_capacity(100);
   EXPECT_EQ(null_pointer, m_root.Alloc(1000));
-  set_memroot_error_reporting(&m_root, true);
+  m_root.set_error_for_capacity_exceeded(true);
   Mock_global_error_handler error_handler(EE_CAPACITY_EXCEEDED);
   EXPECT_TRUE(m_root.Alloc(1000));
   EXPECT_EQ(1, error_handler.handle_called());

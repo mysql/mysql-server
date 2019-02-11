@@ -6949,8 +6949,8 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
   Parser_oom_handler poomh;
   // Note that we may be called recursively here, on INFORMATION_SCHEMA queries.
 
-  set_memroot_max_capacity(thd->mem_root, thd->variables.parser_max_mem_size);
-  set_memroot_error_reporting(thd->mem_root, true);
+  thd->mem_root->set_max_capacity(thd->variables.parser_max_mem_size);
+  thd->mem_root->set_error_for_capacity_exceeded(true);
   thd->push_internal_handler(&poomh);
 
   thd->push_diagnostics_area(parser_da, false);
@@ -6958,8 +6958,8 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
   bool mysql_parse_status = thd->sql_parser();
 
   thd->pop_internal_handler();
-  set_memroot_max_capacity(thd->mem_root, 0);
-  set_memroot_error_reporting(thd->mem_root, false);
+  thd->mem_root->set_max_capacity(0);
+  thd->mem_root->set_error_for_capacity_exceeded(false);
   /*
     Unwind diagnostics area.
 

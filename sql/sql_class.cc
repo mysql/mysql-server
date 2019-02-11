@@ -821,8 +821,7 @@ void THD::init(void) {
 }
 
 void THD::init_query_mem_roots() {
-  reset_root_defaults(mem_root, variables.query_alloc_block_size,
-                      variables.query_prealloc_size);
+  mem_root->set_block_size(variables.query_alloc_block_size);
   get_transaction()->init_mem_root_defaults(variables.trans_alloc_block_size,
                                             variables.trans_prealloc_size);
 }
@@ -2599,7 +2598,7 @@ void THD::claim_memory_ownership() {
   and call PSI_MEMORY_CALL(memory_claim)().
 */
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  claim_root(&main_mem_root);
+  main_mem_root.Claim();
   my_claim(m_token_array);
   Protocol_classic *p = get_protocol_classic();
   if (p != NULL) p->claim_memory_ownership();

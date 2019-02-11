@@ -3298,8 +3298,7 @@ static Sys_var_ulong Sys_range_alloc_block_size(
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type) {
   if (!self->is_global_persist(type))
-    reset_root_defaults(thd->mem_root, thd->variables.query_alloc_block_size,
-                        thd->variables.query_prealloc_size);
+    thd->mem_root->set_block_size(thd->variables.query_alloc_block_size);
   return false;
 }
 static Sys_var_ulong Sys_query_alloc_block_size(
