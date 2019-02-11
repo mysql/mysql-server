@@ -404,7 +404,7 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
       used_tables_cache(0),
       forced_const(false) {
   if (arg_count > 0) {
-    args = (Item **)sql_alloc(sizeof(Item *) * arg_count);
+    args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
     if (args == NULL) {
       return;  // OOM
     }
@@ -3989,7 +3989,8 @@ Item_func_group_concat::Item_func_group_concat(
   quick_group = false;
   arg_count = arg_count_field + arg_count_order;
 
-  if (!(args = (Item **)sql_alloc(sizeof(Item *) * arg_count))) return;
+  if (!(args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count)))
+    return;
 
   if (order_array.reserve(arg_count_order)) return;
 

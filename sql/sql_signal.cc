@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,7 +176,7 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
 
   if (String::needs_conversion(to_copy, src_cs, dst_cs, &dummy_offset)) {
     dst_len = numchars * dst_cs->mbmaxlen;
-    dst_str = (char *)alloc_root(mem_root, dst_len + 1);
+    dst_str = (char *)mem_root->Alloc(dst_len + 1);
     if (dst_str) {
       const char *well_formed_error_pos;
       const char *cannot_convert_error_pos;
@@ -191,7 +191,7 @@ static bool assign_fixed_string(MEM_ROOT *mem_root, CHARSET_INFO *dst_cs,
     }
   } else {
     dst_len = to_copy;
-    dst_str = (char *)alloc_root(mem_root, dst_len + 1);
+    dst_str = (char *)mem_root->Alloc(dst_len + 1);
     if (dst_str) {
       memcpy(dst_str, src_str, to_copy);
       dst_str[to_copy] = '\0';

@@ -1550,8 +1550,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree) {
     uint old_size = sizeof(SEL_TREE **) * old_elements;
     uint new_size = old_size * realloc_ratio;
     SEL_TREE **new_trees;
-    if (!(new_trees = (SEL_TREE **)alloc_root(param->mem_root, new_size)))
-      return -1;
+    if (!(new_trees = (SEL_TREE **)param->mem_root->Alloc(new_size))) return -1;
     memcpy(new_trees, trees, old_size);
     trees = new_trees;
     trees_next = trees + old_elements;
@@ -1664,7 +1663,7 @@ SEL_IMERGE::SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param) {
   uint elements = static_cast<uint>(arg->trees_end - arg->trees);
   if (elements > PREALLOCED_TREES) {
     uint size = elements * sizeof(SEL_TREE **);
-    if (!(trees = (SEL_TREE **)alloc_root(param->mem_root, size))) goto mem_err;
+    if (!(trees = (SEL_TREE **)param->mem_root->Alloc(size))) goto mem_err;
   } else
     trees = &trees_prealloced[0];
 
@@ -1923,8 +1922,8 @@ QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
                    thd->variables.range_alloc_block_size, 0);
   else
     ::new (&alloc) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
-  last_rowid = (uchar *)alloc_root(parent_alloc ? parent_alloc : &alloc,
-                                   head->file->ref_length);
+  last_rowid = (uchar *)(parent_alloc ? parent_alloc : &alloc)
+                   ->Alloc(head->file->ref_length);
 }
 
 /*
@@ -2177,7 +2176,7 @@ int QUICK_ROR_UNION_SELECT::init() {
     DBUG_RETURN(1);
   }
 
-  if (!(cur_rowid = (uchar *)alloc_root(&alloc, 2 * head->file->ref_length)))
+  if (!(cur_rowid = (uchar *)alloc.Alloc(2 * head->file->ref_length)))
     DBUG_RETURN(1);
   prev_rowid = cur_rowid + head->file->ref_length;
   DBUG_RETURN(0);
@@ -2551,7 +2550,7 @@ class TABLE_READ_PLAN {
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused))) {
@@ -3003,8 +3002,8 @@ static int fill_used_fields_bitmap(PARAM *param) {
   uint pk;
   param->tmp_covered_fields.bitmap = 0;
   param->fields_bitmap_size = table->s->column_bitmap_size;
-  if (!(tmp = (my_bitmap_map *)alloc_root(param->mem_root,
-                                          param->fields_bitmap_size)) ||
+  if (!(tmp = (my_bitmap_map *)param->mem_root->Alloc(
+            param->fields_bitmap_size)) ||
       bitmap_init(&param->needed_fields, tmp, table->s->fields, false))
     return 1;
 
@@ -3219,8 +3218,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
                              thd->variables.range_optimizer_max_mem_size);
     set_memroot_error_reporting(&alloc, true);
     thd->push_internal_handler(&param.error_handler);
-    if (!(param.key_parts = (KEY_PART *)alloc_root(
-              &alloc, sizeof(KEY_PART) * head->s->key_parts)) ||
+    if (!(param.key_parts =
+              (KEY_PART *)alloc.Alloc(sizeof(KEY_PART) * head->s->key_parts)) ||
         fill_used_fields_bitmap(&param)) {
       thd->pop_internal_handler();
       free_root(&alloc, MYF(0));  // Return memory & allocator
@@ -3986,8 +3985,8 @@ static int find_used_partitions_imerge_list(PART_PRUNE_PARAM *ppar,
   my_bitmap_map *bitmap_buf;
   uint n_bits = ppar->part_info->read_partitions.n_bits;
   bitmap_bytes = bitmap_buffer_size(n_bits);
-  if (!(bitmap_buf = (my_bitmap_map *)alloc_root(ppar->range_param.mem_root,
-                                                 bitmap_bytes))) {
+  if (!(bitmap_buf =
+            (my_bitmap_map *)ppar->range_param.mem_root->Alloc(bitmap_bytes))) {
     /*
       Fallback, process just the first SEL_IMERGE. This can leave us with more
       partitions marked as used then actually needed.
@@ -4582,20 +4581,19 @@ static bool create_partition_index_description(PART_PRUNE_PARAM *ppar) {
   KEY_PART *key_part;
   MEM_ROOT *alloc = range_par->mem_root;
   if (!total_parts ||
-      !(key_part =
-            (KEY_PART *)alloc_root(alloc, sizeof(KEY_PART) * total_parts)) ||
+      !(key_part = (KEY_PART *)alloc->Alloc(sizeof(KEY_PART) * total_parts)) ||
       !(ppar->arg_stack =
-            (SEL_ARG **)alloc_root(alloc, sizeof(SEL_ARG *) * total_parts)) ||
+            (SEL_ARG **)alloc->Alloc(sizeof(SEL_ARG *) * total_parts)) ||
       !(ppar->is_part_keypart =
-            (bool *)alloc_root(alloc, sizeof(bool) * total_parts)) ||
+            (bool *)alloc->Alloc(sizeof(bool) * total_parts)) ||
       !(ppar->is_subpart_keypart =
-            (bool *)alloc_root(alloc, sizeof(bool) * total_parts)))
+            (bool *)alloc->Alloc(sizeof(bool) * total_parts)))
     return true;
 
   if (ppar->subpart_fields) {
     my_bitmap_map *buf;
     uint32 bufsize = bitmap_buffer_size(ppar->part_info->num_subparts);
-    if (!(buf = (my_bitmap_map *)alloc_root(alloc, bufsize))) return true;
+    if (!(buf = (my_bitmap_map *)alloc->Alloc(bufsize))) return true;
     bitmap_init(&ppar->subparts_bitmap, buf, ppar->part_info->num_subparts,
                 false);
   }
@@ -4816,8 +4814,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
 
   Opt_trace_context *const trace = &param->thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
-  if (!(range_scans = (TRP_RANGE **)alloc_root(
-            param->mem_root, sizeof(TRP_RANGE *) * n_child_scans)))
+  if (!(range_scans = (TRP_RANGE **)param->mem_root->Alloc(sizeof(TRP_RANGE *) *
+                                                           n_child_scans)))
     DBUG_RETURN(NULL);
   // Note: to_merge.end() is called to close this object after this for-loop.
   Opt_trace_array to_merge(trace, "indexes_to_merge");
@@ -4937,8 +4935,8 @@ static TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param,
       param->thd->variables.sortbuff_size);
   if (param->imerge_cost_buff.size() < unique_calc_buff_size) {
     typedef Unique::Imerge_cost_buf_type::value_type element_type;
-    void *rawmem = alloc_root(param->mem_root,
-                              unique_calc_buff_size * sizeof(element_type));
+    void *rawmem =
+        param->mem_root->Alloc(unique_calc_buff_size * sizeof(element_type));
     if (!rawmem) DBUG_RETURN(NULL);
     param->imerge_cost_buff = Unique::Imerge_cost_buf_type(
         static_cast<element_type *>(rawmem), unique_calc_buff_size);
@@ -4976,8 +4974,8 @@ build_ror_index_merge:
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
-  if (!(roru_read_plans = (TABLE_READ_PLAN **)alloc_root(
-            param->mem_root, sizeof(TABLE_READ_PLAN *) * n_child_scans)))
+  if (!(roru_read_plans = (TABLE_READ_PLAN **)param->mem_root->Alloc(
+            sizeof(TABLE_READ_PLAN *) * n_child_scans)))
     DBUG_RETURN(imerge_trp);
 skip_to_ror_scan:
   Cost_estimate roru_index_cost;
@@ -5100,8 +5098,8 @@ static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
   uint keynr;
   DBUG_ENTER("make_ror_scan");
 
-  if (!(ror_scan = (ROR_SCAN_INFO *)alloc_root(param->mem_root,
-                                               sizeof(ROR_SCAN_INFO))))
+  if (!(ror_scan =
+            (ROR_SCAN_INFO *)param->mem_root->Alloc(sizeof(ROR_SCAN_INFO))))
     DBUG_RETURN(NULL);
 
   ror_scan->idx = idx;
@@ -5109,11 +5107,11 @@ static ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx,
   ror_scan->sel_root = sel_root;
   ror_scan->records = param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf1 = (my_bitmap_map *)alloc_root(param->mem_root,
-                                                  param->fields_bitmap_size)))
+  if (!(bitmap_buf1 =
+            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
-  if (!(bitmap_buf2 = (my_bitmap_map *)alloc_root(param->mem_root,
-                                                  param->fields_bitmap_size)))
+  if (!(bitmap_buf2 =
+            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
 
   if (bitmap_init(&ror_scan->covered_fields, bitmap_buf1,
@@ -5196,8 +5194,8 @@ static void find_intersect_order(ROR_SCAN_INFO **start, ROR_SCAN_INFO **end,
   */
   MY_BITMAP fields_to_cover;
   my_bitmap_map *map;
-  if (!(map = (my_bitmap_map *)alloc_root(param->mem_root,
-                                          param->fields_bitmap_size)))
+  if (!(map =
+            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     return;
   bitmap_init(&fields_to_cover, map, param->needed_fields.n_bits, false);
   bitmap_copy(&fields_to_cover, &param->needed_fields);
@@ -5288,12 +5286,12 @@ typedef struct {
 static ROR_INTERSECT_INFO *ror_intersect_init(const PARAM *param) {
   ROR_INTERSECT_INFO *info;
   my_bitmap_map *buf;
-  if (!(info = (ROR_INTERSECT_INFO *)alloc_root(param->mem_root,
-                                                sizeof(ROR_INTERSECT_INFO))))
+  if (!(info = (ROR_INTERSECT_INFO *)param->mem_root->Alloc(
+            sizeof(ROR_INTERSECT_INFO))))
     return NULL;
   info->param = param;
-  if (!(buf = (my_bitmap_map *)alloc_root(param->mem_root,
-                                          param->fields_bitmap_size)))
+  if (!(buf =
+            (my_bitmap_map *)param->mem_root->Alloc(param->fields_bitmap_size)))
     return NULL;
   if (bitmap_init(&info->covered_fields, buf, param->table->s->fields, false))
     return NULL;
@@ -5732,8 +5730,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
   uint cpk_no;
   bool cpk_scan_used = false;
 
-  if (!(tree->ror_scans = (ROR_SCAN_INFO **)alloc_root(
-            param->mem_root, sizeof(ROR_SCAN_INFO *) * param->keys)))
+  if (!(tree->ror_scans = (ROR_SCAN_INFO **)param->mem_root->Alloc(
+            sizeof(ROR_SCAN_INFO *) * param->keys)))
     DBUG_RETURN(NULL);
   cpk_no = ((param->table->file->primary_key_is_clustered())
                 ? param->table->s->primary_key
@@ -5767,8 +5765,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
 
   ROR_SCAN_INFO **intersect_scans; /* ROR scans used in index intersection */
   ROR_SCAN_INFO **intersect_scans_end;
-  if (!(intersect_scans = (ROR_SCAN_INFO **)alloc_root(
-            param->mem_root, sizeof(ROR_SCAN_INFO *) * tree->n_ror_scans)))
+  if (!(intersect_scans = (ROR_SCAN_INFO **)param->mem_root->Alloc(
+            sizeof(ROR_SCAN_INFO *) * tree->n_ror_scans)))
     DBUG_RETURN(NULL);
   intersect_scans_end = intersect_scans;
 
@@ -5892,8 +5890,8 @@ static TRP_ROR_INTERSECT *get_best_ror_intersect(
       (cpk_scan_used || best_num > 1)) {
     if (!(trp = new (param->mem_root) TRP_ROR_INTERSECT(force_index_merge)))
       DBUG_RETURN(trp);
-    if (!(trp->first_scan = (ROR_SCAN_INFO **)alloc_root(
-              param->mem_root, sizeof(ROR_SCAN_INFO *) * best_num)))
+    if (!(trp->first_scan = (ROR_SCAN_INFO **)param->mem_root->Alloc(
+              sizeof(ROR_SCAN_INFO *) * best_num)))
       DBUG_RETURN(NULL);
     memcpy(trp->first_scan, intersect_scans,
            best_num * sizeof(ROR_SCAN_INFO *));
@@ -7397,7 +7395,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
       goto end;
     }
     uchar *null_string =
-        static_cast<uchar *>(alloc_root(alloc, key_part->store_length + 1));
+        static_cast<uchar *>(alloc->Alloc(key_part->store_length + 1));
     if (!null_string) goto end;  // out of memory
 
     TRASH(null_string, key_part->store_length + 1);
@@ -7497,7 +7495,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
         field_length = length;
     }
     length += offset;
-    if (!(min_str = (uchar *)alloc_root(alloc, length * 2))) goto end;
+    if (!(min_str = (uchar *)alloc->Alloc(length * 2))) goto end;
 
     max_str = min_str + length;
     if (maybe_null) max_str[0] = min_str[0] = 0;
@@ -7568,7 +7566,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
     goto end;
   }
 
-  str = (uchar *)alloc_root(alloc, key_part->store_length + 1);
+  str = (uchar *)alloc->Alloc(key_part->store_length + 1);
   if (!str) goto end;
   if (maybe_null) *str = (uchar)field->is_real_null();  // Set to 1 if null
   field->get_key_image(str + maybe_null, key_part->length,
@@ -7625,7 +7623,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
         tree->root->min_flag = NO_MIN_RANGE; /* From start */
       else {                                 // > NULL
         if (!(tree->root->min_value = static_cast<uchar *>(
-                  alloc_root(alloc, key_part->store_length + 1))))
+                  alloc->Alloc(key_part->store_length + 1))))
           goto end;
         TRASH(tree->root->min_value, key_part->store_length + 1);
         memcpy(tree->root->min_value, is_null_string, sizeof(is_null_string));
@@ -12946,13 +12944,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
   if (group_prefix) /* Already initialized. */
     return 0;
 
-  if (!(last_prefix = (uchar *)alloc_root(&alloc, group_prefix_len))) return 1;
+  if (!(last_prefix = (uchar *)alloc.Alloc(group_prefix_len))) return 1;
   /*
     We may use group_prefix to store keys with all select fields, so allocate
     enough space for it.
   */
-  if (!(group_prefix =
-            (uchar *)alloc_root(&alloc, real_prefix_len + min_max_arg_len)))
+  if (!(group_prefix = (uchar *)alloc.Alloc(real_prefix_len + min_max_arg_len)))
     return 1;
 
   if (key_infix_len > 0) {
@@ -12960,7 +12957,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
       The memory location pointed to by key_infix will be deleted soon, so
       allocate a new buffer and copy the key_infix into it.
     */
-    uchar *tmp_key_infix = (uchar *)alloc_root(&alloc, key_infix_len);
+    uchar *tmp_key_infix = (uchar *)alloc.Alloc(key_infix_len);
     if (!tmp_key_infix) return 1;
     memcpy(tmp_key_infix, this->key_infix, key_infix_len);
     this->key_infix = tmp_key_infix;
@@ -14393,11 +14390,10 @@ int QUICK_SKIP_SCAN_SELECT::init() {
   if (distinct_prefix) return 0;
 
   DBUG_ASSERT(distinct_prefix_key_parts > 0 && distinct_prefix_len > 0);
-  if (!(distinct_prefix = (uchar *)alloc_root(&alloc, distinct_prefix_len)))
-    return 1;
+  if (!(distinct_prefix = (uchar *)alloc.Alloc(distinct_prefix_len))) return 1;
 
   if (eq_prefix_len > 0) {
-    eq_prefix = (uchar *)alloc_root(&alloc, eq_prefix_len);
+    eq_prefix = (uchar *)alloc.Alloc(eq_prefix_len);
     if (!eq_prefix) return 1;
   } else {
     eq_prefix = NULL;
@@ -14405,13 +14401,13 @@ int QUICK_SKIP_SCAN_SELECT::init() {
 
   if (eq_prefix_key_parts > 0) {
     if (!(cur_eq_prefix =
-              (uint *)alloc_root(&alloc, eq_prefix_key_parts * sizeof(uint))))
+              (uint *)alloc.Alloc(eq_prefix_key_parts * sizeof(uint))))
       return 1;
-    if (!(eq_key_prefixes = (uchar ***)alloc_root(
-              &alloc, eq_prefix_key_parts * sizeof(uchar **))))
+    if (!(eq_key_prefixes =
+              (uchar ***)alloc.Alloc(eq_prefix_key_parts * sizeof(uchar **))))
       return 1;
     if (!(eq_prefix_elements =
-              (uint *)alloc_root(&alloc, eq_prefix_key_parts * sizeof(uint))))
+              (uint *)alloc.Alloc(eq_prefix_key_parts * sizeof(uint))))
       return 1;
 
     const SEL_ARG *cur_range = index_range_tree->root->first();
@@ -14423,8 +14419,8 @@ int QUICK_SKIP_SCAN_SELECT::init() {
       eq_prefix_elements[i] = cur_root->elements;
       cur_root = cur_range->next_key_part;
       DBUG_ASSERT(eq_prefix_elements[i] > 0);
-      if (!(eq_key_prefixes[i] = (uchar **)alloc_root(
-                &alloc, eq_prefix_elements[i] * sizeof(uchar *))))
+      if (!(eq_key_prefixes[i] =
+                (uchar **)alloc.Alloc(eq_prefix_elements[i] * sizeof(uchar *))))
         return 1;
 
       uint j = 0;
@@ -14436,8 +14432,7 @@ int QUICK_SKIP_SCAN_SELECT::init() {
         //  Store ranges in the reverse order if key part is descending.
         uint pos = cur_range->is_ascending ? j : eq_prefix_elements[i] - j - 1;
 
-        if (!(eq_key_prefixes[i][pos] =
-                  (uchar *)alloc_root(&alloc, field_length)))
+        if (!(eq_key_prefixes[i][pos] = (uchar *)alloc.Alloc(field_length)))
           return 1;
 
         if (cur_range->maybe_null() && cur_range->min_value[0] &&
@@ -14513,17 +14508,17 @@ bool QUICK_SKIP_SCAN_SELECT::set_range(SEL_ARG *sel_range) {
 
   // Allocate storage for min/max key if they exist.
   if (!(range_cond_flag & NO_MIN_RANGE)) {
-    if (!(min_range_key = (uchar *)alloc_root(&alloc, range_key_len)))
+    if (!(min_range_key = (uchar *)alloc.Alloc(range_key_len)))
       DBUG_RETURN(false);
-    if (!(min_search_key = (uchar *)alloc_root(&alloc, max_used_key_length)))
+    if (!(min_search_key = (uchar *)alloc.Alloc(max_used_key_length)))
       DBUG_RETURN(false);
 
     memcpy(min_range_key, min_value, range_key_len);
   }
   if (!(range_cond_flag & NO_MAX_RANGE)) {
-    if (!(max_range_key = (uchar *)alloc_root(&alloc, range_key_len)))
+    if (!(max_range_key = (uchar *)alloc.Alloc(range_key_len)))
       DBUG_RETURN(false);
-    if (!(max_search_key = (uchar *)alloc_root(&alloc, max_used_key_length)))
+    if (!(max_search_key = (uchar *)alloc.Alloc(max_used_key_length)))
       DBUG_RETURN(false);
 
     memcpy(max_range_key, max_value, range_key_len);

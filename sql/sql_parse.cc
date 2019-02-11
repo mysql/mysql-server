@@ -1116,7 +1116,7 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 }
 
-/* This works because items are allocated with sql_alloc() */
+/* This works because items are allocated with (*THR_MALLOC)->Alloc() */
 
 void free_items(Item *item) {
   Item *next;
@@ -1129,7 +1129,7 @@ void free_items(Item *item) {
 }
 
 /**
-   This works because items are allocated with sql_alloc().
+   This works because items are allocated with (*THR_MALLOC)->Alloc().
    @note The function also handles null pointers (empty list).
 */
 void cleanup_items(Item *item) {

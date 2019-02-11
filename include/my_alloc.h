@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -309,10 +309,6 @@ struct MEM_ROOT {
 static inline void init_alloc_root(PSI_memory_key key, MEM_ROOT *root,
                                    size_t block_size, size_t) {
   ::new (root) MEM_ROOT(key, block_size);
-}
-
-static inline void *alloc_root(MEM_ROOT *root, size_t length) {
-  return root->Alloc(length);
 }
 
 void free_root(MEM_ROOT *root, myf flags);

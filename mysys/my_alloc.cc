@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -230,7 +230,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   }
   va_end(args);
 
-  if (!(start = static_cast<char *>(alloc_root(root, tot_length))))
+  if (!(start = static_cast<char *>(root->Alloc(tot_length))))
     DBUG_RETURN(0); /* purecov: inspected */
 
   va_start(args, root);
@@ -263,7 +263,7 @@ void free_root(MEM_ROOT *root, myf flags) {
 
 char *strmake_root(MEM_ROOT *root, const char *str, size_t len) {
   char *pos;
-  if ((pos = static_cast<char *>(alloc_root(root, len + 1)))) {
+  if ((pos = static_cast<char *>(root->Alloc(len + 1)))) {
     if (len > 0) memcpy(pos, str, len);
     pos[len] = 0;
   }
@@ -272,7 +272,7 @@ char *strmake_root(MEM_ROOT *root, const char *str, size_t len) {
 
 void *memdup_root(MEM_ROOT *root, const void *str, size_t len) {
   char *pos;
-  if ((pos = static_cast<char *>(alloc_root(root, len)))) {
+  if ((pos = static_cast<char *>(root->Alloc(len)))) {
     memcpy(pos, str, len);
   }
   return pos;

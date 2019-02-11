@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ TEST_P(MyAllocTest, NoMemoryLimit) {
   m_num_objects = GetParam();
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      alloc_root(&m_root, 100);
+      m_root.Alloc(100);
   }
 }
 
@@ -122,18 +122,18 @@ TEST_P(MyAllocTest, WithMemoryLimit) {
   set_memroot_max_capacity(&m_root, num_iterations * m_num_objects * 100);
   for (size_t ix = 0; ix < num_iterations; ++ix) {
     for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
-      alloc_root(&m_root, 100);
+      m_root.Alloc(100);
   }
 }
 
 TEST_F(MyAllocTest, CheckErrorReporting) {
   const void *null_pointer = NULL;
-  EXPECT_TRUE(alloc_root(&m_root, 1000));
+  EXPECT_TRUE(m_root.Alloc(1000));
   set_memroot_max_capacity(&m_root, 100);
-  EXPECT_EQ(null_pointer, alloc_root(&m_root, 1000));
+  EXPECT_EQ(null_pointer, m_root.Alloc(1000));
   set_memroot_error_reporting(&m_root, true);
   Mock_global_error_handler error_handler(EE_CAPACITY_EXCEEDED);
-  EXPECT_TRUE(alloc_root(&m_root, 1000));
+  EXPECT_TRUE(m_root.Alloc(1000));
   EXPECT_EQ(1, error_handler.handle_called());
 }
 

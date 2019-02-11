@@ -175,13 +175,12 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
 
   switch (info->type) {
     case FT_TOKEN_WORD:
-      ftbw = (FTB_WORD *)alloc_root(
-          &ftb_param->ftb->mem_root,
+      ftbw = (FTB_WORD *)ftb_param->ftb->mem_root.Alloc(
           sizeof(FTB_WORD) +
-              (info->trunc
-                   ? MI_MAX_KEY_BUFF
-                   : (word_len + 1) * ftb_param->ftb->charset->mbmaxlen +
-                         HA_FT_WLEN + ftb_param->ftb->info->s->rec_reflength));
+          (info->trunc
+               ? MI_MAX_KEY_BUFF
+               : (word_len + 1) * ftb_param->ftb->charset->mbmaxlen +
+                     HA_FT_WLEN + ftb_param->ftb->info->s->rec_reflength));
       ftbw->len = word_len + 1;
       ftbw->flags = 0;
       ftbw->off = 0;
@@ -206,24 +205,21 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
       /* fall through */
     case FT_TOKEN_STOPWORD:
       if (!ftb_param->up_quot) break;
-      phrase_word =
-          (FT_WORD *)alloc_root(&ftb_param->ftb->mem_root, sizeof(FT_WORD));
-      tmp_element = (LIST *)alloc_root(&ftb_param->ftb->mem_root, sizeof(LIST));
+      phrase_word = (FT_WORD *)ftb_param->ftb->mem_root.Alloc(sizeof(FT_WORD));
+      tmp_element = (LIST *)ftb_param->ftb->mem_root.Alloc(sizeof(LIST));
       phrase_word->pos = (uchar *)word;
       phrase_word->len = word_len;
       tmp_element->data = (void *)phrase_word;
       ftb_param->ftbe->phrase = list_add(ftb_param->ftbe->phrase, tmp_element);
       /* Allocate document list at this point.
          It allows to avoid huge amount of allocs/frees for each row.*/
-      tmp_element = (LIST *)alloc_root(&ftb_param->ftb->mem_root, sizeof(LIST));
-      tmp_element->data =
-          alloc_root(&ftb_param->ftb->mem_root, sizeof(FT_WORD));
+      tmp_element = (LIST *)ftb_param->ftb->mem_root.Alloc(sizeof(LIST));
+      tmp_element->data = ftb_param->ftb->mem_root.Alloc(sizeof(FT_WORD));
       ftb_param->ftbe->document =
           list_add(ftb_param->ftbe->document, tmp_element);
       break;
     case FT_TOKEN_LEFT_PAREN:
-      ftbe =
-          (FTB_EXPR *)alloc_root(&ftb_param->ftb->mem_root, sizeof(FTB_EXPR));
+      ftbe = (FTB_EXPR *)ftb_param->ftb->mem_root.Alloc(sizeof(FTB_EXPR));
       ftbe->flags = 0;
       if (info->yesno > 0) ftbe->flags |= FTB_FLAG_YES;
       if (info->yesno < 0) ftbe->flags |= FTB_FLAG_NO;
@@ -536,8 +532,7 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
 
   init_alloc_root(PSI_INSTRUMENT_ME, &ftb->mem_root, 1024, 1024);
   ftb->queue.max_elements = 0;
-  if (!(ftbe = (FTB_EXPR *)alloc_root(&ftb->mem_root, sizeof(FTB_EXPR))))
-    goto err;
+  if (!(ftbe = (FTB_EXPR *)ftb->mem_root.Alloc(sizeof(FTB_EXPR)))) goto err;
   ftbe->weight = 1;
   ftbe->flags = FTB_FLAG_YES;
   ftbe->nos = 1;
@@ -556,15 +551,15 @@ FT_INFO *ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
     Hack: instead of init_queue, we'll use reinit queue to be able
     to alloc queue with alloc_root()
   */
-  if (!(ftb->queue.root = (uchar **)alloc_root(
-            &ftb->mem_root, (ftb->queue.max_elements + 1) * sizeof(void *))))
+  if (!(ftb->queue.root = (uchar **)ftb->mem_root.Alloc(
+            (ftb->queue.max_elements + 1) * sizeof(void *))))
     goto err;
   reinit_queue(&ftb->queue, key_memory_QUEUE, ftb->queue.max_elements, 0, 0,
                FTB_WORD_cmp, 0);
   for (ftbw = ftb->last_word; ftbw; ftbw = ftbw->prev)
     queue_insert(&ftb->queue, (uchar *)ftbw);
-  ftb->list = (FTB_WORD **)alloc_root(&ftb->mem_root,
-                                      sizeof(FTB_WORD *) * ftb->queue.elements);
+  ftb->list = (FTB_WORD **)ftb->mem_root.Alloc(sizeof(FTB_WORD *) *
+                                               ftb->queue.elements);
   memcpy(ftb->list, ftb->queue.root + 1,
          sizeof(FTB_WORD *) * ftb->queue.elements);
   std::sort(ftb->list, ftb->list + ftb->queue.elements,

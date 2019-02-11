@@ -1279,7 +1279,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   size_t length =
       max<size_t>(cs->mbmaxlen, max(field_term_length, line_term_length)) + 1;
   set_if_bigger(length, line_start.length());
-  stack = stack_pos = (int *)sql_alloc(sizeof(int) * length);
+  stack = stack_pos = (int *)(*THR_MALLOC)->Alloc(sizeof(int) * length);
 
   if (!(buffer = (uchar *)my_malloc(key_memory_READ_INFO, buff_length + 1,
                                     MYF(MY_WME))))

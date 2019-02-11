@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +122,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
     if (!(finfo.name = strdup_root(names_storage, dp->d_name))) goto error;
 
     if (MyFlags & MY_WANT_STAT) {
-      if (!(finfo.mystat =
-                (MY_STAT *)alloc_root(names_storage, sizeof(MY_STAT))))
+      if (!(finfo.mystat = (MY_STAT *)names_storage->Alloc(sizeof(MY_STAT))))
         goto error;
 
       memset(finfo.mystat, 0, sizeof(MY_STAT));
@@ -252,8 +251,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
       if (attrib & (_A_HIDDEN | _A_SYSTEM)) continue;
       if (!(finfo.name = strdup_root(names_storage, find.name))) goto error;
       if (MyFlags & MY_WANT_STAT) {
-        if (!(finfo.mystat =
-                  (MY_STAT *)alloc_root(names_storage, sizeof(MY_STAT))))
+        if (!(finfo.mystat = (MY_STAT *)names_storage->Alloc(sizeof(MY_STAT))))
           goto error;
 
         memset(finfo.mystat, 0, sizeof(MY_STAT));

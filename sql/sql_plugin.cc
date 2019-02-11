@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2646,8 +2646,8 @@ static st_bookmark *register_var(const char *plugin, const char *name,
     if (*p == '-') *p = '_';
 
   if (!(result = find_bookmark(NULL, varname + 1, flags))) {
-    result = (st_bookmark *)alloc_root(&plugin_mem_root,
-                                       sizeof(st_bookmark) + length - 1);
+    result =
+        (st_bookmark *)plugin_mem_root.Alloc(sizeof(st_bookmark) + length - 1);
     varname[0] = flags & PLUGIN_VAR_TYPEMASK;
     memcpy(result->key, varname, length);
     result->name_len = length - 2;
@@ -3035,7 +3035,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
   size_t plugin_name_len = strlen(plugin_name);
   size_t optnamelen;
   const int max_comment_len = 180;
-  char *comment = (char *)alloc_root(mem_root, max_comment_len + 1);
+  char *comment = (char *)mem_root->Alloc(max_comment_len + 1);
   char *optname;
 
   int index = 0, offset = 0;
@@ -3047,12 +3047,12 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
 
   DBUG_ENTER("construct_options");
 
-  plugin_name_ptr = (char *)alloc_root(mem_root, plugin_name_len + 1);
+  plugin_name_ptr = (char *)mem_root->Alloc(plugin_name_len + 1);
   strcpy(plugin_name_ptr, plugin_name);
   my_casedn_str(&my_charset_latin1, plugin_name_ptr);
   convert_underscore_to_dash(plugin_name_ptr, plugin_name_len);
   plugin_name_with_prefix_ptr =
-      (char *)alloc_root(mem_root, plugin_name_len + plugin_dash.length + 1);
+      (char *)mem_root->Alloc(plugin_name_len + plugin_dash.length + 1);
   strxmov(plugin_name_with_prefix_ptr, plugin_dash.str, plugin_name_ptr, NullS);
 
   if (tmp->load_option != PLUGIN_FORCE &&
@@ -3079,11 +3079,11 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
       GET_ENUM value is an unsigned long integer.
     */
     options[0].value = options[1].value =
-        (uchar **)alloc_root(mem_root, sizeof(ulong));
+        (uchar **)mem_root->Alloc(sizeof(ulong));
     *((ulong *)options[0].value) = (ulong)options[0].def_value;
 
     options[0].arg_source = options[1].arg_source =
-        (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
+        (get_opt_arg_source *)mem_root->Alloc(sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
     options[0].arg_source->m_path_name[0] = 0;
     options[1].arg_source->m_path_name[0] = 0;
@@ -3211,7 +3211,7 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
 
     if (!(opt->flags & PLUGIN_VAR_THDLOCAL)) {
       optnamelen = strlen(opt->name);
-      optname = (char *)alloc_root(mem_root, plugin_name_len + optnamelen + 2);
+      optname = (char *)mem_root->Alloc(plugin_name_len + optnamelen + 2);
       strxmov(optname, plugin_name_ptr, "-", opt->name, NullS);
       optnamelen = plugin_name_len + optnamelen + 1;
     } else {
@@ -3249,12 +3249,12 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
     options[1] = options[0];
     options[1].id = -1;
     options[1].name = option_name_ptr =
-        (char *)alloc_root(mem_root, plugin_dash.length + optnamelen + 1);
+        (char *)mem_root->Alloc(plugin_dash.length + optnamelen + 1);
     options[1].comment = 0; /* Hidden from the help text */
     strxmov(option_name_ptr, plugin_dash.str, optname, NullS);
 
     options[0].arg_source = options[1].arg_source =
-        (get_opt_arg_source *)alloc_root(mem_root, sizeof(get_opt_arg_source));
+        (get_opt_arg_source *)mem_root->Alloc(sizeof(get_opt_arg_source));
     memset(options[0].arg_source, 0, sizeof(get_opt_arg_source));
     options[0].arg_source->m_path_name[0] = 0;
     options[1].arg_source->m_path_name[0] = 0;
@@ -3276,7 +3276,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root, st_plugin_int *p) {
   for (opt = p->plugin->system_vars; opt && *opt; opt++, count += 2)
     ;
 
-  if (!(opts = (my_option *)alloc_root(mem_root, sizeof(my_option) * count)))
+  if (!(opts = (my_option *)mem_root->Alloc(sizeof(my_option) * count)))
     DBUG_RETURN(NULL);
 
   memset(opts, 0, sizeof(my_option) * count);
@@ -3374,8 +3374,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
     count += 2; /* --{plugin}-{optname} and --plugin-{plugin}-{optname} */
 
   if (count > EXTRA_OPTIONS || (*argc > 1)) {
-    if (!(opts =
-              (my_option *)alloc_root(tmp_root, sizeof(my_option) * count))) {
+    if (!(opts = (my_option *)tmp_root->Alloc(sizeof(my_option) * count))) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_OOM, tmp->name.str);
       DBUG_RETURN(-1);
     }
@@ -3437,7 +3436,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
     else {
       len = plugin_name.length + strlen(o->name) + 2;
-      varname = (char *)alloc_root(mem_root, len);
+      varname = (char *)mem_root->Alloc(len);
       strxmov(varname, plugin_name.str, "-", o->name, NullS);
       my_casedn_str(&my_charset_latin1, varname);
       convert_dash_to_underscore(varname, len - 1);

@@ -2533,7 +2533,7 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root) {
     when the clone handler object is destroyed.
   */
   if (!(new_handler->ref =
-            (uchar *)alloc_root(mem_root, ALIGN_SIZE(ref_length) * 2)))
+            (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2)))
     goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
@@ -2676,8 +2676,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     (void)extra(HA_EXTRA_NO_READCHECK);  // Not needed in SQL
 
     /* ref is already allocated for us if we're called from handler::clone() */
-    if (!ref &&
-        !(ref = (uchar *)alloc_root(mem_root, ALIGN_SIZE(ref_length) * 2))) {
+    if (!ref && !(ref = (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2))) {
       ha_close();
       error = HA_ERR_OUT_OF_MEM;
     } else
@@ -7350,7 +7349,7 @@ static bool exts_handlerton(THD *, plugin_ref plugin, void *arg) {
 }
 
 TYPELIB *ha_known_exts() {
-  TYPELIB *known_extensions = (TYPELIB *)sql_alloc(sizeof(TYPELIB));
+  TYPELIB *known_extensions = (TYPELIB *)(*THR_MALLOC)->Alloc(sizeof(TYPELIB));
   known_extensions->name = "known_exts";
   known_extensions->type_lengths = NULL;
 
@@ -7361,7 +7360,7 @@ TYPELIB *ha_known_exts() {
                  &found_exts);
 
   size_t arr_length = sizeof(char *) * (found_exts.elements + 1);
-  ext = (const char **)sql_alloc(arr_length);
+  ext = (const char **)(*THR_MALLOC)->Alloc(arr_length);
 
   DBUG_ASSERT(NULL != ext);
   known_extensions->count = found_exts.elements;

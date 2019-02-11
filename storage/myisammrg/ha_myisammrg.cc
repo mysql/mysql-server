@@ -677,7 +677,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root) {
     when the clone handler object is destroyed.
   */
   if (!(new_handler->ref =
-            (uchar *)alloc_root(mem_root, ALIGN_SIZE(ref_length) * 2))) {
+            (uchar *)mem_root->Alloc(ALIGN_SIZE(ref_length) * 2))) {
     destroy(new_handler);
     return NULL;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ class Mem_root_array_YY {
   bool reserve(size_t n) {
     if (n <= m_capacity) return false;
 
-    void *mem = alloc_root(m_root, n * element_size());
+    void *mem = m_root->Alloc(n * element_size());
     if (!mem) return true;
     Element_type *array = static_cast<Element_type *>(mem);
 

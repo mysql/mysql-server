@@ -699,7 +699,8 @@ uint Filesort::make_sortorder(ORDER *order) {
 
   const size_t sortorder_size = sizeof(*sortorder) * (count + 1);
   if (sortorder == nullptr)
-    sortorder = static_cast<st_sort_field *>(sql_alloc(sortorder_size));
+    sortorder =
+        static_cast<st_sort_field *>((*THR_MALLOC)->Alloc(sortorder_size));
   if (sortorder == nullptr) DBUG_RETURN(0); /* purecov: inspected */
   memset(sortorder, 0, sortorder_size);
 
@@ -2394,8 +2395,8 @@ Addon_fields *Filesort::get_addon_fields(
   }
 
   if (addon_fields == NULL) {
-    void *rawmem1 = sql_alloc(sizeof(Addon_fields));
-    void *rawmem2 = sql_alloc(sizeof(Sort_addon_field) * num_fields);
+    void *rawmem1 = (*THR_MALLOC)->Alloc(sizeof(Addon_fields));
+    void *rawmem2 = (*THR_MALLOC)->Alloc(sizeof(Sort_addon_field) * num_fields);
     if (rawmem1 == NULL || rawmem2 == NULL)
       return NULL; /* purecov: inspected */
     Addon_fields_array addon_array(static_cast<Sort_addon_field *>(rawmem2),

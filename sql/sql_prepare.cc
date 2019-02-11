@@ -1383,8 +1383,8 @@ static bool init_param_array(Prepared_statement *stmt) {
     Item_param **to;
     List_iterator<Item_param> param_iterator(lex->param_list);
     /* Use thd->mem_root as it points at statement mem_root */
-    stmt->param_array = (Item_param **)alloc_root(
-        stmt->thd->mem_root, sizeof(Item_param *) * stmt->param_count);
+    stmt->param_array = (Item_param **)stmt->thd->mem_root->Alloc(
+        sizeof(Item_param *) * stmt->param_count);
     if (!stmt->param_array) return true;
     for (to = stmt->param_array; to < stmt->param_array + stmt->param_count;
          ++to) {
@@ -1608,7 +1608,7 @@ static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len) {
 
     len = (needs_conversion ? var_value->length() * to_cs->mbmaxlen
                             : var_value->length());
-    if (!(query_str = (char *)alloc_root(thd->mem_root, len + 1))) goto end;
+    if (!(query_str = (char *)thd->mem_root->Alloc(len + 1))) goto end;
 
     if (needs_conversion) {
       uint dummy_errors;
@@ -3635,7 +3635,7 @@ void Protocol_local::start_row() {
 
   /* Start a new row. */
   m_current_row =
-      (Ed_column *)alloc_root(&m_rset_root, sizeof(Ed_column) * m_column_count);
+      (Ed_column *)m_rset_root.Alloc(sizeof(Ed_column) * m_column_count);
   m_current_column = m_current_row;
   DBUG_VOID_RETURN;
 }

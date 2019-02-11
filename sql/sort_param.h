@@ -148,7 +148,7 @@ class Addon_fields {
       DBUG_ASSERT(m_addon_buf_length == sz);
       return m_addon_buf;
     }
-    m_addon_buf = static_cast<uchar *>(sql_alloc(sz));
+    m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
     if (m_addon_buf) m_addon_buf_length = sz;
     return m_addon_buf;
   }

@@ -167,7 +167,7 @@ void Item_func::set_arguments(List<Item> &list, bool context_free) {
   arg_count = list.elements;
   args = tmp_arg;  // If 2 arguments
   if (arg_count <= 2 ||
-      (args = (Item **)sql_alloc(sizeof(Item *) * arg_count))) {
+      (args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count))) {
     List_iterator_fast<Item> li(list);
     Item *item;
     Item **save_args = args;
@@ -3644,7 +3644,8 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
 
   if ((f_args.arg_count = arg_count)) {
     if (!(f_args.arg_type =
-              (Item_result *)sql_alloc(f_args.arg_count * sizeof(Item_result))))
+              (Item_result *)(*THR_MALLOC)
+                  ->Alloc(f_args.arg_count * sizeof(Item_result))))
 
     {
       free_udf(u_d);
@@ -3684,14 +3685,18 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
     }
     // TODO: why all following memory is not allocated with 1 call of sql_alloc?
     if (!(buffers = new String[arg_count]) ||
-        !(f_args.args = (char **)sql_alloc(arg_count * sizeof(char *))) ||
-        !(f_args.lengths = (ulong *)sql_alloc(arg_count * sizeof(long))) ||
-        !(f_args.maybe_null = (char *)sql_alloc(arg_count * sizeof(char))) ||
-        !(num_buffer =
-              (char *)sql_alloc(arg_count * ALIGN_SIZE(sizeof(double)))) ||
-        !(f_args.attributes = (char **)sql_alloc(arg_count * sizeof(char *))) ||
+        !(f_args.args =
+              (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
+        !(f_args.lengths =
+              (ulong *)(*THR_MALLOC)->Alloc(arg_count * sizeof(long))) ||
+        !(f_args.maybe_null =
+              (char *)(*THR_MALLOC)->Alloc(arg_count * sizeof(char))) ||
+        !(num_buffer = (char *)(*THR_MALLOC)
+                           ->Alloc(arg_count * ALIGN_SIZE(sizeof(double)))) ||
+        !(f_args.attributes =
+              (char **)(*THR_MALLOC)->Alloc(arg_count * sizeof(char *))) ||
         !(f_args.attribute_lengths =
-              (ulong *)sql_alloc(arg_count * sizeof(long)))) {
+              (ulong *)(*THR_MALLOC)->Alloc(arg_count * sizeof(long)))) {
       free_udf(u_d);
       DBUG_RETURN(true);
     }
@@ -5841,8 +5846,8 @@ static int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     destroyed.
   */
   size = ALIGN_SIZE(sizeof(Binlog_user_var_event)) + var_entry->length();
-  if (!(user_var_event = (Binlog_user_var_event *)alloc_root(
-            thd->user_var_events_alloc, size)))
+  if (!(user_var_event =
+            (Binlog_user_var_event *)thd->user_var_events_alloc->Alloc(size)))
     goto err;
 
   user_var_event->value =
@@ -7041,8 +7046,7 @@ const char *Item_func_sp::func_name() const {
        (m_name->m_explicit_name ? 3 : 0) +  // '`', '`' and '.' for the db
        1 +                                  // end of string
        ALIGN_SIZE(1));                      // to avoid String reallocation
-  String qname((char *)alloc_root(thd->mem_root, len), len,
-               system_charset_info);
+  String qname((char *)thd->mem_root->Alloc(len), len, system_charset_info);
 
   qname.length(0);
   if (m_name->m_explicit_name) {
@@ -7126,7 +7130,8 @@ bool Item_func_sp::init_result_field(THD *thd) {
 
   if (sp_result_field->pack_length() > sizeof(result_buf)) {
     void *tmp;
-    if (!(tmp = sql_alloc(sp_result_field->pack_length()))) DBUG_RETURN(true);
+    if (!(tmp = (*THR_MALLOC)->Alloc(sp_result_field->pack_length())))
+      DBUG_RETURN(true);
     sp_result_field->move_field((uchar *)tmp);
   } else
     sp_result_field->move_field(result_buf);

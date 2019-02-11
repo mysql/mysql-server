@@ -217,10 +217,10 @@ TYPELIB *copy_typelib(MEM_ROOT *root, TYPELIB *from) {
 
   if (!from) return NULL;
 
-  if (!(to = (TYPELIB *)alloc_root(root, sizeof(TYPELIB)))) return NULL;
+  if (!(to = (TYPELIB *)root->Alloc(sizeof(TYPELIB)))) return NULL;
 
-  if (!(to->type_names = (const char **)alloc_root(
-            root, (sizeof(char *) + sizeof(int)) * (from->count + 1))))
+  if (!(to->type_names = (const char **)root->Alloc(
+            (sizeof(char *) + sizeof(int)) * (from->count + 1))))
     return NULL;
   to->type_lengths = (unsigned int *)(to->type_names + from->count + 1);
   to->count = from->count;

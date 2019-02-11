@@ -2251,7 +2251,7 @@ static char *get_file_content(File fptr, uint *buf_length, bool use_sql_alloc) {
     return NULL;
   *buf_length = (uint)buffer_length;
   if (use_sql_alloc)
-    buf = (char *)sql_alloc(*buf_length + 1);
+    buf = (char *)(*THR_MALLOC)->Alloc(*buf_length + 1);
   else
     buf = (char *)my_malloc(key_memory_partition_syntax_buffer, *buf_length + 1,
                             MYF(MY_WME));

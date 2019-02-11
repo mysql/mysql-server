@@ -3066,7 +3066,7 @@ class Ndb_schema_event_handler {
       }
 
       // Allocate space for blob plus + zero terminator in current MEM_ROOT
-      char *str = static_cast<char *>(sql_alloc(blob_len + 1));
+      char *str = static_cast<char *>((*THR_MALLOC)->Alloc(blob_len + 1));
       ndbcluster::ndbrequire(str);
 
       // Read the blob content
@@ -3081,7 +3081,7 @@ class Ndb_schema_event_handler {
 
     void unpack_slock(const Field* field) {
       // Allocate bitmap buffer in current MEM_ROOT
-      slock_buf = static_cast<my_bitmap_map*>(sql_alloc(field->field_length));
+      slock_buf = static_cast<my_bitmap_map*>((*THR_MALLOC)->Alloc(field->field_length));
       ndbcluster::ndbrequire(slock_buf);
 
       // Initialize bitmap(always suceeds when buffer is already allocated)
@@ -3166,7 +3166,7 @@ class Ndb_schema_event_handler {
     {
       DBUG_ENTER("Ndb_schema_op::create");
       Ndb_schema_op* schema_op=
-        (Ndb_schema_op*)sql_alloc(sizeof(Ndb_schema_op));
+        (Ndb_schema_op*)(*THR_MALLOC)->Alloc(sizeof(Ndb_schema_op));
       schema_op->unpack_event(event_data);
       schema_op->any_value= any_value;
       DBUG_PRINT("exit", ("'%s.%s': query: '%s' type: %d",
@@ -6831,7 +6831,7 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
       row= row->next;
       if (row == NULL)
       {
-        row= (ndb_binlog_index_row*)sql_alloc(sizeof(ndb_binlog_index_row));
+        row= (ndb_binlog_index_row*)(*THR_MALLOC)->Alloc(sizeof(ndb_binlog_index_row));
         memset(row, 0, sizeof(ndb_binlog_index_row));
         row->next= first;
         *rows= row;

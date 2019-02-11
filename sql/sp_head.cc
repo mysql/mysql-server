@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3411,7 +3411,8 @@ void sp_parser_data::start_parsing_sp_body(THD *thd, sp_head *sp) {
 }
 
 bool sp_parser_data::add_backpatch_entry(sp_branch_instr *i, sp_label *label) {
-  Backpatch_info *bp = (Backpatch_info *)sql_alloc(sizeof(Backpatch_info));
+  Backpatch_info *bp =
+      (Backpatch_info *)(*THR_MALLOC)->Alloc(sizeof(Backpatch_info));
 
   if (!bp) return true;
 

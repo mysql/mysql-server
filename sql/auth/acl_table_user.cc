@@ -1723,9 +1723,9 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (additional_password.length()) {
         user.credentials[SECOND_CRED].m_auth_string.length =
             additional_password.length();
-        user.credentials[SECOND_CRED].m_auth_string.str = (char *)alloc_root(
-            &m_mem_root,
-            user.credentials[SECOND_CRED].m_auth_string.length + 1);
+        user.credentials[SECOND_CRED].m_auth_string.str =
+            (char *)m_mem_root.Alloc(
+                user.credentials[SECOND_CRED].m_auth_string.length + 1);
         memcpy(user.credentials[SECOND_CRED].m_auth_string.str,
                additional_password.c_str(),
                user.credentials[SECOND_CRED].m_auth_string.length);

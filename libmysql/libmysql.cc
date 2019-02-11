@@ -1506,8 +1506,7 @@ int STDCALL mysql_stmt_prepare(MYSQL_STMT *stmt, const char *query,
     or stmt->params when checking for existence of placeholders or
     result set.
   */
-  if (!(stmt->params = (MYSQL_BIND *)alloc_root(
-            stmt->mem_root,
+  if (!(stmt->params = (MYSQL_BIND *)stmt->mem_root->Alloc(
             sizeof(MYSQL_BIND) * (stmt->param_count + stmt->field_count)))) {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
     DBUG_RETURN(1);
@@ -1545,10 +1544,10 @@ static void alloc_stmt_fields(MYSQL_STMT *stmt) {
     Get the field information for non-select statements
     like SHOW and DESCRIBE commands
   */
-  if (!(stmt->fields = (MYSQL_FIELD *)alloc_root(
-            fields_mem_root, sizeof(MYSQL_FIELD) * stmt->field_count)) ||
-      !(stmt->bind = (MYSQL_BIND *)alloc_root(
-            fields_mem_root, sizeof(MYSQL_BIND) * stmt->field_count))) {
+  if (!(stmt->fields = (MYSQL_FIELD *)fields_mem_root->Alloc(
+            sizeof(MYSQL_FIELD) * stmt->field_count)) ||
+      !(stmt->bind = (MYSQL_BIND *)fields_mem_root->Alloc(sizeof(MYSQL_BIND) *
+                                                          stmt->field_count))) {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
     return;
   }
@@ -1893,8 +1892,8 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
   MYSQL_ROWS *row;
   uchar *cp = net->read_pos;
   MYSQL_DATA *result = &stmt->result;
-  if (!(row = (MYSQL_ROWS *)alloc_root(result->alloc,
-                                       sizeof(MYSQL_ROWS) + pkt_len - 1))) {
+  if (!(row = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS) + pkt_len -
+                                                 1))) {
     set_stmt_error(stmt, CR_OUT_OF_MEMORY, unknown_sqlstate, NULL);
     return 1;
   }

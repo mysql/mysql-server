@@ -4365,11 +4365,13 @@ extern sql_digest_state *digest_reduce_token(sql_digest_state *state,
                                              uint token_left, uint token_right);
 
 struct st_lex_local : public LEX {
-  static void *operator new(size_t size) noexcept { return sql_alloc(size); }
+  static void *operator new(size_t size) noexcept {
+    return (*THR_MALLOC)->Alloc(size);
+  }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused))) {

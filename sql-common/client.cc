@@ -2374,8 +2374,7 @@ MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_ROWS *data, MEM_ROOT *alloc,
   MYSQL_FIELD *field, *result;
   DBUG_ENTER("unpack_fields");
 
-  field = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(*field) * fields);
+  field = result = (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(*field) * fields);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
@@ -2419,11 +2418,11 @@ net_async_status cli_read_metadata_ex_nonblocking(MYSQL *mysql, MEM_ROOT *alloc,
 
   if (!async_data->async_read_metadata_field_len) {
     async_data->async_read_metadata_field_len =
-        (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+        (ulong *)alloc->Alloc(sizeof(ulong) * field);
   }
   if (!async_data->async_read_metadata_fields) {
-    async_data->async_read_metadata_fields = (MYSQL_FIELD *)alloc_root(
-        alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+    async_data->async_read_metadata_fields =
+        (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(MYSQL_FIELD) * field_count);
     if (async_data->async_read_metadata_fields)
       memset(async_data->async_read_metadata_fields, 0,
              sizeof(MYSQL_FIELD) * field_count);
@@ -2436,7 +2435,7 @@ net_async_status cli_read_metadata_ex_nonblocking(MYSQL *mysql, MEM_ROOT *alloc,
 
   if (!async_data->async_read_metadata_data.data) {
     async_data->async_read_metadata_data.data =
-        (MYSQL_ROW)alloc_root(alloc, sizeof(char *) * (field + 1));
+        (MYSQL_ROW)alloc->Alloc(sizeof(char *) * (field + 1));
     memset(async_data->async_read_metadata_data.data, 0,
            sizeof(char *) * (field + 1));
   }
@@ -2518,17 +2517,17 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
 
   DBUG_ENTER("cli_read_metadata");
 
-  len = (ulong *)alloc_root(alloc, sizeof(ulong) * field);
+  len = (ulong *)alloc->Alloc(sizeof(ulong) * field);
 
   fields = result =
-      (MYSQL_FIELD *)alloc_root(alloc, (uint)sizeof(MYSQL_FIELD) * field_count);
+      (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(MYSQL_FIELD) * field_count);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
   memset(fields, 0, sizeof(MYSQL_FIELD) * field_count);
 
-  data.data = (MYSQL_ROW)alloc_root(alloc, sizeof(char *) * (field + 1));
+  data.data = (MYSQL_ROW)alloc->Alloc(sizeof(char *) * (field + 1));
   memset(data.data, 0, sizeof(char *) * (field + 1));
 
   /*
@@ -2769,9 +2768,9 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
   while (*(cp = net->read_pos) == 0 || is_data_packet) {
     MYSQL_DATA *result = async_context->rows_result_buffer;
     result->rows++;
-    if (!(cur = (MYSQL_ROWS *)alloc_root(result->alloc, sizeof(MYSQL_ROWS))) ||
-        !(cur->data = ((MYSQL_ROW)alloc_root(
-              result->alloc, (fields + 1) * sizeof(char *) + pkt_len)))) {
+    if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
+        !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
+              (fields + 1) * sizeof(char *) + pkt_len)))) {
       free_rows(result);
       async_context->rows_result_buffer = nullptr;
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
@@ -2889,9 +2888,9 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
 
   while (*(cp = net->read_pos) == 0 || is_data_packet) {
     result->rows++;
-    if (!(cur = (MYSQL_ROWS *)alloc_root(result->alloc, sizeof(MYSQL_ROWS))) ||
-        !(cur->data = ((MYSQL_ROW)alloc_root(
-              result->alloc, (fields + 1) * sizeof(char *) + pkt_len)))) {
+    if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
+        !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
+              (fields + 1) * sizeof(char *) + pkt_len)))) {
       free_rows(result);
       set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       DBUG_RETURN(0);

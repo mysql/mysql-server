@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -220,8 +220,8 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   /* create temporary args list and pass it to handle_options */
   init_alloc_root(key_memory_persisted_variables, &alloc, 512, 0);
-  if (!(ptr = (char *)alloc_root(&alloc,
-                                 sizeof(alloc) + (*argc + 1) * sizeof(char *))))
+  if (!(ptr =
+            (char *)alloc.Alloc(sizeof(alloc) + (*argc + 1) * sizeof(char *))))
     return 1;
   memset(ptr, 0, (sizeof(char *) * (*argc + 1)));
   res = (char **)(ptr);

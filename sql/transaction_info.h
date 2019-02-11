@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,9 +256,7 @@ class Transaction_ctx {
 
   MEM_ROOT *transaction_memroot() { return &m_mem_root; }
 
-  void *allocate_memory(unsigned int size) {
-    return alloc_root(&m_mem_root, size);
-  }
+  void *allocate_memory(unsigned int size) { return m_mem_root.Alloc(size); }
 
   void claim_memory_ownership() { claim_root(&m_mem_root); }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,27 +48,22 @@ void init_sql_alloc(PSI_memory_key key, MEM_ROOT *mem_root, size_t block_size,
   mem_root->set_error_handler(sql_alloc_error_handler);
 }
 
-void *sql_alloc(size_t Size) {
-  MEM_ROOT *root = *THR_MALLOC;
-  return alloc_root(root, Size);
-}
-
 void *sql_calloc(size_t size) {
   void *ptr;
-  if ((ptr = sql_alloc(size))) memset(ptr, 0, size);
+  if ((ptr = (*THR_MALLOC)->Alloc(size))) memset(ptr, 0, size);
   return ptr;
 }
 
 char *sql_strdup(const char *str) {
   size_t len = strlen(str) + 1;
   char *pos;
-  if ((pos = (char *)sql_alloc(len))) memcpy(pos, str, len);
+  if ((pos = (char *)(*THR_MALLOC)->Alloc(len))) memcpy(pos, str, len);
   return pos;
 }
 
 char *sql_strmake(const char *str, size_t len) {
   char *pos;
-  if ((pos = (char *)sql_alloc(len + 1))) {
+  if ((pos = (char *)(*THR_MALLOC)->Alloc(len + 1))) {
     memcpy(pos, str, len);
     pos[len] = 0;
   }
@@ -77,7 +72,7 @@ char *sql_strmake(const char *str, size_t len) {
 
 void *sql_memdup(const void *ptr, size_t len) {
   void *pos;
-  if ((pos = sql_alloc(len))) memcpy(pos, ptr, len);
+  if ((pos = (*THR_MALLOC)->Alloc(len))) memcpy(pos, ptr, len);
   return pos;
 }
 
@@ -90,7 +85,8 @@ char *sql_strmake_with_convert(const char *str, size_t arg_length,
   max_res_length--;  // Reserve place for end null
 
   set_if_smaller(new_length, max_res_length);
-  if (!(pos = (char *)sql_alloc(new_length + 1))) return pos;  // Error
+  if (!(pos = (char *)(*THR_MALLOC)->Alloc(new_length + 1)))
+    return pos;  // Error
 
   if ((from_cs == &my_charset_bin) || (to_cs == &my_charset_bin)) {
     // Safety if to_cs->mbmaxlen > 0

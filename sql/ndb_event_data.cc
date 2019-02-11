@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,8 +160,8 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   DBUG_ASSERT(table_def);
 
   TABLE_SHARE* shadow_table_share =
-      (TABLE_SHARE*)alloc_root(&mem_root, sizeof(TABLE_SHARE));
-  TABLE* shadow_table = (TABLE*)alloc_root(&mem_root, sizeof(TABLE));
+      (TABLE_SHARE*)mem_root.Alloc(sizeof(TABLE_SHARE));
+  TABLE* shadow_table = (TABLE*)mem_root.Alloc(sizeof(TABLE));
 
   init_tmp_table_share(thd, shadow_table_share, db, 0, table_name, key,
                        nullptr);

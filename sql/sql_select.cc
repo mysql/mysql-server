@@ -2537,7 +2537,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   char buffer[NAME_LEN];
   const size_t len = snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
                               emb_sj_nest->nested_join->query_block_id);
-  char *name = (char *)alloc_root(thd->mem_root, len + 1);
+  char *name = (char *)thd->mem_root->Alloc(len + 1);
   if (name == NULL) DBUG_RETURN(true); /* purecov: inspected */
 
   memcpy(name, buffer, len);
@@ -2575,8 +2575,8 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   table->pos_in_table_list = tl;
   table->pos_in_table_list->select_lex = select_lex;
 
-  if (!(sjm_opt->mat_fields = (Item_field **)alloc_root(
-            thd->mem_root, field_count * sizeof(Item_field **))))
+  if (!(sjm_opt->mat_fields = (Item_field **)thd->mem_root->Alloc(
+            field_count * sizeof(Item_field **))))
     DBUG_RETURN(true);
 
   for (uint fieldno = 0; fieldno < field_count; fieldno++) {

@@ -1318,7 +1318,7 @@ void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
 
 /*
   Remember the location of thread info, the structure needed for
-  sql_alloc() and the structure for the net buffer
+  (*THR_MALLOC)->Alloc() and the structure for the net buffer
 */
 
 void THD::store_globals() {
@@ -1597,7 +1597,7 @@ void THD::nocheck_register_item_tree_change(Item **place, Item *new_value) {
     but still is rather fast as we use alloc_root for allocations.
     A list of item tree changes of an average query should be short.
   */
-  void *change_mem = alloc_root(mem_root, sizeof(*change));
+  void *change_mem = mem_root->Alloc(sizeof(*change));
   if (change_mem == 0) {
     /*
       OOM, thd->fatal_error() is called by the error handler of the
@@ -1646,7 +1646,7 @@ void Query_arena::add_item(Item *item) {
 void Query_arena::free_items() {
   Item *next;
   DBUG_ENTER("Query_arena::free_items");
-  /* This works because items are allocated with sql_alloc() */
+  /* This works because items are allocated with (*THR_MALLOC)->Alloc() */
   for (; m_item_list; m_item_list = next) {
     next = m_item_list->next_free;
     m_item_list->delete_self();

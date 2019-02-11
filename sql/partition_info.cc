@@ -1155,7 +1155,8 @@ bool partition_info::check_range_constants(THD *thd) {
     longlong part_range_value;
     bool signed_flag = !part_expr->unsigned_flag;
 
-    range_int_array = (longlong *)sql_alloc(num_parts * sizeof(longlong));
+    range_int_array =
+        (longlong *)(*THR_MALLOC)->Alloc(num_parts * sizeof(longlong));
     if (unlikely(range_int_array == NULL)) {
       mem_alloc_error(num_parts * sizeof(longlong));
       goto end;
@@ -1766,7 +1767,7 @@ bool partition_info::set_up_charset_field_preps() {
     if (!(char_ptrs = (uchar **)sql_calloc(size))) goto error;
     restore_part_field_ptrs = char_ptrs;
     size = (tot_part_fields + 1) * sizeof(Field *);
-    if (!(char_ptrs = (uchar **)sql_alloc(size))) goto error;
+    if (!(char_ptrs = (uchar **)(*THR_MALLOC)->Alloc(size))) goto error;
     part_charset_field_array = (Field **)char_ptrs;
     ptr = part_field_array;
     i = 0;
@@ -1797,7 +1798,7 @@ bool partition_info::set_up_charset_field_preps() {
     if (!(char_ptrs = (uchar **)sql_calloc(size))) goto error;
     restore_subpart_field_ptrs = char_ptrs;
     size = (tot_subpart_fields + 1) * sizeof(Field *);
-    if (!(char_ptrs = (uchar **)sql_alloc(size))) goto error;
+    if (!(char_ptrs = (uchar **)(*THR_MALLOC)->Alloc(size))) goto error;
     subpart_charset_field_array = (Field **)char_ptrs;
     ptr = subpart_field_array;
     i = 0;
@@ -2878,7 +2879,7 @@ bool partition_info::init_partition_bitmap(MY_BITMAP *bitmap,
   uint bitmap_bits = num_subparts ? (num_subparts * num_parts) : num_parts;
   uint bitmap_bytes = bitmap_buffer_size(bitmap_bits);
 
-  if (!(bitmap_buf = (uint32 *)alloc_root(mem_root, bitmap_bytes))) {
+  if (!(bitmap_buf = (uint32 *)mem_root->Alloc(bitmap_bytes))) {
     mem_alloc_error(bitmap_bytes);
     return true;
   }

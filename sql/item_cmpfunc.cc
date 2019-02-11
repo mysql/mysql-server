@@ -2384,7 +2384,7 @@ bool Item_func_interval::resolve_type(THD *) {
 
     if (not_null_consts) {
       intervals = static_cast<interval_range *>(
-          sql_alloc(sizeof(interval_range) * (rows - 1)));
+          (*THR_MALLOC)->Alloc(sizeof(interval_range) * (rows - 1)));
       if (intervals == NULL) return true;
       if (use_decimal_comparison) {
         for (uint i = 1; i < rows; i++) {
@@ -3420,7 +3420,7 @@ static void change_item_tree_if_needed(THD *thd, Item **place,
 }
 
 bool Item_func_case::resolve_type(THD *thd) {
-  Item **agg = (Item **)sql_alloc(sizeof(Item *) * (ncases + 1));
+  Item **agg = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * (ncases + 1));
   if (agg == NULL) return true;
 
   // Determine nullability based on THEN and ELSE expressions:
@@ -4093,7 +4093,8 @@ void cmp_item_row::store_value_by_template(cmp_item *t, Item *item) {
     return;
   }
   n = tmpl->n;
-  if ((comparators = (cmp_item **)sql_alloc(sizeof(cmp_item *) * n))) {
+  if ((comparators =
+           (cmp_item **)(*THR_MALLOC)->Alloc(sizeof(cmp_item *) * n))) {
     item->bring_value();
     item->null_value = 0;
     for (uint i = 0; i < n; i++) {

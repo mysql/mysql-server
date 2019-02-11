@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,14 +137,13 @@ static void prepare_type_string_from_dd_param(THD *thd,
     // Allocate space for interval.
     size_t interval_parts = param->elements_count();
 
-    interval =
-        static_cast<TYPELIB *>(alloc_root(thd->mem_root, sizeof(TYPELIB)));
+    interval = static_cast<TYPELIB *>(thd->mem_root->Alloc(sizeof(TYPELIB)));
     interval->type_names = static_cast<const char **>(
-        alloc_root(thd->mem_root, (sizeof(char *) * (interval_parts + 1))));
+        thd->mem_root->Alloc((sizeof(char *) * (interval_parts + 1))));
     interval->type_names[interval_parts] = 0;
 
     interval->type_lengths = static_cast<uint *>(
-        alloc_root(thd->mem_root, sizeof(uint) * interval_parts));
+        thd->mem_root->Alloc(sizeof(uint) * interval_parts));
     interval->count = interval_parts;
     interval->name = NULL;
 

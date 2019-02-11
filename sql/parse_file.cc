@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,8 +80,8 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
     DBUG_RETURN(0);
   }
 
-  if (!(buff = (char *)alloc_root(
-            mem_root, static_cast<size_t>(stat_info.st_size) + 1))) {
+  if (!(buff = (char *)mem_root->Alloc(static_cast<size_t>(stat_info.st_size) +
+                                       1))) {
     DBUG_RETURN(0);
   }
 
@@ -228,7 +228,7 @@ static const char *parse_escaped_string(const char *ptr, const char *end,
   const char *eol = strchr(ptr, '\n');
 
   if (eol == 0 || eol >= end ||
-      !(str->str = (char *)alloc_root(mem_root, (eol - ptr) + 1)) ||
+      !(str->str = (char *)mem_root->Alloc((eol - ptr) + 1)) ||
       read_escaped_string(ptr, eol, str))
     return 0;
 
@@ -265,8 +265,7 @@ static const char *parse_quoted_escaped_string(const char *ptr, const char *end,
   }
 
   // process string
-  if (eol >= end ||
-      !(str->str = (char *)alloc_root(mem_root, result_len + 1)) ||
+  if (eol >= end || !(str->str = (char *)mem_root->Alloc(result_len + 1)) ||
       read_escaped_string(ptr, eol, str))
     return 0;
 
@@ -295,7 +294,7 @@ bool get_file_options_ulllist(const char *&ptr, const char *end,
   while (ptr < end) {
     int not_used;
     const char *num_end = end;
-    if (!(num = (ulonglong *)alloc_root(mem_root, sizeof(ulonglong))) ||
+    if (!(num = (ulonglong *)mem_root->Alloc(sizeof(ulonglong))) ||
         nlist->push_back(num, mem_root))
       goto nlist_err;
     *num = my_strtoll10(ptr, &num_end, &not_used);
@@ -439,8 +438,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
             list->empty();
             // list parsing
             while (ptr < end) {
-              if (!(str = (LEX_STRING *)alloc_root(mem_root,
-                                                   sizeof(LEX_STRING))) ||
+              if (!(str = (LEX_STRING *)mem_root->Alloc(sizeof(LEX_STRING))) ||
                   list->push_back(str, mem_root))
                 goto list_err;
               if (!(ptr = parse_quoted_escaped_string(ptr, end, mem_root, str)))

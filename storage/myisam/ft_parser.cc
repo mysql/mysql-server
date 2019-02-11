@@ -67,8 +67,8 @@ FT_WORD *ft_linearize(TREE *wtree, MEM_ROOT *mem_root) {
   FT_DOCSTAT docstat;
   DBUG_ENTER("ft_linearize");
 
-  if ((wlist = (FT_WORD *)alloc_root(
-           mem_root, sizeof(FT_WORD) * (1 + wtree->elements_in_tree)))) {
+  if ((wlist = (FT_WORD *)mem_root->Alloc(sizeof(FT_WORD) *
+                                          (1 + wtree->elements_in_tree)))) {
     docstat.list = wlist;
     docstat.uniq = wtree->elements_in_tree;
     docstat.sum = 0;
@@ -267,7 +267,7 @@ static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
   if (param->flags & MYSQL_FTFLAGS_NEED_COPY) {
     uchar *ptr;
     DBUG_ASSERT(wtree->with_delete == 0);
-    ptr = (uchar *)alloc_root(ft_param->mem_root, word_len);
+    ptr = (uchar *)ft_param->mem_root->Alloc(word_len);
     memcpy(ptr, word, word_len);
     w.pos = ptr;
   } else

@@ -282,7 +282,7 @@ bool prepare_default_value_buffer_and_table_share(THD *thd,
   share->rec_buff_length = ALIGN_SIZE(share->reclength + 1 + extra_length);
   if (share->reclength) {
     share->default_values = reinterpret_cast<uchar *>(
-        alloc_root(&share->mem_root, share->rec_buff_length));
+        share->mem_root.Alloc(share->rec_buff_length));
     if (!share->default_values) return true;
 
     // Initialize the default value buffer. The default values for the

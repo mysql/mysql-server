@@ -1201,7 +1201,8 @@ bool Item_singlerow_subselect::resolve_type(THD *) {
   if ((max_columns = engine->cols()) == 1) {
     engine->fix_length_and_dec(row = &value);
   } else {
-    if (!(row = (Item_cache **)sql_alloc(sizeof(Item_cache *) * max_columns)))
+    if (!(row = (Item_cache **)(*THR_MALLOC)
+                    ->Alloc(sizeof(Item_cache *) * max_columns)))
       return true;
     engine->fix_length_and_dec(row);
     value = *row;

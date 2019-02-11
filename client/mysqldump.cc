@@ -4593,8 +4593,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
   if (init_dumping(db, init_dumping_tables)) DBUG_RETURN(1);
 
   init_alloc_root(PSI_NOT_INSTRUMENTED, &root, 8192, 0);
-  if (!(dump_tables = pos =
-            (char **)alloc_root(&root, tables * sizeof(char *))))
+  if (!(dump_tables = pos = (char **)root.Alloc(tables * sizeof(char *))))
     die(EX_EOM, "alloc_root failure.");
 
   init_dynamic_string_checked(&lock_tables_query, "LOCK TABLES ", 256, 1024);

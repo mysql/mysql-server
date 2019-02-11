@@ -1041,8 +1041,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild) {
                              wild, strlen(wild), 0))
       continue;
 
-    if (!(*start_list = (OPEN_TABLE_LIST *)sql_alloc(
-              sizeof(**start_list) + share->table_cache_key.length))) {
+    if (!(*start_list = (OPEN_TABLE_LIST *)(*THR_MALLOC)
+                            ->Alloc(sizeof(**start_list) +
+                                    share->table_cache_key.length))) {
       open_list = 0;  // Out of memory
       break;
     }
@@ -2418,7 +2419,7 @@ bool rename_temporary_table(THD *thd, TABLE *table, const char *db,
   TABLE_SHARE *share = table->s;
   DBUG_ENTER("rename_temporary_table");
 
-  if (!(key = (char *)alloc_root(&share->mem_root, MAX_DBKEY_LENGTH)))
+  if (!(key = (char *)share->mem_root.Alloc(MAX_DBKEY_LENGTH)))
     DBUG_RETURN(1); /* purecov: inspected */
 
   key_length = create_table_def_key_tmp(thd, db, table_name, key);

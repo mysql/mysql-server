@@ -241,7 +241,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c) : arg_count(3) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 3))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -255,7 +255,7 @@ class Item_func : public Item_result_field {
 
   Item_func(const POS &pos, Item *a, Item *b, Item *c)
       : super(pos), arg_count(3) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 3))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 3))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -264,7 +264,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c, Item *d) : arg_count(4) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 4))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -279,7 +279,7 @@ class Item_func : public Item_result_field {
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : super(pos), arg_count(4) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 4))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 4))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -289,7 +289,7 @@ class Item_func : public Item_result_field {
   }
 
   Item_func(Item *a, Item *b, Item *c, Item *d, Item *e) : arg_count(5) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 5))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;
@@ -306,7 +306,7 @@ class Item_func : public Item_result_field {
   }
   Item_func(const POS &pos, Item *a, Item *b, Item *c, Item *d, Item *e)
       : super(pos), arg_count(5) {
-    if ((args = (Item **)sql_alloc(sizeof(Item *) * 5))) {
+    if ((args = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * 5))) {
       args[0] = a;
       args[1] = b;
       args[2] = c;

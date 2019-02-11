@@ -902,7 +902,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
   init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
-  void *rawmem = alloc_root(&own_root, sizeof(Func_ptr_array));
+  void *rawmem = own_root.Alloc(sizeof(Func_ptr_array));
   if (!rawmem) DBUG_RETURN(NULL); /* purecov: inspected */
   Func_ptr_array *copy_func = new (rawmem) Func_ptr_array(&own_root);
   copy_func->reserve(copy_func_count);
@@ -2059,8 +2059,8 @@ static bool alloc_record_buffers(TABLE *table) {
     is allocated in a single chuck with TABLE::record[0] for the first
     TABLE instance.
   */
-  if (!(table->record[0] = (uchar *)alloc_root(
-            &share->mem_root, (alloc_length * 3 + share->null_bytes))))
+  if (!(table->record[0] = (uchar *)share->mem_root.Alloc(
+            (alloc_length * 3 + share->null_bytes))))
     return true;
   table->record[1] = table->record[0] + alloc_length;
   share->default_values = table->record[1] + alloc_length;

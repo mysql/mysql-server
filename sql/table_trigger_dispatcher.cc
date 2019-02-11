@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -331,9 +331,8 @@ bool Table_trigger_dispatcher::prepare_record1_accessors() {
 
   DBUG_ASSERT(m_subject_table);
 
-  m_record1_field =
-      (Field **)alloc_root(&m_subject_table->mem_root,
-                           (m_subject_table->s->fields + 1) * sizeof(Field *));
+  m_record1_field = (Field **)m_subject_table->mem_root.Alloc(
+      (m_subject_table->s->fields + 1) * sizeof(Field *));
 
   if (!m_record1_field) return true;
 

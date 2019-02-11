@@ -10720,8 +10720,7 @@ class Row_data_memory {
         be used when processing update rows as well.
       */
       if (table->write_row_record == 0)
-        table->write_row_record =
-            (uchar *)alloc_root(&table->mem_root, 2 * maxlen);
+        table->write_row_record = (uchar *)table->mem_root.Alloc(2 * maxlen);
       m_memory = table->write_row_record;
       m_release_memory_on_destruction = false;
     } else {

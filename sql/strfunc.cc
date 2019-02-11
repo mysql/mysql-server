@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -321,7 +321,7 @@ char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 LEX_STRING *make_lex_string_root(MEM_ROOT *mem_root, const char *str,
                                  size_t length) {
   auto lex_str =
-      reinterpret_cast<LEX_STRING *>(alloc_root(mem_root, sizeof(LEX_STRING)));
+      reinterpret_cast<LEX_STRING *>(mem_root->Alloc(sizeof(LEX_STRING)));
   if (lex_str == nullptr || lex_string_strmake(mem_root, lex_str, str, length))
     return nullptr;
   return lex_str;

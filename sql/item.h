@@ -684,11 +684,13 @@ class Item : public Parse_tree_node {
  public:
   Item(const Item &) = delete;
   void operator=(Item &) = delete;
-  static void *operator new(size_t size) noexcept { return sql_alloc(size); }
+  static void *operator new(size_t size) noexcept {
+    return (*THR_MALLOC)->Alloc(size);
+  }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
                             const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
                                 std::nothrow) noexcept {
-    return alloc_root(mem_root, size);
+    return mem_root->Alloc(size);
   }
 
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),

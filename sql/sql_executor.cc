@@ -5204,14 +5204,14 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
                  w->opt_nth_row().m_offsets.size() +
                  w->opt_lead_lag().m_offsets.size();
          i++) {
-      void *r = sql_alloc(t->file->ref_length);
+      void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
       if (r == nullptr) DBUG_RETURN(true);
       w->m_frame_buffer_positions[i].m_position = static_cast<uchar *>(r);
       w->m_frame_buffer_positions[i].m_rowno = -1;
     }
 
-    if ((w->m_tmp_pos.m_position = (uchar *)sql_alloc(t->file->ref_length)) ==
-        nullptr)
+    if ((w->m_tmp_pos.m_position =
+             (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
       DBUG_RETURN(true);
 
     w->m_frame_buffer_positions[Window::REA_FIRST_IN_PARTITION].m_rowno = 1;
@@ -5236,14 +5236,14 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
                                w->opt_nth_row().m_offsets.size() +
                                w->opt_lead_lag().m_offsets.size();
            i++) {
-        void *r = sql_alloc(t->file->ref_length);
+        void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
         if (r == nullptr) DBUG_RETURN(true);
         Window::Frame_buffer_position p(static_cast<uchar *>(r), -1);
         w->m_frame_buffer_positions.push_back(p);
       }
 
-      if ((w->m_tmp_pos.m_position = (uchar *)sql_alloc(t->file->ref_length)) ==
-          nullptr)
+      if ((w->m_tmp_pos.m_position =
+               (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
         DBUG_RETURN(true);
     }
 

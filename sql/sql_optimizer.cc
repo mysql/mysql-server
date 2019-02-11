@@ -140,13 +140,16 @@ bool JOIN::alloc_indirection_slices() {
   const uint card = REF_SLICE_WIN_1 + m_windows.elements * 2;
 
   DBUG_ASSERT(ref_items == nullptr);
-  ref_items = (Ref_item_array *)sql_alloc(sizeof(Ref_item_array) * card);
+  ref_items =
+      (Ref_item_array *)(*THR_MALLOC)->Alloc(sizeof(Ref_item_array) * card);
   if (ref_items == nullptr) return true;
 
-  tmp_all_fields = (List<Item> *)sql_alloc(sizeof(List<Item>) * card);
+  tmp_all_fields =
+      (List<Item> *)(*THR_MALLOC)->Alloc(sizeof(List<Item>) * card);
   if (tmp_all_fields == nullptr) return true;
 
-  tmp_fields_list = (List<Item> *)sql_alloc(sizeof(List<Item>) * card);
+  tmp_fields_list =
+      (List<Item> *)(*THR_MALLOC)->Alloc(sizeof(List<Item>) * card);
   if (tmp_fields_list == nullptr) return true;
 
   for (uint i = 0; i < card; i++) {
@@ -3196,7 +3199,7 @@ no_join_cache:
 
 class COND_CMP : public ilink<COND_CMP> {
  public:
-  static void *operator new(size_t size) { return sql_alloc(size); }
+  static void *operator new(size_t size) { return (*THR_MALLOC)->Alloc(size); }
   static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
                               size_t size MY_ATTRIBUTE((unused))) {
     TRASH(ptr, size);

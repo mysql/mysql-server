@@ -203,7 +203,7 @@ using std::min;
 static void copy_string(MEM_ROOT *mem_root, String *dst, const String *src) {
   size_t len = src->length();
   if (len) {
-    char *copy = (char *)alloc_root(mem_root, len + 1);
+    char *copy = (char *)mem_root->Alloc(len + 1);
     if (copy) {
       memcpy(copy, src->ptr(), len);
       copy[len] = '\0';

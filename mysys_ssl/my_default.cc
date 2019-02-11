@@ -382,8 +382,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       char *ptr;
       TYPELIB *group = ctx->group;
 
-      if (!(extra_groups = (const char **)alloc_root(
-                ctx->alloc, (2 * group->count + 1) * sizeof(char *))))
+      if (!(extra_groups = (const char **)ctx->alloc->Alloc(
+                (2 * group->count + 1) * sizeof(char *))))
         DBUG_RETURN(2);
 
       for (i = 0; i < group->count; i++) {
@@ -391,8 +391,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
         extra_groups[i] = group->type_names[i]; /** copy group */
 
         len = strlen(extra_groups[i]);
-        if (!(ptr = (char *)alloc_root(ctx->alloc,
-                                       (uint)(len + instance_len + 1))))
+        if (!(ptr = (char *)ctx->alloc->Alloc((uint)(len + instance_len + 1))))
           DBUG_RETURN(2);
 
         extra_groups[i + group->count] = ptr;
@@ -416,8 +415,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     char *ptr;
     TYPELIB *group = ctx->group;
 
-    if (!(extra_groups = (const char **)alloc_root(
-              ctx->alloc, (group->count + 3) * sizeof(char *))))
+    if (!(extra_groups = (const char **)ctx->alloc->Alloc((group->count + 3) *
+                                                          sizeof(char *))))
       DBUG_RETURN(2);
 
     for (i = 0; i < group->count; i++) {
@@ -430,8 +429,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       instance_len = strlen(my_defaults_group_suffix);
       len = strlen(extra_groups[i]);
 
-      if (!(ptr =
-                (char *)alloc_root(ctx->alloc, (uint)(len + instance_len + 1))))
+      if (!(ptr = (char *)ctx->alloc->Alloc((uint)(len + instance_len + 1))))
         DBUG_RETURN(2);
 
       extra_groups[i + 1] = ptr;
@@ -522,7 +520,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   if (!option) return 0;
 
   if (find_type(group_name, ctx->group, FIND_TYPE_NO_PREFIX)) {
-    if (!(tmp = (char *)alloc_root(ctx->alloc, strlen(option) + 1))) return 1;
+    if (!(tmp = (char *)ctx->alloc->Alloc(strlen(option) + 1))) return 1;
     if (ctx->m_args->push_back(tmp)) return 1;
     my_stpcpy(tmp, option);
     update_variable_source(option, cnf_file);
@@ -719,8 +717,8 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
   */
-  if (!(ptr = (const char **)alloc_root(
-            alloc, (my_args.size() + *argc + 1 + args_sep) * sizeof(char *))))
+  if (!(ptr = (const char **)alloc->Alloc(
+            (my_args.size() + *argc + 1 + args_sep) * sizeof(char *))))
     goto err;
   res = ptr;
 
@@ -1545,7 +1543,7 @@ static const char **init_default_directories(MEM_ROOT *alloc) {
   char *env;
   int errors = 0;
 
-  dirs = (const char **)alloc_root(alloc, DEFAULT_DIRS_SIZE * sizeof(char *));
+  dirs = (const char **)alloc->Alloc(DEFAULT_DIRS_SIZE * sizeof(char *));
   if (dirs == NULL) return NULL;
   memset(dirs, 0, DEFAULT_DIRS_SIZE * sizeof(char *));
 

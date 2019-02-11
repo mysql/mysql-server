@@ -296,10 +296,10 @@ class Query_arena {
   /// @returns true if a regular statement, ie not prepared and not stored proc
   bool is_regular() const { return state == STMT_REGULAR_EXECUTION; }
 
-  void *alloc(size_t size) { return alloc_root(mem_root, size); }
+  void *alloc(size_t size) { return mem_root->Alloc(size); }
   void *mem_calloc(size_t size) {
     void *ptr;
-    if ((ptr = alloc_root(mem_root, size))) memset(ptr, 0, size);
+    if ((ptr = mem_root->Alloc(size))) memset(ptr, 0, size);
     return ptr;
   }
   template <typename T>
@@ -2204,8 +2204,7 @@ class THD : public MDL_context_owner,
       // Only the file name should be used, not the full path
       m_trans_log_file = file + dirname_length(file);
       if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file =
-            (char *)alloc_root(&main_mem_root, FN_REFLEN + 1);
+        m_trans_fixed_log_file = (char *)main_mem_root.Alloc(FN_REFLEN + 1);
       DBUG_ASSERT(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     } else {

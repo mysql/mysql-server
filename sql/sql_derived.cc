@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,8 +177,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
 #endif
   TABLE *first = tmp_tables[0]->table;
   // Allocate clone on the memory root of the TABLE_SHARE.
-  TABLE *t =
-      static_cast<TABLE *>(alloc_root(&first->s->mem_root, sizeof(TABLE)));
+  TABLE *t = static_cast<TABLE *>(first->s->mem_root.Alloc(sizeof(TABLE)));
   if (!t) return nullptr; /* purecov: inspected */
   /*
     Share's of derived tables has key descriptions that can't be properly

@@ -1819,7 +1819,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   extra_rec_buf_length = uint2korr(head + 59);
   rec_buff_length = ALIGN_SIZE(share->reclength + 1 + extra_rec_buf_length);
   share->rec_buff_length = rec_buff_length;
-  if (!(record = (uchar *)alloc_root(&share->mem_root, rec_buff_length)))
+  if (!(record = (uchar *)share->mem_root.Alloc(rec_buff_length)))
     goto err; /* purecov: inspected */
   share->default_values = record;
   if (mysql_file_pread(file, record, (size_t)share->reclength, record_offset,
@@ -1849,13 +1849,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
                       "int_length: %d  com_length: %d  gcol_screen_length: %d",
                       interval_count, interval_parts, share->keys, n_length,
                       int_length, com_length, gcol_screen_length));
-  if (!(field_ptr = (Field **)alloc_root(
-            &share->mem_root,
-            (uint)((share->fields + 1) * sizeof(Field *) +
-                   interval_count * sizeof(TYPELIB) +
-                   (share->fields + interval_parts + keys + 3) *
-                       sizeof(char *) +
-                   (n_length + int_length + com_length + gcol_screen_length)))))
+  if (!(field_ptr = (Field **)share->mem_root.Alloc((uint)(
+            (share->fields + 1) * sizeof(Field *) +
+            interval_count * sizeof(TYPELIB) +
+            (share->fields + interval_parts + keys + 3) * sizeof(char *) +
+            (n_length + int_length + com_length + gcol_screen_length)))))
     goto err; /* purecov: inspected */
 
   share->field = field_ptr;
@@ -1891,8 +1889,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     for (interval = share->intervals;
          interval < share->intervals + interval_count; interval++) {
       uint count = (uint)(interval->count + 1) * sizeof(uint);
-      if (!(interval->type_lengths =
-                (uint *)alloc_root(&share->mem_root, count)))
+      if (!(interval->type_lengths = (uint *)share->mem_root.Alloc(count)))
         goto err;
       for (count = 0; count < interval->count; count++) {
         char *val = (char *)interval->type_names[count];
@@ -2199,8 +2196,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     uint k, *save;
 
     /* Store offsets to blob fields to find them fast */
-    if (!(share->blob_field = save = (uint *)alloc_root(
-              &share->mem_root, (uint)(share->blob_fields * sizeof(uint)))))
+    if (!(share->blob_field = save = (uint *)share->mem_root.Alloc(
+              (uint)(share->blob_fields * sizeof(uint)))))
       goto err;
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
       if ((*ptr)->flags & BLOB_FLAG) (*save++) = k;
@@ -2217,8 +2214,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   share->db_low_byte_first = handler_file->low_byte_first();
   share->column_bitmap_size = bitmap_buffer_size(share->fields);
 
-  if (!(bitmaps = (my_bitmap_map *)alloc_root(&share->mem_root,
-                                              share->column_bitmap_size)))
+  if (!(bitmaps =
+            (my_bitmap_map *)share->mem_root.Alloc(share->column_bitmap_size)))
     goto err;
   bitmap_init(&share->all_set, bitmaps, share->fields, false);
   bitmap_set_all(&share->all_set);
@@ -2495,7 +2492,7 @@ end:
 bool Value_generator::register_base_columns(TABLE *table) {
   DBUG_ENTER("register_base_columns");
   my_bitmap_map *bitbuf = static_cast<my_bitmap_map *>(
-      alloc_root(&table->mem_root, bitmap_buffer_size(table->s->fields)));
+      table->mem_root.Alloc(bitmap_buffer_size(table->s->fields)));
   DBUG_ASSERT(num_non_virtual_base_cols == 0);
   bitmap_init(&base_columns_map, bitbuf, table->s->fields, 0);
 
@@ -2562,8 +2559,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
     DBUG_RETURN(true);  // OOM
   }
 
-  if (!(gcol_expr_str = (char *)alloc_root(
-            &table->mem_root,
+  if (!(gcol_expr_str = (char *)table->mem_root.Alloc(
             val_gen_expr->length + PARSE_GCOL_KEYWORD.length + 3))) {
     DBUG_RETURN(true);
   }
@@ -2849,7 +2845,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (prgflag & (READ_ALL + EXTRA_RECORD)) records++;
 
   record = pointer_cast<uchar *>(
-      alloc_root(root, share->rec_buff_length * records + share->null_bytes));
+      root->Alloc(share->rec_buff_length * records + share->null_bytes));
   if (record == NULL) goto err; /* purecov: inspected */
 
   if (records == 0) {
@@ -2864,8 +2860,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
   outparam->null_flags_saved = record + (records * share->rec_buff_length);
 
-  if (!(field_ptr = (Field **)alloc_root(
-            root, (uint)((share->fields + 1) * sizeof(Field *)))))
+  if (!(field_ptr = (Field **)root->Alloc(
+            (uint)((share->fields + 1) * sizeof(Field *)))))
     goto err; /* purecov: inspected */
 
   outparam->field = field_ptr;
@@ -2913,7 +2909,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     n_length =
         share->keys * sizeof(KEY) + share->key_parts * sizeof(KEY_PART_INFO);
 
-    if (!(key_info = (KEY *)alloc_root(root, n_length))) goto err;
+    if (!(key_info = (KEY *)root->Alloc(n_length))) goto err;
     outparam->key_info = key_info;
     key_part = (reinterpret_cast<KEY_PART_INFO *>(key_info + share->keys));
 
@@ -2983,7 +2979,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
 
   bitmap_size = share->column_bitmap_size;
-  if (!(bitmaps = (uchar *)alloc_root(root, bitmap_size * 7))) goto err;
+  if (!(bitmaps = (uchar *)root->Alloc(bitmap_size * 7))) goto err;
   bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields,
               false);
   bitmap_init(&outparam->def_write_set,
@@ -3009,7 +3005,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->vfield = nullptr;
   if (share->vfields) {
     Field **vfield_ptr = pointer_cast<Field **>(
-        alloc_root(root, (uint)((share->vfields + 1) * sizeof(Field *))));
+        root->Alloc((uint)((share->vfields + 1) * sizeof(Field *))));
     if (!vfield_ptr) goto err;
 
     outparam->vfield = vfield_ptr;
@@ -3048,8 +3044,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   // Unpack generated default fields and store reference to this type of fields
   outparam->gen_def_fields_ptr = nullptr;
   if (share->gen_def_field_count) {
-    Field **gen_def_field = pointer_cast<Field **>(alloc_root(
-        root, (uint)((share->gen_def_field_count + 1) * sizeof(Field *))));
+    Field **gen_def_field = pointer_cast<Field **>(root->Alloc(
+        (uint)((share->gen_def_field_count + 1) * sizeof(Field *))));
     if (!gen_def_field) goto err;
 
     outparam->gen_def_fields_ptr = gen_def_field;
@@ -3533,7 +3529,7 @@ char *get_field(MEM_ROOT *mem, Field *field) {
 
   field->val_str(&str);
   length = str.length();
-  if (!length || !(to = (char *)alloc_root(mem, length + 1))) return NullS;
+  if (!length || !(to = (char *)mem->Alloc(length + 1))) return NullS;
   memcpy(to, str.ptr(), length);
   to[length] = 0;
   return to;
@@ -4144,7 +4140,7 @@ bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
             thd->tmp_table++);
     fn_format(path, path, mysql_tmpdir, "",
               MY_REPLACE_EXT | MY_UNPACK_FILENAME);
-    if (!(name = (char *)alloc_root(m_root, strlen(path) + 1))) return true;
+    if (!(name = (char *)m_root->Alloc(strlen(path) + 1))) return true;
     my_stpcpy(name, path);
 
     init_tmp_table_share(thd, share, "", 0, name, name, m_root);
@@ -4740,8 +4736,9 @@ bool TABLE_LIST::check_single_table(TABLE_LIST **table_ref, table_map map) {
 bool TABLE_LIST::set_insert_values(MEM_ROOT *mem_root) {
   if (table) {
     DBUG_ASSERT(table->insert_values == NULL);
-    if (!table->insert_values && !(table->insert_values = (uchar *)alloc_root(
-                                       mem_root, table->s->rec_buff_length)))
+    if (!table->insert_values &&
+        !(table->insert_values =
+              (uchar *)mem_root->Alloc(table->s->rec_buff_length)))
       return true; /* purecov: inspected */
   } else {
     DBUG_ASSERT(view && merge_underlying_list);
@@ -5814,7 +5811,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share) {
       reference to the same CTE in another query block.
     */
     KEY *old_ki = s->key_info;
-    if (!(s->key_info = static_cast<KEY *>(alloc_root(&s->mem_root, bytes))))
+    if (!(s->key_info = static_cast<KEY *>(s->mem_root.Alloc(bytes))))
       return true; /* purecov: inspected */
     memset(s->key_info, 0, bytes);
     if (old_ki) memcpy(s->key_info, old_ki, sizeof(KEY) * s->keys);
@@ -5824,7 +5821,7 @@ bool TABLE::alloc_tmp_keys(uint key_count, bool modify_share) {
   DBUG_ASSERT(s->max_tmp_keys == key_count);
 
   KEY *old_ki = key_info;
-  if (!(key_info = static_cast<KEY *>(alloc_root(&s->mem_root, bytes))))
+  if (!(key_info = static_cast<KEY *>(s->mem_root.Alloc(bytes))))
     return true; /* purecov: inspected */
   memset(key_info, 0, bytes);
   if (old_ki) memcpy(key_info, old_ki, sizeof(KEY) * s->keys);
@@ -7276,15 +7273,14 @@ struct Partial_update_info {
     MEM_ROOT *const mem_root = table->in_use->mem_root;
     const size_t bitmap_size = table->s->column_bitmap_size;
 
-    auto buffer =
-        static_cast<my_bitmap_map *>(alloc_root(mem_root, bitmap_size));
+    auto buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
       bitmap_init(&m_enabled_binary_diff_columns, buffer, table->s->fields,
                   false);
       bitmap_copy(&m_enabled_binary_diff_columns, columns);
     }
 
-    buffer = static_cast<my_bitmap_map *>(alloc_root(mem_root, bitmap_size));
+    buffer = static_cast<my_bitmap_map *>(mem_root->Alloc(bitmap_size));
     if (buffer != nullptr) {
       bitmap_init(&m_enabled_logical_diff_columns, buffer, table->s->fields,
                   false);
@@ -7360,8 +7356,8 @@ bool TABLE::mark_column_for_partial_update(const Field *field) {
   DBUG_ASSERT(field->table == this);
   if (m_partial_update_columns == nullptr) {
     MY_BITMAP *map = new (&mem_root) MY_BITMAP;
-    my_bitmap_map *buf = static_cast<my_bitmap_map *>(
-        alloc_root(&mem_root, s->column_bitmap_size));
+    my_bitmap_map *buf =
+        static_cast<my_bitmap_map *>(mem_root.Alloc(s->column_bitmap_size));
     if (map == nullptr || buf == nullptr ||
         bitmap_init(map, buf, s->fields, false))
       return true; /* purecov: inspected */

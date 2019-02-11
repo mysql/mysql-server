@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -465,7 +465,7 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
   if (!name || !dl || !(uint)type || (uint)type > (uint)UDFTYPE_AGGREGATE)
     return nullptr;
 
-  udf_func *tmp = (udf_func *)alloc_root(&mem, sizeof(udf_func));
+  udf_func *tmp = (udf_func *)mem.Alloc(sizeof(udf_func));
   if (!tmp) return nullptr;
   memset(tmp, 0, sizeof(*tmp));
   tmp->name = *name;  // dup !!
@@ -811,7 +811,7 @@ udf_func *mysql_udf_registration_imp::alloc_udf(const char *name,
                                                 Udf_func_deinit deinit_func) {
   udf_func *ufunc;
 
-  ufunc = (udf_func *)alloc_root(&mem, sizeof(udf_func));
+  ufunc = (udf_func *)mem.Alloc(sizeof(udf_func));
   if (!ufunc) return NULL;
   memset(ufunc, 0, sizeof(udf_func));
   ufunc->name.str = strdup_root(&mem, name);

@@ -3860,7 +3860,7 @@ TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def) {
   if (!field_def->interval_list.elements) return NULL;
 
   TYPELIB *result =
-      reinterpret_cast<TYPELIB *>(alloc_root(mem_root, sizeof(TYPELIB)));
+      reinterpret_cast<TYPELIB *>(mem_root->Alloc(sizeof(TYPELIB)));
   if (!result) return NULL;
 
   result->count = field_def->interval_list.elements;
@@ -3869,7 +3869,7 @@ TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def) {
   // Allocate type_names and type_lengths as one block.
   size_t nbytes = (sizeof(char *) + sizeof(uint)) * (result->count + 1);
   if (!(result->type_names =
-            reinterpret_cast<const char **>(alloc_root(mem_root, nbytes))))
+            reinterpret_cast<const char **>(mem_root->Alloc(nbytes))))
     return NULL;
 
   result->type_lengths =
@@ -17385,7 +17385,7 @@ static bool generate_check_constraint_name(THD *thd, const char *table_name,
   // Allocate memory for name.
   size_t generated_name_len =
       strlen(table_name) + sizeof(dd::CHECK_CONSTRAINT_NAME_SUBSTR) + 11 + 1;
-  name.str = (char *)alloc_root(thd->mem_root, generated_name_len);
+  name.str = (char *)thd->mem_root->Alloc(generated_name_len);
   if (name.str == nullptr) return true;  // OOM
 
   // Prepare name for check constraint.

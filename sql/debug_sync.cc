@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1694,8 +1694,7 @@ uchar *debug_sync_value_ptr(THD *thd) {
     const char *c_str = signals_on.c_str();
     const size_t lgt = strlen(c_str) + 1;
 
-    if ((value = (char *)alloc_root(thd->mem_root, lgt)))
-      memcpy(value, c_str, lgt);
+    if ((value = (char *)thd->mem_root->Alloc(lgt))) memcpy(value, c_str, lgt);
 
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
   } else {

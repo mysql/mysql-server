@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -288,14 +288,14 @@ static bool tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
     size_t abbrs_buf_len = sp->charcnt + 1;
 #endif
 
-    if (!(tzinfo_buf = (char *)alloc_root(
-              storage, ALIGN_SIZE(sp->timecnt * sizeof(my_time_t)) +
-                           ALIGN_SIZE(sp->timecnt) +
-                           ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO)) +
+    if (!(tzinfo_buf = (char *)storage->Alloc(
+              ALIGN_SIZE(sp->timecnt * sizeof(my_time_t)) +
+              ALIGN_SIZE(sp->timecnt) +
+              ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO)) +
 #ifdef ABBR_ARE_USED
-                           ALIGN_SIZE(abbrs_buf_len) +
+              ALIGN_SIZE(abbrs_buf_len) +
 #endif
-                           sp->leapcnt * sizeof(LS_INFO))))
+              sp->leapcnt * sizeof(LS_INFO))))
       return 1;
 
     sp->ats = (my_time_t *)tzinfo_buf;
@@ -532,10 +532,10 @@ static bool prepare_tz_info(TIME_ZONE_INFO *sp, MEM_ROOT *storage) {
   revts[sp->revcnt] = end_l;
 
   /* Allocate arrays of proper size in sp and copy result there */
-  if (!(sp->revts = (my_time_t *)alloc_root(
-            storage, sizeof(my_time_t) * (sp->revcnt + 1))) ||
+  if (!(sp->revts = (my_time_t *)storage->Alloc(sizeof(my_time_t) *
+                                                (sp->revcnt + 1))) ||
       !(sp->revtis =
-            (REVT_INFO *)alloc_root(storage, sizeof(REVT_INFO) * sp->revcnt)))
+            (REVT_INFO *)storage->Alloc(sizeof(REVT_INFO) * sp->revcnt)))
     return 1;
 
   memcpy(sp->revts, revts, sizeof(my_time_t) * (sp->revcnt + 1));
@@ -1570,8 +1570,8 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     records in proper order. Since we share the same MEM_ROOT between
     all time zones we just allocate enough memory for it first.
   */
-  if (!(tz_lsis = (LS_INFO *)alloc_root(&tz_storage,
-                                        sizeof(LS_INFO) * TZ_MAX_LEAPS))) {
+  if (!(tz_lsis =
+            (LS_INFO *)tz_storage.Alloc(sizeof(LS_INFO) * TZ_MAX_LEAPS))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_LEAP_SECOND_TABLE);
     goto end_with_close;
   }
@@ -1913,8 +1913,8 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   }
 
   /* Allocate memory for the timezone info and timezone name in tz_storage. */
-  if (!(alloc_buff = (char *)alloc_root(
-            &tz_storage, sizeof(TIME_ZONE_INFO) + tz_name->length() + 1))) {
+  if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
+                                              tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
     DBUG_RETURN(0);
   }
@@ -1932,13 +1932,13 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   /*
     Now we will allocate memory and init TIME_ZONE_INFO structure.
   */
-  if (!(alloc_buff = (char *)alloc_root(
-            &tz_storage, ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt) +
-                             ALIGN_SIZE(tz_info->timecnt) +
+  if (!(alloc_buff = (char *)tz_storage.Alloc(
+            ALIGN_SIZE(sizeof(my_time_t) * tz_info->timecnt) +
+            ALIGN_SIZE(tz_info->timecnt) +
 #ifdef ABBR_ARE_USED
-                             ALIGN_SIZE(tz_info->charcnt) +
+            ALIGN_SIZE(tz_info->charcnt) +
 #endif
-                             sizeof(TRAN_TYPE_INFO) * tz_info->typecnt))) {
+            sizeof(TRAN_TYPE_INFO) * tz_info->typecnt))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
     goto end;
   }

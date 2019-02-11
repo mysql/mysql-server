@@ -9672,7 +9672,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
   // Allocate new memory location
   size_t ulen = get_length(ptr);
 
-  char *blob_value = (char *)alloc_root(mem_root, ulen);
+  char *blob_value = (char *)mem_root->Alloc(ulen);
   if (!blob_value) DBUG_RETURN(true);
 
   // Copy Data

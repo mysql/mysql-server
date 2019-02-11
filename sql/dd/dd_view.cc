@@ -680,7 +680,7 @@ bool read_view(TABLE_LIST *view, const dd::View &view_obj, MEM_ROOT *mem_root) {
   if (!names_dict.empty())  // Explicit names were provided
   {
     auto *names_array = static_cast<Create_col_name_list *>(
-        alloc_root(mem_root, sizeof(Create_col_name_list)));
+        mem_root->Alloc(sizeof(Create_col_name_list)));
     if (!names_array) return true; /* purecov: inspected */
     names_array->init(mem_root);
     uint i = 0;

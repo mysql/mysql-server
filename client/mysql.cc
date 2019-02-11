@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2762,8 +2762,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     DBUG_VOID_RETURN;
   }
   mysql_data_seek(tables, 0);
-  if (!(field_names = (char ***)alloc_root(
-            &hash_mem_root,
+  if (!(field_names = (char ***)hash_mem_root.Alloc(
             sizeof(char **) * (uint)(mysql_num_rows(tables) + 1)))) {
     mysql_free_result(tables);
     DBUG_VOID_RETURN;
@@ -2773,8 +2772,8 @@ You can turn off this feature to get a quicker startup with -A\n\n");
     if ((fields =
              mysql_list_fields(&mysql, (const char *)table_row[0], NullS))) {
       num_fields = mysql_num_fields(fields);
-      if (!(field_names[i] = (char **)alloc_root(
-                &hash_mem_root, sizeof(char *) * (num_fields * 2 + 1)))) {
+      if (!(field_names[i] = (char **)hash_mem_root.Alloc(
+                sizeof(char *) * (num_fields * 2 + 1)))) {
         mysql_free_result(fields);
         break;
       }

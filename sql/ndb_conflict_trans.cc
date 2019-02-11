@@ -326,15 +326,14 @@ void*
 st_mem_root_allocator::alloc(void* ctx, size_t bytes)
 {
   st_mem_root_allocator* a = (st_mem_root_allocator*) ctx;
-  return alloc_root(a->mem_root, bytes);
+  return a->mem_root->Alloc(bytes);
 }
 
 void*
 st_mem_root_allocator::mem_calloc(void* ctx, size_t nelem, size_t bytes)
 {
   st_mem_root_allocator* a = (st_mem_root_allocator*) ctx;
-  return alloc_root(a->mem_root,
-                    nelem * bytes);
+  return a->mem_root->Alloc(nelem * bytes);
 }
 
 void st_mem_root_allocator::mem_free(void*, void*) {
@@ -355,8 +354,7 @@ DependencyTracker*
 DependencyTracker::newDependencyTracker(MEM_ROOT* mem_root)
 {
   DependencyTracker* dt = NULL;
-  void* mem = alloc_root(mem_root,
-                         sizeof(DependencyTracker));
+  void* mem = mem_root->Alloc(sizeof(DependencyTracker));
   if (mem)
   {
     dt = new (mem) DependencyTracker(mem_root);
@@ -396,10 +394,8 @@ track_operation(const NdbDictionary::Table* table,
   DBUG_PRINT("info", ("Required length for key : %u", required_buff_size));
 
   /* Alloc space for packed key and struct*/
-  uchar* packed_key_buff = (uchar*) alloc_root(mra.mem_root,
-                                               required_buff_size);
-  void* element_mem = alloc_root(mra.mem_root,
-                                 sizeof(st_row_event_key_info));
+  uchar* packed_key_buff = (uchar*) mra.mem_root->Alloc(required_buff_size);
+  void* element_mem = mra.mem_root->Alloc(sizeof(st_row_event_key_info));
 
   if (pack_key_to_buffer(table,
                          key_rec,

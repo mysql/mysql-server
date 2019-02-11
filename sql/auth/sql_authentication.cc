@@ -1657,7 +1657,7 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
 */
 static ACL_USER *decoy_user(const LEX_STRING &username,
                             const LEX_STRING &hostname, MEM_ROOT *mem) {
-  ACL_USER *user = (ACL_USER *)alloc_root(mem, sizeof(ACL_USER));
+  ACL_USER *user = (ACL_USER *)mem->Alloc(sizeof(ACL_USER));
   user->can_authenticate = !initialized;
   user->user = strdup_root(mem, username.str);
   user->user[username.length] = '\0';

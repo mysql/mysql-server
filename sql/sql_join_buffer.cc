@@ -232,8 +232,8 @@ void JOIN_CACHE::calc_record_fields() {
 int JOIN_CACHE::alloc_fields(uint external_fields) {
   uint ptr_cnt = external_fields + blobs + 1;
   uint fields_size = sizeof(CACHE_FIELD) * fields;
-  field_descr =
-      (CACHE_FIELD *)sql_alloc(fields_size + sizeof(CACHE_FIELD *) * ptr_cnt);
+  field_descr = (CACHE_FIELD *)(*THR_MALLOC)
+                    ->Alloc(fields_size + sizeof(CACHE_FIELD *) * ptr_cnt);
   blob_ptr = (CACHE_FIELD **)((uchar *)field_descr + fields_size);
   return (field_descr == NULL);
 }

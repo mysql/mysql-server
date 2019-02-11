@@ -324,7 +324,7 @@ ACL_USER::ACL_USER() {
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
-  ACL_USER *dst = (ACL_USER *)alloc_root(root, sizeof(ACL_USER));
+  ACL_USER *dst = (ACL_USER *)root->Alloc(sizeof(ACL_USER));
   if (!dst) return 0;
   *dst = *this;
   dst->user = safe_strdup_root(root, user);

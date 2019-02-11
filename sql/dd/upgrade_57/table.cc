@@ -441,16 +441,14 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
     // Allocate space to hold username and hostname.
     char *pos = NULL;
-    if (!(pos =
-              static_cast<char *>(alloc_root(mem_root, USERNAME_LENGTH + 1)))) {
+    if (!(pos = static_cast<char *>(mem_root->Alloc(USERNAME_LENGTH + 1)))) {
       LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "User");
       return true;
     }
 
     LEX_STRING definer_user{pos, 0};
 
-    if (!(pos =
-              static_cast<char *>(alloc_root(mem_root, USERNAME_LENGTH + 1)))) {
+    if (!(pos = static_cast<char *>(mem_root->Alloc(USERNAME_LENGTH + 1)))) {
       LogErr(ERROR_LEVEL, ER_DD_TRG_DEFINER_OOM, "Host");
       return true;
     }

@@ -2571,12 +2571,14 @@ const char *Item_ident::full_name() const {
     return field_name ? field_name
                       : item_name.is_set() ? item_name.ptr() : "tmp_field";
   if (db_name && db_name[0]) {
-    tmp = (char *)sql_alloc(strlen(db_name) + strlen(table_name) +
-                            strlen(field_name) + 3);
+    tmp = (char *)(*THR_MALLOC)
+              ->Alloc(strlen(db_name) + strlen(table_name) +
+                      strlen(field_name) + 3);
     strxmov(tmp, db_name, ".", table_name, ".", field_name, NullS);
   } else {
     if (table_name[0]) {
-      tmp = (char *)sql_alloc(strlen(table_name) + strlen(field_name) + 2);
+      tmp = (char *)(*THR_MALLOC)
+                ->Alloc(strlen(table_name) + strlen(field_name) + 2);
       strxmov(tmp, table_name, ".", field_name, NullS);
     } else
       tmp = (char *)field_name;
@@ -6331,7 +6333,7 @@ Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
 LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
   size_t max_length = (str_length + 1) / 2;
   LEX_STRING ret = {(char *)"", 0};
-  char *ptr = (char *)sql_alloc(max_length + 1);
+  char *ptr = (char *)(*THR_MALLOC)->Alloc(max_length + 1);
   if (!ptr) return ret;
   ret.str = ptr;
   ret.length = max_length;
@@ -6481,7 +6483,7 @@ LEX_STRING Item_bin_string::make_bin_str(const char *str, size_t str_length) {
   uint power = 1;
 
   size_t max_length = (str_length + 7) >> 3;
-  char *ptr = (char *)sql_alloc(max_length + 1);
+  char *ptr = (char *)(*THR_MALLOC)->Alloc(max_length + 1);
   if (!ptr) return NULL_STR;
 
   LEX_STRING ret;

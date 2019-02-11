@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Item_row::Item_row(const POS &pos, Item *head, List<Item> &tail)
       with_null(false) {
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
-  items = (Item **)sql_alloc(sizeof(Item *) * arg_count);
+  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
   if (items == NULL) {
     arg_count = 0;
     return;  // OOM
@@ -61,7 +61,7 @@ Item_row::Item_row(Item *head, List<Item> &tail)
     : used_tables_cache(0), not_null_tables_cache(0), with_null(false) {
   // TODO: think placing 2-3 component items in item (as it done for function)
   arg_count = 1 + tail.elements;
-  items = (Item **)sql_alloc(sizeof(Item *) * arg_count);
+  items = (Item **)(*THR_MALLOC)->Alloc(sizeof(Item *) * arg_count);
   if (items == NULL) {
     arg_count = 0;
     return;  // OOM
