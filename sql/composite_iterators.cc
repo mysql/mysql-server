@@ -581,6 +581,11 @@ bool MaterializeIterator::Init() {
         return true;
       }
       empty_record(table());
+    } else if (table()->file->inited) {
+      // If we're being called several times (in particular, as part of a
+      // LATERAL join), the table iterator may have started a scan, so end it
+      // before we start our own.
+      table()->file->ha_index_or_rnd_end();
     }
 
     table()->file->ha_delete_all_rows();
@@ -593,7 +598,7 @@ bool MaterializeIterator::Init() {
     // m_table_iterator will do that for us.)
     auto end_unique_index =
         create_scope_guard([&] { table()->file->ha_index_end(); });
-    if (!table()->file->inited && doing_hash_deduplication()) {
+    if (doing_hash_deduplication()) {
       if (table()->file->ha_index_init(0, 0)) {
         return true;
       }

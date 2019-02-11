@@ -744,3 +744,19 @@ CREATE TABLE t2 (
 SELECT * FROM t1, LATERAL ( SELECT MAX(1) FROM t2 GROUP BY t1.f1 ) AS l1;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #29334082: Still crashing in actual_key_parts() / assert inited == INDEX
+--echo #
+
+CREATE TABLE t1 ( f1 INTEGER );
+CREATE TABLE t2 ( f2 LONGBLOB );
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES ('abc'),('def');
+
+# The longblob requires deduplication by means of a hidden hash field,
+# which triggers a special path in MaterializeIterator that involves an index.
+SELECT STD(0) FROM t2, LATERAL ( SELECT f1 FROM t1 GROUP BY f2,f1 ) AS d1;
+
+DROP TABLE t1, t2;
