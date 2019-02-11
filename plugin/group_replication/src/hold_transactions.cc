@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ int Hold_transactions::wait_until_primary_failover_complete(
 
   if (hold_timeout == time_lapsed)
     ret = ER_GR_HOLD_WAIT_TIMEOUT;
-  else if (plugin_is_stopping || is_thread_killed())
+  else if (get_plugin_is_stopping() || is_thread_killed())
     ret = ER_GR_HOLD_KILLED;
   else if (applying_backlog && Group_member_info::MEMBER_ERROR ==
                                    local_member_info->get_recovery_status())

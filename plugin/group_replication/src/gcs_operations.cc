@@ -188,7 +188,7 @@ enum enum_gcs_error Gcs_operations::join(
     /* purecov: end */
   }
 
-  std::string group_name(group_name_var);
+  std::string group_name(get_group_name_var());
   Gcs_group_identifier group_id(group_name);
 
   Gcs_communication_interface *gcs_communication =
@@ -232,7 +232,7 @@ bool Gcs_operations::belongs_to_group() {
   gcs_operations_lock->rdlock();
 
   if (gcs_interface != NULL && gcs_interface->is_initialized()) {
-    std::string group_name(group_name_var);
+    std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
@@ -267,7 +267,7 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
   }
 
   if (gcs_interface != NULL && gcs_interface->is_initialized()) {
-    std::string group_name(group_name_var);
+    std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
@@ -362,7 +362,7 @@ Gcs_view *Gcs_operations::get_current_view() {
   gcs_operations_lock->rdlock();
 
   if (gcs_interface != NULL && gcs_interface->is_initialized()) {
-    std::string group_name(group_name_var);
+    std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
@@ -381,7 +381,7 @@ int Gcs_operations::get_local_member_identifier(std::string &identifier) {
   gcs_operations_lock->rdlock();
 
   if (gcs_interface != NULL && gcs_interface->is_initialized()) {
-    std::string group_name(group_name_var);
+    std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);
@@ -413,7 +413,7 @@ enum enum_gcs_error Gcs_operations::send_message(
     DBUG_RETURN(skip_if_not_initialized ? GCS_OK : GCS_NOK);
   }
 
-  std::string group_name(group_name_var);
+  std::string group_name(get_group_name_var());
   Gcs_group_identifier group_id(group_name);
 
   Gcs_communication_interface *gcs_communication =
@@ -466,7 +466,7 @@ int Gcs_operations::force_members(const char *members) {
 
   if (local_member_info->get_recovery_status() ==
       Group_member_info::MEMBER_ONLINE) {
-    std::string group_id_str(group_name_var);
+    std::string group_id_str(get_group_name_var());
     Gcs_group_identifier group_id(group_id_str);
     Gcs_group_management_interface *gcs_management =
         gcs_interface->get_management_session(group_id);
@@ -522,7 +522,7 @@ end:
 }
 
 Gcs_group_management_interface *Gcs_operations::get_gcs_group_manager() const {
-  std::string const group_name(group_name_var);
+  std::string const group_name(get_group_name_var());
   Gcs_group_identifier const group_id(group_name);
   Gcs_control_interface *gcs_control = nullptr;
   Gcs_group_management_interface *gcs_group_manager = nullptr;
@@ -600,7 +600,7 @@ uint32_t Gcs_operations::get_maximum_write_concurrency() const {
 }
 
 Gcs_communication_interface *Gcs_operations::get_gcs_communication() const {
-  std::string const group_name(group_name_var);
+  std::string const group_name(get_group_name_var());
   Gcs_group_identifier const group_id(group_name);
   Gcs_control_interface *gcs_control = nullptr;
   Gcs_communication_interface *gcs_communication = nullptr;
@@ -674,7 +674,7 @@ enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
   enum enum_gcs_error result = GCS_NOK;
   gcs_operations_lock->wrlock();
   if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
-    std::string group_name(group_name_var);
+    std::string group_name(get_group_name_var());
     Gcs_group_identifier group_id(group_name);
     Gcs_control_interface *gcs_control =
         gcs_interface->get_control_session(group_id);

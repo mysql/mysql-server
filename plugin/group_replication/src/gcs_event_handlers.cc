@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -908,7 +908,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
                                              Group_member_info::MEMBER_ERROR,
                                              m_notification_ctx);
       this->leave_group_on_error();
-      plugin_is_setting_read_mode = false;
+      set_plugin_is_setting_read_mode(false);
 
       /*
         unblock threads waiting for the member to become ONLINE
@@ -917,7 +917,7 @@ void Plugin_gcs_events_handler::handle_joining_members(const Gcs_view &new_view,
 
       return;
     } else {
-      plugin_is_setting_read_mode = false;
+      set_plugin_is_setting_read_mode(false);
     }
 
     /**

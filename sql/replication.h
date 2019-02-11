@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,10 @@ struct st_server_ssl_variables {
   char *ssl_crl;
   char *ssl_crlpath;
   unsigned int ssl_fips_mode;
+
+  void init();
+
+  void deinit();
 };
 
 /**

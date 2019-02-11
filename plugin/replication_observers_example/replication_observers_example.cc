@@ -565,11 +565,8 @@ int validate_plugin_server_requirements(Trans_param *param) {
   char *hostname, *uuid;
   uint port;
   unsigned int server_version;
-  st_server_ssl_variables server_ssl_variables = {false, NULL, NULL, NULL, NULL,
-                                                  NULL,  NULL, NULL, NULL, 0};
 
-  get_server_parameters(&hostname, &port, &uuid, &server_version,
-                        &server_ssl_variables);
+  get_server_parameters(&hostname, &port, &uuid, &server_version);
 
   Trans_context_info startup_pre_reqs;
   get_server_startup_prerequirements(startup_pre_reqs, false);
@@ -605,15 +602,6 @@ int validate_plugin_server_requirements(Trans_param *param) {
   my_free(encoded_gtid_executed_string);
 #endif
   my_free(encoded_gtid_executed);
-
-  my_free(server_ssl_variables.ssl_ca);
-  my_free(server_ssl_variables.ssl_capath);
-  my_free(server_ssl_variables.tls_version);
-  my_free(server_ssl_variables.ssl_cert);
-  my_free(server_ssl_variables.ssl_cipher);
-  my_free(server_ssl_variables.ssl_key);
-  my_free(server_ssl_variables.ssl_crl);
-  my_free(server_ssl_variables.ssl_crlpath);
 
   /*
     Log number of successful validations.

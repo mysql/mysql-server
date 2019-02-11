@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ static bool group_replication_get_write_concurrency_init(UDF_INIT *,
 
   UDF_counter udf_counter;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }
@@ -97,7 +97,7 @@ static bool group_replication_set_write_concurrency_init(UDF_INIT *,
   bool const wrong_arg_type =
       !wrong_number_of_args && args->arg_type[0] != INT_RESULT;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -224,7 +224,7 @@ void Autorejoin_thread::execute_rejoin_process() {
       if someone called Autorejoin_thread::abort(), because that implies an
       explicit stop and thus we probably don't want to abort right here.
     */
-    if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
+    if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
         (error && !m_abort)) {
       std::stringstream ss;
       ss << "Could not rejoin the member to the group after " << m_attempts

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ int Primary_election_secondary_process::secondary_election_process_handler() {
   if (election_process_aborted) goto end;
 
   if (enable_read_mode_on_server()) {
-    if (!election_process_aborted && !server_shutdown_status) {
+    if (!election_process_aborted && !get_server_shutdown_status()) {
       abort_plugin_process(
           "Cannot enable the super read only mode on a secondary member.");
       error = 1;

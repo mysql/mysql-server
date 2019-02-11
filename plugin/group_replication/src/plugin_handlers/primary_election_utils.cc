@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg,
   }
   gcs_module->remove_view_notifer(&view_change_notifier);
 
-  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
     std::string error_message(
         "Fatal error during the primary election process: ");
     error_message.append(err_msg);

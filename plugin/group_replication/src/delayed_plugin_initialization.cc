@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,7 @@ int Delayed_initialization_thread::initialization_thread_handler() {
     // Protect this delayed start against other start/stop requests
     MUTEX_LOCK(lock, get_plugin_running_lock());
 
-    plugin_is_setting_read_mode = true;
+    set_plugin_is_setting_read_mode(true);
 
     error = initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
   } else {

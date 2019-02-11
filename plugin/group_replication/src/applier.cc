@@ -810,7 +810,7 @@ void Applier_module::kill_pending_transactions(
   */
   bool should_continue_autorejoin = is_autorejoin_enabled() && !applier_error;
   if (set_read_mode &&
-      exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER &&
+      get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER &&
       !should_continue_autorejoin) {
     abort_plugin_process("Fatal error during execution of Group Replication");
   }

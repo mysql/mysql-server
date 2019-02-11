@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ static bool group_replication_set_as_primary_init(UDF_INIT *init_id,
 
   UDF_counter udf_counter;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     DBUG_RETURN(true);
   }
@@ -276,7 +276,7 @@ static bool group_replication_switch_to_single_primary_mode_init(
 
   UDF_counter udf_counter;
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     DBUG_RETURN(true);
   }

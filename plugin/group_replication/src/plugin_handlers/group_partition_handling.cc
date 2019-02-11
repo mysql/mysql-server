@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -291,7 +291,7 @@ int Group_partition_handling::partition_thread_handler() {
       autorejoin_module->start_autorejoin(get_number_of_autorejoin_tries(),
                                           get_rejoin_timeout());
       // Else we proceed according to group_replication_exit_state_action.
-    } else if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+    } else if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
       abort_plugin_process("Fatal error during execution of Group Replication");
     }
   }

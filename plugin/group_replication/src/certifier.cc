@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -315,8 +315,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
   std::string applier_retrieved_gtids;
 
   rpl_sid group_sid;
-  if (group_sid.parse(group_name_var, strlen(group_name_var)) !=
-      RETURN_STATUS_OK) {
+  const char *group_name = get_group_name_var();
+  if (group_sid.parse(group_name, strlen(group_name)) != RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_GROUP_NAME_PARSE_ERROR); /* purecov: inspected */
     error = 1;                                       /* purecov: inspected */
@@ -683,7 +683,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
              snapshot_version->_add_gtid(group_sidno, result);
            would fail because of that.
     */
-    if (snapshot_version->ensure_sidno(group_sidno) != RETURN_STATUS_OK) {
+    if (snapshot_version->ensure_sidno(get_group_sidno()) != RETURN_STATUS_OK) {
       LogPluginErr(
           ERROR_LEVEL,
           ER_GRP_RPL_UPDATE_TRANS_SNAPSHOT_VER_ERROR); /* purecov: inspected */
@@ -696,7 +696,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     /*
       Add generated transaction GTID to transaction snapshot version.
     */
-    snapshot_version->_add_gtid(group_sidno, result);
+    snapshot_version->_add_gtid(get_group_sidno(), result);
 
     /*
       Store last conflict free transaction identification.

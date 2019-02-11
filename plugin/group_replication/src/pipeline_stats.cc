@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -218,7 +218,7 @@ void Pipeline_stats_member_message::encode_payload(
   encode_payload_item_int8(buffer, PIT_TRANSACTIONS_LOCAL_ROLLBACK,
                            transactions_local_rollback_aux);
 
-  char flow_control_mode_aux = static_cast<char>(flow_control_mode_var);
+  char flow_control_mode_aux = static_cast<char>(get_flow_control_mode_var());
   encode_payload_item_char(buffer, PIT_FLOW_CONTROL_MODE,
                            flow_control_mode_aux);
 
@@ -608,8 +608,9 @@ void Pipeline_member_stats::update_member_stats(
 bool Pipeline_member_stats::is_flow_control_needed() {
   return (m_flow_control_mode == FCM_QUOTA) &&
          (m_transactions_waiting_certification >
-              flow_control_certifier_threshold_var ||
-          m_transactions_waiting_apply > flow_control_applier_threshold_var);
+              get_flow_control_certifier_threshold_var() ||
+          m_transactions_waiting_apply >
+              get_flow_control_applier_threshold_var());
 }
 
 int32 Pipeline_member_stats::get_transactions_waiting_certification() {
@@ -706,8 +707,9 @@ void Flow_control_module::flow_control_step(
   if (--seconds_to_skip > 0) return;
 
   int32 holds = m_holds_in_period.exchange(0);
-  Flow_control_mode fcm = static_cast<Flow_control_mode>(flow_control_mode_var);
-  seconds_to_skip = flow_control_period_var;
+  Flow_control_mode fcm =
+      static_cast<Flow_control_mode>(get_flow_control_mode_var());
+  seconds_to_skip = get_flow_control_period_var();
   m_stamp++;
 
   /*
@@ -731,12 +733,15 @@ void Flow_control_module::flow_control_step(
   switch (fcm) {
     case FCM_QUOTA: {
       double HOLD_FACTOR =
-          1.0 - static_cast<double>(flow_control_hold_percent_var) / 100.0;
+          1.0 -
+          static_cast<double>(get_flow_control_hold_percent_var()) / 100.0;
       double RELEASE_FACTOR =
-          1.0 + static_cast<double>(flow_control_release_percent_var) / 100.0;
+          1.0 +
+          static_cast<double>(get_flow_control_release_percent_var()) / 100.0;
       double TARGET_FACTOR =
-          static_cast<double>(flow_control_member_quota_percent_var) / 100.0;
-      int64 max_quota = static_cast<int64>(flow_control_max_quota_var);
+          static_cast<double>(get_flow_control_member_quota_percent_var()) /
+          100.0;
+      int64 max_quota = static_cast<int64>(get_flow_control_max_quota_var());
 
       /*
         Postponed transactions
@@ -771,10 +776,10 @@ void Flow_control_module::flow_control_step(
             m_info.erase(it++);
           } else {
             if (it->second.get_flow_control_mode() == FCM_QUOTA) {
-              if (flow_control_certifier_threshold_var > 0 &&
+              if (get_flow_control_certifier_threshold_var() > 0 &&
                   it->second.get_delta_transactions_certified() > 0 &&
                   it->second.get_transactions_waiting_certification() -
-                          flow_control_certifier_threshold_var >
+                          get_flow_control_certifier_threshold_var() >
                       0 &&
                   min_certifier_capacity >
                       it->second.get_delta_transactions_certified()) {
@@ -787,10 +792,10 @@ void Flow_control_module::flow_control_step(
                     std::min(safe_capacity,
                              it->second.get_delta_transactions_certified());
 
-              if (flow_control_applier_threshold_var > 0 &&
+              if (get_flow_control_applier_threshold_var() > 0 &&
                   it->second.get_delta_transactions_applied() > 0 &&
                   it->second.get_transactions_waiting_apply() -
-                          flow_control_applier_threshold_var >
+                          get_flow_control_applier_threshold_var() >
                       0) {
                 if (min_applier_capacity >
                     it->second.get_delta_transactions_applied())
@@ -821,13 +826,13 @@ void Flow_control_module::flow_control_step(
 
         // Minimum capacity will never be less than lim_throttle.
         int64 lim_throttle = static_cast<int64>(
-            0.05 * std::min(flow_control_certifier_threshold_var,
-                            flow_control_applier_threshold_var));
-        if (flow_control_min_recovery_quota_var > 0 &&
+            0.05 * std::min(get_flow_control_certifier_threshold_var(),
+                            get_flow_control_applier_threshold_var()));
+        if (get_flow_control_min_recovery_quota_var() > 0 &&
             num_non_recovering_members == 0)
-          lim_throttle = flow_control_min_recovery_quota_var;
-        if (flow_control_min_quota_var > 0)
-          lim_throttle = flow_control_min_quota_var;
+          lim_throttle = get_flow_control_min_recovery_quota_var();
+        if (get_flow_control_min_quota_var() > 0)
+          lim_throttle = get_flow_control_min_quota_var();
 
         min_capacity =
             std::max(std::min(min_capacity, safe_capacity), lim_throttle);
@@ -836,7 +841,7 @@ void Flow_control_module::flow_control_step(
         if (max_quota > 0) quota_size = std::min(quota_size, max_quota);
 
         if (num_writing_members > 1) {
-          if (flow_control_member_quota_percent_var == 0)
+          if (get_flow_control_member_quota_percent_var() == 0)
             quota_size /= num_writing_members;
           else
             quota_size = static_cast<int64>(static_cast<double>(quota_size) *
@@ -848,11 +853,12 @@ void Flow_control_module::flow_control_step(
 
 #ifndef DBUG_OFF
         LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_FLOW_CONTROL_STATS,
-                     quota_size, flow_control_period_var, num_writing_members,
-                     num_non_recovering_members, min_capacity, lim_throttle);
+                     quota_size, get_flow_control_period_var(),
+                     num_writing_members, num_non_recovering_members,
+                     min_capacity, lim_throttle);
 #endif
       } else {
-        if (quota_size > 0 && flow_control_release_percent_var > 0 &&
+        if (quota_size > 0 && get_flow_control_release_percent_var() > 0 &&
             (quota_size * RELEASE_FACTOR) < MAXTPS) {
           int64 quota_size_next =
               static_cast<int64>(quota_size * RELEASE_FACTOR);

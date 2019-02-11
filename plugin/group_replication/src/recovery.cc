@@ -224,7 +224,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
   }
   gcs_module->remove_view_notifer(&view_change_notifier);
 
-  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
     abort_plugin_process("Fatal error during execution of Group Replication");
   }
 }

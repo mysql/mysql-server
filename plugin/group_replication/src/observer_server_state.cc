@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ using std::string;
   DBMS lifecycle events observers.
 */
 int group_replication_before_handle_connection(Server_state_param *) {
-  if (wait_on_engine_initialization) {
+  if (get_wait_on_engine_initialization()) {
     delayed_initialization_thread->signal_thread_ready();
     delayed_initialization_thread->wait_for_read_mode();
   }
@@ -47,7 +47,7 @@ int group_replication_after_recovery(Server_state_param *) { return 0; }
 int group_replication_before_server_shutdown(Server_state_param *) { return 0; }
 
 int group_replication_after_server_shutdown(Server_state_param *) {
-  server_shutdown_status = true;
+  enable_server_shutdown_status();
   plugin_group_replication_stop();
 
   return 0;

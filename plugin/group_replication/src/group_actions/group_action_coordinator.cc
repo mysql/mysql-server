@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -955,7 +955,7 @@ void Group_action_coordinator::kill_transactions_and_leave() {
   Notification_context ctx;
 
   LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CONFIGURATION_ACTION_KILLED_ERROR);
-  if (exit_state_action_var != EXIT_STATE_ACTION_ABORT_SERVER) {
+  if (get_exit_state_action_var() != EXIT_STATE_ACTION_ABORT_SERVER) {
     current_executing_action->execution_message_area->append_execution_message(
         " The member will now leave the group.");
   }
@@ -1041,7 +1041,7 @@ void Group_action_coordinator::kill_transactions_and_leave() {
   }
   gcs_module->remove_view_notifer(&view_change_notifier);
 
-  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+  if (get_exit_state_action_var() == EXIT_STATE_ACTION_ABORT_SERVER) {
     std::string error_message(
         "Fatal error during a Group Replication configuration change. ");
     error_message.append(current_executing_action->execution_message_area

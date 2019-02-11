@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,7 @@ static bool group_replication_get_communication_protocol_init(UDF_INIT *,
     goto end;
   }
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }
@@ -136,7 +136,7 @@ static bool group_replication_set_communication_protocol_init(UDF_INIT *,
     goto end;
   }
 
-  if (plugin_is_stopping) {
+  if (get_plugin_is_stopping()) {
     std::snprintf(message, MYSQL_ERRMSG_SIZE, member_offline_or_minority_str);
     goto end;
   }

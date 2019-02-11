@@ -54,6 +54,34 @@ class THD;
 extern ulong opt_mi_repository_id;
 extern ulong opt_rli_repository_id;
 
+/*
+  Struct to share server ssl variables
+*/
+void st_server_ssl_variables::init() {
+  have_ssl_opt = false;
+  ssl_ca = NULL;
+  ssl_capath = NULL;
+  tls_version = NULL;
+  ssl_cert = NULL;
+  ssl_cipher = NULL;
+  ssl_key = NULL;
+  ssl_crl = NULL;
+  ssl_crlpath = NULL;
+  ssl_fips_mode = 0;
+}
+
+void st_server_ssl_variables::deinit() {
+  my_free(ssl_ca);
+  my_free(ssl_capath);
+  my_free(tls_version);
+  my_free(ssl_cert);
+  my_free(ssl_cipher);
+  my_free(ssl_key);
+  my_free(ssl_crl);
+  my_free(ssl_crlpath);
+  init();
+}
+
 namespace {
 /**
   Static name of Group Replication plugin.
@@ -229,7 +257,7 @@ unsigned int get_group_replication_members_number_info() {
 /** helper function to @ref get_server_parameters */
 inline char *my_strdup_nullable(OptionalString from) {
   return from.c_str() == nullptr
-             ? nullptr
+             ? NULL
              : my_strdup(PSI_INSTRUMENT_ME, from.c_str(), MYF(0));
 }
 
@@ -238,8 +266,7 @@ inline char *my_strdup_nullable(OptionalString from) {
   include/mysql/group_replication_priv.h
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
-                           unsigned int *out_server_version,
-                           st_server_ssl_variables *server_ssl_variables) {
+                           unsigned int *out_server_version) {
   /*
     use startup option report-host and report-port when provided,
     as value provided by glob_hostname, which used gethostname() function
@@ -284,6 +311,10 @@ void get_server_parameters(char **hostname, uint *port, char **uuid,
   *out_server_version =
       v0 + v1 * 16 + v2 * 256 + v3 * 4096 + v4 * 65536 + v5 * 1048576;
 
+  return;
+}
+
+void get_server_ssl_parameters(st_server_ssl_variables *server_ssl_variables) {
   OptionalString ca, capath, cert, cipher, key, crl, crlpath, version;
 
   SslAcceptorContext::read_parameters(&ca, &capath, &version, &cert, &cipher,
