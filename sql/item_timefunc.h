@@ -107,7 +107,7 @@ class Item_func_to_seconds final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "to_seconds"; }
   bool resolve_type(THD *) override {
-    fix_char_length(6);
+    fix_char_length(MY_INT64_NUM_DECIMAL_DIGITS);
     maybe_null = true;
     return false;
   }
