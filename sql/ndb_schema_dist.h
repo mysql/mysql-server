@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,20 +119,6 @@ class Ndb_schema_dist_client {
   // Max number of participants supported
   int m_max_participants{0};
 
-  /*
-    @brief Generate unique id for distribution of objects which doesn't have
-           global id in NDB.
-    @return unique id
-  */
-  uint32 unique_id() const;
-
-  /*
-    @brief Generate unique version for distribution of objects which doesn't
-           have global id in NDB.
-    @return unique version
-  */
-  uint32 unique_version() const;
-
   int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
@@ -164,6 +150,20 @@ class Ndb_schema_dist_client {
   Ndb_schema_dist_client(class THD *thd);
 
   ~Ndb_schema_dist_client();
+
+  /*
+    @brief Generate unique id for distribution of objects which doesn't have
+           global id in NDB.
+    @return unique id
+  */
+  uint32 unique_id() const;
+
+  /*
+    @brief Generate unique version for distribution of objects which doesn't
+           have global id in NDB.
+    @return unique version
+  */
+  uint32 unique_version() const;
 
   /**
     @brief Prepare client for schema operation, check that
@@ -238,8 +238,10 @@ class Ndb_schema_dist_client {
                     bool log_on_participant);
   bool drop_table(const char *db, const char *table_name, int id, int version);
 
-  bool create_db(const char *query, uint query_length, const char *db);
-  bool alter_db(const char *query, uint query_length, const char *db);
+  bool create_db(const char *query, uint query_length, const char *db,
+                 unsigned int id, unsigned int version);
+  bool alter_db(const char *query, uint query_length, const char *db,
+                unsigned int id, unsigned int version);
   bool drop_db(const char *db);
 
   bool acl_notify(const char *query, uint query_length, const char *db);

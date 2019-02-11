@@ -588,8 +588,18 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
         DBUG_VOID_RETURN;
       }
 
-      const bool result = schema_dist_client.create_db(query, query_length, db);
-      if (!result) {
+      // Generate the id, version
+      unsigned int id = schema_dist_client.unique_id();
+      unsigned int version = schema_dist_client.unique_version();
+
+      const bool result = schema_dist_client.create_db(query, query_length, db,
+                                                       id, version);
+      if (result) {
+        // Update the schema with the generated id and version but skip
+        // committing the change in DD. Commit will be done by the caller.
+        ndb_dd_update_schema_version(thd, db, id, version,
+                                     true /*skip_commit*/);
+      } else {
         // NOTE! There is currently no way to report an error from this
         // function, just log an error and proceed
         ndb_log_error("Failed to distribute 'CREATE DATABASE %s'", db);
@@ -610,8 +620,18 @@ ndbcluster_binlog_log_query(handlerton*, THD *thd,
         DBUG_VOID_RETURN;
       }
 
-      const bool result = schema_dist_client.alter_db(query, query_length, db);
-      if (!result) {
+      // Generate the id, version
+      unsigned int id = schema_dist_client.unique_id();
+      unsigned int version = schema_dist_client.unique_version();
+
+      const bool result = schema_dist_client.alter_db(query, query_length, db,
+                                                      id, version);
+      if (result) {
+        // Update the schema with the generated id and version but skip
+        // committing the change in DD. Commit will be done by the caller.
+        ndb_dd_update_schema_version(thd, db, id, version,
+                                     true /*skip_commit*/);
+      } else {
         // NOTE! There is currently no way to report an error from this
         // function, just log an error and proceed
         ndb_log_error("Failed to distribute 'ALTER DATABASE %s'", db);
@@ -4490,6 +4510,10 @@ class Ndb_schema_event_handler {
               schema->query + schema->query_length(),
               no_print_error);
 
+    // Update the Schema in DD with the id and version details
+    ndb_dd_update_schema_version(m_thd, schema->db,
+                                 schema->id, schema->version);
+
     DBUG_VOID_RETURN;
   }
 
@@ -4513,6 +4537,10 @@ class Ndb_schema_event_handler {
     run_query(m_thd, schema->query,
               schema->query + schema->query_length(),
               no_print_error);
+
+    // Update the Schema in DD with the id and version details
+    ndb_dd_update_schema_version(m_thd, schema->db,
+                                 schema->id, schema->version);
 
     DBUG_VOID_RETURN;
   }

@@ -417,7 +417,8 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
 }
 
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
-                                       const char* db) {
+                                       const char* db, unsigned int id,
+                                       unsigned int version) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
 
   // Checking identifier limits "late", there is no way to return
@@ -431,12 +432,13 @@ bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
     DBUG_RETURN(false);
   }
 
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_CREATE_DB));
+  DBUG_RETURN(log_schema_op(query, query_length, db, "",
+                            id, version, SOT_CREATE_DB));
 }
 
 bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
-                                      const char* db) {
+                                      const char* db, unsigned int id,
+                                      unsigned int version) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
 
   // Checking identifier limits "late", there is no way to return
@@ -450,8 +452,8 @@ bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
     DBUG_RETURN(false);
   }
 
-  DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
-                            unique_version(), SOT_ALTER_DB));
+  DBUG_RETURN(log_schema_op(query, query_length, db, "",
+                            id, version, SOT_ALTER_DB));
 }
 
 bool Ndb_schema_dist_client::drop_db(const char* db) {
