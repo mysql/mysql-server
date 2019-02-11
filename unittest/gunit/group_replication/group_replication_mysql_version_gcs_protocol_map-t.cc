@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ TEST_F(MysqlVerGcsProtoMapTest, ParseMysqlVersionInvalidFormat) {
 }
 
 TEST_F(MysqlVerGcsProtoMapTest, ParseMysqlVersionValidFormat) {
-  std::vector<std::string> versions = {"5.7.14", "8.0.15", "00.00.00",
+  std::vector<std::string> versions = {"5.7.14", "8.0.16", "00.00.00",
                                        "99.99.99"};
   for (auto const &version : versions) {
     bool valid = valid_mysql_version_string(version.c_str());
@@ -66,11 +66,23 @@ TEST_F(MysqlVerGcsProtoMapTest, ConvertToMemberVersion) {
 TEST_F(MysqlVerGcsProtoMapTest, ConvertToMysqlVersion) {
   std::vector<std::pair<Gcs_protocol_version, Member_version>> versions = {
       {Gcs_protocol_version::V1, Member_version(0x050714)},
-      {Gcs_protocol_version::V2, Member_version(0x080015)}};
+      {Gcs_protocol_version::V2, Member_version(0x080016)}};
   for (auto const &version_pair : versions) {
     Member_version member_version =
         convert_to_mysql_version(version_pair.first);
     ASSERT_EQ(version_pair.second, member_version);
+  }
+}
+
+TEST_F(MysqlVerGcsProtoMapTest, ConvertToGcsProtocol) {
+  std::vector<std::pair<Member_version, Gcs_protocol_version>> versions = {
+      {Member_version(0x050714), Gcs_protocol_version::V1},
+      {Member_version(0x080015), Gcs_protocol_version::V1},
+      {Member_version(0x080016), Gcs_protocol_version::V2}};
+  for (auto const &version_pair : versions) {
+    Gcs_protocol_version gcs_protocol =
+        convert_to_gcs_protocol(version_pair.first, Member_version(0x080016));
+    ASSERT_EQ(version_pair.second, gcs_protocol);
   }
 }
 

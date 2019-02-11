@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,16 +32,16 @@
  * | MySQL version | GCS protocol version |
  * +======================================+
  * | 5.7.14        | 1                    |
- * | 8.0.15        | 2                    |
+ * | 8.0.16        | 2                    |
  * +--------------------------------------+
  */
 
 static Member_version const version_5_7_14(0x050714);
-static Member_version const version_8_0_15(0x080015);
+static Member_version const version_8_0_16(0x080016);
 
 /*
  * Protocol 1 maps to version 5.7.14.
- * Protocol 2 maps to version 8.0.15.
+ * Protocol 2 maps to version 8.0.16.
  *
  * When you update this function, remember to update the convert_to_gcs_protocol
  * function accordingly.
@@ -52,7 +52,7 @@ Member_version convert_to_mysql_version(
     case Gcs_protocol_version::V1:
       return version_5_7_14;
     case Gcs_protocol_version::V2:
-      return version_8_0_15;
+      return version_8_0_16;
     case Gcs_protocol_version::UNKNOWN:
     case Gcs_protocol_version::V3:
     case Gcs_protocol_version::V4:
@@ -65,17 +65,17 @@ Member_version convert_to_mysql_version(
 }
 
 /*
- * Versions in the domain [5.7.14; 8.0.15[ map to protocol 1.
- * Versions in the domain [8.0.15; my-version] map to protocol 2.
+ * Versions in the domain [5.7.14; 8.0.16[ map to protocol 1.
+ * Versions in the domain [8.0.16; my-version] map to protocol 2.
  *
  * When you update this function, remember to update the
  * convert_to_mysql_version function accordingly.
  */
 Gcs_protocol_version convert_to_gcs_protocol(
     Member_version const &mysql_version, Member_version const &my_version) {
-  if (version_5_7_14 <= mysql_version && mysql_version < version_8_0_15) {
+  if (version_5_7_14 <= mysql_version && mysql_version < version_8_0_16) {
     return Gcs_protocol_version::V1;
-  } else if (version_8_0_15 <= mysql_version && mysql_version <= my_version) {
+  } else if (version_8_0_16 <= mysql_version && mysql_version <= my_version) {
     return Gcs_protocol_version::V2;
   } else {
     return Gcs_protocol_version::UNKNOWN;
