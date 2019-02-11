@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/storage/ndb/include/util
   ${CMAKE_BINARY_DIR}/storage/ndb/tools)
 
-ADD_CONVENIENCE_LIBRARY(ndbtools
+ADD_LIBRARY(ndbtools STATIC
   NdbImport.cpp
   NdbImportImpl.cpp
   NdbImportCsv.cpp

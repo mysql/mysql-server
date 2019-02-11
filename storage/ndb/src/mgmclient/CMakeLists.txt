@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,7 @@
 
 INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon)
 
-ADD_CONVENIENCE_LIBRARY(ndbmgmclient
+ADD_LIBRARY(ndbmgmclient STATIC
             CommandInterpreter.cpp)
 
 IF(WITHOUT_SERVER)

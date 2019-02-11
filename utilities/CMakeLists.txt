@@ -45,7 +45,7 @@ ADD_CUSTOM_TARGET(GenClientError
 
 
 IF (BUILD_BUNDLED_LZ4)
-  ADD_CONVENIENCE_LIBRARY(lz4_lib
+  ADD_LIBRARY(lz4_lib STATIC
     ../extra/lz4/lz4.c
     ../extra/lz4/lz4frame.c
     ../extra/lz4/lz4hc.c

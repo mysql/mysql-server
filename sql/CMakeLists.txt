@@ -672,7 +672,7 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
+ADD_LIBRARY(sql_main STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
@@ -681,7 +681,7 @@ TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS}
   ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
-ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
+ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
 ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
 ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
@@ -717,7 +717,7 @@ IF(MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
     COMPILE_FLAGS " /permissive")
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(sql_dd ${DD_SOURCES})
+ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
 ADD_DEPENDENCIES(sql_dd GenFixPrivs)
 ADD_DEPENDENCIES(sql_dd GenServerSource)
 ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
@@ -749,15 +749,15 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    binlog_reader.cc rpl_log_encryption.cc rpl_cipher.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
-ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})
+ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
-ADD_CONVENIENCE_LIBRARY(rpl ${RPL_SOURCE})
+ADD_LIBRARY(rpl STATIC ${RPL_SOURCE})
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc binlog_reader.cc)
 ADD_DEPENDENCIES(rpl GenError)
-ADD_CONVENIENCE_LIBRARY(master ${MASTER_SOURCE})
+ADD_LIBRARY(master STATIC ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_handler.cc rpl_info_file.cc
@@ -767,7 +767,7 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
                   rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc
                   rpl_slave_until_options.cc rpl_applier_reader.cc)
-ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
+ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
 IF(WIN32)

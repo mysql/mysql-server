@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ ELSE()
   SET(EXTRA_SRC ndbfs/PosixAsyncFile.cpp)
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(ndbblocks
+ADD_LIBRARY(ndbblocks STATIC
     tsman.cpp lgman.cpp pgman.cpp diskpage.cpp restore.cpp
     cmvmi/Cmvmi.cpp
     dbacc/DbaccInit.cpp dbacc/DbaccMain.cpp

@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -269,8 +269,7 @@ FILE(APPEND ${MEMCLIENT} "${CONTENTS}")
                
 ######### TARGETS ############
 
-### Build the convenience library
-ADD_CONVENIENCE_LIBRARY(ndbmemcache ${NDB_MEMCACHE_SOURCE_FILES})
+ADD_LIBRARY(ndbmemcache STATIC ${NDB_MEMCACHE_SOURCE_FILES})
 
 target_link_libraries(ndbmemcache
                       ndbclient_static

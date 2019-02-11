@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-ADD_CONVENIENCE_LIBRARY(myisam_sys
+ADD_LIBRARY(myisam_sys STATIC
   my_lock.cc
   my_redel.cc
   queues.cc
@@ -66,7 +66,7 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
   LINK_LIBRARIES mysys myisam_sys
 )
 
-ADD_CONVENIENCE_LIBRARY(myisam_nopfs ${MYISAM_SOURCES})
+ADD_LIBRARY(myisam_nopfs STATIC ${MYISAM_SOURCES})
 ADD_DEPENDENCIES(myisam_nopfs GenError)
 TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
 SET(MYISAM_NOPFS myisam_nopfs)

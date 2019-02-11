@@ -53,7 +53,7 @@ MYSQL_ADD_EXECUTABLE(mysqltest mysqltest.cc ${MYSQLTEST_SRC} COMPONENT Test)
 TARGET_LINK_LIBRARIES(mysqltest mysqlclient)
 ADD_DEPENDENCIES(mysqltest GenError GenClientError)
 
-ADD_CONVENIENCE_LIBRARY(mysqlcheck_core check/mysqlcheck_core.cc)
+ADD_LIBRARY(mysqlcheck_core STATIC check/mysqlcheck_core.cc)
 TARGET_LINK_LIBRARIES(mysqlcheck_core mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlcheck check/mysqlcheck.cc)

@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ SET(MCD__UTILITITY_SOURCES
 		util-src/config_parser.c
 		util-src/util.c)
 
-ADD_CONVENIENCE_LIBRARY(libmcd_util ${MCD__UTILITITY_SOURCES})
+ADD_LIBRARY(libmcd_util STATIC ${MCD__UTILITITY_SOURCES})
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS}
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/include

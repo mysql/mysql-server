@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_CONVENIENCE_LIBRARY(ndbkernel
+ADD_LIBRARY(ndbkernel STATIC
     VMSignal.cpp
     Emulator.cpp
     Configuration.cpp
@@ -52,7 +52,7 @@ ADD_CONVENIENCE_LIBRARY(ndbkernel
 #    WOPool.cpp
 #    RWPool.cpp
 
-ADD_CONVENIENCE_LIBRARY(ndbsched
+ADD_LIBRARY(ndbsched STATIC
     TimeQueue.cpp
     ThreadConfig.cpp
     FastScheduler.cpp
@@ -64,7 +64,7 @@ ADD_CONVENIENCE_LIBRARY(ndbsched
 )
 
 IF(WITH_NDBMTD)
-  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
+  ADD_LIBRARY(ndbsched_mt STATIC
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp
     LongSignal_mt.cpp
@@ -73,7 +73,7 @@ IF(WITH_NDBMTD)
     dummy_mt.cpp)
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(ndbtest
+ADD_LIBRARY(ndbtest STATIC
     test_context.cpp
     ../blocks/dbtup/tuppage.cpp
 )
