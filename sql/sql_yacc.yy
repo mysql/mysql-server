@@ -13128,10 +13128,10 @@ master_reset_options:
           /* empty */ {}
         | TO_SYM real_ulong_num
           {
-            if ($2 == 0 || $2 > MAX_LOG_UNIQUE_FN_EXT)
+            if ($2 == 0 || $2 > MAX_ALLOWED_FN_EXT_RESET_MASTER)
             {
               my_error(ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE, MYF(0),
-                       $2, MAX_LOG_UNIQUE_FN_EXT);
+                       $2, MAX_ALLOWED_FN_EXT_RESET_MASTER);
               MYSQL_YYABORT;
             }
             else

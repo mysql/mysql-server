@@ -3490,12 +3490,6 @@ static bool is_number(const char *str, ulong *res, bool allow_wildcards) {
   DBUG_RETURN(1); /* Number ok */
 } /* is_number */
 
-/*
-   Number of warnings that will be printed to error log
-   before extension number is exhausted.
-*/
-#define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
-
 /**
   Find a unique filename for 'filename.#'.
 
@@ -3584,7 +3578,7 @@ static int find_uniq_filename(char *name, uint32 new_index_number) {
   }
 
   /* print warning if reaching the end of available extensions. */
-  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
+  if (next > MAX_ALLOWED_FN_EXT_RESET_MASTER)
     LogErr(WARNING_LEVEL, ER_BINLOG_FILE_EXTENSION_NUMBER_RUNNING_LOW, next,
            (MAX_LOG_UNIQUE_FN_EXT - next));
 
