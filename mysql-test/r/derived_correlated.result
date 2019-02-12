@@ -3251,3 +3251,39 @@ table2.col_varchar_key <> 'j';
 field1	field2
 SET OPTIMIZER_SWITCH=DEFAULT;
 DROP TABLE t1,t2;
+#
+# Bug#28955358 VIRTUAL LONGLONG FIELD_NEWDATE::VAL_DATE_TEMPORAL(): ASSERTION `!TABLE || (!TAB
+#
+CREATE TABLE t1 (
+pk INTEGER, col_int_key INTEGER NOT NULL,
+col_date_key DATE NOT NULL, col_datetime DATETIME NOT NULL
+);
+INSERT INTO t1 VALUES (0, 0, '2006-07-18', '2001-09-06 02:13:59.021506');
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ 2
+FROM (SELECT 1 AS x FROM t1 AS  innr WHERE outr.col_date_key ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ id
+FROM JSON_TABLE( IF(outr.col_date_key<>NOW(),
+'[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+'') ,
+'$[*]' columns (id for ordinality,
+jpath varchar(100) path '$.a',
+jexst int exists path '$.b')   ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+DROP TABLE t1;
+CREATE TABLE t1(pk INT PRIMARY KEY, a INT);
+EXPLAIN SELECT pk FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT (SELECT pk FROM (SELECT t1.pk) dt) FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;

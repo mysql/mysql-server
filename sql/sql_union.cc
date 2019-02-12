@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1461,6 +1461,17 @@ void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
     for (ORDER *group = sel->group_list.first; group; group = group->next)
       (*group->item)->fix_after_pullout(parent_select, removed_select);
   }
+}
+
+bool SELECT_LEX_UNIT::walk(Item_processor processor, Item::enum_walk walk,
+                           uchar *arg) {
+  for (auto select = first_select(); select != nullptr;
+       select = select->next_select()) {
+    if (select->walk(processor, walk, arg)) return true;
+  }
+  if (fake_select_lex && fake_select_lex->walk(processor, walk, arg))
+    return true;
+  return false;
 }
 
 /**

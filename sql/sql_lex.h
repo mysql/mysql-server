@@ -886,6 +886,8 @@ class SELECT_LEX_UNIT {
     return item ? item->place() : CTX_DERIVED;
   }
 
+  bool walk(Item_processor processor, Item::enum_walk walk, uchar *arg);
+
   /*
     An exception: this is the only function that needs to adjust
     explain_marker.
@@ -1759,6 +1761,8 @@ class SELECT_LEX {
 
   bool validate_outermost_option(LEX *lex, const char *wrong_option) const;
   bool validate_base_options(LEX *lex, ulonglong options) const;
+
+  bool walk(Item_processor processor, Item::enum_walk walk, uchar *arg);
 
  private:
   // Delete unused columns from merged derived tables
