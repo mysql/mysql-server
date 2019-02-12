@@ -7965,7 +7965,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args) {
     If the value of arg is NULL, then this object represents a constant,
     so further transformation is unnecessary (and impossible).
   */
-  if (arg == NULL) return NULL;
+  if (arg == NULL) return this;
 
   Item *new_item = arg->transform(transformer, args);
   if (new_item == NULL) return NULL; /* purecov: inspected */

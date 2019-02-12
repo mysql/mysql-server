@@ -1534,8 +1534,10 @@ bool Sql_cmd_insert_base::resolve_update_expressions(THD *thd) {
     Item *item;
 
     while ((item = li++)) {
-      item->transform(&Item::update_value_transformer,
-                      pointer_cast<uchar *>(select));
+      Item *new_item = item->transform(&Item::update_value_transformer,
+                                       pointer_cast<uchar *>(select));
+      if (new_item == nullptr) DBUG_RETURN(true);
+      if (new_item != item) thd->change_item_tree((Item **)li.ref(), new_item);
     }
   }
 
