@@ -3160,3 +3160,137 @@ drop table t1;
 
 --enable_warnings
 set optimizer_switch='block_nested_loop=default';
+
+
+#########################################
+## Test condition pushdown with nested AND/OR conditions, where part
+## of the condition can be pushed, and other not.
+## Inspired by Query 19, as specified in the DBT3 / TPC-H test suite.
+
+--echo #
+--echo # Bug#29296615 FAILS TO DO PARTIAL PUSH OF PREDICATES INSIDE
+--echo #              AN OR'ED CONDITION
+--echo #
+
+create table t1 (
+  a3 int,
+  b3 int,
+  c3 int,
+  d3 int)
+engine = ndb;
+
+insert into t1 values (0x1f, 0x2f, 1,    0x1f);
+insert into t1 values (0x2f, 0x3f, 2,    0x2f);
+insert into t1 values (0x3f, 0x1f, 3,    0x3f);
+insert into t1 values (0x40, 0,    null, null);
+insert into t1 values (0x41, 0,    null, null);
+insert into t1 values (0x42, 0,    4,    null);
+insert into t1 values (0x43, 0,    null, 0x43);
+
+explain select * from t1 where c3 > 1;
+explain select * from t1 where c3+1 > 1;
+
+explain select * from t1 where c3 > 1   or c3 < 10;
+explain select * from t1 where c3+1 > 1 or c3 < 10;
+explain select * from t1 where c3 > 1   or c3+1 < 10;
+explain select * from t1 where c3+1 > 1 or c3+1 < 10;
+
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3 >= 0;
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3 >= 0;
+
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3+1 >= 0;
+
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3 < 10);
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3 < 10);
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3+1 < 10);
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3+1 < 10);
+
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3+1 < 10);
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3+1 < 10);
+
+################
+
+explain select * from t1 where c3 > 1   and c3 < 10;
+explain select * from t1 where c3+1 > 1 and c3 < 10;
+explain select * from t1 where c3 > 1   and c3+1 < 10;
+explain select * from t1 where c3+1 > 1 and c3+1 < 10;
+
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3 >= 0;
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3 >= 0;
+
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3+1 >= 0;
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3+1 >= 0;
+
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3 < 10);
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3 < 10);
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3+1 < 10);
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3+1 < 10);
+
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3+1 < 10);
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3+1 < 10);
+
+##############################################
+## Query similar to TPC-H, Query 19:
+##
+## The expectations here is that predicate terms from the
+## inner AND conditions should be extracted and new pushable
+## OR-AND conditions created for both t1 and t2, such that:
+##
+## 1) The common join condition '2.a3 = t1.a3' is extracted,
+##    and eliminated, as it is redundant due to the REF access
+##    using index ix1.
+##
+## 2) The predicate terms on 't1.b3 = ... and t1.c3 in ..'
+##    are extracted and OR'ed as a pushed condition for t1.
+##
+## 3) The predicate terms on 't2.b3 between.. and t2.c3 > ...'
+##    are extracted and OR'ed as a pushed condition for t2.
+##
+## 4) As only parts of the full OR condition was pushed,
+##    it should remain as a condition which the server side has
+##    to evaluate. ('Explain query' still shows 'Using where')
+
+create index ix1 on t1(a3);
+
+explain select * from t1 straight_join t1 as t2
+where
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 1
+    and t1.c3 in (1,2,3)
+    and t2.b3 between 1 and 5
+    and t2.c3 > 1
+  )
+  or
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 2
+    and t1.c3 in (10,20,30)
+    and t2.b3 between 1 and 10
+    and t2.c3 > 2
+  )
+  or
+  (
+    t2.a3 = t1.a3
+    and t1.b3 = 3
+    and t1.c3 in (100,200,300)
+    and t2.b3 between 1 and 15
+    and t2.c3 > 3
+  )
+;
+
+
+drop table t1;

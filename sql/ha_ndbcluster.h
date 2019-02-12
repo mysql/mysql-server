@@ -343,15 +343,13 @@ public:
      NULL means the handler will not return rows that do not match the
      passed condition.
    NOTES
-   The pushed conditions form a stack (from which one can remove the
-   last pushed condition using cond_pop).
    The table handler filters out rows using (pushed_cond1 AND pushed_cond2 
    AND ... AND pushed_condN)
    or less restrictive condition, depending on handler's capabilities.
    
-   handler->reset() call empties the condition stack.
-   Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the  
-   condition stack.
+   handler->reset() call discard any pushed conditions.
+   Calls to rnd_init/rnd_end, index_init/index_end etc do not affect
+   any condition being pushed.
    The current implementation supports arbitrary AND/OR nested conditions
    with comparisons between columns and constants (including constant
    expressions and function calls) and the following comparison operators:
@@ -361,21 +359,7 @@ public:
   const Item *cond_push(const Item *cond,
                         bool other_tbls_ok) override;
 
-private:
-  void cond_push_boolean_term(const Item *pred,
-                              bool other_tbls_ok,
-                              List<Item> &pushed,
-                              List<Item> &remainder);
-
 public:
- /*
-   Pop the top condition from the condition stack of the handler instance.
-   SYNOPSIS
-     cond_pop()
-     Pops the top if condition stack, if stack is not empty
- */
-  void cond_pop() override;
-
   /**
    * Generate the ScanFilters code for the condition(s) previously
    * accepted for cond_push'ing.
