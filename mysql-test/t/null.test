@@ -269,3 +269,49 @@ DROP TABLE t1, t2;
 
 --error ER_PARSE_ERROR
 SELECT \N;
+
+
+--echo #
+--echo # Bug#29337233 'LATE NULLS FILTERING' NEEDED EVEN FOR EQ_REF JOINS KEYS
+--echo #
+
+create table t1 (
+  pk int primary key,
+  col_int_unique int,
+  c char(255) not null default 'xxxx'
+) engine = innoDb;
+create unique index ix1 ON t1(col_int_unique);
+
+insert into t1(pk,col_int_unique) values (1,1), (2,NULL);
+insert into t1(pk,col_int_unique) values (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
+
+
+#EQ_REF access should be used on index ix1 in query plan
+EXPLAIN
+SELECT STRAIGHT_JOIN *
+ FROM t1 LEFT OUTER JOIN t1 AS t2
+    ON t1.col_int_unique = t2.col_int_unique;
+
+# 'Late NULLs filtering' is required in EQRefIterator::Read() to avoid
+# Threating 'NULL == NULL' as a match.
+SELECT STRAIGHT_JOIN *
+ FROM t1 LEFT OUTER JOIN t1 AS t2
+    ON t1.col_int_unique = t2.col_int_unique;
+
+
+# Test cases for 'impossible_null_ref' eliminations in read_const()
+# EQ_REF access may also be optimized into CONST table access.
+#
+# 'show status' is used to verify 'impossible_null_ref' eliminations:
+# For all test cases below, handler_read_key=1 is expected:
+#  - Table t1 is read by the PK:  't1.pk = 2' -> = 1
+#  - Table t2 read is 'impossible_null_ref' eliminated -> no read.
+
+flush status;
+SELECT STRAIGHT_JOIN *
+ FROM t1 JOIN t1 AS t2
+    ON t1.col_int_unique = t2.col_int_unique
+ WHERE t1.pk = 2;
+show status like 'handler_read_key';
+
+drop table t1;

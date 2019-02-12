@@ -3595,7 +3595,9 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
 
   if (!table->is_started())  // If first read
   {
-    if (cp_buffer_from_ref(table->in_use, table, ref))
+    /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+    if (ref->impossible_null_ref() ||
+        cp_buffer_from_ref(table->in_use, table, ref))
       error = HA_ERR_KEY_NOT_FOUND;
     else {
       error = table->file->ha_index_read_idx_map(
@@ -3690,11 +3692,6 @@ int EQRefIterator::Read() {
   m_first_record_since_init = false;
 
   /*
-    We needn't do "Late NULLs Filtering" because eq_ref is restricted to
-    indices on NOT NULL columns (see create_ref_for_key()).
-  */
-
-  /*
     Calculate if needed to read row. Always needed if
     - no rows read yet, or
     - cache is disabled, or
@@ -3725,6 +3722,19 @@ int EQRefIterator::Read() {
      */
     if (table()->has_row() && m_ref->use_count == 0)
       table()->file->unlock_row();
+
+    /*
+      Perform "Late NULLs Filtering" (see internals manual for explanations)
+
+      As EQRefIterator effectively implements a one row cache of last
+      fetched row, the NULLs filtering cant be done until after the cache
+      key has been checked and updated, and row locks maintained.
+    */
+    if (m_ref->impossible_null_ref()) {
+      DBUG_PRINT("info", ("EQRefIterator null_rejected"));
+      table()->set_no_row();
+      return -1;
+    }
 
     int error = table()->file->ha_index_read_map(
         table()->record[0], m_ref->key_buff,
