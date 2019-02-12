@@ -317,9 +317,24 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
-  Item *conds;
+  if (table->all_partitions_pruned_away) {
+    /*
+      All partitions were pruned away during preparation. Shortcut further
+      processing by "no rows". If explaining, report the plan and bail out.
+    */
+    no_rows = true;
+
+    if (lex->is_explain()) {
+      Modification_plan plan(thd, MT_UPDATE, table,
+                             "No matching rows after partition pruning", true,
+                             0);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+      DBUG_RETURN(err);
+    }
+  }
+  Item *conds = nullptr;
   ORDER *order = select_lex->order_list.first;
-  if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
+  if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
     DBUG_RETURN(true); /* purecov: inspected */
 
   /*
@@ -333,7 +348,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (conds || order)
     static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
 
-  if (conds) {
+  if (conds != nullptr) {
     COND_EQUAL *cond_equal = NULL;
     Item::cond_result result;
     if (table_list->check_option) {
@@ -371,7 +386,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         const replacement. However, at the moment there is no such
         thing as Item::clone().
       */
-      if (build_equal_items(thd, conds, &conds, NULL, false,
+      if (build_equal_items(thd, conds, &conds, nullptr, false,
                             select_lex->join_list, &cond_equal))
         DBUG_RETURN(true);
       if (remove_eq_conds(thd, conds, &conds, &result))
@@ -392,7 +407,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         DBUG_RETURN(err);
       }
     }
-    if (conds) {
+    if (conds != nullptr) {
       conds = substitute_for_best_equal_field(thd, conds, cond_equal, 0);
       if (conds == NULL) DBUG_RETURN(true);
 

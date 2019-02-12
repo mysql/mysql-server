@@ -171,21 +171,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
   // Used to track whether there are no rows that need to be read
   bool no_rows = limit == 0;
 
-  Item *conds;
-  if (select_lex->get_optimizable_conditions(thd, &conds, NULL))
-    DBUG_RETURN(true); /* purecov: inspected */
-
-  /*
-    See if we can substitute expressions with equivalent generated
-    columns in the WHERE and ORDER BY clauses of the DELETE statement.
-    It is unclear if this is best to do before or after the other
-    substitutions performed by substitute_for_best_equal_field(). Do
-    it here for now, to keep it consistent with how multi-table
-    deletes are optimized in JOIN::optimize().
-  */
-  if (conds || order)
-    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
-
   QEP_TAB_standalone qep_tab_st;
   QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
 
@@ -205,7 +190,22 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
   }
 
-  const bool const_cond = (!conds || conds->const_item());
+  Item *conds = nullptr;
+  if (!no_rows && select_lex->get_optimizable_conditions(thd, &conds, nullptr))
+    DBUG_RETURN(true); /* purecov: inspected */
+
+  /*
+    See if we can substitute expressions with equivalent generated
+    columns in the WHERE and ORDER BY clauses of the DELETE statement.
+    It is unclear if this is best to do before or after the other
+    substitutions performed by substitute_for_best_equal_field(). Do
+    it here for now, to keep it consistent with how multi-table
+    deletes are optimized in JOIN::optimize().
+  */
+  if (conds || order)
+    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
+
+  const bool const_cond = conds == nullptr || conds->const_item();
   const bool const_cond_result = const_cond && (!conds || conds->val_int());
   if (thd->is_error())  // Error during val_int()
     DBUG_RETURN(true);  /* purecov: inspected */
@@ -224,15 +224,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     handler::delete_all_rows() method.
 
     We can use delete_all_rows() if and only if:
-    - We allow new functions (not using option --skip-new)
     - There is no limit clause
     - The condition is constant
+    - The row set is not empty
+    - We allow new functions (not using option --skip-new)
     - If there is a condition, then it it produces a non-zero value
     - If the current command is DELETE FROM with no where clause, then:
       - We will not be binlogging this statement in row-based, and
       - there should be no delete triggers associated with the table.
   */
-  if (!using_limit && const_cond_result &&
+  if (!using_limit && const_cond_result && !no_rows &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
       ((!thd->is_current_stmt_binlog_format_row() ||  // not ROW binlog-format
         thd->is_current_stmt_binlog_disabled()) &&    // no binlog for this
@@ -275,8 +276,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     /* Handler didn't support fast delete; Delete rows one by one */
   }
 
-  if (conds) {
-    COND_EQUAL *cond_equal = NULL;
+  if (conds != nullptr) {
+    COND_EQUAL *cond_equal = nullptr;
     Item::cond_result result;
 
     if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list, &result))
