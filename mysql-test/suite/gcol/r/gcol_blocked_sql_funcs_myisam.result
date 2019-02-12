@@ -244,6 +244,13 @@ drop table t1;
 # JSON_MERGE()
 CREATE TABLE t2(a JSON, b JSON, c JSON  GENERATED ALWAYS AS  (JSON_MERGE(a,b)));
 ERROR HY000: Expression of generated column 'c' contains a disallowed function: json_merge_preserve.
+#
+# Bug#29342245 ASSERTION WHEN CREATING A FUNCTIONAL INDEX ON A SUBQUERY WITH UNION
+#
+CREATE TABLE t1 (x INT);
+CREATE TABLE t2 (y INT, z INT AS ((SELECT 1 FROM t1 UNION SELECT 1 FROM t1)));
+ERROR HY000: Expression of generated column 'z' contains a disallowed function.
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

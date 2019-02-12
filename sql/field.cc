@@ -1119,7 +1119,7 @@ bool pre_validate_value_generator_expr(Item *expression, const char *name,
        ER_CHECK_CONSTRAINT_NAMED_FUNCTION_IS_NOT_ALLOWED}};
 
   // ROW values are not allowed
-  if (expression->cols() != 1) {
+  if (expression->type() == Item::ROW_ITEM) {
     my_error(error_code_map[source][ER_GENERATED_ROW], MYF(0), name);
     return true;
   }
