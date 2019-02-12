@@ -70,7 +70,7 @@
 extern int HINT_PARSER_parse(THD *thd, Hint_scanner *scanner,
                              PT_hint_list **ret);
 
-static int lex_one_token(YYSTYPE *yylval, THD *thd);
+static int lex_one_token(Lexer_yystype *yylval, THD *thd);
 
 /*
   We are using pointer to this variable for distinguishing between assignment
@@ -220,7 +220,7 @@ void Lex_input_stream::reset(const char *buffer, size_t length) {
   yytoklen = 0;
   yylval = NULL;
   lookahead_token = grammar_selector_token;
-  static YYSTYPE dummy_yylval;
+  static Lexer_yystype dummy_yylval;
   lookahead_yylval = &dummy_yylval;
   skip_digest = false;
   /*
@@ -368,7 +368,7 @@ void Lex_input_stream::body_utf8_append_literal(THD *thd, const LEX_STRING *txt,
   m_cpp_utf8_processed_ptr = end_ptr;
 }
 
-void Lex_input_stream::add_digest_token(uint token, LEX_YYSTYPE yylval) {
+void Lex_input_stream::add_digest_token(uint token, Lexer_yystype *yylval) {
   if (m_digest != NULL) {
     m_digest = digest_add_token(m_digest, token, yylval);
   }
@@ -1179,11 +1179,11 @@ static bool consume_comment(Lex_input_stream *lip,
 /**
   yylex() function implementation for the main parser
 
-  @param [out] yylval   semantic value of the token being parsed (yylval)
-  @param [out] yylloc   "location" of the token being parsed (yylloc)
-  @param thd            THD
+  @param [out] yacc_yylval   semantic value of the token being parsed (yylval)
+  @param [out] yylloc        "location" of the token being parsed (yylloc)
+  @param thd                 THD
 
-  @return               token number
+  @return                    token number
 
   @note
   MYSQLlex remember the following states from the following MYSQLlex():
@@ -1191,7 +1191,8 @@ static bool consume_comment(Lex_input_stream *lip,
   - MY_LEX_END			Found end of query
 */
 
-int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd) {
+int MYSQLlex(YYSTYPE *yacc_yylval, YYLTYPE *yylloc, THD *thd) {
+  auto *yylval = reinterpret_cast<Lexer_yystype *>(yacc_yylval);
   Lex_input_stream *lip = &thd->m_parser_state->m_lip;
   int token;
 
@@ -1259,7 +1260,7 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd) {
   return token;
 }
 
-static int lex_one_token(YYSTYPE *yylval, THD *thd) {
+static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
   uchar c = 0;
   bool comment_closed;
   int tokval, result_state;

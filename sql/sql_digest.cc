@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,20 +34,13 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "sha2.h"                   // SHA256
+#include "sql/lexer_yystype.h"      // Lexer_yystype
 #include "sql/sql_digest_stream.h"  // sql_digest_state
-#include "sql/sql_lex.h"            // LEX_YYSTYPE
 #include "sql/sql_yacc.h"           // Generated code.
 #include "sql_string.h"             // String
 
 #define LEX_TOKEN_WITH_DEFINITION
 #include "sql/lex_token.h"
-
-/* Name pollution from sql/sql_lex.h */
-#ifdef LEX_YYSTYPE
-#undef LEX_YYSTYPE
-#endif
-
-#define LEX_YYSTYPE YYSTYPE *
 
 #define SIZE_OF_A_TOKEN 2
 
@@ -384,7 +377,7 @@ static inline void peek_last_three_tokens(
 }
 
 sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
-                                   LEX_YYSTYPE yylval) {
+                                   Lexer_yystype *yylval) {
   sql_digest_storage *digest_storage = NULL;
 
   digest_storage = &state->m_digest_storage;
@@ -581,7 +574,7 @@ sql_digest_state *digest_add_token(sql_digest_state *state, uint token,
     case IDENT:
     case IDENT_QUOTED:
     case TOK_IDENT_AT: {
-      YYSTYPE *lex_token = yylval;
+      Lexer_yystype *lex_token = yylval;
       char *yytext = lex_token->lex_str.str;
       size_t yylen = lex_token->lex_str.length;
 
