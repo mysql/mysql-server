@@ -422,6 +422,8 @@ The returned string is static and should not be freed or modified.
 @return string, describing the error */
 const char *ut_strerr(dberr_t num) {
   switch (num) {
+    case DB_CACHE_RECORDS:
+      return ("Request caller to copy tuple");
     case DB_SUCCESS:
       return ("Success");
     case DB_SUCCESS_LOCKED_REC:

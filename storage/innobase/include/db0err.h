@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -205,6 +205,9 @@ enum dberr_t {
   /* The following are API only error codes. */
   DB_DATA_MISMATCH = 2000, /*!< Column update or read failed
                            because the types mismatch */
+
+  /* Request the caller to cache records. */
+  DB_CACHE_RECORDS
 };
 
 #endif

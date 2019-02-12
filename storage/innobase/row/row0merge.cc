@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -103,6 +103,14 @@ class index_tuple_info_t {
     m_dtuple_vec->push_back(dtuple);
   }
 
+  /** Copy the fields pointing to the clustered index record.  This call
+  will make the tuple independent of the clustered index record. */
+  void cache_tuples();
+
+  /** Initialize an iterator to traverse the vector of tuples. This iterator
+  is used by the insert() member function to process the vector of tuples. */
+  void iter_init();
+
   /** Insert spatial index rows cached in vector into spatial index
   @param[in]	trx_id		transaction id
   @param[in,out]	row_heap	memory heap
@@ -131,35 +139,17 @@ class index_tuple_info_t {
     DBUG_EXECUTE_IF("row_merge_instrument_log_check_flush",
                     force_log_free_check = true;);
 
-    for (idx_tuple_vec::iterator it = m_dtuple_vec->begin();
-         it != m_dtuple_vec->end(); ++it) {
-      dtuple = *it;
+    while (m_iter != m_dtuple_vec->end()) {
+      dtuple = *m_iter;
       ut_ad(dtuple);
 
       if (log_needs_free_check() || force_log_free_check) {
         if (!(*mtr_committed)) {
-          /* Since the data of the tuple pk fields
-          are pointers of cluster rows. After mtr
-          committed, these pointer could be point
-          to invalid data. Then, we need to copy
-          all these data from cluster rows. */
-          idx_tuple_vec::iterator cp_it;
-          dtuple_t *cp_tuple;
-          for (cp_it = it; cp_it != m_dtuple_vec->end(); ++cp_it) {
-            cp_tuple = *cp_it;
-
-            for (ulint i = 1; i < dtuple_get_n_fields(cp_tuple); i++) {
-              dfield_dup(&cp_tuple->fields[i], m_heap);
-            }
-          }
-          btr_pcur_move_to_prev_on_page(pcur);
-          btr_pcur_store_position(pcur, scan_mtr);
-          mtr_commit(scan_mtr);
-          *mtr_committed = true;
+          /* Request the caller to cache the records */
+          return (DB_CACHE_RECORDS);
         }
 
         log_free_check();
-
         force_log_free_check = false;
       }
 
@@ -229,6 +219,7 @@ class index_tuple_info_t {
 
       rtr_clean_rtr_info(&rtr_info, true);
       count++;
+      ++m_iter;
     }
 
     m_dtuple_vec->clear();
@@ -241,6 +232,9 @@ class index_tuple_info_t {
   for rows on single cluster index page */
   typedef std::vector<dtuple_t *, ut_allocator<dtuple_t *>> idx_tuple_vec;
 
+  /** Iterator to process m_dtuple_vec */
+  idx_tuple_vec::iterator m_iter;
+
   /** vector used to cache index rows made from cluster index scan */
   idx_tuple_vec *m_dtuple_vec;
 
@@ -250,6 +244,26 @@ class index_tuple_info_t {
   /** memory heap for creating index tuples */
   mem_heap_t *m_heap;
 };
+
+void index_tuple_info_t::iter_init() { m_iter = m_dtuple_vec->begin(); }
+
+void index_tuple_info_t::cache_tuples() {
+  /* Since the data of the tuple pk fields are pointers of cluster rows.
+     After mtr committed, these pointer could be point to invalid data. Then, we
+     need to copy all these data from cluster rows.
+  */
+  dtuple_t *cp_tuple;
+  for (idx_tuple_vec::iterator cp_it = m_iter; cp_it != m_dtuple_vec->end();
+       ++cp_it) {
+    cp_tuple = *cp_it;
+
+    /* The first field is the spatial MBR field, which is the key for spatial
+    indexes.  So skip it. */
+    for (ulint i = 1; i < dtuple_get_n_fields(cp_tuple); i++) {
+      dfield_dup(&cp_tuple->fields[i], m_heap);
+    }
+  }
+}
 
 /* Maximum pending doc memory limit in bytes for a fts tokenization thread */
 #define FTS_PENDING_DOC_MEMORY_LIMIT 1000000
@@ -1419,9 +1433,31 @@ static dberr_t row_merge_spatial_rows(trx_id_t trx_id,
   ut_ad(sp_heap != NULL);
 
   for (ulint j = 0; j < num_spatial; j++) {
+    sp_tuples[j]->iter_init();
+  }
+
+  for (ulint j = 0; j < num_spatial; j++) {
     err = sp_tuples[j]->insert(trx_id, row_heap, pcur, mtr, mtr_committed);
 
+    if (err == DB_CACHE_RECORDS) {
+      ut_ad(*mtr_committed == false);
+
+      /* Since the data of the tuple pk fields are pointers of cluster rows,
+         after mtr committed, these pointers could point to invalid data.
+         Hence, copy all these data from cluster rows.  */
+      for (ulint x = j; x < num_spatial; x++) {
+        sp_tuples[x]->cache_tuples();
+      }
+
+      btr_pcur_move_to_prev_on_page(pcur);
+      btr_pcur_store_position(pcur, mtr);
+      mtr_commit(mtr); /* committing the scan mtr */
+      *mtr_committed = true;
+      err = sp_tuples[j]->insert(trx_id, row_heap, pcur, mtr, mtr_committed);
+    }
+
     if (err != DB_SUCCESS) {
+      ut_ad(err != DB_CACHE_RECORDS);
       return (err);
     }
   }
