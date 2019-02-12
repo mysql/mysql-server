@@ -112,3 +112,6 @@ ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
 
 # Disabled pending synchronization functionality to be added in WL#11914
 ndb_ddl.metadata_change_detection: WL#11914 Synchronize metadata changes detected in NDB
+
+# Disabled due to Bug#29305977 which is waiting on Bug#29205142 to be fixed
+ndb.ndbinfo_upgrade: Bug#29305977 NDB.NDBINFO_UPGRADE TEST FAILS
