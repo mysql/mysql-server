@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,12 +42,6 @@ struct z_first_page_t;
 struct z_frag_page_t;
 struct index_entry_t;
 struct first_page_t;
-
-#define KB128 (128 * 1024)
-
-/** The input is divided into Z_CHUNK_SIZE -> this is for uncompressed
-data. */
-#define Z_CHUNK_SIZE KB128
 
 using paddr_t = ulint;
 

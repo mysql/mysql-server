@@ -3,6 +3,9 @@ SET GLOBAL log_error_verbosity=3;
 set global innodb_compression_level = 0;
 set debug = '+d,lob_print_partial_update_hit';
 CREATE TABLE t(j1 JSON);
+set @data_1 = repeat('abcdefghijklmnopqrstuvwxyz1234', 6006);
+set @json_doc_1 = concat('["Sven", "', @data_1, '"]');
+INSERT INTO t VALUES (@json_doc_1);
 start transaction;
 # Sven
 select json_extract(j1, '$[0]') from t;
@@ -34,6 +37,7 @@ drop table t;
 set debug = '-d,lob_print_partial_update_hit';
 set debug = '+d,zlob_print_partial_update_hit';
 CREATE TABLE t2(j1 JSON) row_format=compressed;
+INSERT INTO t2 VALUES (@json_doc_1);
 start transaction;
 # Sven
 select json_extract(j1, '$[0]') from t2;
