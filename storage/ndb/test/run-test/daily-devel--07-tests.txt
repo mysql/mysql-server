@@ -204,3 +204,7 @@ cmd: testBasic
 args: -n AbortRace T1
 max-time: 180
 
+cmd: testDict
+args: -n CreateManyDataFiles T1
+max-time: 360
+

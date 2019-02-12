@@ -42,6 +42,7 @@
 #include <ndb_rand.h>
 #include <Bitmask.hpp>
 #include <../src/kernel/ndbd.hpp>
+#include <NdbMgmd.hpp>
 
 #define ERR_INSERT_MASTER_FAILURE1 6013
 #define ERR_INSERT_MASTER_FAILURE2 6014
@@ -136,6 +137,12 @@ char f_tablename[256];
          << " failed on line " << __LINE__ << ": " << c << endl; \
   result = NDBT_FAILED; \
   goto end; }
+
+#define CHECK3(b, c) if (!(b)) { \
+  g_err << "ERR: "<< step->getName() \
+         << " failed on line " << __LINE__ << ": " << c << endl; \
+  return NDBT_FAILED; }
+
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
@@ -11630,6 +11637,204 @@ runForceGCPWait(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * Testcase CreateManyDataFiles : Check if error code 1517 is
+ * returned when DiskPageBufferMemory is exhausted.
+ *
+ * Provoke lack of DiskPageBufferMemory when creating data files
+ * by reconfiguring it to the allowed minimum. Save the original
+ * config value and reinstate it when runCreateManyDataFiles
+ * creating many files is finished.
+ */
+static int
+changeStartDiskPageBufMem(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Config conf;
+  NdbRestarter restarter;
+  Uint64 new_diskpage_buffer = 4 * 1024 * 1024; // Configured minimum value
+  Uint64 start_disk_page_buffer = ctx->getProperty("STARTDISKPAGEBUFFER",
+                                                (Uint64)new_diskpage_buffer);
+
+  NdbMgmd mgmd;
+  Uint64 saved_old_value = 0;
+  CHECK3(mgmd.change_config(start_disk_page_buffer, &saved_old_value,
+                            CFG_SECTION_NODE,
+                            CFG_DB_DISK_PAGE_BUFFER_MEMORY),
+         "Change config failed");
+
+  // Save old config value in the test case context
+  ctx->setProperty("STARTDISKPAGEBUFFER", Uint64(saved_old_value));
+
+  g_err << "Restarting nodes to apply config change from "
+        << saved_old_value << " to " << start_disk_page_buffer << endl;
+
+  CHECK3(restarter.restartAll() == 0,
+         "Restart all failed");
+  CHECK3(restarter.waitClusterStarted(120) == 0,
+         "Cluster has not started");
+  g_err << "Nodes restarted with new config." << endl;
+  return NDBT_OK;
+}
+
+/**
+ * If not exists, create LogfileGroup DEFAULT-LG and
+ * create a tablespace DEFAULT-TS.
+ * Save in test context whether log file group or
+ * table space is created in this test case.
+ */
+int
+runCreateLogFileGroupTableSpace(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
+  // Create a new LFG, if not exixts already
+  bool log_file_group_created = false;
+  NdbDictionary::LogfileGroup lg = pDict->getLogfileGroup("DEFAULT-LG");
+  if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
+  {
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(1*1024*1024);
+
+    CHECK3(pDict->createLogfileGroup(lg) == 0, pDict->getNdbError());
+    log_file_group_created = true;
+  }
+  // Save the info about the test created the log file group
+  // "DEFAULT-LG" in the test case context.
+  ctx->setProperty("LOGFILEGROUPCREATED", Uint32(log_file_group_created));
+
+  // Create a tablespace, if not exists
+  bool ts_created = false;
+  NdbDictionary::Tablespace ts = pDict->getTablespace("DEFAULT-TS");
+  if (strcmp(ts.getName(), "DEFAULT-TS") != 0)
+  {
+    const char * tsName  = "DEFAULT-TS";
+    NdbDictionary::Tablespace ts;
+    ts.setName(tsName);
+    ts.setExtentSize(1024*1024);
+    ts.setDefaultLogfileGroup("DEFAULT-LG");
+
+    CHECK3((pDict->createTablespace(ts)) == 0, pNdb->getNdbError());
+    ts_created = true;
+  }
+  // Save the info about the test created the table space
+  // "DEFAULT-TS" in the test case context.
+  ctx->setProperty("TABLESPACECREATED", Uint32(ts_created));
+  return NDBT_OK;
+}
+
+/**
+ * Drop DEFAULT-TS and DEFAULT-LG if the test case created them.
+ * This info is saved in the test context.
+ */
+int
+runDropTableSpaceLG(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+
+  // Read the info about the test created the table space
+  // "DEFAULT-TS" from the test case context.
+  Uint32 ts_created =
+    ctx->getProperty("TABLESPACECREATED", (Uint32)0);
+
+  if (ts_created)
+  {
+    // tablespace was created by this test case, remove it.
+    if (pNdb->getDictionary()->dropTablespace(
+          pNdb->getDictionary()->getTablespace("DEFAULT-TS")) != 0)
+    {
+      g_err << " Dropping table space DEFAULT-TS failed with "
+            << pNdb->getDictionary()->getNdbError() << endl;
+      // Don't return NDBT_FAILED, continue clean up log file group
+    }
+  }
+
+  // Read the info about the test created the log file group
+  // "DEFAULT-LG" from the test case context.
+  Uint32 log_file_group_created =
+    ctx->getProperty("LOGFILEGROUPCREATED", (Uint32)0);
+
+  if (log_file_group_created)
+  {
+    // Log file group was created by this test case, remove it.
+    CHECK3(pNdb->getDictionary()->dropLogfileGroup(
+             pNdb->getDictionary()->getLogfileGroup("DEFAULT-LG")) == 0,
+           pNdb->getDictionary()->getNdbError());
+  }
+  return NDBT_OK;
+}
+
+/**
+ * Create upto the number of data files given in the test case until
+ * DiskPageBufferMemory gets exhausted, indicated by error code 1517.
+ *
+ * Drop data files.
+ *
+ * Test succeeds if the DiskPageBufferMemory gets exhausted,
+ *      fails otherwise.
+ */
+int
+runCreateManyDataFiles(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  int result = NDBT_FAILED;
+
+  // Add many data files until disk page buffer gets filled
+  Uint32 data_files_to_create = ctx->getProperty("DATAFILES",
+                                                 (Uint32)200);
+  NdbDictionary::Datafile df;
+  uint created_files = 0; // How many files are created so far
+  char datafilename[256];
+
+  for (int datafile=0; datafile < data_files_to_create; ++datafile)
+  {
+    BaseString::snprintf(datafilename, sizeof(datafilename),
+                         "datafile%d", datafile);
+    df.setPath(datafilename);
+    df.setSize(1*1024*1024);
+    df.setTablespace("DEFAULT-TS");
+
+    int res = pDict->createDatafile(df);
+    if(res != 0)
+    {
+      int error = pDict->getNdbError().code;
+      if (error == 1517)
+      {
+        // Error 1517 indicates DiskPageBufferMemory exhaustion.
+        // Stop creating more data files.
+        result =  NDBT_OK;
+      }
+      else
+      {
+        g_err << "Failed to create datafile " << datafilename
+              << endl << pDict->getNdbError() << endl;
+      }
+      break;
+    }
+    created_files++;
+  }
+
+  // Clean up : remove the data files created
+  for (int datafile=0; datafile < created_files; ++datafile)
+  {
+    BaseString::snprintf(datafilename, sizeof(datafilename),
+                         "datafile%d", datafile);
+    df.setPath(datafilename);
+
+    if (pNdb->getDictionary()->dropDatafile(
+          pNdb->getDictionary()->getDatafile(0, datafilename)) != 0)
+    {
+        g_err << "Failed to create datafile " << datafilename
+              << pNdb->getDictionary()->getNdbError() << endl;
+        // Continue dropping rest of the data files
+    }
+  }
+
+  return result;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -12057,7 +12262,18 @@ TESTCASE("forceGCPWait", "test dictsignal timeout in FORCE_GCP_WAIT")
 {
   INITIALIZER(runForceGCPWait);
 }
-NDBT_TESTSUITE_END(testDict)
+TESTCASE("CreateManyDataFiles", "Test lack of DiskPageBufferMemory "
+         "when creating data files")
+{
+  INITIALIZER(changeStartDiskPageBufMem);
+  INITIALIZER(runCreateLogFileGroupTableSpace);
+  TC_PROPERTY("DATAFILES", (Uint32)200);
+  INITIALIZER(runCreateManyDataFiles);
+  FINALIZER(runDropTableSpaceLG);
+  FINALIZER(changeStartDiskPageBufMem);
+}
+
+NDBT_TESTSUITE_END(testDict);
 
 int main(int argc, const char** argv){
   ndb_init();
