@@ -16243,18 +16243,18 @@ ha_ndbcluster::parent_of_pushed_join() const
 */
 /**
   Push a condition to ndbcluster storage engine for evaluation 
-  during table and index scans. The conditions will be stored on a stack
-  for possibly storing several conditions. The stack can be popped
-  by calling cond_pop, handler::extra(HA_EXTRA_RESET) (handler::reset())
-  will clear the stack.
+  during table and index scans. The conditions will be cleared
+  by calling handler::extra(HA_EXTRA_RESET) or handler::reset().
+
   The current implementation supports arbitrary AND/OR nested conditions
   with comparisons between columns and constants (including constant
   expressions and function calls) and the following comparison operators:
   =, !=, >, >=, <, <=, "is null", and "is not null".
-  If the condition consist of multiple AND'ed 'boolean terms', we try
-  to push these terms on the stack one by one. Those which could not
-  be pushed will be returned as a remainder condition, which the server
-  has to evaluate.
+
+  If the condition consist of multiple AND/OR'ed 'boolean terms',
+  parts of it may be pushed, and other parts will be returned as a
+  'remainder condition', which the server has to evaluate.
+
   handler::pushed_cond will be assigned the (part of) the condition
   which we accepted to be pushed down.
   
@@ -16266,8 +16266,7 @@ ha_ndbcluster::parent_of_pushed_join() const
           sum of boolean terms which could not be pushed. A nullptr
           is returned if entire condition was supported.
 */
-const 
-Item* 
+const Item*
 ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok)
 { 
   DBUG_ENTER("ha_ndbcluster::cond_push");
@@ -16283,119 +16282,10 @@ ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok)
     other_tbls_ok = false;
   }
 
-  // Build lists of the boolean terms either 'pushed', or being a 'remained'
-  List<Item> pushed;
-  List<Item> remainder;
-  cond_push_boolean_term(cond, other_tbls_ok, pushed, remainder);
-
-  if (remainder.elements == 0)
-  {
-    // Entire cond pushed, no remainder
-    pushed_cond = cond;
-    DBUG_RETURN(nullptr);
-  }
-  if (pushed.elements == 0)
-  {
-    // Nothing pushed, entire 'cond' is remainder
-    DBUG_RETURN(cond);
-  }
-  
-  // Condition was partly pushed, with some remainder
-  if (pushed.elements == 1)
-  {
-    // Single boolean term pushed
-    pushed_cond = pushed.head();
-  }
-  else
-  {
-    // Construct an AND'ed condition of pushed boolean terms
-    Item* new_cond = new Item_cond_and(pushed);
-    if (unlikely(new_cond == nullptr))
-      DBUG_RETURN(cond);
-
-    new_cond->quick_fix_field();
-    new_cond->update_used_tables();
-    pushed_cond = new_cond;
-  }
-
-  if (remainder.elements == 1)
-  {
-    // A single boolean term as remainder, return it
-    DBUG_RETURN(remainder.head());
-  }
-
-  // Construct a remainder as an AND'ed condition of the boolean terms
-  Item* new_cond = new Item_cond_and(remainder);
-  if (unlikely(new_cond == nullptr))
-    DBUG_RETURN(cond);
-
-  new_cond->quick_fix_field();
-  new_cond->update_used_tables();
-  DBUG_RETURN(new_cond);
-}
-
-
-/**
-  Decompose a condition into AND'ed 'boolean terms'. Add the terms
-  to either the list of 'pushed' or unpushed 'remainder' terms.
-
-  @param cond          Condition to try to push down.
-  @param other_tbls_ok Are other tables allowed to be referred
-                       from the condition terms pushed down.
-  @param pushed        List of boolean terms we may push down to the
-                       ndbcluster storage engine.
-  @param remainder     List of boolean terms being an unpushed remainder.
- */
-void
-ha_ndbcluster::cond_push_boolean_term(const Item *term,
-                                      bool other_tbls_ok,
-                                      List<Item>& pushed, List<Item>& remainder)
-
-{
-  DBUG_ENTER("ha_ndbcluster::cond_push_boolean_term");
-
-  if (term->type() == Item::COND_ITEM)
-  {
-    if (((Item_cond*) term)->functype() == Item_func::COND_AND_FUNC)
-    {
-      List_iterator<Item> li(*((Item_cond*) term)->argument_list());
-      Item *boolean_term;
-      while ((boolean_term = li++))
-      {
-        cond_push_boolean_term(boolean_term, other_tbls_ok, pushed, remainder);
-      }
-      DBUG_VOID_RETURN;
-    }
-  }
-  if (!other_tbls_ok &&
-      (term->used_tables() & ~table->pos_in_table_list->map()))
-  {
-    /**
-     * 'term' refers fields from other tables -> reject it.
-     */
-    DBUG_EXECUTE("where",print_where((Item *)term, "Other table, rejected", QT_ORDINARY););
-    remainder.push_back((Item*)term);
-    DBUG_VOID_RETURN;
-  }
-  
-  const Item *rem= m_cond.cond_push(term, table, (NDBTAB *)m_table);
-  DBUG_ASSERT(rem == nullptr || rem == term);
-
-  if (rem != nullptr)
-    remainder.push_back((Item*)term);
-  else
-    pushed.push_back((Item*)term);
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Pop the top condition from the condition stack of the handler instance.
-*/
-void 
-ha_ndbcluster::cond_pop() 
-{ 
-  m_cond.cond_pop();
+  Item *pushed;
+  const Item* rem = m_cond.cond_push(cond, table, (NDBTAB *)m_table, other_tbls_ok, pushed);
+  pushed_cond = pushed;
+  DBUG_RETURN(rem);
 }
 
 

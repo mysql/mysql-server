@@ -31,12 +31,12 @@
 */
 
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "sql/sql_list.h"
 
 class Item;
 struct key_range;
 struct TABLE;
-class Ndb_cond;
-class Ndb_cond_stack;
+class Ndb_item;
 
 class ha_ndbcluster_cond
 {
@@ -45,10 +45,12 @@ public:
   ~ha_ndbcluster_cond();
 
   const Item *cond_push(const Item *cond, 
-                        TABLE *table, const NdbDictionary::Table *ndb_table);
-  void cond_pop();
+                        TABLE *table, const NdbDictionary::Table *ndb_table,
+                        bool other_tbls_ok,
+                        Item *&pushed_cond);
+
   void cond_clear();
-  int generate_scan_filter_from_cond(NdbScanFilter& filter) const;
+  int generate_scan_filter_from_cond(NdbScanFilter& filter);
 
   static
   int generate_scan_filter_from_key(NdbScanFilter& filter,
@@ -69,19 +71,16 @@ public:
   }
 
 private:
-  bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-                      TABLE *table,
-                      const NdbDictionary::Table *ndb_table) const;
-  int build_scan_filter_predicate(Ndb_cond* &cond, 
+  int build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
                                   NdbScanFilter* filter,
                                   bool negated) const;
-  int build_scan_filter_group(Ndb_cond* &cond, 
+  int build_scan_filter_group(List_iterator<Ndb_item> &cond,
                               NdbScanFilter* filter,
                               bool negated) const;
 
   bool eval_condition() const;
 
-  Ndb_cond_stack *m_cond_stack;
+  List<Ndb_item> m_ndb_cond;   //The serialized pushed condition
 
   /**
    * Stores condition which can't be pushed to NDB, need to be evaluated by

@@ -123,9 +123,9 @@ static const function_mapping func_map[]=
   in condition pushdown.
   An instance of Ndb_Item represents a constant, table field reference,
   unary or binary comparison predicate, and start/end of AND/OR.
-  Instances of Ndb_Item are stored in a linked list implemented by Ndb_cond
-  class.
-  The order of elements produced by Ndb_cond::next corresponds to
+  Instances of Ndb_Item are stored in a linked list using the List-template
+
+  The order of elements produced by iterating this list corresponds to
   breadth-first traversal of the Item (i.e. expression) tree in prefix order.
   AND and OR have arbitrary arity, so the end of AND/OR group is marked with
   Ndb_item with type == NDB_END_COND.
@@ -344,60 +344,6 @@ public:
   NDB_ITEM_QUALIFICATION qualification;
  private:
   NDB_ITEM_VALUE value;
-};
-
-/*
-  This class implements a linked list used for storing a
-  serialization of the Item tree for condition pushdown.
- */
-class Ndb_cond
-{
- public:
-  Ndb_cond() : ndb_item(NULL), next(NULL), prev(NULL) {}
-  ~Ndb_cond()
-  {
-    if (ndb_item) destroy(ndb_item);
-    ndb_item= NULL;
-    /*
-      First item in the linked list deletes all in a loop
-      Note - doing it recursively causes stack issues for
-      big IN clauses
-    */
-    Ndb_cond *n= next;
-    while (n)
-    {
-      Ndb_cond *tmp= n;
-      n= n->next;
-      tmp->next= NULL;
-      destroy(tmp);
-    }
-    next= prev= NULL;
-  }
-  Ndb_item *ndb_item;
-  Ndb_cond *next;
-  Ndb_cond *prev;
-};
-
-/*
-  This class implements a stack for storing several conditions
-  for pushdown (represented as serialized Item trees using Ndb_cond).
-  The current implementation only pushes one condition, but is
-  prepared for handling several (C1 AND C2 ...) if the logic for
-  pushing conditions is extended in sql_select.
-*/
-class Ndb_cond_stack
-{
- public:
-  Ndb_cond_stack() : ndb_cond(NULL), next(NULL) {}
-  ~Ndb_cond_stack()
-  {
-    if (ndb_cond) destroy(ndb_cond);
-    ndb_cond= NULL;
-    if (next) destroy(next);
-    next= NULL;
-  }
-  Ndb_cond *ndb_cond;
-  Ndb_cond_stack *next;
 };
 
 /*
@@ -641,16 +587,12 @@ public:
 */
 class Ndb_cond_traverse_context
 {
- public:
-   Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
-                             Ndb_cond_stack* stack)
-    : table(tab), ndb_table(ndb_tab),
-    supported(true), cond_stack(stack), cond_ptr(NULL),
-    skip(0), rewrite_stack(NULL)
-  {
-   if (stack)
-      cond_ptr= stack->ndb_cond;
-  }
+public:
+  Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
+                            bool other_tbls_ok)
+    : table(tab), ndb_table(ndb_tab), m_other_tbls_ok(other_tbls_ok),
+    supported(true), skip(0), rewrite_stack(NULL)
+  {}
   ~Ndb_cond_traverse_context()
   {
     if (rewrite_stack) destroy(rewrite_stack);
@@ -667,7 +609,7 @@ class Ndb_cond_traverse_context
     expect_stack.expect_nothing();
     expect_field_from_table();
   }
-  void dont_expect_field_from_table()
+  inline void dont_expect_field_from_table()
   {
     expect_stack.dont_expect(table);
     expect_stack.dont_expect(Item::FIELD_ITEM);
@@ -788,9 +730,9 @@ class Ndb_cond_traverse_context
 
   TABLE* const table;
   const NdbDictionary::Table* const ndb_table;
+  const bool m_other_tbls_ok;
   bool supported;
-  Ndb_cond_stack* cond_stack;
-  Ndb_cond* cond_ptr;
+  List<Ndb_item> items;
   Ndb_expect_stack expect_stack;
   uint skip;
   Ndb_rewrite_context *rewrite_stack;
@@ -814,7 +756,7 @@ is_supported_temporal_type(enum_field_types type)
 }
 
 /*
-  Serialize the item tree into a linked list represented by Ndb_cond
+  Serialize the item tree into a List of Ndb_item objecs
   for fast generation of NbdScanFilter. Adds information such as
   position of fields that is not directly available in the Item tree.
   Also checks if condition is supported.
@@ -823,7 +765,7 @@ static void
 ndb_serialize_cond(const Item *item, void *arg)
 {
   Ndb_cond_traverse_context *context= (Ndb_cond_traverse_context *) arg;
-  DBUG_ENTER("ndb_serialize_cond");  
+  DBUG_ENTER("ndb_serialize_cond");
 
   // Check if we are skipping arguments to a function to be evaluated
   if (context->skip)
@@ -934,14 +876,8 @@ ndb_serialize_cond(const Item *item, void *arg)
     }
     else
     {
-      Ndb_cond_stack *ndb_stack= context->cond_stack;
-      Ndb_cond *prev_cond= context->cond_ptr;
-      Ndb_cond *curr_cond= context->cond_ptr= new (*THR_MALLOC) Ndb_cond();
-      if (!ndb_stack->ndb_cond)
-        ndb_stack->ndb_cond= curr_cond;
-      curr_cond->prev= prev_cond;
-      if (prev_cond) prev_cond->next= curr_cond;
-    // Check if we are rewriting some unsupported function call
+      Ndb_item *ndb_item = nullptr;
+      // Check if we are rewriting some unsupported function call
       if (context->rewrite_stack)
       {
         Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
@@ -969,13 +905,13 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             // Lower limit of BETWEEN
             DBUG_PRINT("info", ("GE_FUNC"));      
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::GE_FUNC, 2);
+            ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::GE_FUNC, 2);
           }
           else if (rewrite_context->count == 3)
           {
             // Upper limit of BETWEEN
             DBUG_PRINT("info", ("LE_FUNC"));      
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::LE_FUNC, 2);
+            ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::LE_FUNC, 2);
           }
           else
           {
@@ -1002,12 +938,15 @@ ndb_serialize_cond(const Item *item, void *arg)
             is wrapped in end of ndb_serialize_cond
           */
           DBUG_PRINT("info", ("EQ_FUNC"));      
-          curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::EQ_FUNC, 2);
+          ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::EQ_FUNC, 2);
           break;
         }
         default:
           context->supported= false;
         }
+        context->items.push_back(ndb_item);
+        ndb_item = nullptr;
+
         // Handle left hand <field>|<const>
         context->rewrite_stack= NULL; // Disable rewrite mode
         ndb_serialize_cond(rewrite_context->left_hand_item, context);
@@ -1015,10 +954,6 @@ ndb_serialize_cond(const Item *item, void *arg)
         context->rewrite_stack= rewrite_context; // Enable rewrite mode
         if (!context->supported)
           DBUG_VOID_RETURN;
-
-        prev_cond= context->cond_ptr;
-        curr_cond= context->cond_ptr= new (*THR_MALLOC) Ndb_cond();
-        prev_cond->next= curr_cond;
       }
       
       // Check for end of AND/OR expression
@@ -1027,7 +962,7 @@ ndb_serialize_cond(const Item *item, void *arg)
         // End marker for condition group
         DBUG_PRINT("info", ("End of condition group"));
         context->expect_no_length();
-        curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_END_COND);
+        ndb_item= new (*THR_MALLOC) Ndb_item(NDB_END_COND);
       }
       else
       {
@@ -1040,11 +975,21 @@ ndb_serialize_cond(const Item *item, void *arg)
           Field *field= field_item->field;
           const enum_field_types type= field->real_type();
 
+          DBUG_ASSERT(!item->is_bool_func());
+          if (!context->m_other_tbls_ok &&
+              (item->used_tables() & ~context->table->pos_in_table_list->map()))
+          {
+            /**
+             * 'cond' refers fields from other tables -> reject it.
+             */
+            context->supported= false;
+            break;
+          }
           /* Check whether field is computed at MySQL layer */
           if (field->is_virtual_gcol())
           {
             context->supported= false;
-            DBUG_VOID_RETURN;
+            break;
           }
 
           DBUG_PRINT("info", ("FIELD_ITEM"));
@@ -1084,7 +1029,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               const NDBCOL *col= context->ndb_table->getColumn(field->field_name);
               DBUG_ASSERT(col);
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
+              ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
 
               // Field is a reference to 'this' table, was it expected?
               if (!context->expecting_field_from_table())
@@ -1098,7 +1043,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             else
             {
               // Is a field reference to another table
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(field);
+              ndb_item= new (*THR_MALLOC) Ndb_item(field);
 
               if (context->expecting_only_field_from_table())
               {
@@ -1253,7 +1198,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::EQ_FUNC:
           {
             DBUG_PRINT("info", ("EQ_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
             context->expect(Item::STRING_ITEM);
             context->expect(Item::INT_ITEM);
@@ -1267,7 +1212,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::NE_FUNC:
           {
             DBUG_PRINT("info", ("NE_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::INT_ITEM);
@@ -1281,7 +1226,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::LT_FUNC:
           {
             DBUG_PRINT("info", ("LT_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::INT_ITEM);
@@ -1297,7 +1242,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::LE_FUNC:
           {
             DBUG_PRINT("info", ("LE_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::INT_ITEM);
@@ -1313,7 +1258,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::GE_FUNC:
           {
             DBUG_PRINT("info", ("GE_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::INT_ITEM);
@@ -1329,7 +1274,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::GT_FUNC:
           {
             DBUG_PRINT("info", ("GT_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
             context->expect(Item::REAL_ITEM);
@@ -1352,7 +1297,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               DBUG_PRINT("info", ("LIKE expressions with ESCAPE not supported"));
               context->supported= false;
             }
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
 
             /*
@@ -1376,7 +1321,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::ISNULL_FUNC:
           {
             DBUG_PRINT("info", ("ISNULL_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
@@ -1388,7 +1333,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::ISNOTNULL_FUNC:
           {
             DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);     
             context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
@@ -1400,7 +1345,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::NOT_FUNC:
           {
             DBUG_PRINT("info", ("NOT_FUNC"));      
-            curr_cond->ndb_item=
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);     
             context->expect(Item::FUNC_ITEM);
             context->expect(Item::COND_ITEM);
@@ -1417,15 +1362,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (between_func->negated)
             {
               DBUG_PRINT("info", ("NOT_FUNC"));
-              curr_cond->ndb_item=
-                new (*THR_MALLOC) Ndb_item(Item_func::NOT_FUNC, 1);
-              prev_cond= curr_cond;
-              curr_cond= context->cond_ptr= new (*THR_MALLOC) Ndb_cond();
-              curr_cond->prev= prev_cond;
-              prev_cond->next= curr_cond;
+              context->items.push_back(
+                new (*THR_MALLOC) Ndb_item(Item_func::NOT_FUNC, 1));
             }
             DBUG_PRINT("info", ("COND_AND_FUNC"));
-            curr_cond->ndb_item= 
+            ndb_item=
               new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC, 
                            func_item->argument_count() - 1);
             context->expect_field_from_table();
@@ -1447,15 +1388,11 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (in_func->negated)
             {
               DBUG_PRINT("info", ("NOT_FUNC"));
-              curr_cond->ndb_item=
-                new (*THR_MALLOC) Ndb_item(Item_func::NOT_FUNC, 1);
-              prev_cond= curr_cond;
-              curr_cond= context->cond_ptr= new (*THR_MALLOC) Ndb_cond();
-              curr_cond->prev= prev_cond;
-              prev_cond->next= curr_cond;
+              context->items.push_back(
+                new (*THR_MALLOC) Ndb_item(Item_func::NOT_FUNC, 1));
             }
             DBUG_PRINT("info", ("COND_OR_FUNC"));
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(
+            ndb_item= new (*THR_MALLOC) Ndb_item(
               Item_func::COND_OR_FUNC, func_item->argument_count() - 1);
             context->expect_field_from_table();
             context->expect(Item::INT_ITEM);
@@ -1496,7 +1433,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               switch (func_item->result_type()) {
               case STRING_RESULT:
               {
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
@@ -1524,7 +1461,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case REAL_RESULT:
               {
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
@@ -1545,7 +1482,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case INT_RESULT:
               {
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
@@ -1566,7 +1503,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               }
               case DECIMAL_RESULT:
               {
-                curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
                 if (context->expecting_no_field_result())
                 {
                   // We have not seen the field argument yet
@@ -1616,7 +1553,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
             DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
 #endif
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
             if (context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
@@ -1649,7 +1586,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             DBUG_PRINT("info", ("value %ld",
                                 (long) ((Item_int*) item)->value));
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
             if (context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
@@ -1673,7 +1610,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           if (context->expecting(Item::REAL_ITEM)) 
           {
             DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
             if (context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
@@ -1694,7 +1631,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("VARBIN_ITEM"));
           if (context->expecting(Item::VARBIN_ITEM)) 
           {
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
             if (context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
@@ -1717,7 +1654,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
             DBUG_PRINT("info", ("value %f",
                                 ((Item_decimal*) item)->val_real()));
-            curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
             if (context->expecting_no_field_result())
             {
               // We have not seen the field argument yet
@@ -1738,18 +1675,17 @@ ndb_serialize_cond(const Item *item, void *arg)
         case Item::COND_ITEM:
         {
           Item_cond *cond_item= (Item_cond *) item;
-          
           if (context->expecting(Item::COND_ITEM))
           {
             switch (cond_item->functype()) {
             case Item_func::COND_AND_FUNC:
               DBUG_PRINT("info", ("COND_AND_FUNC"));
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(cond_item->functype(),
+              ndb_item= new (*THR_MALLOC) Ndb_item(cond_item->functype(),
                                                 cond_item);      
               break;
             case Item_func::COND_OR_FUNC:
               DBUG_PRINT("info", ("COND_OR_FUNC"));
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(cond_item->functype(),
+              ndb_item= new (*THR_MALLOC) Ndb_item(cond_item->functype(),
                                                 cond_item);      
               break;
             default:
@@ -1781,7 +1717,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               DBUG_PRINT("info", ("value %ld",
                                   (long) ((Item_int*) item)->value));
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
               if (context->expecting_no_field_result())
               {
                 // We have not seen the field argument yet
@@ -1806,7 +1742,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             if (context->expecting(Item::REAL_ITEM)) 
             {
               DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
               if (context->expecting_no_field_result())
               {
                 // We have not seen the field argument yet
@@ -1830,7 +1766,7 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               DBUG_PRINT("info", ("value %f",
                                   ((Item_decimal*) item)->val_real()));
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
               if (context->expecting_no_field_result())
               {
                 // We have not seen the field argument yet
@@ -1861,7 +1797,7 @@ ndb_serialize_cond(const Item *item, void *arg)
               const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
               DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
   #endif
-              curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
               if (context->expecting_no_field_result())
               {
                 // We have not seen the field argument yet
@@ -1906,90 +1842,46 @@ ndb_serialize_cond(const Item *item, void *arg)
         if (pop)
           context->expect_stack.pop();
       }
-      if (context->supported && context->rewrite_stack)
+
+      if (context->supported)
       {
-        Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
-        if (rewrite_context->count == 
-            rewrite_context->func_item->argument_count())
+        DBUG_ASSERT(ndb_item != nullptr);
+        context->items.push_back(ndb_item);
+
+        if (context->rewrite_stack)
         {
-          // Rewrite is done, wrap an END() at the end
-          DBUG_PRINT("info", ("End of condition group"));
-          prev_cond= curr_cond;
-          curr_cond= context->cond_ptr= new (*THR_MALLOC) Ndb_cond();
-          curr_cond->prev= prev_cond;
-          prev_cond->next= curr_cond;
-          context->expect_no_length();
-          curr_cond->ndb_item= new (*THR_MALLOC) Ndb_item(NDB_END_COND);
-          // Pop rewrite stack
-          context->rewrite_stack=  rewrite_context->next;
-          rewrite_context->next= NULL;
-          destroy(rewrite_context);
+          Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
+          if (rewrite_context->count ==
+              rewrite_context->func_item->argument_count())
+          {
+            // Rewrite is done, wrap an END() at the end
+            DBUG_PRINT("info", ("End of condition group"));
+            context->expect_no_length();
+            context->items.push_back(new (*THR_MALLOC) Ndb_item(NDB_END_COND));
+            // Pop rewrite stack
+            context->rewrite_stack=  rewrite_context->next;
+            rewrite_context->next= NULL;
+            destroy(rewrite_context);
+          }
         }
       }
     }
   }
- 
   DBUG_VOID_RETURN;
 }
 
 
 ha_ndbcluster_cond::ha_ndbcluster_cond()
-  : m_cond_stack(nullptr), m_unpushed_cond(nullptr)
+  : m_ndb_cond(), m_unpushed_cond(nullptr)
 {
 }
 
 
 ha_ndbcluster_cond::~ha_ndbcluster_cond()
 {
-  destroy(m_cond_stack);
+  m_ndb_cond.destroy_elements();
 }
 
-
-/*
-  Push a condition
- */
-const 
-Item* 
-ha_ndbcluster_cond::cond_push(const Item *cond, 
-                              TABLE *table, const NDBTAB *ndb_table)
-{ 
-  DBUG_ENTER("ha_ndbcluster_cond::cond_push");
-  Ndb_cond_stack *ndb_cond = new (*THR_MALLOC) Ndb_cond_stack();
-  if (ndb_cond == NULL)
-  {
-    DBUG_RETURN(cond);
-  }
-  if (m_cond_stack)
-    ndb_cond->next= m_cond_stack;
-  else
-    ndb_cond->next= NULL;
-  m_cond_stack= ndb_cond;
-  
-  if (serialize_cond(cond, ndb_cond, table, ndb_table))
-  {
-    DBUG_RETURN(NULL);
-  }
-  else
-  {
-    cond_pop();
-  }
-  DBUG_RETURN(cond); 
-}
-
-/*
-  Pop the top condition from the condition stack
-*/
-void 
-ha_ndbcluster_cond::cond_pop() 
-{ 
-  Ndb_cond_stack *ndb_cond_stack= m_cond_stack;  
-  if (ndb_cond_stack)
-  {
-    m_cond_stack= ndb_cond_stack->next;
-    ndb_cond_stack->next= NULL;
-    destroy(ndb_cond_stack);
-  }
-}
 
 /*
   Clear the condition stack
@@ -1998,60 +1890,339 @@ void
 ha_ndbcluster_cond::cond_clear()
 {
   DBUG_ENTER("cond_clear");
-  while (m_cond_stack)
-    cond_pop();
-
+  m_ndb_cond.destroy_elements();
   m_unpushed_cond = nullptr;
   DBUG_VOID_RETURN;
 }
 
-bool
-ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-                                   TABLE *table,
-                                   const NDBTAB *ndb_table) const
-{
-  DBUG_ENTER("serialize_cond");
-  Item *item= (Item *) cond;
-  Ndb_cond_traverse_context context(table, ndb_table, ndb_cond);
-  // Expect a logical expression
-  context.expect(Item::FUNC_ITEM);
-  context.expect(Item::COND_ITEM);
-  item->traverse_cond(&ndb_serialize_cond, (void *) &context, Item::PREFIX);
-  DBUG_PRINT("info", ("The pushed condition is %ssupported", (context.supported)?"":"not "));
 
-  DBUG_RETURN(context.supported);
+/**
+  Construct the AND conjunction of the pushed- and remainder
+  predicate terms. If the the original condition was either
+  completely pushable, or not pushable at all, it is returned
+  instead of constructing new AND conditions.
+
+  @param cond            Original condition we tried to push
+  @param pushed_list     A list of predicate terms to be pushed.
+  @param remainder_list  A list of predicate terms not pushable.
+  @param pushed_cond     Return the resulting pushed condition.
+  @param remainder_cond  Return the unpushable part of 'cond'
+
+  @return    '1' in case of failure, else '0'.
+ */
+static int
+create_and_conditions(Item_cond *cond,
+                      List<Item> pushed_list, List<Item> remainder_list,
+                      Item *&pushed_cond, Item *&remainder_cond)
+{
+  if (remainder_list.is_empty())
+  {
+    // Entire cond pushed, no remainder
+    pushed_cond = cond;
+    remainder_cond = nullptr;
+    return 0;
+  }
+  if (pushed_list.is_empty())
+  {
+    // Nothing pushed, entire 'cond' is remainder
+    pushed_cond = nullptr;
+    remainder_cond = cond;
+    return 0;
+  }
+
+  // Condition was partly pushed, with some remainder
+  if (pushed_list.elements == 1)
+  {
+    // Single boolean term pushed, return it
+    pushed_cond = pushed_list.head();
+  }
+  else
+  {
+    // Construct an AND'ed condition of pushed boolean terms
+    pushed_cond = new Item_cond_and(pushed_list);
+    if (unlikely(pushed_cond == nullptr))
+      return 1;
+    pushed_cond->quick_fix_field();
+    pushed_cond->update_used_tables();
+  }
+
+  if (remainder_list.elements == 1)
+  {
+    // A single boolean term as remainder, return it
+    remainder_cond = remainder_list.head();
+  }
+  else
+  {
+    // Construct a remainder as an AND'ed condition of the boolean terms
+    remainder_cond = new Item_cond_and(remainder_list);
+    if (unlikely(remainder_cond == nullptr))
+      return 1;
+    remainder_cond->quick_fix_field();
+    remainder_cond->update_used_tables();
+  }
+  return 0;
 }
 
+/**
+  Construct the OR conjunction of the pushed- and remainder
+  predicate terms.
+
+  Note that the handling of partially pushed OR conditions
+  has important differences relative to AND condition:
+
+  1) Something has to be pushed from each term in the
+     OR condition (Else the rows matching that term would
+     be missing from the result set)
+
+  2) If the OR condition is not completely pushed (there is
+     a remainder), the entire original condition has to be
+     reevaluated on the server side, or in the AND condition
+     containg this OR condition if such exists.
+
+  @param cond            Original condition we tried to push
+  @param pushed_list     A list of predicate terms to be pushed.
+  @param remainder_list  A list of predicate terms not pushable.
+  @param pushed_cond     Return the resulting pushed condition.
+  @param remainder_cond  Return the unpushable part of 'cond'
+
+  @return    '1' in case of failure, else '0'.
+ */
+static int
+create_or_conditions(Item_cond *cond,
+                     List<Item> pushed_list, List<Item> remainder_list,
+                     Item *&pushed_cond, Item *&remainder_cond)
+{
+  DBUG_ASSERT(pushed_list.elements == cond->argument_list()->elements);
+
+  if (remainder_list.is_empty())
+  {
+    // Entire cond pushed, no remainder
+    pushed_cond = cond;
+    remainder_cond = nullptr;
+  }
+  else
+  {
+    // When condition was partially pushed, we need to reevaluate
+    // original OR-cond on the server side:
+    remainder_cond = cond;
+
+    // Construct an OR'ed condition of pushed boolean terms
+    pushed_cond = new Item_cond_or(pushed_list);
+    if (unlikely(pushed_cond == nullptr))
+      return 1;
+    pushed_cond->quick_fix_field();
+    pushed_cond->update_used_tables();
+  }
+  return 0;
+}
+
+/**
+  Decompose a condition into AND'ed 'boolean terms'. Add the terms
+  to either the list of 'pushed' or unpushed 'remainder' terms.
+
+  @param term          Condition to try to push down.
+  @param table         The Table the conditions may be pushed to.
+  @param ndb_table     The Ndb table.
+  @param other_tbls_ok Are other tables allowed to be referred
+                       from the condition terms pushed down.
+  @param pushed_cond   The (part of) the condition term we may push
+                       down to the ndbcluster storage engine.
+  @param remainder     The remainder (part of) the condition term
+                       still needed to be evaluated by the server.
+
+  @return a List of Ndb_item objects representing the serialized
+          form of the 'pushed_cond'.
+ */
+static List<Ndb_item>
+cond_push_boolean_term(Item *term,
+		       TABLE *table, const NDBTAB *ndb_table,
+                       bool other_tbls_ok,
+                       Item *&pushed_cond, Item *&remainder_cond)
+
+{
+  DBUG_ENTER("ha_ndbcluster::cond_push_boolean_term");
+  static const List<Ndb_item> empty_list;
+
+  if (term->type() == Item::COND_ITEM)
+  {
+    // Build lists of the boolean terms either 'pushed', or being a 'remainder'
+    List<Item> pushed_list;
+    List<Item> remainder_list;
+    List<Ndb_item> code;
+
+    Item_cond *cond = (Item_cond *) term;
+    if (cond->functype() == Item_func::COND_AND_FUNC)
+    {
+      DBUG_PRINT("info", ("COND_AND_FUNC"));
+
+      List_iterator<Item> li(*cond->argument_list());
+      Item *boolean_term;
+      while ((boolean_term = li++))
+      {
+        Item *pushed = nullptr, *remainder = nullptr;
+        List<Ndb_item> code_stub =
+          cond_push_boolean_term(boolean_term, table, ndb_table,
+				 other_tbls_ok, pushed, remainder);
+
+        // Collect all bits we pushed, and its leftovers.
+        if (!code_stub.is_empty())
+          code.concat(&code_stub);
+        if (pushed != nullptr)
+          pushed_list.push_back(pushed);
+        if (remainder != nullptr)
+          remainder_list.push_back(remainder);
+      }
+
+      // Transform the list of pushed and the remainder conditions
+      // into its respective AND'ed conditions.
+      if (create_and_conditions(cond, pushed_list, remainder_list,
+                                pushed_cond, remainder_cond))
+      {
+        //Failed, discard pushed conditions and generated code.
+        pushed_cond = nullptr;
+        remainder_cond = cond;
+        code.destroy_elements();
+        DBUG_RETURN(empty_list);
+      }
+      // Serialized code has to be embedded in an AND-group
+      if (!code.is_empty())
+      {
+        code.push_front(new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC, cond));
+        code.push_back (new (*THR_MALLOC) Ndb_item(NDB_END_COND));
+      }
+    }
+    else
+    {
+      DBUG_ASSERT(cond->functype() == Item_func::COND_OR_FUNC);
+      DBUG_PRINT("info", ("COND_OR_FUNC"));
+
+      List_iterator<Item> li(*cond->argument_list());
+      Item *boolean_term;
+      while ((boolean_term = li++))
+      {
+        Item *pushed = nullptr, *remainder = nullptr;
+        List<Ndb_item> code_stub =
+          cond_push_boolean_term(boolean_term, table, ndb_table,
+				 other_tbls_ok, pushed, remainder);
+
+        if (pushed == nullptr)
+        {
+          //Failure of pushing one of the OR-terms fails entire OR'ed cond
+          //(Else the rows matching that term would be missing in result set)
+          // Also see comments in create_or_conditions().
+          pushed_cond = nullptr;
+          remainder_cond = cond;
+          code.destroy_elements();
+          DBUG_RETURN(empty_list);
+        }
+	
+        // Collect all bits we pushed, and its leftovers.
+        if (!code_stub.is_empty())
+          code.concat(&code_stub);
+        if (pushed != nullptr)
+          pushed_list.push_back(pushed);
+        if (remainder != nullptr)
+          remainder_list.push_back(remainder);
+      }
+
+      // Transform the list of pushed and the remainder conditions
+      // into its respective OR'ed conditions.
+      if (create_or_conditions(cond, pushed_list, remainder_list,
+                               pushed_cond, remainder_cond))
+      {
+        //Failed, discard pushed conditions and generated code.
+        pushed_cond = nullptr;
+        remainder_cond = cond;
+        code.destroy_elements();
+        DBUG_RETURN(empty_list);
+      }
+      // Serialized code has to be embedded in an OR-group
+      if (!code.is_empty())
+      {
+        code.push_front(new (*THR_MALLOC) Ndb_item(Item_func::COND_OR_FUNC, cond));
+        code.push_back (new (*THR_MALLOC) Ndb_item(NDB_END_COND));
+      }
+    }
+    DBUG_RETURN(code);
+  }
+
+  // Has broken down the condition into predicate terms, or sub conditions,
+  // which either has to be accepted or rejected for pushdown
+  Ndb_cond_traverse_context context(table, ndb_table, other_tbls_ok);
+  context.expect(Item::FUNC_ITEM);
+  context.expect(Item::COND_ITEM);
+  term->traverse_cond(&ndb_serialize_cond, &context, Item::PREFIX);
+  
+  if (context.supported)
+  {
+    pushed_cond = term;
+    remainder_cond = nullptr;
+    DBUG_ASSERT(!context.items.is_empty());
+    DBUG_RETURN(context.items);
+  }
+  else  // Failed to push
+  {
+    pushed_cond = nullptr;
+    remainder_cond = term;
+    context.items.destroy_elements();
+    DBUG_RETURN(empty_list);   //Discard any generated Ndb_cond's
+  }
+}
+
+
+/*
+  Push a condition, return any remainder condition
+ */
+const Item*
+ha_ndbcluster_cond::cond_push(const Item *cond,
+                              TABLE *table, const NDBTAB *ndb_table,
+                              bool other_tbls_ok,
+                              Item *&pushed_cond)
+{
+  DBUG_ENTER("ha_ndbcluster_cond::cond_push");
+
+  // Build lists of the boolean terms either 'pushed', or being a 'remainder'
+  Item *item= const_cast<Item*>(cond);
+  Item *remainder = nullptr;
+  List<Ndb_item> code =
+    cond_push_boolean_term(item, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
+
+  // Save the serialized representation of the code
+  m_ndb_cond = code;
+  DBUG_RETURN(remainder);
+}
+
+
 int
-ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond, 
+ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
                                                 NdbScanFilter *filter,
                                                 bool negated) const
 {
   DBUG_ENTER("build_scan_filter_predicate");  
-  switch (cond->ndb_item->type) {
+  Ndb_item *ndb_item = *cond.ref();
+  switch (ndb_item->type) {
   case NDB_FUNCTION:
   {
-    if (!cond->next)
+    Ndb_item *b, *field, *value= nullptr;
+    Ndb_item *a = cond++;
+    if (a == nullptr)
       break;
-    Ndb_item *a= cond->next->ndb_item;
-    Ndb_item *b, *field, *value= NULL;
 
     enum ndb_func_type function_type = (negated)
-       ? Ndb_item::negate(cond->ndb_item->qualification.function_type)
-       : cond->ndb_item->qualification.function_type;
+       ? Ndb_item::negate(ndb_item->qualification.function_type)
+       : ndb_item->qualification.function_type;
 
-    switch (cond->ndb_item->argument_count()) {
+    switch (ndb_item->argument_count()) {
     case 1:
       field= (a->type == NDB_FIELD)? a : NULL;
-      cond= cond->next->next;
       break;
     case 2:
-      if (!cond->next->next)
+      b = cond++;
+      if (b == nullptr)
       {
-        field= NULL;
+        field= nullptr;
         break;
       }
-      b= cond->next->next->ndb_item;
       value= ((a->type == NDB_VALUE) ? a :
               (b->type == NDB_VALUE) ? b :
               NULL);
@@ -2065,7 +2236,6 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
       }
       if (field == b)
         function_type = Ndb_item::swap(function_type);
-      cond= cond->next->next->next;
       break;
     default:
       DBUG_PRINT("info", ("condition had unexpected number of arguments"));
@@ -2323,7 +2493,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
 
 
 int
-ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond, 
+ha_ndbcluster_cond::build_scan_filter_group(List_iterator<Ndb_item> &cond,
                                             NdbScanFilter *filter,
                                             const bool negated) const
 {
@@ -2332,12 +2502,13 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
 
   do
   {
-    if (!cond)
+    const Ndb_item *ndb_item = cond++;
+    if (ndb_item == nullptr)
       DBUG_RETURN(1);
-    switch (cond->ndb_item->type) {
+    switch (ndb_item->type) {
     case NDB_FUNCTION:
     {
-      switch (cond->ndb_item->qualification.function_type) {
+      switch (ndb_item->qualification.function_type) {
       case NDB_COND_AND_FUNC:
       {
         level++;
@@ -2346,7 +2517,6 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
         if ((negated) ? filter->begin(NdbScanFilter::OR)
             : filter->begin(NdbScanFilter::AND) == -1)
           DBUG_RETURN(1);
-        cond= cond->next;
         break;
       }
       case NDB_COND_OR_FUNC:
@@ -2357,13 +2527,11 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
         if ((negated) ? filter->begin(NdbScanFilter::AND)
             : filter->begin(NdbScanFilter::OR) == -1)
           DBUG_RETURN(1);
-        cond= cond->next;
         break;
       }
       case NDB_NOT_FUNC:
       {
         DBUG_PRINT("info", ("Generating negated query"));
-        cond= cond->next;
         if (build_scan_filter_group(cond, filter, !negated))
           DBUG_RETURN(1);
         break;
@@ -2378,7 +2546,6 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
     case NDB_END_COND:
       DBUG_PRINT("info", ("End of group %u", level));
       level--;
-      if (cond) cond= cond->next;
       if (filter->end() == -1)
         DBUG_RETURN(1);
       break;
@@ -2396,52 +2563,43 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
 
 
 int
-ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
+ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
 {
   bool need_group = true;
   DBUG_ENTER("generate_scan_filter_from_cond");
 
   // Determine if we need to wrap an AND group around condition(s)
-  if (m_cond_stack->next == nullptr)
+  Ndb_item *ndb_item = m_ndb_cond.head();
+  if (ndb_item->type == NDB_FUNCTION)
   {
-    const Ndb_cond *cond= m_cond_stack->ndb_cond;
-    if (cond->ndb_item->type == NDB_FUNCTION)
-    {
-      switch (cond->ndb_item->qualification.function_type) {
-      case NDB_COND_AND_FUNC:
-      case NDB_COND_OR_FUNC:
-        // A single AND/OR condition has its own AND/OR-group
-        // .. in all other cases we start a AND group now
-        need_group = false;
-        break;
-      default:
-        break;
-      }
+    switch (ndb_item->qualification.function_type) {
+    case NDB_COND_AND_FUNC:
+    case NDB_COND_OR_FUNC:
+      // A single AND/OR condition has its own AND/OR-group
+      // .. in all other cases we start a AND group now
+      need_group = false;
+      break;
+    default:
+      break;
     }
   }
 
   if (need_group && filter.begin() == -1)
     DBUG_RETURN(1);
 
-  for (Ndb_cond_stack *stack= m_cond_stack; 
-       (stack); 
-       stack= stack->next)
+  List_iterator<Ndb_item> cond(m_ndb_cond);
+  if (build_scan_filter_group(cond, &filter, false))
   {
-    Ndb_cond *cond= stack->ndb_cond;
-    
-    if (build_scan_filter_group(cond, &filter, false))
-    {
-      DBUG_PRINT("info", ("build_scan_filter_group failed"));
+    DBUG_PRINT("info", ("build_scan_filter_group failed"));
 
-      const NdbError& err= filter.getNdbError();
-      if (err.code == NdbScanFilter::FilterTooLarge)
-      {
-        DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, Sql_condition::SL_WARNING,
-                     err.code, err.message);
-      }
-      DBUG_RETURN(1);
+    const NdbError& err= filter.getNdbError();
+    if (err.code == NdbScanFilter::FilterTooLarge)
+    {
+      DBUG_PRINT("info", ("%s", err.message));
+      push_warning(current_thd, Sql_condition::SL_WARNING,
+                   err.code, err.message);
     }
+    DBUG_RETURN(1);
   }
   if (need_group && filter.end() == -1)
     DBUG_RETURN(1);

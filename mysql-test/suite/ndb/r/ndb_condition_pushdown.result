@@ -3144,3 +3144,263 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 alter table t1 drop column d;
 drop table t1;
 set optimizer_switch='block_nested_loop=default';
+#
+# Bug#29296615 FAILS TO DO PARTIAL PUSH OF PREDICATES INSIDE
+#              AN OR'ED CONDITION
+#
+create table t1 (
+a3 int,
+b3 int,
+c3 int,
+d3 int)
+engine = ndb;
+insert into t1 values (0x1f, 0x2f, 1,    0x1f);
+insert into t1 values (0x2f, 0x3f, 2,    0x2f);
+insert into t1 values (0x3f, 0x1f, 3,    0x3f);
+insert into t1 values (0x40, 0,    null, null);
+insert into t1 values (0x41, 0,    null, null);
+insert into t1 values (0x42, 0,    4,    null);
+insert into t1 values (0x43, 0,    null, 0x43);
+explain select * from t1 where c3 > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using pushed condition (`test`.`t1`.`c3` > 1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (`test`.`t1`.`c3` > 1)
+explain select * from t1 where c3+1 > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`c3` + 1) > 1)
+explain select * from t1 where c3 > 1   or c3 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using pushed condition ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10))
+explain select * from t1 where c3+1 > 1 or c3 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` + 1) > 1) or (`test`.`t1`.`c3` < 10))
+explain select * from t1 where c3 > 1   or c3+1 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`c3` > 1) or ((`test`.`t1`.`c3` + 1) < 10))
+explain select * from t1 where c3+1 > 1 or c3+1 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` + 1) > 1) or ((`test`.`t1`.`c3` + 1) < 10))
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	18.52	Using pushed condition (((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)) and (`test`.`t1`.`d3` >= 0))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)) and (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) or (`test`.`t1`.`c3` < 10)) and (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) or ((`test`.`t1`.`c3` + 1) < 10)) and (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) or ((`test`.`t1`.`c3` + 1) < 10)) and (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3 > 1   or c3 < 10) and d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)) and ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3+1 > 1 or c3 < 10) and d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) or (`test`.`t1`.`c3` < 10)) and ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3 > 1   or c3+1 < 10) and d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) or ((`test`.`t1`.`c3` + 1) < 10)) and ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3+1 > 1 or c3+1 < 10) and d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) or ((`test`.`t1`.`c3` + 1) < 10)) and ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	18.52	Using pushed condition ((`test`.`t1`.`d3` >= 0) and ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) and ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) and (((`test`.`t1`.`c3` + 1) > 1) or (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3 >= 0 and (c3 > 1   or c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) and ((`test`.`t1`.`c3` > 1) or ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3 >= 0 and (c3+1 > 1 or c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`d3` >= 0)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) and (((`test`.`t1`.`c3` + 1) > 1) or ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) and ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) and (((`test`.`t1`.`c3` + 1) > 1) or (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3+1 >= 0 and (c3 > 1   or c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) and ((`test`.`t1`.`c3` > 1) or ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3+1 >= 0 and (c3+1 > 1 or c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) and (((`test`.`t1`.`c3` + 1) > 1) or ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where c3 > 1   and c3 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	14.29	Using pushed condition ((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10))
+explain select * from t1 where c3+1 > 1 and c3 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`c3` < 10)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` + 1) > 1) and (`test`.`t1`.`c3` < 10))
+explain select * from t1 where c3 > 1   and c3+1 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	33.33	Using where; Using pushed condition (`test`.`t1`.`c3` > 1)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`c3` > 1) and ((`test`.`t1`.`c3` + 1) < 10))
+explain select * from t1 where c3+1 > 1 and c3+1 < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` + 1) > 1) and ((`test`.`t1`.`c3` + 1) < 10))
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	40.74	Using pushed condition (((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)) or (`test`.`t1`.`d3` >= 0))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)) or (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`c3` < 10) or (`test`.`t1`.`d3` >= 0))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) and (`test`.`t1`.`c3` < 10)) or (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`c3` > 1) or (`test`.`t1`.`d3` >= 0))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) and ((`test`.`t1`.`c3` + 1) < 10)) or (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) and ((`test`.`t1`.`c3` + 1) < 10)) or (`test`.`t1`.`d3` >= 0))
+explain select * from t1 where (c3 > 1   and c3 < 10) or d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)) or ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3+1 > 1 and c3 < 10) or d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) and (`test`.`t1`.`c3` < 10)) or ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3 > 1   and c3+1 < 10) or d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`c3` > 1) and ((`test`.`t1`.`c3` + 1) < 10)) or ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where (c3+1 > 1 and c3+1 < 10) or d3+1 >= 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((((`test`.`t1`.`c3` + 1) > 1) and ((`test`.`t1`.`c3` + 1) < 10)) or ((`test`.`t1`.`d3` + 1) >= 0))
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	40.74	Using pushed condition ((`test`.`t1`.`d3` >= 0) or ((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) or ((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`d3` >= 0) or (`test`.`t1`.`c3` < 10))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) or (((`test`.`t1`.`c3` + 1) > 1) and (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3 >= 0 or (c3 > 1   and c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	55.55	Using where; Using pushed condition ((`test`.`t1`.`d3` >= 0) or (`test`.`t1`.`c3` > 1))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) or ((`test`.`t1`.`c3` > 1) and ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3 >= 0 or (c3+1 > 1 and c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where ((`test`.`t1`.`d3` >= 0) or (((`test`.`t1`.`c3` + 1) > 1) and ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) or ((`test`.`t1`.`c3` > 1) and (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) or (((`test`.`t1`.`c3` + 1) > 1) and (`test`.`t1`.`c3` < 10)))
+explain select * from t1 where d3+1 >= 0 or (c3 > 1   and c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) or ((`test`.`t1`.`c3` > 1) and ((`test`.`t1`.`c3` + 1) < 10)))
+explain select * from t1 where d3+1 >= 0 or (c3+1 > 1 and c3+1 < 10);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3` from `test`.`t1` where (((`test`.`t1`.`d3` + 1) >= 0) or (((`test`.`t1`.`c3` + 1) > 1) and ((`test`.`t1`.`c3` + 1) < 10)))
+create index ix1 on t1(a3);
+explain select * from t1 straight_join t1 as t2
+where
+(
+t2.a3 = t1.a3
+and t1.b3 = 1
+and t1.c3 in (1,2,3)
+and t2.b3 between 1 and 5
+and t2.c3 > 1
+)
+or
+(
+t2.a3 = t1.a3
+and t1.b3 = 2
+and t1.c3 in (10,20,30)
+and t2.b3 between 1 and 10
+and t2.c3 > 2
+)
+or
+(
+t2.a3 = t1.a3
+and t1.b3 = 3
+and t1.c3 in (100,200,300)
+and t2.b3 between 1 and 15
+and t2.c3 > 3
+)
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	ix1	NULL	NULL	NULL	7	17.27	Parent of 2 pushed join@1; Using pushed condition ((((`test`.`t1`.`b3` = 1) and (`test`.`t1`.`c3` in (1,2,3))) or ((`test`.`t1`.`b3` = 2) and (`test`.`t1`.`c3` in (10,20,30))) or ((`test`.`t1`.`b3` = 3) and (`test`.`t1`.`c3` in (100,200,300)))) and (`test`.`t1`.`a3` is not null))
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.t1.a3	2	14.29	Child of 't1' in pushed join@1; Using where; Using pushed condition (((`test`.`t2`.`b3` between 1 and 5) and (`test`.`t2`.`c3` > 1)) or ((`test`.`t2`.`b3` between 1 and 10) and (`test`.`t2`.`c3` > 2)) or ((`test`.`t2`.`b3` between 1 and 15) and (`test`.`t2`.`c3` > 3)))
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3`,`test`.`t2`.`a3` AS `a3`,`test`.`t2`.`b3` AS `b3`,`test`.`t2`.`c3` AS `c3`,`test`.`t2`.`d3` AS `d3` from `test`.`t1` straight_join `test`.`t1` `t2` where (((`test`.`t1`.`b3` = 1) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (1,2,3)) and (`test`.`t2`.`b3` between 1 and 5) and (`test`.`t2`.`c3` > 1)) or ((`test`.`t1`.`b3` = 2) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (10,20,30)) and (`test`.`t2`.`b3` between 1 and 10) and (`test`.`t2`.`c3` > 2)) or ((`test`.`t1`.`b3` = 3) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (100,200,300)) and (`test`.`t2`.`b3` between 1 and 15) and (`test`.`t2`.`c3` > 3)))
+drop table t1;

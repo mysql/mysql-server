@@ -5249,28 +5249,15 @@ class handler {
       passed condition.
 
     @note
-    The pushed conditions form a stack (from which one can remove the
-    last pushed condition using cond_pop).
-    The table handler filters out rows using (pushed_cond1 AND pushed_cond2
-    AND ... AND pushed_condN)
-    or less restrictive condition, depending on handler's capabilities.
-
-    handler->ha_reset() call empties the condition stack.
+    handler->ha_reset() call discard any pushed conditions.
     Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
-    condition stack.
+    pushed conditions.
   */
   virtual const Item *cond_push(const Item *cond,
                                 bool other_tbls_ok MY_ATTRIBUTE((unused))) {
     DBUG_ASSERT(pushed_cond == NULL);
     return cond;
   }
-
-  /**
-    Pop the top condition from the condition stack of the handler instance.
-
-    Pops the top if condition stack, if stack is not empty.
-  */
-  virtual void cond_pop() { return; }
 
   /**
     Push down an index condition to the handler.
