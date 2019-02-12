@@ -1327,6 +1327,7 @@ class Item_date_add_interval final : public Item_temporal_hybrid_func {
         int_type(type_arg),
         date_sub_interval(neg_arg) {}
   const char *func_name() const override { return "date_add_interval"; }
+  enum Functype functype() const override { return DATEADD_FUNC; }
   bool resolve_type(THD *) override;
   bool eq(const Item *item, bool binary_cmp) const override;
   void print(const THD *thd, String *str,

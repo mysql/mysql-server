@@ -198,6 +198,7 @@ class Item_func : public Item_result_field {
     MICROSECOND_FUNC,
     WEEK_FUNC,
     WEEKDAY_FUNC,
+    DATEADD_FUNC,
     DATETIME_LITERAL,
     GREATEST_FUNC,
     LEAST_FUNC
