@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1089,6 +1089,9 @@ public:
 
     PatternStore::Head m_keyPattern;
     PatternStore::Head m_attrParamPattern;
+
+    // Memory Arena with lifetime limited to current result batch / node
+    ArenaHead m_batchArena;
 
     /**
      * Rows buffered by this node

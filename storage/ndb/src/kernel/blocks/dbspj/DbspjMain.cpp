@@ -2964,14 +2964,17 @@ Dbspj::cleanupBatch(Ptr<Request> requestPtr)
       jam();
       /**
        * Common TreeNode cleanup:
-       * Release list of deferred operations which may refer 
-       * buffered rows released above.
+       * Deferred operations will have correlation ids which may refer
+       * buffered rows released above. These are allocated in
+       * the m_batchArena released below.
+       * As an optimization we do not explicitly 'release()' these
+       * correlation id's:
+       *  - There could easily be some hundreds of them, released
+       *    one by one in loop.
+       *  - At the innermost level the release() is more or less a NOOP
+       *    as Arena allocated memory cant be released for reuse.
        */
-      LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-      {
-        Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
-        correlations.release();
-      }
+      m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
       treeNodePtr.p->m_deferred.init();
 
       /**
@@ -3419,6 +3422,8 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
 {
   jam();
 
+  // Release TreeNode object allocated in the Request 'global' m_arena.
+  // (Actualy obsolete by entire Request::m_arena released later)
   LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
   {
     Local_dependency_map list(pool, treeNodePtr.p->m_child_nodes);
@@ -3435,10 +3440,9 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     pattern.release();
   }
 
-  {
-    Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
-    correlations.release();
-  }
+  // Correlation ids for deferred operations are allocated in the batch specific
+  // arena. It is sufficient to release entire memory arena.
+  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
 
   if (treeNodePtr.p->m_send.m_keyInfoPtrI != RNIL)
   {
@@ -4746,6 +4750,7 @@ Dbspj::common_execTRANSID_AI(Signal* signal,
         {
           // Need an own scope for correlation_list, as ::lookup_abort() will also
           // construct such a list. Such nested usage is not allowed.
+          LocalArenaPool<DataBufferSegment<14> > pool(nextTreeNodePtr.p->m_batchArena, m_dependency_map_pool);
           Local_correlation_list correlations(pool, nextTreeNodePtr.p->m_deferred.m_correlations);
           appended = correlations.append(&rowRef.m_src_correlation, 1);
         }
@@ -5597,7 +5602,7 @@ Dbspj::lookup_resume(Signal* signal,
  
   Uint32 corrVal;
   {
-    LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
+    LocalArenaPool<DataBufferSegment<14> > pool(treeNodePtr.p->m_batchArena, m_dependency_map_pool);
     Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
 
     Local_correlation_list::DataBufferIterator it;
@@ -5868,13 +5873,9 @@ Dbspj::lookup_abort(Signal* signal,
                     Ptr<TreeNode> treeNodePtr)
 {
   jam();
-
-  // Discard all deferred operations
-  LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena, m_dependency_map_pool);
-  {
-    Local_correlation_list correlations(pool, treeNodePtr.p->m_deferred.m_correlations);
-    correlations.release();
-  }
+  // Correlation ids for deferred operations are allocated in the batch specific
+  // arena. It is sufficient to release entire memory arena.
+  m_arenaAllocator.release(treeNodePtr.p->m_batchArena);
   treeNodePtr.p->m_deferred.init();
 }
 
