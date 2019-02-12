@@ -2419,7 +2419,7 @@ bool Item_extract::eq(const Item *item, bool binary_cmp) const {
   return true;
 }
 
-void Item_datetime_typecast::print(const THD *thd, String *str,
+void Item_typecast_datetime::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2429,7 +2429,7 @@ void Item_datetime_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
+bool Item_typecast_datetime::get_date(MYSQL_TIME *ltime,
                                       my_time_flags_t fuzzy_date) {
   my_time_flags_t flags = fuzzy_date | TIME_NO_DATE_FRAC_WARN;
   if (current_thd->is_fsp_truncate_mode()) flags |= TIME_FRAC_TRUNCATE;
@@ -2444,7 +2444,7 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime,
                                       current_thd->is_fsp_truncate_mode())));
 }
 
-void Item_time_typecast::print(const THD *thd, String *str,
+void Item_typecast_time::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2454,7 +2454,7 @@ void Item_time_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_time_typecast::get_time(MYSQL_TIME *ltime) {
+bool Item_typecast_time::get_time(MYSQL_TIME *ltime) {
   if (get_arg0_time(ltime)) return true;
   my_time_adjust_frac(ltime, decimals, current_thd->is_fsp_truncate_mode());
 
@@ -2466,7 +2466,7 @@ bool Item_time_typecast::get_time(MYSQL_TIME *ltime) {
   return false;
 }
 
-void Item_date_typecast::print(const THD *thd, String *str,
+void Item_typecast_date::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -2475,7 +2475,7 @@ void Item_date_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-bool Item_date_typecast::get_date(MYSQL_TIME *ltime,
+bool Item_typecast_date::get_date(MYSQL_TIME *ltime,
                                   my_time_flags_t fuzzy_date) {
   bool res = get_arg0_date(ltime, fuzzy_date | TIME_NO_DATE_FRAC_WARN);
   ltime->hour = ltime->minute = ltime->second = ltime->second_part = 0;

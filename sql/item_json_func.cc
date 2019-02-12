@@ -1431,7 +1431,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
   return false;
 }
 
-bool Item_json_typecast::val_json(Json_wrapper *wr) {
+bool Item_typecast_json::val_json(Json_wrapper *wr) {
   DBUG_ASSERT(fixed == 1);
 
   Json_dom_ptr dom;  //@< if non-null we want a DOM from parse
@@ -1475,7 +1475,7 @@ bool Item_json_typecast::val_json(Json_wrapper *wr) {
   return false;
 }
 
-void Item_json_typecast::print(const THD *thd, String *str,
+void Item_typecast_json::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);

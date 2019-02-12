@@ -1527,7 +1527,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <c_str> field_length opt_field_length type_datetime_precision
         opt_place
 
-%type <precision> precision opt_precision float_options
+%type <precision> precision opt_precision float_options standard_float_options
 
 %type <charset_with_opt_binary> opt_charset_with_opt_binary
 
@@ -6541,6 +6541,19 @@ numeric_type:
         | FIXED_SYM   { $$= Numeric_type::DECIMAL; }
         ;
 
+standard_float_options:
+          /* empty */
+          {
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | field_length
+          {
+            $$.length = $1;
+            $$.dec = nullptr;
+          }
+        ;
+
 float_options:
           /* empty */
           {
@@ -9639,7 +9652,7 @@ function_call_keyword:
           }
         | DATE_SYM '(' expr ')'
           {
-            $$= NEW_PTN Item_date_typecast(@$, $3);
+            $$= NEW_PTN Item_typecast_date(@$, $3);
           }
         | DAY_SYM '(' expr ')'
           {
@@ -9683,11 +9696,11 @@ function_call_keyword:
           }
         | TIME_SYM '(' expr ')'
           {
-            $$= NEW_PTN Item_time_typecast(@$, $3);
+            $$= NEW_PTN Item_typecast_time(@$, $3);
           }
         | TIMESTAMP_SYM '(' expr ')'
           {
-            $$= NEW_PTN Item_datetime_typecast(@$, $3);
+            $$= NEW_PTN Item_typecast_datetime(@$, $3);
           }
         | TIMESTAMP_SYM '(' expr ',' expr ')'
           {
@@ -10654,6 +10667,21 @@ cast_type:
             $$.charset= NULL;
             $$.length= NULL;
             $$.dec= NULL;
+          }
+        | real_type
+          {
+            $$.target = ($1 == Numeric_type::DOUBLE) ?
+              ITEM_CAST_DOUBLE : ITEM_CAST_FLOAT;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | FLOAT_SYM standard_float_options
+          {
+            $$.target = ITEM_CAST_FLOAT;
+            $$.charset = nullptr;
+            $$.length = $2.length;
+            $$.dec = nullptr;
           }
         ;
 

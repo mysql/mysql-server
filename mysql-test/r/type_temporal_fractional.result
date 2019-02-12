@@ -5114,7 +5114,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
-# Testing Item_time_typecast::val_str
+# Testing Item_typecast_time::val_str
 #
 SELECT CONCAT(CAST(a AS TIME(0))), CONCAT(CAST(b AS TIME(0))) FROM t1;
 CONCAT(CAST(a AS TIME(0)))	CONCAT(CAST(b AS TIME(0)))
@@ -5126,7 +5126,7 @@ SELECT CONCAT(CAST(a AS TIME)), CONCAT(CAST(b AS TIME)) FROM t1;
 CONCAT(CAST(a AS TIME))	CONCAT(CAST(b AS TIME))
 11:22:33	11:22:33
 #
-# Testing Item_time_typecast::get_time
+# Testing Item_typecast_time::get_time
 #
 SELECT CAST(a AS TIME(0)), CAST(b AS TIME(0)) FROM t1;
 CAST(a AS TIME(0))	CAST(b AS TIME(0))
@@ -5139,13 +5139,13 @@ CAST(a AS TIME)	CAST(b AS TIME)
 11:22:33	11:22:33
 DROP TABLE t1;
 #
-# Testing Item_time_typecast::val_int
+# Testing Item_typecast_time::val_int
 #
 SELECT CAST('10:11:12' AS TIME(0)) + 1;
 CAST('10:11:12' AS TIME(0)) + 1
 101113
 #
-# Testing Item_time_typecast::val_decimal
+# Testing Item_typecast_time::val_decimal
 #
 SELECT CAST('10:11:12' AS TIME(6)) + 1;
 CAST('10:11:12' AS TIME(6)) + 1
@@ -5257,7 +5257,7 @@ SELECT CAST(101112.123e0 AS TIME(0)) = 101112;
 CAST(101112.123e0 AS TIME(0)) = 101112
 1
 #
-# Testing Item_time_typecast::val_int_packed()
+# Testing Item_typecast_time::val_int_packed()
 #
 CREATE TABLE t1 (a TIME, b TIME(6));
 INSERT INTO t1 VALUES ('24:00:00', '24:00:00.123456');
@@ -10084,7 +10084,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 #
-# Testing Item_datetime_typecast::val_str
+# Testing Item_typecast_datetime::val_str
 #
 SELECT CONCAT(CAST(a AS DATETIME(0))), CONCAT(CAST(b AS DATETIME(0))) FROM t1;
 CONCAT(CAST(a AS DATETIME(0)))	CONCAT(CAST(b AS DATETIME(0)))
@@ -10096,7 +10096,7 @@ SELECT CONCAT(CAST(a AS DATETIME)), CONCAT(CAST(b AS DATETIME)) FROM t1;
 CONCAT(CAST(a AS DATETIME))	CONCAT(CAST(b AS DATETIME))
 2001-01-01 11:22:33	2001-01-01 11:22:33
 #
-# Testing Item_datetime_typecast::get_time
+# Testing Item_typecast_datetime::get_time
 #
 SELECT CAST(a AS DATETIME(0)), CAST(b AS DATETIME(0)) FROM t1;
 CAST(a AS DATETIME(0))	CAST(b AS DATETIME(0))
@@ -10109,13 +10109,13 @@ CAST(a AS DATETIME)	CAST(b AS DATETIME)
 2001-01-01 11:22:33	2001-01-01 11:22:33
 DROP TABLE t1;
 #
-# Testing Item_datetime_typecast::val_int
+# Testing Item_typecast_datetime::val_int
 #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(0)) + 1;
 CAST('2001-01-01 10:11:12' AS DATETIME(0)) + 1
 20010101101113
 #
-# Testing Item_time_typecast::val_decimal
+# Testing Item_typecast_time::val_decimal
 #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(6)) + 1;
 CAST('2001-01-01 10:11:12' AS DATETIME(6)) + 1
@@ -10193,7 +10193,7 @@ SELECT CAST(00010101101112.123e0 AS DATETIME(0))      = 20010101101112;
 CAST(00010101101112.123e0 AS DATETIME(0))      = 20010101101112
 1
 #
-# Testing Item_time_typecast::val_int_packed()
+# Testing Item_typecast_time::val_int_packed()
 #
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('2001-01-01 23:00:00', '2001-01-01 23:00:00.123456');

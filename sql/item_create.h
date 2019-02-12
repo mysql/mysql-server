@@ -51,7 +51,6 @@ enum enum_field_types : int;
 /* For type casts */
 
 enum Cast_target {
-  ITEM_CAST_BINARY,
   ITEM_CAST_SIGNED_INT,
   ITEM_CAST_UNSIGNED_INT,
   ITEM_CAST_DATE,
@@ -59,7 +58,9 @@ enum Cast_target {
   ITEM_CAST_DATETIME,
   ITEM_CAST_CHAR,
   ITEM_CAST_DECIMAL,
-  ITEM_CAST_JSON
+  ITEM_CAST_JSON,
+  ITEM_CAST_FLOAT,
+  ITEM_CAST_DOUBLE,
 };
 
 /**

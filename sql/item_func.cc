@@ -37,6 +37,7 @@
 #include <climits>
 #include <cmath>  // std::log2
 #include <iosfwd>
+#include <limits>  // std::numeric_limits
 #include <memory>
 #include <new>
 #include <string>
@@ -524,8 +525,15 @@ Field *Item_func::tmp_table_field(TABLE *table) {
             Field_long(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
     case REAL_RESULT:
-      field = new (*THR_MALLOC) Field_double(max_char_length(), maybe_null,
-                                             item_name.ptr(), decimals);
+      if (this->data_type() == MYSQL_TYPE_FLOAT) {
+        field = new (*THR_MALLOC)
+            Field_float(max_char_length(), maybe_null, item_name.ptr(),
+                        decimals, unsigned_flag);
+      } else {
+        field = new (*THR_MALLOC)
+            Field_double(max_char_length(), maybe_null, item_name.ptr(),
+                         decimals, unsigned_flag);
+      }
       break;
     case STRING_RESULT:
       return make_string_field(table);
@@ -1317,20 +1325,20 @@ bool Item_func_numhybrid::get_time(MYSQL_TIME *ltime) {
   }
 }
 
-void Item_func_signed::print(const THD *thd, String *str,
-                             enum_query_type query_type) const {
+void Item_typecast_signed::print(const THD *thd, String *str,
+                                 enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 }
 
-bool Item_func_signed::resolve_type(THD *) {
+bool Item_typecast_signed::resolve_type(THD *) {
   fix_char_length(std::min<uint32>(args[0]->max_char_length(),
                                    MY_INT64_NUM_DECIMAL_DIGITS));
   return reject_geometry_args(arg_count, args, this);
 }
 
-longlong Item_func_signed::val_int_from_str(int *error) {
+longlong Item_typecast_signed::val_int_from_str(int *error) {
   char buff[MAX_FIELD_WIDTH], *start;
   size_t length;
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
@@ -1363,7 +1371,7 @@ longlong Item_func_signed::val_int_from_str(int *error) {
   return value;
 }
 
-longlong Item_func_signed::val_int() {
+longlong Item_typecast_signed::val_int() {
   longlong value;
   int error;
 
@@ -1382,14 +1390,14 @@ longlong Item_func_signed::val_int() {
   return value;
 }
 
-void Item_func_unsigned::print(const THD *thd, String *str,
-                               enum_query_type query_type) const {
+void Item_typecast_unsigned::print(const THD *thd, String *str,
+                                   enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as unsigned)"));
 }
 
-longlong Item_func_unsigned::val_int() {
+longlong Item_typecast_unsigned::val_int() {
   longlong value;
   int error;
 
@@ -1415,14 +1423,14 @@ longlong Item_func_unsigned::val_int() {
   return value;
 }
 
-String *Item_decimal_typecast::val_str(String *str) {
+String *Item_typecast_decimal::val_str(String *str) {
   my_decimal tmp_buf, *tmp = val_decimal(&tmp_buf);
   if (null_value) return NULL;
   my_decimal2string(E_DEC_FATAL_ERROR, tmp, 0, 0, 0, str);
   return str;
 }
 
-double Item_decimal_typecast::val_real() {
+double Item_typecast_decimal::val_real() {
   my_decimal tmp_buf, *tmp = val_decimal(&tmp_buf);
   double res;
   if (null_value) return 0.0;
@@ -1430,7 +1438,7 @@ double Item_decimal_typecast::val_real() {
   return res;
 }
 
-longlong Item_decimal_typecast::val_int() {
+longlong Item_typecast_decimal::val_int() {
   my_decimal tmp_buf, *tmp = val_decimal(&tmp_buf);
   longlong res;
   if (null_value) return 0;
@@ -1438,7 +1446,7 @@ longlong Item_decimal_typecast::val_int() {
   return res;
 }
 
-my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec) {
+my_decimal *Item_typecast_decimal::val_decimal(my_decimal *dec) {
   my_decimal tmp_buf, *tmp = args[0]->val_decimal(&tmp_buf);
   bool sign;
   uint precision;
@@ -1468,7 +1476,7 @@ err:
   return dec;
 }
 
-void Item_decimal_typecast::print(const THD *thd, String *str,
+void Item_typecast_decimal::print(const THD *thd, String *str,
                                   enum_query_type query_type) const {
   char len_buf[20 * 3 + 1];
   char *end;
@@ -1489,6 +1497,66 @@ void Item_decimal_typecast::print(const THD *thd, String *str,
 
   str->append(')');
   str->append(')');
+}
+
+String *Item_typecast_real::val_str(String *str) {
+  double res = val_real();
+  if (null_value) return nullptr;
+
+  str->set_real(res, decimals, collation.collation);
+  return str;
+}
+
+double Item_typecast_real::val_real() {
+  double res = args[0]->val_real();
+  null_value = args[0]->null_value;
+  if (null_value) return 0.0;
+  if (data_type() == MYSQL_TYPE_FLOAT &&
+      res > std::numeric_limits<float>::max())
+    return raise_float_overflow();
+  return check_float_overflow(res);
+}
+
+longlong Item_typecast_real::val_int() {
+  double res = val_real();
+  if (null_value) return 0;
+
+  if (unsigned_flag) {
+    if (res < 0 || res >= (double)ULLONG_MAX) {
+      return raise_integer_overflow();
+    } else
+      return (longlong)double2ulonglong(res);
+  } else {
+    if (res <= (double)LLONG_MIN || res > (double)LLONG_MAX) {
+      return raise_integer_overflow();
+    } else
+      return (longlong)res;
+  }
+}
+
+bool Item_typecast_real::get_date(MYSQL_TIME *ltime,
+                                  my_time_flags_t fuzzydate) {
+  return my_double_to_datetime_with_warn(val_real(), ltime, fuzzydate);
+}
+
+bool Item_typecast_real::get_time(MYSQL_TIME *ltime) {
+  return my_double_to_time_with_warn(val_real(), ltime);
+}
+
+my_decimal *Item_typecast_real::val_decimal(my_decimal *decimal_value) {
+  double result = val_real();
+  if (null_value) return nullptr;
+  double2my_decimal(E_DEC_FATAL_ERROR, result, decimal_value);
+
+  return decimal_value;
+}
+
+void Item_typecast_real::print(const THD *thd, String *str,
+                               enum_query_type query_type) const {
+  str->append(STRING_WITH_LEN("cast("));
+  args[0]->print(thd, str, query_type);
+  str->append(STRING_WITH_LEN(" as "));
+  str->append((data_type() == MYSQL_TYPE_FLOAT) ? "float)" : "double)");
 }
 
 double Item_func_plus::real_op() {

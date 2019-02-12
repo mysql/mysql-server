@@ -924,16 +924,16 @@ class Item_func_like_range_max final : public Item_func_like_range {
 };
 #endif
 
-class Item_char_typecast final : public Item_str_func {
+class Item_typecast_char final : public Item_str_func {
   longlong cast_length;
   const CHARSET_INFO *cast_cs, *from_cs;
   bool charset_conversion;
   String tmp_value;
 
  public:
-  Item_char_typecast(Item *a, longlong length_arg, const CHARSET_INFO *cs_arg)
+  Item_typecast_char(Item *a, longlong length_arg, const CHARSET_INFO *cs_arg)
       : Item_str_func(a), cast_length(length_arg), cast_cs(cs_arg) {}
-  Item_char_typecast(const POS &pos, Item *a, longlong length_arg,
+  Item_typecast_char(const POS &pos, Item *a, longlong length_arg,
                      const CHARSET_INFO *cs_arg)
       : Item_str_func(pos, a), cast_length(length_arg), cast_cs(cs_arg) {}
   enum Functype functype() const override { return TYPECAST_FUNC; }
@@ -943,27 +943,6 @@ class Item_char_typecast final : public Item_str_func {
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-};
-
-class Item_func_binary final : public Item_str_func {
- public:
-  Item_func_binary(const POS &pos, Item *a) : Item_str_func(pos, a) {}
-  String *val_str(String *a) override {
-    DBUG_ASSERT(fixed == 1);
-    String *tmp = args[0]->val_str(a);
-    null_value = args[0]->null_value;
-    if (tmp) tmp->set_charset(&my_charset_bin);
-    return tmp;
-  }
-  bool resolve_type(THD *) override {
-    // Determine binary string length from max length of argument in bytes
-    set_data_type_string(args[0]->max_length, &my_charset_bin);
-    return false;
-  }
-  void print(const THD *thd, String *str,
-             enum_query_type query_type) const override;
-  const char *func_name() const override { return "cast_as_binary"; }
-  enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
 class Item_load_file final : public Item_str_func {

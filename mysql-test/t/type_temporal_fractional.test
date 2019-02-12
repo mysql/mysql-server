@@ -1736,14 +1736,14 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
 --echo #
---echo # Testing Item_time_typecast::val_str
+--echo # Testing Item_typecast_time::val_str
 --echo #
 SELECT CONCAT(CAST(a AS TIME(0))), CONCAT(CAST(b AS TIME(0))) FROM t1;
 SELECT CONCAT(CAST(a AS TIME(6))), CONCAT(CAST(b AS TIME(6))) FROM t1;
 SELECT CONCAT(CAST(a AS TIME)), CONCAT(CAST(b AS TIME)) FROM t1;
 
 --echo #
---echo # Testing Item_time_typecast::get_time
+--echo # Testing Item_typecast_time::get_time
 --echo #
 SELECT CAST(a AS TIME(0)), CAST(b AS TIME(0)) FROM t1;
 SELECT CAST(a AS TIME(6)), CAST(b AS TIME(6)) FROM t1;
@@ -1751,12 +1751,12 @@ SELECT CAST(a AS TIME), CAST(b AS TIME) FROM t1;
 DROP TABLE t1;
 
 --echo #
---echo # Testing Item_time_typecast::val_int
+--echo # Testing Item_typecast_time::val_int
 --echo #
 SELECT CAST('10:11:12' AS TIME(0)) + 1;
 
 --echo #
---echo # Testing Item_time_typecast::val_decimal
+--echo # Testing Item_typecast_time::val_decimal
 --echo #
 SELECT CAST('10:11:12' AS TIME(6)) + 1;
 
@@ -1822,7 +1822,7 @@ SELECT CAST(101112.123 AS TIME(0)) = 101112;
 SELECT CAST(101112.123e0 AS TIME(0)) = 101112;
 
 --echo #
---echo # Testing Item_time_typecast::val_int_packed()
+--echo # Testing Item_typecast_time::val_int_packed()
 --echo #
 CREATE TABLE t1 (a TIME, b TIME(6));
 INSERT INTO t1 VALUES ('24:00:00', '24:00:00.123456');
@@ -3712,14 +3712,14 @@ SHOW CREATE TABLE t2;
 DROP TABLE t2;
 
 --echo #
---echo # Testing Item_datetime_typecast::val_str
+--echo # Testing Item_typecast_datetime::val_str
 --echo #
 SELECT CONCAT(CAST(a AS DATETIME(0))), CONCAT(CAST(b AS DATETIME(0))) FROM t1;
 SELECT CONCAT(CAST(a AS DATETIME(6))), CONCAT(CAST(b AS DATETIME(6))) FROM t1;
 SELECT CONCAT(CAST(a AS DATETIME)), CONCAT(CAST(b AS DATETIME)) FROM t1;
 
 --echo #
---echo # Testing Item_datetime_typecast::get_time
+--echo # Testing Item_typecast_datetime::get_time
 --echo #
 SELECT CAST(a AS DATETIME(0)), CAST(b AS DATETIME(0)) FROM t1;
 SELECT CAST(a AS DATETIME(6)), CAST(b AS DATETIME(6)) FROM t1;
@@ -3727,12 +3727,12 @@ SELECT CAST(a AS DATETIME), CAST(b AS DATETIME) FROM t1;
 DROP TABLE t1;
 
 --echo #
---echo # Testing Item_datetime_typecast::val_int
+--echo # Testing Item_typecast_datetime::val_int
 --echo #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(0)) + 1;
 
 --echo #
---echo # Testing Item_time_typecast::val_decimal
+--echo # Testing Item_typecast_time::val_decimal
 --echo #
 SELECT CAST('2001-01-01 10:11:12' AS DATETIME(6)) + 1;
 
@@ -3777,7 +3777,7 @@ SELECT CAST(20010101101112.123 AS DATETIME(0))        = 20010101101112;
 SELECT CAST(00010101101112.123e0 AS DATETIME(0))      = 20010101101112;
 
 --echo #
---echo # Testing Item_time_typecast::val_int_packed()
+--echo # Testing Item_typecast_time::val_int_packed()
 --echo #
 CREATE TABLE t1 (a DATETIME, b DATETIME(6));
 INSERT INTO t1 VALUES ('2001-01-01 23:00:00', '2001-01-01 23:00:00.123456');

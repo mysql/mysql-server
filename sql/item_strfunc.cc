@@ -2699,7 +2699,7 @@ String *Item_func_lpad::val_str(String *str) {
   }
 
   if (!res || !pad) {
-    /* purecov: begind deadcode */
+    /* purecov: begin deadcode */
     DBUG_ASSERT(false);
     null_value = true;
     return nullptr;
@@ -2975,7 +2975,7 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res) {
   if (as_binary) {
     if (args[0]->itemize(pc, &args[0])) return true;
     args[0] = new (pc->mem_root)
-        Item_char_typecast(args[0], num_codepoints, &my_charset_bin);
+        Item_typecast_char(args[0], num_codepoints, &my_charset_bin);
     if (args[0] == NULL) return true;
   }
   return super::itemize(pc, res);
@@ -3217,7 +3217,7 @@ err:
 }
 #endif
 
-bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const {
+bool Item_typecast_char::eq(const Item *item, bool binary_cmp) const {
   if (this == item) return true;
   if (item->type() != FUNC_ITEM) return false;
 
@@ -3226,7 +3226,7 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const {
       strcmp(func_name(), func_item->func_name()))
     return false;
 
-  const Item_char_typecast *cast = down_cast<const Item_char_typecast *>(item);
+  const Item_typecast_char *cast = down_cast<const Item_typecast_char *>(item);
   if (cast_length != cast->cast_length || cast_cs != cast->cast_cs)
     return false;
 
@@ -3234,7 +3234,7 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const {
   return true;
 }
 
-void Item_char_typecast::print(const THD *thd, String *str,
+void Item_typecast_char::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("cast("));
   args[0]->print(thd, str, query_type);
@@ -3247,7 +3247,7 @@ void Item_char_typecast::print(const THD *thd, String *str,
   str->append(')');
 }
 
-String *Item_char_typecast::val_str(String *str) {
+String *Item_typecast_char::val_str(String *str) {
   DBUG_ASSERT(fixed);
   THD *thd = current_thd;
   uint32 length;
@@ -3318,7 +3318,7 @@ String *Item_char_typecast::val_str(String *str) {
   return res;
 }
 
-bool Item_char_typecast::resolve_type(THD *thd) {
+bool Item_typecast_char::resolve_type(THD *thd) {
   /*
     If we convert between two ASCII compatible character sets and the
     argument repertoire is MY_REPERTOIRE_ASCII then from_cs is set to cast_cs.
@@ -3351,13 +3351,6 @@ bool Item_char_typecast::resolve_type(THD *thd) {
       (!my_charset_same(from_cs, cast_cs) && from_cs != &my_charset_bin &&
        cast_cs != &my_charset_bin);
   return false;
-}
-
-void Item_func_binary::print(const THD *thd, String *str,
-                             enum_query_type query_type) const {
-  str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(thd, str, query_type);
-  str->append(STRING_WITH_LEN(" as binary)"));
 }
 
 bool Item_load_file::itemize(Parse_context *pc, Item **res) {

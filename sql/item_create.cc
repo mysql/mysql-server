@@ -1765,39 +1765,37 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
 
 Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                        const Cast_type *type) {
-  if (a == NULL) return NULL;  // earlier syntax error detected
+  // earlier syntax error detected
+  if (a == nullptr) return nullptr;
 
   const Cast_target cast_type = type->target;
   const char *c_len = type->length;
   const char *c_dec = type->dec;
 
-  Item *res = NULL;
+  Item *res = nullptr;
 
   switch (cast_type) {
-    case ITEM_CAST_BINARY:
-      res = new (thd->mem_root) Item_func_binary(pos, a);
-      break;
     case ITEM_CAST_SIGNED_INT:
-      res = new (thd->mem_root) Item_func_signed(pos, a);
+      res = new (thd->mem_root) Item_typecast_signed(pos, a);
       break;
     case ITEM_CAST_UNSIGNED_INT:
-      res = new (thd->mem_root) Item_func_unsigned(pos, a);
+      res = new (thd->mem_root) Item_typecast_unsigned(pos, a);
       break;
     case ITEM_CAST_DATE:
-      res = new (thd->mem_root) Item_date_typecast(pos, a);
+      res = new (thd->mem_root) Item_typecast_date(pos, a);
       break;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
-      uint dec = c_dec ? strtoul(c_dec, NULL, 10) : 0;
+      uint dec = c_dec ? strtoul(c_dec, nullptr, 10) : 0;
       if (dec > DATETIME_MAX_DECIMALS) {
         my_error(ER_TOO_BIG_PRECISION, MYF(0), (int)dec, "CAST",
                  DATETIME_MAX_DECIMALS);
-        return 0;
+        return nullptr;
       }
       res = (cast_type == ITEM_CAST_TIME)
-                ? (Item *)new (thd->mem_root) Item_time_typecast(pos, a, dec)
+                ? (Item *)new (thd->mem_root) Item_typecast_time(pos, a, dec)
                 : (Item *)new (thd->mem_root)
-                      Item_datetime_typecast(pos, a, dec);
+                      Item_typecast_datetime(pos, a, dec);
       break;
     }
     case ITEM_CAST_DECIMAL: {
@@ -1850,7 +1848,7 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                  static_cast<ulong>(DECIMAL_MAX_SCALE));
         return 0;
       }
-      res = new (thd->mem_root) Item_decimal_typecast(pos, a, len, dec);
+      res = new (thd->mem_root) Item_typecast_decimal(pos, a, len, dec);
       break;
     }
     case ITEM_CAST_CHAR: {
@@ -1860,24 +1858,48 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
           (cs ? cs : thd->variables.collation_connection);
       if (c_len) {
         int error;
-        len = my_strtoll10(c_len, NULL, &error);
+        len = my_strtoll10(c_len, nullptr, &error);
         if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH)) {
           my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char",
                    MAX_FIELD_BLOBLENGTH);
           return nullptr;
         }
       }
-      res = new (thd->mem_root) Item_char_typecast(POS(), a, len, real_cs);
+      res = new (thd->mem_root) Item_typecast_char(POS(), a, len, real_cs);
       break;
     }
     case ITEM_CAST_JSON: {
-      res = new (thd->mem_root) Item_json_typecast(thd, pos, a);
+      res = new (thd->mem_root) Item_typecast_json(thd, pos, a);
 
+      break;
+    }
+    case ITEM_CAST_FLOAT: {
+      bool as_double = false;
+      // Check if binary precision is specified
+      if (c_len != nullptr) {
+        ulong decoded_size;
+        errno = 0;
+        decoded_size = strtoul(c_len, nullptr, 10);
+        if (errno != 0 || decoded_size > PRECISION_FOR_DOUBLE) {
+          my_error(ER_TOO_BIG_PRECISION, MYF(0), decoded_size, "CAST",
+                   PRECISION_FOR_DOUBLE);
+          return nullptr;
+        }
+        // Make the cast to DOUBLE
+        if (decoded_size > PRECISION_FOR_FLOAT) {
+          as_double = true;
+        }
+      }
+
+      res = new (thd->mem_root) Item_typecast_real(pos, a, as_double);
+      break;
+    }
+    case ITEM_CAST_DOUBLE: {
+      res = new (thd->mem_root) Item_typecast_real(pos, a, /*as_double*/ true);
       break;
     }
     default: {
       DBUG_ASSERT(0);
-      res = 0;
       break;
     }
   }

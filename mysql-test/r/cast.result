@@ -598,3 +598,101 @@ c5
 2
 3
 DROP TABLE t;
+#
+# CAST as DOUBLE/FLOAT/REAL
+#
+SELECT CAST(1/3 AS FLOAT) as float_col,
+CAST(1/3 AS DOUBLE) as double_col,
+CAST(1/3 AS DOUBLE PRECISION) as double_prec_col,
+CAST(1/3 AS REAL) as real_col;
+float_col	double_col	double_prec_col	real_col
+0.3333333432674408	0.333333333	0.333333333	0.333333333
+SELECT CAST(1/3 AS FLOAT(10)), CAST(1/3 AS FLOAT(53));
+CAST(1/3 AS FLOAT(10))	CAST(1/3 AS FLOAT(53))
+0.3333333432674408	0.333333333
+SELECT CAST(1/3 AS FLOAT(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+SELECT CAST(1/3 AS FLOAT(54));
+ERROR 42000: Too-big precision 54 specified for 'CAST'. Maximum is 53.
+SELECT CAST(1/3 AS DOUBLE(52));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(52))' at line 1
+SELECT CAST(1/3 AS REAL(34));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(34))' at line 1
+SELECT CAST(999.00009 AS FLOAT(7,4)) as float_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',4)) as float_col' at line 1
+SELECT CAST(999.00009 AS DOUBLE(7,4)) as double_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(7,4)) as double_col' at line 1
+SELECT CAST(999.00009 AS REAL(7,4)) as real_col;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(7,4)) as real_col' at line 1
+SELECT ADDDATE(CAST("20010101235959.9" AS DOUBLE), INTERVAL 1 DAY);
+ADDDATE(CAST("20010101235959.9" AS DOUBLE), INTERVAL 1 DAY)
+2001-01-02 23:59:59.898438
+SELECT TIMEDIFF(CAST("101112" AS DOUBLE), TIME'101010');
+TIMEDIFF(CAST("101112" AS DOUBLE), TIME'101010')
+00:01:02.000000
+SELECT CAST(DATE'2000-01-01' AS FLOAT), CAST(DATE'2000-01-01' AS DOUBLE);
+CAST(DATE'2000-01-01' AS FLOAT)	CAST(DATE'2000-01-01' AS DOUBLE)
+20000100	20000101
+SELECT CAST(TIME'23:59:59' AS FLOAT), CAST(TIME'23:59:59' AS DOUBLE);
+CAST(TIME'23:59:59' AS FLOAT)	CAST(TIME'23:59:59' AS DOUBLE)
+235959	235959
+SELECT CAST(TIME'23:59:59.123456' AS FLOAT),
+CAST(TIME'23:59:59.123456' AS DOUBLE);
+CAST(TIME'23:59:59.123456' AS FLOAT)	CAST(TIME'23:59:59.123456' AS DOUBLE)
+235959.125	235959.123456
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59' AS FLOAT),
+CAST(TIMESTAMP'2000-01-01 23:59:59' AS DOUBLE);
+CAST(TIMESTAMP'2000-01-01 23:59:59' AS FLOAT)	CAST(TIMESTAMP'2000-01-01 23:59:59' AS DOUBLE)
+20000100319232	20000101235959
+SELECT CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS FLOAT),
+CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS DOUBLE);
+CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS FLOAT)	CAST(TIMESTAMP'2000-01-01 23:59:59.123456' AS DOUBLE)
+20000100319232	20000101235959.125
+CREATE TABLE t1 as SELECT CAST(1/3 AS FLOAT) as float_col,
+CAST(1/3 AS DOUBLE) as double_col,
+CAST(CAST(999.00009 AS DECIMAL(7,4)) AS DOUBLE) as d2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `float_col` float DEFAULT NULL,
+  `double_col` double DEFAULT NULL,
+  `d2` double NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+SELECT PERIOD_ADD(200905, CAST(3.14e19 AS DOUBLE));
+ERROR 22003: BIGINT value is out of range in 'cast(3.14e19 as double)'
+SELECT -1.0 *  CAST(3.14e19 AS DOUBLE);
+-1.0 *  CAST(3.14e19 AS DOUBLE)
+-3.14e19
+SELECT CAST("3.14e100" AS FLOAT);
+ERROR 22003: DOUBLE value is out of range in 'cast('3.14e100' as float)'
+SELECT CONCAT("value=", CAST("3.4e5" AS FLOAT));
+CONCAT("value=", CAST("3.4e5" AS FLOAT))
+value=340000
+CREATE VIEW v1 AS SELECT CAST(1/3 AS REAL), CAST(1/3 AS FLOAT(2)), CAST(1/3 AS FLOAT(50));
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast((1 / 3) as double) AS `CAST(1/3 AS REAL)`,cast((1 / 3) as float) AS `CAST(1/3 AS FLOAT(2))`,cast((1 / 3) as double) AS `CAST(1/3 AS FLOAT(50))`	latin1	latin1_swedish_ci
+DROP VIEW v1;
+SELECT CAST(NULL AS REAL), CAST(NULL AS FLOAT), CAST(NULL AS DOUBLE);
+CAST(NULL AS REAL)	CAST(NULL AS FLOAT)	CAST(NULL AS DOUBLE)
+NULL	NULL	NULL
+SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE=REAL_AS_FLOAT;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `CAST(34 AS REAL)` float NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+SET @@SQL_MODE=@OLD_SQL_MODE;
+CREATE TABLE t AS SELECT CAST(34 AS REAL);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `CAST(34 AS REAL)` double NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t;
+SELECT MAKETIME(1, 2, CAST("1.6" AS FLOAT));
+MAKETIME(1, 2, CAST("1.6" AS FLOAT))
+01:02:01.600000

@@ -908,9 +908,9 @@ class Item_func_connection_id final : public Item_int_func {
   }
 };
 
-class Item_func_signed : public Item_int_func {
+class Item_typecast_signed : public Item_int_func {
  public:
-  Item_func_signed(const POS &pos, Item *a) : Item_int_func(pos, a) {
+  Item_typecast_signed(const POS &pos, Item *a) : Item_int_func(pos, a) {
     unsigned_flag = false;
   }
   const char *func_name() const override { return "cast_as_signed"; }
@@ -925,10 +925,11 @@ class Item_func_signed : public Item_int_func {
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
-class Item_func_unsigned final : public Item_func_signed {
+class Item_typecast_unsigned final : public Item_typecast_signed {
  public:
-  Item_func_unsigned(const POS &pos, Item *a) : Item_func_signed(pos, a) {
-    unsigned_flag = 1;
+  Item_typecast_unsigned(const POS &pos, Item *a)
+      : Item_typecast_signed(pos, a) {
+    unsigned_flag = true;
   }
   const char *func_name() const override { return "cast_as_unsigned"; }
   longlong val_int() override;
@@ -937,11 +938,9 @@ class Item_func_unsigned final : public Item_func_signed {
   enum Functype functype() const override { return TYPECAST_FUNC; }
 };
 
-class Item_decimal_typecast final : public Item_func {
-  my_decimal decimal_value;
-
+class Item_typecast_decimal final : public Item_func {
  public:
-  Item_decimal_typecast(const POS &pos, Item *a, int len, int dec)
+  Item_typecast_decimal(const POS &pos, Item *a, int len, int dec)
       : Item_func(pos, a) {
     set_data_type_decimal(len, dec);
   }
@@ -957,7 +956,33 @@ class Item_decimal_typecast final : public Item_func {
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return DECIMAL_RESULT; }
   bool resolve_type(THD *) override { return false; }
-  const char *func_name() const override { return "decimal_typecast"; }
+  const char *func_name() const override { return "cast_as_decimal"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+};
+
+/**
+  Class used to implement CAST to floating-point data types.
+*/
+class Item_typecast_real final : public Item_func {
+ public:
+  Item_typecast_real(const POS &pos, Item *a, bool as_double)
+      : Item_func(pos, a) {
+    if (as_double)
+      set_data_type_double();
+    else
+      set_data_type_float();
+  }
+  String *val_str(String *str) override;
+  double val_real() override;
+  longlong val_int() override;
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
+  bool get_time(MYSQL_TIME *ltime) override;
+  my_decimal *val_decimal(my_decimal *decimal_value) override;
+  enum Item_result result_type() const override { return REAL_RESULT; }
+  bool resolve_type(THD *) override { return false; }
+  const char *func_name() const override { return "cast_as_real"; }
   enum Functype functype() const override { return TYPECAST_FUNC; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;

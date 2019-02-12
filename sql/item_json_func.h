@@ -385,9 +385,9 @@ class Item_func_json_type : public Item_str_func {
 /**
   Represents a "CAST( <value> AS JSON )" coercion.
 */
-class Item_json_typecast final : public Item_json_func {
+class Item_typecast_json final : public Item_json_func {
  public:
-  Item_json_typecast(THD *thd, const POS &pos, Item *a)
+  Item_typecast_json(THD *thd, const POS &pos, Item *a)
       : Item_json_func(thd, pos, a) {}
 
   void print(const THD *thd, String *str,

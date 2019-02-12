@@ -1386,10 +1386,10 @@ class Item_extract final : public Item_int_func {
   }
 };
 
-class Item_date_typecast final : public Item_date_func {
+class Item_typecast_date final : public Item_date_func {
  public:
-  Item_date_typecast(Item *a) : Item_date_func(a) { maybe_null = 1; }
-  Item_date_typecast(const POS &pos, Item *a) : Item_date_func(pos, a) {
+  Item_typecast_date(Item *a) : Item_date_func(a) { maybe_null = 1; }
+  Item_typecast_date(const POS &pos, Item *a) : Item_date_func(pos, a) {
     maybe_null = 1;
   }
 
@@ -1401,18 +1401,18 @@ class Item_date_typecast final : public Item_date_func {
   const char *cast_type() const { return "date"; }
 };
 
-class Item_time_typecast final : public Item_time_func {
+class Item_typecast_time final : public Item_time_func {
   bool detect_precision_from_arg;
 
  public:
-  Item_time_typecast(Item *a) : Item_time_func(a) {
+  Item_typecast_time(Item *a) : Item_time_func(a) {
     detect_precision_from_arg = true;
   }
-  Item_time_typecast(const POS &pos, Item *a) : Item_time_func(pos, a) {
+  Item_typecast_time(const POS &pos, Item *a) : Item_time_func(pos, a) {
     detect_precision_from_arg = true;
   }
 
-  Item_time_typecast(const POS &pos, Item *a, uint8 dec_arg)
+  Item_typecast_time(const POS &pos, Item *a, uint8 dec_arg)
       : Item_time_func(pos, a) {
     detect_precision_from_arg = false;
     decimals = dec_arg;
@@ -1431,18 +1431,18 @@ class Item_time_typecast final : public Item_time_func {
   }
 };
 
-class Item_datetime_typecast final : public Item_datetime_func {
+class Item_typecast_datetime final : public Item_datetime_func {
   bool detect_precision_from_arg;
 
  public:
-  Item_datetime_typecast(Item *a) : Item_datetime_func(a) {
+  Item_typecast_datetime(Item *a) : Item_datetime_func(a) {
     detect_precision_from_arg = true;
   }
-  Item_datetime_typecast(const POS &pos, Item *a) : Item_datetime_func(pos, a) {
+  Item_typecast_datetime(const POS &pos, Item *a) : Item_datetime_func(pos, a) {
     detect_precision_from_arg = true;
   }
 
-  Item_datetime_typecast(const POS &pos, Item *a, uint8 dec_arg)
+  Item_typecast_datetime(const POS &pos, Item *a, uint8 dec_arg)
       : Item_datetime_func(pos, a) {
     detect_precision_from_arg = false;
     decimals = dec_arg;
