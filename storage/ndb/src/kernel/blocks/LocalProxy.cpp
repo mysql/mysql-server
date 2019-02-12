@@ -314,7 +314,7 @@ LocalProxy::loadWorkers()
 
     if (number() == PGMAN && i == (c_workers - 1))
     {
-      ((Pgman*)worker)->set_extra_pgman();
+      ((Pgman*)worker)->init_extra_pgman();
     }
     mt_add_thr_map(number(), instanceNo);
   }

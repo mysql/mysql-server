@@ -1,4 +1,5 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -464,7 +465,65 @@ public:
     error("get_next_event_line: error from stream.gets()");
     return false;
   }
-  
+
+  bool change_config(Uint64 new_value, Uint64 *saved_old_value,
+                     unsigned type_of_section, unsigned config_variable)
+  {
+    if (!connect())
+    {
+      error("Mgmd not connected");
+      return false;
+    }
+
+    Config conf;
+    if (!get_config(conf))
+    {
+      error("Mgmd : get_config failed");
+      return false;
+    }
+
+    Uint64 default_value = 0;
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
+    {
+      if (!iter.openSection(type_of_section, nodeid))
+        continue;
+      Uint64 old_value = 0;
+      if (iter.get(config_variable, &old_value))
+      {
+        if (default_value == 0)
+        {
+          default_value = old_value;
+        }
+        else if (old_value != default_value)
+        {
+          g_err << "StartDiskPageBufferMemory is not consistent across nodes"
+                << ". Node id " << nodeid
+                << ": value " << old_value
+                << ". Overwriting it with the given value " << new_value
+                << endl;
+        }
+      }
+      iter.set(config_variable, new_value);
+      iter.closeSection();
+    }
+
+    // Return old config value
+    *saved_old_value = default_value;
+
+    // Set the new config in mgmd
+    if (!set_config(conf))
+    {
+      error("Mgmd : set_config failed");
+      return false;
+    }
+
+    // TODO: Instead of using flaky sleep, try reconnect and
+    // determine whether the config is changed.
+    sleep(10); //Give MGM server time to restart
+
+    return true;
+  }
 
   // Pretty printer for 'ndb_mgm_node_type'
   class NodeType {

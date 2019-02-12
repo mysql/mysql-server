@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,6 +134,8 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
 
   // Indicator of extra PGMAN worker block
   m_extra_pgman = false;
+  m_extra_pgman_reserve_pages = 0;
+
   // should be a factor larger than number of pool pages
   m_data_buffer_pool.setSize(16);
   
@@ -306,9 +308,14 @@ Pgman::execSTTOR(Signal* signal)
 }
 
 void
-Pgman::set_extra_pgman()
+Pgman::init_extra_pgman()
 {
   m_extra_pgman = true;
+
+  // Reserve 1MB of extra pgman's disk page buffer memory for
+  // undo log execution (in number of pages)
+  m_extra_pgman_reserve_pages =
+    Uint32((1*1024*1024+ GLOBAL_PAGE_SIZE - 1)/GLOBAL_PAGE_SIZE);
 }
 
 void
@@ -466,6 +473,21 @@ Pgman::set_page_state(EmulatedJamBuffer* jamBuf, Ptr<Page_entry> ptr,
       thrjam(jamBuf);
       ndbrequire(m_stats.m_num_hot_pages != 0);
       m_stats.m_num_hot_pages--;
+    }
+
+    {
+      const bool old_locked = (old_state & Page_entry::LOCKED);
+      const bool new_locked = (new_state & Page_entry::LOCKED);
+      if (!old_locked && new_locked)
+      {
+        thrjam(jamBuf);
+        m_stats.m_num_locked_pages++;
+      }
+      if (old_locked && !new_locked)
+      {
+        thrjam(jamBuf);
+        m_stats.m_num_locked_pages--;
+      }
     }
   }
 
@@ -3009,6 +3031,68 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
   return -1;
 }
 
+bool
+Pgman::extent_pages_available(Uint32 pages_needed)
+{
+  Uint32 locked_pages = m_stats.m_num_locked_pages;
+  Uint32 max_pages = m_param.m_max_pages;
+  const Uint32 reserved = m_extra_pgman_reserve_pages;
+
+  if (m_extra_pgman)
+  {
+    /**
+     * ndbmtd :
+     * Extra pgman uses disk page buffer primarily for extent pages.
+     * Extent pages are locked in the buffer during a data file's
+     * lifetime.
+     * In addition, it reserves 'm_extra_pgman_reserve_pages' slots
+     * for undo log execution during restart.
+     */
+    ndbrequire(max_pages > reserved);
+    max_pages -= reserved; // Don't use pages reserved for restart
+  }
+  else
+  {
+    // ndbd
+    max_pages = (Uint32)((NDBD_EXTENT_PAGE_PERCENT * (Uint64)max_pages)/100);
+  }
+
+  if ((locked_pages + pages_needed) > max_pages)
+  {
+    char tmp[90];
+    if (m_extra_pgman)
+    {
+      BaseString::snprintf(tmp, sizeof(tmp),
+                           "Reserved pages for restart %u. "
+                           "Pages that can be allocated for extent pages %u.",
+                           reserved,
+                           m_param.m_max_pages - reserved);
+    }
+    else
+    {
+      BaseString::snprintf(tmp, sizeof(tmp),
+                           "Pages that can be allocated for extent"
+                           "pages (25 percent of total pages) %u.",
+                           max_pages);
+    }
+
+    g_eventLogger->warning("pgman(%u): Cannot allocate %u "
+                           "extent pages requested by the "
+                           "data file being created. "
+                           "Total pages in disk page buffer %u. "
+                           "%s "
+                           "Already locked pages %u. ",
+                           instance(),
+                           pages_needed,
+                           m_param.m_max_pages,
+                           tmp,
+                           m_stats.m_num_locked_pages);
+    return false;
+  }
+
+  return true;
+}
+
 void
 Pgman::execRELEASE_PAGES_REQ(Signal* signal)
 {
@@ -3845,6 +3929,16 @@ Page_cache_client::create_data_file(Signal* signal, Uint32 version)
   return m_pgman->create_data_file(version);
 }
 
+bool
+Page_cache_client::extent_pages_available(Uint32 pages_needed)
+{
+  if (m_pgman_proxy != 0)
+  {
+    return m_pgman_proxy->extent_pages_available(pages_needed, *this);
+  }
+  return m_pgman->extent_pages_available(pages_needed);
+}
+
 Uint32
 Page_cache_client::alloc_data_file(Signal* signal,
                                    Uint32 file_no,
@@ -4605,17 +4699,37 @@ Pgman::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == 11100)
   {
-    int pages = m_param.m_max_pages;
-    int size = m_page_entry_pool.getSize();
-    int used = m_page_entry_pool.getUsed();
-    int usedpct = size ? ((100 * used) / size) : 0;
-    int high = m_stats.m_entries_high;
-    int highpct = size ? ((100 * high) / size) : 0;
-    ndbout << "pgman(" << instance() << ")";
-    ndbout << " pages: " << pages << " entries: " << size;
-    ndbout << " used: " << used << " (" << usedpct << "%)";
-    ndbout << " high: " << high << " (" << highpct << "%)";
-    ndbout << endl;
+    Uint32 max_pages = m_param.m_max_pages;
+    Uint32 size = m_page_entry_pool.getSize();
+    Uint32 used = m_page_entry_pool.getUsed();
+    Uint32 usedpct = size ? ((100 * used) / size) : 0;
+    Uint32 high = m_stats.m_entries_high;
+    Uint32 highpct = size ? ((100 * high) / size) : 0;
+    Uint32 locked = m_stats.m_num_locked_pages;
+    Uint32 reserved = m_extra_pgman_reserve_pages;
+    Uint32 lockedpct = size ? ((100 * locked) / size) : 0;
+    Uint32 avail_for_extent_pages = (m_extra_pgman) ?
+      max_pages - reserved :
+      (Uint32)((NDBD_EXTENT_PAGE_PERCENT * (Uint64)max_pages)/100);
+    Uint32 lockedpct2 =
+      (avail_for_extent_pages > 0) ?
+      ((100 * locked) / avail_for_extent_pages) : 0;
+    Uint32 lockedpct3 = (max_pages > 0) ? ((100 * locked) / max_pages) : 0;
+
+    ndbout_c("pgman(%u)\n"
+             " page_entry_pool: size %u used: %u (%u %%)\n"
+             " high: %u (%u %%)\n"
+             " locked pages: %u\n"
+             " \t related to entries %u (%u %%)\n"
+             " \t related to available pages for extent pages %u (%u %%)\n"
+             " \t related to Total pages in disk page buffer memory %u (%u %%)\n",
+             instance(),
+             size, used, usedpct,
+             high, highpct,
+             locked,
+             size, lockedpct,
+             avail_for_extent_pages, lockedpct2,
+             max_pages, lockedpct3);
   }
 
   if (signal->theData[0] == 11101)

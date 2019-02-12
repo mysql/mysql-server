@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -597,6 +597,7 @@ ErrorBundle ErrorCodes[] = {
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
   { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   { 1516, DMEC, SE, "File too small" },
+  { 1517, DMEC, SE, "Insufficient disk page buffer memory. Increase DiskPageBufferMemory or reduce data file size." },
 
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
