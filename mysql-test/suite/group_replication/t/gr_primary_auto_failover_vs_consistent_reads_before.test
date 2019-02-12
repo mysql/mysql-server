@@ -1,0 +1,2 @@
+--let $transaction_T1_consistency= BEFORE
+--source ../include/gr_primary_auto_failover_vs_consistent_reads.inc

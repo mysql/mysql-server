@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -467,7 +467,8 @@ int Primary_election_handler::before_transaction_begin(
       static_cast<enum_group_replication_consistency_level>(gr_consistency);
 
   if (consistency_level ==
-      GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER) {
+          GROUP_REPLICATION_CONSISTENCY_BEFORE_ON_PRIMARY_FAILOVER ||
+      consistency_level == GROUP_REPLICATION_CONSISTENCY_AFTER) {
     DBUG_RETURN(
         hold_transactions->wait_until_primary_failover_complete(hold_timeout));
   }
