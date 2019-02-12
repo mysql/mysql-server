@@ -4338,20 +4338,8 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
     if (view_options->get("view_valid", &is_view_valid)) DBUG_RETURN(nullptr);
 
     if (is_view_valid == false && thd->lex->sql_command != SQLCOM_SHOW_TABLES) {
-      push_view_warning_or_error(current_thd, schema_ptr->c_ptr_safe(),
-                                 view_ptr->c_ptr_safe());
-
-      // Append invalid view error message to comment.
-      if (thd->variables.max_error_count > 0) {
-        oss << (thd->get_stmt_da()->sql_conditions()++)->message_text();
-      } else {
-        // If max_error_count is 0, we must prepare the error message
-        // ourselves.
-        char errbuf[MYSQL_ERRMSG_SIZE];
-        sprintf(errbuf, ER_THD(thd, ER_VIEW_INVALID), schema_ptr->c_ptr_safe(),
-                view_ptr->c_ptr_safe());
-        oss << errbuf;
-      }
+      oss << push_view_warning_or_error(current_thd, schema_ptr->c_ptr_safe(),
+                                        view_ptr->c_ptr_safe());
     } else
       oss << "VIEW";
   } else if (!thd->lex->m_IS_table_stats.error().empty()) {
