@@ -4,16 +4,20 @@
 --echo # This test will first verify the DD schema of the currently running
 --echo # server, and dump the SHOW CREATE statements for the DD tables to
 --echo # a file. Then, it will unzip a data dirctory from each of the
---echo # previous versions from which upgrade is supported, restart the
+--echo # previous 8.0 versions from which upgrade is supported, restart the
 --echo # server to make it do upgrade, and verify that the DD tables after
 --echo # upgrade are similar to those that are created when initializing the
 --echo # target server.
+--echo # 
+--echo # The zipped data directories were created on case sensitive file
+--echo # systems with lower_case_table_names == 0. There is a corresponding
+--echo # test for upgrade from 5.7.
 --echo # 
 --echo ########################################################################
 
 --source include/have_case_sensitive_file_system.inc
 --source include/have_debug.inc
---source include/no_valgrind_without_big.inc
+--source include/big_test.inc
 
 --echo ########################################################################
 --echo # Assert target schema ids.
@@ -39,7 +43,7 @@
 --let $file = $target_dd_props
   # We must filter out unpredictable values such as root page no and ids.
   # This simple filter will remove a bit more than strictly necessary.
---let $filter = 'id|root|MYSQLD_VERSION_LO'
+--let $filter = id|root|MYSQLD_VERSION_LO
 --source include/dd_schema_dd_properties.inc
 
 --echo ########################################################################
@@ -49,12 +53,6 @@
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
-
---echo ########################################################################
---let  $VERSION = 57022
---echo # Test upgrade from $VERSION.
---echo ########################################################################
---source include/dd_schema_definition_after_upgrade_debug.inc
 
 --echo ########################################################################
 --let  $VERSION = 80011
@@ -91,5 +89,6 @@
 --echo # Cleanup: Remove definition files and restart with default options.
 --echo ########################################################################
 --remove_file $target_table_defs
+--remove_file $target_dd_props
 let $restart_parameters =;
 --source include/start_mysqld.inc
