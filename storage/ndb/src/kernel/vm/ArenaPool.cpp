@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,18 +161,29 @@ require(sizeof(T) <= sz);
   else
   {
     Ptr<void> tmp;
-    if (m_allocator->m_pool.seize(tmp))
+    if (ah.m_first_block == RNIL)
+    { // ArenaPool is empty, seize a new ArenaHead
+      if (!m_allocator->seize(ah))
+        return false;
+    }
+    // Extend pool with new block
+    else if (m_allocator->m_pool.seize(tmp))
     {
+      assert(ah.m_block_size == m_allocator->m_block_size);
       ah.m_first_free = 0;
       ah.m_current_block = tmp.i;
       ah.m_current_block_ptr->m_next_block = tmp.i;
       ah.m_current_block_ptr = static_cast<ArenaBlock*>(tmp.p);
       ah.m_current_block_ptr->m_next_block = RNIL;
-      bool ret = seize(ah, ptr);
-      (void)ret;
-      assert(ret == true);
-      return true;
     }
+    else
+      return false;
+
+    // Re-seize object from created / extended Pool
+    const bool ret = seize(ah, ptr);
+    (void)ret;
+    assert(ret == true);
+    return true;
   }
   return false;
 }
