@@ -1041,7 +1041,7 @@ class Item_func_conv_charset final : public Item_str_func {
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const)
       : Item_str_func(a) {
-    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+    DBUG_ASSERT(args[0]->fixed);
 
     conv_charset = cs;
     if (cache_if_const && args[0]->may_evaluate_const(thd)) {

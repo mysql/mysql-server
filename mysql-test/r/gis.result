@@ -3798,7 +3798,7 @@ CREATE TABLE t1 (a DECIMAL(54,20));
 INSERT INTO t1 VALUES (0);
 SELECT (SELECT MULTILINESTRING(d.a, d.a, d.a) FROM t1)
 FROM t1 AS d GROUP BY d.a;
-ERROR 22023: Invalid GIS data provided to function multilinestring.
+ERROR 22007: Illegal non geometric '`test`.`d`.`a`' value found during parsing
 DROP TABLE t1;
 #
 # Bug #23280574 ASSERTION FAILED: !NO_DATA(NBYTES) IN

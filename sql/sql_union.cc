@@ -1527,7 +1527,6 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
        lex_unit = lex_unit->next_unit()) {
     error |= lex_unit->cleanup(thd, full);
   }
-  inner_refs_list.empty();
 
   if (full && m_windows.elements > 0) {
     List_iterator<Window> li(m_windows);

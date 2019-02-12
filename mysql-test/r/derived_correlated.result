@@ -3287,3 +3287,44 @@ ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains
 EXPLAIN SELECT (SELECT pk FROM (SELECT t1.pk) dt) FROM t1 GROUP BY a;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1;
+#
+# Bug#28960857 ASSERTION FAILED: !TR->DERIVED_WHERE_COND || TR->DERIVED_WHERE_COND->FIXED
+# Bug#28960789 ASSERTION FAILED: TRANSL->ITEM->FIXED,
+#
+CREATE TABLE t0007 (
+c0008 date NOT NULL,
+c0009 char(234) NOT NULL
+);
+CREATE TABLE t0008 (
+c0005 tinytext NOT NULL
+);
+CREATE TABLE t0009 (
+c0000 time NOT NULL
+);
+SET SQL_MODE=0;
+SELECT (SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 ) FROM t0007
+GROUP BY -23;
+(SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 )
+SELECT (SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+),
+COUNT(c0009)
+FROM t0007
+GROUP BY 1, 1;
+(SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+)	COUNT(c0009)
+DROP TABLE t0007, t0008, t0009;
+SET SQL_MODE=DEFAULT;

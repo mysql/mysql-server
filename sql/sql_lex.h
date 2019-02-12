@@ -1235,8 +1235,6 @@ class SELECT_LEX {
   bool having_fix_field;
   /// true when GROUP BY fix field called in processing of this query block
   bool group_fix_field;
-  /// List of references to fields referenced from inner query blocks
-  List<Item_outer_ref> inner_refs_list;
 
   /// explicit LIMIT clause is used
   bool explicit_limit;
@@ -1842,7 +1840,6 @@ class SELECT_LEX {
   /// How many expressions are part of the order by but not select list.
   int hidden_order_field_count;
 
-  bool fix_inner_refs(THD *thd);
   bool setup_conds(THD *thd);
   bool prepare(THD *thd);
   bool optimize(THD *thd);
@@ -3975,16 +3972,6 @@ struct LEX : public Query_tables_list {
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
-
-  /*
-    The set of those tables whose fields are referenced in all subqueries
-    of the query.
-    TODO: possibly this it is incorrect to have used tables in LEX because
-    with subquery, it is not clear what does the field mean. To fix this
-    we should aggregate used tables information for selected expressions
-    into the select_lex. This map should contain "real" tables only.
-  */
-  table_map used_tables;
 
   class Explain_format *explain_format;
 

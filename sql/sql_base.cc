@@ -8795,7 +8795,6 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
     }
 
     select->select_list_tables |= item->used_tables();
-    thd->lex->used_tables |= item->used_tables() & ~PSEUDO_TABLE_BITS;
   }
   select->is_item_list_lookup = save_is_item_list_lookup;
   thd->lex->allow_sum_func = save_allow_sum_func;
@@ -8888,7 +8887,6 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
       views and natural joins this update is performed inside the loop below.
     */
     if (table) {
-      thd->lex->used_tables |= tables->map();
       thd->lex->current_select()->select_list_tables |= tables->map();
     }
 
@@ -8950,7 +8948,6 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
         }
       }
 
-      thd->lex->used_tables |= item->used_tables();
       thd->lex->current_select()->select_list_tables |= item->used_tables();
 
       Field *const field = field_iterator.field();

@@ -153,8 +153,6 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
 
   const bool single_query = unit->is_simple();
 
-  lex->used_tables = 0;  // Updated by setup_fields
-
   THD_STAGE_INFO(thd, stage_init);
 
   if (thd->lex->set_var_list.elements && resolve_var_assignments(thd, lex))
@@ -533,8 +531,6 @@ const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
 */
 
 bool Sql_cmd_select::prepare_inner(THD *thd) {
-  lex->used_tables = 0;  // Updated by setup_fields
-
   if (lex->is_explain()) {
     /*
       Always use Query_result_send for EXPLAIN, even if it's an EXPLAIN for

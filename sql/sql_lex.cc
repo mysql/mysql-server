@@ -458,7 +458,6 @@ void LEX::reset() {
   server_options.reset();
   explain_format = NULL;
   is_lex_started = true;
-  used_tables = 0;
   reset_slave_info.all = false;
   mi.channel = NULL;
 
@@ -2102,7 +2101,6 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       braces(false),
       having_fix_field(false),
       group_fix_field(false),
-      inner_refs_list(),
       explicit_limit(false),
       subquery_in_having(false),
       first_execution(true),

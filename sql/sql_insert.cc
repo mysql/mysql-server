@@ -584,24 +584,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
           break;
         }
       } else {
-        if (lex->used_tables)  // Column used in values()
-          restore_record(insert_table, s->default_values);  // Get empty record
-        else {
-          TABLE_SHARE *share = insert_table->s;
-
-          /*
-            Fix delete marker. No need to restore rest of record since it will
-            be overwritten by fill_record() anyway (and fill_record() does not
-            use default values in this case).
-          */
-          insert_table->record[0][0] = share->default_values[0];
-
-          /* Fix undefined null_bits. */
-          if (share->null_bytes > 1 && share->last_null_bit_pos) {
-            insert_table->record[0][share->null_bytes - 1] =
-                share->default_values[share->null_bytes - 1];
-          }
-        }
+        restore_record(insert_table, s->default_values);  // Get empty record
         if (fill_record_n_invoke_before_triggers(
                 thd, insert_table->field, *values, insert_table,
                 TRG_EVENT_INSERT, insert_table->s->fields)) {

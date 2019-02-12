@@ -404,9 +404,6 @@ bool SELECT_LEX::prepare(THD *thd) {
     } while (item_sum != end);
   }
 
-  if (inner_refs_list.elements && fix_inner_refs(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
-
   if (group_list.elements) {
     /*
       Because HEAP tables can't index BIT fields we need to use an
@@ -2568,7 +2565,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   if (subq_pred->substype() == Item_subselect::IN_SUBS) {
     Item_in_subselect *in_subq_pred = (Item_in_subselect *)subq_pred;
 
-    DBUG_ASSERT(is_fixed_or_outer_ref(in_subq_pred->left_expr));
+    DBUG_ASSERT(in_subq_pred->left_expr->fixed);
 
     subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
     /*
@@ -3341,75 +3338,6 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner) {
       break;
     }
   }
-}
-
-/**
-  Fix fields referenced from inner query blocks.
-
-  @param thd               Thread handle
-
-  @details
-    The function serves 3 purposes
-
-    - adds fields referenced from inner query blocks to the current select list
-
-    - creates an object to use to reference the items (Item_ref)
-
-    - fixes references (Item_ref objects) to these fields.
-
-    If a field isn't already on the select list and the base_ref_items array
-    is provided then it is added to the all_fields list and the pointer to
-    it is saved in the base_ref_items array.
-
-    The resolution is done here and not at the fix_fields() stage as
-    it can be done only after aggregate functions are fixed and pulled up to
-    selects where they are to be aggregated.
-
-    When the class is chosen it substitutes the original field in the
-    Item_outer_ref object.
-
-    After this we proceed with fixing references (Item_outer_ref objects) to
-    this field from inner subqueries.
-
-  @return false if success, true if error
- */
-
-bool SELECT_LEX::fix_inner_refs(THD *thd) {
-  Item_outer_ref *ref;
-
-  List_iterator<Item_outer_ref> ref_it(inner_refs_list);
-  while ((ref = ref_it++)) {
-    Item *item = ref->outer_ref;
-    Item **item_ref = ref->ref;
-
-    /*
-      TODO: this field item already might be present in the select list.
-      In this case instead of adding new field item we could use an
-      existing one. The change will lead to less operations for copying fields,
-      smaller temporary tables and less data passed through filesort.
-    */
-    if (!base_ref_items.is_null() && !ref->found_in_select_list) {
-      /*
-        Add the field item to the select list of the current select.
-        If it's needed reset each Item_ref item that refers this field with
-        a new reference taken from ref_item_array.
-      */
-      item_ref = add_hidden_item(item);
-    }
-
-    Item_ref *const new_ref =
-        new Item_ref(ref->context, item_ref, ref->table_name, ref->field_name,
-                     ref->is_alias_of_expr());
-    if (!new_ref) return true; /* purecov: inspected */
-    ref->outer_ref = new_ref;
-    ref->ref = &ref->outer_ref;
-
-    if (!ref->fixed && ref->fix_fields(thd, 0))
-      return true; /* purecov: inspected */
-    thd->lex->used_tables |= item->used_tables() & ~PSEUDO_TABLE_BITS;
-    select_list_tables |= item->used_tables();
-  }
-  return false;
 }
 
 /**

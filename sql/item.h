@@ -4871,14 +4871,20 @@ class Item_view_ref final : public Item_ref {
   resolved is a grouping one. After it has been fixed the ref field will point
   to an Item_ref object which will be used to access the field.
   The ref field may also point to an Item_field instance.
-  See also comments for the fix_inner_refs() and the
-  Item_field::fix_outer_field() functions.
+  See also comments of the Item_field::fix_outer_field() function.
 */
 
 class Item_sum;
 
 class Item_outer_ref final : public Item_ref {
   typedef Item_ref super;
+
+ private:
+  /**
+     Qualifying query of this outer ref (i.e. query block which owns FROM of
+     table which this Item references).
+  */
+  SELECT_LEX *qualifying;
 
  public:
   Item *outer_ref;
@@ -4889,9 +4895,11 @@ class Item_outer_ref final : public Item_ref {
     of the outer select.
   */
   bool found_in_select_list;
-  Item_outer_ref(Name_resolution_context *context_arg, Item_ident *ident_arg)
+  Item_outer_ref(Name_resolution_context *context_arg, Item_ident *ident_arg,
+                 SELECT_LEX *qualifying)
       : Item_ref(context_arg, 0, ident_arg->table_name, ident_arg->field_name,
                  false),
+        qualifying(qualifying),
         outer_ref(ident_arg),
         in_sum_func(0),
         found_in_select_list(0) {
@@ -4901,9 +4909,10 @@ class Item_outer_ref final : public Item_ref {
   }
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,
                  const char *table_name_arg, const char *field_name_arg,
-                 bool alias_of_expr_arg)
+                 bool alias_of_expr_arg, SELECT_LEX *qualifying)
       : Item_ref(context_arg, item, table_name_arg, field_name_arg,
                  alias_of_expr_arg),
+        qualifying(qualifying),
         outer_ref(0),
         in_sum_func(0),
         found_in_select_list(1) {}
@@ -6012,9 +6021,6 @@ extern bool is_null_on_empty_table(THD *thd, Item_field *i);
 extern const String my_null_string;
 void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
-#ifndef DBUG_OFF
-bool is_fixed_or_outer_ref(const Item *ref);
-#endif
 
 std::string ItemToString(Item *item);
 
