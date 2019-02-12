@@ -884,9 +884,6 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
   }
 }
 
-static const Item::enum_walk walk_subquery =
-    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
-
 /**
   Read all rows, and write them into a temporary file
   (if we run out of space in the sort buffer).
@@ -996,14 +993,14 @@ static ha_rows read_all_rows(
   // Include fields used by conditions in the read_set.
   if (qep_tab->condition()) {
     Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->condition()->walk(&Item::mark_field_in_map, walk_subquery,
-                               (uchar *)&mf);
+    qep_tab->condition()->walk(&Item::mark_field_in_map,
+                               enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
   }
   // Include fields used by pushed conditions in the read_set.
   if (qep_tab->table()->file->pushed_idx_cond) {
     Mark_field mf(sort_form, MARK_COLUMNS_TEMP);
-    qep_tab->table()->file->pushed_idx_cond->walk(&Item::mark_field_in_map,
-                                                  walk_subquery, (uchar *)&mf);
+    qep_tab->table()->file->pushed_idx_cond->walk(
+        &Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
   }
   sort_form->column_bitmaps_set(&sort_form->tmp_set, &sort_form->tmp_set);
 
@@ -1637,8 +1634,8 @@ static void register_used_fields(Sort_param *param) {
         if (field->is_virtual_gcol()) table->mark_gcol_in_maps(field);
       }
     } else {  // Item
-      sort_field->item->walk(&Item::mark_field_in_map, walk_subquery,
-                             (uchar *)&mf);
+      sort_field->item->walk(&Item::mark_field_in_map,
+                             enum_walk::SUBQUERY_POSTFIX, (uchar *)&mf);
     }
   }
 

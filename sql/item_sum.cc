@@ -491,14 +491,14 @@ bool Item_sum::resolve_type(THD *) {
 }
 
 bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(argument)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(argument)) return true;
 
   Item **arg, **arg_end;
   for (arg = args, arg_end = args + arg_count; arg != arg_end; arg++) {
     if ((*arg)->walk(processor, walk, argument)) return true;
   }
 
-  return (walk & WALK_POSTFIX) && (this->*processor)(argument);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(argument);
 }
 
 /**

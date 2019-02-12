@@ -2313,7 +2313,7 @@ static bool validate_value_generator_expr(Item *expr,
   */
   Check_function_as_value_generator_parameters checker_args(err_code, source);
   checker_args.col_index = column_index;
-  if (expr->walk(&Item::check_function_as_value_generator, Item::WALK_POSTFIX,
+  if (expr->walk(&Item::check_function_as_value_generator, enum_walk::POSTFIX,
                  pointer_cast<uchar *>(&checker_args))) {
     my_error(checker_args.err_code, MYF(0), source_name,
              checker_args.banned_function_name);
@@ -2407,7 +2407,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
   context->table_list = &tables;
   context->first_name_resolution_table = &tables;
   context->last_name_resolution_table = nullptr;
-  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                   (uchar *)context);
   save_where = thd->where;
 
@@ -2458,7 +2458,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
     (top query, subquery). So, underlying items are not situated in a defined
     place: give them a null context.
   */
-  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, nullptr);
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX, nullptr);
 
   if (unlikely(error)) {
     DBUG_PRINT("info",
@@ -2502,7 +2502,7 @@ bool Value_generator::register_base_columns(TABLE *table) {
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &base_columns_map;
   Mark_field mark_fld(MARK_COLUMNS_TEMP);
-  expr_item->walk(&Item::mark_field_in_map, Item::WALK_PREFIX,
+  expr_item->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
                   (uchar *)&mark_fld);
   table->read_set = save_old_read_set;
 
@@ -4680,7 +4680,7 @@ void TABLE_LIST::cleanup_items() {
 
   for (Field_translator *transl = field_translation;
        transl < field_translation_end; transl++)
-    transl->item->walk(&Item::cleanup_processor, Item::WALK_POSTFIX, NULL);
+    transl->item->walk(&Item::cleanup_processor, enum_walk::POSTFIX, NULL);
 }
 
 /**
@@ -6200,7 +6200,7 @@ bool TABLE::is_field_used_by_generated_columns(uint field_index,
       Item *expr = tmp_vfield->is_gcol()
                        ? tmp_vfield->gcol_info->expr_item
                        : tmp_vfield->m_default_val_expr->expr_item;
-      expr->walk(&Item::mark_field_in_map, Item::WALK_PREFIX,
+      expr->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
                  (uchar *)&mark_fld);
       if (bitmap_is_set(read_set, field_index)) {
         *error_no = tmp_vfield->is_gcol()

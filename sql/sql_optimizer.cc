@@ -3478,7 +3478,7 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       more complex and may introduce cycles in the Item tree.
     */
     if (const_item != nullptr &&
-        const_item->walk(&Item::find_field_processor, Item::WALK_POSTFIX,
+        const_item->walk(&Item::find_field_processor, enum_walk::POSTFIX,
                          pointer_cast<uchar *>(field_item->field)))
       return false;
 
@@ -7588,7 +7588,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {
     join->where_cond->walk(&Item::collect_item_field_processor,
-                           Item::WALK_POSTFIX, (uchar *)&indexed_fields);
+                           enum_walk::POSTFIX, (uchar *)&indexed_fields);
     Key_map possible_keys;
     possible_keys.set_all();
     join_tab->skip_scan_keys.clear_all();
@@ -7605,7 +7605,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group = join->group_list; cur_group; cur_group = cur_group->next)
       (*cur_group->item)
-          ->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+          ->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
     cause = "group_by";
   } else if (join->select_distinct) {
@@ -7614,7 +7614,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     List_iterator<Item> select_items_it(select_items);
     Item *item;
     while ((item = select_items_it++))
-      item->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+      item->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
     cause = "distinct";
   } else if (join->tmp_table_param.sum_func_count &&
@@ -9162,7 +9162,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
           correct calculation of the number of its executions.
         */
         std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
-        cond->walk(&Item::inform_item_in_cond_of_tab, Item::WALK_POSTFIX,
+        cond->walk(&Item::inform_item_in_cond_of_tab, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&pair_object));
       }
     }

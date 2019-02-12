@@ -618,11 +618,12 @@ err:
 */
 bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
                                uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
-  if ((walk & WALK_SUBQUERY) && unit->walk(processor, walk, arg)) return true;
+  if ((walk & enum_walk::SUBQUERY) && unit->walk(processor, walk, arg))
+    return true;
 
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 bool Item_subselect::walk(Item_processor processor, enum_walk walk,

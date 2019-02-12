@@ -643,10 +643,8 @@ bool Func_ptr::set_contains_alias_of_expr(const SELECT_LEX *select) {
       const_cast<uchar *>(reinterpret_cast<const uchar *>(select));
   return m_contains_alias_of_expr =
              m_func->walk(&Item::contains_alias_of_expr,
-                          Item::enum_walk(Item::WALK_PREFIX |
-                                          // ref to alias might be in a subquery
-                                          Item::WALK_SUBQUERY),
-                          walk_arg);
+                          // ref to alias might be in a subquery
+                          enum_walk::SUBQUERY_PREFIX, walk_arg);
 }
 
 /**

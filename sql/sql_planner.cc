@@ -1890,7 +1890,7 @@ bool Optimize_table_order::choose_table_order() {
       best_access_path() et al. when no filtering effect is possible.
     */
     join->where_cond->walk(&Item::add_field_to_cond_set_processor,
-                           Item::WALK_POSTFIX, NULL);
+                           enum_walk::POSTFIX, NULL);
   }
 
   Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);

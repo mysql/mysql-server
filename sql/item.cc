@@ -2814,8 +2814,7 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
       update used tables information.
     */
     Used_tables ut(depended_from);
-    (void)walk(&Item::used_tables_for_level,
-               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+    (void)walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                pointer_cast<uchar *>(&ut));
     child_select->master_unit()->accumulate_used_tables(ut.used_tables);
   }
@@ -4930,8 +4929,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
           Item::Type ref_type = (*reference)->type();
           Used_tables ut(select);
           (void)(*reference)
-              ->walk(&Item::used_tables_for_level,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+              ->walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                      pointer_cast<uchar *>(&ut));
           cur_unit->accumulate_used_tables(ut.used_tables);
 
@@ -7429,7 +7427,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   if (((*ref)->has_aggregation() &&
        !thd->lex->current_select()->having_fix_field) ||  // 1
       walk(&Item::has_aggregate_ref_in_group_by,          // 2
-           enum_walk(WALK_POSTFIX | WALK_SUBQUERY), nullptr)) {
+           enum_walk::SUBQUERY_POSTFIX, nullptr)) {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
              "reference to group function");
     goto error;
@@ -7689,7 +7687,7 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
       is marked regardless of how many ref items that point to this field.
     */
     Mark_field mf(thd->mark_used_columns);
-    (*ref)->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+    (*ref)->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
   } else {
     if ((*ref)->fix_fields(thd, ref)) return true; /* purecov: inspected */
   }
@@ -8460,9 +8458,9 @@ void Item_cache::print(const THD *thd, String *str,
 }
 
 bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+  return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
          (example && example->walk(processor, walk, arg)) ||
-         ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+         ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
 }
 
 bool Item_cache::has_value() {

@@ -720,12 +720,12 @@ class Item_func_make_set final : public Item_str_func {
   const char *func_name() const override { return "make_set"; }
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
-    if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+    if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
     if (item->walk(processor, walk, arg)) return true;
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->walk(processor, walk, arg)) return true;
     }
-    return ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
 
   Item *transform(Item_transformer transformer, uchar *arg) override;

@@ -2522,7 +2522,7 @@ void ForEachSubselect(
     Item *parent_item,
     const function<void(int select_number, bool is_dependent, bool is_cacheable,
                         RowIterator *)> &callback) {
-  WalkItem(parent_item, Item::WALK_POSTFIX, [&callback](Item *item) {
+  WalkItem(parent_item, enum_walk::POSTFIX, [&callback](Item *item) {
     if (item->type() == Item::SUBSELECT_ITEM) {
       Item_subselect *subselect = down_cast<Item_subselect *>(item);
       SELECT_LEX *select_lex = subselect->unit->first_select();

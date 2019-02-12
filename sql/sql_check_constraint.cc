@@ -78,7 +78,7 @@ void Sql_check_constraint_spec::print_expr(THD *thd, String &out) {
 
 bool Sql_check_constraint_spec::expr_refers_column(const char *column_name) {
   List<Item_field> fields;
-  check_expr->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+  check_expr->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                    (uchar *)&fields);
 
   Item_field *cur_item;
@@ -94,7 +94,7 @@ bool Sql_check_constraint_spec::expr_refers_column(const char *column_name) {
 bool Sql_check_constraint_spec::expr_refers_to_only_column(
     const char *column_name) {
   List<Item_field> fields;
-  check_expr->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+  check_expr->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                    (uchar *)&fields);
 
   // Expression does not refer to any columns.

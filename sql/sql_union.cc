@@ -401,7 +401,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
   for (ORDER *order = fake_select_lex->order_list.first; order;
        order = order->next) {
     (*order->item)
-        ->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+        ->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                (uchar *)&fake_select_lex->context);
   }
   fake_select_lex->set_query_result(query_result());
@@ -1463,7 +1463,7 @@ void SELECT_LEX_UNIT::fix_after_pullout(SELECT_LEX *parent_select,
   }
 }
 
-bool SELECT_LEX_UNIT::walk(Item_processor processor, Item::enum_walk walk,
+bool SELECT_LEX_UNIT::walk(Item_processor processor, enum_walk walk,
                            uchar *arg) {
   for (auto select = first_select(); select != nullptr;
        select = select->next_select()) {

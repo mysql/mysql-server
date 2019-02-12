@@ -576,10 +576,10 @@ void partition_info::set_show_version_string(String *packet) {
     packet->append(STRING_WITH_LEN("\n/*!50500"));
   else {
     if (part_expr)
-      part_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+      part_expr->walk(&Item::intro_version, enum_walk::POSTFIX,
                       (uchar *)&version);
     if (subpart_expr)
-      subpart_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+      subpart_expr->walk(&Item::intro_version, enum_walk::POSTFIX,
                          (uchar *)&version);
     if (version == 0) {
       /* No new functions in partition function */
@@ -1434,14 +1434,14 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     if (!list_of_part_fields) {
       DBUG_ASSERT(part_expr);
       err = part_expr->walk(&Item::check_partition_func_processor,
-                            Item::WALK_POSTFIX, NULL);
+                            enum_walk::POSTFIX, NULL);
     }
 
     /* Check for sub partition expression. */
     if (!err && is_sub_partitioned() && !list_of_subpart_fields) {
       DBUG_ASSERT(subpart_expr);
       err = subpart_expr->walk(&Item::check_partition_func_processor,
-                               Item::WALK_POSTFIX, NULL);
+                               enum_walk::POSTFIX, NULL);
     }
 
     if (err) {
@@ -2095,7 +2095,7 @@ bool Parser_partition_info::add_column_list_value(THD *thd, Item *item) {
   else
     thd->where = "partition function";
 
-  if (item->walk(&Item::check_partition_func_processor, Item::WALK_POSTFIX,
+  if (item->walk(&Item::check_partition_func_processor, enum_walk::POSTFIX,
                  NULL)) {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
     DBUG_RETURN(true);

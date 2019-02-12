@@ -3341,11 +3341,11 @@ void SELECT_LEX::print_order_by(const THD *thd, String *str,
   }
 }
 
-static Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
+static enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
   if (visitor->visits_in_prefix_order())
-    return Item::WALK_SUBQUERY_PREFIX;
+    return enum_walk::SUBQUERY_PREFIX;
   else
-    return Item::WALK_SUBQUERY_POSTFIX;
+    return enum_walk::SUBQUERY_POSTFIX;
 }
 
 bool walk_item(Item *item, Select_lex_visitor *visitor) {
@@ -4541,7 +4541,7 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
   processor.
 */
 static bool walk_join_condition(List<TABLE_LIST> *tables,
-                                Item_processor processor, Item::enum_walk walk,
+                                Item_processor processor, enum_walk walk,
                                 uchar *arg) {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
@@ -4558,8 +4558,7 @@ static bool walk_join_condition(List<TABLE_LIST> *tables,
   return false;
 }
 
-bool SELECT_LEX::walk(Item_processor processor, Item::enum_walk walk,
-                      uchar *arg) {
+bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
   List_iterator<Item> li(item_list);
   Item *item;
 
@@ -4570,8 +4569,7 @@ bool SELECT_LEX::walk(Item_processor processor, Item::enum_walk walk,
   if (join_list != NULL && walk_join_condition(join_list, processor, walk, arg))
     return true;
 
-  if (walk & Item::WALK_SUBQUERY) {
-    // todo: walk FROM here
+  if ((walk & enum_walk::SUBQUERY)) {
     /*
       for each leaf: if a materialized table, walk the unit
     */

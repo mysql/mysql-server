@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2024,7 +2024,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
            there is no need to create a column for this value.
         */
         bool dummy_value = false;
-        keyuse->val->walk(&Item::repoint_const_outer_ref, Item::WALK_PREFIX,
+        keyuse->val->walk(&Item::repoint_const_outer_ref, enum_walk::PREFIX,
                           pointer_cast<uchar *>(&dummy_value));
         /*
           key is const, copy value now and possibly skip it while ::exec().
