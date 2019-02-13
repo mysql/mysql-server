@@ -537,10 +537,10 @@ void warn_about_deprecated_national(THD *thd)
 %token  BINARY_SYM                    /* SQL-2003-R */
 %token<lexer.keyword> BINLOG_SYM
 %token  BIN_NUM
-%token  BIT_AND                       /* MYSQL-FUNC */
-%token  BIT_OR                        /* MYSQL-FUNC */
+%token  BIT_AND_SYM                   /* MYSQL-FUNC */
+%token  BIT_OR_SYM                    /* MYSQL-FUNC */
 %token<lexer.keyword> BIT_SYM               /* MYSQL-FUNC */
-%token  BIT_XOR                       /* MYSQL-FUNC */
+%token  BIT_XOR_SYM                   /* MYSQL-FUNC */
 %token  BLOB_SYM                      /* SQL-2003-R */
 %token<lexer.keyword> BLOCK_SYM
 %token<lexer.keyword> BOOLEAN_SYM           /* SQL-2003-R */
@@ -10022,11 +10022,11 @@ sum_expr:
           {
             $$= NEW_PTN Item_sum_avg(@$, $4, true, $6);
           }
-        | BIT_AND  '(' in_sum_expr ')' opt_windowing_clause
+        | BIT_AND_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_and(@$, $3, $5);
           }
-        | BIT_OR  '(' in_sum_expr ')' opt_windowing_clause
+        | BIT_OR_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_or(@$, $3, $5);
           }
@@ -10038,7 +10038,7 @@ sum_expr:
           {
             $$= NEW_PTN Item_sum_json_object(@$, $3, $5, $7);
           }
-        | BIT_XOR  '(' in_sum_expr ')' opt_windowing_clause
+        | BIT_XOR_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_xor(@$, $3, $5);
           }

@@ -767,9 +767,9 @@ static const SYMBOL symbols[] = {
      order)
     */
     {SYM_FN("ADDDATE", ADDDATE_SYM)},
-    {SYM_FN("BIT_AND", BIT_AND)},
-    {SYM_FN("BIT_OR", BIT_OR)},
-    {SYM_FN("BIT_XOR", BIT_XOR)},
+    {SYM_FN("BIT_AND", BIT_AND_SYM)},
+    {SYM_FN("BIT_OR", BIT_OR_SYM)},
+    {SYM_FN("BIT_XOR", BIT_XOR_SYM)},
     {SYM_FN("CAST", CAST_SYM)},
     {SYM_FN("COUNT", COUNT_SYM)},
     {SYM_FN("CURDATE", CURDATE)},
