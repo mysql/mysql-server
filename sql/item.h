@@ -1954,8 +1954,8 @@ class Item : public Parse_tree_node {
                        by agreement, an error may have been reported
   */
 
-  virtual bool walk(Item_processor processor, enum_walk MY_ATTRIBUTE((unused)),
-                    uchar *arg) {
+  virtual bool walk(Item_processor processor,
+                    enum_walk walk MY_ATTRIBUTE((unused)), uchar *arg) {
     return (this->*processor)(arg);
   }
 
