@@ -1128,7 +1128,7 @@ bool pre_validate_value_generator_expr(Item *expression, const char *name,
       error_code_map[source][ER_NAMED_FUNCTION], source);
 
   if (expression->walk(&Item::check_function_as_value_generator,
-                       Item::WALK_SUBQUERY_POSTFIX,
+                       enum_walk::SUBQUERY_POSTFIX,
                        pointer_cast<uchar *>(&checker_args))) {
     my_error(checker_args.err_code, MYF(0), name,
              checker_args.banned_function_name);

@@ -613,91 +613,17 @@ err:
 }
 
 /**
-  Apply walk() processor to join conditions.
-
-  JOINs may be nested. Walk nested joins recursively to apply the
-  processor.
-*/
-static bool walk_join_condition(List<TABLE_LIST> *tables,
-                                Item_processor processor, Item::enum_walk walk,
-                                uchar *arg) {
-  TABLE_LIST *table;
-  List_iterator<TABLE_LIST> li(*tables);
-
-  while ((table = li++)) {
-    if (table->join_cond() && table->join_cond()->walk(processor, walk, arg))
-      return true;
-
-    if (table->nested_join != NULL &&
-        walk_join_condition(&table->nested_join->join_list, processor, walk,
-                            arg))
-      return true;
-  }
-  return false;
-}
-
-/**
   Workaround for bug in gcc 4.1.
   @see Item_in_subselect::walk()
 */
 bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
                                uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
-  if (walk & WALK_SUBQUERY) {
-    for (SELECT_LEX *lex = unit->first_select(); lex;
-         lex = lex->next_select()) {
-      List_iterator<Item> li(lex->item_list);
-      Item *item;
-      ORDER *order;
+  if ((walk & enum_walk::SUBQUERY) && unit->walk(processor, walk, arg))
+    return true;
 
-      while ((item = li++)) {
-        if (item->walk(processor, walk, arg)) return true;
-      }
-
-      if (lex->join_list != NULL &&
-          walk_join_condition(lex->join_list, processor, walk, arg))
-        return true;
-
-      // @todo: Roy thinks that we should always use lex->where_cond.
-      Item *const where_cond = (lex->join && lex->join->is_optimized())
-                                   ? lex->join->where_cond
-                                   : lex->where_cond();
-
-      if (where_cond && where_cond->walk(processor, walk, arg)) return true;
-
-      for (order = lex->group_list.first; order; order = order->next) {
-        if ((*order->item)->walk(processor, walk, arg)) return true;
-      }
-
-      if (lex->having_cond() && lex->having_cond()->walk(processor, walk, arg))
-        return true;
-
-      for (order = lex->order_list.first; order; order = order->next) {
-        if ((*order->item)->walk(processor, walk, arg)) return true;
-      }
-
-      // walk windows' ORDER BY and PARTITION BY clauses.
-      List_iterator<Window> liw(lex->m_windows);
-      for (Window *w = liw++; w != nullptr; w = liw++) {
-        /*
-          We use first_order_by() instead of order() because if a window
-          references another window and they thus share the same ORDER BY,
-          we want to walk that clause only once here
-          (Same for partition as well)".
-        */
-        for (auto it : {w->first_partition_by(), w->first_order_by()}) {
-          if (it != nullptr) {
-            for (ORDER *o = it; o != nullptr; o = o->next) {
-              if ((*o->item)->walk(processor, walk, arg)) return true;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 bool Item_subselect::walk(Item_processor processor, enum_walk walk,

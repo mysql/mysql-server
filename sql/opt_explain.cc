@@ -421,7 +421,6 @@ class Explain_join : public Explain_table_base {
 
   JOIN *join;      ///< current JOIN
   int quick_type;  ///< current quick type, see anon. enum at QUICK_SELECT_I
-  table_map used_tables;  ///< accumulate used tables bitmap
 
  public:
   Explain_join(THD *explain_thd_arg, const THD *query_thd_arg,
@@ -432,8 +431,7 @@ class Explain_join : public Explain_table_base {
         need_tmp_table(need_tmp_table_arg),
         need_order(need_order_arg),
         distinct(distinct_arg),
-        join(select_lex_arg->join),
-        used_tables(0) {
+        join(select_lex_arg->join) {
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
@@ -1359,8 +1357,6 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   if (tab->finishes_weedout() && fmt->end_context(CTX_DUPLICATES_WEEDOUT))
     return true;
 
-  used_tables |= tab->table_ref->map();
-
   return false;
 }
 
@@ -1539,10 +1535,7 @@ bool Explain_join::explain_extra() {
     if (explain_tmptable_and_filesort(need_tmp_table, need_order)) return true;
     need_tmp_table = need_order = false;
 
-    if (distinct &&
-        test_all_bits(used_tables,
-                      join->thd->query_plan.get_lex()->used_tables) &&
-        push_extra(ET_DISTINCT))
+    if (distinct && tab->not_used_in_distinct && push_extra(ET_DISTINCT))
       return true;
 
     if (tab->do_loosescan() && push_extra(ET_LOOSESCAN)) return true;
@@ -2522,7 +2515,7 @@ void ForEachSubselect(
     Item *parent_item,
     const function<void(int select_number, bool is_dependent, bool is_cacheable,
                         RowIterator *)> &callback) {
-  WalkItem(parent_item, Item::WALK_POSTFIX, [&callback](Item *item) {
+  WalkItem(parent_item, enum_walk::POSTFIX, [&callback](Item *item) {
     if (item->type() == Item::SUBSELECT_ITEM) {
       Item_subselect *subselect = down_cast<Item_subselect *>(item);
       SELECT_LEX *select_lex = subselect->unit->first_select();

@@ -1560,9 +1560,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
   if (select->has_ft_funcs() && setup_ftfuncs(thd, select))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  if (select->inner_refs_list.elements && select->fix_inner_refs(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
-
   if (select->query_result() &&
       select->query_result()->prepare(thd, select->fields_list, lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */
@@ -1878,10 +1875,9 @@ bool Query_result_update::optimize() {
         for (uint i = 1; i < join->tables; ++i) {
           JOIN_TAB *tab = join->best_ref[i];
           if (tab->condition())
-            tab->condition()->walk(
-                &Item::add_field_to_set_processor,
-                Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                reinterpret_cast<uchar *>(main_table));
+            tab->condition()->walk(&Item::add_field_to_set_processor,
+                                   enum_walk::SUBQUERY_POSTFIX,
+                                   reinterpret_cast<uchar *>(main_table));
           /*
             On top of checking conditions, we need to check conditions
             referenced by index lookup on the following tables. They implement
@@ -1906,10 +1902,9 @@ bool Query_result_update::optimize() {
             for (uint i = 0; i < tab->ref().key_parts; i++) {
               Item *ref_item = tab->ref().items[i];
               if ((table_ref->map() & ref_item->used_tables()) != 0)
-                ref_item->walk(
-                    &Item::add_field_to_set_processor,
-                    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-                    reinterpret_cast<uchar *>(main_table));
+                ref_item->walk(&Item::add_field_to_set_processor,
+                               enum_walk::SUBQUERY_POSTFIX,
+                               reinterpret_cast<uchar *>(main_table));
             }
           }
         }

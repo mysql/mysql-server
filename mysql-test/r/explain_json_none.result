@@ -2672,7 +2672,6 @@ EXPLAIN
               "rows_produced_per_join": 2,
               "filtered": "100.00",
               "using_index": true,
-              "distinct": true,
               "cost_info": {
                 "read_cost": "0.50",
                 "eval_cost": "0.20",

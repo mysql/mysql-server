@@ -5099,8 +5099,7 @@ bool check_unique_constraint(TABLE *table) {
 */
 static inline void reset_wf_states(Func_ptr_array *func_ptr, bool framing) {
   for (auto it : *func_ptr) {
-    (void)it.func()->walk(&Item::reset_wf_state,
-                          Item::enum_walk(Item::WALK_POSTFIX),
+    (void)it.func()->walk(&Item::reset_wf_state, enum_walk::POSTFIX,
                           (uchar *)&framing);
   }
 }

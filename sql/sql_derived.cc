@@ -604,10 +604,10 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(thd_arg->mark_used_columns);
     while ((item = it++)) {
-      if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+      if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                      (uchar *)thd_arg))
         return true;
-      item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
     }
   }
   return false;

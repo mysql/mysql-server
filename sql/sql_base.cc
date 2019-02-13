@@ -7501,7 +7501,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                     (down_cast<Item_ident *>(*ref))->cached_table);
 
         Column_privilege_tracker tracker(thd, want_privilege);
-        if ((*ref)->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+        if ((*ref)->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                          (uchar *)thd))
           DBUG_RETURN(WRONG_GRANT);
       }
@@ -7513,8 +7513,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
     */
     if (fld == view_ref_found) {
       Mark_field mf(thd->mark_used_columns);
-      (*ref)->walk(&Item::mark_field_in_map,
-                   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+      (*ref)->walk(&Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX,
                    (uchar *)&mf);
     } else  // surely fld != NULL (see outer if())
       fld->table->mark_column_used(fld, thd->mark_used_columns);
@@ -8231,8 +8230,7 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
                                                      MARK_COLUMNS_READ);
       } else {
         Mark_field mf(MARK_COLUMNS_READ);
-        item_1->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+        item_1->walk(&Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX,
                      (uchar *)&mf);
       }
 
@@ -8241,8 +8239,7 @@ static bool mark_common_columns(THD *thd, TABLE_LIST *table_ref_1,
                                                      MARK_COLUMNS_READ);
       } else {
         Mark_field mf(MARK_COLUMNS_READ);
-        item_2->walk(&Item::mark_field_in_map,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+        item_2->walk(&Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX,
                      (uchar *)&mf);
       }
 
@@ -8770,12 +8767,12 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
       }
       if (want_privilege & (INSERT_ACL | UPDATE_ACL)) {
         Column_privilege_tracker column_privilege(thd, want_privilege);
-        if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+        if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                        pointer_cast<uchar *>(thd)))
           DBUG_RETURN(true);
       }
       Mark_field mf(MARK_COLUMNS_WRITE);
-      item->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+      item->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                  pointer_cast<uchar *>(&mf));
     }
 
@@ -8799,7 +8796,6 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &fields,
     }
 
     select->select_list_tables |= item->used_tables();
-    thd->lex->used_tables |= item->used_tables() & ~PSEUDO_TABLE_BITS;
   }
   select->is_item_list_lookup = save_is_item_list_lookup;
   thd->lex->allow_sum_func = save_allow_sum_func;
@@ -8892,7 +8888,6 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
       views and natural joins this update is performed inside the loop below.
     */
     if (table) {
-      thd->lex->used_tables |= tables->map();
       thd->lex->current_select()->select_list_tables |= tables->map();
     }
 
@@ -8954,7 +8949,6 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
         }
       }
 
-      thd->lex->used_tables |= item->used_tables();
       thd->lex->current_select()->select_list_tables |= item->used_tables();
 
       Field *const field = field_iterator.field();
@@ -8963,15 +8957,14 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
         field->table->mark_column_used(field, thd->mark_used_columns);
       } else {
         if (thd->want_privilege && tables->is_view_or_derived()) {
-          if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
+          if (item->walk(&Item::check_column_privileges, enum_walk::PREFIX,
                          (uchar *)thd))
             DBUG_RETURN(true);
         }
 
         // Register underlying fields in read map if wanted.
         Mark_field mf(thd->mark_used_columns);
-        item->walk(&Item::mark_field_in_map,
-                   Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+        item->walk(&Item::mark_field_in_map, enum_walk::SUBQUERY_POSTFIX,
                    (uchar *)&mf);
       }
     }

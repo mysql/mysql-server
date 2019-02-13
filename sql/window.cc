@@ -1470,8 +1470,7 @@ void Window::reset_all_wf_state() {
   Item_sum *sum;
   while ((sum = ls++)) {
     for (auto f : {false, true}) {
-      (void)sum->walk(&Item::reset_wf_state,
-                      Item::enum_walk(Item::WALK_POSTFIX), (uchar *)&f);
+      (void)sum->walk(&Item::reset_wf_state, enum_walk::POSTFIX, (uchar *)&f);
     }
   }
 }

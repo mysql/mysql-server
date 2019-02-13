@@ -601,7 +601,7 @@ int JOIN::optimize() {
     }
 
     bool simple_sort = true;
-    Deps_of_remaining_lateral_derived_tables deps_lateral(this);
+    Deps_of_remaining_lateral_derived_tables deps_lateral(this, all_table_map);
     // Check whether join cache could be used
     for (uint i = const_tables; i < tables; i++) {
       JOIN_TAB *const tab = best_ref[i];
@@ -2832,12 +2832,22 @@ bool JOIN::get_best_combination() {
   DBUG_RETURN(false);
 }
 
-void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(uint idx) {
+/**
+   Updates JOIN::deps_of_remaining_lateral_derived_tables
+
+   @param plan_tables  map of all tables that the planner is processing
+                       (tables already in plan and tables to be added to plan)
+   @param idx          index of the table which the planner is currently
+                       considering
+*/
+void JOIN::recalculate_deps_of_remaining_lateral_derived_tables(
+    table_map plan_tables, uint idx) {
   DBUG_ASSERT(has_lateral);
   deps_of_remaining_lateral_derived_tables = 0;
   auto last = best_ref + tables;
   for (auto **pos = best_ref + idx; pos < last; pos++) {
-    if ((*pos)->table_ref && (*pos)->table_ref->is_derived())
+    if ((*pos)->table_ref && (*pos)->table_ref->is_derived() &&
+        ((*pos)->table_ref->map() & plan_tables))
       deps_of_remaining_lateral_derived_tables |=
           (*pos)->table_ref->derived_unit()->m_lateral_deps;
   }
@@ -3472,7 +3482,7 @@ static bool check_simple_equality(THD *thd, Item *left_item, Item *right_item,
       more complex and may introduce cycles in the Item tree.
     */
     if (const_item != nullptr &&
-        const_item->walk(&Item::find_field_processor, Item::WALK_POSTFIX,
+        const_item->walk(&Item::find_field_processor, enum_walk::POSTFIX,
                          pointer_cast<uchar *>(field_item->field)))
       return false;
 
@@ -7582,7 +7592,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
       !is_indexed_agg_distinct(join, &indexed_fields) &&
       !join->select_distinct) {
     join->where_cond->walk(&Item::collect_item_field_processor,
-                           Item::WALK_POSTFIX, (uchar *)&indexed_fields);
+                           enum_walk::POSTFIX, (uchar *)&indexed_fields);
     Key_map possible_keys;
     possible_keys.set_all();
     join_tab->skip_scan_keys.clear_all();
@@ -7599,7 +7609,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     /* Collect all query fields referenced in the GROUP clause. */
     for (cur_group = join->group_list; cur_group; cur_group = cur_group->next)
       (*cur_group->item)
-          ->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+          ->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
     cause = "group_by";
   } else if (join->select_distinct) {
@@ -7608,7 +7618,7 @@ static void add_loose_index_scan_and_skip_scan_keys(JOIN *join,
     List_iterator<Item> select_items_it(select_items);
     Item *item;
     while ((item = select_items_it++))
-      item->walk(&Item::collect_item_field_processor, Item::WALK_POSTFIX,
+      item->walk(&Item::collect_item_field_processor, enum_walk::POSTFIX,
                  (uchar *)&indexed_fields);
     cause = "distinct";
   } else if (join->tmp_table_param.sum_func_count &&
@@ -9158,7 +9168,7 @@ static bool make_join_select(JOIN *join, Item *cond) {
           correct calculation of the number of its executions.
         */
         std::pair<SELECT_LEX *, int> pair_object(join->select_lex, i);
-        cond->walk(&Item::inform_item_in_cond_of_tab, Item::WALK_POSTFIX,
+        cond->walk(&Item::inform_item_in_cond_of_tab, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&pair_object));
       }
     }

@@ -458,7 +458,6 @@ void LEX::reset() {
   server_options.reset();
   explain_format = NULL;
   is_lex_started = true;
-  used_tables = 0;
   reset_slave_info.all = false;
   mi.channel = NULL;
 
@@ -2102,7 +2101,6 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       braces(false),
       having_fix_field(false),
       group_fix_field(false),
-      inner_refs_list(),
       explicit_limit(false),
       subquery_in_having(false),
       first_execution(true),
@@ -3341,11 +3339,11 @@ void SELECT_LEX::print_order_by(const THD *thd, String *str,
   }
 }
 
-static Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
+static enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
   if (visitor->visits_in_prefix_order())
-    return Item::WALK_SUBQUERY_PREFIX;
+    return enum_walk::SUBQUERY_PREFIX;
   else
-    return Item::WALK_SUBQUERY_POSTFIX;
+    return enum_walk::SUBQUERY_POSTFIX;
 }
 
 bool walk_item(Item *item, Select_lex_visitor *visitor) {
@@ -4531,6 +4529,91 @@ bool SELECT_LEX::validate_base_options(LEX *lex, ulonglong options_arg) const {
       validate_outermost_option(lex, "SQL_CALC_FOUND_ROWS"))
     return true;
 
+  return false;
+}
+
+/**
+  Apply walk() processor to join conditions.
+
+  JOINs may be nested. Walk nested joins recursively to apply the
+  processor.
+*/
+static bool walk_join_condition(List<TABLE_LIST> *tables,
+                                Item_processor processor, enum_walk walk,
+                                uchar *arg) {
+  TABLE_LIST *table;
+  List_iterator<TABLE_LIST> li(*tables);
+
+  while ((table = li++)) {
+    if (table->join_cond() && table->join_cond()->walk(processor, walk, arg))
+      return true;
+
+    if (table->nested_join != NULL &&
+        walk_join_condition(&table->nested_join->join_list, processor, walk,
+                            arg))
+      return true;
+  }
+  return false;
+}
+
+bool SELECT_LEX::walk(Item_processor processor, enum_walk walk, uchar *arg) {
+  List_iterator<Item> li(item_list);
+  Item *item;
+
+  while ((item = li++)) {
+    if (item->walk(processor, walk, arg)) return true;
+  }
+
+  if (join_list != NULL && walk_join_condition(join_list, processor, walk, arg))
+    return true;
+
+  if ((walk & enum_walk::SUBQUERY)) {
+    /*
+      for each leaf: if a materialized table, walk the unit
+    */
+    for (TABLE_LIST *tbl = leaf_tables; tbl; tbl = tbl->next_leaf) {
+      if (!tbl->uses_materialization()) continue;
+      if (tbl->is_derived()) {
+        if (tbl->derived_unit()->walk(processor, walk, arg)) return true;
+      } else if (tbl->is_table_function()) {
+        if (tbl->table_function->walk(processor, walk, arg)) return true;
+      }
+    }
+  }
+
+  // @todo: Roy thinks that we should always use where_cond.
+  Item *const where_cond =
+      (join && join->is_optimized()) ? join->where_cond : this->where_cond();
+
+  if (where_cond && where_cond->walk(processor, walk, arg)) return true;
+
+  for (auto order = group_list.first; order; order = order->next) {
+    if ((*order->item)->walk(processor, walk, arg)) return true;
+  }
+
+  if (having_cond() && having_cond()->walk(processor, walk, arg)) return true;
+
+  for (auto order = order_list.first; order; order = order->next) {
+    if ((*order->item)->walk(processor, walk, arg)) return true;
+  }
+
+  // walk windows' ORDER BY and PARTITION BY clauses.
+  List_iterator<Window> liw(m_windows);
+  for (Window *w = liw++; w != nullptr; w = liw++) {
+    /*
+      We use first_order_by() instead of order() because if a window
+      references another window and they thus share the same ORDER BY,
+      we want to walk that clause only once here
+      (Same for partition as well)".
+    */
+    for (auto it : {w->first_partition_by(), w->first_order_by()}) {
+      if (it != nullptr) {
+        for (ORDER *o = it; o != nullptr; o = o->next) {
+          if ((*o->item)->walk(processor, walk, arg)) return true;
+        }
+      }
+    }
+  }
   return false;
 }
 

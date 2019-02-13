@@ -832,8 +832,8 @@ class JOIN {
                             bool force_stable_sort = false);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
-  /// Updates deps_of_remaining_lateral_derived_tables
-  void recalculate_deps_of_remaining_lateral_derived_tables(uint idx);
+  void recalculate_deps_of_remaining_lateral_derived_tables(
+      table_map plan_tables, uint idx);
   bool clear_corr_derived_tmp_tables();
 
   void mark_const_table(JOIN_TAB *table, Key_use *key);
@@ -1181,10 +1181,20 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
 class Deps_of_remaining_lateral_derived_tables {
   JOIN *join;
   table_map saved;
+  /// All lateral tables not part of this map should be ignored
+  table_map plan_tables;
 
  public:
-  Deps_of_remaining_lateral_derived_tables(JOIN *j)
-      : join(j), saved(join->deps_of_remaining_lateral_derived_tables) {}
+  /**
+     Constructor.
+     @param j                the JOIN
+     @param plan_tables_arg  @see
+                             JOIN::deps_of_remaining_lateral_derived_tables
+  */
+  Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
+      : join(j),
+        saved(join->deps_of_remaining_lateral_derived_tables),
+        plan_tables(plan_tables_arg) {}
   ~Deps_of_remaining_lateral_derived_tables() { restore(); }
   void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
   void assert_unchanged() {
@@ -1197,7 +1207,8 @@ class Deps_of_remaining_lateral_derived_tables {
         may be backward or forward compared to where we were before:
         recalculate.
       */
-      join->recalculate_deps_of_remaining_lateral_derived_tables(next_idx);
+      join->recalculate_deps_of_remaining_lateral_derived_tables(plan_tables,
+                                                                 next_idx);
   }
 
   void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
@@ -1215,7 +1226,6 @@ class Deps_of_remaining_lateral_derived_tables {
       recalculate(join->const_tables);
       // Forget stale value:
       saved = join->deps_of_remaining_lateral_derived_tables;
-      DBUG_ASSERT(saved != 0);
     }
   }
 };

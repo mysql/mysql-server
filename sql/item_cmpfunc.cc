@@ -86,8 +86,6 @@ using std::min;
 static bool convert_constant_item(THD *, Item_field *, Item **, bool *);
 static longlong get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
                                const Item *warn_item, bool *is_null);
-static const Item::enum_walk walk_subquery =
-    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
 /*
   Compare row signature of two expressions
@@ -738,8 +736,8 @@ bool Arg_comparator::set_compare_func(Item_result_field *item,
           which would be transformed to:
           WHERE col= 'j'
         */
-        (*a)->walk(&Item::set_no_const_sub, Item::WALK_POSTFIX, NULL);
-        (*b)->walk(&Item::set_no_const_sub, Item::WALK_POSTFIX, NULL);
+        (*a)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, NULL);
+        (*b)->walk(&Item::set_no_const_sub, enum_walk::POSTFIX, NULL);
       }
       break;
     }
@@ -4860,7 +4858,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
       TODO: Lift this restriction once init_ft_funcs gets moved to JOIN::exec
     */
     if (ref != NULL && select->first_execution && item->const_item() &&
-        !item->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+        !item->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                     NULL) &&
         !thd->lex->is_view_context_analysis() && is_top_level_item() &&
         !select->has_ft_funcs() && can_remove_cond) {
@@ -4875,7 +4873,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         continue;
       }
       Cleanup_after_removal_context ctx(select, true);
-      item->walk(&Item::clean_up_after_removal, walk_subquery,
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
       continue;
@@ -4906,7 +4904,7 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
     li.rewind();
     while ((item = li++)) {
       Cleanup_after_removal_context ctx(select, true);
-      item->walk(&Item::clean_up_after_removal, walk_subquery,
+      item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                  pointer_cast<uchar *>(&ctx));
       li.remove();
     }
@@ -5026,14 +5024,14 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
 }
 
 bool Item_cond::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   List_iterator_fast<Item> li(list);
   Item *item;
   while ((item = li++)) {
     if (item->walk(processor, walk, arg)) return true;
   }
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 /**
@@ -6191,7 +6189,7 @@ bool Item_equal::resolve_type(THD *) {
 }
 
 bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   List_iterator_fast<Item_field> it(fields);
   Item *item;
@@ -6199,7 +6197,7 @@ bool Item_equal::walk(Item_processor processor, enum_walk walk, uchar *arg) {
     if (item->walk(processor, walk, arg)) return true;
   }
 
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 Item *Item_equal::transform(Item_transformer transformer, uchar *arg) {

@@ -7174,7 +7174,7 @@ static bool add_functional_index_to_create_list(THD *thd, Key_spec *key_spec,
 
     Replace_field_processor_arg replace_field_argument(
         thd, &alter_info->create_list, create_info, key_spec->name.str);
-    if (expr->walk(&Item::replace_field_processor, Item::WALK_PREFIX,
+    if (expr->walk(&Item::replace_field_processor, enum_walk::PREFIX,
                    reinterpret_cast<uchar *>(&replace_field_argument))) {
       return true;
     }
@@ -11056,7 +11056,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   for (Field *vfield : gcols_with_unchanged_expr) {
     for (const char *col_name : cols_with_default_change) {
       if (vfield->gcol_info->expr_item->walk(
-              &Item::check_gcol_depend_default_processor, Item::WALK_POSTFIX,
+              &Item::check_gcol_depend_default_processor, enum_walk::POSTFIX,
               reinterpret_cast<uchar *>(const_cast<char *>(col_name)))) {
         if (vfield->is_virtual_gcol())
           ha_alter_info->handler_flags |=
@@ -13169,7 +13169,7 @@ static bool is_field_used_by_functional_index(TABLE *table, uint field_index) {
       DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
       tmp_vfield->gcol_info->expr_item->walk(
-          &Item::mark_field_in_map, Item::WALK_PREFIX, (uchar *)&mark_fld);
+          &Item::mark_field_in_map, enum_walk::PREFIX, (uchar *)&mark_fld);
       if (bitmap_is_set(table->read_set, field_index)) {
         table->read_set = save_old_read_set;
         return true;
@@ -17463,7 +17463,7 @@ static bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
   List<Item_field> fields;
   for (auto &cc_spec : alter_info->check_constraint_spec_list) {
     cc_spec->check_expr->walk(&Item::collect_item_field_processor,
-                              Item::WALK_POSTFIX, (uchar *)&fields);
+                              enum_walk::POSTFIX, (uchar *)&fields);
 
     Item_field *cur_item_fld;
     List_iterator<Item_field> fields_it(fields);
@@ -18019,7 +18019,7 @@ static bool is_any_check_constraints_evaluation_required(
         // Get fields used by check constraint.
         List<Item_field> fields;
         cc_spec->check_expr->walk(&Item::collect_item_field_processor,
-                                  Item::WALK_POSTFIX, (uchar *)&fields);
+                                  enum_walk::POSTFIX, (uchar *)&fields);
         for (auto &itm_fld : fields) {
           if (itm_fld.type() != Item::FIELD_ITEM || itm_fld.field == nullptr)
             continue;
@@ -18037,7 +18037,7 @@ static bool is_any_check_constraints_evaluation_required(
         */
         if (fld.change &&
             cc_spec->check_expr->walk(
-                &Item::check_gcol_depend_default_processor, Item::WALK_POSTFIX,
+                &Item::check_gcol_depend_default_processor, enum_walk::POSTFIX,
                 reinterpret_cast<uchar *>(const_cast<char *>(fld.change))))
           return true;
       }
@@ -18054,7 +18054,7 @@ static bool is_any_check_constraints_evaluation_required(
             alter->change_type() == Alter_column::Type::DROP_DEFAULT) {
           if (cc_spec->check_expr->walk(
                   &Item::check_gcol_depend_default_processor,
-                  Item::WALK_POSTFIX,
+                  enum_walk::POSTFIX,
                   reinterpret_cast<uchar *>(const_cast<char *>(alter->name))))
             return true;
         }

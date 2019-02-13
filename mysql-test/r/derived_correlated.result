@@ -3224,3 +3224,131 @@ SELECT STD(0) FROM t2, LATERAL ( SELECT f1 FROM t1 GROUP BY f2,f1 ) AS d1;
 STD(0)
 0
 DROP TABLE t1, t2;
+#
+# Bug#28954838 ASSERTION `(REMAINING_TABLES_AFTER != 0) || ((CUR_EMBEDDING_MAP == 0) && (JOIN->
+#
+CREATE TABLE t1 (
+pk INTEGER,
+col_int INT not null,
+col_int_key INT not null,
+col_time_gckey TIME,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15)  not null
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_int INT not null,
+col_varchar VARCHAR(20) not null,
+col_varchar_key VARCHAR(15) not null
+);
+SET OPTIMIZER_SWITCH='derived_merge=off';
+SELECT table1.col_varchar_key AS field1,
+table2.col_time_gckey AS field2
+FROM t2 AS table1 STRAIGHT_JOIN t1 AS table2
+ON table2.col_varchar_key = table1.col_varchar_key
+WHERE table2.col_int_key IN
+(WITH qn AS
+(SELECT sq1_t1.col_int AS sq1_field1
+FROM t2 AS sq1_t1
+WHERE sq1_t1.col_varchar_key = table2.col_varchar OR
+EXISTS (WITH qn1 AS
+(SELECT c_sq1_t1.col_int_key AS c_sq1_field1
+FROM t1 AS c_sq1_t1
+WHERE c_sq1_t1.col_varchar_key > sq1_t1.col_varchar OR
+c_sq1_t1.col_int <> c_sq1_t1.pk
+)
+SELECT * FROM qn1
+)
+)
+SELECT * FROM qn
+) AND
+EXISTS (WITH qn AS
+(SELECT sq2_t1.col_varchar AS sq2_field1
+FROM t1 AS sq2_t1 STRAIGHT_JOIN
+t2 AS sq2_t2 INNER JOIN t1 AS sq2_t3
+ON sq2_t3.col_varchar = sq2_t2.col_varchar_key
+ON sq2_t3.col_int = sq2_t2.pk
+)
+SELECT * FROM qn
+) AND
+table2.col_varchar_key <> 'j';
+field1	field2
+SET OPTIMIZER_SWITCH=DEFAULT;
+DROP TABLE t1,t2;
+#
+# Bug#28955358 VIRTUAL LONGLONG FIELD_NEWDATE::VAL_DATE_TEMPORAL(): ASSERTION `!TABLE || (!TAB
+#
+CREATE TABLE t1 (
+pk INTEGER, col_int_key INTEGER NOT NULL,
+col_date_key DATE NOT NULL, col_datetime DATETIME NOT NULL
+);
+INSERT INTO t1 VALUES (0, 0, '2006-07-18', '2001-09-06 02:13:59.021506');
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ 2
+FROM (SELECT 1 AS x FROM t1 AS  innr WHERE outr.col_date_key ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+SELECT /*+ no_merge() */  outr.pk AS x
+FROM ( SELECT * FROM  t1  ) AS  outr
+WHERE outr.col_int_key  IN
+( SELECT /*+ no_merge() no_semijoin() */ id
+FROM JSON_TABLE( IF(outr.col_date_key<>NOW(),
+'[{"a":"3"},{"a":2},{"b":1},{"a":0}]',
+'') ,
+'$[*]' columns (id for ordinality,
+jpath varchar(100) path '$.a',
+jexst int exists path '$.b')   ) AS
+qn )
+ORDER BY outr.col_datetime;
+x
+DROP TABLE t1;
+CREATE TABLE t1(pk INT PRIMARY KEY, a INT);
+EXPLAIN SELECT pk FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT (SELECT pk FROM (SELECT t1.pk) dt) FROM t1 GROUP BY a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.pk' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;
+#
+# Bug#28960857 ASSERTION FAILED: !TR->DERIVED_WHERE_COND || TR->DERIVED_WHERE_COND->FIXED
+# Bug#28960789 ASSERTION FAILED: TRANSL->ITEM->FIXED,
+#
+CREATE TABLE t0007 (
+c0008 date NOT NULL,
+c0009 char(234) NOT NULL
+);
+CREATE TABLE t0008 (
+c0005 tinytext NOT NULL
+);
+CREATE TABLE t0009 (
+c0000 time NOT NULL
+);
+SET SQL_MODE=0;
+SELECT (SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 ) FROM t0007
+GROUP BY -23;
+(SELECT t0007.c0009         FROM (SELECT t0007.c0008 AS c0003
+FROM t0009                   ) AS t0005                 )
+SELECT (SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+),
+COUNT(c0009)
+FROM t0007
+GROUP BY 1, 1;
+(SELECT c0009
+FROM (SELECT 1 AS c0003
+FROM t0009 INNER JOIN t0008
+ON t0008.c0005
+WHERE t0007.c0008
+) AS t0005
+GROUP BY c0008
+)	COUNT(c0009)
+DROP TABLE t0007, t0008, t0009;
+SET SQL_MODE=DEFAULT;

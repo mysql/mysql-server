@@ -36,6 +36,7 @@
 #include "psi_memory_key.h"  // key_memory_JSON
 #include "sql/create_field.h"
 #include "sql/enum_query_type.h"
+
 #include "sql/mem_root_array.h"
 #include "sql_list.h"  // List
 #include "table.h"     // TABLE
@@ -157,6 +158,8 @@ class Table_function {
       thread handler
   */
   inline THD *get_thd() { return thd; }
+
+  virtual bool walk(Item_processor processor, enum_walk walk, uchar *arg) = 0;
 
  private:
   /**
@@ -367,6 +370,8 @@ class Table_function_json final : public Table_function {
       false on success
   */
   bool print(String *str, enum_query_type query_type) override;
+
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
 
  private:
   /**

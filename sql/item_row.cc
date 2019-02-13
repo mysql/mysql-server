@@ -182,12 +182,12 @@ void Item_row::print(const THD *thd, String *str,
 }
 
 bool Item_row::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+  if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
 
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->walk(processor, walk, arg)) return true;
   }
-  return (walk & WALK_POSTFIX) && (this->*processor)(arg);
+  return (walk & enum_walk::POSTFIX) && (this->*processor)(arg);
 }
 
 Item *Item_row::transform(Item_transformer transformer, uchar *arg) {

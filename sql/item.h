@@ -648,7 +648,6 @@ class Settable_routine_parameter {
   virtual const Send_field *get_out_param_info() const { return NULL; }
 };
 
-typedef bool (Item::*Item_processor)(uchar *arg);
 /*
   Analyzer function
     SYNOPSIS
@@ -736,14 +735,6 @@ class Item : public Parse_tree_node {
   enum cond_result { COND_UNDEF, COND_OK, COND_TRUE, COND_FALSE };
 
   enum traverse_order { POSTFIX, PREFIX };
-
-  enum enum_walk {
-    WALK_PREFIX = 0x01,
-    WALK_POSTFIX = 0x02,
-    WALK_SUBQUERY = 0x04,
-    WALK_SUBQUERY_PREFIX = 0x05,   // Combine prefix and subquery traversal
-    WALK_SUBQUERY_POSTFIX = 0x06,  // Combine postfix and subquery traversal
-  };
 
   /**
     Provide data type for a user or system variable, based on the type of
@@ -1950,12 +1941,12 @@ class Item : public Parse_tree_node {
     @param processor   processor function to be invoked per item
                        returns true to abort traversal, false to continue
     @param walk        controls how to traverse the item tree
-                       WALK_PREFIX:  call processor before invoking children
-                       WALK_POSTFIX: call processor after invoking children
-                       WALK_SUBQUERY go down into subqueries
+                       enum_walk::PREFIX:  call processor before invoking
+    children enum_walk::POSTFIX: call processor after invoking children
+                       enum_walk::SUBQUERY go down into subqueries
                        walk values are bit-coded and may be combined.
-                       Omitting both WALK_PREFIX and WALK_POSTFIX is undefined
-                       behaviour.
+                       Omitting both enum_walk::PREFIX and enum_walk::POSTFIX
+                       is undefined behaviour.
     @param arg         Optional pointer to a walk-specific object
 
     @retval      false walk succeeded
@@ -1963,8 +1954,8 @@ class Item : public Parse_tree_node {
                        by agreement, an error may have been reported
   */
 
-  virtual bool walk(Item_processor processor,
-                    enum_walk walk MY_ATTRIBUTE((unused)), uchar *arg) {
+  virtual bool walk(Item_processor processor, enum_walk MY_ATTRIBUTE((unused)),
+                    uchar *arg) {
     return (this->*processor)(arg);
   }
 
@@ -2438,7 +2429,7 @@ class Item : public Parse_tree_node {
   virtual bool is_expensive() {
     if (is_expensive_cache < 0)
       is_expensive_cache =
-          walk(&Item::is_expensive_processor, WALK_POSTFIX, NULL);
+          walk(&Item::is_expensive_processor, enum_walk::POSTFIX, NULL);
     return is_expensive_cache;
   }
 
@@ -2552,7 +2543,7 @@ class Item : public Parse_tree_node {
 
   void mark_subqueries_optimized_away() {
     if (has_subquery())
-      walk(&Item::subq_opt_away_processor, WALK_POSTFIX, NULL);
+      walk(&Item::subq_opt_away_processor, enum_walk::POSTFIX, NULL);
   }
 
   /**
@@ -2763,13 +2754,13 @@ class Item : public Parse_tree_node {
 /**
   A helper class to give in a functor to Item::walk(). Use as e.g.:
 
-  bool result = WalkItem(root_item, Item::WALK_POSTFIX, [](Item *item) { ... });
+  bool result = WalkItem(root_item, enum_walk::POSTFIX, [](Item *item) { ... });
 
   TODO: Make Item::walk() just take in a functor in the first place, instead of
   a pointer-to-member and an opaque argument.
  */
 template <class T>
-inline bool WalkItem(Item *item, Item::enum_walk walk, T &&functor) {
+inline bool WalkItem(Item *item, enum_walk walk, T &&functor) {
   return item->walk(&Item::walk_helper_thunk<T>, walk,
                     reinterpret_cast<uchar *>(&functor));
 }
@@ -3223,11 +3214,11 @@ class Item_ident : public Item {
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
     /*
       Item_ident processors like aggregate_check*() use
-      WALK_PREFIX|WALK_POSTFIX and depend on the processor being called twice
-      then.
+      enum_walk::PREFIX|enum_walk::POSTFIX and depend on the processor being
+      called twice then.
     */
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
+           ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
 
   /**
@@ -4683,10 +4674,10 @@ class Item_ref : public Item_ident {
   }
   Item *real_item() override { return ref ? (*ref)->real_item() : this; }
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
-    return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+    return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            // For having clauses 'ref' will consistently =NULL.
            (ref != NULL ? (*ref)->walk(processor, walk, arg) : false) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+           ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
   Item *transform(Item_transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
@@ -4846,7 +4837,7 @@ class Item_view_ref final : public Item_ref {
     if (mark_field->mark != MARK_COLUMNS_NONE)
       // Set the same flag for all the objects that *ref depends on.
       (*ref)->walk(&Item::propagate_set_derived_used,
-                   Item::WALK_SUBQUERY_POSTFIX, NULL);
+                   enum_walk::SUBQUERY_POSTFIX, NULL);
     return result_field ? Item::mark_field_in_map(mark_field, result_field)
                         : false;
   }
@@ -4882,14 +4873,20 @@ class Item_view_ref final : public Item_ref {
   resolved is a grouping one. After it has been fixed the ref field will point
   to an Item_ref object which will be used to access the field.
   The ref field may also point to an Item_field instance.
-  See also comments for the fix_inner_refs() and the
-  Item_field::fix_outer_field() functions.
+  See also comments of the Item_field::fix_outer_field() function.
 */
 
 class Item_sum;
 
 class Item_outer_ref final : public Item_ref {
   typedef Item_ref super;
+
+ private:
+  /**
+     Qualifying query of this outer ref (i.e. query block which owns FROM of
+     table which this Item references).
+  */
+  SELECT_LEX *qualifying;
 
  public:
   Item *outer_ref;
@@ -4900,9 +4897,11 @@ class Item_outer_ref final : public Item_ref {
     of the outer select.
   */
   bool found_in_select_list;
-  Item_outer_ref(Name_resolution_context *context_arg, Item_ident *ident_arg)
+  Item_outer_ref(Name_resolution_context *context_arg, Item_ident *ident_arg,
+                 SELECT_LEX *qualifying)
       : Item_ref(context_arg, 0, ident_arg->table_name, ident_arg->field_name,
                  false),
+        qualifying(qualifying),
         outer_ref(ident_arg),
         in_sum_func(0),
         found_in_select_list(0) {
@@ -4912,9 +4911,10 @@ class Item_outer_ref final : public Item_ref {
   }
   Item_outer_ref(Name_resolution_context *context_arg, Item **item,
                  const char *table_name_arg, const char *field_name_arg,
-                 bool alias_of_expr_arg)
+                 bool alias_of_expr_arg, SELECT_LEX *qualifying)
       : Item_ref(context_arg, item, table_name_arg, field_name_arg,
                  alias_of_expr_arg),
+        qualifying(qualifying),
         outer_ref(0),
         in_sum_func(0),
         found_in_select_list(1) {}
@@ -5415,9 +5415,9 @@ class Item_default_value final : public Item_field {
   Item *get_tmp_table_item(THD *thd) override { return copy_or_same(thd); }
 
   bool walk(Item_processor processor, enum_walk walk, uchar *args) override {
-    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+    return ((walk & enum_walk::PREFIX) && (this->*processor)(args)) ||
            (arg && arg->walk(processor, walk, args)) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(args));
+           ((walk & enum_walk::POSTFIX) && (this->*processor)(args));
   }
 
   bool check_gcol_depend_default_processor(uchar *args) override {
@@ -5467,9 +5467,9 @@ class Item_insert_value final : public Item_field {
   table_map used_tables() const override { return RAND_TABLE_BIT; }
 
   bool walk(Item_processor processor, enum_walk walk, uchar *args) override {
-    return ((walk & WALK_PREFIX) && (this->*processor)(args)) ||
+    return ((walk & enum_walk::PREFIX) && (this->*processor)(args)) ||
            arg->walk(processor, walk, args) ||
-           ((walk & WALK_POSTFIX) && (this->*processor)(args));
+           ((walk & enum_walk::POSTFIX) && (this->*processor)(args));
   }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -6023,9 +6023,6 @@ extern bool is_null_on_empty_table(THD *thd, Item_field *i);
 extern const String my_null_string;
 void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
-#ifndef DBUG_OFF
-bool is_fixed_or_outer_ref(const Item *ref);
-#endif
 
 std::string ItemToString(Item *item);
 

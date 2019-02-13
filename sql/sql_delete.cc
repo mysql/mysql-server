@@ -777,9 +777,6 @@ bool Sql_cmd_delete::prepare_inner(THD *thd) {
 
   select->exclude_from_table_unique_test = false;
 
-  if (select->inner_refs_list.elements && select->fix_inner_refs(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
-
   if (select->query_result() &&
       select->query_result()->prepare(thd, select->fields_list, lex->unit))
     DBUG_RETURN(true); /* purecov: inspected */

@@ -90,9 +90,6 @@ static bool simplify_const_condition(THD *thd, Item **cond,
                                      bool remove_cond = true,
                                      bool *ret_cond_value = 0);
 
-static const Item::enum_walk walk_subquery =
-    Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
-
 /**
   Prepare query block for optimization.
 
@@ -280,7 +277,7 @@ bool SELECT_LEX::prepare(THD *thd) {
     // Simplify the having condition if it is a const item
     if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_having_cond->walk(&Item::is_non_const_over_literals,
-                             Item::WALK_POSTFIX, NULL) &&
+                             enum_walk::POSTFIX, NULL) &&
         simplify_const_condition(thd, &m_having_cond))
       DBUG_RETURN(true);
 
@@ -406,9 +403,6 @@ bool SELECT_LEX::prepare(THD *thd) {
                                 false);
     } while (item_sum != end);
   }
-
-  if (inner_refs_list.elements && fix_inner_refs(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
 
   if (group_list.elements) {
     /*
@@ -1372,7 +1366,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
     // Simplify the where condition if it's a const item
     if (m_where_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_where_cond->walk(&Item::is_non_const_over_literals,
-                            Item::WALK_POSTFIX, NULL) &&
+                            enum_walk::POSTFIX, NULL) &&
         simplify_const_condition(thd, &m_where_cond))
       DBUG_RETURN(true);
 
@@ -1427,7 +1421,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
       cond_count++;
 
       if ((*ref)->const_item() && !thd->lex->is_view_context_analysis() &&
-          !(*ref)->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+          !(*ref)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                         NULL) &&
           simplify_const_condition(thd, ref, remove_cond))
         DBUG_RETURN(true);
@@ -1786,7 +1780,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
         be always false.
       */
       if (*cond && (*cond)->const_item() &&
-          !(*cond)->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+          !(*cond)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                          NULL)) {
         bool cond_value = true;
         if (simplify_const_condition(thd, cond, false, &cond_value))
@@ -2069,7 +2063,7 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
     // Evaluate if the condition is on const expressions
     if (predicate->const_item() &&
         !(predicate)->walk(&Item::is_non_const_over_literals,
-                           Item::WALK_POSTFIX, NULL)) {
+                           enum_walk::POSTFIX, NULL)) {
       bool cond_value = true;
 
       /* Push ignore / strict error handler */
@@ -2571,7 +2565,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   if (subq_pred->substype() == Item_subselect::IN_SUBS) {
     Item_in_subselect *in_subq_pred = (Item_in_subselect *)subq_pred;
 
-    DBUG_ASSERT(is_fixed_or_outer_ref(in_subq_pred->left_expr));
+    DBUG_ASSERT(in_subq_pred->left_expr->fixed);
 
     subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
     /*
@@ -2702,7 +2696,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   */
   Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
   if (cond && cond->const_item() &&
-      !cond->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+      !cond->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                   NULL)) {
     bool cond_value = true;
     if (simplify_const_condition(thd, &cond, false, &cond_value))
@@ -2941,7 +2935,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
         Mark_field mf(thd->mark_used_columns);
         for (ORDER *o = derived_select->order_list.first; o != NULL;
              o = o->next)
-          o->item[0]->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX,
+          o->item[0]->walk(&Item::mark_field_in_map, enum_walk::POSTFIX,
                            pointer_cast<uchar *>(&mf));
       }
     } else {
@@ -3153,7 +3147,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     */
     bool cond_value = true;
     if (subq_pred && subq_pred->const_item() &&
-        !subq_pred->walk(&Item::is_non_const_over_literals, Item::WALK_POSTFIX,
+        !subq_pred->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                          NULL) &&
         simplify_const_condition(thd, &subq_pred, false, &cond_value))
       DBUG_RETURN(true);
@@ -3249,7 +3243,7 @@ bool SELECT_LEX::is_in_select_list(Item *cand) {
   while ((item = li++)) {
     // Use a walker to detect if cand is present in this select item
 
-    if (item->walk(&Item::find_item_processor, walk_subquery,
+    if (item->walk(&Item::find_item_processor, enum_walk::SUBQUERY_POSTFIX,
                    pointer_cast<uchar *>(cand)))
       return true;
   }
@@ -3347,75 +3341,6 @@ void SELECT_LEX::merge_contexts(SELECT_LEX *inner) {
 }
 
 /**
-  Fix fields referenced from inner query blocks.
-
-  @param thd               Thread handle
-
-  @details
-    The function serves 3 purposes
-
-    - adds fields referenced from inner query blocks to the current select list
-
-    - creates an object to use to reference the items (Item_ref)
-
-    - fixes references (Item_ref objects) to these fields.
-
-    If a field isn't already on the select list and the base_ref_items array
-    is provided then it is added to the all_fields list and the pointer to
-    it is saved in the base_ref_items array.
-
-    The resolution is done here and not at the fix_fields() stage as
-    it can be done only after aggregate functions are fixed and pulled up to
-    selects where they are to be aggregated.
-
-    When the class is chosen it substitutes the original field in the
-    Item_outer_ref object.
-
-    After this we proceed with fixing references (Item_outer_ref objects) to
-    this field from inner subqueries.
-
-  @return false if success, true if error
- */
-
-bool SELECT_LEX::fix_inner_refs(THD *thd) {
-  Item_outer_ref *ref;
-
-  List_iterator<Item_outer_ref> ref_it(inner_refs_list);
-  while ((ref = ref_it++)) {
-    Item *item = ref->outer_ref;
-    Item **item_ref = ref->ref;
-
-    /*
-      TODO: this field item already might be present in the select list.
-      In this case instead of adding new field item we could use an
-      existing one. The change will lead to less operations for copying fields,
-      smaller temporary tables and less data passed through filesort.
-    */
-    if (!base_ref_items.is_null() && !ref->found_in_select_list) {
-      /*
-        Add the field item to the select list of the current select.
-        If it's needed reset each Item_ref item that refers this field with
-        a new reference taken from ref_item_array.
-      */
-      item_ref = add_hidden_item(item);
-    }
-
-    Item_ref *const new_ref =
-        new Item_ref(ref->context, item_ref, ref->table_name, ref->field_name,
-                     ref->is_alias_of_expr());
-    if (!new_ref) return true; /* purecov: inspected */
-    ref->outer_ref = new_ref;
-    ref->ref = &ref->outer_ref;
-
-    if (!ref->fixed && ref->fix_fields(thd, 0))
-      return true; /* purecov: inspected */
-    thd->lex->used_tables |= item->used_tables() & ~PSEUDO_TABLE_BITS;
-    select_list_tables |= item->used_tables();
-  }
-  return false;
-}
-
-/**
    For a table subquery predicate (IN/ANY/ALL/EXISTS/etc):
    since it does not support LIMIT the following clauses are redundant:
 
@@ -3480,7 +3405,8 @@ void SELECT_LEX::remove_redundant_subquery_clauses(
     for (ORDER *g = group_list.first; g != NULL; g = g->next) {
       if (*g->item == g->item_ptr) {
         Item::Cleanup_after_removal_context ctx(this);
-        (*g->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+        (*g->item)->walk(&Item::clean_up_after_removal,
+                         enum_walk::SUBQUERY_POSTFIX,
                          pointer_cast<uchar *>(&ctx));
       }
     }
@@ -3529,7 +3455,8 @@ void SELECT_LEX::empty_order_list(SELECT_LEX *sl) {
   for (ORDER *o = order_list.first; o != NULL; o = o->next) {
     if (*o->item == o->item_ptr) {
       Item::Cleanup_after_removal_context ctx(sl);
-      (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
+      (*o->item)->walk(&Item::clean_up_after_removal,
+                       enum_walk::SUBQUERY_POSTFIX,
                        pointer_cast<uchar *>(&ctx));
     }
   }
@@ -3672,7 +3599,8 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
       */
       if (*order->item != *select_item)
         (*order->item)
-            ->walk(&Item::clean_up_after_removal, walk_subquery, NULL);
+            ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
+                   NULL);
       order->item = &ref_item_array[counter];
       order->in_field_list = 1;
       if (resolution == RESOLVED_AGAINST_ALIAS && from_field == not_found_field)
@@ -4352,13 +4280,13 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables) {
           is "used", but that has no practical meaning.)
         */
         if (!item->is_derived_used() &&
-            item->walk(&Item::propagate_derived_used, Item::WALK_POSTFIX, NULL))
+            item->walk(&Item::propagate_derived_used, enum_walk::POSTFIX, NULL))
           item->walk(&Item::propagate_set_derived_used,
-                     Item::WALK_SUBQUERY_POSTFIX, NULL);
+                     enum_walk::SUBQUERY_POSTFIX, NULL);
 
         if (!item->is_derived_used()) {
           Item::Cleanup_after_removal_context ctx(this);
-          item->walk(&Item::clean_up_after_removal, walk_subquery,
+          item->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                      pointer_cast<uchar *>(&ctx));
           transl->item = NULL;
         }

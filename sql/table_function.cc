@@ -103,6 +103,12 @@ Table_function_json::Table_function_json(THD *thd_arg, const char *alias,
       is_source_parsed(false),
       source(a) {}
 
+bool Table_function_json::walk(Item_processor processor, enum_walk walk,
+                               uchar *arg) {
+  // Only 'source' may reference columns of other tables; rest is literals.
+  return source->walk(processor, walk, arg);
+}
+
 List<Create_field> *Table_function_json::get_field_list() {
   // It's safe as Json_table_column is derived from Create_field
   return reinterpret_cast<List<Create_field> *>(&m_vt_list);

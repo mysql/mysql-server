@@ -2816,8 +2816,7 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
       update used tables information.
     */
     Used_tables ut(depended_from);
-    (void)walk(&Item::used_tables_for_level,
-               Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+    (void)walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                pointer_cast<uchar *>(&ut));
     child_select->master_unit()->accumulate_used_tables(ut.used_tables);
   }
@@ -4574,32 +4573,6 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
     return NULL;
 }
 
-#ifndef DBUG_OFF
-/**
-        Check if an Item is fixed or is an Item_outer_ref.
-
-        @param ref the reference to check
-
-        @return Whether or not the item is a fixed item or an Item_outer_ref
-
-        @note Currently, this function is only used in DBUG_ASSERT
-        statements and therefore not included in optimized builds.
- */
-bool is_fixed_or_outer_ref(const Item *ref) {
-  /*
-    The requirements are that the Item pointer
-    1)  is not NULL, and
-    2a) points to a fixed Item, or
-    2b) points to an Item_outer_ref.
-  */
-  return (ref != NULL &&                      // 1
-          (ref->fixed ||                      // 2a
-           (ref->type() == Item::REF_ITEM &&  // 2b
-            static_cast<const Item_ref *>(ref)->ref_type() ==
-                Item_ref::OUTER_REF)));
-}
-#endif
-
 /**
   Resolve a column reference in a sub-select.
 
@@ -4697,12 +4670,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
     DBUG_RETURN(nullptr);
   }
 
-  /*
-    Assert if it's an incorrect reference. We do not assert if it's an
-    outer reference, as they get fixed later in the fix_inner_refs()
-    function.
-  */
-  DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
+  DBUG_ASSERT((*select_ref)->fixed);
 
   DBUG_RETURN(&select->base_ref_items[counter]);
 }
@@ -4898,15 +4866,11 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
               If an outer field is resolved in a grouping select then it
               is replaced for an Item_outer_ref object. Otherwise an
               Item_field object is used.
-              The new Item_outer_ref object is saved in the inner_refs_list of
-              the outer select. Here it is only created. It can be fixed only
-              after the original field has been fixed and this is done in the
-              fix_inner_refs() function.
             */
-            if (!(rf = new Item_outer_ref(context, this))) return -1;
-            thd->change_item_tree(reference, rf);
-            select->inner_refs_list.push_back(rf);
+            if (!(rf = new Item_outer_ref(context, this, select))) return -1;
             rf->in_sum_func = thd->lex->in_sum_func;
+            thd->change_item_tree(reference, rf);
+            if (rf->fix_fields(thd, nullptr)) return -1;
           }
           /*
             A reference is resolved to a nest level that's outer or the same as
@@ -4932,8 +4896,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
           Item::Type ref_type = (*reference)->type();
           Used_tables ut(select);
           (void)(*reference)
-              ->walk(&Item::used_tables_for_level,
-                     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
+              ->walk(&Item::used_tables_for_level, enum_walk::SUBQUERY_POSTFIX,
                      pointer_cast<uchar *>(&ut));
           cur_unit->accumulate_used_tables(ut.used_tables);
 
@@ -4942,17 +4905,13 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
               If an outer field is resolved in a grouping query block then it
               is replaced with an Item_outer_ref object. Otherwise an
               Item_field object is used.
-              The new Item_outer_ref object is saved in the inner_refs_list of
-              the outer query block. Here it is only created. It can be fixed
-              only after the original field has been fixed and this is done
-              in the fix_inner_refs() function.
             */
             Item_outer_ref *const rf = new Item_outer_ref(
-                context, down_cast<Item_ident *>(*reference));
+                context, down_cast<Item_ident *>(*reference), select);
             if (rf == NULL) return -1;
-            thd->change_item_tree(reference, rf);
-            if (select->inner_refs_list.push_back(rf)) return -1;
             rf->in_sum_func = thd->lex->in_sum_func;
+            thd->change_item_tree(reference, rf);
+            if (rf->fix_fields(thd, nullptr)) return -1;
           }
 
           if (thd->lex->in_sum_func &&
@@ -4985,11 +4944,8 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
       if (!(ref = resolve_ref_in_select_and_group(thd, this, select)))
         return -1; /* Some error occurred (e.g. ambiguous names). */
       if (ref != not_found_item) {
-        /*
-          Either the item we found is already fixed, or it is an outer
-          reference that will be fixed later in fix_inner_refs().
-        */
-        DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+        // The item which we found is already fixed
+        DBUG_ASSERT((*ref)->fixed);
         cur_unit->accumulate_used_tables((*ref)->used_tables());
         break;
       }
@@ -5025,7 +4981,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     Item_ref *rf;
 
     /* Should have been checked in resolve_ref_in_select_and_group(). */
-    DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+    DBUG_ASSERT((*ref)->fixed);
     /*
       Here, a subset of actions performed by Item_ref::set_properties
       is not enough. So we pass ptr to NULL into Item_ref
@@ -5034,19 +4990,18 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     */
     save = *ref;
     *ref = NULL;  // Don't call set_properties()
-    rf = (place == CTX_HAVING || !select->group_list.elements)
+    bool use_plain_ref = place == CTX_HAVING || !select->group_list.elements;
+    rf = use_plain_ref
              ? new Item_ref(context, ref, (char *)table_name,
                             (char *)field_name, m_alias_of_expr)
              : new Item_outer_ref(context, ref, (char *)table_name,
-                                  (char *)field_name, m_alias_of_expr);
+                                  (char *)field_name, m_alias_of_expr, select);
     *ref = save;
     if (!rf) return -1;
 
-    if (place != CTX_HAVING && select->group_list.elements) {
-      outer_context->select_lex->inner_refs_list.push_back(
-          (Item_outer_ref *)rf);
+    if (!use_plain_ref)
       ((Item_outer_ref *)rf)->in_sum_func = thd->lex->in_sum_func;
-    }
+
     thd->change_item_tree(reference, rf);
     /*
       rf is Item_ref => never substitute other items (in this case)
@@ -5054,7 +5009,6 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     */
     DBUG_ASSERT(!rf->fixed);  // Assured by Item_ref()
     if (rf->fix_fields(thd, reference) || rf->check_cols(1)) return -1;
-
     if (rf->used_tables() != 0)
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, rf);
@@ -7278,7 +7232,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
           if (!(ref = resolve_ref_in_select_and_group(thd, this, select)))
             goto error; /* Some error occurred (e.g. ambiguous names). */
           if (ref != not_found_item) {
-            DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+            DBUG_ASSERT((*ref)->fixed);
             cur_unit->accumulate_used_tables((*ref)->used_tables());
             break;
           }
@@ -7392,7 +7346,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
         goto error;
       }
       /* Should be checked in resolve_ref_in_select_and_group(). */
-      DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+      DBUG_ASSERT((*ref)->fixed);
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
       /*
@@ -7408,11 +7362,8 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
     }
   }
 
-  /*
-    The reference should be fixed at this point. Outer references will
-    be fixed later by the fix_inner_refs() function.
-  */
-  DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
+  // The reference should be fixed at this point.
+  DBUG_ASSERT((*ref)->fixed);
 
   /*
     Reject invalid references to aggregates.
@@ -7431,7 +7382,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   if (((*ref)->has_aggregation() &&
        !thd->lex->current_select()->having_fix_field) ||  // 1
       walk(&Item::has_aggregate_ref_in_group_by,          // 2
-           enum_walk(WALK_POSTFIX | WALK_SUBQUERY), nullptr)) {
+           enum_walk::SUBQUERY_POSTFIX, nullptr)) {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), full_name(),
              "reference to group function");
     goto error;
@@ -7691,7 +7642,7 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
       is marked regardless of how many ref items that point to this field.
     */
     Mark_field mf(thd->mark_used_columns);
-    (*ref)->walk(&Item::mark_field_in_map, Item::WALK_POSTFIX, (uchar *)&mf);
+    (*ref)->walk(&Item::mark_field_in_map, enum_walk::POSTFIX, (uchar *)&mf);
   } else {
     if ((*ref)->fix_fields(thd, ref)) return true; /* purecov: inspected */
   }
@@ -7706,29 +7657,65 @@ bool Item_view_ref::fix_fields(THD *thd, Item **reference) {
   return false;
 }
 
-/*
+/**
   Prepare referenced outer field then call usual Item_ref::fix_fields
 
-  SYNOPSIS
-    Item_outer_ref::fix_fields()
-    thd         thread handler
-    reference   reference on reference where this item stored
+  @param thd         thread handler
+  @param reference   reference on reference where this item stored
 
-  RETURN
-    false   OK
-    true    Error
+  @details
+    The function serves 3 purposes
+    - adds field to the current select list
+    - creates an object to use to reference the item (Item_ref)
+    - fixes reference (Item_ref object)
+
+    If a field isn't already on the select list and the base_ref_items array
+    is provided then it is added to the all_fields list and the pointer to
+    it is saved in the base_ref_items array.
+
+    When the class is chosen it substitutes the original field in the
+    Item_outer_ref object.
+
+  @returns true if error
 */
 
 bool Item_outer_ref::fix_fields(THD *thd, Item **reference) {
-  bool err;
   /* outer_ref->check_cols() will be made in Item_ref::fix_fields */
   if ((*ref) && !(*ref)->fixed && ((*ref)->fix_fields(thd, reference)))
     return true;
-  err = super::fix_fields(thd, reference);
+  if (super::fix_fields(thd, reference)) return true;
   if (!outer_ref) outer_ref = *ref;
   if ((*ref)->type() == Item::FIELD_ITEM)
     table_name = ((Item_field *)outer_ref)->table_name;
-  return err;
+
+  Item *item = outer_ref;
+  Item **item_ref = ref;
+
+  /*
+    TODO: this field item already might be present in the select list.
+    In this case instead of adding new field item we could use an
+    existing one. The change will lead to less operations for copying fields,
+    smaller temporary tables and less data passed through filesort.
+  */
+  DBUG_ASSERT(!qualifying->base_ref_items.is_null());
+  if (!found_in_select_list) {
+    /*
+      Add the field item to the select list of the current select.
+      If it's needed reset each Item_ref item that refers this field with
+      a new reference taken from ref_item_array.
+    */
+    item_ref = qualifying->add_hidden_item(item);
+  }
+
+  Item_ref *const new_ref = new Item_ref(context, item_ref, table_name,
+                                         field_name, is_alias_of_expr());
+  if (!new_ref) return true; /* purecov: inspected */
+  outer_ref = new_ref;
+  ref = &outer_ref;
+
+  qualifying->select_list_tables |= item->used_tables();
+
+  return false;
 }
 
 void Item_outer_ref::fix_after_pullout(SELECT_LEX *parent_select,
@@ -7969,7 +7956,7 @@ Item *Item_default_value::transform(Item_transformer transformer, uchar *args) {
     If the value of arg is NULL, then this object represents a constant,
     so further transformation is unnecessary (and impossible).
   */
-  if (arg == NULL) return NULL;
+  if (arg == NULL) return this;
 
   Item *new_item = arg->transform(transformer, args);
   if (new_item == NULL) return NULL; /* purecov: inspected */
@@ -8462,9 +8449,9 @@ void Item_cache::print(const THD *thd, String *str,
 }
 
 bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg) {
-  return ((walk & WALK_PREFIX) && (this->*processor)(arg)) ||
+  return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
          (example && example->walk(processor, walk, arg)) ||
-         ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+         ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
 }
 
 bool Item_cache::has_value() {
@@ -9462,7 +9449,7 @@ void convert_and_print(const String *from_str, String *to_str,
 Bool3 Item_ident::local_column(const SELECT_LEX *sl) const
 
 {
-  DBUG_ASSERT(is_fixed_or_outer_ref(this));
+  DBUG_ASSERT(fixed);
   if (m_alias_of_expr) return Bool3::false3();
   const Type t = type();
   if (t == FIELD_ITEM ||

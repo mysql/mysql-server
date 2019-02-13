@@ -743,10 +743,8 @@ int JOIN_CACHE_BKA::init() {
       for (uint i = 0; i < ref->key_parts; i++) {
         Item *ref_item = ref->items[i];
         if (!(tab->table_ref->map() & ref_item->used_tables())) continue;
-        ref_item->walk(
-            &Item::add_field_to_set_processor,
-            Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY),
-            (uchar *)tab->table());
+        ref_item->walk(&Item::add_field_to_set_processor,
+                       enum_walk::SUBQUERY_POSTFIX, (uchar *)tab->table());
       }
       if ((key_args = bitmap_bits_set(&tab->table()->tmp_set))) {
         if (cache == this)

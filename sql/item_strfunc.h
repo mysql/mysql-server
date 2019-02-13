@@ -720,12 +720,12 @@ class Item_func_make_set final : public Item_str_func {
   const char *func_name() const override { return "make_set"; }
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
-    if ((walk & WALK_PREFIX) && (this->*processor)(arg)) return true;
+    if ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) return true;
     if (item->walk(processor, walk, arg)) return true;
     for (uint i = 0; i < arg_count; i++) {
       if (args[i]->walk(processor, walk, arg)) return true;
     }
-    return ((walk & WALK_POSTFIX) && (this->*processor)(arg));
+    return ((walk & enum_walk::POSTFIX) && (this->*processor)(arg));
   }
 
   Item *transform(Item_transformer transformer, uchar *arg) override;
@@ -1041,7 +1041,7 @@ class Item_func_conv_charset final : public Item_str_func {
   Item_func_conv_charset(THD *thd, Item *a, const CHARSET_INFO *cs,
                          bool cache_if_const)
       : Item_str_func(a) {
-    DBUG_ASSERT(is_fixed_or_outer_ref(args[0]));
+    DBUG_ASSERT(args[0]->fixed);
 
     conv_charset = cs;
     if (cache_if_const && args[0]->may_evaluate_const(thd)) {

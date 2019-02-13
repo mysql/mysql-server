@@ -966,8 +966,6 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables) {
   if (open_tables_for_query(thd, tables, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 
-  thd->lex->used_tables = 0;  // Updated by setup_fields
-
   /*
     SELECT_LEX::prepare calls
     It is not SELECT COMMAND for sure, so setup_tables will be called as
@@ -1070,8 +1068,6 @@ static bool select_like_stmt_test(THD *thd) {
   LEX *const lex = thd->lex;
 
   lex->select_lex->context.resolve_in_select_list = true;
-
-  thd->lex->used_tables = 0;  // Updated by setup_fields
 
   /* Calls SELECT_LEX::prepare */
   const bool ret = lex->unit->prepare(thd, 0, 0, 0);

@@ -791,7 +791,6 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "0.25",
@@ -2697,7 +2696,6 @@ EXPLAIN
               "rows_examined_per_scan": 5,
               "rows_produced_per_join": 25,
               "filtered": "100.00",
-              "distinct": true,
               "using_join_buffer": "Block Nested Loop",
               "cost_info": {
                 "read_cost": "0.25",

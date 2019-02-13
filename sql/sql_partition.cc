@@ -932,7 +932,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
 
   if (init_lex_with_single_table(thd, table, &lex)) goto end;
 
-  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX,
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX,
                   (uchar *)&lex.select_lex->context);
   thd->where = "partition function";
   /*
@@ -981,7 +981,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
     in future so that we always throw an error.
   */
   if (func_expr->walk(&Item::check_valid_arguments_processor,
-                      Item::WALK_POSTFIX, NULL)) {
+                      enum_walk::POSTFIX, NULL)) {
     if (is_create_table_ind) {
       my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
       goto end;
@@ -996,7 +996,7 @@ static bool fix_fields_part_func(THD *thd, Item *func_expr, TABLE *table,
 end:
   end_lex_with_single_table(thd, table, old_lex);
 #if !defined(DBUG_OFF)
-  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
+  func_expr->walk(&Item::change_context_processor, enum_walk::POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);
 }
