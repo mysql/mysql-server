@@ -152,14 +152,14 @@ class Regexp_facade {
 
   /**
     Converts a string position in m_current_subject.
-    @param index One-based code point position.
+    @param position One-based code point position.
     @return Zero-based byte position.
   */
   int ConvertCodePointToLibPosition(int position) const;
 
   /**
     Converts a string position in m_current_subject.
-    @param index Zero-based UTF-16 position.
+    @param position Zero-based UTF-16 position.
     @return Zero-based code point position.
   */
   int ConvertLibPositionToCodePoint(int position) const;
