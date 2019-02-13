@@ -2058,8 +2058,6 @@ bool Query_result_insert::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
 
-  prepare_triggers_for_insert_stmt(thd, table);
-
   for (Field **next_field = table->field; *next_field; ++next_field) {
     (*next_field)->reset_warnings();
     (*next_field)->reset_tmp_null();
@@ -2127,6 +2125,7 @@ bool Query_result_insert::send_data(THD *thd, List<Item> &values) {
     }
   }
 
+  prepare_triggers_for_insert_stmt(thd, table);
   error = write_record(thd, table, &info, &update);
   table->auto_increment_field_not_null = false;
 
