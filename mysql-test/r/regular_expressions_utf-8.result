@@ -922,3 +922,49 @@ SELECT * FROM t1;
 a	b	c	d	e	f
 1	1	axc	a	a	a
 DROP TABLE t1;
+#
+# Bug#29231490: REGEXP FUNCTIONS FAIL TO USE CODEPOINT POSITIONS
+#
+# Sushi emoji, may not render in your editor.
+SET NAMES DEFAULT;
+SELECT regexp_instr( '🍣🍣a', '🍣', 2 );
+regexp_instr( '??a', '?', 2 )
+2
+SELECT regexp_instr( '🍣🍣a', 'a', 3 );
+regexp_instr( '??a', 'a', 3 )
+3
+SELECT regexp_instr( '🍣🍣a', 'a', 4 );
+ERROR HY000: Index out of bounds in regular expression search.
+SELECT regexp_substr( 'a🍣b', '.', 1 );
+regexp_substr( 'a?b', '.', 1 )
+a
+SELECT regexp_substr( 'a🍣b', '.', 2 );
+regexp_substr( 'a?b', '.', 2 )
+🍣
+SELECT regexp_substr( 'a🍣b', '.', 3 );
+regexp_substr( 'a?b', '.', 3 )
+b
+SELECT regexp_substr( 'a🍣b', '.', 4 );
+regexp_substr( 'a?b', '.', 4 )
+NULL
+SELECT regexp_substr( 'a🍣🍣b', '.', 1 );
+regexp_substr( 'a??b', '.', 1 )
+a
+SELECT regexp_substr( 'a🍣🍣b', '.', 2 );
+regexp_substr( 'a??b', '.', 2 )
+🍣
+SELECT regexp_substr( 'a🍣🍣b', '.', 3 );
+regexp_substr( 'a??b', '.', 3 )
+🍣
+SELECT regexp_substr( 'a🍣🍣b', '.', 4 );
+regexp_substr( 'a??b', '.', 4 )
+b
+SELECT regexp_substr( 'a🍣🍣b', '.', 5 );
+regexp_substr( 'a??b', '.', 5 )
+NULL
+SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2 );
+regexp_replace( '???', '.', 'a', 2 )
+🍣aa
+SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2, 2 );
+regexp_replace( '???', '.', 'a', 2, 2 )
+🍣🍣a
