@@ -267,6 +267,31 @@ class MySQLRouter {
     return extra_config_files_;
   }
 
+  /** @brief Returns predefined (computed) default paths
+   *
+   * Returns a map of predefined default paths, which are computed based on
+   * `origin` argument. This argument serves as base directory for any
+   * predefined relative paths. The returned map consists of absolue paths.
+   *
+   * @param origin Base directory which will be prepended to any relative
+   *        predefined directories
+   *
+   * @throws std::invalid_argument (std::logic_error) if `origin` is empty
+   */
+  static std::map<std::string, std::string> get_default_paths(
+      const mysql_harness::Path &origin);
+
+  /** @brief Returns absolute path to mysqlrouter.exe currently running
+   *
+   * @param argv0 1th element of `argv` array passed to `main()` (i.e.
+   * `argv[0]`)
+   *
+   * @throws std::runtime_error, ...?
+   *
+   * @note argv0 is currently ignored on Windows platforms
+   */
+  static std::string find_full_path(const std::string &argv0);
+
 #if !defined(_MSC_VER) && !defined(UNIT_TESTS)
   // MSVC produces different symbols for private vs public methods, which mean
   // the #define private public trick for unit-testing private methods doesn't

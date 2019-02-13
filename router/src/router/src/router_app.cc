@@ -91,7 +91,9 @@ using std::vector;
 static const char *kDefaultKeyringFileName = "keyring";
 static const char kProgramName[] = "mysqlrouter";
 
-static std::string find_full_path(const std::string &argv0) {
+// throws std::runtime_error, ...?
+/*static*/
+std::string MySQLRouter::find_full_path(const std::string &argv0) {
 #ifdef _WIN32
   // the bin folder is not usually in the path, just the lib folder
   char szPath[MAX_PATH];
@@ -387,12 +389,16 @@ static string fixpath(const string &path, const std::string &basedir) {
 #endif
 }
 
-std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
-  std::string basedir = mysql_harness::Path(origin_).dirname().str();
+/*static*/
+std::map<std::string, std::string> MySQLRouter::get_default_paths(
+    const mysql_harness::Path &origin) {
+  std::string basedir = mysql_harness::Path(origin)
+                            .dirname()
+                            .str();  // throws std::invalid_argument
 
   std::map<std::string, std::string> params = {
       {"program", kProgramName},
-      {"origin", origin_.str()},
+      {"origin", origin.str()},
       {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
       {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
       {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
@@ -404,7 +410,7 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   {
     mysql_harness::Path install_origin(
         fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
+    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
       params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
     }
   }
@@ -412,8 +418,8 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   {
     mysql_harness::Path install_origin(
         fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin_)) {
-      params["plugin_folder"] = origin_.dirname().join("lib").str();
+    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
+      params["plugin_folder"] = origin.dirname().join("lib").str();
     }
   }
 #endif
@@ -422,9 +428,13 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
   for (auto it : params) {
     std::string &param = params.at(it.first);
     param.assign(
-        mysqlrouter::substitute_variable(param, "{origin}", origin_.str()));
+        mysqlrouter::substitute_variable(param, "{origin}", origin.str()));
   }
   return params;
+}
+
+std::map<std::string, std::string> MySQLRouter::get_default_paths() const {
+  return get_default_paths(origin_);  // throws std::invalid_argument
 }
 
 /*static*/
