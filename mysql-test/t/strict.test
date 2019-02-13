@@ -1601,3 +1601,39 @@ ALTER TABLE t1 ADD KEY in_c2(c1);
 SHOW WARNINGS;
 --echo # Clean-up
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#18090591: STR_TO_DATE IN TRADITIONAL SQL_MODE FAILS TO PARSE
+--echo # TIME-ONLY FIELD
+--echo #
+
+CREATE TABLE t1 ( a datetime(2) );
+CREATE TABLE t2 ( a timestamp(2) );
+
+SELECT str_to_date('09:22', '%H:%i');
+SELECT str_to_date('09:22:23.33', '%H:%i:%s.%f');
+
+INSERT INTO t1 VALUES( str_to_date('09:22', '%H:%i') );
+INSERT INTO t1 VALUES( str_to_date('09:22:23.33', '%H:%i:%s.%f') );
+--echo # We do this to get the test deterministic. The above INSERT's
+--echo # will insert the *current* date with the time added.
+SELECT timediff( a, cast(CURRENT_DATE AS datetime) ) FROM t1;
+DELETE FROM t1;
+INSERT INTO t1 VALUES( str_to_date('2019-12-31', '%Y-%m-%d') );
+
+SELECT * FROM t1;
+
+INSERT INTO t2 VALUES( str_to_date('09:22', '%H:%i') );
+INSERT INTO t2 VALUES( str_to_date('09:22:23.33', '%H:%i:%s.%f') );
+--echo # We do this to get the test deterministic. The above INSERT's
+--echo # will insert the *current* date with the time added.
+SELECT timediff( a, cast(CURRENT_DATE AS datetime) ) FROM t2;
+DELETE FROM t2;
+INSERT INTO t2 VALUES( str_to_date('2019-12-31', '%Y-%m-%d') );
+
+CREATE TABLE t3 SELECT str_to_date('09:22:23.33', '%H:%i:%s.%f');
+SHOW CREATE TABLE t3;
+
+SELECT * FROM t2;
+
+DROP TABLE t1, t2, t3;
