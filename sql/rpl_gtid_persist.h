@@ -44,8 +44,8 @@ class Field;
 
 class Gtid_table_access_context : public System_table_access {
  public:
-  static const LEX_STRING DB_NAME;
-  static const LEX_STRING TABLE_NAME;
+  static const LEX_CSTRING DB_NAME;
+  static const LEX_CSTRING TABLE_NAME;
 
   Gtid_table_access_context() : m_drop_thd_object(nullptr) {}
   virtual ~Gtid_table_access_context() {}

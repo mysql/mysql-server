@@ -246,7 +246,8 @@ class Rpl_filter {
   int build_ignore_table_hash();
 
   int add_string_list(I_List<i_string> *list, const char *spec);
-  int add_string_pair_list(I_List<i_string_pair> *list, char *key, char *val);
+  int add_string_pair_list(I_List<i_string_pair> *list, const char *key,
+                           const char *val);
   int add_do_table_array(const char *table_spec);
   int add_ignore_table_array(const char *table_spec);
 

@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1998,7 +1998,7 @@ class Sys_var_tz : public sys_var {
     var->save_result.time_zone = *(Time_zone **)(intptr)option.def_value;
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) {
-    strcpy(def_val, (char *)var->save_result.time_zone->get_name()->ptr());
+    strcpy(def_val, var->save_result.time_zone->get_name()->ptr());
   }
   uchar *session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
     /*

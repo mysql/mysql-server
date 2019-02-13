@@ -117,7 +117,7 @@ bool Sql_data_context::kill() {
           Query_string_builder qb;
           qb.put("KILL ").put(mysql_session_id());
 
-          data.com_query.query = (char *)qb.get().c_str();
+          data.com_query.query = qb.get().c_str();
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
           if (!command_service_run_command(

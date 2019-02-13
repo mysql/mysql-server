@@ -88,7 +88,7 @@ using std::unique_ptr;
   This function returns the field size in raw bytes based on the type
   and the encoded field data from the master's raw data.
 */
-uint32 table_def::calc_field_size(uint col, uchar *master_data) const {
+uint32 table_def::calc_field_size(uint col, const uchar *master_data) const {
   uint32 length =
       ::calc_field_size(type(col), master_data, m_field_metadata[col]);
   return length;
@@ -536,10 +536,11 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         field_sql_type.append((field->type() == MYSQL_TYPE_VARCHAR) ? "varchar"
                                                                     : "char");
         const CHARSET_INFO *cs = field->charset();
-        size_t length = cs->cset->snprintf(
-            cs, (char *)target_type.ptr(), target_type.alloced_length(),
-            "%s(%u(bytes) %s)", field_sql_type.c_ptr_safe(),
-            field->field_length, field->charset()->csname);
+        size_t length =
+            cs->cset->snprintf(cs, const_cast<char *>(target_type.ptr()),
+                               target_type.alloced_length(), "%s(%u(bytes) %s)",
+                               field_sql_type.c_ptr_safe(), field->field_length,
+                               field->charset()->csname);
         target_type.length(length);
       } else
         field->sql_type(target_type);
@@ -1056,7 +1057,8 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
         case MYSQL_TYPE_BIT: {
           String tmp;
           f->val_str(&tmp);
-          crc = checksum_crc32(crc, (uchar *)tmp.ptr(), tmp.length());
+          crc = checksum_crc32(crc, pointer_cast<const uchar *>(tmp.ptr()),
+                               tmp.length());
           break;
         }
         default:

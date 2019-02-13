@@ -238,6 +238,7 @@ class String {
   void mark_as_const() { m_alloced_length = 0; }
   /* Returns a pointer to data, may not include NULL terminating character. */
   const char *ptr() const { return m_ptr; }
+  char *ptr() { return m_ptr; }
   char *c_ptr() {
     DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
                 (m_alloced_length >= (m_length + 1)));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -310,31 +310,31 @@ typedef struct _log_item_wellknown_key {
   error code.  Et cetera!
 */
 static const log_item_wellknown_key log_item_wellknown_keys[] = {
-    {C_STRING_WITH_LEN("--ERROR--"), LOG_UNTYPED, LOG_ITEM_END},
-    {C_STRING_WITH_LEN("log_type"), LOG_INTEGER, LOG_ITEM_LOG_TYPE},
-    {C_STRING_WITH_LEN("err_code"), LOG_INTEGER, LOG_ITEM_SQL_ERRCODE},
-    {C_STRING_WITH_LEN("err_symbol"), LOG_CSTRING, LOG_ITEM_SQL_ERRSYMBOL},
-    {C_STRING_WITH_LEN("SQL_state"), LOG_CSTRING, LOG_ITEM_SQL_STATE},
-    {C_STRING_WITH_LEN("OS_errno"), LOG_INTEGER, LOG_ITEM_SYS_ERRNO},
-    {C_STRING_WITH_LEN("OS_errmsg"), LOG_CSTRING, LOG_ITEM_SYS_STRERROR},
-    {C_STRING_WITH_LEN("source_file"), LOG_CSTRING, LOG_ITEM_SRC_FILE},
-    {C_STRING_WITH_LEN("source_line"), LOG_INTEGER, LOG_ITEM_SRC_LINE},
-    {C_STRING_WITH_LEN("function"), LOG_CSTRING, LOG_ITEM_SRC_FUNC},
-    {C_STRING_WITH_LEN("subsystem"), LOG_CSTRING, LOG_ITEM_SRV_SUBSYS},
-    {C_STRING_WITH_LEN("component"), LOG_CSTRING, LOG_ITEM_SRV_COMPONENT},
-    {C_STRING_WITH_LEN("user"), LOG_LEX_STRING, LOG_ITEM_MSC_USER},
-    {C_STRING_WITH_LEN("host"), LOG_LEX_STRING, LOG_ITEM_MSC_HOST},
-    {C_STRING_WITH_LEN("thread"), LOG_INTEGER, LOG_ITEM_SRV_THREAD},
-    {C_STRING_WITH_LEN("query_id"), LOG_INTEGER, LOG_ITEM_SQL_QUERY_ID},
-    {C_STRING_WITH_LEN("table"), LOG_CSTRING, LOG_ITEM_SQL_TABLE_NAME},
-    {C_STRING_WITH_LEN("prio"), LOG_INTEGER, LOG_ITEM_LOG_PRIO},
-    {C_STRING_WITH_LEN("label"), LOG_CSTRING, LOG_ITEM_LOG_LABEL},
-    {C_STRING_WITH_LEN("verbatim"), LOG_CSTRING, LOG_ITEM_LOG_VERBATIM},
-    {C_STRING_WITH_LEN("msg"), LOG_CSTRING, LOG_ITEM_LOG_MESSAGE},
-    {C_STRING_WITH_LEN("msg_id"), LOG_INTEGER, LOG_ITEM_LOG_LOOKUP},
-    {C_STRING_WITH_LEN("time"), LOG_CSTRING, LOG_ITEM_LOG_TIMESTAMP},
-    {C_STRING_WITH_LEN("buffered"), LOG_INTEGER, LOG_ITEM_LOG_BUFFERED},
-    {C_STRING_WITH_LEN("and_n_more"), LOG_INTEGER, LOG_ITEM_LOG_SUPPRESSED},
+    {STRING_WITH_LEN("--ERROR--"), LOG_UNTYPED, LOG_ITEM_END},
+    {STRING_WITH_LEN("log_type"), LOG_INTEGER, LOG_ITEM_LOG_TYPE},
+    {STRING_WITH_LEN("err_code"), LOG_INTEGER, LOG_ITEM_SQL_ERRCODE},
+    {STRING_WITH_LEN("err_symbol"), LOG_CSTRING, LOG_ITEM_SQL_ERRSYMBOL},
+    {STRING_WITH_LEN("SQL_state"), LOG_CSTRING, LOG_ITEM_SQL_STATE},
+    {STRING_WITH_LEN("OS_errno"), LOG_INTEGER, LOG_ITEM_SYS_ERRNO},
+    {STRING_WITH_LEN("OS_errmsg"), LOG_CSTRING, LOG_ITEM_SYS_STRERROR},
+    {STRING_WITH_LEN("source_file"), LOG_CSTRING, LOG_ITEM_SRC_FILE},
+    {STRING_WITH_LEN("source_line"), LOG_INTEGER, LOG_ITEM_SRC_LINE},
+    {STRING_WITH_LEN("function"), LOG_CSTRING, LOG_ITEM_SRC_FUNC},
+    {STRING_WITH_LEN("subsystem"), LOG_CSTRING, LOG_ITEM_SRV_SUBSYS},
+    {STRING_WITH_LEN("component"), LOG_CSTRING, LOG_ITEM_SRV_COMPONENT},
+    {STRING_WITH_LEN("user"), LOG_LEX_STRING, LOG_ITEM_MSC_USER},
+    {STRING_WITH_LEN("host"), LOG_LEX_STRING, LOG_ITEM_MSC_HOST},
+    {STRING_WITH_LEN("thread"), LOG_INTEGER, LOG_ITEM_SRV_THREAD},
+    {STRING_WITH_LEN("query_id"), LOG_INTEGER, LOG_ITEM_SQL_QUERY_ID},
+    {STRING_WITH_LEN("table"), LOG_CSTRING, LOG_ITEM_SQL_TABLE_NAME},
+    {STRING_WITH_LEN("prio"), LOG_INTEGER, LOG_ITEM_LOG_PRIO},
+    {STRING_WITH_LEN("label"), LOG_CSTRING, LOG_ITEM_LOG_LABEL},
+    {STRING_WITH_LEN("verbatim"), LOG_CSTRING, LOG_ITEM_LOG_VERBATIM},
+    {STRING_WITH_LEN("msg"), LOG_CSTRING, LOG_ITEM_LOG_MESSAGE},
+    {STRING_WITH_LEN("msg_id"), LOG_INTEGER, LOG_ITEM_LOG_LOOKUP},
+    {STRING_WITH_LEN("time"), LOG_CSTRING, LOG_ITEM_LOG_TIMESTAMP},
+    {STRING_WITH_LEN("buffered"), LOG_INTEGER, LOG_ITEM_LOG_BUFFERED},
+    {STRING_WITH_LEN("and_n_more"), LOG_INTEGER, LOG_ITEM_LOG_SUPPRESSED},
     /*
       We should never see the following key names in normal operations
       (but see the user-specified key instead).  These have entries all
@@ -344,10 +344,10 @@ static const log_item_wellknown_key log_item_wellknown_keys[] = {
       readability, and allow for easily creating debug info of the form,
       "%s:%s=\"%s\"", wellknown_name, item->key, item->value
     */
-    {C_STRING_WITH_LEN("misc_float"), LOG_FLOAT, LOG_ITEM_GEN_FLOAT},
-    {C_STRING_WITH_LEN("misc_integer"), LOG_INTEGER, LOG_ITEM_GEN_INTEGER},
-    {C_STRING_WITH_LEN("misc_string"), LOG_LEX_STRING, LOG_ITEM_GEN_LEX_STRING},
-    {C_STRING_WITH_LEN("misc_cstring"), LOG_CSTRING, LOG_ITEM_GEN_CSTRING}};
+    {STRING_WITH_LEN("misc_float"), LOG_FLOAT, LOG_ITEM_GEN_FLOAT},
+    {STRING_WITH_LEN("misc_integer"), LOG_INTEGER, LOG_ITEM_GEN_INTEGER},
+    {STRING_WITH_LEN("misc_string"), LOG_LEX_STRING, LOG_ITEM_GEN_LEX_STRING},
+    {STRING_WITH_LEN("misc_cstring"), LOG_CSTRING, LOG_ITEM_GEN_CSTRING}};
 
 static uint log_item_wellknown_keys_count =
     (sizeof(log_item_wellknown_keys) / sizeof(log_item_wellknown_key));
@@ -472,7 +472,7 @@ void log_item_get_float(log_item *li, double *f) {
   @param[out]  len     size_t pointer to store the length of  the value in
 */
 void log_item_get_string(log_item *li, char **str, size_t *len) {
-  if ((*str = (char *)li->data.data_string.str) == nullptr)
+  if ((*str = const_cast<char *>(li->data.data_string.str)) == nullptr)
     *len = 0;
   else if (li->item_class & LOG_CSTRING)
     *len = strlen(li->data.data_string.str);
@@ -3301,7 +3301,7 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::length, (const char *s)) {
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
               (const char *s, int c)) {
-  return strchr((char *)s, c);
+  return strchr(const_cast<char *>(s), c);
 }
 
 /**
@@ -3309,7 +3309,7 @@ DEFINE_METHOD(char *, log_builtins_string_imp::find_first,
 */
 DEFINE_METHOD(char *, log_builtins_string_imp::find_last,
               (const char *s, int c)) {
-  return strrchr((char *)s, c);
+  return strrchr(const_cast<char *>(s), c);
 }
 
 /**

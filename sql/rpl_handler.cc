@@ -782,9 +782,10 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
   int ret = 0;
-  FOREACH_OBSERVER(ret, before_send_event,
-                   (&param, (uchar *)packet->ptr(), packet->length(),
-                    log_file + dirname_length(log_file), log_pos));
+  FOREACH_OBSERVER(
+      ret, before_send_event,
+      (&param, const_cast<uchar *>(pointer_cast<const uchar *>(packet->ptr())),
+       packet->length(), log_file + dirname_length(log_file), log_pos));
   return ret;
 }
 

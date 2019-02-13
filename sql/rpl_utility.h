@@ -373,7 +373,7 @@ class table_def {
     WL#3915) or needs to advance the pointer for the fields in the raw
     data from the master to a specific column.
   */
-  uint32 calc_field_size(uint col, uchar *master_data) const;
+  uint32 calc_field_size(uint col, const uchar *master_data) const;
 
 #ifdef MYSQL_SERVER
   /**

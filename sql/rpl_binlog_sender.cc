@@ -91,8 +91,8 @@ class Binlog_sender::Event_allocator {
     if (m_sender->grow_packet(size)) return nullptr;
 
     m_sender->m_packet.length(event_offset + size);
-    return reinterpret_cast<unsigned char *>(
-        const_cast<char *>(m_sender->m_packet.ptr() + event_offset));
+    return pointer_cast<unsigned char *>(m_sender->m_packet.ptr() +
+                                         event_offset);
   }
 
   void deallocate(unsigned char *ptr MY_ATTRIBUTE((unused))) {}
@@ -686,7 +686,7 @@ inline int Binlog_sender::wait_without_heartbeat() {
 
 void Binlog_sender::init_heartbeat_period() {
   bool null_value;
-  LEX_STRING name = {C_STRING_WITH_LEN("master_heartbeat_period")};
+  LEX_CSTRING name = {STRING_WITH_LEN("master_heartbeat_period")};
 
   /* Protects m_thd->user_vars. */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
@@ -863,7 +863,7 @@ void Binlog_sender::init_checksum_alg() {
   const auto it = m_thd->user_vars.find("master_binlog_checksum");
   if (it != m_thd->user_vars.end()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
-        find_type((char *)it->second->ptr(), &binlog_checksum_typelib, 1) - 1);
+        find_type(it->second->ptr(), &binlog_checksum_typelib, 1) - 1);
     DBUG_ASSERT(m_slave_checksum_alg <
                 binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
@@ -894,7 +894,7 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 
   size_t event_offset = m_packet.length();
   m_packet.length(event_len + event_offset);
-  uchar *header = (uchar *)m_packet.ptr() + event_offset;
+  uchar *header = pointer_cast<uchar *>(m_packet.ptr()) + event_offset;
   uchar *rotate_header = header + LOG_EVENT_HEADER_LEN;
   /*
     'when' (the timestamp) is set to 0 so that slave could distinguish between
@@ -1129,7 +1129,7 @@ int Binlog_sender::send_heartbeat_event(my_off_t log_pos) {
 
   size_t event_offset = m_packet.length();
   m_packet.length(event_len + event_offset);
-  uchar *header = (uchar *)m_packet.ptr() + event_offset;
+  uchar *header = pointer_cast<uchar *>(m_packet.ptr()) + event_offset;
 
   /* Timestamp field */
   int4store(header, 0);
@@ -1162,10 +1162,10 @@ inline int Binlog_sender::send_packet() {
                   (Log_event_type)m_packet.ptr()[1 + EVENT_TYPE_OFFSET])));
   // We should always use the same buffer to guarantee that the reallocation
   // logic is not broken.
-  if (DBUG_EVALUATE_IF(
-          "simulate_send_error", true,
-          my_net_write(m_thd->get_protocol_classic()->get_net(),
-                       (uchar *)m_packet.ptr(), m_packet.length()))) {
+  if (DBUG_EVALUATE_IF("simulate_send_error", true,
+                       my_net_write(m_thd->get_protocol_classic()->get_net(),
+                                    pointer_cast<const uchar *>(m_packet.ptr()),
+                                    m_packet.length()))) {
     set_unknown_error("Failed on my_net_write()");
     DBUG_RETURN(1);
   }

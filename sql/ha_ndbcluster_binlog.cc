@@ -7580,13 +7580,13 @@ Ndb_binlog_thread::check_reconnect_incident(THD* thd, injector *inj,
 
   // Write an incident event to the binlog since it's not possible to know what
   // has happened in the cluster while not being connected.
-  LEX_STRING msg;
+  LEX_CSTRING msg;
   switch (incident_id) {
     case MYSQLD_STARTUP:
-      msg = {C_STRING_WITH_LEN("mysqld startup")};
+      msg = {STRING_WITH_LEN("mysqld startup")};
       break;
     case CLUSTER_DISCONNECT:
-      msg = {C_STRING_WITH_LEN("cluster disconnect")};
+      msg = {STRING_WITH_LEN("cluster disconnect")};
       break;
   }
   log_verbose(20, "Writing incident for %s", msg.str);
@@ -8201,15 +8201,14 @@ restart_cluster_failure:
     // i_pOp == NULL means an inconsistent epoch or the queue is empty
     else if (i_pOp == NULL && !i_ndb->isConsistent(inconsistent_epoch))
     {
-      char errmsg[64];
-      uint end= sprintf(&errmsg[0],
-                        "Detected missing data in GCI %llu, "
-                        "inserting GAP event", inconsistent_epoch);
-      errmsg[end]= '\0';
+      char errmsg[72];
+      snprintf(errmsg, sizeof(errmsg),
+               "Detected missing data in GCI %llu, "
+               "inserting GAP event", inconsistent_epoch);
       DBUG_PRINT("info",
                  ("Detected missing data in GCI %llu, "
                   "inserting GAP event", inconsistent_epoch));
-      LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
+      LEX_CSTRING const msg= { errmsg, strlen(errmsg) };
       inj->record_incident(thd,
                            binary_log::Incident_event::INCIDENT_LOST_EVENTS,
                            msg);

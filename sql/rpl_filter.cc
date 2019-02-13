@@ -602,7 +602,7 @@ int Rpl_filter::add_wild_ignore_table(const char *table_spec) {
 
 int Rpl_filter::add_db_rewrite(const char *from_db, const char *to_db) {
   DBUG_ENTER("Rpl_filter::add_db_rewrite");
-  int ret = add_string_pair_list(&rewrite_db, (char *)from_db, (char *)to_db);
+  int ret = add_string_pair_list(&rewrite_db, from_db, to_db);
   DBUG_RETURN(ret);
 }
 
@@ -933,8 +933,8 @@ int Rpl_filter::add_string_list(I_List<i_string> *list, const char *spec) {
   return false;
 }
 
-int Rpl_filter::add_string_pair_list(I_List<i_string_pair> *list, char *key,
-                                     char *val) {
+int Rpl_filter::add_string_pair_list(I_List<i_string_pair> *list,
+                                     const char *key, const char *val) {
   char *dup_key, *dup_val;
   i_string_pair *node;
 

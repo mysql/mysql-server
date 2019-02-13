@@ -3317,7 +3317,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
   }
 
   Incident_log_event(THD *thd_arg, enum_incident incident_arg,
-                     LEX_STRING const msg)
+                     LEX_CSTRING const msg)
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {

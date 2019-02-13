@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/service_plugin_registry.h>
+#include <type_traits>
 #include "server_component.h"  // imp_mysql_server_registry
 
 /**
@@ -72,5 +73,7 @@ SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() {
   @ref mysql_service_registry_t::release()
 */
 int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg) {
-  return imp_mysql_server_registry.release((my_h_service)reg);
+  using service_type_t = std::remove_const_t<SERVICE_TYPE(registry)>;
+  return imp_mysql_server_registry.release(
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)));
 }

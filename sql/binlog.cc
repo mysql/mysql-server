@@ -190,7 +190,7 @@ bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
   DBUG_ENTER("normalize_binlog_name");
   bool error = false;
   char buff[FN_REFLEN];
-  char *ptr = (char *)from;
+  char *ptr = const_cast<char *>(from);
   char *opt_name = is_relay_log ? opt_relay_logname : opt_bin_logname;
 
   DBUG_ASSERT(from);
@@ -3667,7 +3667,6 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
   if (is_relay_log) flags = flags | MY_REPORT_WAITING_IF_FULL;
 
   if (!(name = my_strdup(key_memory_MYSQL_LOG_name, log_name, MYF(MY_WME)))) {
-    name = (char *)log_name;  // for the error message
     goto err;
   }
 
@@ -3703,7 +3702,7 @@ err:
         "there was an encryption error while opening the binlog. "
         "Aborting the server.");
   } else
-    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING, name, errno);
+    LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING, log_name, errno);
 
   my_free(name);
   name = nullptr;
@@ -4790,7 +4789,8 @@ bool MYSQL_BIN_LOG::open_binlog(
       an extension for the binary log files.
       In this case we write a standard header to it.
     */
-    if (m_binlog_file->write((uchar *)BINLOG_MAGIC, BIN_LOG_HEADER_SIZE))
+    if (m_binlog_file->write(pointer_cast<const uchar *>(BINLOG_MAGIC),
+                             BIN_LOG_HEADER_SIZE))
       goto err;
     bytes_written += BIN_LOG_HEADER_SIZE;
     write_file_name_to_index_file = 1;
@@ -5172,7 +5172,8 @@ int MYSQL_BIN_LOG::add_log_to_index(uchar *log_name, size_t log_name_len,
   }
 
   if (my_b_write(&crash_safe_index_file, log_name, log_name_len) ||
-      my_b_write(&crash_safe_index_file, (uchar *)"\n", 1) ||
+      my_b_write(&crash_safe_index_file, pointer_cast<const uchar *>("\n"),
+                 1) ||
       flush_io_cache(&crash_safe_index_file) ||
       mysql_file_sync(crash_safe_index_file.file, MYF(MY_WME))) {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_APPEND_LOG_TO_TMP_INDEX, log_name);
@@ -6680,7 +6681,7 @@ bool MYSQL_BIN_LOG::write_buffer(const char *buf, uint len, Master_info *mi) {
 
   // write data
   bool error = false;
-  if (m_binlog_file->write((uchar *)buf, len) == 0) {
+  if (m_binlog_file->write(pointer_cast<const uchar *>(buf), len) == 0) {
     bytes_written += len;
     error = after_write_to_relay_log(mi);
   } else {
@@ -7270,7 +7271,7 @@ bool MYSQL_BIN_LOG::write_incident(THD *thd, bool need_lock_log,
 
   if (!is_open()) DBUG_RETURN(0);
 
-  LEX_STRING write_error_msg = {(char *)err_msg, strlen(err_msg)};
+  LEX_CSTRING write_error_msg = {err_msg, strlen(err_msg)};
   binary_log::Incident_event::enum_incident incident =
       binary_log::Incident_event::INCIDENT_LOST_EVENTS;
   Incident_log_event ev(thd, incident, write_error_msg);

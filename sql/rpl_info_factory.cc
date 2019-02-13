@@ -1326,7 +1326,8 @@ bool Rpl_info_factory::load_channel_names_from_table(
   /*
      Opens and locks the rpl_info table before accessing it.
   */
-  if (info->access->open_table(thd, info->str_schema, info->str_table,
+  if (info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                               to_lex_cstring(info->str_table),
                                info->get_number_info(), TL_READ, &table,
                                &backup)) {
     /*

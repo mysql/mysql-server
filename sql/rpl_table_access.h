@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ class System_table_access {
                                           stack
       @retval false success
   */
-  bool open_table(THD *thd, const LEX_STRING dbstr, const LEX_STRING tbstr,
+  bool open_table(THD *thd, const LEX_CSTRING dbstr, const LEX_CSTRING tbstr,
                   uint max_num_field, enum thr_lock_type lock_type,
                   TABLE **table, Open_tables_backup *backup);
   /**

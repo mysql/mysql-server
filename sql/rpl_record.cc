@@ -760,7 +760,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         uchar const *const old_pack_ptr = pack_ptr;
 #endif
         /// @todo calc_field_size may read out of bounds /Sven
-        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
         uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
                             (int)event_len));
@@ -785,7 +785,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           RBR mode.
          */
         DBUG_ASSERT(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
-                    tabledef->calc_field_size(col_i, (uchar *)old_pack_ptr) ==
+                    tabledef->calc_field_size(col_i, old_pack_ptr) ==
                         (uint32)(pack_ptr - old_pack_ptr));
       }
 
@@ -835,7 +835,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       partial_bits.get();
     if (bitmap_is_set(column_image, col_i)) {
       if (!null_bits.get()) {
-        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 len = tabledef->calc_field_size(col_i, pack_ptr);
         uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("Skipping field"));
         DBUG_DUMP("info", pack_ptr, len);

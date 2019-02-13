@@ -409,13 +409,13 @@ static bool set_thd_db(THD *thd, const char *db, size_t db_len) {
     my_casedn_str(system_charset_info, lcase_db_buf);
     new_db.str = lcase_db_buf;
   } else
-    new_db.str = (char *)db;
+    new_db.str = db;
 
   /* This function is called by a slave thread. */
   DBUG_ASSERT(thd->rli_slave);
 
   Rpl_filter *rpl_filter = thd->rli_slave->rpl_filter;
-  new_db.str = (char *)rpl_filter->get_rewrite_db(new_db.str, &new_db.length);
+  new_db.str = rpl_filter->get_rewrite_db(new_db.str, &new_db.length);
 
   if (lower_case_table_names) {
     /* lcase_db_buf != new_db.str means that lcase_db_buf is rewritten. */
@@ -3455,9 +3455,9 @@ bool Query_log_event::write(Basic_ostream *ostream) {
       LEX_CSTRING priv_host = ctx->priv_host();
 
       invoker_user.length = priv_user.length;
-      invoker_user.str = (char *)priv_user.str;
+      invoker_user.str = priv_user.str;
       if (priv_host.str[0] != '\0') {
-        invoker_host.str = (char *)priv_host.str;
+        invoker_host.str = priv_host.str;
         invoker_host.length = priv_host.length;
       }
     }
@@ -3610,9 +3610,12 @@ bool Query_log_event::write(Basic_ostream *ostream) {
           write_post_header_for_derived(ostream) ||
           wrapper_my_b_safe_write(ostream, start_of_status,
                                   (uint)(start - start_of_status)) ||
-          wrapper_my_b_safe_write(ostream, db ? (uchar *)db : (uchar *)"",
+          wrapper_my_b_safe_write(ostream,
+                                  db ? pointer_cast<const uchar *>(db)
+                                     : pointer_cast<const uchar *>(""),
                                   db_len + 1) ||
-          wrapper_my_b_safe_write(ostream, (uchar *)query, q_len) ||
+          wrapper_my_b_safe_write(ostream, pointer_cast<const uchar *>(query),
+                                  q_len) ||
           write_footer(ostream))
              ? 1
              : 0;
@@ -5464,7 +5467,8 @@ bool Rotate_log_event::write(Basic_ostream *ostream) {
       write_header(ostream, Binary_log_event::ROTATE_HEADER_LEN + ident_len) ||
       wrapper_my_b_safe_write(ostream, (uchar *)buf,
                               Binary_log_event::ROTATE_HEADER_LEN) ||
-      wrapper_my_b_safe_write(ostream, (uchar *)new_log_ident,
+      wrapper_my_b_safe_write(ostream,
+                              pointer_cast<const uchar *>(new_log_ident),
                               (uint)ident_len) ||
       write_footer(ostream));
 }
@@ -6239,7 +6243,8 @@ bool XA_prepare_log_event::write(Basic_ostream *ostream) {
          wrapper_my_b_safe_write(ostream, buf_g, sizeof(buf_g)) ||
          wrapper_my_b_safe_write(ostream, buf_b, sizeof(buf_b)) ||
          wrapper_my_b_safe_write(
-             ostream, (uchar *)static_cast<XID *>(xid)->get_data(),
+             ostream,
+             pointer_cast<const uchar *>(static_cast<XID *>(xid)->get_data()),
              static_cast<XID *>(xid)->get_gtrid_length() +
                  static_cast<XID *>(xid)->get_bqual_length()) ||
          write_footer(ostream);
@@ -6472,7 +6477,8 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
 
   return (write_header(ostream, event_length) ||
           wrapper_my_b_safe_write(ostream, (uchar *)buf, sizeof(buf)) ||
-          wrapper_my_b_safe_write(ostream, (uchar *)name, name_len) ||
+          wrapper_my_b_safe_write(ostream, pointer_cast<const uchar *>(name),
+                                  name_len) ||
           wrapper_my_b_safe_write(ostream, (uchar *)buf1, buf1_length) ||
           wrapper_my_b_safe_write(ostream, pos, val_len) ||
           wrapper_my_b_safe_write(ostream, &flags, unsigned_len) ||
@@ -10368,7 +10374,8 @@ static enum_tbl_map_status check_table_map(Relay_log_info const *rli,
 
 int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
   RPL_TABLE_LIST *table_list;
-  char *db_mem, *tname_mem, *ptr;
+  char *db_mem, *tname_mem;
+  const char *ptr;
   size_t dummy_len;
   void *memory;
   DBUG_ENTER("Table_map_log_event::do_apply_event(Relay_log_info*)");
@@ -10393,8 +10400,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
 
   /* rewrite rules changed the database */
   if (rli->rpl_filter != nullptr &&
-      ((ptr = (char *)rli->rpl_filter->get_rewrite_db(db_mem, &dummy_len)) !=
-       db_mem)) {
+      ((ptr = rli->rpl_filter->get_rewrite_db(db_mem, &dummy_len)) != db_mem)) {
     rli->rpl_filter->get_rewrite_db_statistics()->increase_counter();
     my_stpcpy(db_mem, ptr);
   }
@@ -12191,8 +12197,9 @@ static bool write_str_at_most_255_bytes(Basic_ostream *ostream, const char *str,
   uchar tmp[1];
 
   tmp[0] = (uchar)length;
-  return (ostream->write(tmp, sizeof(tmp)) ||
-          (length > 0 && ostream->write((uchar *)str, length)));
+  return (
+      ostream->write(tmp, sizeof(tmp)) ||
+      (length > 0 && ostream->write(pointer_cast<const uchar *>(str), length)));
 }
 
 bool Incident_log_event::write_data_body(Basic_ostream *ostream) {

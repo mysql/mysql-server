@@ -118,7 +118,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 
   DBUG_ASSERT(fde != 0);
   DBUG_PRINT("info", ("binlog_version: %d", fde->binlog_version));
-  DBUG_DUMP("data", (unsigned char *)buf, event_len);
+  DBUG_DUMP("data", buffer, event_len);
 
   /* Check the integrity */
   if (event_len < LOG_EVENT_MINIMAL_HEADER_LEN) {
@@ -170,7 +170,8 @@ Binlog_read_error::Error_type binlog_event_deserialize(
 #endif
 
   if (verify_checksum &&
-      Log_event_footer::event_checksum_test((uchar *)buf, event_len, alg) &&
+      Log_event_footer::event_checksum_test(const_cast<uchar *>(buffer),
+                                            event_len, alg) &&
       /* Skip the crc check when simulating an unknown ignorable log event. */
       !DBUG_EVALUATE_IF("simulate_unknown_ignorable_log_event", 1, 0)) {
     DBUG_RETURN(Binlog_read_error::CHECKSUM_FAILURE);

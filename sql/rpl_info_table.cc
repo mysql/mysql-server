@@ -123,8 +123,9 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   if (verify_table_primary_key_fields(table)) goto end;
@@ -190,8 +191,9 @@ int Rpl_info_table::do_flush_info(const bool force) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   /*
@@ -288,8 +290,9 @@ int Rpl_info_table::do_clean_info() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(),
-                         TL_WRITE, &table, &backup))
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_WRITE,
+                         &table, &backup))
     goto end;
 
   /*
@@ -352,7 +355,8 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (info->access->open_table(thd, info->str_schema, info->str_table,
+  if (info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                               to_lex_cstring(info->str_table),
                                info->get_number_info(), TL_WRITE, &table,
                                &backup)) {
     error = 1;
@@ -426,7 +430,8 @@ enum_return_check Rpl_info_table::do_check_info() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup)) {
     LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE, str_schema.str,
            str_table.str);
@@ -475,7 +480,8 @@ enum_return_check Rpl_info_table::do_check_info(uint instance) {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup)) {
     LogErr(WARNING_LEVEL, ER_RPL_CANT_OPEN_INFO_TABLE, str_schema.str,
            str_table.str);
@@ -535,7 +541,8 @@ bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (info->access->open_table(thd, info->str_schema, info->str_table,
+  if (info->access->open_table(thd, to_lex_cstring(info->str_schema),
+                               to_lex_cstring(info->str_table),
                                info->get_number_info(), TL_READ, &table,
                                &backup)) {
     /*
@@ -707,7 +714,8 @@ bool Rpl_info_table::do_update_is_transactional() {
   /*
     Opens and locks the rpl_info table before accessing it.
   */
-  if (access->open_table(thd, str_schema, str_table, get_number_info(), TL_READ,
+  if (access->open_table(thd, to_lex_cstring(str_schema),
+                         to_lex_cstring(str_table), get_number_info(), TL_READ,
                          &table, &backup))
     goto end;
 

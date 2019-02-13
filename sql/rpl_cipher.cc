@@ -154,8 +154,7 @@ bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
   /* length == 0 : nothing to encrypt */
   if (length == 0) DBUG_RETURN(false);
 
-  if (EVP_Cipher(m_ctx, dest, (unsigned char *)src, length) == 0)
-    DBUG_RETURN(true);
+  if (EVP_Cipher(m_ctx, dest, src, length) == 0) DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
@@ -175,8 +174,7 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
   if (length == 0) DBUG_RETURN(false);
 
 #ifdef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
-  if (EVP_Cipher(m_ctx, dest, (unsigned char *)src, length) == 0)
-    DBUG_RETURN(true);
+  if (EVP_Cipher(m_ctx, dest, src, length) == 0) DBUG_RETURN(true);
 #else
   const int DECRYPTED_BUFFER_SIZE = AES_BLOCK_SIZE * 2048;
   unsigned char buffer[DECRYPTED_BUFFER_SIZE];

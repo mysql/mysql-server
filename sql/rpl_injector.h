@@ -374,7 +374,7 @@ class injector {
   void new_trans(THD *, transaction *);
 
   int record_incident(THD *, binary_log::Incident_event::enum_incident incident,
-                      LEX_STRING const message);
+                      LEX_CSTRING const message);
 
  private:
   explicit injector();

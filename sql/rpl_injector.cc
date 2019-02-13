@@ -282,7 +282,7 @@ void injector::new_trans(THD *thd, injector::transaction *ptr) {
 
 int injector::record_incident(
     THD *thd, binary_log::Incident_event::enum_incident incident,
-    LEX_STRING const message) {
+    LEX_CSTRING const message) {
   Incident_log_event ev(thd, incident, message);
   return mysql_bin_log.write_incident(&ev, thd, true /*need_lock_log=true*/,
                                       message.str);

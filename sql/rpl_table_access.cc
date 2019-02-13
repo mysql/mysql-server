@@ -40,8 +40,9 @@
 #include "sql/sql_lex.h"    // Query_tables_list
 #include "sql/table.h"      // TABLE_LIST
 
-bool System_table_access::open_table(THD *thd, const LEX_STRING dbstr,
-                                     const LEX_STRING tbstr, uint max_num_field,
+bool System_table_access::open_table(THD *thd, const LEX_CSTRING dbstr,
+                                     const LEX_CSTRING tbstr,
+                                     uint max_num_field,
                                      enum thr_lock_type lock_type,
                                      TABLE **table,
                                      Open_tables_backup *backup) {

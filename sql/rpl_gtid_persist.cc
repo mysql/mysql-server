@@ -68,10 +68,10 @@ using std::string;
 my_thread_handle compress_thread_id;
 static bool terminate_compress_thread = false;
 static bool should_compress = false;
-const LEX_STRING Gtid_table_access_context::TABLE_NAME = {
-    C_STRING_WITH_LEN("gtid_executed")};
-const LEX_STRING Gtid_table_access_context::DB_NAME = {
-    C_STRING_WITH_LEN("mysql")};
+const LEX_CSTRING Gtid_table_access_context::TABLE_NAME = {
+    STRING_WITH_LEN("gtid_executed")};
+const LEX_CSTRING Gtid_table_access_context::DB_NAME = {
+    STRING_WITH_LEN("mysql")};
 
 /**
   Initialize a new THD.

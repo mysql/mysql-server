@@ -97,7 +97,7 @@ class Plugin_system_variables {
 template <typename Copy_type>
 void Plugin_system_variables::update_func(THD *thd, SYS_VAR *, void *tgt,
                                           const void *save) {
-  *(Copy_type *)tgt = *(Copy_type *)save;
+  *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
 
   std::for_each(
       m_callbacks.begin(), m_callbacks.end(),
