@@ -11731,7 +11731,6 @@ int
 runDropTableSpaceLG(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
 
   // Read the info about the test created the table space
   // "DEFAULT-TS" from the test case context.
@@ -11788,7 +11787,7 @@ runCreateManyDataFiles(NDBT_Context* ctx, NDBT_Step* step)
   uint created_files = 0; // How many files are created so far
   char datafilename[256];
 
-  for (int datafile=0; datafile < data_files_to_create; ++datafile)
+  for (Uint32 datafile=0; datafile < data_files_to_create; ++datafile)
   {
     BaseString::snprintf(datafilename, sizeof(datafilename),
                          "datafile%d", datafile);
@@ -11817,7 +11816,7 @@ runCreateManyDataFiles(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   // Clean up : remove the data files created
-  for (int datafile=0; datafile < created_files; ++datafile)
+  for (uint datafile=0; datafile < created_files; ++datafile)
   {
     BaseString::snprintf(datafilename, sizeof(datafilename),
                          "datafile%d", datafile);
