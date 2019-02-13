@@ -2800,7 +2800,7 @@ ha_ndbcluster_cond::add_read_set(TABLE *table, const Item *cond)
   if (cond != nullptr)
   {
     Mark_field mf(table, MARK_COLUMNS_READ);
-    ((Item*)cond)->walk(&Item::mark_field_in_map, Item::WALK_PREFIX,
+    ((Item*)cond)->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
                             (uchar *)&mf);
   }
 }
