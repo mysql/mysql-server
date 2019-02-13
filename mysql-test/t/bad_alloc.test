@@ -1,0 +1,29 @@
+# === Purpose ===
+# The std::bad_alloc() exception can be thrown on failure to allocate
+# memory while adding rows to the performance_schema.data_locks table.
+# This test case verifies that the exception is handled properly and
+# an appropriate error is thrown.
+#
+# === Related bugs ===
+# Bug#28977428 - TERMINATE CALLED AFTER THROWING AN INSTANCE OF 'STD::BAD_ALLOC'
+#
+--source include/have_debug.inc
+
+CREATE DATABASE IF NOT EXISTS db_28977428;
+USE db_28977428;
+CREATE TABLE child (id int(11) NOT NULL) ENGINE=InnoDB;
+INSERT INTO child (id) values (90), (102), (100), (111), (112), (113), (114), (115), (116), (117), (118), (119), (120);
+#Simulate bad_alloc exception for performance_schema.data_locks table.
+SET SESSION DEBUG='+d,simulate_bad_alloc_exception_1';
+SELECT count(*) FROM child WHERE id > 100 FOR UPDATE;
+--error ER_STD_BAD_ALLOC_ERROR
+SELECT count(*) FROM performance_schema.data_locks;
+SET SESSION DEBUG='-d,simulate_bad_alloc_exception_1';
+#Simulate bad_alloc exception for performance_schema.data_lock_waits table.
+SET SESSION DEBUG='+d,simulate_bad_alloc_exception_2';
+SELECT count(*) FROM child WHERE id > 100 FOR UPDATE;
+--error ER_STD_BAD_ALLOC_ERROR
+SELECT count(*) FROM performance_schema.data_lock_waits;
+
+#Cleanup
+DROP DATABASE db_28977428;
