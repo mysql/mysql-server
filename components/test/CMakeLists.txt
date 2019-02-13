@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -112,5 +112,9 @@ MYSQL_ADD_COMPONENT(test_audit_api_message
 
 MYSQL_ADD_COMPONENT(test_mysql_runtime_error
   test_mysql_runtime_error.cc
+  TEST MODULE)
+
+MYSQL_ADD_COMPONENT(test_mysql_current_thread_reader
+  test_mysql_current_thread_reader.cc
   TEST MODULE)
 

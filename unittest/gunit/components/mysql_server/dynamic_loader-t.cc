@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -54,6 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
@@ -62,6 +63,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
+                   (MYSQL_THD *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
                    (int, void *)) {

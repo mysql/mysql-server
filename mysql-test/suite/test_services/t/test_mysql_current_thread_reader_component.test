@@ -1,0 +1,13 @@
+INSTALL COMPONENT "file://component_test_mysql_current_thread_reader";
+
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if($log_error_ == "stderr")
+{
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+let SEARCH_FILE=$log_error_;
+
+--echo # Test : must return the same as current_user;
+SELECT test_thd_reader_current_user();
+
+UNINSTALL COMPONENT "file://component_test_mysql_current_thread_reader";

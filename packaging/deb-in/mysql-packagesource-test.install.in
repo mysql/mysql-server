@@ -42,6 +42,7 @@ usr/lib/mysql/plugin/component_test_pfs_notification.so
 usr/lib/mysql/plugin/component_test_pfs_resource_group.so
 usr/lib/mysql/plugin/component_test_udf_registration.so
 usr/lib/mysql/plugin/component_test_host_application_signal.so
+usr/lib/mysql/plugin/component_test_mysql_current_thread_reader.so
 usr/lib/mysql/plugin/component_test_mysql_runtime_error.so
 usr/lib/mysql/plugin/component_udf_reg_3_func.so
 usr/lib/mysql/plugin/component_udf_reg_avg_func.so

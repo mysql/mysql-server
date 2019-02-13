@@ -53,6 +53,7 @@
 #include "lex_string.h"
 #include "my_compiler.h"
 #include "my_io.h"
+#include "mysql_current_thread_reader_imp.h"
 #include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
@@ -61,6 +62,11 @@ extern mysql_component_t COMPONENT_REF(mysql_server);
 
 struct mysql_component_t *mysql_builtin_components[] = {
     &COMPONENT_REF(mysql_server), 0};
+
+DEFINE_BOOL_METHOD(mysql_component_mysql_current_thread_reader_imp::get,
+                   (MYSQL_THD *)) {
+  return true;
+}
 
 DEFINE_BOOL_METHOD(mysql_component_host_application_signal_imp::signal,
                    (int, void *)) {
