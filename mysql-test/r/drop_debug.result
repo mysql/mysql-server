@@ -268,7 +268,9 @@ DROP DATABASE mysqltest;
 #
 CREATE TABLE t(i INT);
 SET debug = '+d,simulate_failure_in_before_commit_hook';
-DROP TABLE t;
-ERROR HY000: Error on observer while running replication hook 'before_commit'.
+# This test case works only with binlogging, because it depends on the
+# 2pc coordinated by the binlog. Hence, to avoid failure when running
+# the test with --skip-log-bin, we temporarily suppress the query- and
+# result log.
 SET debug = '-d,simulate_failure_in_before_commit_hook';
 DROP TABLE t;

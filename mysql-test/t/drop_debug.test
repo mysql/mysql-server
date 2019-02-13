@@ -288,9 +288,22 @@ DROP DATABASE mysqltest;
 CREATE TABLE t(i INT);
 SET debug = '+d,simulate_failure_in_before_commit_hook';
 
-# Before the patch, this would fail with an assert due to an inconsistency
-# between the state of the DD cache and the contents of the DD tables.
---error ER_RUN_HOOK_ERROR
-DROP TABLE t;
+--echo # This test case works only with binlogging, because it depends on the
+--echo # 2pc coordinated by the binlog. Hence, to avoid failure when running
+--echo # the test with --skip-log-bin, we temporarily suppress the query- and
+--echo # result log.
+
+--disable_query_log
+--disable_result_log
+if (`SELECT @@global.log_bin`)
+{
+  # Before the patch, this would fail with an assert due to an inconsistency
+  # between the state of the DD cache and the contents of the DD tables.
+  --error ER_RUN_HOOK_ERROR
+  DROP TABLE t;
+}
+--enable_result_log
+--enable_query_log
+
 SET debug = '-d,simulate_failure_in_before_commit_hook';
 DROP TABLE t;
