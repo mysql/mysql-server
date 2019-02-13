@@ -1,0 +1,26 @@
+RESET MASTER;
+CREATE TABLE employees (store_id INT NOT NULL) PARTITION BY RANGE (store_id)
+( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30));
+INSERT INTO employees VALUES (5);
+CREATE TABLE t1 (m INT);
+INSERT INTO t1 VALUES (9);
+INSERT INTO employees SELECT 5 FROM t1 LIMIT 3;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE employees (store_id INT NOT NULL) PARTITION BY RANGE (store_id)
+( PARTITION p0 VALUES LESS THAN (10), PARTITION p1 VALUES LESS THAN (20),
+PARTITION p2 VALUES LESS THAN (30))
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO employees VALUES (5)
+binlog.000001	#	Xid	#	#	COMMIT /* XID */
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (m INT)
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (9)
+binlog.000001	#	Xid	#	#	COMMIT /* XID */
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.employees)
+binlog.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Xid	#	#	COMMIT /* XID */
+DROP TABLE employees;
+DROP TABLE t1;
