@@ -1295,3 +1295,22 @@ date_add('1995-01-05', INTERVAL -9223372036854775806 MINUTE) as result;
 
 SELECT
 date_add('1995-01-05', INTERVAL -9223372036854775806 HOUR) as result;
+
+--echo #
+--echo # Bug #29334643 ASSERTION FAILED:
+--echo #     !M_IS_ALLOCED || !M_PTR || !M_ALLOCED_LENGTH || (M_ALLOCED_LEN
+--echo #
+
+CREATE TABLE t0022 (
+  c0000 text
+);
+
+--error ER_WRONG_VALUE
+WITH cte1 AS
+(SELECT(replace(md5(0x9025c5c7),
+                    convert((1) using utf8),
+                    (!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+SELECT cte1.a1
+FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
+
+DROP TABLE t0022;
