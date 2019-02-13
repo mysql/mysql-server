@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,6 +192,10 @@ static long process_tls_version(const char *tls_version) {
       SSL_OP_NO_TLSv1, SSL_OP_NO_TLSv1_1, SSL_OP_NO_TLSv1_2};
   const char *ctx_flag_default = "TLSv1,TLSv1.1,TLSv1.2";
   long tls_ctx_flag = SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2;
+#ifdef HAVE_TLSv13
+  /* Disable TLS 1.3 support. */
+  tls_ctx_flag |= SSL_OP_NO_TLSv1_3;
+#endif
   unsigned int index = 0;
   char tls_version_option[TLS_VERSION_OPTION_SIZE] = "";
   int tls_found = 0;
@@ -248,8 +252,20 @@ static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
                     (SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
                      SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1_2);
+#ifdef HAVE_TLSv13
+  /* Disable TLS 1.3 support. */
+  ssl_ctx_options |= SSL_OP_NO_TLSv1_3;
+#endif
 
   SSL_CTX_set_options(ssl_ctx, ssl_ctx_options);
+
+#ifdef HAVE_TLSv13
+  /* Set invalid TLSv1.3 ciphersuites. */
+  if (SSL_CTX_set_ciphersuites(ssl_ctx, "") == 0) {
+    G_ERROR("Failed to disable TLSv1.3 ciphers.");
+    goto error;
+  }
+#endif
 
   /*
     Set the ciphers that can be used. Note, howerver, that the
