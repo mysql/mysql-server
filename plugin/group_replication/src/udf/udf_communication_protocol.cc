@@ -35,7 +35,7 @@
  * Minimum version required of all group members to fire the
  * group_replication_set_communication_protocol action.
  */
-static const Member_version min_version_required(0x080015);
+static const Member_version min_version_required(0x080016);
 
 static bool group_replication_get_communication_protocol_init(UDF_INIT *,
                                                               UDF_ARGS *args,

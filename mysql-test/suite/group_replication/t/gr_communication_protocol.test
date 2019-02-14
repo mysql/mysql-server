@@ -78,7 +78,7 @@ SET SESSION sql_log_bin= 1;
 
 --echo ###############################################################################
 --echo # 3. Increase communication_protocol.
---let $gr_new_protocol= 8.0.15
+--let $gr_new_protocol= 8.0.16
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
