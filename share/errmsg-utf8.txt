@@ -19101,6 +19101,9 @@ ER_GRP_RPL_SRV_GTID_WAIT_ERROR
 ER_GRP_DELAYED_VCLE_LOGGING
   eng "Unable to log the group change View log event in its exaction position in the log. This will not however affect the group replication recovery process or the overall plugin process."
 
+ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
+  eng "Cannot grant roles to an anonymous user."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

@@ -2958,7 +2958,12 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
       lex_user = get_current_user(thd, lex_user);
       DBUG_PRINT("note", ("current user= %s@%s", lex_user->user.str,
                           lex_user->host.str));
+    } else if (lex_user->user.length == 0 || *(lex_user->user.str) == '\0') {
+      /* Granting roles to an anonymous user isn't allowed */
+      my_error(ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER, MYF(0));
+      DBUG_RETURN(true);
     }
+
     ACL_USER *acl_user;
     if ((acl_user = find_acl_user(lex_user->host.str, lex_user->user.str,
                                   true)) == NULL) {
