@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@ MACRO(MY_ADD_C_WARNING_FLAG WARNING_FLAG)
 ENDMACRO()
 
 MACRO(MY_ADD_CXX_WARNING_FLAG WARNING_FLAG)
-  STRING(REPLACE "c++" "cpp" WARNING_VAR ${WARNING_FLAG})
-  MY_CHECK_CXX_COMPILER_FLAG("-${WARNING_FLAG}" HAVE_${WARNING_VAR})
-  IF(HAVE_${WARNING_VAR})
+  MY_CHECK_CXX_COMPILER_WARNING("-${WARNING_FLAG}" HAS_FLAG)
+  IF(HAS_FLAG)
     STRING_APPEND(MY_CXX_WARNING_FLAGS " -${WARNING_FLAG}")
   ENDIF()
 ENDMACRO()

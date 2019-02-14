@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -56,21 +56,19 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-stringop-overflow")
 ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-variable"
-  HAVE_UNUSED_BUT_SET_VARIABLE)
-IF(HAVE_UNUSED_BUT_SET_VARIABLE)
-  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-unused-but-set-variable")
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-variable" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
-  HAVE_MISLEADING_INDENTATION)
-IF(HAVE_MISLEADING_INDENTATION)
-  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-misleading-indentation")
+MY_CHECK_CXX_COMPILER_WARNING("-Wmisleading-indentation" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-IF(HAVE_MAYBE_UNINITIALIZED)
-  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "-Wno-maybe-uninitialized")
+MY_CHECK_CXX_COMPILER_WARNING("-Wmaybe-uninitialized" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  LIST(APPEND ICU_LINUX_COMPILE_OPTIONS "${HAS_WARN_FLAG}")
 ENDIF()
 
 IF(WIN32)

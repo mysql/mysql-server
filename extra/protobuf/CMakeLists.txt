@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -53,14 +53,14 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 ENDIF()
 
 # For gcc9
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-copy" HAVE_DEPRECATED_COPY)
-IF(HAVE_DEPRECATED_COPY)
-  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-deprecated-copy")
+MY_CHECK_CXX_COMPILER_WARNING("-Wdeprecated-copy" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wextra-semi" HAVE_EXTRA_SEMI)
-IF(HAVE_EXTRA_SEMI)
-  STRING_APPEND(CMAKE_CXX_FLAGS " -Wno-extra-semi")
+MY_CHECK_CXX_COMPILER_WARNING("-Wextra-semi" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
 SET(protobuf_BUILD_TESTS OFF CACHE INTERNAL "")

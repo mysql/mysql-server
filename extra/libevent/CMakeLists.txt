@@ -795,7 +795,7 @@ include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 if (EVENT__BUILD_SHARED_LIBRARIES)
   set(EVENT__LIBRARY_TYPE SHARED)
 
-  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} STREQUAL "Clang"))
+  if ((CMAKE_COMPILER_IS_GNUCC) OR (${CMAKE_C_COMPILER_ID} MATCHES "Clang"))
         add_compiler_flags(-fvisibility=hidden)
   elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "SunPro")
     add_compiler_flags(-xldscope=hidden)

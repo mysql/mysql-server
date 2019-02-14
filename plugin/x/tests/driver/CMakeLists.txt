@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -71,10 +71,7 @@ TARGET_LINK_LIBRARIES(${XTEST_EXE_NAME}
   ${PROTOBUF_LIBRARY}
 )
 
-IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-but-set-parameter" HAVE_UNUSED_BUT_SET)
-  IF(HAVE_UNUSED_BUT_SET)
-    ADD_COMPILE_FLAGS(${XTEST_SRC} COMPILE_FLAGS
-      "-Wno-unused-but-set-parameter")
-  ENDIF()
+MY_CHECK_CXX_COMPILER_WARNING("-Wunused-but-set-parameter" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(${XTEST_SRC} COMPILE_FLAGS ${HAS_WARN_FLAG})
 ENDIF()
