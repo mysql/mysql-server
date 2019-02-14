@@ -517,8 +517,14 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument) {
 
   @see Item_sum::check_sum_func()
   @see remove_redundant_subquery_clauses()
+
+  If this is a window function, remove the reference from the window.
+  This is needed when constant predicates are being removed.
+
+  @see Item_cond::fix_fields()
+  @see Item_cond::remove_const_cond()
  */
-bool Item_sum::clean_up_after_removal(uchar *) {
+bool Item_sum::clean_up_after_removal(uchar *arg) {
   /*
     Don't do anything if
     1) this is an unresolved item (This may happen if an
@@ -526,25 +532,45 @@ bool Item_sum::clean_up_after_removal(uchar *) {
        whole item tree for the second occurence is replaced by the
        item tree for the first occurence, without calling fix_fields()
        on the second tree. Therefore there's nothing to clean up.), or
+    If it is a grouped aggregate,
     2) there is no inner_sum_func_list, or
     3) the item is not an element in the inner_sum_func_list.
   */
-  if (!fixed ||                                                           // 1
-      aggr_select == NULL || aggr_select->inner_sum_func_list == NULL ||  // 2
-      next_sum == NULL)                                                   // 3
+  if (!fixed ||  // 1
+      (m_window == nullptr &&
+       (aggr_select == NULL || aggr_select->inner_sum_func_list == NULL  // 2
+        || next_sum == NULL)))                                           // 3
     return false;
 
-  if (next_sum == this)
-    aggr_select->inner_sum_func_list = NULL;
-  else {
-    Item_sum *prev;
-    for (prev = this; prev->next_sum != this; prev = prev->next_sum)
-      ;
-    prev->next_sum = next_sum;
-    next_sum = NULL;
+  if (m_window) {
+    /*
+      Cleanup the reference for this window function from m_functions when
+      constant predicates are being removed.
+    */
+    auto *ctx = pointer_cast<Cleanup_after_removal_context *>(arg);
+    if (ctx != nullptr && ctx->m_removing_const_preds) {
+      List_iterator<Item_sum> li(m_window->functions());
+      Item *item = nullptr;
+      while ((item = li++)) {
+        if (item == this) {
+          li.remove();
+          break;
+        }
+      }
+    }
+  } else {
+    if (next_sum == this)
+      aggr_select->inner_sum_func_list = NULL;
+    else {
+      Item_sum *prev;
+      for (prev = this; prev->next_sum != this; prev = prev->next_sum)
+        ;
+      prev->next_sum = next_sum;
+      next_sum = NULL;
 
-    if (aggr_select->inner_sum_func_list == this)
-      aggr_select->inner_sum_func_list = prev;
+      if (aggr_select->inner_sum_func_list == this)
+        aggr_select->inner_sum_func_list = prev;
+    }
   }
 
   return false;
