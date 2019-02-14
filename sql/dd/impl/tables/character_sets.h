@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,8 @@ class Character_sets : public Entity_object_table_impl {
     FIELD_DEFAULT_COLLATION_ID,
     FIELD_COMMENT,
     FIELD_MB_MAX_LENGTH,
-    FIELD_OPTIONS
+    FIELD_OPTIONS,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

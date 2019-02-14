@@ -1,0 +1,32 @@
+########################################################################
+# This test scripts covers meta data related aspects of upgrade
+# after 8.0. For upgrade from 5.7 to 8.0, see dd_upgrade_test.
+########################################################################
+########################################################################
+# Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
+#               SQL_MODE ALLOW_INVALID_DATES
+########################################################################
+########################################################################
+# Copy and unzip the datadir, and stop the server.
+########################################################################
+########################################################################
+# Restart the server to trigger upgrade.
+########################################################################
+########################################################################
+# Verify that the entities have retained the SQL mode.
+########################################################################
+USE test;
+SHOW CREATE EVENT eve;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+eve	ALLOW_INVALID_DATES	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `eve` ON SCHEDULE EVERY 1 HOUR STARTS '#' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE PROCEDURE p;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` PROCEDURE `p`(OUT t DATETIME)
+SELECT now() INTO t	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE TRIGGER trg;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE INSERT ON `t` FOR EACH ROW SET @i = 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+########################################################################
+# Stop the server and do cleanup.
+########################################################################
+# restart

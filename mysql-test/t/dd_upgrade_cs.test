@@ -1,0 +1,66 @@
+--echo ########################################################################
+--echo # This test scripts covers meta data related aspects of upgrade
+--echo # after 8.0. For upgrade from 5.7 to 8.0, see dd_upgrade_test.
+--echo ########################################################################
+
+--source include/have_case_sensitive_file_system.inc
+--source include/no_valgrind_without_big.inc
+
+--echo ########################################################################
+--echo # Bug#29350955: UPGRADE 8.0.11-13 TO 8.0.14-16 FAILS IF DB OBJ HAS
+--echo #               SQL_MODE ALLOW_INVALID_DATES
+--echo ########################################################################
+
+--echo ########################################################################
+--echo # Copy and unzip the datadir, and stop the server.
+--echo ########################################################################
+  #
+  # The datadir is created by building server version 80013 and executing the
+  # following SQL statements:
+  #
+  # USE test;
+  # SET sql_mode = 'allow_invalid_dates';
+  # CREATE PROCEDURE p(OUT t DATETIME) SELECT now() INTO t;
+  # CREATE TABLE t(i INT);
+  # CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW SET @i = 1;
+  # CREATE EVENT eve ON SCHEDULE EVERY 1 HOUR DO SELECT 1;
+  #
+  # Then, move data/ to data_80013_sql_modes/, and finally zip the entire
+  # directory (zip -r data_80013_sql_modes.zip data_80013_sql_modes).
+  #
+--copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_80013_sql_modes.zip $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--file_exists $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--exec unzip -qo $MYSQL_TMP_DIR/data_80013_sql_modes.zip -d $MYSQL_TMP_DIR
+--let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80013_sql_modes
+--let $MYSQLD_LOG_UPGRADE = $MYSQLTEST_VARDIR/log/save_dd_upgrade_sql_modes.log
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo ########################################################################
+--echo # Restart the server to trigger upgrade.
+--echo ########################################################################
+--exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--let $wait_counter= 10000
+--source include/wait_until_connected_again.inc
+
+--echo ########################################################################
+--echo # Verify that the entities have retained the SQL mode.
+--echo ########################################################################
+USE test;
+--replace_regex /STARTS '[^']+'/STARTS '#'/
+SHOW CREATE EVENT eve;
+SHOW CREATE PROCEDURE p;
+--replace_column 7 #
+SHOW CREATE TRIGGER trg;
+
+--echo ########################################################################
+--echo # Stop the server and do cleanup.
+--echo ########################################################################
+--source include/shutdown_mysqld.inc
+--source include/wait_until_disconnected.inc
+--remove_file $MYSQL_TMP_DIR/data_80013_sql_modes.zip
+--force-rmdir $MYSQL_TMP_DIR/data_80013_sql_modes
+--source include/start_mysqld.inc
+--source include/wait_until_connected_again.inc

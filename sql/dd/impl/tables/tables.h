@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,8 @@ class Tables : public Entity_object_table_impl {
     FIELD_VIEW_CLIENT_COLLATION_ID,
     FIELD_VIEW_CONNECTION_COLLATION_ID,
     FIELD_VIEW_COLUMN_NAMES,
-    FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID
+    FIELD_LAST_CHECKED_FOR_UPGRADE_VERSION_ID,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

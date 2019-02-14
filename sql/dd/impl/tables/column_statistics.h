@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,8 @@ class Column_statistics final : public Entity_object_table_impl {
     FIELD_TABLE_NAME,
     FIELD_COLUMN_NAME,
     FIELD_HISTOGRAM,
-    FIELD_OPTIONS
+    FIELD_OPTIONS,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {
