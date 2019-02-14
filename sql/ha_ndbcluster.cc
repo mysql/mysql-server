@@ -17038,12 +17038,13 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
                (! field->is_real_null(src_offset)) ||
                ((field->flags & NOT_NULL_FLAG)) ||
                /*
-                  Check that column doesn't have AUTO_INCREMENT
-                  and DEFAULT/ON UPDATE CURRENT_TIMESTAMP as default.
+                  Check that column doesn't have
+                  DEFAULT/ON INSERT/UPDATE CURRENT_TIMESTAMP as default
+                  or AUTO_INCREMENT.
                */
-               ((field->auto_flags &
-                 (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) != 0) ||
-               ((field->auto_flags & Field::NEXT_NUMBER) != 0))
+               ((field->has_insert_default_datetime_value_expression() ||
+                 field->has_update_default_datetime_value_expression()) ||
+                ((field->auto_flags & Field::NEXT_NUMBER) != 0)))
            {
              DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                              "Adding column with non-null default value "

@@ -130,6 +130,10 @@ while ($counter <= $num_tables)
     --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
     eval ALTER TABLE $tx ALGORITHM=inplace,
            ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    # Show that adding column with auto_increment is not supported
+    --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+           ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
   }
 
   inc $counter;

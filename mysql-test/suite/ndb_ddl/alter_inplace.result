@@ -15,6 +15,9 @@ row-3
 ALTER TABLE t1 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t2 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t2 WHERE a = 1;
 a
@@ -32,6 +35,9 @@ row-3
 ALTER TABLE t2 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t2 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t3 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t3 WHERE a = 1;
 a
@@ -49,6 +55,9 @@ row-3
 ALTER TABLE t3 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t3 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t4 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t4 WHERE a = 1;
 a
@@ -66,6 +75,9 @@ row-3
 ALTER TABLE t4 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t4 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t5 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t5 WHERE a = 1;
 a
@@ -83,6 +95,9 @@ row-3
 ALTER TABLE t5 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t5 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t6 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t6 WHERE a = 1;
 a
@@ -109,6 +124,9 @@ row-3
 ALTER TABLE t7 ALGORITHM=inplace,
 ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-null default value is not supported online. Try ALGORITHM=COPY.
+ALTER TABLE t7 ALGORITHM=inplace,
+ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
 ALTER TABLE t8 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t8 WHERE a = 1;
 a
