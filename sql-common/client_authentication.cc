@@ -319,9 +319,9 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
             client_auth_sha256_password_plugin_status::
                 SHA256_REQUEST_PUBLIC_KEY;
       DBUG_RETURN(NET_ASYNC_NOT_READY);
+#if !defined(HAVE_WOLFSSL)
     case client_auth_sha256_password_plugin_status::SHA256_REQUEST_PUBLIC_KEY: {
       public_key = rsa_init(mysql);
-#if !defined(HAVE_WOLFSSL)
       /* If no public key; request one from the server. */
       if (public_key == NULL) {
         status = vio->write_packet_nonblocking(
@@ -334,13 +334,11 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
           DBUG_RETURN(NET_ASYNC_COMPLETE);
         }
       }
-#else
       set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
                                ER_CLIENT(CR_AUTH_PLUGIN_ERR), "sha256_password",
                                "Authentication requires SSL encryption");
       *result = CR_ERROR;
       DBUG_RETURN(NET_ASYNC_COMPLETE);
-#endif
     }
       ctx->client_auth_plugin_state =
           client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY;
@@ -410,6 +408,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
         DBUG_RETURN(NET_ASYNC_COMPLETE);
       }
     } break;
+#endif
     case client_auth_sha256_password_plugin_status::
         SHA256_SEND_PLAIN_PASSWORD: {
       status = vio->write_packet_nonblocking(vio, (uchar *)mysql->passwd,
