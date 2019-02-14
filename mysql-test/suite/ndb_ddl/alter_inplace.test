@@ -125,6 +125,11 @@ while ($counter <= $num_tables)
     # Set values for the new column
     eval UPDATE $tx SET m = CONCAT("row-", a);
     eval SELECT m FROM $tx WHERE a = 3;
+
+    # Show that adding column with default current_timestamp is not supported
+    --error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+           ADD COLUMN t TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
   }
 
   inc $counter;

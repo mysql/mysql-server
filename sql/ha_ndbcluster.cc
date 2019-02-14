@@ -17031,8 +17031,19 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
          {
            my_ptrdiff_t src_offset= field->table->s->default_values 
              - field->table->record[0];
-           if ((! field->is_real_null(src_offset)) ||
-               ((field->flags & NOT_NULL_FLAG)))
+           if (/*
+                 Check that column doesn't have non NULL specified
+                 as default value.
+                */
+               (! field->is_real_null(src_offset)) ||
+               ((field->flags & NOT_NULL_FLAG)) ||
+               /*
+                  Check that column doesn't have AUTO_INCREMENT
+                  and DEFAULT/ON UPDATE CURRENT_TIMESTAMP as default.
+               */
+               ((field->auto_flags &
+                 (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) != 0) ||
+               ((field->auto_flags & Field::NEXT_NUMBER) != 0))
            {
              DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                              "Adding column with non-null default value "
