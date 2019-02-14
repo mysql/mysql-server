@@ -983,7 +983,7 @@ ACL_USER *find_acl_user(const char *host, const char *user, bool exact) {
                  ("strcmp('%s','%s'), compare_hostname('%s','%s'),", user,
                   acl_user->user ? acl_user->user : "", host,
                   acl_user->host.get_host() ? acl_user->host.get_host() : ""));
-      if (acl_user->user || !user[0]) {
+      if (acl_user->user || (user && !user[0])) {
         if (exact ? !my_strcasecmp(system_charset_info, host ? host : "",
                                    acl_user->host.get_host()
                                        ? acl_user->host.get_host()
