@@ -680,6 +680,30 @@ connection con1;
 commit;
 
 connection con1;
+--echo Test autocommit committedread round trips
+delete from t1;
+insert into t1 values (1, repeat('P', 20000), 1);
+
+set autocommit=1;
+
+--disable_result_log
+select @start_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--echo Autocommit CommittedRead
+select a, length(b) from t1 where a=1;
+
+select @end_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+
+--enable_result_log
+
+--echo Expect 3 round trips currently :
+--echo   1. Lock and read inline head
+--echo   2. Read parts
+--echo   3. Rollback
+select @end_count-@start_count as round_trips;
+
+set autocommit=0;
+
 drop table t1;
 
 --echo 5.6 tests
