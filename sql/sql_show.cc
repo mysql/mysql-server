@@ -1420,23 +1420,15 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   packet->append(STRING_WITH_LEN("\n)"));
+  bool show_tablespace = false;
   if (!foreign_db_mode) {
     show_table_options = true;
 
     // Show tablespace name only if it is explicitly provided by user.
-    bool show_tablespace = false;
     if (share->tmp_table) {
       // Innodb allows temporary tables in be in system temporary tablespace.
       show_tablespace = share->tablespace;
-    } else if (share->tablespace) {
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *table_obj = nullptr;
-      if (thd->dd_client()->acquire(dd::String_type(share->db.str),
-                                    dd::String_type(share->table_name.str),
-                                    &table_obj)) {
-        DBUG_RETURN(true);
-      }
-      DBUG_ASSERT(table_obj != nullptr);
+    } else if (share->tablespace && table_obj) {
       show_tablespace = table_obj->is_explicit_tablespace();
     }
 
@@ -1583,6 +1575,16 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (should_print_encryption_clause(thd, share, &print_encryption))
       DBUG_RETURN(true);
     if (print_encryption) {
+      /*
+        Add versioned comment when there is TABLESPACE clause displayed and
+        the table uses general tablespace.
+      */
+      bool uses_general_tablespace = false;
+      if (table_obj)
+        uses_general_tablespace =
+            show_tablespace && dd::uses_general_tablespace(*table_obj);
+      if (uses_general_tablespace) packet->append(STRING_WITH_LEN(" /*!80016"));
+
       packet->append(STRING_WITH_LEN(" ENCRYPTION="));
       if (share->encrypt_type.length) {
         append_unescaped(packet, share->encrypt_type.str,
@@ -1598,6 +1600,8 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         */
         packet->append(STRING_WITH_LEN("\'N\'"));
       }
+
+      if (uses_general_tablespace) packet->append(STRING_WITH_LEN(" */"));
     }
     table->file->append_create_info(packet);
     if (share->comment.length) {
