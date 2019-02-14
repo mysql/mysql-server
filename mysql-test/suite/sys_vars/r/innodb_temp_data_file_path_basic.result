@@ -51,3 +51,12 @@ COUNT(@@GLOBAL.innodb_temp_data_file_path)
 SELECT innodb_temp_data_file_path = @@SESSION.innodb_temp_data_file_path;
 ERROR 42S22: Unknown column 'innodb_temp_data_file_path' in 'field list'
 Expected error 'Readonly variable'
+#
+# Bug #28590014 INNODB_DATA_FILE_PATH HAS A BAD DEFAULT VALUE
+#
+SET PERSIST_ONLY innodb_temp_data_file_path = DEFAULT;
+# restart
+SELECT @@innodb_temp_data_file_path;
+@@innodb_temp_data_file_path
+ibtmp1:12M:autoextend
+RESET PERSIST;

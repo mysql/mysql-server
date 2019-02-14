@@ -4495,12 +4495,6 @@ static int innodb_init_params() {
                       +
                       fts_sort_pll_degree * FTS_NUM_AUX_INDEX * max_connections;
 
-  /* Set default InnoDB temp data file size to 12 MB and let it be
-  auto-extending. */
-  if (!innobase_data_file_path) {
-    innobase_data_file_path = (char *)"ibdata1:12M:autoextend";
-  }
-
   /* This is the first time univ_page_size is used.
   It was initialized to 16k pages before srv_page_size was set */
   univ_page_size.copy_from(page_size_t(srv_page_size, srv_page_size, false));
@@ -4515,13 +4509,6 @@ static int innodb_init_params() {
 
   srv_sys_space.set_name(dict_sys_t::s_sys_space_name);
   srv_sys_space.set_path(srv_data_home);
-
-  /* Set default InnoDB temp data file size to 12 MB and let it be
-  auto-extending. */
-
-  if (!innobase_temp_data_file_path) {
-    innobase_temp_data_file_path = (char *)"ibtmp1:12M:autoextend";
-  }
 
   /* We set the temporary tablspace id later, after recovery.
   The temp tablespace doesn't support raw devices.
@@ -21354,13 +21341,13 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOPERSIST,
                         "Path to individual files and their sizes.", NULL, NULL,
-                        NULL);
+                        (char *)"ibdata1:12M:autoextend");
 
 static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
                             PLUGIN_VAR_NOPERSIST,
                         "Path to files and their sizes making temp-tablespace.",
-                        NULL, NULL, NULL);
+                        NULL, NULL, (char *)"ibtmp1:12M:autoextend");
 
 static MYSQL_SYSVAR_STR(
     undo_directory, srv_undo_dir,
