@@ -196,6 +196,7 @@ ErrorBundle ErrorCodes[] = {
   { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
   { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
   { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  { 21034, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed - child table has Blob or Text column and on-delete-cascade is not allowed" },
   /* DropFKRef + DropFKImplRef */
   { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
   { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
