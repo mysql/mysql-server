@@ -1679,6 +1679,7 @@ Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
   printf("Usage: %s [options] log-files\n", my_progname);
   my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
 }
 
