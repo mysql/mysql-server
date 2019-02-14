@@ -261,8 +261,8 @@ private:
 
 /**
   There are two record formats for sorting:
-    |<key a><key b>...|<rowid>|
-    /  sort_length    / ref_l /
+    |<key a><key b>...|<null bits>|<rowid>|
+    /  sort_length    /           / ref_l /
 
   or with "addon fields"
     |<key a><key b>...|<null bits>|<field a><field b>...|
