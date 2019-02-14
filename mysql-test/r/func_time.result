@@ -1921,6 +1921,14 @@ ERROR HY000: Incorrect arguments to period_diff
 SELECT PERIOD_DIFF(200012, 200024);
 ERROR HY000: Incorrect arguments to period_diff
 #
+# Bug #29175262 ITEM_FUNC_PERIOD_ADD::VAL_INT
+#               BEHAVES DIFFERENTLY ON WINDOWS: GIVES ERROR
+#
+select period_add(-9223372036854775808,29880);
+ERROR HY000: Incorrect arguments to period_add
+select period_diff(-9223372036854775808,201902);
+ERROR HY000: Incorrect arguments to period_diff
+#
 # Bug #27004729: UBSAN: ITEM_FUNC_MAKEDATE::GET_DATE - SIGNED INTEGER OVERFLOW
 #
 SELECT MAKEDATE(1, 8.381922e+307);

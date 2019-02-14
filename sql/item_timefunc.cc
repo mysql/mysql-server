@@ -969,8 +969,8 @@ void Item_time_literal::print(const THD *, String *str, enum_query_type) const {
 
 longlong Item_func_period_add::val_int() {
   DBUG_ASSERT(fixed == 1);
-  ulong period = (ulong)args[0]->val_int();
-  int months = (int)args[1]->val_int();
+  longlong period = args[0]->val_int();
+  longlong months = args[1]->val_int();
 
   if ((null_value = args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
@@ -978,14 +978,13 @@ longlong Item_func_period_add::val_int() {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_int();
   }
-  return (longlong)convert_month_to_period(convert_period_to_month(period) +
-                                           months);
+  return convert_month_to_period(convert_period_to_month(period) + months);
 }
 
 longlong Item_func_period_diff::val_int() {
   DBUG_ASSERT(fixed == 1);
-  ulong period1 = (ulong)args[0]->val_int();
-  ulong period2 = (ulong)args[1]->val_int();
+  longlong period1 = args[0]->val_int();
+  longlong period2 = args[1]->val_int();
 
   if ((null_value = args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
@@ -993,8 +992,8 @@ longlong Item_func_period_diff::val_int() {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return error_int();
   }
-  return (longlong)((long)convert_period_to_month(period1) -
-                    (long)convert_period_to_month(period2));
+  return static_cast<longlong>(convert_period_to_month(period1)) -
+         static_cast<longlong>(convert_period_to_month(period2));
 }
 
 longlong Item_func_to_days::val_int() {

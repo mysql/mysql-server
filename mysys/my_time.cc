@@ -2123,7 +2123,7 @@ uint calc_week(const MYSQL_TIME &my_time, uint week_behaviour, uint *year) {
    @retval true if ?
    @retval false if ?
  */
-bool valid_period(ulong period) {
+bool valid_period(long long period) {
   if (period <= 0) return false;
   if ((period % 100) == 0) return false;
   if ((period % 100) > 12) return false;
