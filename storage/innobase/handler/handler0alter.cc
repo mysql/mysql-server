@@ -9703,6 +9703,8 @@ int ha_innopart::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
     return (HA_ERR_OUT_OF_MEM);
   }
 
+  parallel_scan_ctx = parallel_reader;
+
   const uint first_used_partition = m_part_info->get_first_used_partition();
 
   for (uint i = first_used_partition; i < m_tot_parts;
@@ -9727,7 +9729,6 @@ int ha_innopart::pread_adapter_parallel_scan_start(void *&parallel_scan_ctx,
   }
 
   num_threads = parallel_reader->calc_num_threads();
-  parallel_scan_ctx = parallel_reader;
   return (0);
 }
 
