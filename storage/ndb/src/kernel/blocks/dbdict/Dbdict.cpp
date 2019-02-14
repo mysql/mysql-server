@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27298,6 +27298,37 @@ Dbdict::createFK_parse(Signal* signal, bool master,
   case NDB_FK_SET_DEFAULT:
     bits |= CreateFKImplReq::FK_DELETE_SET_DEFAULT;
     break;
+  }
+
+  /**
+   * Do not support cascade delete when the
+   * child has Blobs
+   */
+  if (fk.OnDeleteAction == NDB_FK_CASCADE &&
+      !op_ptr.p->m_restart)
+  {
+    jam();
+    TableRecordPtr childTablePtr;
+    ndbrequire(find_object(childTablePtr, fk.ChildTableId));
+
+    AttributeRecordPtr attrPtr;
+    LocalAttributeRecord_list list(c_attributeRecordPool,
+                                   childTablePtr.p->m_attributes);
+    for (list.first(attrPtr); !attrPtr.isNull(); list.next(attrPtr))
+    {
+      jam();
+      const Uint32 desc = attrPtr.p->attributeDescriptor;
+      const Uint32 attrType = AttributeDescriptor::getType(desc);
+
+      if (attrType == NDB_TYPE_BLOB ||
+          attrType == NDB_TYPE_TEXT)
+      {
+        jam();
+
+        setError(error, CreateFKRef::ChildTableHasBlobsAndCascadeDelete, __LINE__);
+        return;
+      }
+    }
   }
 
   /*
