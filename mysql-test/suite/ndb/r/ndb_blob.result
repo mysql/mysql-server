@@ -737,6 +737,22 @@ a	length(b)
 select a, length(b) from t1 FOR UPDATE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
+Test autocommit committedread round trips
+delete from t1;
+insert into t1 values (1, repeat('P', 20000), 1);
+set autocommit=1;
+select @start_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+Autocommit CommittedRead
+select a, length(b) from t1 where a=1;
+select @end_count:=variable_value from performance_schema.global_status where variable_name="ndb_api_wait_exec_complete_count";
+Expect 3 round trips currently :
+1. Lock and read inline head
+2. Read parts
+3. Rollback
+select @end_count-@start_count as round_trips;
+round_trips
+3
+set autocommit=0;
 drop table t1;
 5.6 tests
 create table `t1` (`a` int,`b` blob,primary key (`a`))

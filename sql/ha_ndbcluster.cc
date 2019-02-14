@@ -1913,12 +1913,15 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     }
   }
 
-  if (!ha->m_active_cursor)
+  /**
+   * For non-scan, non autocommit reads, call NdbBlob::close()
+   * to allow Blob read related resources to be freed
+   * early
+   */
+  const bool autocommit = (get_thd_ndb(current_thd)->m_handler != NULL);
+  if (!autocommit &&
+      !ha->m_active_cursor)
   {
-    /* Non-scan, Blob reads have been issued
-     * execute them and then close the Blob 
-     * handles
-     */
     for (uint i= 0; i < ha->table->s->fields; i++)
     {
       Field *field= ha->table->field[i];
@@ -1936,7 +1939,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 
       /* Call close() with execPendingBlobOps == true
        * For LM_CommittedRead access, this will enqueue
-       * an unlock operation, which the Blob framework 
+       * an unlock operation, which the Blob framework
        * code invoking this callback will execute before
        * returning control to the caller of execute()
        */
