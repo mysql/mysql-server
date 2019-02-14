@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1872,12 +1872,15 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     }
   }
 
-  if (!ha->m_active_cursor)
+  /**
+   * For non-scan, non autocommit reads, call NdbBlob::close()
+   * to allow Blob read related resources to be freed
+   * early
+   */
+  const bool autocommit = (get_thd_ndb(current_thd)->m_handler != NULL);
+  if (!autocommit &&
+      !ha->m_active_cursor)
   {
-    /* Non-scan, Blob reads have been issued
-     * execute them and then close the Blob 
-     * handles
-     */
     for (uint i= 0; i < ha->table->s->fields; i++)
     {
       Field *field= ha->table->field[i];
@@ -1895,7 +1898,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 
       /* Call close() with execPendingBlobOps == true
        * For LM_CommittedRead access, this will enqueue
-       * an unlock operation, which the Blob framework 
+       * an unlock operation, which the Blob framework
        * code invoking this callback will execute before
        * returning control to the caller of execute()
        */
