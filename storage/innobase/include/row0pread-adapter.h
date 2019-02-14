@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -102,6 +102,17 @@ class Parallel_reader_adapter : public Key_reader {
   ~Parallel_reader_adapter() {
     for (auto buf : m_bufs) {
       ut_free(buf);
+    }
+
+    if (!m_partitions.empty()) {
+      auto &range = m_partitions.front();
+      Ctx::destroy(range.first);
+
+      for (auto &range : m_partitions) {
+        Ctx::destroy(range.second);
+      }
+
+      m_partitions.clear();
     }
   }
 
@@ -225,7 +236,26 @@ class Parallel_partition_reader_adapter : public Parallel_reader_adapter {
         m_num_parts(num_parts) {}
 
   /** Destructor */
-  ~Parallel_partition_reader_adapter() {}
+  ~Parallel_partition_reader_adapter() {
+    if (m_partitions.empty()) {
+      return;
+    }
+
+    for (uint i = 0; i < m_num_parts; ++i) {
+      if (m_partitions[i].empty()) {
+        continue;
+      }
+
+      auto &range = m_partitions[i].front();
+      Ctx::destroy(range.first);
+
+      for (auto &range : m_partitions[i]) {
+        Ctx::destroy(range.second);
+      }
+
+      m_partitions[i].clear();
+    }
+  }
 
   /** Fetch number of threads that would be spawned for the parallel read.
   @return number of threads */

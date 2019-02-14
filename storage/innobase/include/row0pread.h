@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -312,7 +312,7 @@ struct Reader<T, R>::Ctx {
   @param[in]    index	index that the thread has to read
   @param[in]	trx		trx to use for reading
   @param[in]	prebuilt	row prebuilt structure */
-  Ctx(size_t id, const Range &range, dict_table_t *table, dict_index_t *index,
+  Ctx(size_t id, Range &range, dict_table_t *table, dict_index_t *index,
       trx_t *trx, row_prebuilt_t *prebuilt)
       : m_id(id),
         m_range(range),
@@ -334,7 +334,7 @@ struct Reader<T, R>::Ctx {
   dberr_t m_err{DB_SUCCESS};
 
   /** Range to read in this contxt. */
-  Range m_range{};
+  Range &m_range{};
 
   /** Table to which the index belongs to.
   @note this is mainly required by an adapter where parallel scan can happen for

@@ -172,7 +172,7 @@ dberr_t Parallel_partition_reader_adapter::read(Function &&f) {
   dberr_t err = DB_SUCCESS;
 
   for (uint i = 0; i < m_num_parts; ++i) {
-    for (auto range : m_partitions[i]) {
+    for (auto &range : m_partitions[i]) {
       m_ctxs.push_back(UT_NEW_NOKEY(
           Ctx(id, range, m_table[i], m_index[i], m_trx[i], m_prebuilt[i])));
 

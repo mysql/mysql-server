@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -803,7 +803,7 @@ dberr_t Reader<T, R>::read(Function &&f) {
 
   dberr_t err = DB_SUCCESS;
 
-  for (auto range : m_partitions) {
+  for (auto &range : m_partitions) {
     m_ctxs.push_back(
         UT_NEW_NOKEY(Ctx(id, range, m_table, m_index, m_trx, m_prebuilt)));
 
@@ -843,6 +843,7 @@ dberr_t Reader<T, R>::read(Function &&f) {
   }
 
   m_ctxs.clear();
+  m_partitions.clear();
 
   return (err);
 }
