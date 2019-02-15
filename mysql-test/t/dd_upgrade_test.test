@@ -815,4 +815,36 @@ DROP TABLE t1;
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc
 
+--echo #
+--echo # Bug #28884503 UPGRADE FROM 5.7.23+ TO 8.0.11+ FAILS WHEN INNODB_PAGE_SIZE=4K
+--echo #
+
+--let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/data57_innodb_page_size_4k.log
+
+--echo # Zip file contains data directory of a clean 5.7 server.
+--echo #
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_upgrade_innodb_4k.zip $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip -d $MYSQL_TMP_DIR/data57_upgrade_innodb_4k
+
+--echo # Set different paths for --datadir
+--let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_innodb_4k/data57_upgrade_innodb_4k
+
+--echo # Restart DB server which was created by MTR default
+--replace_result $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG MYSQLD_LOG
+--let restart_parameters=restart: --datadir=$MYSQLD_DATADIR2 --innodb_page_size=4K --log-error=$MYSQLD_LOG
+--let $wait_counter= 10000
+--source include/restart_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data57_upgrade_innodb_4k.zip
+--force-rmdir $MYSQL_TMP_DIR/data57_upgrade_innodb_4k
+
 --echo # end of test

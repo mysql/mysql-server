@@ -790,4 +790,16 @@ DROP TABLE t1;
 # Remove copied files
 # Restart the server with default options.
 # restart
+#
+# Bug #28884503 UPGRADE FROM 5.7.23+ TO 8.0.11+ FAILS WHEN INNODB_PAGE_SIZE=4K
+#
+# Zip file contains data directory of a clean 5.7 server.
+#
+# Copy zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Set different paths for --datadir
+# Restart DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR2 --innodb_page_size=4K --log-error=MYSQLD_LOG
+# Remove copied files
 # end of test

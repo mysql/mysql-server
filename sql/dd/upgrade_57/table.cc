@@ -53,6 +53,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"                    // ER_*
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dd_schema.h"                // Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // create_dd_user_table
 #include "sql/dd/dd_trigger.h"               // dd::create_trigger
@@ -1602,13 +1603,27 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   FOREIGN_KEY *dummy_fk_key_info = NULL;
   uint dummy_fk_key_count = 0;
 
-  if (mysql_prepare_create_table(
-          thd, schema_name.c_str(), table_name.c_str(), &create_info,
-          &alter_info, file, (share.partition_info_str_len != 0),
-          &key_info_buffer, &key_count, &dummy_fk_key_info, &dummy_fk_key_count,
-          nullptr, 0, nullptr, 0, 0, false /* No FKs here. */)) {
-    return true;
-  }
+  /* Suppress key length errors if this is a white listed table. */
+  Key_length_error_handler error_handler;
+  bool is_whitelisted_table = dd::get_dictionary()->is_dd_table_name(
+                                  schema_name.c_str(), table_name.c_str()) ||
+                              dd::get_dictionary()->is_system_table_name(
+                                  schema_name.c_str(), table_name.c_str());
+  dd::upgrade::Bootstrap_error_handler bootstrap_error_handler;
+  bootstrap_error_handler.set_log_error(!is_whitelisted_table);
+
+  if (is_whitelisted_table) thd->push_internal_handler(&error_handler);
+
+  bool prepare_error = mysql_prepare_create_table(
+      thd, schema_name.c_str(), table_name.c_str(), &create_info, &alter_info,
+      file, (share.partition_info_str_len != 0), &key_info_buffer, &key_count,
+      &dummy_fk_key_info, &dummy_fk_key_count, nullptr, 0, nullptr, 0, 0,
+      false /* No FKs here. */);
+
+  if (is_whitelisted_table) thd->pop_internal_handler();
+
+  bootstrap_error_handler.set_log_error(true);
+  if (prepare_error) return true;
 
   int select_field_pos = alter_info.create_list.elements;
   create_info.null_bits = 0;
@@ -1683,7 +1698,6 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
     asserts that Field objects in TABLE_SHARE doesn't have
     expressions assigned.
   */
-  dd::upgrade::Bootstrap_error_handler bootstrap_error_handler;
   bootstrap_error_handler.set_log_error(false);
   if (fix_generated_columns_for_upgrade(thd, &table, alter_info.create_list)) {
     LogErr(ERROR_LEVEL, ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD,
