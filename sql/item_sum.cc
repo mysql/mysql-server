@@ -1918,6 +1918,8 @@ String *Item_sum_sum::val_str(String *str) {
 
 my_decimal *Item_sum_sum::val_decimal(my_decimal *val) {
   if (m_is_window_function) {
+    if (hybrid_type != DECIMAL_RESULT) return val_decimal_from_real(val);
+
     if (wf_common_init()) {
       my_decimal_set_zero(val);
       return null_value ? nullptr : val;
@@ -2191,6 +2193,11 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
   DBUG_ASSERT(fixed == 1);
 
   if (m_is_window_function) {
+    if (hybrid_type != DECIMAL_RESULT) {
+      my_decimal *result = val_decimal_from_real(val);
+      DBUG_RETURN(result);
+    }
+
     if (wf_common_init()) {
       my_decimal_set_zero(val);
       DBUG_RETURN(null_value ? nullptr : val);
