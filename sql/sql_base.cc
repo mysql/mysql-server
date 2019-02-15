@@ -6471,7 +6471,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     TABLE *primary_table = tl->table;
     tl->table = nullptr;
     if (open_table(thd, tl, &ot_ctx)) return true;
-    DBUG_ASSERT(tl->table->s->is_secondary());
+    DBUG_ASSERT(tl->table->s->is_secondary_engine());
     tl->table->file->ha_set_primary_handler(primary_table->file);
   }
 
@@ -9647,7 +9647,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   // if we don't know if the table has a shadow copy, we must also
   // attempt to evict the secondary table from the cache.
   const bool remove_secondary =
-      it == table_def_cache->end() || it->second->has_secondary();
+      it == table_def_cache->end() || it->second->has_secondary_engine();
 
   // Helper function that evicts the TABLE_SHARE pointed to by an iterator.
   auto remove_table = [&](Table_definition_cache::iterator it) {
@@ -9684,7 +9684,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       // TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE, there should always be a
       // TABLE object associated with the primary TABLE_SHARE.)
       DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE ||
-                  share->is_secondary());
+                  share->is_secondary_engine());
       table_def_cache->erase(to_string(share->table_cache_key));
     }
   };

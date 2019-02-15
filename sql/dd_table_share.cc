@@ -585,12 +585,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   } else {
     // If no secondary storage engine is set, the share cannot
     // represent a table in a secondary engine.
-    DBUG_ASSERT(!share->is_secondary());
+    DBUG_ASSERT(!share->is_secondary_engine());
   }
 
   // Read table engine type
   LEX_CSTRING engine_name = lex_cstring_handle(tab_obj->engine());
-  if (share->is_secondary())
+  if (share->is_secondary_engine())
     engine_name = {share->secondary_engine.str, share->secondary_engine.length};
 
   plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
@@ -1902,7 +1902,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
   // The DD only has information about how the table is partitioned in
   // the primary storage engine, so don't use this information for
   // tables in a secondary storage engine.
-  if (share->is_secondary()) return false;
+  if (share->is_secondary_engine()) return false;
 
   partition_info *part_info;
   part_info = new (&share->mem_root) partition_info;

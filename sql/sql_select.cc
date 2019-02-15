@@ -499,9 +499,9 @@ const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
     // We're only interested in base tables.
     if (tl->is_placeholder()) continue;
 
-    DBUG_ASSERT(!tl->table->s->is_secondary());
+    DBUG_ASSERT(!tl->table->s->is_secondary_engine());
 
-    if (!tl->table->s->has_secondary()) {
+    if (!tl->table->s->has_secondary_engine()) {
       // Not in a secondary engine.
       return nullptr;
     }

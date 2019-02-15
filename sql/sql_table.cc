@@ -2434,7 +2434,7 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
                                              const HA_CREATE_INFO &create_info,
                                              const TABLE &table) {
   // Validation necessary only for tables with a secondary engine defined.
-  if (!table.s->has_secondary()) return false;
+  if (!table.s->has_secondary_engine()) return false;
 
   // Changing table option is the only valid ALTER TABLE operation.
   constexpr uint64_t supported_alter_operations = Alter_info::ALTER_OPTIONS;
@@ -2473,7 +2473,7 @@ static bool validate_secondary_engine_option(const Alter_info &alter_info,
 static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, table.s->db.str, table.s->table_name.str, MDL_EXCLUSIVE));
-  DBUG_ASSERT(table.s->has_secondary());
+  DBUG_ASSERT(table.s->has_secondary_engine());
 
   // At least one column must be loaded into the secondary engine.
   if (bitmap_bits_set(table.read_set) == 0) {
@@ -10454,7 +10454,7 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
   }
 
   // SECONDARY_LOAD/SECONDARY_UNLOAD requires a secondary engine.
-  if (!table_list->table->s->has_secondary()) {
+  if (!table_list->table->s->has_secondary_engine()) {
     my_error(ER_SECONDARY_ENGINE, MYF(0), "No secondary engine defined");
     return true;
   }

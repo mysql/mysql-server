@@ -1613,7 +1613,7 @@ bool Explain_join::explain_extra() {
     }
   }
 
-  if (table->s->is_secondary() &&
+  if (table->s->is_secondary_engine() &&
       push_extra(ET_USING_SECONDARY_ENGINE, table->file->table_type()))
     return true;
 
