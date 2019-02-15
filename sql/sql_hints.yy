@@ -47,7 +47,6 @@ static bool parse_int(longlong *to, const char *from, size_t from_length)
 %}
 
 %pure-parser
-%yacc
 
 %parse-param { class THD *thd }
 %parse-param { class Hint_scanner *scanner }
