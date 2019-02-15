@@ -8655,7 +8655,7 @@ void ha_post_recover(void) {
 
 void handler::ha_set_primary_handler(handler *primary_handler) {
   DBUG_ASSERT((ht->flags & HTON_IS_SECONDARY_ENGINE) != 0);
-  DBUG_ASSERT(primary_handler->table->s->has_secondary());
+  DBUG_ASSERT(primary_handler->table->s->has_secondary_engine());
   m_primary_handler = primary_handler;
 }
 

@@ -653,7 +653,7 @@ struct TABLE_SHARE {
                      in a secondary storage engine
   */
   TABLE_SHARE(unsigned long version, bool secondary)
-      : m_version(version), m_secondary(secondary) {}
+      : m_version(version), m_secondary_engine(secondary) {}
 
   /*
     A map of [uint, Histogram] values, where the key is the field index. The
@@ -1134,17 +1134,17 @@ struct TABLE_SHARE {
   }
 
   /// Does this TABLE_SHARE represent a table in a primary storage engine?
-  bool is_primary() const { return !m_secondary; }
+  bool is_primary_engine() const { return !m_secondary_engine; }
 
   /// Does this TABLE_SHARE represent a table in a secondary storage engine?
-  bool is_secondary() const { return m_secondary; }
+  bool is_secondary_engine() const { return m_secondary_engine; }
 
   /**
     Does this TABLE_SHARE represent a primary table that has a shadow
     copy in a secondary storage engine?
   */
-  bool has_secondary() const {
-    return is_primary() && secondary_engine.str != nullptr;
+  bool has_secondary_engine() const {
+    return is_primary_engine() && secondary_engine.str != nullptr;
   }
 
  private:
@@ -1159,7 +1159,7 @@ struct TABLE_SHARE {
   unsigned long m_version{0};
 
   /// Does this TABLE_SHARE represent a table in a secondary storage engine?
-  bool m_secondary{false};
+  bool m_secondary_engine{false};
 };
 
 /**
