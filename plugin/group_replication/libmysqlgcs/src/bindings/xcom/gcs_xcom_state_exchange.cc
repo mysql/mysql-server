@@ -75,8 +75,16 @@ uint64_t Xcom_member_state::get_encode_payload_size() const {
 }
 
 uint64_t Xcom_member_state::get_encode_snapshot_size() const {
-  return get_encode_snapshot_elem_size() * m_snapshot.size() +
-         WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE;
+  uint64_t snapshot_size = 0;
+
+  if (m_version == Gcs_protocol_version::V1) {
+    snapshot_size = 0;
+  } else if (m_version >= Gcs_protocol_version::V2) {
+    snapshot_size = get_encode_snapshot_elem_size() * m_snapshot.size() +
+                    WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE;
+  }
+
+  return snapshot_size;
 }
 
 bool Xcom_member_state::encode_header(uchar *buffer,
@@ -146,6 +154,10 @@ bool Xcom_member_state::encode_snapshot(uchar *buffer,
                                         uint64_t *buffer_len) const {
   uint64_t encoded_size = get_encode_snapshot_size();
   unsigned char *slider = buffer;
+  uint64_t nr_synods = 0;
+
+  /* There is no snapshot information on protocol V1. */
+  if (m_version == Gcs_protocol_version::V1) goto end;
 
   MYSQL_GCS_LOG_TRACE("Encoding snapshot for exchangeable data.")
 
@@ -177,9 +189,10 @@ bool Xcom_member_state::encode_snapshot(uchar *buffer,
     slider += WIRE_XCOM_NODE_ID_SIZE;
   }
 
-  uint64_t nr_synods = htole64(m_snapshot.size());
+  nr_synods = htole64(m_snapshot.size());
   std::memcpy(slider, &nr_synods, WIRE_XCOM_SNAPSHOT_NR_ELEMS_SIZE);
 
+end:
   return false;
 }
 
