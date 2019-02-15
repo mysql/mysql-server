@@ -133,7 +133,7 @@ disconnect sha256_con2;
 
 --echo # connect with wrong password and SSL disabled
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_ACCESS_DENIED_ERROR
+--error ER_ACCESS_DENIED_ERROR, CR_AUTH_PLUGIN_ERR
 connect(sha256_con3,localhost,sha256,auth_string,,,,,sha256_password);
 
 --disable_async_client
