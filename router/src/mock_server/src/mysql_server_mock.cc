@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -571,8 +571,8 @@ bool MySQLServerMockSession::handle_handshake(
           client_socket,
           protocol_encoder_.encode_greetings_message(
               0, greeting_resp->server_version(),
-              greeting_resp->connection_id(), greeting_resp->auth_method(),
-              greeting_resp->capabilities(), greeting_resp->auth_data(),
+              greeting_resp->connection_id(), greeting_resp->auth_data(),
+              greeting_resp->capabilities(), greeting_resp->auth_method(),
               greeting_resp->character_set(), greeting_resp->status_flags()));
     } break;
     case ResponseType::AUTH_SWITCH: {
