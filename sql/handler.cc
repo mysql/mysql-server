@@ -690,6 +690,7 @@ int ha_init_errors(void) {
   SETMSG(HA_ERR_DISK_FULL_NOWAIT, ER_DEFAULT(ER_DISK_FULL_NOWAIT));
   SETMSG(HA_ERR_NO_SESSION_TEMP, ER_DEFAULT(ER_NO_SESSION_TEMP));
   SETMSG(HA_ERR_WRONG_TABLE_NAME, ER_DEFAULT(ER_WRONG_TABLE_NAME));
+  SETMSG(HA_ERR_TOO_LONG_PATH, ER_DEFAULT(ER_TABLE_NAME_CAUSES_TOO_LONG_PATH));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -4212,6 +4213,9 @@ void handler::print_error(int error, myf errflag) {
       break;
     case HA_ERR_WRONG_TABLE_NAME:
       textno = ER_WRONG_TABLE_NAME;
+      break;
+    case HA_ERR_TOO_LONG_PATH:
+      textno = ER_TABLE_NAME_CAUSES_TOO_LONG_PATH;
       break;
     default: {
       /* The error was "unknown" to this function.

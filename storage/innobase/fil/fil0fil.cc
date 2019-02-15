@@ -4995,17 +4995,21 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     ib::error(ER_IB_MSG_301, path);
 
-    if (error == OS_FILE_ALREADY_EXISTS) {
-      ib::error(ER_IB_MSG_302, path, path);
+    switch (error) {
+      case OS_FILE_ALREADY_EXISTS:
+        ib::error(ER_IB_MSG_UNEXPECTED_FILE_EXISTS, path, path);
+        return (DB_TABLESPACE_EXISTS);
 
-      return (DB_TABLESPACE_EXISTS);
+      case OS_FILE_NAME_TOO_LONG:
+        ib::error(ER_IB_MSG_TOO_LONG_PATH, path);
+        return (DB_TOO_LONG_PATH);
+
+      case OS_FILE_DISK_FULL:
+        return (DB_OUT_OF_DISK_SPACE);
+
+      default:
+        return (DB_ERROR);
     }
-
-    if (error == OS_FILE_DISK_FULL) {
-      return (DB_OUT_OF_DISK_SPACE);
-    }
-
-    return (DB_ERROR);
   }
 
   bool atomic_write;
