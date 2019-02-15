@@ -9563,9 +9563,8 @@ bool Item_field::repoint_const_outer_ref(uchar *arg) {
   return false;
 }
 
-bool Item_ref::contains_alias_of_expr(uchar *arg) {
-  if (!m_alias_of_expr) return false;
-  const SELECT_LEX *sl = reinterpret_cast<SELECT_LEX *>(arg);
+bool Item_ref::references_select_expr_of(uchar *arg) {
+  const SELECT_LEX *sl = pointer_cast<const SELECT_LEX *>(arg);
   if (depended_from)  // outer reference
   {
     if (depended_from == sl) return true;

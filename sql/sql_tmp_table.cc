@@ -637,23 +637,14 @@ static void set_real_row_type(TABLE *table) {
   table->s->real_row_type = table->file->get_real_row_type(&create_info);
 }
 
-bool Func_ptr::set_contains_alias_of_expr(const SELECT_LEX *select) {
-  // We cast 'const' away, but the walker will not modify '*select'.
-  uchar *walk_arg =
-      const_cast<uchar *>(reinterpret_cast<const uchar *>(select));
-  return m_contains_alias_of_expr =
-             m_func->walk(&Item::contains_alias_of_expr,
-                          // ref to alias might be in a subquery
-                          enum_walk::SUBQUERY_PREFIX, walk_arg);
-}
-
 /**
   Moves to the end of the 'copy_func' array the elements which contain a
-  reference to an alias of an expression of the SELECT list of 'select'.
+  reference to an expression of the SELECT list of 'select'.
   @param[in,out]  copy_func  array to sort
   @param          select     query block to search in.
 */
-void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
+static void sort_copy_func(const SELECT_LEX *select,
+                           Func_ptr_array *copy_func) {
   /*
     In the select->all_fields list, there are hidden elements first, then
     non-hidden. Non-hidden are those of the SELECT list. Hidden ones are:
@@ -661,8 +652,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     (b) those which have been extracted from higher-level elements (of the
     SELECT, GROUP BY, etc) by split_sum_func() (when aggregates are
     involved).
+
     Note that the clauses in (a) are allowed to reference a non-hidden
-    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"),
+    expression through an alias (e.g. "SELECT a+2 AS x GROUP BY x+3"). The
+    clauses in (b) can reference non-hidden expressions without aliases if they
+    have been generated in a query transformation (for example when transforming
+    an IN subquery to a correlated EXISTS subquery ("(x, y) IN (SELECT expr1,
+    expr2 ...)" -> "EXISTS (SELECT * ... HAVING x = expr1 AND y = expr2 ...").
 
     Let's go through the process of writing to the tmp table
     (e.g. end_write(), end_write_group()). We also include here the
@@ -701,11 +697,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     the tmp table. It is thus important that this column has been filled
     already. So the order of evaluation of expressions by copy_funcs() must
     respect "dependencies".
-    It is correct to evaluate elements of (b) first, as they are inner to
-    others. But it is incorrect to evaluate elements of (a) first if they
-    refer to non-hidden elements through aliases.
-    So, we sort elements below, putting to the end the ones which use
-    aliases. We use a stable sort, to not disturb any dependence already
+
+    It is incorrect to evaluate elements of (a) first if they refer to
+    non-hidden elements through aliases. It is incorrect to evaluate elements of
+    (b) first if they refer to non-hidden elements. So, we partition the
+    elements below, moving to the end the ones which reference other expressions
+    in the same query block. We use a stable partitioning
+    (std::stable_partition), to avoid disturbing any dependency already
     reflected in the order.
 
     A simpler and more robust solution would be to break the design that
@@ -736,21 +734,22 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
     leave it at the beginning of the copy_func array. Except if it contains
     an alias to an expression of the SELECT list: in that case, the sorting
     will move it to the end, but will also move the aliased expression, and
-    their relative order will remain unchanged thanks to stable sort, so
+    their relative order will remain unchanged thanks to stable_partition, so
     their evaluation will be in the right order.
 
-    So we walk each item to copy, and record if it uses an alias. If we
-    found such items, we sort.
+    So we walk each item to copy, put the ones that don't reference other
+    expressions in the query block first, and put those that reference other
+    expressions last.
   */
-  bool need_sort = false;
-  for (uint i = 0; i < copy_func->size(); i++)
-    need_sort |= copy_func->at(i).set_contains_alias_of_expr(select);
-  if (need_sort)
-    std::stable_sort(copy_func->begin(), copy_func->end(),
-                     [](const Func_ptr &lhs, const Func_ptr &rhs) {
-                       return !lhs.contains_alias_of_expr() &&
-                              rhs.contains_alias_of_expr();
-                     });
+  const auto without_reference_to_select_expr = [select](const Func_ptr &ptr) {
+    // We cast 'const' away, but the walker will not modify '*select'.
+    uchar *walk_arg = const_cast<uchar *>(pointer_cast<const uchar *>(select));
+    return !ptr.func()->walk(&Item::references_select_expr_of,
+                             // the reference might be in a subquery
+                             enum_walk::SUBQUERY_PREFIX, walk_arg);
+  };
+  std::stable_partition(copy_func->begin(), copy_func->end(),
+                        without_reference_to_select_expr);
 }
 
 /**

@@ -2101,11 +2101,11 @@ class Item : public Parse_tree_node {
     return false;
   }
   /**
-    @returns true if the expression contains a reference, through an alias, to
+    @returns true if the expression contains a reference to
     an expression of the SELECT list of the given query block.
     @param arg   query block to search in.
   */
-  virtual bool contains_alias_of_expr(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool references_select_expr_of(uchar *arg MY_ATTRIBUTE((unused))) {
     return false;
   }
 
@@ -4765,7 +4765,7 @@ class Item_ref : public Item_ident {
   }
 
   bool repoint_const_outer_ref(uchar *arg) override;
-  bool contains_alias_of_expr(uchar *arg) override;
+  bool references_select_expr_of(uchar *arg) override;
   bool is_non_const_over_literals(uchar *) override { return true; }
   bool check_function_as_value_generator(uchar *args) override {
     Check_function_as_value_generator_parameters *func_arg =

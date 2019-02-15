@@ -46,22 +46,12 @@ using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 class Func_ptr {
  public:
   explicit Func_ptr(Item *f) : m_func(f) {}
-  /**
-    Calculates if m_func contains an alias to an expression of the SELECT list
-    of 'select'.
-    @param          select     query block to search in.
-    @returns the true/false result and also stores it in the object.
-  */
-  bool set_contains_alias_of_expr(const SELECT_LEX *select);
-  /// @returns the previously calculated information.
-  bool contains_alias_of_expr() const { return m_contains_alias_of_expr; }
   Item *func() const { return m_func; }
   void set_override_result_field(Field *f) { m_override_result_field = f; }
   Field *override_result_field() const { return m_override_result_field; }
 
  private:
   Item *m_func;
-  bool m_contains_alias_of_expr = false;
 
   /// If not nullptr, copy_funcs() will save the result of m_func here instead
   /// of in m_func's usual designated result field.
