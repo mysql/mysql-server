@@ -433,8 +433,6 @@ void warn_about_deprecated_national(THD *thd)
 
 %}
 
-%yacc
-
 %start start_entry
 
 %parse-param { class THD *YYTHD }
