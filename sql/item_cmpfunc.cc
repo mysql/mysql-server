@@ -930,7 +930,7 @@ bool Arg_comparator::get_date_from_const(Item *date_arg, Item *str_arg,
                                         ? "DATETIME"
                                         : "TIMESTAMP";
 
-        ErrConvString err(str_val->c_ptr(), str_val->length(),
+        ErrConvString err(str_val->ptr(), str_val->length(),
                           thd->variables.character_set_client);
         my_error(ER_WRONG_VALUE, MYF(0), typestr, err.ptr());
 

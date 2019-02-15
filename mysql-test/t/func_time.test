@@ -1214,6 +1214,17 @@ SELECT PERIOD_DIFF(200024, 200012);
 SELECT PERIOD_DIFF(200012, 200024);
 
 --echo #
+--echo # Bug #29175262 ITEM_FUNC_PERIOD_ADD::VAL_INT
+--echo #               BEHAVES DIFFERENTLY ON WINDOWS: GIVES ERROR
+--echo #
+
+--error ER_WRONG_ARGUMENTS
+select period_add(-9223372036854775808,29880);
+--error ER_WRONG_ARGUMENTS
+select period_diff(-9223372036854775808,201902);
+
+
+--echo #
 --echo # Bug #27004729: UBSAN: ITEM_FUNC_MAKEDATE::GET_DATE - SIGNED INTEGER OVERFLOW
 --echo #
 SELECT MAKEDATE(1, 8.381922e+307);
@@ -1284,3 +1295,22 @@ date_add('1995-01-05', INTERVAL -9223372036854775806 MINUTE) as result;
 
 SELECT
 date_add('1995-01-05', INTERVAL -9223372036854775806 HOUR) as result;
+
+--echo #
+--echo # Bug #29334643 ASSERTION FAILED:
+--echo #     !M_IS_ALLOCED || !M_PTR || !M_ALLOCED_LENGTH || (M_ALLOCED_LEN
+--echo #
+
+CREATE TABLE t0022 (
+  c0000 text
+);
+
+--error ER_WRONG_VALUE
+WITH cte1 AS
+(SELECT(replace(md5(0x9025c5c7),
+                    convert((1) using utf8),
+                    (!(cast((connection_id()) AS char(20)))))) AS a1 FROM t0022)
+SELECT cte1.a1
+FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
+
+DROP TABLE t0022;

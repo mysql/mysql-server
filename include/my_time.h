@@ -167,7 +167,7 @@ unsigned int year_2000_handling(unsigned int year);
 void get_date_from_daynr(long daynr, unsigned int *year, unsigned int *month,
                          unsigned int *day);
 int calc_weekday(long daynr, bool sunday_first_day_of_week);
-bool valid_period(unsigned long int period);
+bool valid_period(long long int period);
 unsigned long int convert_period_to_month(unsigned long int period);
 unsigned long int convert_month_to_period(unsigned long int month);
 
