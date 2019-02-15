@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@
 # (server mock dependency) from mysql_server_mock_schema.js
 ################################################################################
 
-# generate mysql_server_mock_schema.cc, which embeds mysql_server_mock_schema.js
-# as a c-string. Server mock build will trigger this as its dependency [_HERE_]
-ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc
+ADD_CUSTOM_COMMAND(OUTPUT mysql_server_mock_schema.cc mysql_server_mock_schema.h
                    COMMAND json_schema_embedder
                      ${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_mock_schema.js
-                     ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_mock_schema.cc
-                     "kSqlQueryJsonSchema")
+                     mysql_server_mock_schema.cc
+                     mysql_server_mock_schema.h
+                     "SqlQueryJsonSchema"
+                   DEPENDS json_schema_embedder)
 
 
 SET(common_libraries)
@@ -142,6 +142,7 @@ TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
   ${PROJECT_SOURCE_DIR}/src/mock_server/include/
   ${PROJECT_SOURCE_DIR}/src/router/include
   ${PROJECT_SOURCE_DIR}/src/mysql_protocol/include/
+  ${CMAKE_CURRENT_BINARY_DIR}
   )
 
 add_harness_plugin(rest_mock_server
