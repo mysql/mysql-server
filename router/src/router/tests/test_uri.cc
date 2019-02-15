@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -595,6 +595,19 @@ URIParseGoodTestData uri_test_data[] = {
         },
         {"ham", "", 0, "", "", URIPath(), URIQuery(), ""},
     },
+    {
+        {"w://7.7.3.7."},
+        {
+            "w",
+            "7.7.3.7.",
+            0,
+            "",
+            "",
+            URIPath(),
+            URIQuery(),
+            "",
+        },
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(URITests, URIParseGoodTests,
@@ -1140,6 +1153,19 @@ URItoStringTestData uri_to_string_test_data[] = {
             "",
         },
         {"v://:v(@"},
+    },
+    {
+        {
+            "w",
+            "7.7.3.7.",
+            0,
+            "",
+            "",
+            URIPath(),
+            URIQuery(),
+            "",
+        },
+        {"w://7.7.3.7."},
     },
 };
 

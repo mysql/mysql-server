@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -329,6 +329,20 @@ static bool match_ipv4(const string &s, size_t pos_start, size_t &pos_end,
     pos_matched += 1;
     if (!match_dec_octet(s, pos_matched, pos_matched, dec_octet)) {
       return false;
+    }
+  }
+
+  // resolve ambiguity between match_ipv4 and match_reg_name
+  //
+  // look-ahead, non-capture: next should be EOL or one of '/:]'
+  if (!is_eol(s, pos_matched)) {
+    switch (s.at(pos_matched)) {
+      case '/':
+      case ':':
+      case ']':
+        break;
+      default:
+        return false;
     }
   }
 
@@ -1032,7 +1046,9 @@ URI URIParser::parse(const string &uri, bool allow_path_rootless) {
 
   if (match_authority(uri, pos, pos, tmp_host, tmp_port, tmp_username,
                       tmp_password)) {
-    match_path_absolute_or_empty(uri, pos, pos, tmp_path);
+    if (!match_path_absolute_or_empty(uri, pos, pos, tmp_path)) {
+      throw URIError("expoected absolute path or an empty path", uri, pos);
+    }
   } else if (match_path_absolute(uri, pos, pos, tmp_path)) {
   } else if (allow_path_rootless &&
              match_path_rootless(uri, pos, pos, tmp_path)) {
