@@ -364,7 +364,7 @@ create table t2 (
 a int primary key,
 b enum('a','b','c') not null,
 key (b),
-foreign key fk1 (b) references t1 (b)
+constraint fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 insert into t1 values (1,'a'),(2,'b');
 insert into t2 values (1,'a'),(2,'a'),(3,'b');
@@ -403,7 +403,7 @@ a int not null,
 b int,
 primary key using hash (a),
 key (b),
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine=innodb;
 Warnings:
 Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
@@ -420,7 +420,7 @@ a int not null,
 b int,
 primary key using hash (a),
 key (b),
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine=ndb;
 drop table t1;
 ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 'fk1' on table 't2'.
@@ -432,7 +432,7 @@ a int not null,
 b int,
 primary key using hash (a),
 key (b),
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine=innodb;
 Warnings:
 Note	3502	This storage engine does not support the HASH index algorithm, storage engine default was used instead.
@@ -443,7 +443,7 @@ a int not null,
 b int,
 primary key using hash (a),
 key (b),
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine=ndb;
 drop table t1;
 # BugXXZ - multi part unique index parent
@@ -473,7 +473,7 @@ b int not null,
 c int not null,
 primary key using hash (a),
 key xbc (b,c),
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 show create table t2;
 Table	Create Table
@@ -497,7 +497,7 @@ b int not null,
 c int not null,
 primary key using hash (a),
 key xbc (b,c),
-foreign key fk1 (c) references t1 (a)
+constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 show create table t2;
 Table	Create Table
@@ -522,7 +522,7 @@ b int not null,
 c int not null,
 primary key using hash (a),
 unique key xbc (b,c) using hash,
-foreign key fk1 (b) references t1 (a)
+constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the foreign table 't2'
 create table t2 (
@@ -531,7 +531,7 @@ b int not null,
 c int not null,
 primary key using hash (a),
 unique key xbc (b,c) using hash,
-foreign key fk1 (c) references t1 (a)
+constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 show create table t2;
 Table	Create Table
@@ -587,7 +587,7 @@ c int not null,
 key (c),
 key t2x1 (b),
 primary key using hash (a),
-foreign key t2fk1 (b) references t1 (b)
+constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 # try to drop indexes
 alter table t1 drop index t1x1;
@@ -612,8 +612,8 @@ b int,
 c int,
 key xb (b),
 key xc (c),
-foreign key fkb (b) references t1 (a),
-foreign key fkc (c) references t1 (a)
+constraint fkb foreign key (b) references t1 (a),
+constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 alter table t2
 drop foreign key nosuchfk,
@@ -657,8 +657,8 @@ b int,
 c int,
 key xb (b),
 key xc (c),
-foreign key fkb (b) references t1 (a),
-foreign key fkc (c) references t1 (a)
+constraint fkb foreign key (b) references t1 (a),
+constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 alter table t2
 drop foreign key nosuchfk,
@@ -734,11 +734,11 @@ create table t2 (a int primary key) engine=ndb;
 create table t3 (a int primary key) engine=ndb;
 create table t4 (a int primary key) engine=ndb;
 alter table t2
-add constraint foreign key myfk2 (a) references t1 (a);
+add constraint myfk2 foreign key (a) references t1 (a);
 alter table t4
-add constraint foreign key myfk4 (a) references t3 (a);
+add constraint myfk4 foreign key (a) references t3 (a);
 alter table t4
-add constraint foreign key `11/22/myfk4` (a) references t3 (a);
+add constraint `11/22/myfk4` foreign key (a) references t3 (a);
 ERROR HY000: Cannot add foreign key constraint
 show warnings;
 Level	Code	Message
@@ -798,7 +798,7 @@ primary key (c1,c4)
 ) engine=ndb;
 insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
@@ -823,7 +823,7 @@ primary key (c1,c4)
 ) engine=ndb;
 insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk` FOREIGN KEY (`c1`,`c4`) REFERENCES `t1` (`c2`,`c5`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 drop table t2, t1;
@@ -838,9 +838,9 @@ create table t2 (
 a int primary key,
 b int not null,
 c int,
-foreign key fk1 (a) references t1(a),
-foreign key fk2 (b) references t1(a),
-foreign key fk3 (c) references t1(a)
+constraint fk1 foreign key (a) references t1(a),
+constraint fk2 foreign key (b) references t1(a),
+constraint fk3 foreign key (c) references t1(a)
 ) engine ndb;
 #Add a unique constraint to the foreign key column
 alter table t2 add constraint uniquet2a unique (a);

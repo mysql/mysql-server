@@ -79,7 +79,7 @@ a	b
 #now run the DDL query in server2
 create table child(
 ref int,
-foreign key fk1(ref) references parent(a)
+constraint fk1 foreign key (ref) references parent(a)
 ) engine ndb;
 #check if the parent metadata has been reset in server1
 #altering column should fail with error
@@ -95,7 +95,7 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
-add foreign key fk2(ref) references parent(b);
+add constraint fk2 foreign key (ref) references parent(b);
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent
@@ -124,7 +124,7 @@ child	CREATE TABLE `child` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child
 drop foreign key fk2,
-add foreign key fk1(ref) references parent(a);
+add constraint fk1 foreign key (ref) references parent(a);
 #Testing multiple alter FK create/drops : II
 #This also tests the fix for Bug#27646160
 #Also cache parent2
@@ -138,7 +138,7 @@ a	b
 #now run the DDL query in server2
 alter table child
 drop foreign key fk1,
-add foreign key fk2(ref) references parent2(a);
+add constraint fk2 foreign key (ref) references parent2(a);
 #check if the parent metadata has been reset in server1
 #altering column should pass
 alter table parent

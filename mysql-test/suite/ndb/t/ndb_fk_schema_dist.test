@@ -35,7 +35,7 @@ let $expect_alter_failure= 0;
 --echo #Testing create table
 let $ddl_query= create table child(
                   ref int,
-                  foreign key fk1(ref) references parent(a)
+                  constraint fk1 foreign key (ref) references parent(a)
                 ) engine ndb;
 let $expect_alter_failure= 1;
 --source ndb_fk_schema_dist_test_parent.inc
@@ -43,7 +43,7 @@ let $expect_alter_failure= 1;
 --echo #Testing multiple alter FK create/drops : I
 let $ddl_query= alter table child
                   drop foreign key fk1,
-                  add foreign key fk2(ref) references parent(b);
+                  add constraint fk2 foreign key (ref) references parent(b);
 let $expect_alter_failure= 0;
 --source ndb_fk_schema_dist_test_parent.inc
 
@@ -54,7 +54,7 @@ create table parent2(
 show create table child;
 alter table child
   drop foreign key fk2,
-  add foreign key fk1(ref) references parent(a);
+  add constraint fk1 foreign key (ref) references parent(a);
 
 --echo #Testing multiple alter FK create/drops : II
 --echo #This also tests the fix for Bug#27646160
@@ -63,7 +63,7 @@ alter table child
 select * from parent2;
 let $ddl_query= alter table child
                   drop foreign key fk1,
-                  add foreign key fk2(ref) references parent2(a);
+                  add constraint fk2 foreign key (ref) references parent2(a);
 let $expect_alter_failure= 0;
 --source ndb_fk_schema_dist_test_parent.inc
 --echo #altering column in parent2 should fail with error

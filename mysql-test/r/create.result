@@ -955,7 +955,7 @@ syntax is supported for all engines.
 drop table if exists t1,t2;
 create table t1(a int not null, b int not null, primary key (a, b));
 create table t2(a int not null, b int not null, c int not null, primary key (a),
-foreign key fk_bug26104 (b,c) references t1(a));
+constraint fk_bug26104 foreign key (b,c) references t1(a));
 ERROR 42000: Incorrect foreign key definition for 'fk_bug26104': Key reference and table reference don't match
 drop table t1;
 create table t1(f1 int,f2 int);

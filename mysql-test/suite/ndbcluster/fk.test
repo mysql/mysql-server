@@ -14,7 +14,8 @@ CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
 --echo # But a unique index is fine.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ix(i),
-                      FOREIGN KEY fk_j_unique_i (j) REFERENCES self_ref(i)
+                      CONSTRAINT fk_j_unique_i FOREIGN KEY (j)
+                        REFERENCES self_ref(i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
@@ -23,7 +24,8 @@ DROP TABLE self_ref;
 --echo # if it is unique.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
                       UNIQUE INDEX ix(i),
-                      FOREIGN KEY fk_i_unique_i (i) REFERENCES self_ref(i)
+                      CONSTRAINT fk_i_unique_i FOREIGN KEY (i)
+                        REFERENCES self_ref(i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 DROP TABLE self_ref;
@@ -39,21 +41,21 @@ CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT,
 --echo # index may also serve as supporting index.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ijx(i, j),
-                      FOREIGN KEY fk_ij_unique_ji (i, j)
+                      CONSTRAINT fk_ij_unique_ji FOREIGN KEY (i, j)
                         REFERENCES self_ref(j, i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
 
 CREATE TABLE self_ref_hash(pk INT PRIMARY KEY, i INT, j INT,
                            UNIQUE INDEX ijx(i, j) USING HASH,
-                           FOREIGN KEY fk_ij_unique_hash_ji (i, j)
+                           CONSTRAINT fk_ij_unique_hash_ji FOREIGN KEY (i, j)
                              REFERENCES self_ref_hash(j, i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref_hash;
 
 CREATE TABLE self_ref_btree(pk INT PRIMARY KEY, i INT, j INT,
                             UNIQUE INDEX ijx(i, j) USING BTREE,
-                            FOREIGN KEY fk_ij_unique_btree_ji (i, j)
+                            CONSTRAINT fk_ij_unique_btree_ji FOREIGN KEY (i, j)
                               REFERENCES self_ref_btree(j, i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref_btree;
@@ -63,7 +65,7 @@ DROP TABLES self_ref, self_ref_hash, self_ref_btree;
 --echo # different order, a supporting key will be created.
 CREATE TABLE self_ref(pk INT PRIMARY KEY, i INT, j INT,
                       UNIQUE INDEX ijx(j, i),
-                      FOREIGN KEY fk_ij_diff_order_ji (i, j)
+                      CONSTRAINT fk_ij_diff_order_ji FOREIGN KEY (i, j)
                         REFERENCES self_ref(j, i)
 ) ENGINE=NDB;
 SHOW CREATE TABLE self_ref;
@@ -426,3 +428,20 @@ CREATE TABLE child (fk TIMESTAMP, FOREIGN KEY (fk) REFERENCES parent(pk));
 DROP TABLE parent;
 
 SET default_storage_engine = @save_storage_engine;
+
+
+--echo #
+--echo # Additional test for bug#29173134 "FOREIGN KEY CONSTRAINT NAMES TAKING
+--echo #                                   INDEX NAME".
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=NDB;
+CREATE TABLE t2 (fk1 INT, fk2 INT, fk3 INT, fk4 INT,
+                 FOREIGN KEY (fk1) REFERENCES t1 (id),
+                 CONSTRAINT c FOREIGN KEY (fk2) REFERENCES t1 (id),
+                 FOREIGN KEY d (fk3) REFERENCES t1 (id),
+                 CONSTRAINT e FOREIGN KEY f (fk4) REFERENCES t1 (id)
+                ) ENGINE=NDB;
+SHOW CREATE TABLE t2;
+SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+  WHERE TABLE_NAME = 't2' ORDER BY CONSTRAINT_NAME;
+DROP TABLES t2, t1;
