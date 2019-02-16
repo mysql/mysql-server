@@ -45,7 +45,7 @@ create table t2 (
   b int not null,
   key t2x1 (b),
   primary key using hash (a),
-  foreign key t2fk1 (b) references t1 (b)
+  constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 --eval $cre1

@@ -9,11 +9,11 @@ insert into t1 values (1);
 create table T2 (
 a int primary key,
 b int,
-foreign key myFK1 (a) references t1 (a),
+constraint myFK1 foreign key (a) references t1 (a),
 key XB (b)
 ) engine=ndb;
 alter table T2
-add constraint foreign key MYfk2 (b) references test.t1 (a);
+add constraint MYfk2 foreign key (b) references test.t1 (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -57,11 +57,11 @@ drop table T2;
 create table T2 (
 a int primary key,
 b int,
-foreign key myFK1 (a) references T1 (a),
+constraint myFK1 foreign key (a) references T1 (a),
 key XB (b)
 ) engine=ndb;
 alter table T2
-add constraint foreign key MYfk2 (b) references TEST.T1 (a);
+add constraint MYfk2 foreign key (b) references TEST.T1 (a);
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (

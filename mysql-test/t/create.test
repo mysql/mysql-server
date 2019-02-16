@@ -840,7 +840,7 @@ drop table if exists t1,t2;
 create table t1(a int not null, b int not null, primary key (a, b));
 --error ER_WRONG_FK_DEF
 create table t2(a int not null, b int not null, c int not null, primary key (a),
-foreign key fk_bug26104 (b,c) references t1(a));
+                constraint fk_bug26104 foreign key (b,c) references t1(a));
 drop table t1;
 
 # HANDLER_READ_KEY count differs when using ps protocol because of prepare

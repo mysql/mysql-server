@@ -20,10 +20,11 @@ create table product_order (
   customer_id int not null,
   primary key(no),
   index (product_category, product_id),
-  foreign key fk1 (product_category, product_id) references product(category, id)
+  constraint fk1 foreign key (product_category, product_id)
+    references product(category, id)
     on update restrict on delete cascade,
   index (customer_id),
-  foreign key fk2 (customer_id) references customer(id))
+  constraint fk2 foreign key (customer_id) references customer(id))
 engine=$engine;
 
 eval
@@ -31,7 +32,7 @@ create table emp (
   id int primary key auto_increment,
   manager int,
   key (manager),
-  foreign key emp_fk1 (manager) references emp (id))
+  constraint emp_fk1 foreign key (manager) references emp (id))
 engine=$engine;
 
 select *

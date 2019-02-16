@@ -116,7 +116,7 @@ parent	CREATE TABLE `parent` (
   UNIQUE KEY `id` (`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Now create a foreign key dependency
-alter table child add foreign key fk1(ref) references parent(id);
+alter table child add constraint fk1 foreign key (ref) references parent(id);
 #Now run a alter engine query.
 #m_fk_data of parent should be reloaded now and the query should fail
 alter table parent engine = innodb;
@@ -193,9 +193,9 @@ show warnings;
 Level	Code	Message
 Error	1826	Duplicate foreign key constraint name 'fk_t1'
 # Using distinct names should work
-alter table parent add foreign key fk_p2(b) references parent(a);
-alter table parent add foreign key fk_p3(c) references parent(a);
-alter table child  add foreign key fk_c2(b) references parent(a);
+alter table parent add constraint fk_p2 foreign key (b) references parent(a);
+alter table parent add constraint fk_p3 foreign key (c) references parent(a);
+alter table child  add constraint fk_c2 foreign key (b) references parent(a);
 #Show create tables
 show create table parent;
 Table	Create Table

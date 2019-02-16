@@ -2068,7 +2068,7 @@ use test;
 #-----------------------------------------------------------------------
 CREATE TABLE parent(pid INT NOT NULL PRIMARY KEY CHECK(pid > 1));
 CREATE TABLE child(cid INT CHECK(cid > 1),
-FOREIGN KEY fk(cid) REFERENCES parent(pid));
+CONSTRAINT fk FOREIGN KEY (cid) REFERENCES parent(pid));
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1276,16 +1276,19 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
   lex->key_create_info = default_key_create_info;
 
   /*
-    If defined, the CONSTRAINT symbol value is used.
-    Otherwise, the FOREIGN KEY index_name value is used.
+    If present name from the CONSTRAINT clause is used as name of generated
+    supporting index (which is created in cases when there is no explicitly
+    created supporting index). Otherwise, the FOREIGN KEY index_name value
+    is used. If both are missing name of generated supporting index is
+    automatically produced.
   */
-  const LEX_CSTRING used_name = to_lex_cstring(
+  const LEX_CSTRING key_name = to_lex_cstring(
       m_constraint_name.str ? m_constraint_name
                             : m_key_name.str ? m_key_name : NULL_STR);
 
-  if (used_name.str && check_string_char_length(used_name, "", NAME_CHAR_LEN,
-                                                system_charset_info, 1)) {
-    my_error(ER_TOO_LONG_IDENT, MYF(0), used_name.str);
+  if (key_name.str && check_string_char_length(key_name, "", NAME_CHAR_LEN,
+                                               system_charset_info, 1)) {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), key_name.str);
     return true;
   }
 
@@ -1300,17 +1303,25 @@ bool PT_foreign_key_definition::contextualize(Table_ddl_parse_context *pc) {
     }
   }
 
-  Key_spec *foreign_key = new (pc->mem_root)
-      Foreign_key_spec(pc->mem_root, used_name, cols, db, orig_db, table_name,
-                       m_referenced_table->table, m_ref_list, m_fk_delete_opt,
-                       m_fk_update_opt, m_fk_match_option);
+  /*
+    We always use value from CONSTRAINT clause as a foreign key name.
+    If it is not present we use generated name as a foreign key name
+    (i.e. we ignore value from FOREIGN KEY index_name part).
+
+    Validity of m_constraint_name has been already checked by the code
+    above that handles supporting index name.
+  */
+  Key_spec *foreign_key = new (pc->mem_root) Foreign_key_spec(
+      pc->mem_root, to_lex_cstring(m_constraint_name), cols, db, orig_db,
+      table_name, m_referenced_table->table, m_ref_list, m_fk_delete_opt,
+      m_fk_update_opt, m_fk_match_option);
   if (foreign_key == NULL || pc->alter_info->key_list.push_back(foreign_key))
     return true;
   /* Only used for ALTER TABLE. Ignored otherwise. */
   pc->alter_info->flags |= Alter_info::ADD_FOREIGN_KEY;
 
   Key_spec *key =
-      new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, used_name,
+      new (pc->mem_root) Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, key_name,
                                   &default_key_create_info, true, true, cols);
   if (key == NULL || pc->alter_info->key_list.push_back(key)) return true;
 

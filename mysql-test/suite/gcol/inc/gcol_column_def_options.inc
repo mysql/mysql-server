@@ -179,7 +179,7 @@ alter table t1 add constraint foreign key fk(d) references t2(a);
 if ($support_virtual_index)
 {
 --error ER_FK_CANNOT_USE_VIRTUAL_COLUMN
-alter table t1 add constraint foreign key fk(b) references t2(a);
+alter table t1 add constraint fk foreign key (b) references t2(a);
 }
 --error ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;

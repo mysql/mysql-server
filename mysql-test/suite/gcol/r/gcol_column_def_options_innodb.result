@@ -218,7 +218,7 @@ create table t1(a int,  b int as (a % 2), c int as (a) stored);
 create table t2 (a int primary key);
 alter table t1 add constraint foreign key fk(d) references t2(a);
 ERROR 42000: Key column 'd' doesn't exist in table
-alter table t1 add constraint foreign key fk(b) references t2(a);
+alter table t1 add constraint fk foreign key (b) references t2(a);
 ERROR HY000: Foreign key 'fk' uses virtual column 'b' which is not supported.
 alter table t1 add constraint foreign key fk(c) references t2(a) on delete set null;
 ERROR HY000: Cannot define foreign key with ON DELETE SET NULL clause on a generated column.

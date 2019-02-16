@@ -687,7 +687,7 @@ create table t1(
 --echo # Create table t2 with a fk mapped to t1(a)
 create table t2(
   a int,
-  foreign key fk1(a) references t1(a)
+  constraint fk1 foreign key (a) references t1(a)
 )engine=ndb;
 
 --echo # desc t1 to show the implicit pk

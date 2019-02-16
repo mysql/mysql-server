@@ -482,7 +482,7 @@ create table t2 (
   a int primary key,
   b enum('a','b','c') not null,
   key (b),
-  foreign key fk1 (b) references t1 (b)
+  constraint fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 insert into t1 values (1,'a'),(2,'b');
@@ -520,7 +520,7 @@ while ($i)
 	     b int,
 	     primary key using hash (a),
 	     key (b),
-	     foreign key fk1 (b) references t1 (a)
+	     constraint fk1 foreign key (b) references t1 (a)
 	) engine=$engine;
 
 	--error ER_FK_CANNOT_DROP_PARENT
@@ -542,7 +542,7 @@ while ($i)
 	     b int,
 	     primary key using hash (a),
 	     key (b),
-	     foreign key fk1 (b) references t1 (a)
+	     constraint fk1 foreign key (b) references t1 (a)
 	) engine=$engine;
 
 	drop table t1;
@@ -584,7 +584,7 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   key xbc (b,c),
-  foreign key fk1 (b) references t1 (a)
+  constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 
 # uses index xbc
@@ -606,7 +606,7 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   key xbc (b,c),
-  foreign key fk1 (c) references t1 (a)
+  constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 
 # creates index fk1 (c)
@@ -631,7 +631,7 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   unique key xbc (b,c) using hash,
-  foreign key fk1 (b) references t1 (a)
+  constraint fk1 foreign key (b) references t1 (a)
 ) engine ndb;
 
 create table t2 (
@@ -640,7 +640,7 @@ create table t2 (
   c int not null,
   primary key using hash (a),
   unique key xbc (b,c) using hash,
-  foreign key fk1 (c) references t1 (a)
+  constraint fk1 foreign key (c) references t1 (a)
 ) engine ndb;
 
 # creates index fk1 (c)
@@ -698,7 +698,7 @@ create table t2 (
   key (c),
   key t2x1 (b),
   primary key using hash (a),
-  foreign key t2fk1 (b) references t1 (b)
+  constraint t2fk1 foreign key (b) references t1 (b)
 ) engine=ndb;
 
 --echo # try to drop indexes
@@ -732,8 +732,8 @@ create table t2 (
   c int,
   key xb (b),
   key xc (c),
-  foreign key fkb (b) references t1 (a),
-  foreign key fkc (c) references t1 (a)
+  constraint fkb foreign key (b) references t1 (a),
+  constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 
 --error ER_CANT_DROP_FIELD_OR_KEY
@@ -767,8 +767,8 @@ create table t2 (
   c int,
   key xb (b),
   key xc (c),
-  foreign key fkb (b) references t1 (a),
-  foreign key fkc (c) references t1 (a)
+  constraint fkb foreign key (b) references t1 (a),
+  constraint fkc foreign key (c) references t1 (a)
 ) engine=ndb;
 
 --error ER_CANT_DROP_FIELD_OR_KEY
@@ -853,13 +853,13 @@ create table t3 (a int primary key) engine=ndb;
 create table t4 (a int primary key) engine=ndb;
 
 alter table t2
-  add constraint foreign key myfk2 (a) references t1 (a);
+  add constraint myfk2 foreign key (a) references t1 (a);
 alter table t4
-  add constraint foreign key myfk4 (a) references t3 (a);
+  add constraint myfk4 foreign key (a) references t3 (a);
 
 --error ER_CANNOT_ADD_FOREIGN
 alter table t4
-  add constraint foreign key `11/22/myfk4` (a) references t3 (a);
+  add constraint `11/22/myfk4` foreign key (a) references t3 (a);
 show warnings;
 
 --echo # run backup
@@ -923,7 +923,7 @@ create table t2 (
 insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 (c1,c4) values (4,40);
@@ -954,7 +954,7 @@ create table t2 (
 insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
 insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
 
-alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+alter table t2 add constraint fk foreign key (c1,c4) references t1 (c2,c5);
 
 --error ER_NO_REFERENCED_ROW_2
 insert into t2 (c1,c4) values (4,40);
@@ -974,9 +974,9 @@ create table t2 (
   a int primary key,
   b int not null,
   c int,
-  foreign key fk1 (a) references t1(a),
-  foreign key fk2 (b) references t1(a),
-  foreign key fk3 (c) references t1(a)
+  constraint fk1 foreign key (a) references t1(a),
+  constraint fk2 foreign key (b) references t1(a),
+  constraint fk3 foreign key (c) references t1(a)
 ) engine ndb;
 
 --echo #Add a unique constraint to the foreign key column

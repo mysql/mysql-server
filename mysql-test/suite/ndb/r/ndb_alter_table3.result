@@ -55,8 +55,8 @@ create table t2(
 a int,
 b int,
 c int unique key,
-foreign key fk1(a) references t1(a),
-foreign key fk2(b) references t1(b)
+constraint fk1 foreign key (a) references t1(a),
+constraint fk2 foreign key (b) references t1(b)
 )engine = ndb;
 #t2 now has additional keys on col `a` and `b` to support fks.
 show create table t2;
@@ -93,7 +93,7 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`
 #create a table t3 with an fk refering to t2(c)
 create table t3(
 a int,
-foreign key fk3(a) references t2(c)
+constraint fk3 foreign key (a) references t2(c)
 )engine = ndb;
 #create an index on col `b` on t2
 create unique index id2 on t2(b);

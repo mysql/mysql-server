@@ -8,7 +8,7 @@ create table t2 (
 a2 int primary key auto_increment,
 b2 int not null,
 key xb2 (b2),
-foreign key fkb2a1 (b2) references t1 (a1)
+constraint fkb2a1 foreign key (b2) references t1 (a1)
 ) engine ndb;
 # TEST: basic meta
 # show meta
@@ -142,7 +142,7 @@ a2 int primary key auto_increment,
 b2 int not null,
 c2 int not null,
 key xb2c2 (b2,c2),
-foreign key fkb2a1 (b2) references t1 (a1)
+constraint fkb2a1 foreign key (b2) references t1 (a1)
 ) engine ndb;
 insert into t2 (b2,c2) select x.a1,99 from t1 x,t1 y;
 insert into t2 (b2,c2) values (10,99);
@@ -227,7 +227,7 @@ a2 int primary key auto_increment,
 b2 int not null,
 c2 int not null,
 key xb2c2 (b2,c2),
-foreign key fkb2c2c1b1 (b2,c2) references t1 (c1,b1)
+constraint fkb2c2c1b1 foreign key (b2,c2) references t1 (c1,b1)
 ) engine ndb;
 insert into t2 (b2,c2) select x.c1,x.b1 from t1 x,t1 y;
 insert into t2 (b2,c2) values (61,62);
@@ -351,7 +351,7 @@ a2 int primary key auto_increment,
 b2 int not null,
 c2 int not null,
 key xb2c2 (b2,c2),
-foreign key fkb2c2c1b1 (b2,c2) references t1 (c1,b1)
+constraint fkb2c2c1b1 foreign key (b2,c2) references t1 (c1,b1)
 ) engine ndb;
 # show meta
 show create table t2;
@@ -417,7 +417,7 @@ count(*)
 alter table t2 algorithm=inplace,
 drop foreign key fkb2c2c1b1;
 alter table t2 algorithm=inplace,
-add foreign key fkb2c2b1c1 (b2,c2) references t1 (b1,c1);
+add constraint fkb2c2b1c1 foreign key (b2,c2) references t1 (b1,c1);
 insert into t1 (a1,b1,c1) values
 (1,11,12),(2,21,22),(3,31,32),(4,41,42),(5,51,52),(6,61,62);
 insert into t2 (b2,c2) select x.b1,x.c1 from t1 x,t1 y;
