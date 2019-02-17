@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1715,7 +1715,9 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"GET_DD_PROPERTY_KEY_VALUE",
      SQL_FN_INTERNAL(Item_func_get_dd_property_key_value, 2)},
     {"REMOVE_DD_PROPERTY_KEY",
-     SQL_FN_INTERNAL(Item_func_remove_dd_property_key, 2)}};
+     SQL_FN_INTERNAL(Item_func_remove_dd_property_key, 2)},
+    {"CONVERT_INTERVAL_TO_USER_INTERVAL",
+     SQL_FN_INTERNAL(Item_func_convert_interval_to_user_interval, 2)}};
 
 using Native_functions_hash = std::unordered_map<std::string, Create_func *>;
 static const Native_functions_hash *native_functions_hash;

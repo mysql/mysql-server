@@ -1368,6 +1368,14 @@ DROP EVENT очень_очень_очень_очень_очень_очень_о�
 
 SET NAMES default;
 
+--echo #
+--echo # BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+--echo #
+
+CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
+SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
+DROP EVENT Fortnight_Event;
+
 ###########################################################################
 #
 # End of tests

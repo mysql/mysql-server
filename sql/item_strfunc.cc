@@ -72,14 +72,17 @@
 #include "sql/auth/auth_common.h"  // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"  // current_thd
+#include "sql/dd/dd_event.h"  // dd::get_old_interval_type
 #include "sql/dd/dd_table.h"  // is_encrypted
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/info_schema/tablespace_stats.h"
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
-#include "sql/dd_sql_view.h"    // push_view_warning_or_error
-#include "sql/derror.h"         // ER_THD
-#include "sql/error_handler.h"  // Internal_error_handler
+#include "sql/dd/types/event.h"  // dd::Event::enum_interval_field
+#include "sql/dd_sql_view.h"     // push_view_warning_or_error
+#include "sql/derror.h"          // ER_THD
+#include "sql/error_handler.h"   // Internal_error_handler
+#include "sql/events.h"          // Events::reconstruct_interval_expression
 #include "sql/handler.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"                             // binary_keyword etc
@@ -4878,4 +4881,26 @@ String *Item_func_remove_dd_property_key::val_str(String *str) {
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
   DBUG_RETURN(str);
+}
+
+/*
+  This function converts interval expression to the interval value specified
+  by the user at time of creating events.
+  @param str pointer to String whose output is filled with user supplied
+             interval value at time of event creation.
+  @return returns a pointer to the string with the converted interval value.
+ */
+String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
+  if (!args[0]->is_null() && !args[1]->is_null()) {
+    longlong event_interval_val = args[0]->val_int();
+    interval_type event_interval_unit = dd::get_old_interval_type(
+        (dd::Event::enum_interval_field)args[1]->val_int());
+    str->length(0);
+    Events::reconstruct_interval_expression(str, event_interval_unit,
+                                            event_interval_val);
+    null_value = false;
+    return str;
+  }
+  null_value = true;
+  return nullptr;
 }

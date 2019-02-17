@@ -876,6 +876,14 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_e	#	#	#	#	#	#
 DROP EVENT очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_é;
 SET NAMES default;
+#
+# BUG#29269819 - WRONG METADATA WHILE CREATE AN EVENT
+#
+CREATE EVENT Fortnight_Event ON SCHEDULE EVERY 2 WEEK DO SELECT 1;
+SELECT EVENT_NAME, INTERVAL_VALUE, INTERVAL_FIELD FROM information_schema.events;
+EVENT_NAME	INTERVAL_VALUE	INTERVAL_FIELD
+Fortnight_Event	2	WEEK
+DROP EVENT Fortnight_Event;
 DROP DATABASE events_test;
 SET GLOBAL event_scheduler= 'ON';
 SET @@global.concurrent_insert= @concurrent_insert;
