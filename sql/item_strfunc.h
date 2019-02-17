@@ -1617,4 +1617,27 @@ class Item_func_remove_dd_property_key final : public Item_str_func {
   String *val_str(String *) override;
 };
 
+class Item_func_convert_interval_to_user_interval final : public Item_str_func {
+ public:
+  Item_func_convert_interval_to_user_interval(const POS &pos, Item *a, Item *b)
+      : Item_str_func(pos, a, b) {}
+
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
+  bool resolve_type(THD *) override {
+    // maximum string length of all options is expected
+    // to be less than 256 characters.
+    set_data_type_string(256, system_charset_info);
+    maybe_null = true;
+    null_on_null = false;
+
+    return false;
+  }
+
+  const char *func_name() const override {
+    return "convert_interval_to_user_interval";
+  }
+
+  String *val_str(String *) override;
+};
+
 #endif /* ITEM_STRFUNC_INCLUDED */
