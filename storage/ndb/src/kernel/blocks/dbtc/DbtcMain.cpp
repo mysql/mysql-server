@@ -18168,13 +18168,9 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 
   ApiConnectRecordPtr transPtr;
   TcConnectRecordPtr opPtr;
+  ndbrequire(signal->getLength() >= FireTrigOrd::SignalLength);
   bool transIdOk = true;
-  /* Check the received transaction id
-   * Older nodes do not send transid info in FIRE_TRIG_ORD
-   */
-  const Uint32 sourceNode = refToNode(signal->getSendersBlockRef());
-  const Uint32 sourceNodeVersion = getNodeInfo(sourceNode).m_version;
-  bool sigContainsTransId = ndb_fire_trig_ord_transid(sourceNodeVersion);
+  /* Check the received transaction id */
   
   /* Get triggering operation record */
   opPtr.i = fireOrd->getConnectionPtr();
@@ -18194,6 +18190,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   if (unlikely(transPtr.i == RNIL) ||
       unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr)))
   {
+    jam();
     /* Looks like the connect record was released
      * Treat as a bad transid
      */
@@ -18201,10 +18198,10 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   }
   else
   {
+    jam();
     /* Check if signal's trans id and operation's transid are aligned */
-    transIdOk = (! sigContainsTransId) |
-      (! ((fireOrd->m_transId1 ^ transPtr.p->transid[0]) |
-          (fireOrd->m_transId2 ^ transPtr.p->transid[1])));
+    transIdOk = !((fireOrd->m_transId1 ^ transPtr.p->transid[0]) |
+                  (fireOrd->m_transId2 ^ transPtr.p->transid[1]));
   } 
 
   TcFiredTriggerData key;
@@ -18244,15 +18241,6 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     trigPtr.p->triggerType = (TriggerType::Value)fireOrd->m_triggerType;
     trigPtr.p->triggerEvent = (TriggerEvent::Value)fireOrd->m_triggerEvent;
 
-    if (unlikely(signal->getLength() < FireTrigOrd::SignalLength))
-    {
-      jam();
-      ndbrequire(! sigContainsTransId );
-      Ptr<TcDefinedTriggerData> ptr;
-      c_theDefinedTriggers.getPtr(ptr, trigPtr.p->triggerId);
-      trigPtr.p->triggerType = ptr.p->triggerType;
-      trigPtr.p->triggerEvent = ptr.p->triggerEvent;
-    }
     trigPtr.p->fragId= fireOrd->fragId;
     if (longsignal)
     {

@@ -270,36 +270,6 @@ ndbd_LIST_TABLES_CONF_long_signal(Uint32 x)
   }
 }
 
-#ifdef NOT_YET
-#define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
-#define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
-#endif
-
-static
-inline
-int
-ndb_fire_trig_ord_transid(Uint32 version)
-{
-  if (version >= NDB_VERSION_D)
-    return 1;
-
-#ifdef NOT_YET
-  const Uint32 major = (version >> 16) & 0xFF;
-  const Uint32 minor = (version >>  8) & 0xFF;
-  if (major >= 6)
-  {
-    if (minor == 2)
-    {
-      return version >= NDBD_FIRE_TRIG_ORD_TRANSID_62;
-    }
-
-    return version >= NDBD_FIRE_TRIG_ORD_TRANSID_63;
-  }
-#endif
-
-  return 0;
-}
-
 #define NDBD_SCAN_DISTKEY NDB_MAKE_VERSION(6,4,0)
 
 static
