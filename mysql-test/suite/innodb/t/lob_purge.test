@@ -50,3 +50,71 @@ drop table t;
 
 SET DEBUG_SYNC = reset;
 
+--echo #
+--echo # Bug #28510599 THE MYSQL.IBD FILE SIZE IS CONSTANTLY GROWING.
+--echo #
+
+CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
+ENGINE=InnoDB;
+let $i=100;
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+#Set t1.ibd file size threshold, which is used to compare
+#t1.ibd file size after multiple insert-delete operations
+SET @fs_limit = (@fs * 16);
+--echo # Execute multiple insert-delete operations.
+--disable_query_log
+while ($i)
+{
+#Inserting 15764 char data to blob field so whole data will not be
+#accomodated within first lob page (for 16K or below page size)
+  INSERT INTO t1 (f2) VALUES (repeat('x', 15764));
+  DELETE FROM t1;
+  dec $i;
+}
+--enable_query_log
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+if (`SELECT (@fs > @fs_limit) > 0`)
+{
+   --echo Error: The test/t1.ibd file size is growing.
+}
+if (`SELECT (@fs < @fs_limit) > 0`)
+{
+   --echo The test/t1.ibd file size is not growing.
+}
+DROP TABLE t1;
+
+CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
+ENGINE=InnoDB;
+#Inserting 15764 char data to blob field so whole data will not be
+#accomodated within first lob page (for 16K or below page size)
+INSERT INTO t1 (f2) VALUES (repeat('x', 15764));
+let $i=50;
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+#Set t1.ibd file size threshold, which is used to compare
+#t1.ibd file size after multiple update operations
+SET @fs_limit = (@fs * 16);
+--echo # Execute multiple update operations.
+--disable_query_log
+while ($i)
+{
+#Updating 16764 and 15764 char data to blob field so whole data will not be
+#accomodated within first lob page (for 16K or below page size)
+  UPDATE t1 set f2 = repeat('y', 16764) where f1=1;
+  UPDATE t1 set f2 = repeat('x', 15764) where f1=1;
+  dec $i;
+}
+--enable_query_log
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+if (`SELECT (@fs > @fs_limit) > 0`)
+{
+   --echo Error: The test/t1.ibd file size is growing.
+}
+if (`SELECT (@fs < @fs_limit) > 0`)
+{
+   --echo The test/t1.ibd file size is not growing.
+}
+DROP TABLE t1;
