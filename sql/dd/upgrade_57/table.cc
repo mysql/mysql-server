@@ -195,7 +195,7 @@ class Trigger_loader {
 
 static const int TRG_NUM_REQUIRED_PARAMETERS = 8;
 
-const LEX_STRING trg_file_type = {C_STRING_WITH_LEN("TRIGGERS")};
+const LEX_CSTRING trg_file_type = {STRING_WITH_LEN("TRIGGERS")};
 
 /**
   Structure representing contents of .TRG file.
@@ -229,31 +229,31 @@ struct Trg_file_data {
 */
 
 static File_option trg_file_parameters[] = {
-    {{C_STRING_WITH_LEN("triggers")},
+    {{STRING_WITH_LEN("triggers")},
      my_offsetof_upgrade(struct Trg_file_data, definitions),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("sql_modes")},
+    {{STRING_WITH_LEN("sql_modes")},
      my_offsetof_upgrade(struct Trg_file_data, sql_modes),
      FILE_OPTIONS_ULLLIST},
-    {{C_STRING_WITH_LEN("definers")},
+    {{STRING_WITH_LEN("definers")},
      my_offsetof_upgrade(struct Trg_file_data, definers_list),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("client_cs_names")},
+    {{STRING_WITH_LEN("client_cs_names")},
      my_offsetof_upgrade(struct Trg_file_data, client_cs_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("connection_cl_names")},
+    {{STRING_WITH_LEN("connection_cl_names")},
      my_offsetof_upgrade(struct Trg_file_data, connection_cl_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("db_cl_names")},
+    {{STRING_WITH_LEN("db_cl_names")},
      my_offsetof_upgrade(struct Trg_file_data, db_cl_names),
      FILE_OPTIONS_STRLIST},
-    {{C_STRING_WITH_LEN("created")},
+    {{STRING_WITH_LEN("created")},
      my_offsetof_upgrade(struct Trg_file_data, created_timestamps),
      FILE_OPTIONS_ULLLIST},
     {{0, 0}, 0, FILE_OPTIONS_STRING}};
 
 static File_option sql_modes_parameters = {
-    {C_STRING_WITH_LEN("sql_modes")},
+    {STRING_WITH_LEN("sql_modes")},
     my_offsetof_upgrade(struct Trg_file_data, sql_modes),
     FILE_OPTIONS_ULLLIST};
 
@@ -296,6 +296,10 @@ bool Trigger_loader::trg_file_exists(const char *db_name,
   return true;
 }
 
+static bool is_equal(const LEX_CSTRING &a, const LEX_CSTRING &b) {
+  return a.length == b.length && !strncmp(a.str, b.str, a.length);
+}
+
 /**
   Load table triggers from .TRG file.
 
@@ -331,7 +335,7 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
 
   if (!parser) DBUG_RETURN(true);
 
-  if (!is_equal(&trg_file_type, parser->type())) {
+  if (!is_equal(trg_file_type, parser->type())) {
     my_error(ER_WRONG_OBJECT, MYF(0), table_name, TRG_EXT + 1, "TRIGGER");
     DBUG_RETURN(true);
   }
@@ -710,40 +714,40 @@ static const int REQUIRED_VIEW_PARAMETERS = 12;
   as it's used by parse().
 */
 static File_option view_parameters[] = {
-    {{C_STRING_WITH_LEN("query")},
+    {{STRING_WITH_LEN("query")},
      my_offsetof_upgrade(TABLE_LIST, select_stmt),
      FILE_OPTIONS_ESTRING},
-    {{C_STRING_WITH_LEN("updatable")},
+    {{STRING_WITH_LEN("updatable")},
      my_offsetof_upgrade(TABLE_LIST, updatable_view),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("algorithm")},
+    {{STRING_WITH_LEN("algorithm")},
      my_offsetof_upgrade(TABLE_LIST, algorithm),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("definer_user")},
+    {{STRING_WITH_LEN("definer_user")},
      my_offsetof_upgrade(TABLE_LIST, definer.user),
      FILE_OPTIONS_STRING},
-    {{C_STRING_WITH_LEN("definer_host")},
+    {{STRING_WITH_LEN("definer_host")},
      my_offsetof_upgrade(TABLE_LIST, definer.host),
      FILE_OPTIONS_STRING},
-    {{C_STRING_WITH_LEN("suid")},
+    {{STRING_WITH_LEN("suid")},
      my_offsetof_upgrade(TABLE_LIST, view_suid),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("with_check_option")},
+    {{STRING_WITH_LEN("with_check_option")},
      my_offsetof_upgrade(TABLE_LIST, with_check),
      FILE_OPTIONS_ULONGLONG},
-    {{C_STRING_WITH_LEN("timestamp")},
+    {{STRING_WITH_LEN("timestamp")},
      my_offsetof_upgrade(TABLE_LIST, timestamp),
      FILE_OPTIONS_TIMESTAMP},
-    {{C_STRING_WITH_LEN("source")},
+    {{STRING_WITH_LEN("source")},
      my_offsetof_upgrade(TABLE_LIST, source),
      FILE_OPTIONS_ESTRING},
-    {{(char *)STRING_WITH_LEN("client_cs_name")},
+    {{STRING_WITH_LEN("client_cs_name")},
      my_offsetof_upgrade(TABLE_LIST, view_client_cs_name),
      FILE_OPTIONS_STRING},
-    {{(char *)STRING_WITH_LEN("connection_cl_name")},
+    {{STRING_WITH_LEN("connection_cl_name")},
      my_offsetof_upgrade(TABLE_LIST, view_connection_cl_name),
      FILE_OPTIONS_STRING},
-    {{(char *)STRING_WITH_LEN("view_body_utf8")},
+    {{STRING_WITH_LEN("view_body_utf8")},
      my_offsetof_upgrade(TABLE_LIST, view_body_utf8),
      FILE_OPTIONS_ESTRING},
     {{NullS, 0}, 0, FILE_OPTIONS_STRING}};

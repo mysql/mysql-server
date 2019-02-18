@@ -974,7 +974,7 @@ class PT_internal_variable_name_default : public PT_internal_variable_name {
       return true;
     }
     value.var = tmp;
-    value.base_name.str = (char *)"default";
+    value.base_name.str = const_cast<char *>("default");
     value.base_name.length = 7;
     return false;
   }

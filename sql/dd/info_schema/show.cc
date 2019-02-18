@@ -50,20 +50,20 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
       STRING_WITH_LEN("CHARACTER_SETS")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_charset = {
-      C_STRING_WITH_LEN("CHARACTER_SET_NAME")};
-  static const LEX_STRING alias_charset = {C_STRING_WITH_LEN("Charset")};
+  static const LEX_CSTRING field_charset = {
+      STRING_WITH_LEN("CHARACTER_SET_NAME")};
+  static const LEX_CSTRING alias_charset = {STRING_WITH_LEN("Charset")};
 
-  static const LEX_STRING field_desc = {C_STRING_WITH_LEN("DESCRIPTION")};
-  static const LEX_STRING alias_desc = {C_STRING_WITH_LEN("Description")};
+  static const LEX_CSTRING field_desc = {STRING_WITH_LEN("DESCRIPTION")};
+  static const LEX_CSTRING alias_desc = {STRING_WITH_LEN("Description")};
 
-  static const LEX_STRING field_collate = {
-      C_STRING_WITH_LEN("DEFAULT_COLLATE_NAME")};
-  static const LEX_STRING alias_collate = {
-      C_STRING_WITH_LEN("Default collation")};
+  static const LEX_CSTRING field_collate = {
+      STRING_WITH_LEN("DEFAULT_COLLATE_NAME")};
+  static const LEX_CSTRING alias_collate = {
+      STRING_WITH_LEN("Default collation")};
 
-  static const LEX_STRING field_maxlen = {C_STRING_WITH_LEN("MAXLEN")};
-  static const LEX_STRING alias_maxlen = {C_STRING_WITH_LEN("Maxlen")};
+  static const LEX_CSTRING field_maxlen = {STRING_WITH_LEN("MAXLEN")};
+  static const LEX_CSTRING alias_maxlen = {STRING_WITH_LEN("Maxlen")};
 
   /*
      Build sub query.
@@ -163,30 +163,30 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLLATIONS")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_collation = {
-      C_STRING_WITH_LEN("COLLATION_NAME")};
-  static const LEX_STRING alias_collation = {C_STRING_WITH_LEN("Collation")};
+  static const LEX_CSTRING field_collation = {
+      STRING_WITH_LEN("COLLATION_NAME")};
+  static const LEX_CSTRING alias_collation = {STRING_WITH_LEN("Collation")};
 
-  static const LEX_STRING field_charset = {
-      C_STRING_WITH_LEN("CHARACTER_SET_NAME")};
-  static const LEX_STRING alias_charset = {C_STRING_WITH_LEN("Charset")};
+  static const LEX_CSTRING field_charset = {
+      STRING_WITH_LEN("CHARACTER_SET_NAME")};
+  static const LEX_CSTRING alias_charset = {STRING_WITH_LEN("Charset")};
 
-  static const LEX_STRING field_id = {C_STRING_WITH_LEN("ID")};
-  static const LEX_STRING alias_id = {C_STRING_WITH_LEN("Id")};
+  static const LEX_CSTRING field_id = {STRING_WITH_LEN("ID")};
+  static const LEX_CSTRING alias_id = {STRING_WITH_LEN("Id")};
 
-  static const LEX_STRING field_default = {C_STRING_WITH_LEN("IS_DEFAULT")};
-  static const LEX_STRING alias_default = {C_STRING_WITH_LEN("Default")};
+  static const LEX_CSTRING field_default = {STRING_WITH_LEN("IS_DEFAULT")};
+  static const LEX_CSTRING alias_default = {STRING_WITH_LEN("Default")};
 
-  static const LEX_STRING field_compiled = {C_STRING_WITH_LEN("IS_COMPILED")};
-  static const LEX_STRING alias_compiled = {C_STRING_WITH_LEN("Compiled")};
+  static const LEX_CSTRING field_compiled = {STRING_WITH_LEN("IS_COMPILED")};
+  static const LEX_CSTRING alias_compiled = {STRING_WITH_LEN("Compiled")};
 
-  static const LEX_STRING field_sortlen = {C_STRING_WITH_LEN("SORTLEN")};
-  static const LEX_STRING alias_sortlen = {C_STRING_WITH_LEN("Sortlen")};
+  static const LEX_CSTRING field_sortlen = {STRING_WITH_LEN("SORTLEN")};
+  static const LEX_CSTRING alias_sortlen = {STRING_WITH_LEN("Sortlen")};
 
-  static const LEX_STRING field_pad_attribute = {
-      C_STRING_WITH_LEN("PAD_ATTRIBUTE")};
-  static const LEX_STRING alias_pad_attribute = {
-      C_STRING_WITH_LEN("Pad_attribute")};
+  static const LEX_CSTRING field_pad_attribute = {
+      STRING_WITH_LEN("PAD_ATTRIBUTE")};
+  static const LEX_CSTRING alias_pad_attribute = {
+      STRING_WITH_LEN("Pad_attribute")};
 
   /*
      Build sub query.
@@ -310,9 +310,8 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("SCHEMATA")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_schema_name = {
-      C_STRING_WITH_LEN("SCHEMA_NAME")};
-  static const LEX_STRING alias_database = {C_STRING_WITH_LEN("Database")};
+  static const LEX_CSTRING field_schema_name = {STRING_WITH_LEN("SCHEMA_NAME")};
+  static const LEX_CSTRING alias_database = {STRING_WITH_LEN("Database")};
 
   // Build the alias 'Database (<dbname>%)'
   String_type alias;
@@ -325,7 +324,7 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   char *tmp = static_cast<char *>(thd->alloc(alias.length() + 1));
   memcpy(tmp, alias.c_str(), alias.length());
   *(tmp + alias.length()) = '\0';
-  LEX_STRING alias_lex_string = {tmp, alias.length()};
+  LEX_CSTRING alias_lex_string = {tmp, alias.length()};
 
   /*
      Build sub query.
@@ -392,73 +391,67 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
 static bool add_table_status_fields(Select_lex_builder *query,
                                     bool alias_as_alias) {
   // Field for SHOW TABLE STATUS
-  static const LEX_STRING field_engine = {C_STRING_WITH_LEN("ENGINE")};
-  static const LEX_STRING alias_engine = {C_STRING_WITH_LEN("Engine")};
+  static const LEX_CSTRING field_engine = {STRING_WITH_LEN("ENGINE")};
+  static const LEX_CSTRING alias_engine = {STRING_WITH_LEN("Engine")};
 
-  static const LEX_STRING field_version = {C_STRING_WITH_LEN("VERSION")};
-  static const LEX_STRING alias_version = {C_STRING_WITH_LEN("Version")};
+  static const LEX_CSTRING field_version = {STRING_WITH_LEN("VERSION")};
+  static const LEX_CSTRING alias_version = {STRING_WITH_LEN("Version")};
 
-  static const LEX_STRING field_row_format = {C_STRING_WITH_LEN("ROW_FORMAT")};
-  static const LEX_STRING alias_row_format = {C_STRING_WITH_LEN("Row_format")};
+  static const LEX_CSTRING field_row_format = {STRING_WITH_LEN("ROW_FORMAT")};
+  static const LEX_CSTRING alias_row_format = {STRING_WITH_LEN("Row_format")};
 
-  static const LEX_STRING field_rows = {C_STRING_WITH_LEN("TABLE_ROWS")};
-  static const LEX_STRING alias_rows = {C_STRING_WITH_LEN("Rows")};
+  static const LEX_CSTRING field_rows = {STRING_WITH_LEN("TABLE_ROWS")};
+  static const LEX_CSTRING alias_rows = {STRING_WITH_LEN("Rows")};
 
-  static const LEX_STRING field_avg_row_length = {
-      C_STRING_WITH_LEN("AVG_ROW_LENGTH")};
-  static const LEX_STRING alias_avg_row_length = {
-      C_STRING_WITH_LEN("Avg_row_length")};
+  static const LEX_CSTRING field_avg_row_length = {
+      STRING_WITH_LEN("AVG_ROW_LENGTH")};
+  static const LEX_CSTRING alias_avg_row_length = {
+      STRING_WITH_LEN("Avg_row_length")};
 
-  static const LEX_STRING field_data_length = {
-      C_STRING_WITH_LEN("DATA_LENGTH")};
-  static const LEX_STRING alias_data_length = {
-      C_STRING_WITH_LEN("Data_length")};
+  static const LEX_CSTRING field_data_length = {STRING_WITH_LEN("DATA_LENGTH")};
+  static const LEX_CSTRING alias_data_length = {STRING_WITH_LEN("Data_length")};
 
-  static const LEX_STRING field_max_data_length = {
-      C_STRING_WITH_LEN("MAX_DATA_LENGTH")};
-  static const LEX_STRING alias_max_data_length = {
-      C_STRING_WITH_LEN("Max_data_length")};
+  static const LEX_CSTRING field_max_data_length = {
+      STRING_WITH_LEN("MAX_DATA_LENGTH")};
+  static const LEX_CSTRING alias_max_data_length = {
+      STRING_WITH_LEN("Max_data_length")};
 
-  static const LEX_STRING field_index_length = {
-      C_STRING_WITH_LEN("INDEX_LENGTH")};
-  static const LEX_STRING alias_index_length = {
-      C_STRING_WITH_LEN("Index_length")};
+  static const LEX_CSTRING field_index_length = {
+      STRING_WITH_LEN("INDEX_LENGTH")};
+  static const LEX_CSTRING alias_index_length = {
+      STRING_WITH_LEN("Index_length")};
 
-  static const LEX_STRING field_data_free = {C_STRING_WITH_LEN("DATA_FREE")};
-  static const LEX_STRING alias_data_free = {C_STRING_WITH_LEN("Data_free")};
+  static const LEX_CSTRING field_data_free = {STRING_WITH_LEN("DATA_FREE")};
+  static const LEX_CSTRING alias_data_free = {STRING_WITH_LEN("Data_free")};
 
-  static const LEX_STRING field_auto_increment = {
-      C_STRING_WITH_LEN("AUTO_INCREMENT")};
-  static const LEX_STRING alias_auto_increment = {
-      C_STRING_WITH_LEN("Auto_increment")};
+  static const LEX_CSTRING field_auto_increment = {
+      STRING_WITH_LEN("AUTO_INCREMENT")};
+  static const LEX_CSTRING alias_auto_increment = {
+      STRING_WITH_LEN("Auto_increment")};
 
-  static const LEX_STRING field_create_time = {
-      C_STRING_WITH_LEN("CREATE_TIME")};
-  static const LEX_STRING alias_create_time = {
-      C_STRING_WITH_LEN("Create_time")};
+  static const LEX_CSTRING field_create_time = {STRING_WITH_LEN("CREATE_TIME")};
+  static const LEX_CSTRING alias_create_time = {STRING_WITH_LEN("Create_time")};
 
-  static const LEX_STRING field_update_time = {
-      C_STRING_WITH_LEN("UPDATE_TIME")};
-  static const LEX_STRING alias_update_time = {
-      C_STRING_WITH_LEN("Update_time")};
+  static const LEX_CSTRING field_update_time = {STRING_WITH_LEN("UPDATE_TIME")};
+  static const LEX_CSTRING alias_update_time = {STRING_WITH_LEN("Update_time")};
 
-  static const LEX_STRING field_check_time = {C_STRING_WITH_LEN("CHECK_TIME")};
-  static const LEX_STRING alias_check_time = {C_STRING_WITH_LEN("Check_time")};
+  static const LEX_CSTRING field_check_time = {STRING_WITH_LEN("CHECK_TIME")};
+  static const LEX_CSTRING alias_check_time = {STRING_WITH_LEN("Check_time")};
 
-  static const LEX_STRING field_collation = {
-      C_STRING_WITH_LEN("TABLE_COLLATION")};
-  static const LEX_STRING alias_collation = {C_STRING_WITH_LEN("Collation")};
+  static const LEX_CSTRING field_collation = {
+      STRING_WITH_LEN("TABLE_COLLATION")};
+  static const LEX_CSTRING alias_collation = {STRING_WITH_LEN("Collation")};
 
-  static const LEX_STRING field_checksum = {C_STRING_WITH_LEN("CHECKSUM")};
-  static const LEX_STRING alias_checksum = {C_STRING_WITH_LEN("Checksum")};
+  static const LEX_CSTRING field_checksum = {STRING_WITH_LEN("CHECKSUM")};
+  static const LEX_CSTRING alias_checksum = {STRING_WITH_LEN("Checksum")};
 
-  static const LEX_STRING field_create_options = {
-      C_STRING_WITH_LEN("CREATE_OPTIONS")};
-  static const LEX_STRING alias_create_options = {
-      C_STRING_WITH_LEN("Create_options")};
+  static const LEX_CSTRING field_create_options = {
+      STRING_WITH_LEN("CREATE_OPTIONS")};
+  static const LEX_CSTRING alias_create_options = {
+      STRING_WITH_LEN("Create_options")};
 
-  static const LEX_STRING field_comment = {C_STRING_WITH_LEN("TABLE_COMMENT")};
-  static const LEX_STRING alias_comment = {C_STRING_WITH_LEN("Comment")};
+  static const LEX_CSTRING field_comment = {STRING_WITH_LEN("TABLE_COMMENT")};
+  static const LEX_CSTRING alias_comment = {STRING_WITH_LEN("Comment")};
 
   if (alias_as_alias == false) {
     if (query->add_select_item(field_engine, alias_engine) ||
@@ -511,14 +504,14 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TABLES")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_table = {C_STRING_WITH_LEN("TABLE_NAME")};
-  static const LEX_STRING alias_table = {C_STRING_WITH_LEN("Name")};
+  static const LEX_CSTRING field_table = {STRING_WITH_LEN("TABLE_NAME")};
+  static const LEX_CSTRING alias_table = {STRING_WITH_LEN("Name")};
 
-  static const LEX_STRING field_database = {C_STRING_WITH_LEN("TABLE_SCHEMA")};
-  static const LEX_STRING alias_database = {C_STRING_WITH_LEN("Database")};
+  static const LEX_CSTRING field_database = {STRING_WITH_LEN("TABLE_SCHEMA")};
+  static const LEX_CSTRING alias_database = {STRING_WITH_LEN("Database")};
 
-  static const LEX_STRING field_table_type = {C_STRING_WITH_LEN("TABLE_TYPE")};
-  static const LEX_STRING alias_table_type = {C_STRING_WITH_LEN("Table_type")};
+  static const LEX_CSTRING field_table_type = {STRING_WITH_LEN("TABLE_TYPE")};
+  static const LEX_CSTRING alias_table_type = {STRING_WITH_LEN("Table_type")};
 
   // Get the current logged in schema name
   size_t dummy;
@@ -558,7 +551,7 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
   char *tmp = static_cast<char *>(thd->alloc(alias.length() + 1));
   memcpy(tmp, alias.c_str(), alias.length());
   *(tmp + alias.length()) = '\0';
-  LEX_STRING alias_lex_string = {tmp, alias.length()};
+  LEX_CSTRING alias_lex_string = {tmp, alias.length()};
 
   /*
      Build sub query.
@@ -595,7 +588,7 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
 
   // ... WHERE 'Database' = <dbname> ...
   Item *database_condition =
-      top_query.prepare_equal_item(alias_database, cur_db);
+      top_query.prepare_equal_item(alias_database, to_lex_cstring(cur_db));
   if (top_query.add_condition(database_condition)) return nullptr;
 
   // ... [ AND ] Table LIKE <value> ...
@@ -629,57 +622,57 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("COLUMNS")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_database = {C_STRING_WITH_LEN("TABLE_SCHEMA")};
-  static const LEX_STRING alias_database = {C_STRING_WITH_LEN("Database")};
+  static const LEX_CSTRING field_database = {STRING_WITH_LEN("TABLE_SCHEMA")};
+  static const LEX_CSTRING alias_database = {STRING_WITH_LEN("Database")};
 
-  static const LEX_STRING field_table = {C_STRING_WITH_LEN("TABLE_NAME")};
-  static const LEX_STRING alias_table = {C_STRING_WITH_LEN("Table")};
+  static const LEX_CSTRING field_table = {STRING_WITH_LEN("TABLE_NAME")};
+  static const LEX_CSTRING alias_table = {STRING_WITH_LEN("Table")};
 
-  static const LEX_STRING field_field = {C_STRING_WITH_LEN("COLUMN_NAME")};
-  static const LEX_STRING alias_field = {C_STRING_WITH_LEN("Field")};
+  static const LEX_CSTRING field_field = {STRING_WITH_LEN("COLUMN_NAME")};
+  static const LEX_CSTRING alias_field = {STRING_WITH_LEN("Field")};
 
-  static const LEX_STRING field_column_type = {
-      C_STRING_WITH_LEN("COLUMN_TYPE")};
-  static const LEX_STRING alias_column_type = {C_STRING_WITH_LEN("Type")};
+  static const LEX_CSTRING field_column_type = {STRING_WITH_LEN("COLUMN_TYPE")};
+  static const LEX_CSTRING alias_column_type = {STRING_WITH_LEN("Type")};
 
-  static const LEX_STRING field_collation = {
-      C_STRING_WITH_LEN("COLLATION_NAME")};
-  static const LEX_STRING alias_collation = {C_STRING_WITH_LEN("Collation")};
+  static const LEX_CSTRING field_collation = {
+      STRING_WITH_LEN("COLLATION_NAME")};
+  static const LEX_CSTRING alias_collation = {STRING_WITH_LEN("Collation")};
 
-  static const LEX_STRING field_null = {C_STRING_WITH_LEN("IS_NULLABLE")};
-  static const LEX_STRING alias_null = {C_STRING_WITH_LEN("Null")};
+  static const LEX_CSTRING field_null = {STRING_WITH_LEN("IS_NULLABLE")};
+  static const LEX_CSTRING alias_null = {STRING_WITH_LEN("Null")};
 
-  static const LEX_STRING field_key = {C_STRING_WITH_LEN("COLUMN_KEY")};
-  static const LEX_STRING alias_key = {C_STRING_WITH_LEN("Key")};
+  static const LEX_CSTRING field_key = {STRING_WITH_LEN("COLUMN_KEY")};
+  static const LEX_CSTRING alias_key = {STRING_WITH_LEN("Key")};
 
-  static const LEX_STRING field_default = {C_STRING_WITH_LEN("COLUMN_DEFAULT")};
-  static const LEX_STRING alias_default = {C_STRING_WITH_LEN("Default")};
+  static const LEX_CSTRING field_default = {STRING_WITH_LEN("COLUMN_DEFAULT")};
+  static const LEX_CSTRING alias_default = {STRING_WITH_LEN("Default")};
 
-  static const LEX_STRING field_extra = {C_STRING_WITH_LEN("EXTRA")};
-  static const LEX_STRING alias_extra = {C_STRING_WITH_LEN("Extra")};
+  static const LEX_CSTRING field_extra = {STRING_WITH_LEN("EXTRA")};
+  static const LEX_CSTRING alias_extra = {STRING_WITH_LEN("Extra")};
 
-  static const LEX_STRING field_privileges = {C_STRING_WITH_LEN("PRIVILEGES")};
-  static const LEX_STRING alias_privileges = {C_STRING_WITH_LEN("Privileges")};
+  static const LEX_CSTRING field_privileges = {STRING_WITH_LEN("PRIVILEGES")};
+  static const LEX_CSTRING alias_privileges = {STRING_WITH_LEN("Privileges")};
 
-  static const LEX_STRING field_comment = {C_STRING_WITH_LEN("COLUMN_COMMENT")};
-  static const LEX_STRING alias_comment = {C_STRING_WITH_LEN("Comment")};
+  static const LEX_CSTRING field_comment = {STRING_WITH_LEN("COLUMN_COMMENT")};
+  static const LEX_CSTRING alias_comment = {STRING_WITH_LEN("Comment")};
 
-  static const LEX_STRING field_ordinal_position = {
-      C_STRING_WITH_LEN("ORDINAL_POSITION")};
-  static const LEX_STRING alias_ordinal_position = {
-      C_STRING_WITH_LEN("Ordinal_position")};
+  static const LEX_CSTRING field_ordinal_position = {
+      STRING_WITH_LEN("ORDINAL_POSITION")};
+  static const LEX_CSTRING alias_ordinal_position = {
+      STRING_WITH_LEN("Ordinal_position")};
 
   // Get the current logged in schema name
-  LEX_STRING cur_db;
+  LEX_CSTRING cur_db;
   if (table_ident->db.str) {
-    cur_db.str = (char *)table_ident->db.str;
+    cur_db.str = table_ident->db.str;
     cur_db.length = table_ident->db.length;
   } else if (thd->lex->copy_db_to(&cur_db.str, &cur_db.length))
     return nullptr;
 
   // Convert IS db and table name to desired form.
   dd::info_schema::convert_table_name_case(
-      cur_db.str, const_cast<char *>(table_ident->table.str));
+      const_cast<char *>(cur_db.str),
+      const_cast<char *>(table_ident->table.str));
 
   /*
      Build sub query.
@@ -737,10 +730,8 @@ SELECT_LEX *build_show_columns_query(const POS &pos, THD *thd,
     return nullptr;
 
   // ... AND Table = table_ident->table->str ...
-  LEX_STRING tmp_lex_string = {const_cast<char *>(table_ident->table.str),
-                               table_ident->table.length};
   Item *table_condition =
-      top_query.prepare_equal_item(alias_table, tmp_lex_string);
+      top_query.prepare_equal_item(alias_table, table_ident->table);
   if (!table_condition || top_query.add_condition(table_condition))
     return nullptr;
 
@@ -774,79 +765,76 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
 
   // Define field name literal used in query to be built.
 
-  static const LEX_STRING field_database = {C_STRING_WITH_LEN("TABLE_SCHEMA")};
-  static const LEX_STRING alias_database = {C_STRING_WITH_LEN("Database")};
+  static const LEX_CSTRING field_database = {STRING_WITH_LEN("TABLE_SCHEMA")};
+  static const LEX_CSTRING alias_database = {STRING_WITH_LEN("Database")};
 
-  static const LEX_STRING field_table = {C_STRING_WITH_LEN("TABLE_NAME")};
-  static const LEX_STRING alias_table = {C_STRING_WITH_LEN("Table")};
+  static const LEX_CSTRING field_table = {STRING_WITH_LEN("TABLE_NAME")};
+  static const LEX_CSTRING alias_table = {STRING_WITH_LEN("Table")};
 
-  static const LEX_STRING field_non_unique = {C_STRING_WITH_LEN("NON_UNIQUE")};
-  static const LEX_STRING alias_non_unique = {C_STRING_WITH_LEN("Non_unique")};
+  static const LEX_CSTRING field_non_unique = {STRING_WITH_LEN("NON_UNIQUE")};
+  static const LEX_CSTRING alias_non_unique = {STRING_WITH_LEN("Non_unique")};
 
-  static const LEX_STRING field_key = {C_STRING_WITH_LEN("INDEX_NAME")};
-  static const LEX_STRING alias_key = {C_STRING_WITH_LEN("Key_name")};
+  static const LEX_CSTRING field_key = {STRING_WITH_LEN("INDEX_NAME")};
+  static const LEX_CSTRING alias_key = {STRING_WITH_LEN("Key_name")};
 
-  static const LEX_STRING field_seq_in_index = {
-      C_STRING_WITH_LEN("SEQ_IN_INDEX")};
-  static const LEX_STRING alias_seq_in_index = {
-      C_STRING_WITH_LEN("Seq_in_index")};
+  static const LEX_CSTRING field_seq_in_index = {
+      STRING_WITH_LEN("SEQ_IN_INDEX")};
+  static const LEX_CSTRING alias_seq_in_index = {
+      STRING_WITH_LEN("Seq_in_index")};
 
-  static const LEX_STRING field_column_name = {
-      C_STRING_WITH_LEN("COLUMN_NAME")};
-  static const LEX_STRING alias_column_name = {
-      C_STRING_WITH_LEN("Column_name")};
+  static const LEX_CSTRING field_column_name = {STRING_WITH_LEN("COLUMN_NAME")};
+  static const LEX_CSTRING alias_column_name = {STRING_WITH_LEN("Column_name")};
 
-  static const LEX_STRING field_collation = {C_STRING_WITH_LEN("COLLATION")};
-  static const LEX_STRING alias_collation = {C_STRING_WITH_LEN("Collation")};
+  static const LEX_CSTRING field_collation = {STRING_WITH_LEN("COLLATION")};
+  static const LEX_CSTRING alias_collation = {STRING_WITH_LEN("Collation")};
 
-  static const LEX_STRING field_cardinality = {
-      C_STRING_WITH_LEN("CARDINALITY")};
-  static const LEX_STRING alias_cardinality = {
-      C_STRING_WITH_LEN("Cardinality")};
+  static const LEX_CSTRING field_cardinality = {STRING_WITH_LEN("CARDINALITY")};
+  static const LEX_CSTRING alias_cardinality = {STRING_WITH_LEN("Cardinality")};
 
-  static const LEX_STRING field_sub_part = {C_STRING_WITH_LEN("SUB_PART")};
-  static const LEX_STRING alias_sub_part = {C_STRING_WITH_LEN("Sub_part")};
+  static const LEX_CSTRING field_sub_part = {STRING_WITH_LEN("SUB_PART")};
+  static const LEX_CSTRING alias_sub_part = {STRING_WITH_LEN("Sub_part")};
 
-  static const LEX_STRING field_packed = {C_STRING_WITH_LEN("PACKED")};
-  static const LEX_STRING alias_packed = {C_STRING_WITH_LEN("Packed")};
+  static const LEX_CSTRING field_packed = {STRING_WITH_LEN("PACKED")};
+  static const LEX_CSTRING alias_packed = {STRING_WITH_LEN("Packed")};
 
-  static const LEX_STRING field_null = {C_STRING_WITH_LEN("NULLABLE")};
-  static const LEX_STRING alias_null = {C_STRING_WITH_LEN("Null")};
+  static const LEX_CSTRING field_null = {STRING_WITH_LEN("NULLABLE")};
+  static const LEX_CSTRING alias_null = {STRING_WITH_LEN("Null")};
 
-  static const LEX_STRING field_type = {C_STRING_WITH_LEN("INDEX_TYPE")};
-  static const LEX_STRING alias_type = {C_STRING_WITH_LEN("Index_type")};
+  static const LEX_CSTRING field_type = {STRING_WITH_LEN("INDEX_TYPE")};
+  static const LEX_CSTRING alias_type = {STRING_WITH_LEN("Index_type")};
 
-  static const LEX_STRING field_comment = {C_STRING_WITH_LEN("COMMENT")};
-  static const LEX_STRING alias_comment = {C_STRING_WITH_LEN("Comment")};
+  static const LEX_CSTRING field_comment = {STRING_WITH_LEN("COMMENT")};
+  static const LEX_CSTRING alias_comment = {STRING_WITH_LEN("Comment")};
 
-  static const LEX_STRING field_index_comment = {
-      C_STRING_WITH_LEN("INDEX_COMMENT")};
-  static const LEX_STRING alias_index_comment = {
-      C_STRING_WITH_LEN("Index_comment")};
+  static const LEX_CSTRING field_index_comment = {
+      STRING_WITH_LEN("INDEX_COMMENT")};
+  static const LEX_CSTRING alias_index_comment = {
+      STRING_WITH_LEN("Index_comment")};
 
-  static const LEX_STRING field_is_visible = {C_STRING_WITH_LEN("IS_VISIBLE")};
-  static const LEX_STRING alias_visible = {C_STRING_WITH_LEN("Visible")};
+  static const LEX_CSTRING field_is_visible = {STRING_WITH_LEN("IS_VISIBLE")};
+  static const LEX_CSTRING alias_visible = {STRING_WITH_LEN("Visible")};
 
-  static const LEX_STRING alias_index_pos = {
-      C_STRING_WITH_LEN("INDEX_ORDINAL_POSITION")};
+  static const LEX_CSTRING alias_index_pos = {
+      STRING_WITH_LEN("INDEX_ORDINAL_POSITION")};
 
-  static const LEX_STRING alias_column_pos = {
-      C_STRING_WITH_LEN("COLUMN_ORDINAL_POSITION")};
+  static const LEX_CSTRING alias_column_pos = {
+      STRING_WITH_LEN("COLUMN_ORDINAL_POSITION")};
 
-  static const LEX_STRING field_expression = {C_STRING_WITH_LEN("EXPRESSION")};
-  static const LEX_STRING alias_expression = {C_STRING_WITH_LEN("Expression")};
+  static const LEX_CSTRING field_expression = {STRING_WITH_LEN("EXPRESSION")};
+  static const LEX_CSTRING alias_expression = {STRING_WITH_LEN("Expression")};
 
   // Get the current logged in schema name
-  LEX_STRING cur_db;
+  LEX_CSTRING cur_db;
   if (table_ident->db.str) {
-    cur_db.str = (char *)table_ident->db.str;
+    cur_db.str = table_ident->db.str;
     cur_db.length = table_ident->db.length;
   } else if (thd->lex->copy_db_to(&cur_db.str, &cur_db.length))
     return nullptr;
 
   // Convert IS db and table name to desired form.
   dd::info_schema::convert_table_name_case(
-      cur_db.str, const_cast<char *>(table_ident->table.str));
+      const_cast<char *>(cur_db.str),
+      const_cast<char *>(table_ident->table.str));
 
   /*
      Build sub query.
@@ -910,10 +898,8 @@ SELECT_LEX *build_show_keys_query(const POS &pos, THD *thd,
     return nullptr;
 
   // ... AND Table = table_ident->table->str ...
-  LEX_STRING tmp_lex_string = {const_cast<char *>(table_ident->table.str),
-                               table_ident->table.length};
   Item *table_condition =
-      top_query.prepare_equal_item(alias_table, tmp_lex_string);
+      top_query.prepare_equal_item(alias_table, table_ident->table);
   if (!table_condition || top_query.add_condition(table_condition))
     return nullptr;
 
@@ -942,56 +928,56 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("TRIGGERS")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_database = {
-      C_STRING_WITH_LEN("EVENT_OBJECT_SCHEMA")};
-  static const LEX_STRING alias_database = {C_STRING_WITH_LEN("Database")};
+  static const LEX_CSTRING field_database = {
+      STRING_WITH_LEN("EVENT_OBJECT_SCHEMA")};
+  static const LEX_CSTRING alias_database = {STRING_WITH_LEN("Database")};
 
-  static const LEX_STRING field_trigger = {C_STRING_WITH_LEN("TRIGGER_NAME")};
-  static const LEX_STRING alias_trigger = {C_STRING_WITH_LEN("Trigger")};
+  static const LEX_CSTRING field_trigger = {STRING_WITH_LEN("TRIGGER_NAME")};
+  static const LEX_CSTRING alias_trigger = {STRING_WITH_LEN("Trigger")};
 
-  static const LEX_STRING field_manipulation = {
-      C_STRING_WITH_LEN("EVENT_MANIPULATION")};
-  static const LEX_STRING alias_manipulation = {C_STRING_WITH_LEN("Event")};
+  static const LEX_CSTRING field_manipulation = {
+      STRING_WITH_LEN("EVENT_MANIPULATION")};
+  static const LEX_CSTRING alias_manipulation = {STRING_WITH_LEN("Event")};
 
-  static const LEX_STRING field_table = {
-      C_STRING_WITH_LEN("EVENT_OBJECT_TABLE")};
-  static const LEX_STRING alias_table = {C_STRING_WITH_LEN("Table")};
+  static const LEX_CSTRING field_table = {
+      STRING_WITH_LEN("EVENT_OBJECT_TABLE")};
+  static const LEX_CSTRING alias_table = {STRING_WITH_LEN("Table")};
 
-  static const LEX_STRING field_statement = {
-      C_STRING_WITH_LEN("ACTION_STATEMENT")};
-  static const LEX_STRING alias_statement = {C_STRING_WITH_LEN("Statement")};
+  static const LEX_CSTRING field_statement = {
+      STRING_WITH_LEN("ACTION_STATEMENT")};
+  static const LEX_CSTRING alias_statement = {STRING_WITH_LEN("Statement")};
 
-  static const LEX_STRING field_timing = {C_STRING_WITH_LEN("ACTION_TIMING")};
-  static const LEX_STRING alias_timing = {C_STRING_WITH_LEN("Timing")};
+  static const LEX_CSTRING field_timing = {STRING_WITH_LEN("ACTION_TIMING")};
+  static const LEX_CSTRING alias_timing = {STRING_WITH_LEN("Timing")};
 
-  static const LEX_STRING field_created = {C_STRING_WITH_LEN("CREATED")};
-  static const LEX_STRING alias_created = {C_STRING_WITH_LEN("Created")};
+  static const LEX_CSTRING field_created = {STRING_WITH_LEN("CREATED")};
+  static const LEX_CSTRING alias_created = {STRING_WITH_LEN("Created")};
 
-  static const LEX_STRING field_sql_mode = {C_STRING_WITH_LEN("SQL_MODE")};
-  static const LEX_STRING alias_sql_mode = {C_STRING_WITH_LEN("sql_mode")};
+  static const LEX_CSTRING field_sql_mode = {STRING_WITH_LEN("SQL_MODE")};
+  static const LEX_CSTRING alias_sql_mode = {STRING_WITH_LEN("sql_mode")};
 
-  static const LEX_STRING field_definer = {C_STRING_WITH_LEN("DEFINER")};
-  static const LEX_STRING alias_definer = {C_STRING_WITH_LEN("Definer")};
+  static const LEX_CSTRING field_definer = {STRING_WITH_LEN("DEFINER")};
+  static const LEX_CSTRING alias_definer = {STRING_WITH_LEN("Definer")};
 
-  static const LEX_STRING field_client_cs = {
-      C_STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
-  static const LEX_STRING alias_client_cs = {
-      C_STRING_WITH_LEN("character_set_client")};
+  static const LEX_CSTRING field_client_cs = {
+      STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
+  static const LEX_CSTRING alias_client_cs = {
+      STRING_WITH_LEN("character_set_client")};
 
-  static const LEX_STRING field_conn_coll = {
-      C_STRING_WITH_LEN("COLLATION_CONNECTION")};
-  static const LEX_STRING alias_conn_coll = {
-      C_STRING_WITH_LEN("collation_connection")};
+  static const LEX_CSTRING field_conn_coll = {
+      STRING_WITH_LEN("COLLATION_CONNECTION")};
+  static const LEX_CSTRING alias_conn_coll = {
+      STRING_WITH_LEN("collation_connection")};
 
-  static const LEX_STRING field_db_coll = {
-      C_STRING_WITH_LEN("DATABASE_COLLATION")};
-  static const LEX_STRING alias_db_coll = {
-      C_STRING_WITH_LEN("Database Collation")};
+  static const LEX_CSTRING field_db_coll = {
+      STRING_WITH_LEN("DATABASE_COLLATION")};
+  static const LEX_CSTRING alias_db_coll = {
+      STRING_WITH_LEN("Database Collation")};
 
-  static const LEX_STRING field_action_order = {
-      C_STRING_WITH_LEN("ACTION_ORDER")};
-  static const LEX_STRING alias_action_order = {
-      C_STRING_WITH_LEN("action_order")};
+  static const LEX_CSTRING field_action_order = {
+      STRING_WITH_LEN("ACTION_ORDER")};
+  static const LEX_CSTRING alias_action_order = {
+      STRING_WITH_LEN("action_order")};
 
   // Get the current logged in schema name
   size_t dummy;
@@ -1057,7 +1043,7 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
 
   // ... WHERE 'Database' = <dbname> ...
   Item *database_condition =
-      top_query.prepare_equal_item(alias_database, cur_db);
+      top_query.prepare_equal_item(alias_database, to_lex_cstring(cur_db));
   if (top_query.add_condition(database_condition)) return nullptr;
 
   // ... [ AND ] Table LIKE <value> ...
@@ -1093,47 +1079,46 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("ROUTINES")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_db = {C_STRING_WITH_LEN("ROUTINE_SCHEMA")};
-  static const LEX_STRING alias_db = {C_STRING_WITH_LEN("Db")};
+  static const LEX_CSTRING field_db = {STRING_WITH_LEN("ROUTINE_SCHEMA")};
+  static const LEX_CSTRING alias_db = {STRING_WITH_LEN("Db")};
 
-  static const LEX_STRING field_name = {C_STRING_WITH_LEN("ROUTINE_NAME")};
-  static const LEX_STRING alias_name = {C_STRING_WITH_LEN("Name")};
+  static const LEX_CSTRING field_name = {STRING_WITH_LEN("ROUTINE_NAME")};
+  static const LEX_CSTRING alias_name = {STRING_WITH_LEN("Name")};
 
-  static const LEX_STRING field_type = {C_STRING_WITH_LEN("ROUTINE_TYPE")};
-  static const LEX_STRING alias_type = {C_STRING_WITH_LEN("Type")};
+  static const LEX_CSTRING field_type = {STRING_WITH_LEN("ROUTINE_TYPE")};
+  static const LEX_CSTRING alias_type = {STRING_WITH_LEN("Type")};
 
-  static const LEX_STRING field_definer = {C_STRING_WITH_LEN("DEFINER")};
-  static const LEX_STRING alias_definer = {C_STRING_WITH_LEN("Definer")};
+  static const LEX_CSTRING field_definer = {STRING_WITH_LEN("DEFINER")};
+  static const LEX_CSTRING alias_definer = {STRING_WITH_LEN("Definer")};
 
-  static const LEX_STRING field_modified = {C_STRING_WITH_LEN("LAST_ALTERED")};
-  static const LEX_STRING alias_modified = {C_STRING_WITH_LEN("Modified")};
+  static const LEX_CSTRING field_modified = {STRING_WITH_LEN("LAST_ALTERED")};
+  static const LEX_CSTRING alias_modified = {STRING_WITH_LEN("Modified")};
 
-  static const LEX_STRING field_created = {C_STRING_WITH_LEN("CREATED")};
-  static const LEX_STRING alias_created = {C_STRING_WITH_LEN("Created")};
+  static const LEX_CSTRING field_created = {STRING_WITH_LEN("CREATED")};
+  static const LEX_CSTRING alias_created = {STRING_WITH_LEN("Created")};
 
-  static const LEX_STRING field_security_type = {
-      C_STRING_WITH_LEN("SECURITY_TYPE")};
-  static const LEX_STRING alias_security_type = {
-      C_STRING_WITH_LEN("Security_type")};
+  static const LEX_CSTRING field_security_type = {
+      STRING_WITH_LEN("SECURITY_TYPE")};
+  static const LEX_CSTRING alias_security_type = {
+      STRING_WITH_LEN("Security_type")};
 
-  static const LEX_STRING field_comment = {
-      C_STRING_WITH_LEN("ROUTINE_COMMENT")};
-  static const LEX_STRING alias_comment = {C_STRING_WITH_LEN("Comment")};
+  static const LEX_CSTRING field_comment = {STRING_WITH_LEN("ROUTINE_COMMENT")};
+  static const LEX_CSTRING alias_comment = {STRING_WITH_LEN("Comment")};
 
-  static const LEX_STRING field_client_cs = {
-      C_STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
-  static const LEX_STRING alias_client_cs = {
-      C_STRING_WITH_LEN("character_set_client")};
+  static const LEX_CSTRING field_client_cs = {
+      STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
+  static const LEX_CSTRING alias_client_cs = {
+      STRING_WITH_LEN("character_set_client")};
 
-  static const LEX_STRING field_conn_coll = {
-      C_STRING_WITH_LEN("COLLATION_CONNECTION")};
-  static const LEX_STRING alias_conn_coll = {
-      C_STRING_WITH_LEN("collation_connection")};
+  static const LEX_CSTRING field_conn_coll = {
+      STRING_WITH_LEN("COLLATION_CONNECTION")};
+  static const LEX_CSTRING alias_conn_coll = {
+      STRING_WITH_LEN("collation_connection")};
 
-  static const LEX_STRING field_db_coll = {
-      C_STRING_WITH_LEN("DATABASE_COLLATION")};
-  static const LEX_STRING alias_db_coll = {
-      C_STRING_WITH_LEN("Database Collation")};
+  static const LEX_CSTRING field_db_coll = {
+      STRING_WITH_LEN("DATABASE_COLLATION")};
+  static const LEX_CSTRING alias_db_coll = {
+      STRING_WITH_LEN("Database Collation")};
 
   /*
      Build sub query.
@@ -1170,10 +1155,10 @@ SELECT_LEX *build_show_procedures_query(const POS &pos, THD *thd, String *wild,
     return nullptr;
 
   // ... WHERE 'Type' = 'PROCEDURE | FUNCTION'
-  char *current_type = thd->lex->sql_command == SQLCOM_SHOW_STATUS_PROC
-                           ? const_cast<char *>("PROCEDURE")
-                           : const_cast<char *>("FUNCTION");
-  LEX_STRING tmp_lex_string = {current_type, strlen(current_type)};
+  const char *current_type = thd->lex->sql_command == SQLCOM_SHOW_STATUS_PROC
+                                 ? "PROCEDURE"
+                                 : "FUNCTION";
+  LEX_CSTRING tmp_lex_string = {current_type, strlen(current_type)};
   Item *type_condition =
       top_query.prepare_equal_item(alias_type, tmp_lex_string);
   if (top_query.add_condition(type_condition)) return nullptr;
@@ -1206,60 +1191,60 @@ SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
   static const LEX_CSTRING system_view_name = {STRING_WITH_LEN("EVENTS")};
 
   // Define field name literal used in query to be built.
-  static const LEX_STRING field_db = {C_STRING_WITH_LEN("EVENT_SCHEMA")};
-  static const LEX_STRING alias_db = {C_STRING_WITH_LEN("Db")};
+  static const LEX_CSTRING field_db = {STRING_WITH_LEN("EVENT_SCHEMA")};
+  static const LEX_CSTRING alias_db = {STRING_WITH_LEN("Db")};
 
-  static const LEX_STRING field_name = {C_STRING_WITH_LEN("EVENT_NAME")};
-  static const LEX_STRING alias_name = {C_STRING_WITH_LEN("Name")};
+  static const LEX_CSTRING field_name = {STRING_WITH_LEN("EVENT_NAME")};
+  static const LEX_CSTRING alias_name = {STRING_WITH_LEN("Name")};
 
-  static const LEX_STRING field_definer = {C_STRING_WITH_LEN("DEFINER")};
-  static const LEX_STRING alias_definer = {C_STRING_WITH_LEN("Definer")};
+  static const LEX_CSTRING field_definer = {STRING_WITH_LEN("DEFINER")};
+  static const LEX_CSTRING alias_definer = {STRING_WITH_LEN("Definer")};
 
-  static const LEX_STRING field_zone = {C_STRING_WITH_LEN("TIME_ZONE")};
-  static const LEX_STRING alias_zone = {C_STRING_WITH_LEN("Time zone")};
+  static const LEX_CSTRING field_zone = {STRING_WITH_LEN("TIME_ZONE")};
+  static const LEX_CSTRING alias_zone = {STRING_WITH_LEN("Time zone")};
 
-  static const LEX_STRING field_type = {C_STRING_WITH_LEN("EVENT_TYPE")};
-  static const LEX_STRING alias_type = {C_STRING_WITH_LEN("Type")};
+  static const LEX_CSTRING field_type = {STRING_WITH_LEN("EVENT_TYPE")};
+  static const LEX_CSTRING alias_type = {STRING_WITH_LEN("Type")};
 
-  static const LEX_STRING field_execute_at = {C_STRING_WITH_LEN("EXECUTE_AT")};
-  static const LEX_STRING alias_execute_at = {C_STRING_WITH_LEN("Execute at")};
+  static const LEX_CSTRING field_execute_at = {STRING_WITH_LEN("EXECUTE_AT")};
+  static const LEX_CSTRING alias_execute_at = {STRING_WITH_LEN("Execute at")};
 
-  static const LEX_STRING field_interval_value = {
-      C_STRING_WITH_LEN("INTERVAL_VALUE")};
-  static const LEX_STRING alias_interval_value = {
-      C_STRING_WITH_LEN("Interval value")};
+  static const LEX_CSTRING field_interval_value = {
+      STRING_WITH_LEN("INTERVAL_VALUE")};
+  static const LEX_CSTRING alias_interval_value = {
+      STRING_WITH_LEN("Interval value")};
 
-  static const LEX_STRING field_interval_field = {
-      C_STRING_WITH_LEN("INTERVAL_FIELD")};
-  static const LEX_STRING alias_interval_field = {
-      C_STRING_WITH_LEN("Interval field")};
+  static const LEX_CSTRING field_interval_field = {
+      STRING_WITH_LEN("INTERVAL_FIELD")};
+  static const LEX_CSTRING alias_interval_field = {
+      STRING_WITH_LEN("Interval field")};
 
-  static const LEX_STRING field_starts = {C_STRING_WITH_LEN("STARTS")};
-  static const LEX_STRING alias_starts = {C_STRING_WITH_LEN("Starts")};
+  static const LEX_CSTRING field_starts = {STRING_WITH_LEN("STARTS")};
+  static const LEX_CSTRING alias_starts = {STRING_WITH_LEN("Starts")};
 
-  static const LEX_STRING field_ends = {C_STRING_WITH_LEN("ENDS")};
-  static const LEX_STRING alias_ends = {C_STRING_WITH_LEN("Ends")};
+  static const LEX_CSTRING field_ends = {STRING_WITH_LEN("ENDS")};
+  static const LEX_CSTRING alias_ends = {STRING_WITH_LEN("Ends")};
 
-  static const LEX_STRING field_status = {C_STRING_WITH_LEN("STATUS")};
-  static const LEX_STRING alias_status = {C_STRING_WITH_LEN("Status")};
+  static const LEX_CSTRING field_status = {STRING_WITH_LEN("STATUS")};
+  static const LEX_CSTRING alias_status = {STRING_WITH_LEN("Status")};
 
-  static const LEX_STRING field_originator = {C_STRING_WITH_LEN("ORIGINATOR")};
-  static const LEX_STRING alias_originator = {C_STRING_WITH_LEN("Originator")};
+  static const LEX_CSTRING field_originator = {STRING_WITH_LEN("ORIGINATOR")};
+  static const LEX_CSTRING alias_originator = {STRING_WITH_LEN("Originator")};
 
-  static const LEX_STRING field_client_cs = {
-      C_STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
-  static const LEX_STRING alias_client_cs = {
-      C_STRING_WITH_LEN("character_set_client")};
+  static const LEX_CSTRING field_client_cs = {
+      STRING_WITH_LEN("CHARACTER_SET_CLIENT")};
+  static const LEX_CSTRING alias_client_cs = {
+      STRING_WITH_LEN("character_set_client")};
 
-  static const LEX_STRING field_conn_coll = {
-      C_STRING_WITH_LEN("COLLATION_CONNECTION")};
-  static const LEX_STRING alias_conn_coll = {
-      C_STRING_WITH_LEN("collation_connection")};
+  static const LEX_CSTRING field_conn_coll = {
+      STRING_WITH_LEN("COLLATION_CONNECTION")};
+  static const LEX_CSTRING alias_conn_coll = {
+      STRING_WITH_LEN("collation_connection")};
 
-  static const LEX_STRING field_db_coll = {
-      C_STRING_WITH_LEN("DATABASE_COLLATION")};
-  static const LEX_STRING alias_db_coll = {
-      C_STRING_WITH_LEN("Database Collation")};
+  static const LEX_CSTRING field_db_coll = {
+      STRING_WITH_LEN("DATABASE_COLLATION")};
+  static const LEX_CSTRING alias_db_coll = {
+      STRING_WITH_LEN("Database Collation")};
 
   // Get the current logged in schema name
   size_t dummy;
@@ -1316,7 +1301,8 @@ SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
     return nullptr;
 
   // ... WHERE 'Database' = <dbname> ...
-  Item *database_condition = top_query.prepare_equal_item(alias_db, cur_db);
+  Item *database_condition =
+      top_query.prepare_equal_item(alias_db, to_lex_cstring(cur_db));
   if (top_query.add_condition(database_condition)) return nullptr;
 
   // ... [ AND ] Name LIKE <value> ...

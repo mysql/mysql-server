@@ -9740,10 +9740,6 @@ bool init_ftfuncs(THD *thd, SELECT_LEX *select_lex) {
   return false;
 }
 
-bool is_equal(const LEX_STRING *a, const LEX_STRING *b) {
-  return a->length == b->length && !strncmp(a->str, b->str, a->length);
-}
-
 /**
   Open and lock transactional system tables for read.
 

@@ -669,7 +669,7 @@ bool do_server_upgrade_checks(THD *thd) {
       using shared tablespaces is only relevant for InnoDB.
     */
     plugin_ref pr =
-        ha_resolve_by_name_raw(thd, LEX_CSTRING{C_STRING_WITH_LEN("InnoDB")});
+        ha_resolve_by_name_raw(thd, LEX_CSTRING{STRING_WITH_LEN("InnoDB")});
     handlerton *hton =
         (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
     DBUG_ASSERT(hton != nullptr && hton->get_tablespace_type);
@@ -857,12 +857,12 @@ bool build_event_sp(const THD *thd, const char *name, size_t name_len,
   const uint STATIC_SQL_LENGTH = 44;
   String temp(STATIC_SQL_LENGTH + name_len + body_len);
 
-  temp.append(C_STRING_WITH_LEN("CREATE "));
-  temp.append(C_STRING_WITH_LEN("PROCEDURE "));
+  temp.append(STRING_WITH_LEN("CREATE "));
+  temp.append(STRING_WITH_LEN("PROCEDURE "));
 
   append_identifier(thd, &temp, name, name_len);
 
-  temp.append(C_STRING_WITH_LEN("() SQL SECURITY INVOKER "));
+  temp.append(STRING_WITH_LEN("() SQL SECURITY INVOKER "));
   temp.append(body, body_len);
 
   *sp_sql = temp.ptr();

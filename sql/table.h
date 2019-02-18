@@ -550,9 +550,9 @@ typedef enum enum_table_category TABLE_CATEGORY;
 extern ulong refresh_version;
 
 struct TABLE_FIELD_TYPE {
-  LEX_STRING name;
-  LEX_STRING type;
-  LEX_STRING cset;
+  LEX_CSTRING name;
+  LEX_CSTRING type;
+  LEX_CSTRING cset;
 };
 
 struct TABLE_FIELD_DEF {

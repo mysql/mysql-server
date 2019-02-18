@@ -291,7 +291,6 @@ bool rename_temporary_table(THD *thd, TABLE *table, const char *new_db,
                             const char *table_name);
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
 bool open_temporary_table(THD *thd, TABLE_LIST *tl);
-bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 
 /* Functions to work with system tables. */
 bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);

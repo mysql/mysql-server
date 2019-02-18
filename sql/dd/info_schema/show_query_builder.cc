@@ -73,10 +73,10 @@ bool Select_lex_builder::add_to_select_item_list(Item *expr) {
 
 // Add item representing star in "SELECT '*' ...".
 bool Select_lex_builder::add_star_select_item() {
-  const LEX_STRING star = {C_STRING_WITH_LEN("*")};
+  const LEX_CSTRING star = {STRING_WITH_LEN("*")};
 
-  PTI_simple_ident_ident *ident_star;
-  ident_star = new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, star);
+  PTI_simple_ident_ident *ident_star =
+      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, to_lex_string(star));
   if (ident_star == nullptr) return true;
 
   return add_to_select_item_list(ident_star);
@@ -86,18 +86,17 @@ bool Select_lex_builder::add_star_select_item() {
   Add item representing a column as,
   "SELECT <field_name> AS <alias>, ...".
 */
-bool Select_lex_builder::add_select_item(const LEX_STRING field_name,
-                                         const LEX_STRING alias) {
+bool Select_lex_builder::add_select_item(const LEX_CSTRING &field_name,
+                                         const LEX_CSTRING &alias) {
   /* ... FIELD_NAME ... */
-  PTI_simple_ident_ident *ident_field;
-  ident_field =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, field_name);
+  PTI_simple_ident_ident *ident_field = new (m_thd->mem_root)
+      PTI_simple_ident_ident(*m_pos, to_lex_string(field_name));
   if (ident_field == nullptr) return true;
 
   /* ... FIELD_NAME as alias ... */
   PTI_expr_with_alias *expr;
-  expr = new (m_thd->mem_root)
-      PTI_expr_with_alias(*m_pos, ident_field, m_pos->cpp, alias);
+  expr = new (m_thd->mem_root) PTI_expr_with_alias(
+      *m_pos, ident_field, m_pos->cpp, to_lex_string(alias));
   if (expr == nullptr) return true;
 
   return add_to_select_item_list(expr);
@@ -108,11 +107,10 @@ bool Select_lex_builder::add_select_item(const LEX_STRING field_name,
   "SELECT <expr> AS <alias>, ...".
 */
 bool Select_lex_builder::add_select_expr(Item *select_list_item,
-                                         const LEX_STRING alias) {
+                                         const LEX_CSTRING &alias) {
   /* ... FIELD_NAME as alias ... */
-  PTI_expr_with_alias *expr;
-  expr = new (m_thd->mem_root)
-      PTI_expr_with_alias(*m_pos, select_list_item, m_pos->cpp, alias);
+  PTI_expr_with_alias *expr = new (m_thd->mem_root) PTI_expr_with_alias(
+      *m_pos, select_list_item, m_pos->cpp, to_lex_string(alias));
   if (expr == nullptr) return true;
 
   return add_to_select_item_list(expr);
@@ -143,13 +141,12 @@ bool Select_lex_builder::add_from_item(const LEX_CSTRING &schema_name,
     return true;
 
   /* ... schame_name.<table_name> ... */
-  Table_ident *table_ident;
-  table_ident = new (m_thd->mem_root) Table_ident(tmp_db_name, tmp_table_name);
+  Table_ident *table_ident =
+      new (m_thd->mem_root) Table_ident(tmp_db_name, tmp_table_name);
   if (table_ident == nullptr) return true;
 
   /* ... FROM schame_name.<table_name> ... */
-  PT_table_factor_table_ident *table_factor;
-  table_factor = new (m_thd->mem_root)
+  PT_table_factor_table_ident *table_factor = new (m_thd->mem_root)
       PT_table_factor_table_ident(table_ident, nullptr, NULL_CSTR, nullptr);
   if (table_factor == nullptr) return true;
 
@@ -169,56 +166,53 @@ bool Select_lex_builder::add_from_item(PT_derived_table *dt) {
 }
 
 // Prepare item representing a LIKE condition.
-Item *Select_lex_builder::prepare_like_item(const LEX_STRING field_name,
+Item *Select_lex_builder::prepare_like_item(const LEX_CSTRING &field_name,
                                             const String *wild) {
   /* ... FIELD_NAME ... */
-  PTI_simple_ident_ident *ident_field;
-  ident_field =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, field_name);
+  PTI_simple_ident_ident *ident_field = new (m_thd->mem_root)
+      PTI_simple_ident_ident(*m_pos, to_lex_string(field_name));
   if (ident_field == nullptr) return nullptr;
 
   /* ... <value> ... */
-  LEX_STRING *lex_string;
-  lex_string = static_cast<LEX_STRING *>(m_thd->alloc(sizeof(LEX_STRING)));
+  LEX_STRING *lex_string =
+      static_cast<LEX_STRING *>(m_thd->alloc(sizeof(LEX_STRING)));
   if (lex_string == nullptr) return nullptr;
   lex_string->length = wild->length();
   lex_string->str = m_thd->strmake(wild->ptr(), wild->length());
   if (lex_string->str == nullptr) return nullptr;
 
-  PTI_text_literal_text_string *wild_string;
-  wild_string = new (m_thd->mem_root) PTI_text_literal_text_string(
-      *m_pos, false, *lex_string);  // TODO WL#6629 check is_7bit
+  PTI_text_literal_text_string *wild_string =
+      new (m_thd->mem_root) PTI_text_literal_text_string(
+          *m_pos, false, *lex_string);  // TODO WL#6629 check is_7bit
   if (wild_string == nullptr) return nullptr;
 
   /* ... field_name LIKE <value> ... */
-  Item_func_like *func_like;
-  func_like = new (m_thd->mem_root)
+  Item_func_like *func_like = new (m_thd->mem_root)
       Item_func_like(*m_pos, ident_field, wild_string, nullptr);
 
   return func_like;
 }
 
 // Prepare item representing a equal to comparision condition.
-Item *Select_lex_builder::prepare_equal_item(const LEX_STRING field_name,
-                                             const LEX_STRING value) {
+Item *Select_lex_builder::prepare_equal_item(const LEX_CSTRING &field_name,
+                                             const LEX_CSTRING &value) {
   /* ... FIELD_NAME ... */
-  PTI_simple_ident_ident *ident_field;
-  ident_field =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, field_name);
+  PTI_simple_ident_ident *ident_field = new (m_thd->mem_root)
+      PTI_simple_ident_ident(*m_pos, to_lex_string(field_name));
   if (ident_field == nullptr) return nullptr;
 
   /* ... <value> ... */
-  LEX_STRING *lex_string;
-  lex_string = static_cast<LEX_STRING *>(m_thd->alloc(sizeof(LEX_STRING)));
+  LEX_STRING *lex_string =
+      static_cast<LEX_STRING *>(m_thd->alloc(sizeof(LEX_STRING)));
   if (lex_string == nullptr) return nullptr;
   lex_string->length = value.length;
   lex_string->str = m_thd->strmake(value.str, value.length);
   if (lex_string->str == nullptr) return nullptr;
 
-  PTI_text_literal_underscore_charset *value_string;
-  value_string = new (m_thd->mem_root) PTI_text_literal_underscore_charset(
-      *m_pos, false, system_charset_info,
-      *lex_string);  // TODO WL#6629 check is_7bit
+  PTI_text_literal_underscore_charset *value_string =
+      new (m_thd->mem_root) PTI_text_literal_underscore_charset(
+          *m_pos, false, system_charset_info,
+          *lex_string);  // TODO WL#6629 check is_7bit
   if (value_string == nullptr) return nullptr;
 
   /* ... FIELD_NAME = <value> ... */
@@ -249,7 +243,7 @@ bool Select_lex_builder::add_condition(Item *a) {
 }
 
 // Add a ORDER BY clause field to Select_lex_builder.
-bool Select_lex_builder::add_order_by(const LEX_STRING field_name) {
+bool Select_lex_builder::add_order_by(const LEX_CSTRING &field_name) {
   /* ... ORDER BY <field_name> ASC... */
   if (!m_order_by_list) {
     m_order_by_list = new (m_thd->mem_root) PT_order_list();
@@ -257,9 +251,8 @@ bool Select_lex_builder::add_order_by(const LEX_STRING field_name) {
   }
 
   /* ... FIELD_NAME ... */
-  PTI_simple_ident_ident *ident_field;
-  ident_field =
-      new (m_thd->mem_root) PTI_simple_ident_ident(*m_pos, field_name);
+  PTI_simple_ident_ident *ident_field = new (m_thd->mem_root)
+      PTI_simple_ident_ident(*m_pos, to_lex_string(field_name));
   if (ident_field == nullptr) return true;
 
   PT_order_expr *expression =
@@ -280,30 +273,28 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
     where_cond =
         new (m_thd->mem_root) PTI_context<CTX_WHERE>(*m_pos, m_where_clause);
 
-  PT_query_primary *query_specification;
-  query_specification = new (m_thd->mem_root) PT_query_specification(
-      options, m_select_item_list, m_table_reference_list, where_cond);
+  PT_query_primary *query_specification =
+      new (m_thd->mem_root) PT_query_specification(
+          options, m_select_item_list, m_table_reference_list, where_cond);
 
   if (query_specification == nullptr) return nullptr;
 
-  PT_query_expression_body_primary *query_expression_body_primary;
-  query_expression_body_primary = new (m_thd->mem_root)
-      PT_query_expression_body_primary(query_specification);
+  PT_query_expression_body_primary *query_expression_body_primary =
+      new (m_thd->mem_root)
+          PT_query_expression_body_primary(query_specification);
   if (query_expression_body_primary == nullptr) return nullptr;
 
-  PT_query_expression *query_expression;
-  query_expression =
+  PT_query_expression *query_expression =
       new (m_thd->mem_root) PT_query_expression(query_expression_body_primary);
   if (query_expression == nullptr) return nullptr;
 
-  PT_subquery *sub_query;
-  sub_query = new (m_thd->mem_root) PT_subquery(*m_pos, query_expression);
+  PT_subquery *sub_query =
+      new (m_thd->mem_root) PT_subquery(*m_pos, query_expression);
   if (sub_query == nullptr) return nullptr;
 
   Create_col_name_list column_names;
   column_names.init(m_thd->mem_root);
-  PT_derived_table *derived_table;
-  derived_table = new (m_thd->mem_root)
+  PT_derived_table *derived_table = new (m_thd->mem_root)
       PT_derived_table(false, sub_query, table_alias, &column_names);
 
   return derived_table;
@@ -319,14 +310,14 @@ SELECT_LEX *Select_lex_builder::prepare_select_lex() {
     where_cond =
         new (m_thd->mem_root) PTI_context<CTX_WHERE>(*m_pos, m_where_clause);
 
-  PT_query_specification *query_specification2;
-  query_specification2 = new (m_thd->mem_root) PT_query_specification(
-      options, m_select_item_list, m_table_reference_list, where_cond);
+  PT_query_specification *query_specification2 =
+      new (m_thd->mem_root) PT_query_specification(
+          options, m_select_item_list, m_table_reference_list, where_cond);
   if (query_specification2 == nullptr) return nullptr;
 
-  PT_query_expression_body_primary *query_expression_body_primary2;
-  query_expression_body_primary2 = new (m_thd->mem_root)
-      PT_query_expression_body_primary(query_specification2);
+  PT_query_expression_body_primary *query_expression_body_primary2 =
+      new (m_thd->mem_root)
+          PT_query_expression_body_primary(query_specification2);
   if (query_expression_body_primary2 == nullptr) return nullptr;
 
   PT_order *pt_order_by = nullptr;
@@ -335,9 +326,9 @@ SELECT_LEX *Select_lex_builder::prepare_select_lex() {
     if (pt_order_by == nullptr) return nullptr;
   }
 
-  PT_query_expression *query_expression2;
-  query_expression2 = new (m_thd->mem_root) PT_query_expression(
-      query_expression_body_primary2, pt_order_by, nullptr, nullptr);
+  PT_query_expression *query_expression2 =
+      new (m_thd->mem_root) PT_query_expression(query_expression_body_primary2,
+                                                pt_order_by, nullptr, nullptr);
   if (query_expression2 == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;
