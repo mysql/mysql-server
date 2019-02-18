@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,8 +100,12 @@ public:
   bool mdl_lock_table(const char* schema_name, const char* table_name);
   bool mdl_locks_acquire_exclusive(const char* schema_name,
                                    const char* table_name);
-  bool mdl_lock_logfile_group(const char* logfile_group_name);
-  bool mdl_lock_tablespace(const char* tablespace_name);
+  bool mdl_lock_logfile_group(const char* logfile_group_name,
+                              bool intention_exclusive);
+  bool mdl_lock_logfile_group_exclusive(const char* logfile_group_name);
+  bool mdl_lock_tablespace(const char* tablespace_name,
+                           bool intention_exclusive);
+  bool mdl_lock_tablespace_exclusive(const char* tablespace_name);
   void mdl_locks_release();
 
   // Transaction handling functions
