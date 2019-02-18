@@ -62,11 +62,16 @@ SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
 SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
                         ${SSL_INCLUDE_DIRS})
 
-#generate dynamic_satate_schema.cc
+SET(GENERATED_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.h
+  )
+  
+SET_SOURCE_FILES_PROPERTIES(${GENERATED_SOURCES} PROPERTIES GENERATED TRUE)
+
+#generate dynamic_state_schema.cc
 FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/)
-ADD_CUSTOM_COMMAND(OUTPUT
-                     src/dynamic_state_schema.cc
-                     src/dynamic_state_schema.h
+ADD_CUSTOM_COMMAND(OUTPUT ${GENERATED_SOURCES}
                    COMMAND json_schema_embedder
                      ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_state_schema.js
                      dynamic_state_schema.cc
@@ -74,6 +79,8 @@ ADD_CUSTOM_COMMAND(OUTPUT
                      "StateFileJsonSchema"
                    WORKING_DIRECTORY src/
                    DEPENDS json_schema_embedder)
+
+ADD_CUSTOM_TARGET(GenerateDynamicStateSchema DEPENDS ${GENERATED_SOURCES})
 
 SET(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
@@ -150,6 +157,7 @@ CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plug
 
 # create harness library - static version
 ADD_LIBRARY(harness-archive STATIC ${harness_source})
+ADD_DEPENDENCIES(harness-archive GenerateDynamicStateSchema)
 TARGET_LINK_LIBRARIES(harness-archive ${common_libraries})
 TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/src/)
 IF(WIN32)
@@ -162,6 +170,7 @@ ENDIF()
 
 # create harness library - dynamic version
 ADD_LIBRARY(harness-library SHARED ${harness_source})
+ADD_DEPENDENCIES(harness-library GenerateDynamicStateSchema)
 TARGET_LINK_LIBRARIES(harness-library ${common_libraries})
 TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/src/)
 
