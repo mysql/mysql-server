@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -413,6 +413,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     if (dict_index_is_online_ddl(index)) {
       row_log_table_blob_free(index, ref.page_no());
     }
+    first.free_all_data_pages();
 
     first.free_all_index_pages();
     first.dealloc();

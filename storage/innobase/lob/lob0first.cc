@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -276,6 +276,28 @@ flst_node_t *first_page_t::alloc_index_entry(bool bulk) {
   flst_node_t *node = addr2ptr_x(node_addr);
   flst_remove(f_list, node, m_mtr);
   return (node);
+}
+
+void first_page_t::free_all_data_pages() {
+  index_entry_t cur_entry(m_mtr, m_index);
+  flst_base_node_t *flst = index_list();
+  fil_addr_t node_loc = flst_get_first(flst, m_mtr);
+
+  while (!fil_addr_is_null(node_loc)) {
+    flst_node_t *node = addr2ptr_x(node_loc);
+    cur_entry.reset(node);
+
+    page_no_t page_no = cur_entry.get_page_no();
+
+    if (page_no != get_page_no()) {
+      data_page_t data_page(m_mtr, m_index);
+      data_page.load_x(page_no);
+      data_page.dealloc();
+    }
+
+    node_loc = cur_entry.get_next();
+    cur_entry.reset(nullptr);
+  }
 }
 
 void first_page_t::free_all_index_pages() {

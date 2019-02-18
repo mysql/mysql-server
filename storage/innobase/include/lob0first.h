@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -138,6 +138,10 @@ struct first_page_t : public basic_page_t {
   /** Free all the index pages.  The list of index pages can be accessed
   by traversing via the FIL_PAGE_NEXT field.*/
   void free_all_index_pages();
+
+  /** Free all the data pages. The data pages can be accessed through
+  index entry. */
+  void free_all_data_pages();
 
   /** Load the first page of LOB with s-latch.
   @param[in]   page_id    the page identifier of the first page.

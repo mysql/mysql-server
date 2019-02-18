@@ -24,3 +24,27 @@ json_extract(j1, '$[0]')
 "Sven"
 drop table t;
 SET DEBUG_SYNC = reset;
+#
+# Bug #28510599 THE MYSQL.IBD FILE SIZE IS CONSTANTLY GROWING.
+#
+CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
+ENGINE=InnoDB;
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+SET @fs_limit = (@fs * 16);
+# Execute multiple insert-delete operations.
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+The test/t1.ibd file size is not growing.
+DROP TABLE t1;
+CREATE TABLE t1 (f1 INT AUTO_INCREMENT PRIMARY KEY, f2 LONGBLOB)
+ENGINE=InnoDB;
+INSERT INTO t1 (f2) VALUES (repeat('x', 15764));
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+SET @fs_limit = (@fs * 16);
+# Execute multiple update operations.
+SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='test/t1');
+The test/t1.ibd file size is not growing.
+DROP TABLE t1;
