@@ -258,7 +258,6 @@ class Grant_validator {
   bool mask_and_return_error();
   bool validate_system_user_privileges();
   bool validate_dynamic_privileges();
-  bool validate_wildcard_db_grants();
   bool validate_and_process_grant_as();
 
  private:
@@ -463,30 +462,6 @@ bool Grant_validator::validate_dynamic_privileges() {
 }
 
 /**
-  Check if wildcard DB grant is allowed
-
-  @returns status of the check
-    @retval false Success
-    @retval true  Error because --partial_revokes is set to ON
-*/
-bool Grant_validator::validate_wildcard_db_grants() {
-  DBUG_ENTER("Grant_validator::validate_wildcard_db_grants");
-
-  /* Do not permit db grants with wildcard if partial_revokes is ON */
-  if (m_db && !m_revoke) {
-    std::string db_name(m_db);
-    if (has_wildcards_in_db_grant(db_name)) {
-      if (mysqld_partial_revokes()) {
-        my_error(ER_NO_WILDCARD_DB_GRANT_WITH_PARTIAL_REVOKES, MYF(0));
-        DBUG_RETURN(true);
-      }
-    }
-  }
-
-  DBUG_RETURN(false);
-}
-
-/**
   Umbrella method to perform validation
 
   A possible side effect of this method is that active security context of the
@@ -500,7 +475,6 @@ bool Grant_validator::validate() {
   DBUG_ENTER("Grant_validator::validate");
   if (validate_system_user_privileges()) DBUG_RETURN(true);
   if (validate_dynamic_privileges()) DBUG_RETURN(true);
-  if (validate_wildcard_db_grants()) DBUG_RETURN(true);
 
   /*
     This must be the last check because it may change
@@ -3310,40 +3284,6 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
   DBUG_RETURN(errors);
 }
 
-std::string handle_unquotted_wildcards(const char *db, bool is_revoke) {
-  std::string updated_db_name(db);
-  if (!is_revoke || !mysqld_partial_revokes() || !has_wildcards_in_db_grant(db))
-    return updated_db_name;
-
-  /*REVOKE on DB + --partial_revokes=ON + wildcard in DB */
-  const char *start = db;
-  size_t current = 0;
-  size_t length = strlen(db);
-  updated_db_name.clear();
-  updated_db_name.reserve(length * 2);
-
-  while (length != 0) {
-    if (*start == wild_one || *start == wild_many) {
-      if (current != 0 && updated_db_name[current - 1] == wild_prefix) {
-        /* We already have wild_prefix */
-        updated_db_name.append(1, *start);
-        current++;
-      } else {
-        updated_db_name.append(1, wild_prefix);
-        updated_db_name.append(1, *start);
-        current += 2;
-      }
-    } else {
-      updated_db_name.append(1, *start);
-      current++;
-    }
-    start++;
-    length--;
-  }
-
-  return updated_db_name;
-}
-
 bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
@@ -3355,7 +3295,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   bool transactional_tables;
   acl_table::Pod_user_what_to_update what_to_set;
   bool error = false;
-  bool wildcard_db_grant = false;
   int ret;
   TABLE *dynpriv_table;
   std::set<LEX_USER *> existing_users;
@@ -3413,16 +3352,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     DBUG_RETURN(true);
   }
 
-  /* Do not permit db grants with wildcard if partial_revokes is ON */
-  if (db && !revoke_grant) {
-    std::string db_name(db);
-    if (has_wildcards_in_db_grant(db_name)) {
-      if (!mysqld_partial_revokes()) {
-        wildcard_db_grant = true;
-      }
-    }
-  }
-
   /* go through users in user_list */
   grant_version++;
   while ((target_user = str_list++)) {
@@ -3477,25 +3406,15 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                     aggregator->find_if_require_next_level_operation(
                         filtered_rights))) {
       ulong db_rights = filtered_rights & DB_ACLS;
-      /*
-        At this point, if db name contains _ or %, operation is REVOKE
-        and partial reovkes is on, it indicates that we may want to
-        update some of the entries in mysql.db table. In such case,
-        for each unescapped _ or %, add escape characater so that we
-        process correct entries.
-      */
-      std::string updated_db_name =
-          handle_unquotted_wildcards(db, revoke_grant);
       if (db_rights == filtered_rights) {
-        if ((ret = replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table,
-                                    updated_db_name.c_str(), *user, db_rights,
-                                    revoke_grant))) {
+        if ((ret = replace_db_table(thd, tables[ACL_TABLES::TABLE_DB].table, db,
+                                    *user, db_rights, revoke_grant))) {
           error = true;
           if (ret < 0) break;
 
           continue;
         }
-        thd->add_to_binlog_accessed_dbs(updated_db_name.c_str());
+        thd->add_to_binlog_accessed_dbs(db);
       } else {
         my_error(ER_WRONG_USAGE, MYF(0), "DB GRANT", "GLOBAL PRIVILEGES");
         error = true;
@@ -3636,10 +3555,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     }
   }
 
-  if (!error) {
-    if (wildcard_db_grant) set_wildcard_db_grants(true);
-    my_ok(thd);
-  }
+  if (!error) my_ok(thd);
 
   get_global_acl_cache()->increase_version();
   DBUG_RETURN(error);

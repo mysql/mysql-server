@@ -1571,7 +1571,7 @@ optimizer-trace-limit 1
 optimizer-trace-max-mem-size 1048576
 optimizer-trace-offset -1
 parser-max-mem-size 18446744073709551615
-partial-revokes FALSE
+partial-revokes ####
 password-history 0
 password-require-current FALSE
 password-reuse-interval 0

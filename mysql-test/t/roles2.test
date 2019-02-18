@@ -1,3 +1,7 @@
+set @orig_partial_revokes = @@global.partial_revokes;
+# Turn Off the partial_revokes to test with wildcard grants
+SET GLOBAL partial_revokes= OFF;
+
 CREATE ROLE r1;
 
 CREATE USER u1@localhost IDENTIFIED BY 'foo';
@@ -557,3 +561,6 @@ DROP DATABASE secdb1;
 DROP DATABASE secdb2;
 disconnect con1;
 
+--disable_warnings
+SET GLOBAL partial_revokes = @orig_partial_revokes;
+--enable_warnings

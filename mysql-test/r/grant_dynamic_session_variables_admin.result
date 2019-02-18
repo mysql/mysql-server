@@ -192,7 +192,7 @@ SHOW GRANTS for "mysql.session"@localhost;
 Grants for mysql.session@localhost
 GRANT SUPER ON *.* TO `mysql.session`@`localhost`
 GRANT PERSIST_RO_VARIABLES_ADMIN,SESSION_VARIABLES_ADMIN,SYSTEM_USER,SYSTEM_VARIABLES_ADMIN ON *.* TO `mysql.session`@`localhost`
-GRANT SELECT ON `performance\_schema`.* TO `mysql.session`@`localhost`
+GRANT SELECT ON `performance_schema`.* TO `mysql.session`@`localhost`
 GRANT SELECT ON `mysql`.`user` TO `mysql.session`@`localhost`
 #
 # End of 8.0 tests

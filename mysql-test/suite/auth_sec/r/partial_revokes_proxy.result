@@ -1,6 +1,5 @@
 ------------------------------------------------------------------------
 # Setup
-SET @@global.partial_revokes = ON;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1(c1 int);
 INSERT INTO db1.t1 VALUES (1), (2), (3);
@@ -49,5 +48,4 @@ DROP USER qa_test_4_dest, qa_test_4_user;
 # Cleanup
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-SET @@global.partial_revokes = OFF;
 ------------------------------------------------------------------------

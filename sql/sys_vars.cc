@@ -852,12 +852,6 @@ static bool check_partial_revokes(sys_var *self, THD *thd, set_var *setv) {
     my_error(ER_PARTIAL_REVOKES_EXIST, MYF(0), self->name.str);
     return true;
   }
-
-  if (setv->save_result.ulonglong_value == 1 && wildcard_db_grant_exists()) {
-    my_error(ER_WILDCARD_DB_GRANT_CONFLICTS_WITH_PARTIAL_REVOKES, MYF(0),
-             self->name.str);
-    return true;
-  }
   return false;
 }
 
@@ -871,9 +865,10 @@ static Sys_var_bool Sys_partial_revokes(
     "partial_revokes",
     "Access of database objects can be restricted, "
     "even if user has global privileges granted.",
-    GLOBAL_VAR(opt_partial_revokes), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, IN_BINLOG, ON_CHECK(check_partial_revokes),
-    ON_UPDATE(partial_revokes_update), 0, sys_var::PARSE_EARLY);
+    GLOBAL_VAR(opt_partial_revokes), CMD_LINE(OPT_ARG),
+    DEFAULT(DEFAULT_PARTIAL_REVOKES), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_partial_revokes), ON_UPDATE(partial_revokes_update), 0,
+    sys_var::PARSE_EARLY);
 
 static bool fix_binlog_cache_size(sys_var *, THD *thd, enum_var_type) {
   check_binlog_cache_size(thd);

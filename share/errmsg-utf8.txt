@@ -18996,15 +18996,6 @@ ER_WARN_INCORRECT_PRIVILEGE_FOR_DB_RESTRICTIONS
 ER_WARN_INVALID_DB_RESTRICTIONS
   eng "For user %s, ignored restrictions for privilege(s) '%s' for database '%s' as corresponding global privilege(s) are not granted."
 
-ER_NO_WILDCARD_DB_GRANT_WITH_PARTIAL_REVOKES
-  eng "Use of wildcards in database grant is not permitted because --partial_revokes is set to ON."
-
-ER_WILDCARD_DB_GRANT_CONFLICTS_WITH_PARTIAL_REVOKES
-  eng "Can not set --partial_revokes to ON at runtime if database grants with wildcard characters exists. Please remove such grants first."
-
-ER_WARN_WILDCARD_DB_GRANT_IGNORED_WITH_PARTIAL_REVOKES
-  eng "Ignored database grant with wildcard characters '%s' for user '%s'@'%s' because --partial_revokes is set to ON."
-
 ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL
   eng "'%s' is an invalid value for group_replication_communication_protocol_join, please use a MySQL version between 5.7.14 and this server's version"
 

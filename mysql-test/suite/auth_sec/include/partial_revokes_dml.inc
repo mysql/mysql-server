@@ -524,7 +524,7 @@ SHOW DATABASES;
 --disconnect baz_conn
 # partial_revokes_db should be visible now since it has at least one
 # global privilege without any restriction on that.
-GRANT INSERT ON `partial\_revokes\_db`.* TO baz@localhost;
+GRANT INSERT ON `partial_revokes_db`.* TO baz@localhost;
 --connect(baz_conn, localhost, baz, abcd,,,,)
 SHOW GRANTS;
 SHOW DATABASES;
@@ -533,7 +533,7 @@ SET ROLE r3;
 SHOW DATABASES;
 --connection default
 --disconnect baz_conn
-GRANT SELECT ON `partial\_revokes\_db`.* TO baz@localhost;
+GRANT SELECT ON `partial_revokes_db`.* TO baz@localhost;
 --connect(baz_conn, localhost, baz, abcd,,,,)
 SHOW GRANTS;
 # partial_revokes_db should be visible of course

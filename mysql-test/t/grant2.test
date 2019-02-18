@@ -13,6 +13,9 @@ SET NAMES binary;
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+# Turn Off the partial_revokes to test with wildcard grants
+SET GLOBAL partial_revokes= OFF;
 
 #
 # GRANT tests that require several connections
@@ -1045,6 +1048,9 @@ set SESSION sql_mode= @orig_sql_mode_session;
 delete from mysql.user;
 insert into mysql.user select * from user_copy;
 FLUSH PRIVILEGES;
+--disable_warnings
+SET GLOBAL partial_revokes = @orig_partial_revokes;
+--enable_warnings
 --enable_query_log
 --echo # mysql.user table restored to original values.
 

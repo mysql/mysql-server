@@ -1346,15 +1346,8 @@ void DB_restrictions_aggregator_db_grant::aggregate(
   restrictions = m_grantee_rl;
   ulong grantee_db_revokes = 0;
 
-  /*
-    If database in question contains _ or % in name, GRANT would have
-    used prefix - \ to differentiate it from wildcard db grants.
-    In such case, simple string comparison will not work. We have to rely
-    on wild_compare() here.
-  */
   for (auto &entry : restrictions()) {
-    if (!wild_compare(entry.first.c_str(), (int)entry.first.length(),
-                      m_db_name.c_str(), (int)m_db_name.length(), false)) {
+    if (m_db_name.compare(entry.first) == 0) {
       grantee_db_revokes = entry.second;
       restrictions.remove(entry.first.c_str(), m_requested_access);
       // Remove the databases with no restrictions

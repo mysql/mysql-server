@@ -128,15 +128,15 @@ GRANT INSERT ON mysql.* TO bar;
 GRANT INSERT ON *.* TO bar;
 SHOW GRANTS FOR bar;
 --connection default
---echo # Should be able to gramt/revoke other DB level privileges without
+--echo # Should be able to grant/revoke other DB level privileges without
 --echo # affecting existing partial revokes.
 REVOKE ALL ON *.* FROM bar;
 --connection $conn_name
 GRANT INSERT ON *.* TO bar;
-GRANT INSERT ON `pr\_db`.* TO bar;
+GRANT INSERT ON `pr_db`.* TO bar;
 SHOW GRANTS FOR bar;
 --echo # Revoke the privilge. Partial revokes should remain intact
-REVOKE INSERT ON `pr\_db`.* FROM bar;
+REVOKE INSERT ON `pr_db`.* FROM bar;
 SHOW GRANTS FOR bar;
 --source ./partial_revokes_rpl_helper.inc
 --connection default
@@ -201,7 +201,7 @@ SHOW GRANTS FOR foo;
 GRANT INSERT, SELECT ON *.* TO bar;
 SHOW GRANTS FOR bar;
 --echo # Grantor should be able to add additional restrictions list
-REVOKE INSERT,SELECT ON `pr\_db`.* FROM bar;
+REVOKE INSERT,SELECT ON `pr_db`.* FROM bar;
 SHOW GRANTS FOR bar;
 --echo # Additional restrictions of Grantee should be removed.
 GRANT INSERT, SELECT ON *.* TO bar;
@@ -399,7 +399,7 @@ SHOW GRANTS FOR foo;
 REVOKE ALL ON *.* FROM bar;
 --connection default
 --disconnect $conn_name
-GRANT SELECT ON `secret\_db`.* TO foo;
+GRANT SELECT ON `secret_db`.* TO foo;
 SHOW GRANTS FOR foo;
 --connect($conn_name, localhost, foo,,,$MASTER_MYPORT)
 --echo [connection $conn_name]
@@ -1005,7 +1005,45 @@ let SEARCH_PATTERN= ignored restrictions for privilege(s) 'DELETE' for database 
 
 DROP DATABASE db1;
 DROP USER u1;
---echo -Tests related to invalid restrictions and privilege combinations end here-
+--echo -Tests related to invalid restrictions & privilege combinations end here-
+--echo
+--echo -------------------------------------------------------------------------
+--echo Partial revokes do not treat wildcard grants specially.
+--echo -------------------------------------------------------------------------
+CREATE USER foo;
+CREATE DATABASE `db_1`;
+CREATE DATABASE `db%1`;
+GRANT SELECT ON *.* TO foo;
+
+--echo # Create restriction - We dont use '\' to escape '_' or '%'
+REVOKE SELECT ON `db_1`.* FROM foo;
+REVOKE SELECT ON `db%1`.* FROM foo;
+
+--echo # Should show 2 restrictions
+SHOW GRANTS FOR foo;
+
+--echo # Should not remove restrictions on db_1 or db%1,
+--echo # instead both grants should be added on db(s) as it is.
+GRANT SELECT ON `db\_1`.* TO foo;
+GRANT SELECT ON `db\%1`.* TO foo;
+SHOW GRANTS FOR foo;
+
+--echo # Should remove two grants added above
+REVOKE SELECT ON `db\_1`.* FROM foo;
+REVOKE SELECT ON `db\%1`.* FROM foo;
+
+--echo # Should show 2 restrictions
+SHOW GRANTS FOR foo;
+
+# Cleanup
+REVOKE SELECT ON *.* FROM foo;
+DROP USER foo;
+DROP DATABASE `db_1`;
+DROP DATABASE `db%1`;
+--echo -------------------------------------------------------------------------
+--echo Test related to wildcard grants end here.
+--echo -------------------------------------------------------------------------
+
 #
 # Clean up
 #
