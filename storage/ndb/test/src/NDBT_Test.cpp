@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -353,9 +353,18 @@ int NDBT_Step::execute(NDBT_Context* ctx) {
   result = func(ctx, this);
 
   if (result != NDBT_OK) {
-    g_err << "  |- " << name << " FAILED ["
+    if (result == NDBT_SKIPPED)
+    {
+      g_err << "  |- " << name << " SKIPPED ["
           << ctx->suite->getDate(buf, sizeof(buf))
           << "]" << endl;
+    }
+    else
+    {
+      g_err << "  |- " << name << " FAILED ["
+            << ctx->suite->getDate(buf, sizeof(buf))
+            << "]" << endl;
+    }
   }	 
    else {
     g_info << "  |- " << name << " PASSED ["
@@ -698,9 +707,18 @@ int NDBT_TestCase::execute(NDBT_Context* ctx)
            << "]" << endl;
   }
   else {
-    ndbout << "- " << _name << " FAILED ["
+    if (res == NDBT_SKIPPED)
+    {
+      ndbout << "- " << _name << " SKIPPED ["
            << ctx->suite->getDate(buf, sizeof(buf))
            << "]" << endl;
+    }
+    else
+    {
+      ndbout << "- " << _name << " FAILED ["
+             << ctx->suite->getDate(buf, sizeof(buf))
+             << "]" << endl;
+    }
   }
   return res;
 }
@@ -802,6 +820,8 @@ void NDBT_TestCaseImpl1::printTestResult(){
       res = "FAILED TO CREATE TABLE";
     else if (tcr->getResult() == FAILED_TO_DISCOVER)
       res = "FAILED TO DISCOVER TABLE";
+    else if (tcr->getResult() == NDBT_SKIPPED)
+      res = "SKIPPED";
     BaseString::snprintf(buf, 255," %-10s %-5s %-20s",
                          tcr->getName(), 
                          res, 
@@ -824,6 +844,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname) :
 {
    numTestsOk = 0;
    numTestsFail = 0;
+   numTestsSkipped = 0;
    numTestsExecuted = 0;
    records = 0;
    loops = 0;
@@ -983,7 +1004,16 @@ NDBT_TestSuite::execute(Ndb_cluster_connection& con,
   int result = pTest->execute(ctx);
   pTest->saveTestResult("", result);
   if (result != NDBT_OK)
-    numTestsFail++;
+  {
+    if (result == NDBT_SKIPPED)
+    {
+      numTestsSkipped++;
+    }
+    else
+    {
+      numTestsFail++;
+    }
+  }
   else
     numTestsOk++;
   numTestsExecuted++;
@@ -1317,6 +1347,10 @@ NDBT_TestSuite::report(const char* _tcname){
   ndbout << numTestsExecuted << " test(s) executed" << endl;
   ndbout << numTestsOk << " test(s) OK" 
 	 << endl;
+  if(numTestsSkipped > 0)
+  {
+    ndbout << numTestsSkipped << " test(s) skipped" << endl;
+  }
   if(numTestsFail > 0)
     ndbout << numTestsFail << " test(s) failed"
 	   << endl;
@@ -1324,7 +1358,15 @@ NDBT_TestSuite::report(const char* _tcname){
   if (numTestsFail > 0 || numTestsExecuted == 0){
     result = NDBT_FAILED;
   }else{
-    result = NDBT_OK;
+    if (numTestsSkipped > 0)
+    {
+      /* Any skipped tests summarise run to 'skipped' */
+      result = NDBT_SKIPPED;
+    }
+    else
+    {
+      result = NDBT_OK;
+    }
   }
   return result;
 }
@@ -1360,6 +1402,12 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
   ndbout << numTestsOk << " test(s) OK("
 	 <<(int)(((float)numTestsOk/totalNumTests)*100.0) <<"%)" 
 	 << endl;
+  if(numTestsSkipped > 0)
+  {
+    ndbout << numTestsSkipped << " test(s) skipped("
+           <<(int)(((float)numTestsSkipped/totalNumTests)*100.0) <<"%)"
+	   << endl;
+  }
   if(numTestsFail > 0)
     ndbout << numTestsFail << " test(s) failed("
 	   <<(int)(((float)numTestsFail/totalNumTests)*100.0) <<"%)" 
@@ -1369,7 +1417,15 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
     if (numTestsFail > 0){
       result = NDBT_FAILED;
     }else{
-      result = NDBT_OK;
+      if (numTestsSkipped > 0)
+      {
+        /* Any skipped tests summarise run to 'skipped' */
+        result = NDBT_SKIPPED;
+      }
+      else
+      {
+        result = NDBT_OK;
+      }
     }
   } else {
     result = NDBT_FAILED;
