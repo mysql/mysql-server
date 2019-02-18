@@ -397,6 +397,98 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
        "mysql://127.0.0.1:" + std::to_string(cluster_nodes_ports[2])});
 }
 
+/* @test
+ *      Verify that if not metadata server can't be accessed the list of the
+ * server does not get cleared.
+ */
+TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
+  const std::string kGroupId = "3a0be5af-0022-11e8-9655-0800279e6a88";
+
+  const std::string temp_test_dir = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(nullptr,
+                                   [&](void *) { purge_dir(temp_test_dir); });
+
+  uint16_t cluster_node_port = port_pool_.get_next_available();
+  uint16_t cluster_http_port = port_pool_.get_next_available();
+
+  SCOPED_TRACE(
+      "// Launch single server mock that will act as our metadata server");
+  const auto trace_file =
+      get_data_dir().join("metadata_dynamic_nodes.js").str();
+  RouterComponentTest::CommandHandle cluster_node(
+      RouterComponentTest::launch_mysql_server_mock(
+          trace_file, cluster_node_port, false, cluster_http_port));
+  ASSERT_TRUE(wait_for_port_ready(cluster_node_port, 1000))
+      << cluster_node.get_full_output();
+  ASSERT_TRUE(
+      MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
+      << cluster_node.get_full_output();
+
+  SCOPED_TRACE(
+      "// Make our metadata server return single node as a replicaset "
+      "member (meaning single metadata server)");
+
+  set_mock_metadata(cluster_http_port, kGroupId,
+                    std::vector<uint16_t>{cluster_node_port});
+
+  SCOPED_TRACE("// Create a router state file with a single metadata server");
+  // clang-format off
+ const std::string state_file =
+     create_state_file(temp_test_dir,
+                       "{"
+                         "\"version\": \"1.0.0\","
+                         "\"metadata-cache\": {"
+                           "\"group-replication-id\": " "\"" + kGroupId + "\","
+                           "\"cluster-metadata-servers\": ["
+                             "\"mysql://127.0.0.1:" +
+                                std::to_string(cluster_node_port) + "\""
+                           "]"
+                         "}"
+                       "}");
+  // clang-format on
+
+  SCOPED_TRACE("// Create a configuration file with low ttl");
+  const std::string metadata_cache_section =
+      get_metadata_cache_section(0, kTTL);
+  const uint16_t router_port = port_pool_.get_next_available();
+  const std::string routing_section = get_metadata_cache_routing_section(
+      router_port, "PRIMARY", "first-available");
+
+  SCOPED_TRACE("// Launch ther router with the initial state file");
+  auto router = launch_router(temp_test_dir, metadata_cache_section,
+                              routing_section, state_file);
+  ASSERT_TRUE(wait_for_port_ready(router_port, 1000))
+      << router.get_full_output();
+
+  SCOPED_TRACE(
+      "// Wait a few ttl periods to make sure the metadata_cache has the "
+      "current metadata from our metadata server");
+  std::this_thread::sleep_for(std::chrono::milliseconds(3 * kTTL));
+
+  // kill our single instance server
+  kill_server(cluster_node);
+
+  SCOPED_TRACE(
+      "// Wait a few ttl periods to make sure the refresh has been called at "
+      "least once");
+#ifdef _WIN32
+  // On windows the mysql_real_connect that we use, will take about 2 seconds to
+  // figure out it needs to try another metadata server
+  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+#elif defined(__sparc__)
+  // It also takes quite a long time on Sparc Solaris
+  std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+#else
+  std::this_thread::sleep_for(std::chrono::milliseconds(5 * kTTL));
+#endif
+
+  SCOPED_TRACE(
+      "// Check our state file content, it should still contain out metadata "
+      "server");
+  check_state_file(state_file, kGroupId,
+                   {"mysql://127.0.0.1:" + std::to_string(cluster_node_port)});
+}
+
 /**
  * @test
  *      Verify that if the metadata servers do not know about the replication
