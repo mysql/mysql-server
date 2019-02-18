@@ -4,6 +4,7 @@
 --source include/force_myisam_default.inc
 
 --source include/have_ndb.inc
+--source include/not_embedded.inc # No PERFORMANCE_SCHEMA with embedded
 
 --disable_warnings
 drop table if exists t1;
