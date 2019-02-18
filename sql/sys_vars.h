@@ -1469,7 +1469,7 @@ class Sys_var_plugin : public sys_var {
     /* NULLs can't be used as a default storage engine */
     if (!(res = var->value->val_str(&str))) return true;
 
-    const LEX_STRING pname = {const_cast<char *>(res->ptr()), res->length()};
+    const LEX_STRING pname = res->lex_string();
     plugin_ref plugin;
 
     // special code for storage engines (e.g. to handle historical aliases)

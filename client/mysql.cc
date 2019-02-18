@@ -1139,7 +1139,7 @@ static COMMANDS *find_command(char *name);
 static COMMANDS *find_command(char cmd_name);
 static bool add_line(String &buffer, char *line, size_t line_length,
                      char *in_string, bool *ml_comment, bool truncated);
-static void remove_cntrl(String &buffer);
+static void remove_cntrl(String *buffer);
 static void print_table_data(MYSQL_RES *result);
 static void print_table_data_html(MYSQL_RES *result);
 static void print_table_data_xml(MYSQL_RES *result);
@@ -1324,10 +1324,10 @@ int main(int argc, char *argv[]) {
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
            INFO_INFO);
-  snprintf((char *)glob_buffer.ptr(), glob_buffer.alloced_length(),
+  snprintf(glob_buffer.ptr(), glob_buffer.alloced_length(),
            "Your MySQL connection id is %lu\nServer version: %s\n",
            mysql_thread_id(&mysql), server_version_string(&mysql));
-  put_info((char *)glob_buffer.ptr(), INFO_INFO);
+  put_info(glob_buffer.ptr(), INFO_INFO);
 
   put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
@@ -2186,7 +2186,7 @@ static int read_and_execute(bool interactive) {
   /* if in batch mode, send last query even if it doesn't end with \g or go */
 
   if (!interactive && !status.exit_status) {
-    remove_cntrl(glob_buffer);
+    remove_cntrl(&glob_buffer);
     if (!glob_buffer.is_empty()) {
       status.exit_status = 1;
       if (com_go(&glob_buffer, line) <= 0) status.exit_status = 0;
@@ -3150,7 +3150,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
 
   /* Remove garbage for nicer messages */
   buff[0] = 0;
-  remove_cntrl(*buffer);
+  remove_cntrl(buffer);
 
   if (buffer->is_empty()) {
     if (status.batch)  // Ignore empty quries
@@ -3500,7 +3500,7 @@ static void print_table_data(MYSQL_RES *result) {
     separator.append('+');
   }
   separator.append('\0');  // End marker for \0
-  tee_puts((char *)separator.ptr(), PAGER);
+  tee_puts(separator.ptr(), PAGER);
   if (column_names) {
     mysql_field_seek(result, 0);
     (void)tee_fputs("|", PAGER);
@@ -3515,7 +3515,7 @@ static void print_table_data(MYSQL_RES *result) {
       num_flag[off] = IS_NUM(field->type);
     }
     (void)tee_fputs("\n", PAGER);
-    tee_puts((char *)separator.ptr(), PAGER);
+    tee_puts(separator.ptr(), PAGER);
   }
 
   while ((cur = mysql_fetch_row(result))) {
@@ -3572,7 +3572,7 @@ static void print_table_data(MYSQL_RES *result) {
     }
     (void)tee_fputs("\n", PAGER);
   }
-  tee_puts((char *)separator.ptr(), PAGER);
+  tee_puts(separator.ptr(), PAGER);
   my_safe_afree((bool *)num_flag, sz, MAX_ALLOCA_SIZE);
 }
 
@@ -3980,7 +3980,7 @@ static int com_edit(String *buffer, char *line MY_ATTRIBUTE((unused))) {
   if (!my_stat(filename, &stat_arg, MYF(MY_WME))) goto err;
   if ((fd = my_open(filename, O_RDONLY, MYF(MY_WME))) < 0) goto err;
   (void)buffer->alloc((uint)stat_arg.st_size);
-  if ((tmp = read(fd, (char *)buffer->ptr(), buffer->alloced_length())) >= 0L)
+  if ((tmp = read(fd, buffer->ptr(), buffer->alloced_length())) >= 0L)
     buffer->length((uint)tmp);
   else
     buffer->length(0);
@@ -4734,11 +4734,11 @@ static int put_error(MYSQL *con) {
                   mysql_sqlstate(con));
 }
 
-static void remove_cntrl(String &buffer) {
-  char *start, *end;
-  end = (start = (char *)buffer.ptr()) + buffer.length();
+static void remove_cntrl(String *buffer) {
+  const char *start = buffer->ptr();
+  const char *end = start + buffer->length();
   while (start < end && !my_isgraph(charset_info, end[-1])) end--;
-  buffer.length((uint)(end - start));
+  buffer->length((uint)(end - start));
 }
 
 /**

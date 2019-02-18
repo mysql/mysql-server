@@ -623,8 +623,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
 */
 void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str, uint dec) {
-  uint length = static_cast<uint>(
-      my_time_to_str(*l_time, const_cast<char *>(str->ptr()), dec));
+  uint length = static_cast<uint>(my_time_to_str(*l_time, str->ptr(), dec));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -637,8 +636,7 @@ void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
 */
 void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
                const MYSQL_TIME *l_time, String *str) {
-  uint length = static_cast<uint>(
-      my_date_to_str(*l_time, const_cast<char *>(str->ptr())));
+  uint length = static_cast<uint>(my_date_to_str(*l_time, str->ptr()));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -652,8 +650,7 @@ void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
 */
 void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
                    const MYSQL_TIME *l_time, String *str, uint dec) {
-  uint length = static_cast<uint>(
-      my_datetime_to_str(*l_time, const_cast<char *>(str->ptr()), dec));
+  uint length = static_cast<uint>(my_datetime_to_str(*l_time, str->ptr(), dec));
   str->length(length);
   str->set_charset(&my_charset_numeric);
 }
@@ -667,7 +664,7 @@ void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec) {
   if (str->alloc(MAX_DATE_STRING_REP_LENGTH)) return true;
   str->set_charset(&my_charset_numeric);
-  str->length(my_TIME_to_str(*ltime, const_cast<char *>(str->ptr()), dec));
+  str->length(my_TIME_to_str(*ltime, str->ptr(), dec));
   return false;
 }
 

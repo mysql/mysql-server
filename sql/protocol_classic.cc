@@ -528,7 +528,7 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
   if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
     return 1;
 
-  char *length_pos = (char *)packet->ptr() + packet_length;
+  char *length_pos = packet->ptr() + packet_length;
   char *to = length_pos + 1;
 
   to += copy_and_convert(to, conv_length, to_cs, (const char *)from, length,
@@ -3051,7 +3051,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
       return true;
     }
     /* Store fixed length fields */
-    pos = (char *)packet->ptr() + packet->length();
+    pos = packet->ptr() + packet->length();
     *pos++ = 12;  // Length of packed fields
     /* inject a NULL to test the client */
     DBUG_EXECUTE_IF("poison_rs_fields", pos[-1] = (char)0xfb;);
@@ -3101,7 +3101,7 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
       send_metadata = false;
       return true;
     }
-    pos = (char *)packet->ptr() + packet->length();
+    pos = packet->ptr() + packet->length();
     pos[0] = 3;
     int3store(pos + 1, field->length);
     pos[4] = 1;
@@ -3147,7 +3147,7 @@ bool store(Protocol *prot, I_List<i_string> *str_list) {
     tmp.append(',');
   }
   if ((len = tmp.length())) len--;  // Remove last ','
-  return prot->store((char *)tmp.ptr(), len, tmp.charset());
+  return prot->store(tmp.ptr(), len, tmp.charset());
 }
 
 /****************************************************************************
@@ -3486,7 +3486,7 @@ bool Protocol_binary::start_result_metadata(uint num_cols, uint flags,
 void Protocol_binary::start_row() {
   if (send_metadata) return Protocol_text::start_row();
   packet->length(bit_fields + 1);
-  memset(const_cast<char *>(packet->ptr()), 0, 1 + bit_fields);
+  memset(packet->ptr(), 0, 1 + bit_fields);
   field_pos = 0;
 }
 
@@ -3513,7 +3513,7 @@ bool Protocol_binary::store_null() {
   if (send_metadata) return Protocol_text::store_null();
   uint offset = (field_pos + 2) / 8 + 1, bit = (1 << ((field_pos + 2) & 7));
   /* Room for this as it's allocated in prepare_for_send */
-  char *to = (char *)packet->ptr() + offset;
+  char *to = packet->ptr() + offset;
   *to = (char)((uchar)*to | (uchar)bit);
   field_pos++;
   return 0;

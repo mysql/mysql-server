@@ -536,11 +536,10 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         field_sql_type.append((field->type() == MYSQL_TYPE_VARCHAR) ? "varchar"
                                                                     : "char");
         const CHARSET_INFO *cs = field->charset();
-        size_t length =
-            cs->cset->snprintf(cs, const_cast<char *>(target_type.ptr()),
-                               target_type.alloced_length(), "%s(%u(bytes) %s)",
-                               field_sql_type.c_ptr_safe(), field->field_length,
-                               field->charset()->csname);
+        size_t length = cs->cset->snprintf(
+            cs, target_type.ptr(), target_type.alloced_length(),
+            "%s(%u(bytes) %s)", field_sql_type.c_ptr_safe(),
+            field->field_length, field->charset()->csname);
         target_type.length(length);
       } else
         field->sql_type(target_type);

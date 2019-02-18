@@ -138,10 +138,9 @@ class ha_myisam : public handler {
     return 0;
   }
   FT_INFO *ft_init_ext(uint flags, uint inx, String *key) {
-    return ft_init_search(
-        flags, file, inx,
-        const_cast<uchar *>(pointer_cast<const uchar *>(key->ptr())),
-        (uint)key->length(), key->charset(), table->record[0]);
+    return ft_init_search(flags, file, inx, pointer_cast<uchar *>(key->ptr()),
+                          (uint)key->length(), key->charset(),
+                          table->record[0]);
   }
   int ft_read(uchar *buf);
   int rnd_init(bool scan);

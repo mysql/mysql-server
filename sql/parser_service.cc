@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -350,8 +350,5 @@ MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd) {
 
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(MYSQL_THD thd) {
   String normalized_query = thd->normalized_query();
-
-  MYSQL_LEX_STRING str = {const_cast<char *>(normalized_query.ptr()),
-                          normalized_query.length()};
-  return str;
+  return normalized_query.lex_string();
 }

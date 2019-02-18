@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -374,8 +374,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       }
 
       bytes = well_formed_copy_nchars(
-          write_cs, (char *)cvt_str.ptr(), cvt_str.alloced_length(),
-          res->charset(), res->ptr(), res->length(),
+          write_cs, cvt_str.ptr(), cvt_str.alloced_length(), res->charset(),
+          res->ptr(), res->length(),
           UINT_MAX32,  // copy all input chars,
                        // i.e. ignore nchars parameter
           &well_formed_error_pos, &cannot_convert_error_pos, &from_end_pos);
@@ -426,7 +426,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         used_length = res->length();
       if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&
           escape_char != -1) {
-        char *pos, *start, *end;
+        const char *pos, *start, *end;
         bool escape_4_bytes = false;
         int in_escapable_4_bytes = 0;
         const CHARSET_INFO *res_charset = res->charset();
@@ -444,8 +444,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         DBUG_ASSERT(character_set_client->mbmaxlen == 2 ||
                     my_mbmaxlenlen(character_set_client) == 2 ||
                     !character_set_client->escape_with_backslash_is_dangerous);
-        for (start = pos = (char *)res->ptr(), end = pos + used_length;
-             pos != end; pos++) {
+        for (start = pos = res->ptr(), end = pos + used_length; pos != end;
+             pos++) {
           bool need_escape = false;
           if (use_mb(res_charset)) {
             int l;

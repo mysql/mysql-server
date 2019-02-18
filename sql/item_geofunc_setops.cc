@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1212,7 +1212,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1271,7 +1271,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1357,7 +1357,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -1416,7 +1416,7 @@ class BG_setop_wrapper {
       }
       Linestring *ls = new Linestring();
       res->begin()->as_geometry(result, false);
-      ls->set_ptr(const_cast<char *>(result->ptr()) + GEOM_HEADER_SIZE,
+      ls->set_ptr(result->ptr() + GEOM_HEADER_SIZE,
                   result->length() - GEOM_HEADER_SIZE);
       ls->set_ownmem(false);
       retgeo = ls;
@@ -2415,9 +2415,8 @@ Geometry *Item_func_spatial_operation::simplify_multilinestring(
     size_t oldlength = result->length();
     linestrings->begin()->as_geometry(result, false);
     size_t newlength = result->length();
-    linestringresult->set_ptr(
-        const_cast<char *>(result->ptr()) + oldlength + GEOM_HEADER_SIZE,
-        (newlength - oldlength) - GEOM_HEADER_SIZE);
+    linestringresult->set_ptr(result->ptr() + oldlength + GEOM_HEADER_SIZE,
+                              (newlength - oldlength) - GEOM_HEADER_SIZE);
     linestringresult->set_ownmem(false);
     retgeo = linestringresult;
   } else if (points->size() == 0 && linestrings->size() > 1) {
@@ -2432,9 +2431,8 @@ Geometry *Item_func_spatial_operation::simplify_multilinestring(
     size_t oldlength = result->length();
     points->begin()->as_geometry(result, false);
     size_t newlength = result->length();
-    pointresult->set_ptr(
-        const_cast<char *>(result->ptr()) + oldlength + GEOM_HEADER_SIZE,
-        (newlength - oldlength) - GEOM_HEADER_SIZE);
+    pointresult->set_ptr(result->ptr() + oldlength + GEOM_HEADER_SIZE,
+                         (newlength - oldlength) - GEOM_HEADER_SIZE);
     pointresult->set_ownmem(false);
     retgeo = pointresult;
   } else if (points->size() > 1 && linestrings->size() == 0) {
@@ -2629,7 +2627,7 @@ inline Geometry::wkbType base_type(Geometry::wkbType gt) {
 bool simplify_multi_geometry(String *str, String *result_buffer) {
   if (str->length() < GEOM_HEADER_SIZE) return false;
 
-  char *p = const_cast<char *>(str->ptr());
+  char *p = str->ptr();
   Geometry::wkbType gtype = get_wkb_geotype(p + 5);
   bool ret = false;
 
@@ -2640,7 +2638,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
       if (result_buffer) {
         result_buffer->length(0);
         result_buffer->append(*str);
-        p = const_cast<char *>(result_buffer->ptr());
+        p = result_buffer->ptr();
         str = result_buffer;
       }
       DBUG_ASSERT((str->length() - GEOM_HEADER_SIZE - 4 - WKB_HEADER_SIZE) > 0);
@@ -2659,7 +2657,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
       if (result_buffer) {
         result_buffer->length(0);
         result_buffer->append(*str);
-        p = const_cast<char *>(result_buffer->ptr());
+        p = result_buffer->ptr();
         str = result_buffer;
       }
       p = write_wkb_header(p + 4, ex.get_type());
@@ -2768,18 +2766,17 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       forget them in order not to free the buffers before the Item_xxx
       owner nodes are destroyed.
     */
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(res1->ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(res2->ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(m_tmp_value1.ptr()));
-    m_bg_resbuf_mgr.forget_buffer(const_cast<char *>(m_tmp_value2.ptr()));
+    m_bg_resbuf_mgr.forget_buffer(res1->ptr());
+    m_bg_resbuf_mgr.forget_buffer(res2->ptr());
+    m_bg_resbuf_mgr.forget_buffer(m_tmp_value1.ptr());
+    m_bg_resbuf_mgr.forget_buffer(m_tmp_value2.ptr());
 
     /*
       Release intermediate geometry data buffers accumulated during execution
       of this set operation.
     */
     if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-      m_bg_resbuf_mgr.set_result_buffer(
-          const_cast<char *>(str_value_arg->ptr()));
+      m_bg_resbuf_mgr.set_result_buffer(str_value_arg->ptr());
     m_bg_resbuf_mgr.free_intermediate_result_buffers();
   } catch (...) {
     had_except2 = true;
@@ -2964,8 +2961,7 @@ Geometry *Item_func_spatial_operation::geometry_collection_set_operation(
       String tmpres;
       Geometry *gres2 = NULL;
       tmpres.append(result->ptr(), result->length());
-      const void *data_start =
-          static_cast<const char *>(tmpres.ptr()) + GEOM_HEADER_SIZE;
+      const void *data_start = tmpres.ptr() + GEOM_HEADER_SIZE;
 
       switch (gres->get_geotype()) {
         case Geometry::wkb_point:

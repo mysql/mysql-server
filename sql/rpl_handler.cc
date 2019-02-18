@@ -784,8 +784,8 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
   int ret = 0;
   FOREACH_OBSERVER(
       ret, before_send_event,
-      (&param, const_cast<uchar *>(pointer_cast<const uchar *>(packet->ptr())),
-       packet->length(), log_file + dirname_length(log_file), log_pos));
+      (&param, pointer_cast<uchar *>(packet->ptr()), packet->length(),
+       log_file + dirname_length(log_file), log_pos));
   return ret;
 }
 

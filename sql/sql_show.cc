@@ -4525,28 +4525,26 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       size_t length;
       if (field_cs)
         length =
-            cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
+            cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
                                "varchar(%u)", metadata / field_cs->mbmaxlen);
       else
-        length =
-            cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
-                               "varchar(%u(bytes))", metadata);
+        length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                    "varchar(%u(bytes))", metadata);
       str->length(length);
     } break;
 
     case MYSQL_TYPE_BIT: {
       const CHARSET_INFO *cs = str->charset();
       int bit_length = 8 * (metadata >> 8) + (metadata & 0xFF);
-      size_t length = cs->cset->snprintf(
-          cs, (char *)str->ptr(), str->alloced_length(), "bit(%d)", bit_length);
+      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                         "bit(%d)", bit_length);
       str->length(length);
     } break;
 
     case MYSQL_TYPE_DECIMAL: {
       const CHARSET_INFO *cs = str->charset();
-      size_t length =
-          cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
-                             "decimal(%d,?)", metadata);
+      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                         "decimal(%d,?)", metadata);
       str->length(length);
     } break;
 
@@ -4559,9 +4557,8 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       uchar *metadata_ptr = (uchar *)&metadata;
       uint len = *metadata_ptr;
       uint dec = *(metadata_ptr + 1);
-      size_t length =
-          cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
-                             "decimal(%d,%d)", len, dec);
+      size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                         "decimal(%d,%d)", len, dec);
       str->length(length);
     } break;
 
@@ -4632,13 +4629,11 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
       uint bytes = (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       size_t length;
       if (field_cs)
-        length =
-            cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
-                               "char(%d)", bytes / field_cs->mbmaxlen);
+        length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                    "char(%d)", bytes / field_cs->mbmaxlen);
       else
-        length =
-            cs->cset->snprintf(cs, (char *)str->ptr(), str->alloced_length(),
-                               "char(%d(bytes))", bytes);
+        length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
+                                    "char(%d(bytes))", bytes);
       str->length(length);
     } break;
 

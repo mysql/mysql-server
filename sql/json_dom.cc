@@ -1595,7 +1595,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       wr.get_datetime(&t);
       if (single_quote(buffer, json_quoted))
         return true; /* purecov: inspected */
-      char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
+      char *ptr = buffer->ptr() + buffer->length();
       const int size = my_TIME_to_str(t, ptr, 6);
       buffer->length(buffer->length() + size);
       if (single_quote(buffer, json_quoted))
@@ -1634,7 +1634,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     case enum_json_type::J_DECIMAL: {
       int length = DECIMAL_MAX_STR_LENGTH + 1;
       if (reserve(buffer, length)) return true;
-      char *ptr = const_cast<char *>(buffer->ptr()) + buffer->length();
+      char *ptr = buffer->ptr() + buffer->length();
       my_decimal m;
       if (wr.get_decimal_data(&m) || decimal2string(&m, ptr, &length, 0, 0, 0))
         return true; /* purecov: inspected */
@@ -1645,9 +1645,9 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true; /* purecov: inspected */
       double d = wr.get_double();
-      const char *start = buffer->ptr() + buffer->length();
+      char *start = buffer->ptr() + buffer->length();
       size_t len = my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
-                           const_cast<char *>(start), nullptr);
+                           start, nullptr);
       buffer->length(buffer->length() + len);
       /*
         my_gcvt() doesn't preserve trailing zeros after the decimal point,
@@ -2844,8 +2844,7 @@ double Json_wrapper::coerce_real(const char *msgnam, bool *err,
       const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
 
       int error;
-      double value =
-          my_strntod(cs, const_cast<char *>(start), length, &end, &error);
+      double value = my_strntod(cs, start, length, &end, &error);
 
       if (error || end != start + length) {
         int code = (error == EOVERFLOW ? ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE
@@ -3571,7 +3570,7 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
 
   DBUG_ASSERT(result->length() >= data_offset + needed);
 
-  char *destination = const_cast<char *>(result->ptr());
+  char *destination = result->ptr();
   bool changed = false;
   if (parent.update_in_shadow(field, element_pos, new_value, data_offset,
                               needed, original, destination, &changed))
@@ -3647,7 +3646,7 @@ bool Json_wrapper::binary_remove(const Field_json *field,
     original = result->ptr();
   }
 
-  char *destination = const_cast<char *>(result->ptr());
+  char *destination = result->ptr();
 
   if (parent.remove_in_shadow(field, element_pos, original, destination))
     return true; /* purecov: inspected */

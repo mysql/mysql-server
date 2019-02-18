@@ -1700,8 +1700,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     get_field(tmp_root, table->field[0], &str_name);
     get_field(tmp_root, table->field[1], &str_dl);
 
-    LEX_STRING name = {(char *)str_name.ptr(), str_name.length()};
-    LEX_STRING dl = {(char *)str_dl.ptr(), str_dl.length()};
+    LEX_STRING name = str_name.lex_string();
+    LEX_STRING dl = str_dl.lex_string();
 
     /*
       The whole locking sequence is not strictly speaking needed since this

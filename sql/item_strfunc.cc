@@ -151,7 +151,7 @@ my_decimal *Item_str_func::val_decimal(my_decimal *decimal_value) {
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
   if (!res) return 0;
-  (void)str2my_decimal(E_DEC_FATAL_ERROR, (char *)res->ptr(), res->length(),
+  (void)str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                        res->charset(), decimal_value);
   return decimal_value;
 }
@@ -163,7 +163,7 @@ double Item_str_func::val_real() {
   char buff[64];
   String *res, tmp(buff, sizeof(buff), &my_charset_bin);
   res = val_str(&tmp);
-  return res ? my_strntod(res->charset(), (char *)res->ptr(), res->length(),
+  return res ? my_strntod(res->charset(), res->ptr(), res->length(),
                           &end_not_used, &err_not_used)
              : 0.0;
 }
@@ -199,7 +199,7 @@ String *Item_func_md5::val_str_ascii(String *str) {
       null_value = 1;
       return 0;
     }
-    array_to_hex((char *)str->ptr(), digest, MD5_HASH_SIZE);
+    array_to_hex(str->ptr(), digest, MD5_HASH_SIZE);
     str->length((uint)32);
     return str;
   }
@@ -239,7 +239,7 @@ String *Item_func_sha::val_str_ascii(String *str) {
     compute_sha1_hash(digest, sptr->ptr(), sptr->length());
     /* Ensure that memory is free */
     if (!(str->alloc(SHA1_HASH_SIZE * 2))) {
-      array_to_hex((char *)str->ptr(), digest, SHA1_HASH_SIZE);
+      array_to_hex(str->ptr(), digest, SHA1_HASH_SIZE);
       str->length((uint)SHA1_HASH_SIZE * 2);
       null_value = 0;
       return str;
@@ -329,7 +329,7 @@ String *Item_func_sha2::val_str_ascii(String *str) {
   str->mem_realloc(digest_length * 2 + 1); /* Each byte as two nybbles */
 
   /* Convert the large number to a string-hex representation. */
-  array_to_hex((char *)str->ptr(), digest_buf, digest_length);
+  array_to_hex(str->ptr(), digest_buf, digest_length);
 
   /* We poked raw bytes in.  We must inform the the String of its length. */
   str->length(digest_length * 2); /* Each byte as two nybbles */
@@ -664,7 +664,7 @@ String *Item_func_to_base64::val_str_ascii(String *str) {
     }
     return 0;
   }
-  base64_encode(res->ptr(), (int)res->length(), (char *)tmp_value.ptr());
+  base64_encode(res->ptr(), (int)res->length(), tmp_value.ptr());
   DBUG_ASSERT(length > 0);
   tmp_value.length((uint)length - 1);  // Without trailing '\0'
   null_value = 0;
@@ -694,7 +694,7 @@ String *Item_func_from_base64::val_str(String *str) {
                    current_thd->variables.max_allowed_packet)) ||
       tmp_value.alloc((uint)length) ||
       (length = base64_decode(res->ptr(), (uint64)res->length(),
-                              (char *)tmp_value.ptr(), &end_ptr, 0)) < 0 ||
+                              tmp_value.ptr(), &end_ptr, 0)) < 0 ||
       end_ptr < res->ptr() + res->length()) {
     null_value = 1;  // NULL input, too long input, OOM, or badly formed input
     if (too_long) {
@@ -1031,7 +1031,8 @@ bool Item_func_concat_ws::resolve_type(THD *thd) {
 String *Item_func_reverse::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   String *res = args[0]->val_str(str);
-  char *ptr, *end, *tmp;
+  const char *ptr, *end;
+  char *tmp;
 
   if ((null_value = args[0]->null_value)) return 0;
   /* An empty string is a special case as the string pointer may be null */
@@ -1043,9 +1044,9 @@ String *Item_func_reverse::val_str(String *str) {
   }
   tmp_value.length(res->length());
   tmp_value.set_charset(res->charset());
-  ptr = (char *)res->ptr();
+  ptr = res->ptr();
   end = ptr + res->length();
-  tmp = (char *)tmp_value.ptr() + tmp_value.length();
+  tmp = tmp_value.ptr() + tmp_value.length();
   if (use_mb(res->charset())) {
     uint32 l;
     while (ptr < end) {
@@ -1232,16 +1233,16 @@ String *Item_str_conv::val_str(String *str) {
     } else
       res = copy_if_not_alloced(str, res, res->length());
 
-    len = converter(collation.collation, (char *)res->ptr(), res->length(),
-                    (char *)res->ptr(), res->length());
+    len = converter(collation.collation, res->ptr(), res->length(), res->ptr(),
+                    res->length());
     DBUG_ASSERT(len <= res->length());
     res->length(len);
   } else {
     size_t len = res->length() * multiply;
     tmp_value.alloc(len);
     tmp_value.set_charset(collation.collation);
-    len = converter(collation.collation, (char *)res->ptr(), res->length(),
-                    (char *)tmp_value.ptr(), len);
+    len = converter(collation.collation, res->ptr(), res->length(),
+                    tmp_value.ptr(), len);
     tmp_value.length(len);
     res = &tmp_value;
   }
@@ -1776,8 +1777,8 @@ bool Item_func_user::init(const char *user, const char *host) {
       return true;
     }
 
-    res_length = cs->cset->snprintf(cs, (char *)str_value.ptr(),
-                                    (uint)res_length, "%s@%s", user, host);
+    res_length = cs->cset->snprintf(cs, str_value.ptr(), res_length, "%s@%s",
+                                    user, host);
     str_value.length((uint)res_length);
     str_value.mark_as_const();
   }
@@ -1873,13 +1874,14 @@ String *Item_func_soundex::val_str(String *str) {
   if (tmp_value.alloc(
           max(res->length(), static_cast<size_t>(4 * cs->mbminlen))))
     return str; /* purecov: inspected */
-  char *to = (char *)tmp_value.ptr();
+  char *to = tmp_value.ptr();
   char *to_end = to + tmp_value.alloced_length();
-  char *from = (char *)res->ptr(), *end = from + res->length();
+  const char *from = res->ptr(), *end = from + res->length();
 
   for (;;) /* Skip pre-space */
   {
-    if ((rc = cs->cset->mb_wc(cs, &wc, (uchar *)from, (uchar *)end)) <= 0)
+    if ((rc = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(from),
+                              pointer_cast<const uchar *>(end))) <= 0)
       return make_empty_result(); /* EOL or invalid byte sequence */
 
     if (rc == 1 && cs->ctype) {
@@ -1896,7 +1898,8 @@ String *Item_func_soundex::val_str(String *str) {
         /* Multibyte letter found */
         wc = soundex_toupper(wc);
         last_ch = get_scode(wc);  // Code of the first letter
-        if ((rc = cs->cset->wc_mb(cs, wc, (uchar *)to, (uchar *)to_end)) <= 0) {
+        if ((rc = cs->cset->wc_mb(cs, wc, pointer_cast<uchar *>(to),
+                                  pointer_cast<uchar *>(to_end))) <= 0) {
           /* Extra safety - should not really happen */
           DBUG_ASSERT(false);
           return make_empty_result();
@@ -2074,7 +2077,7 @@ String *Item_func_format::val_str_ascii(String *str) {
       replace decimal point to localized value.
     */
     DBUG_ASSERT(dec_length <= str_length);
-    ((char *)str->ptr())[str_length - dec_length] = lc->decimal_point;
+    (*str)[str_length - dec_length] = lc->decimal_point;
   }
   return str;
 }
@@ -2371,7 +2374,7 @@ String *Item_func_repeat::val_str(String *str) {
   } else if (!(res = alloc_buffer(res, str, &tmp_value, tot_length)))
     return error_str();
 
-  to = (char *)res->ptr() + length;
+  to = res->ptr() + length;
   while (--count) {
     memcpy(to, res->ptr(), length);
     to += length;
@@ -2426,7 +2429,7 @@ String *Item_func_space::val_str(String *str) {
   if (str->alloc(tot_length)) return error_str();
   str->length(tot_length);
   str->set_charset(cs);
-  cs->cset->fill(cs, (char *)str->ptr(), tot_length, ' ');
+  cs->cset->fill(cs, str->ptr(), tot_length, ' ');
   return str;
 }
 
@@ -2534,7 +2537,7 @@ String *Item_func_rpad::val_str(String *str) {
     return error_str();
   }
 
-  to = (char *)res->ptr() + res_byte_length;
+  to = res->ptr() + res_byte_length;
   const char *ptr_pad = rpad->ptr();
   const size_t pad_byte_length = rpad->length();
   count -= res_char_length;
@@ -2547,7 +2550,7 @@ String *Item_func_rpad::val_str(String *str) {
     memcpy(to, ptr_pad, pad_charpos);
     to += pad_charpos;
   }
-  res->length((uint)(to - (char *)res->ptr()));
+  res->length((uint)(to - res->ptr()));
   return (res);
 }
 
@@ -3126,7 +3129,7 @@ String *Item_func_hex::val_str_ascii(String *str) {
   tmp_value.length(res->length() * 2);
   tmp_value.set_charset(&my_charset_latin1);
 
-  octet2hex((char *)tmp_value.ptr(), res->ptr(), res->length());
+  octet2hex(tmp_value.ptr(), res->ptr(), res->length());
   return &tmp_value;
 }
 
@@ -3147,7 +3150,7 @@ String *Item_func_unhex::val_str(String *str) {
 
   from = res->ptr();
   tmp_value.length(length);
-  to = const_cast<char *>(tmp_value.ptr());
+  to = tmp_value.ptr();
   if (res->length() % 2) {
     int hex_char = hexchar_to_int(*from++);
     if (hex_char == -1) goto err;
@@ -3191,8 +3194,8 @@ String *Item_func_like_range::val_str(String *str) {
   null_value = 0;
 
   if (cs->coll->like_range(cs, res->ptr(), res->length(), '\\', '_', '%',
-                           nbytes, (char *)min_str.ptr(), (char *)max_str.ptr(),
-                           &min_len, &max_len))
+                           nbytes, min_str.ptr(), max_str.ptr(), &min_len,
+                           &max_len))
     goto err;
 
   min_str.set_charset(collation.collation);
@@ -3298,8 +3301,7 @@ String *Item_char_typecast::val_str(String *str) {
           res = &tmp_value;
         }
       }
-      memset(const_cast<char *>(res->ptr() + res->length()), 0,
-             cast_length - res->length());
+      memset(res->ptr() + res->length(), 0, cast_length - res->length());
       res->length(cast_length);
     }
   }
@@ -3558,7 +3560,8 @@ String *Item_func_quote::val_str(String *str) {
                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-  char *from, *to, *end, *start;
+  char *to;
+  const char *from, *end, *start;
   String *arg = args[0]->val_str(str);
   size_t arg_length, new_length;
   if (!arg)  // Null argument
@@ -3573,7 +3576,7 @@ String *Item_func_quote::val_str(String *str) {
 
   if (collation.collation->mbmaxlen == 1) {
     new_length = arg_length + 2; /* for beginning and ending ' signs */
-    for (from = (char *)arg->ptr(), end = from + arg_length; from < end; from++)
+    for (from = arg->ptr(), end = from + arg_length; from < end; from++)
       new_length += get_esc_bit(escmask, (uchar)*from);
   } else {
     new_length = (arg_length * 2) + /* For string characters */
@@ -3586,7 +3589,7 @@ String *Item_func_quote::val_str(String *str) {
     const CHARSET_INFO *cs = collation.collation;
     int mblen;
     uchar *to_end;
-    to = (char *)tmp_value.ptr();
+    to = tmp_value.ptr();
     to_end = (uchar *)to + new_length;
 
     /* Put leading quote */
@@ -3594,7 +3597,7 @@ String *Item_func_quote::val_str(String *str) {
       goto null;
     to += mblen;
 
-    for (start = (char *)arg->ptr(), end = start + arg_length; start < end;) {
+    for (start = arg->ptr(), end = start + arg_length; start < end;) {
       my_wc_t wc;
       bool escape;
       if ((mblen = cs->cset->mb_wc(cs, &wc, (uchar *)start, (uchar *)end)) <= 0)
@@ -3640,10 +3643,9 @@ String *Item_func_quote::val_str(String *str) {
   /*
     We replace characters from the end to the beginning
   */
-  to = (char *)tmp_value.ptr() + new_length - 1;
+  to = tmp_value.ptr() + new_length - 1;
   *to-- = '\'';
-  for (start = (char *)arg->ptr(), end = start + arg_length; end-- != start;
-       to--) {
+  for (start = arg->ptr(), end = start + arg_length; end-- != start; to--) {
     /*
       We can't use the bitmask here as we want to replace \O and ^Z with 0
       and Z
@@ -3781,7 +3783,7 @@ String *Item_func_compress::val_str(String *str) {
     return 0;
   }
 
-  int4store(const_cast<char *>(buffer.ptr()), res->length() & 0x3FFFFFFF);
+  int4store(buffer.ptr(), res->length() & 0x3FFFFFFF);
 
   /* This is to ensure that things works for CHAR fields, which trim ' ': */
   last_char = ((char *)body) + new_size - 1;
@@ -3823,8 +3825,8 @@ String *Item_func_uncompress::val_str(String *str) {
   }
   if (buffer.mem_realloc((uint32)new_size)) goto err;
 
-  if ((err = uncompress(pointer_cast<Byte *>(const_cast<char *>(buffer.ptr())),
-                        &new_size, pointer_cast<const Bytef *>(res->ptr()) + 4,
+  if ((err = uncompress(pointer_cast<Byte *>(buffer.ptr()), &new_size,
+                        pointer_cast<const Bytef *>(res->ptr()) + 4,
                         res->length() - 4)) == Z_OK) {
     buffer.length((uint32)new_size);
     return &buffer;
@@ -3986,7 +3988,7 @@ String *mysql_generate_uuid(String *str) {
   str->mem_realloc(UUID_LENGTH + 1);
   str->length(UUID_LENGTH);
   str->set_charset(system_charset_info);
-  s = (char *)str->ptr();
+  s = str->ptr();
   s[8] = s[13] = '-';
   tohex(s, time_low, 8);
   tohex(s + 9, time_mid, 4);
@@ -4045,7 +4047,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
         set1.remove_gtid_set(&set2);
         if (!str->mem_realloc((length = set1.get_string_length()) + 1)) {
           null_value = false;
-          set1.to_string((char *)str->ptr());
+          set1.to_string(str->ptr());
           str->length(length);
           DBUG_RETURN(str);
         }

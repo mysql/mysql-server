@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,7 @@ bool Json_diff_vector::write_binary(String *to) const {
 
   // Store the length.
   size_t length = to->length() - ENCODED_LENGTH_BYTES;
-  int4store(const_cast<char *>(to->ptr()), (uint32)length);
+  int4store(to->ptr(), (uint32)length);
 
   DBUG_PRINT("info", ("Wrote JSON diff vector length %lu=%02x %02x %02x %02x",
                       (unsigned long)length, length_buf[0], length_buf[1],

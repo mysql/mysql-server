@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3194,7 +3194,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
                      512))
     return true;
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
+  char *ptr = gcbuf->ptr();
   uint32 extra = 0;
   if (collection_len == 0) {
     collection_len = GEOM_HEADER_SIZE + 4;
@@ -3206,7 +3206,7 @@ bool Gis_geometry_collection::append_geometry(const Geometry *geo,
 
   // Skip GEOMETRY header.
   ptr += GEOM_HEADER_SIZE;
-  start = ptr;
+  const char *start = ptr;
 
   int4store(ptr, uint4korr(ptr) + 1);  // Increment object count.
   ptr += collection_len - GEOM_HEADER_SIZE;
@@ -3246,7 +3246,7 @@ bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
                      512))
     return true;
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
+  char *ptr = gcbuf->ptr();
   uint32 extra = 0;
   if (collection_len == 0) {
     collection_len = GEOM_HEADER_SIZE + 4;
@@ -3259,7 +3259,7 @@ bool Gis_geometry_collection::append_geometry(gis::srid_t srid, wkbType gtype,
 
   // Skip GEOMETRY header.
   ptr += GEOM_HEADER_SIZE;
-  start = ptr;
+  const char *start = ptr;
 
   int4store(ptr, uint4korr(ptr) + 1);  // Increment object count.
   ptr += collection_len - GEOM_HEADER_SIZE;
@@ -3298,8 +3298,8 @@ Gis_geometry_collection::Gis_geometry_collection(gis::srid_t srid,
   if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
-  start = ptr + GEOM_HEADER_SIZE;
+  char *ptr = gcbuf->ptr();
+  const char *start = ptr + GEOM_HEADER_SIZE;
 
   ptr = write_geometry_header(ptr, srid, Geometry::wkb_geometrycollection,
                               geo_len ? 1 : 0);
@@ -3335,8 +3335,8 @@ Gis_geometry_collection::Gis_geometry_collection(Geometry *geo, String *gcbuf)
   if (gcbuf->reserve(total_len + 512, 1024))
     my_error(ER_OUTOFMEMORY, total_len + 512);
 
-  char *ptr = const_cast<char *>(gcbuf->ptr()), *start;
-  start = ptr + GEOM_HEADER_SIZE;
+  char *ptr = gcbuf->ptr();
+  const char *start = ptr + GEOM_HEADER_SIZE;
 
   ptr = write_geometry_header(ptr, geo->get_srid(),
                               Geometry::wkb_geometrycollection, 1);

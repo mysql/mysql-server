@@ -1194,8 +1194,8 @@ double Item_func_numhybrid::val_real() {
       const char *end_not_used;
       int err_not_used;
       String *res = str_op(&str_value);
-      return (res ? my_strntod(res->charset(), (char *)res->ptr(),
-                               res->length(), &end_not_used, &err_not_used)
+      return (res ? my_strntod(res->charset(), res->ptr(), res->length(),
+                               &end_not_used, &err_not_used)
                   : 0.0);
     }
     default:
@@ -1276,7 +1276,7 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value) {
       String *res;
       if (!(res = str_op(&str_value))) return NULL;
 
-      str2my_decimal(E_DEC_FATAL_ERROR, (char *)res->ptr(), res->length(),
+      str2my_decimal(E_DEC_FATAL_ERROR, res->ptr(), res->length(),
                      res->charset(), decimal_value);
       break;
     }
@@ -1348,7 +1348,7 @@ longlong Item_func_signed::val_int_from_str(int *error) {
     return 0;
   }
   null_value = 0;
-  start = (char *)res->ptr();
+  start = res->ptr();
   length = res->length();
   cs = res->charset();
 
@@ -2546,7 +2546,7 @@ String *Item_func_bit_two_param::eval_str_op(String *, Char_func char_func,
 
   const uchar *s1_c_p = pointer_cast<const uchar *>(s1->ptr());
   const uchar *s2_c_p = pointer_cast<const uchar *>(s2->ptr());
-  char *res = const_cast<char *>(tmp_value.ptr());
+  char *res = tmp_value.ptr();
   size_t i = 0;
   while (i + sizeof(longlong) <= arg_length) {
     int8store(&res[i], int_func(uint8korr(&s1_c_p[i]), uint8korr(&s2_c_p[i])));
@@ -3575,7 +3575,7 @@ longlong Item_func_bit_count::val_int() {
     String *s = args[0]->val_str(&str_value);
     if (args[0]->null_value || !s) return error_int();
 
-    char *val = const_cast<char *>(s->ptr());
+    const char *val = s->ptr();
 
     longlong len = 0;
     size_t i = 0;
@@ -3841,8 +3841,8 @@ String *udf_handler::val_str(String *str, String *save_str) {
       DBUG_RETURN(0);
     }
   }
-  char *res = func(&initid, &f_args, (char *)str->ptr(), &res_length,
-                   &is_null_tmp, &error);
+  char *res =
+      func(&initid, &f_args, str->ptr(), &res_length, &is_null_tmp, &error);
   DBUG_PRINT("info", ("udf func returned, res_length: %lu", res_length));
   if (is_null_tmp || !res || error)  // The !res is for safety
   {

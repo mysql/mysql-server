@@ -1392,7 +1392,7 @@ String *Item_timeval_func::val_str(String *str) {
   struct timeval tm;
   if (val_timeval(&tm) || (null_value = str->alloc(MAX_DATE_STRING_REP_LENGTH)))
     return (String *)0;
-  str->length(my_timeval_to_str(&tm, (char *)str->ptr(), decimals));
+  str->length(my_timeval_to_str(&tm, str->ptr(), decimals));
   str->set_charset(collation.collation);
   return str;
 }
@@ -1944,7 +1944,7 @@ String *Item_func_date_format::val_str(String *str) {
   if (str->alloc(size)) goto null_date;
 
   Date_time_format date_time_format;
-  date_time_format.format.str = (char *)format->ptr();
+  date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();
 
   /* Create the result string */
@@ -3069,7 +3069,7 @@ bool Item_func_str_to_date::val_datetime(MYSQL_TIME *ltime,
 
   null_value = 0;
   memset(ltime, 0, sizeof(*ltime));
-  date_time_format.format.str = (char *)format->ptr();
+  date_time_format.format.str = format->ptr();
   date_time_format.format.length = format->length();
   if (extract_date_time(&date_time_format, val->ptr(), val->length(), ltime,
                         cached_timestamp_type, 0, "datetime") ||

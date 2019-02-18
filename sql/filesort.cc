@@ -1370,7 +1370,7 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       }
 
       uint src_length = static_cast<uint>(res->length());
-      char *from = (char *)res->ptr();
+      const char *from = res->ptr();
 
       size_t actual_length;
       if (is_varlen) {

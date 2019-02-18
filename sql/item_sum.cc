@@ -1393,7 +1393,7 @@ void Item_sum_bit::remove_bits(const String *s1, ulonglong b1) {
 
   if (hybrid_type == STRING_RESULT) {
     s1_c_p = pointer_cast<const uchar *>(s1->ptr());
-    value_bits = pointer_cast<uchar *>(const_cast<char *>(value_buff.ptr()));
+    value_bits = pointer_cast<uchar *>(value_buff.ptr());
     buff_length = value_buff.length() - 1;
   } else {
     s1_c_p = pointer_cast<const uchar *>(&b1);
@@ -1493,8 +1493,7 @@ bool Item_sum_bit::add_bits(const String *s1, ulonglong b1) {
       }
 
       // At this point the values should be not-null and have the same size.
-      uchar *value_bits =
-          pointer_cast<uchar *>(const_cast<char *>(value_buff.ptr()));
+      uchar *value_bits = pointer_cast<uchar *>(value_buff.ptr());
       if (m_is_xor)
         apply_bit_op<std::bit_xor<char>, std::bit_xor<ulonglong>>(
             buff_length, s1_c_p, value_bits);
@@ -3271,7 +3270,7 @@ void Item_sum_bit::update_field() {
     // Add the current value to the previously determined one
     add();
     // Store the value in the result_field
-    result_field->store((char *)value_buff.ptr(), value_buff.length(),
+    result_field->store(value_buff.ptr(), value_buff.length(),
                         default_charset());
   }
 }
@@ -3593,8 +3592,7 @@ String *Item_sum_bit_field::val_str(String *str) {
     if (!non_nulls) {
       DBUG_EXECUTE_IF("simulate_sum_out_of_memory", { return nullptr; });
       if (res_str->alloc(max_length - 1)) return nullptr;
-      std::memset(const_cast<char *>(res_str->ptr()),
-                  static_cast<int>(reset_bits), max_length - 1);
+      std::memset(res_str->ptr(), static_cast<int>(reset_bits), max_length - 1);
       res_str->length(max_length - 1);
       res_str->set_charset(&my_charset_bin);
     } else

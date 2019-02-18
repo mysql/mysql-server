@@ -1127,11 +1127,11 @@ bool Sql_cmd_load_table::read_xml_field(THD *thd, COPY_INFO &info,
         field->set_notnull();
         if (field == table->next_number_field)
           table->auto_increment_field_not_null = true;
-        field->store((char *)tag->value.ptr(), tag->value.length(), cs);
+        field->store(tag->value.ptr(), tag->value.length(), cs);
       } else {
         DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param *>(item));
         ((Item_user_var_as_out_param *)item)
-            ->set_value((char *)tag->value.ptr(), tag->value.length(), cs);
+            ->set_value(tag->value.ptr(), tag->value.length(), cs);
       }
     }
 

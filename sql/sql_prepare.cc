@@ -3101,8 +3101,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor) {
   /* Allocate query. */
 
   if (expanded_query->length() &&
-      alloc_query(thd, (char *)expanded_query->ptr(),
-                  expanded_query->length())) {
+      alloc_query(thd, expanded_query->ptr(), expanded_query->length())) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags &= ~(uint)IS_IN_USE;
     stmt_backup.restore_thd(thd, this);

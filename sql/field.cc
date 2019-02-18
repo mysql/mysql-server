@@ -1451,9 +1451,9 @@ void Field_num::prepend_zeros(String *value) {
   if ((diff = (int)(field_length - value->length())) > 0) {
     const bool error = value->mem_realloc(field_length);
     if (!error) {
-      memmove(const_cast<char *>(value->ptr()) + field_length - value->length(),
-              value->ptr(), value->length());
-      memset(const_cast<char *>(value->ptr()), '0', diff);
+      memmove(value->ptr() + field_length - value->length(), value->ptr(),
+              value->length());
+      memset(value->ptr(), '0', diff);
       value->length(field_length);
     }
   }
@@ -1600,13 +1600,13 @@ bool Field::warn_if_overflow(int op_result) {
 String *Field::val_int_as_str(String *val_buffer, bool unsigned_val) {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_bin;
-  uint length;
+  size_t length;
   longlong value = val_int();
 
   if (val_buffer->alloc(MY_INT64_NUM_DECIMAL_DIGITS)) return 0;
-  length = (uint)(*cs->cset->longlong10_to_str)(cs, (char *)val_buffer->ptr(),
-                                                MY_INT64_NUM_DECIMAL_DIGITS,
-                                                unsigned_val ? 10 : -10, value);
+  length = (*cs->cset->longlong10_to_str)(cs, val_buffer->ptr(),
+                                          MY_INT64_NUM_DECIMAL_DIGITS,
+                                          unsigned_val ? 10 : -10, value);
   val_buffer->length(length);
   return val_buffer;
 }
@@ -2749,7 +2749,7 @@ void Field_decimal::sql_type(String &res) const {
   uint tmp = field_length;
   if (!unsigned_flag) tmp--;
   if (dec) tmp--;
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "decimal(%d,%d)", tmp, dec));
   add_zerofill_and_unsigned(res);
 }
@@ -3065,7 +3065,7 @@ size_t Field_new_decimal::make_sort_key(uchar *buff, size_t length) {
 
 void Field_new_decimal::sql_type(String &str) const {
   const CHARSET_INFO *cs = str.charset();
-  str.length(cs->cset->snprintf(cs, (char *)str.ptr(), str.alloced_length(),
+  str.length(cs->cset->snprintf(cs, str.ptr(), str.alloced_length(),
                                 "decimal(%d,%d)", precision, (int)dec));
   add_zerofill_and_unsigned(str);
 }
@@ -3290,7 +3290,7 @@ String *Field_tiny::val_str(String *val_buffer,
   uint length;
   uint mlength = max(field_length + 1, 5 * cs->mbmaxlen);
   val_buffer->alloc(mlength);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
 
   if (unsigned_flag)
     length = (uint)cs->cset->long10_to_str(cs, to, mlength, 10, (long)*ptr);
@@ -3331,7 +3331,7 @@ size_t Field_tiny::make_sort_key(uchar *to,
 
 void Field_tiny::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "tinyint(%d)", (int)field_length));
   add_zerofill_and_unsigned(res);
 }
@@ -3465,7 +3465,7 @@ String *Field_short::val_str(String *val_buffer,
   uint length;
   uint mlength = max(field_length + 1, 7 * cs->mbmaxlen);
   val_buffer->alloc(mlength);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   short j;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -3534,7 +3534,7 @@ size_t Field_short::make_sort_key(uchar *to,
 
 void Field_short::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "smallint(%d)", (int)field_length));
   add_zerofill_and_unsigned(res);
 }
@@ -3644,7 +3644,7 @@ String *Field_medium::val_str(String *val_buffer,
   uint length;
   uint mlength = max(field_length + 1, 10 * cs->mbmaxlen);
   val_buffer->alloc(mlength);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   long j = unsigned_flag ? (long)uint3korr(ptr) : sint3korr(ptr);
 
   length = (uint)cs->cset->long10_to_str(cs, to, mlength, -10, j);
@@ -3686,7 +3686,7 @@ size_t Field_medium::make_sort_key(uchar *to,
 
 void Field_medium::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "mediumint(%d)", (int)field_length));
   add_zerofill_and_unsigned(res);
 }
@@ -3832,7 +3832,7 @@ String *Field_long::val_str(String *val_buffer,
   size_t length;
   uint mlength = max(field_length + 1, 12 * cs->mbmaxlen);
   val_buffer->alloc(mlength);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   int32 j;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -3902,8 +3902,8 @@ size_t Field_long::make_sort_key(uchar *to,
 
 void Field_long::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
-                                "int(%d)", (int)field_length));
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "int(%d)",
+                                (int)field_length));
   add_zerofill_and_unsigned(res);
 }
 
@@ -4036,7 +4036,7 @@ String *Field_longlong::val_str(String *val_buffer,
   uint length;
   uint mlength = max(field_length + 1, 22 * cs->mbmaxlen);
   val_buffer->alloc(mlength);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   longlong j;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4091,7 +4091,7 @@ size_t Field_longlong::make_sort_key(uchar *to, size_t length) {
 
 void Field_longlong::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "bigint(%d)", (int)field_length));
   add_zerofill_and_unsigned(res);
 }
@@ -4217,7 +4217,7 @@ String *Field_float::val_str(String *val_buffer,
     return val_buffer;
   }
 
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   size_t len;
 
   if (dec >= NOT_FIXED_DEC)
@@ -4307,7 +4307,7 @@ void Field_float::sql_type(String &res) const {
     res.set_ascii(STRING_WITH_LEN("float"));
   } else {
     const CHARSET_INFO *cs = res.charset();
-    res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+    res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                   "float(%d,%d)", (int)field_length, dec));
   }
   add_zerofill_and_unsigned(res);
@@ -4490,7 +4490,7 @@ String *Field_double::val_str(String *val_buffer,
     return val_buffer;
   }
 
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   size_t len;
 
   if (dec >= NOT_FIXED_DEC)
@@ -4565,7 +4565,7 @@ void Field_double::sql_type(String &res) const {
   if (dec == NOT_FIXED_DEC) {
     res.set_ascii(STRING_WITH_LEN("double"));
   } else {
-    res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+    res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                   "double(%d,%d)", (int)field_length, dec));
   }
   add_zerofill_and_unsigned(res);
@@ -5305,7 +5305,7 @@ void Field_timestampf::sql_type(String &res) const {
     return;
   }
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "timestamp(%d)", dec));
 }
 
@@ -5564,8 +5564,8 @@ void Field_timef::sql_type(String &res) const {
     return;
   }
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
-                                "time(%d)", dec));
+  res.length(
+      cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "time(%d)", dec));
 }
 
 type_conversion_status Field_timef::reset() { return store_packed(0); }
@@ -5711,7 +5711,7 @@ String *Field_year::val_str(String *val_buffer,
   DBUG_ASSERT(field_length < 5);
   val_buffer->alloc(5);
   val_buffer->length(field_length);
-  char *to = (char *)val_buffer->ptr();
+  char *to = val_buffer->ptr();
   sprintf(to, field_length == 2 ? "%02d" : "%04d", (int)Field_year::val_int());
   val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
@@ -5719,8 +5719,8 @@ String *Field_year::val_str(String *val_buffer,
 
 void Field_year::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
-                                "year(%d)", (int)field_length));
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "year(%d)",
+                                (int)field_length));
 }
 
 /****************************************************************************
@@ -5804,7 +5804,7 @@ String *Field_newdate::val_str(String *val_buffer,
   val_buffer->length(field_length);
   uint32 tmp = uint3korr(ptr);
   int part;
-  char *pos = (char *)val_buffer->ptr() + 10;
+  char *pos = val_buffer->ptr() + 10;
 
   /* Open coded to get more speed */
   *pos-- = 0;  // End NULL
@@ -5977,7 +5977,7 @@ String *Field_datetime::val_str(String *val_buffer,
   val_buffer->set_charset(&my_charset_numeric);
   val_buffer->length(MAX_DATETIME_WIDTH);
   longlong tmp = datetime_get_internal(table, ptr);
-  val_buffer->length(my_datetime_number_to_str((char *)val_buffer->ptr(), tmp));
+  val_buffer->length(my_datetime_number_to_str(val_buffer->ptr(), tmp));
   return val_buffer;
 }
 
@@ -6058,7 +6058,7 @@ void Field_datetimef::sql_type(String &res) const {
     return;
   }
   const CHARSET_INFO *cs = res.charset();
-  res.length(cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(),
+  res.length(cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
                                 "datetime(%d)", dec));
 }
 
@@ -6461,7 +6461,7 @@ void Field_string::sql_type(String &res) const {
   size_t length;
 
   length = cs->cset->snprintf(
-      cs, (char *)res.ptr(), res.alloced_length(), "%s(%d)",
+      cs, res.ptr(), res.alloced_length(), "%s(%d)",
       ((type() == MYSQL_TYPE_VAR_STRING && !thd->variables.new_mode)
            ? (has_charset() ? "varchar" : "varbinary")
            : (has_charset() ? "char" : "binary")),
@@ -6842,10 +6842,9 @@ void Field_varstring::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
   size_t length;
 
-  length =
-      cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(), "%s(%d)",
-                         (has_charset() ? "varchar" : "varbinary"),
-                         (int)field_length / charset()->mbmaxlen);
+  length = cs->cset->snprintf(cs, res.ptr(), res.alloced_length(), "%s(%d)",
+                              (has_charset() ? "varchar" : "varbinary"),
+                              (int)field_length / charset()->mbmaxlen);
   res.length(length);
 }
 
@@ -7165,7 +7164,7 @@ type_conversion_status Field_blob::store_internal(const char *from,
 
   if (value.alloc(new_length)) goto oom_error;
 
-  tmp = const_cast<char *>(value.ptr());
+  tmp = value.ptr();
 
   {
     const char *well_formed_error_pos;
@@ -8927,7 +8926,7 @@ String *Field_bit::val_str(String *val_buffer,
   mi_int8store(buff, bits);
 
   val_buffer->alloc(length);
-  memcpy((char *)val_buffer->ptr(), buff + 8 - length, length);
+  memcpy(val_buffer->ptr(), buff + 8 - length, length);
   val_buffer->length(length);
   val_buffer->set_charset(&my_charset_bin);
   return val_buffer;
@@ -9082,9 +9081,8 @@ bool Field_bit::compatible_field_size(uint field_metadata,
 
 void Field_bit::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  size_t length =
-      cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(), "bit(%d)",
-                         (int)field_length);
+  size_t length = cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
+                                     "bit(%d)", (int)field_length);
   res.length(length);
 }
 
@@ -9242,9 +9240,8 @@ type_conversion_status Field_bit_as_char::store(const char *from, size_t length,
 
 void Field_bit_as_char::sql_type(String &res) const {
   const CHARSET_INFO *cs = res.charset();
-  size_t length =
-      cs->cset->snprintf(cs, (char *)res.ptr(), res.alloced_length(), "bit(%d)",
-                         (int)field_length);
+  size_t length = cs->cset->snprintf(cs, res.ptr(), res.alloced_length(),
+                                     "bit(%d)", (int)field_length);
   res.length(length);
 }
 

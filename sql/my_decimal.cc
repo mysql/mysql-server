@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,8 +135,8 @@ int my_decimal2string(uint mask, const my_decimal *d, uint fixed_prec,
                   : my_decimal_string_length(d));
   int result;
   if (str->alloc(length)) return d->check_result(mask, E_DEC_OOM);
-  result = decimal2string((decimal_t *)d, (char *)str->ptr(), &length,
-                          (int)fixed_prec, fixed_dec, filler);
+  result = decimal2string(d, str->ptr(), &length, (int)fixed_prec, fixed_dec,
+                          filler);
   str->length(length);
   str->set_charset(&my_charset_numeric);
   return d->check_result(mask, result);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -97,8 +97,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::tolower,
       size_t len = str->length() * cs->casedn_multiply;
       res->set_charset(cs);
       res->alloc(len);
-      len = cs->cset->casedn(cs, (char *)str->ptr(), str->length(),
-                             (char *)res->ptr(), len);
+      len = cs->cset->casedn(cs, str->ptr(), str->length(), res->ptr(), len);
       res->length(len);
     }
     *out_string = (my_h_string)res;
@@ -133,8 +132,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
       size_t len = str->length() * cs->caseup_multiply;
       res->set_charset(cs);
       res->alloc(len);
-      len = cs->cset->caseup(cs, (char *)str->ptr(), str->length(),
-                             (char *)res->ptr(), len);
+      len = cs->cset->caseup(cs, str->ptr(), str->length(), res->ptr(), len);
       res->length(len);
     }
     *out_string = (my_h_string)res;
@@ -382,11 +380,11 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
     int char_len, tmp_len;
     st_string_iterator *iterator = (st_string_iterator *)iter;
     if (iterator == NULL) return true;
-    String *str = iterator->iterator_str;
+    const String *str = iterator->iterator_str;
     const CHARSET_INFO *cs = str->charset();
-    char *end = (char *)str->ptr() + str->length();
+    const char *end = str->ptr() + str->length();
     *out_char = 0;
-    if (iterator->iterator_ptr >= (const char *)end) return true;
+    if (iterator->iterator_ptr >= end) return true;
     char_len = (cs->cset->ctype(cs, out_char, (uchar *)iterator->iterator_ptr,
                                 (uchar *)end));
     iterator->ctype = *out_char;

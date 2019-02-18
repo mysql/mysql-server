@@ -3115,9 +3115,8 @@ double double_from_string_with_check(const CHARSET_INFO *cs, const char *cptr,
 
 double Item_string::val_real() {
   DBUG_ASSERT(fixed == 1);
-  return double_from_string_with_check(
-      str_value.charset(), str_value.ptr(),
-      (char *)str_value.ptr() + str_value.length());
+  return double_from_string_with_check(str_value.charset(), str_value.ptr(),
+                                       str_value.ptr() + str_value.length());
 }
 
 longlong longlong_from_string_with_check(const CHARSET_INFO *cs,
@@ -3147,9 +3146,8 @@ longlong longlong_from_string_with_check(const CHARSET_INFO *cs,
 */
 longlong Item_string::val_int() {
   DBUG_ASSERT(fixed == 1);
-  return longlong_from_string_with_check(
-      str_value.charset(), str_value.ptr(),
-      (char *)str_value.ptr() + str_value.length());
+  return longlong_from_string_with_check(str_value.charset(), str_value.ptr(),
+                                         str_value.ptr() + str_value.length());
 }
 
 my_decimal *Item_string::val_decimal(my_decimal *decimal_value) {
@@ -3708,9 +3706,8 @@ String *Item_param::val_str(String *str) {
       return NULL;
     case TIME_VALUE: {
       if (str->reserve(MAX_DATE_STRING_REP_LENGTH)) break;
-      str->length(
-          (uint)my_TIME_to_str(value.time, (char *)str->ptr(),
-                               MY_MIN(decimals, DATETIME_MAX_DECIMALS)));
+      str->length((uint)my_TIME_to_str(
+          value.time, str->ptr(), MY_MIN(decimals, DATETIME_MAX_DECIMALS)));
       str->set_charset(&my_charset_bin);
       return str;
     }
@@ -4100,7 +4097,7 @@ double Item_copy_string::val_real() {
   const char *end_not_used;
   return (null_value
               ? 0.0
-              : my_strntod(str_value.charset(), (char *)str_value.ptr(),
+              : my_strntod(str_value.charset(), str_value.ptr(),
                            str_value.length(), &end_not_used, &err_not_used));
 }
 
@@ -8923,7 +8920,7 @@ double Item_cache_str::val_real() {
   const char *end_not_used;
   if (!has_value()) return 0.0;
   if (value)
-    return my_strntod(value->charset(), (char *)value->ptr(), value->length(),
+    return my_strntod(value->charset(), value->ptr(), value->length(),
                       &end_not_used, &err_not_used);
   return (double)0;
 }

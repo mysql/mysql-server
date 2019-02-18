@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3846,8 +3846,7 @@ bool Item_func_centroid::bg_centroid(const Geometry *geom, String *ptwkb) {
 
     respt.set_srid(geom->get_srid());
     if (!null_value) null_value = post_fix_result(&bg_resbuf_mgr, respt, ptwkb);
-    if (!null_value)
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
+    if (!null_value) bg_resbuf_mgr.set_result_buffer(ptwkb->ptr());
   } catch (...) {
     null_value = true;
     handle_gis_exception("st_centroid");
@@ -3955,8 +3954,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
         isdone = false;
 
       if (isdone) {
-        if (!null_value)
-          bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+        if (!null_value) bg_resbuf_mgr.set_result_buffer(res_hull->ptr());
         return null_value;
       }
     }
@@ -4023,8 +4021,7 @@ bool Item_func_convex_hull::bg_convex_hull(const Geometry *geom,
 
     hull.set_srid(geom->get_srid());
     null_value = post_fix_result(&bg_resbuf_mgr, hull, res_hull);
-    if (!null_value)
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+    if (!null_value) bg_resbuf_mgr.set_result_buffer(res_hull->ptr());
   } catch (...) {
     null_value = true;
     handle_gis_exception("st_convexhull");

@@ -183,8 +183,8 @@ class Item_func_regexp : public Item_func {
     const char *end_not_used;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0.0;
-    return my_strntod(res->charset(), const_cast<char *>(res->ptr()),
-                      res->length(), &end_not_used, &err_not_used);
+    return my_strntod(res->charset(), res->ptr(), res->length(), &end_not_used,
+                      &err_not_used);
   }
 
   longlong convert_str_to_int() {

@@ -1474,7 +1474,7 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
 
     if (var->value) {
       res = var->value->val_str(&str);
-      lex_string_set(&se_name, const_cast<char *>(res->ptr()));
+      lex_string_set(&se_name, res->ptr());
     } else {
       // Use the default value defined by sys_var.
       lex_string_set(&se_name,

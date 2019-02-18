@@ -271,7 +271,7 @@ class String {
   void set(String &str, size_t offset, size_t arg_length) {
     DBUG_ASSERT(&str != this);
     mem_free();
-    m_ptr = const_cast<char *>(str.ptr()) + offset;
+    m_ptr = str.ptr() + offset;
     m_length = arg_length;
     m_is_alloced = false;
     if (str.m_alloced_length)

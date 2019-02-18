@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -198,15 +198,13 @@ TEST_F(GeometryManipulationTest, PolygonCopyTest) {
   plgn3.to_wkb_unparsed();
   plgn3.as_wkb(&wkb5, true);
   EXPECT_EQ(wkb3.length(), wkb5.length());
-  EXPECT_EQ(memcmp(((char *)wkb3.ptr()) + WKB_HEADER_SIZE,
-                   ((char *)wkb5.ptr()) + WKB_HEADER_SIZE,
+  EXPECT_EQ(memcmp(wkb3.ptr() + WKB_HEADER_SIZE, wkb5.ptr() + WKB_HEADER_SIZE,
                    wkb5.length() - WKB_HEADER_SIZE),
             0);
 
   plgn2.as_geometry(&wkb4, false);
   EXPECT_EQ(wkb3.length() + 4, wkb4.length());
-  EXPECT_EQ(memcmp(GEOM_HEADER_SIZE + ((char *)wkb4.ptr()),
-                   ((char *)wkb3.ptr()) + WKB_HEADER_SIZE,
+  EXPECT_EQ(memcmp(GEOM_HEADER_SIZE + wkb4.ptr(), wkb3.ptr() + WKB_HEADER_SIZE,
                    wkb3.length() - WKB_HEADER_SIZE),
             0);
 

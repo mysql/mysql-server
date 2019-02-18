@@ -355,8 +355,7 @@ SELECT_LEX *build_show_databases_query(const POS &pos, THD *thd, String *wild,
   // SELECT * FROM <sub_query> WHERE Database LIKE <value> ...
   if (wild) {
     // Convert IS db and table name to desired form.
-    dd::info_schema::convert_table_name_case(const_cast<char *>(wild->ptr()),
-                                             nullptr);
+    dd::info_schema::convert_table_name_case(wild->ptr(), nullptr);
 
     Item *like = top_query.prepare_like_item(alias_database, wild);
     if (!like || top_query.add_condition(like)) return nullptr;
@@ -528,9 +527,8 @@ SELECT_LEX *build_show_tables_query(const POS &pos, THD *thd, String *wild,
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(
-      thd->lex->select_lex->db,
-      wild ? const_cast<char *>(wild->ptr()) : nullptr);
+  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+                                           wild ? wild->ptr() : nullptr);
 
   LEX_STRING cur_db = {thd->lex->select_lex->db,
                        strlen(thd->lex->select_lex->db)};
@@ -1002,9 +1000,8 @@ SELECT_LEX *build_show_triggers_query(const POS &pos, THD *thd, String *wild,
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(
-      thd->lex->select_lex->db,
-      wild ? const_cast<char *>(wild->ptr()) : nullptr);
+  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+                                           wild ? wild->ptr() : nullptr);
 
   LEX_STRING cur_db = {thd->lex->select_lex->db,
                        strlen(thd->lex->select_lex->db)};
@@ -1271,9 +1268,8 @@ SELECT_LEX *build_show_events_query(const POS &pos, THD *thd, String *wild,
     return nullptr;
 
   // Convert IS db and table name to desired form.
-  dd::info_schema::convert_table_name_case(
-      thd->lex->select_lex->db,
-      wild ? const_cast<char *>(wild->ptr()) : nullptr);
+  dd::info_schema::convert_table_name_case(thd->lex->select_lex->db,
+                                           wild ? wild->ptr() : nullptr);
 
   LEX_STRING cur_db = {thd->lex->select_lex->db,
                        strlen(thd->lex->select_lex->db)};

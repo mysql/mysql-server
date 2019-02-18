@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -587,7 +587,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
         DBUG_RETURN(str_result);
       } else if (post_fix_result(&bg_resbuf_mgr, result, str_result))
         DBUG_RETURN(error_str());
-      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_result->ptr()));
+      bg_resbuf_mgr.set_result_buffer(str_result->ptr());
     } else {
       // Compute buffer for a geometry collection(GC). We first compute buffer
       // for each component of the GC, and put the buffer polygons into another

@@ -309,7 +309,7 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
     } else {
       /* persist default value */
       setvar->var->save_default(thd, setvar);
-      setvar->var->saved_value_to_string(thd, setvar, (char *)str.ptr());
+      setvar->var->saved_value_to_string(thd, setvar, str.ptr());
       utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
       var_value = utf8_str.c_ptr_quick();
     }

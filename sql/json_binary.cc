@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ static bool reserve(String *buffer, size_t bytes_needed) {
 /** Encode a 16-bit int at the end of the destination string. */
 static bool append_int16(String *dest, int16 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int2store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int2store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -156,7 +156,7 @@ static bool append_int16(String *dest, int16 value) {
 /** Encode a 32-bit int at the end of the destination string. */
 static bool append_int32(String *dest, int32 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int4store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int4store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -164,7 +164,7 @@ static bool append_int32(String *dest, int32 value) {
 /** Encode a 64-bit int at the end of the destination string. */
 static bool append_int64(String *dest, int64 value) {
   if (reserve(dest, sizeof(value))) return true; /* purecov: inspected */
-  int8store(const_cast<char *>(dest->ptr()) + dest->length(), value);
+  int8store(dest->ptr() + dest->length(), value);
   dest->length(dest->length() + sizeof(value));
   return false;
 }
@@ -200,8 +200,7 @@ static bool append_offset_or_size(String *dest, size_t offset_or_size,
 static void insert_offset_or_size(String *dest, size_t pos,
                                   size_t offset_or_size, bool large) {
   DBUG_ASSERT(pos + offset_size(large) <= dest->alloced_length());
-  write_offset_or_size(const_cast<char *>(dest->ptr()) + pos, offset_or_size,
-                       large);
+  write_offset_or_size(dest->ptr() + pos, offset_or_size, large);
 }
 
 /**
@@ -810,7 +809,7 @@ static enum_serialization_result serialize_json_value(
       // Store the double in a platform-independent eight-byte format.
       const Json_double *d = down_cast<const Json_double *>(dom);
       if (reserve(dest, 8)) return FAILURE; /* purecov: inspected */
-      float8store(const_cast<char *>(dest->ptr()) + dest->length(), d->value());
+      float8store(dest->ptr() + dest->length(), d->value());
       dest->length(dest->length() + 8);
       (*dest)[type_pos] = JSONB_TYPE_DOUBLE;
       result = OK;
