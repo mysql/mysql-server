@@ -21,13 +21,13 @@ PREPARE ps FROM 'SELECT * FROM t';
 EXECUTE ps;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
-# Now set the debug flag. Execution fails when opening the secondary
-# tables. The failure triggers a repreparation against the primary
+# Now set the debug flag. Execution fails when preparing the secondary
+# engine. The failure triggers a repreparation against the primary
 # storage engine.
 FLUSH STATUS;
-SET DEBUG = '+d,open_secondary_engine_tables_error';
+SET DEBUG = '+d,secondary_engine_mock_prepare_error';
 EXECUTE ps;
-SET DEBUG = '-d,open_secondary_engine_tables_error';
+SET DEBUG = '-d,secondary_engine_mock_prepare_error';
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # The statement remembers that the previous execution failed to open
@@ -89,6 +89,39 @@ SET DEBUG_SYNC = 'now SIGNAL continue';
 --reap
 --disconnect conn1
 DROP TABLE t;
+
+--echo #
+--echo # Bug#29023387: GET PLAN COST FROM SECONDARY ENGINE
+--echo #
+CREATE TABLE t1(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t3(x INT, y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 VALUES (1, 2), (3, 4);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t3 VALUES (1, 2), (3, 4);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ALTER TABLE t3 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2, t3;
+SET @@optimizer_trace='enabled=on';
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SELECT TRACE->'$**.secondary_engine_cost' FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace='enabled=off';
+# Set a debug flag so that the join order is chosen based on how early
+# a table with the alias X is.
+SET DEBUG = "+d,secondary_engine_mock_change_join_order";
+EXPLAIN SELECT * FROM t1 AS X JOIN t2 ON X.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 AS X ON t1.x = X.y LEFT JOIN t3 ON X.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 AS X ON t2.x = X.y;
+SET DEBUG = "-d,secondary_engine_mock_change_join_order";
+SET DEBUG = "+d,secondary_engine_mock_compare_cost_error";
+# The injected error causes fallback to the primary engine.
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SET DEBUG = "-d,secondary_engine_mock_compare_cost_error";
+DROP TABLE t1, t2, t3;
 
 --disable_query_log
 UNINSTALL PLUGIN mock;

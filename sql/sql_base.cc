@@ -6408,6 +6408,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   LEX *const lex = thd->lex;
   Sql_cmd *const sql_cmd = lex->m_sql_cmd;
 
+  // The previous execution context should have been destroyed.
+  DBUG_ASSERT(lex->secondary_engine_execution_context() == nullptr);
+
   // If use of secondary engines has been disabled for the statement,
   // there is nothing to do.
   if (sql_cmd == nullptr || sql_cmd->secondary_storage_engine_disabled())
@@ -6475,13 +6478,9 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
     tl->table->file->ha_set_primary_handler(primary_table->file);
   }
 
-  // Debug code that injects an error when opening secondary tables.
-  DBUG_EXECUTE_IF("open_secondary_engine_tables_error", {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), "db", "table");
-    return true;
-  });
-
-  return false;
+  // Prepare the secondary engine for executing the statement.
+  return hton->prepare_secondary_engine != nullptr &&
+         hton->prepare_secondary_engine(thd, lex);
 }
 
 /**

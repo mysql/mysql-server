@@ -2350,6 +2350,16 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
 }
 
 /**
+  Returns the handlerton of the secondary engine that will execute the current
+  statement, or nullptr if a secondary engine is not used.
+*/
+static const handlerton *secondary_engine_handlerton(const THD *thd) {
+  const Sql_cmd *sql_cmd = thd->lex->m_sql_cmd;
+  if (sql_cmd == nullptr) return nullptr;
+  return sql_cmd->secondary_engine();
+}
+
+/**
   Cost calculation of another (partial-)QEP has been completed.
 
   If this is our 'best' plan explored so far, we record this
@@ -2359,8 +2369,10 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
                     also corresponds to the current depth of the search tree;
                     also an index in the array 'join->best_ref';
   @param trace_obj  trace object where information is to be added
+
+  @return false if successful, true if error
 */
-void Optimize_table_order::consider_plan(uint idx,
+bool Optimize_table_order::consider_plan(uint idx,
                                          Opt_trace_object *trace_obj) {
   double sort_cost = join->sort_cost;
   double cost = join->positions[idx].prefix_cost;
@@ -2368,7 +2380,7 @@ void Optimize_table_order::consider_plan(uint idx,
   /*
     We may have to make a temp table, note that this is only a
     heuristic since we cannot know for sure at this point.
-    Hence it may be too pesimistic.
+    Hence it may be too pessimistic.
 
     @todo Windowing that uses sorting may force a sort cost both prior
     to windowing (i.e. GROUP BY) and after (i.e. ORDER BY or DISTINCT).
@@ -2408,10 +2420,32 @@ void Optimize_table_order::consider_plan(uint idx,
         }
       }
 
-  const bool cheaper = cost < join->best_read;
-  const bool chosen = found_plan_with_allowed_sj
-                          ? (plan_uses_allowed_sj && cheaper)
-                          : (plan_uses_allowed_sj || cheaper);
+  bool cheaper = cost < join->best_read;
+  bool chosen = found_plan_with_allowed_sj ? (plan_uses_allowed_sj && cheaper)
+                                           : (plan_uses_allowed_sj || cheaper);
+
+  /*
+    If the statement is executed on a secondary engine, and the secondary engine
+    has implemented a custom cost comparison function, ask the secondary engine
+    to compare the cost. The secondary engine is only consulted when a complete
+    join order is considered.
+  */
+  if (idx + 1 == join->tables) {  // this is a complete join order
+    const handlerton *secondary_engine = secondary_engine_handlerton(thd);
+    if (secondary_engine != nullptr &&
+        secondary_engine->compare_secondary_engine_cost != nullptr) {
+      double secondary_engine_cost;
+      if (secondary_engine->compare_secondary_engine_cost(
+              thd, *join, Candidate_table_order(join), cost, &cheaper,
+              &secondary_engine_cost))
+        return true;
+      chosen = cheaper;
+      trace_obj->add("secondary_engine_cost", secondary_engine_cost);
+
+      // If this is the first plan seen, it must be chosen.
+      DBUG_ASSERT(join->best_read != DBL_MAX || chosen);
+    }
+  }
 
   trace_obj->add("chosen", chosen);
   if (chosen) {
@@ -2449,6 +2483,8 @@ void Optimize_table_order::consider_plan(uint idx,
   DBUG_EXECUTE("opt",
                print_plan(join, idx + 1, join->positions[idx].prefix_rowcount,
                           cost, cost, "full_plan"););
+
+  return false;
 }
 
 /**
@@ -2771,7 +2807,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
           DBUG_RETURN(true);
       } else  // if ((current_search_depth > 1) && ...
       {
-        consider_plan(idx, &trace_one_table);
+        if (consider_plan(idx, &trace_one_table)) DBUG_RETURN(true);
         /*
           If plan is complete, there should be no "open" outer join nest, and
           all semi join nests should be handled by a strategy:
@@ -3053,7 +3089,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           eq_ref_ext |= eq_ref_extension_by_limited_search(
               remaining_tables_after, idx + 1, current_search_depth - 1);
         } else {
-          consider_plan(idx, &trace_one_table);
+          if (consider_plan(idx, &trace_one_table)) DBUG_RETURN(~(table_map)0);
           DBUG_ASSERT((remaining_tables_after != 0) ||
                       ((cur_embedding_map == 0) &&
                        (join->positions[idx].dups_producing_tables == 0)));
