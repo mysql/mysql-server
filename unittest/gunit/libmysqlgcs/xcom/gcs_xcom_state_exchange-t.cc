@@ -151,6 +151,74 @@ class XComStateExchangeTest : public GcsBaseTest {
     delete control_mock;
   }
 
+  void DecodeStateExchangeMessage(
+      Gcs_protocol_version encoder_protocol_version) {
+    /* Encode a message. */
+    uchar *buffer = NULL;
+    uchar *slider = NULL;
+    uint64_t buffer_len = 0;
+    uint64_t exchangeable_header_len = 0;
+    uint64_t exchangeable_data_len = 0;
+    uint64_t exchangeable_snapshot_len = 0;
+
+    Gcs_xcom_view_identifier dummy_view_id(1, 1);
+    synode_no dummy_cfg_id;
+    dummy_cfg_id.group_id = 1;
+    dummy_cfg_id.msgno = 1;
+    dummy_cfg_id.node = 1;
+    Gcs_xcom_synode_set dummy_snapshot;
+    std::string encoded_payload = "I am sooper dooper payload";
+
+    Xcom_member_state encoded_member_state(dummy_view_id, dummy_cfg_id,
+                                           encoder_protocol_version,
+                                           dummy_snapshot, NULL, 0);
+
+    /*
+      Allocate a buffer that will contain the header, the data, and the packet
+      recovery snapshot.
+    */
+    exchangeable_data_len = encoded_payload.size();
+    exchangeable_header_len = encoded_member_state.get_encode_header_size();
+    exchangeable_snapshot_len = encoded_member_state.get_encode_snapshot_size();
+
+    buffer_len = exchangeable_header_len + exchangeable_data_len +
+                 exchangeable_snapshot_len;
+    buffer = static_cast<uchar *>(std::malloc(buffer_len * sizeof(uchar)));
+    ASSERT_NE(buffer, nullptr);
+    slider = buffer;
+
+    /*
+     Serialize the state exchange message.
+
+     Its wire format is:
+
+         +--------+------------------+----------+
+         | header | upper-layer data | snapshot |
+         +--------+------------------+----------+
+
+     For more context, see Xcom_member_state.
+     */
+    encoded_member_state.encode_header(slider, &exchangeable_header_len);
+    slider += exchangeable_header_len;
+
+    std::memcpy(slider, encoded_payload.c_str(), exchangeable_data_len);
+    slider += exchangeable_data_len;
+
+    encoded_member_state.encode_snapshot(slider, &exchangeable_snapshot_len);
+    slider += exchangeable_snapshot_len;
+
+    /* Decode the message. */
+    Xcom_member_state decoded_member_state(encoder_protocol_version, buffer,
+                                           buffer_len);
+    std::string decoded_payload(
+        reinterpret_cast<const char *>(decoded_member_state.get_data()),
+        decoded_member_state.get_data_size());
+    ASSERT_EQ(encoded_payload, decoded_payload);
+
+    // Cleanup.
+    std::free(buffer);
+  }
+
   Gcs_xcom_state_exchange *state_exchange;
   mock_gcs_control_interface *control_mock;
   mock_gcs_xcom_communication_interface *comm_mock;
@@ -563,6 +631,14 @@ TEST_F(XComStateExchangeTest, StateExchangeDiscardSynodes) {
   ASSERT_EQ(state_exchange->get_member_states()->size(), 0u);
 
   delete member_id_1;
+}
+
+TEST_F(XComStateExchangeTest, DecodeStateExchangeMessage) {
+  this->DecodeStateExchangeMessage(Gcs_protocol_version::HIGHEST_KNOWN);
+}
+
+TEST_F(XComStateExchangeTest, DecodeStateExchangeMessageV1) {
+  this->DecodeStateExchangeMessage(Gcs_protocol_version::V1);
 }
 
 }  // namespace gcs_xcom_state_exchange_unittest
