@@ -4044,10 +4044,11 @@ EXPLAIN
         -> Table scan on t3
     -> Single-row index lookup on <subquery2> using <auto_key> (kp1=t3.a)
         -> Materialize with deduplication
-            -> Nested loop inner join
-                -> Filter: (t1.c is not null)
-                    -> Index range scan on t1 using kp1, with index condition: (t1.kp1 < 20)
-                -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)
+            -> Filter: (t1.kp1 is not null)
+                -> Nested loop inner join
+                    -> Filter: (t1.c is not null)
+                        -> Index range scan on t1 using kp1, with index condition: (t1.kp1 < 20)
+                    -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);

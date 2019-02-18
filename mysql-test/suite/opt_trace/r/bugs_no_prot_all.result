@@ -2314,6 +2314,48 @@ ON table2 .col_int_key = table1 .col_int_key
                     "steps": [
                     ] /* steps */
                   } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
+                },
+                {
+                  "subselect_execution": {
+                    "select#": 4,
+                    "steps": [
+                    ] /* steps */
+                  } /* subselect_execution */
                 }
               ] /* steps */
             } /* materialize */

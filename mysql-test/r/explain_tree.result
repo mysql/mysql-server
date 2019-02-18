@@ -500,8 +500,9 @@ EXPLAIN
 -> Nested loop inner join
     -> Table scan on <subquery2>
         -> Materialize with deduplication
-            -> Filter: (t1.b = 2)
-                -> Table scan on t1
+            -> Filter: (t1.a is not null)
+                -> Filter: (t1.b = 2)
+                    -> Table scan on t1
     -> Filter: (t1.a = `<subquery2>`.a)
         -> Table scan on t1
 

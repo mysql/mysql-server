@@ -1718,6 +1718,27 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
         join_start, join_end, qep_tabs, thd, TOP_LEVEL, pending_conditions,
         pending_invalidators, unhandled_duplicates);
 
+    // Since materialized semijoins are based on ref access against the table,
+    // and ref access has NULL = NULL (while IN expressions should not),
+    // remove rows with NULLs in them here. This is only an optimization for IN
+    // (since equality propagation will filter away NULLs on the other side),
+    // but is required for NOT IN correctness.
+    //
+    // TODO: It could be possible to join this with an existing condition,
+    // and possibly also in some cases when scanning each table.
+    vector<Item *> not_null_conditions;
+    for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
+      if (item.maybe_null) {
+        Item *condition = new Item_func_isnotnull(&item);
+        condition->quick_fix_field();
+        condition->update_used_tables();
+        condition->top_level_item();
+        not_null_conditions.push_back(condition);
+      }
+    }
+    subtree_iterator = PossiblyAttachFilterIterator(move(subtree_iterator),
+                                                    not_null_conditions, thd);
+
     bool copy_fields_and_items_in_materialize =
         true;  // We never have aggregation within semijoins.
     table_iterator.reset(new (thd->mem_root) MaterializeIterator(
