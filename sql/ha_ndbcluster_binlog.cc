@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1665,7 +1665,7 @@ class Ndb_binlog_setup {
                                 bool force_overwrite)
   {
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_logfile_group(logfile_group_name))
+    if (!dd_client.mdl_lock_logfile_group_exclusive(logfile_group_name))
     {
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     logfile_group_name);
@@ -1752,6 +1752,13 @@ class Ndb_binlog_setup {
 
     // Logfile group exists in DD
     Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_logfile_group(logfile_group_name,
+                                          true /* intention_exclusive */))
+    {
+      ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
+                    logfile_group_name);
+      return false;
+    }
     const dd::Tablespace *existing = nullptr;
     if (!dd_client.get_logfile_group(logfile_group_name, &existing))
     {
@@ -1885,10 +1892,19 @@ class Ndb_binlog_setup {
     {
       ndb_log_info("Logfile group '%s' does not exist in NDB, dropping",
                    logfile_group_name.c_str());
+      if (!dd_client.mdl_lock_logfile_group_exclusive(
+        logfile_group_name.c_str()))
+      {
+        ndb_log_info("MDL lock could not be acquired for logfile group '%s'",
+                     logfile_group_name.c_str());
+        ndb_log_info("Failed to synchronize logfile group '%s'",
+                     logfile_group_name.c_str());
+        continue;
+      }
       if (!dd_client.drop_logfile_group(logfile_group_name.c_str()))
       {
         ndb_log_info("Failed to synchronize logfile group '%s'",
-                      logfile_group_name.c_str());
+                     logfile_group_name.c_str());
       }
     }
     dd_client.commit();
@@ -1931,7 +1947,7 @@ class Ndb_binlog_setup {
                              bool force_overwrite)
   {
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_tablespace(tablespace_name))
+    if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name))
     {
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     tablespace_name);
@@ -1996,6 +2012,13 @@ class Ndb_binlog_setup {
 
     // Tablespace exists in DD
     Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_tablespace(tablespace_name,
+                                       true /* intention_exclusive */))
+    {
+      ndb_log_error("MDL lock could not be acquired on tablespace '%s'",
+                    tablespace_name);
+      return false;
+    }
     const dd::Tablespace *existing = nullptr;
     if (!dd_client.get_tablespace(tablespace_name, &existing))
     {
@@ -2127,6 +2150,14 @@ class Ndb_binlog_setup {
     {
       ndb_log_info("Tablespace '%s' does not exist in NDB, dropping",
                    tablespace_name.c_str());
+      if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name.c_str()))
+      {
+        ndb_log_warning("MDL lock could not be acquired on tablespace '%s'",
+                        tablespace_name.c_str());
+        ndb_log_warning("Failed to synchronize tablespace '%s'",
+                        tablespace_name.c_str());
+        continue;
+      }
       if (!dd_client.drop_tablespace(tablespace_name.c_str()))
       {
         ndb_log_warning("Failed to synchronize tablespace '%s'",
@@ -4669,7 +4700,7 @@ class Ndb_schema_event_handler {
     }
 
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_tablespace(tablespace_name))
+    if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name))
     {
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     tablespace_name);
@@ -4758,7 +4789,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_tablespace(schema->name))
+    if (!dd_client.mdl_lock_tablespace_exclusive(schema->name))
     {
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
                     schema->name);
@@ -4815,7 +4846,7 @@ class Ndb_schema_event_handler {
     }
 
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_logfile_group(logfile_group_name))
+    if (!dd_client.mdl_lock_logfile_group_exclusive(logfile_group_name))
     {
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     logfile_group_name);
@@ -4905,7 +4936,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     Ndb_dd_client dd_client(m_thd);
-    if (!dd_client.mdl_lock_logfile_group(schema->name))
+    if (!dd_client.mdl_lock_logfile_group_exclusive(schema->name))
     {
       ndb_log_error("MDL lock could not be acquired for logfile group '%s'",
                     schema->name);
