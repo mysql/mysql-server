@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1191,6 +1191,20 @@ NdbRestarter::wait_until_ready(const int * nodes, int cnt, int timeout)
   }
 
   return m_cluster_connection->wait_until_ready(nodes, cnt, timeout);
+}
+
+int
+NdbRestarter::getNodeConnectCount(int nodeId)
+{
+  if (getStatus() != 0)
+    return -1;
+
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
+  {
+    if (ndbNodes[n].node_id == nodeId)
+      return ndbNodes[n].connect_count;
+  }
+  return -1;
 }
 
 template class Vector<ndb_mgm_node_state>;
