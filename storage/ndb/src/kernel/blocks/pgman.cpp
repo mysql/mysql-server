@@ -3036,7 +3036,13 @@ Pgman::extent_pages_available(Uint32 pages_needed)
 {
   Uint32 locked_pages = m_stats.m_num_locked_pages;
   Uint32 max_pages = m_param.m_max_pages;
+
   const Uint32 reserved = m_extra_pgman_reserve_pages;
+  if (ERROR_INSERTED(11009))
+  {
+    // 11009 sets max_pages to 25 which is less than reserved 32
+    reserved = 0;
+  }
 
   if (m_extra_pgman)
   {
