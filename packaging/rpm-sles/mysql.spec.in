@@ -37,6 +37,9 @@
 # Pass path to the libcurl "lib" directory
 %{?WITH_CURL: %global curl_lib_option -DWITH_CURL=%{WITH_CURL}}
 
+# Pass alternative ssl setting if provided. Needed for e.g. wolfssl.
+%{?with_ssl: %global ssl_option -DWITH_SSL=%{with_ssl}}
+
 # Regression tests may take a long time, override the default to skip them
 %{!?runselftest:%global runselftest 0}
 
@@ -133,6 +136,7 @@ BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
+BuildRequires:  openssl-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
 %{?sles11:BuildRequires: gcc48 gcc48-c++}
@@ -629,6 +633,7 @@ mkdir debug
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
+           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -678,6 +683,7 @@ mkdir release
            %{?mecab_option} \
            %{?aws_sdk_option} \
            %{?curl_lib_option} \
+           %{?ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DCOMPILATION_COMMENT_SERVER="%{compilation_comment_server_release}" \
            -DMYSQL_SERVER_SUFFIX="%{?server_suffix}"
@@ -1413,6 +1419,9 @@ fi
 %dir %attr(755, mysqlrouter, mysqlrouter) /var/run/mysqlrouter
 
 %changelog
+* Mon Feb 18 2019 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.16-1
+- Add back support for alternative with_ssl
+
 * Fri Dec 14 2018 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.15-1
 - Added component_test_mysql_runtime_error.so test component
 
