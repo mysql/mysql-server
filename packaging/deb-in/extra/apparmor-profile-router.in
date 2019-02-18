@@ -18,7 +18,7 @@
 
 # Allow config access
   /etc/mysqlrouter/** rw,
-  /var/lib/mysqlrouter/keyring rw,
+  /var/lib/mysqlrouter/** rw,
 
 # Allow runtime files such as PID-file
   /var/run/mysqlrouter/mysqlrouter.pid rw,
