@@ -45,9 +45,9 @@
 
 /** Global variables */
 static const char progname[] = "ndb_atrt";
-static const char *g_gather_progname = "atrt-gather-result.sh";
-static const char *g_analyze_progname = "atrt-analyze-result.sh";
-static const char *g_setup_progname = "atrt-setup.sh";
+static const char *g_gather_progname = 0;
+static const char *g_analyze_progname = 0;
+static const char *g_setup_progname = 0;
 
 static const char *g_log_filename = 0;
 static const char *g_test_case_filename = 0;
@@ -100,7 +100,6 @@ const char *g_ndbmtd_bin_path = 0;
 const char *g_mysqld_bin_path = 0;
 const char *g_mysql_install_db_bin_path = 0;
 const char *g_libmysqlclient_so_path = 0;
-const char *g_atrt_path;
 
 static struct {
   bool is_required;
@@ -118,9 +117,12 @@ static struct {
 #endif
                   {true, 0, 0}};
 
+static BaseString get_atrt_path(const char *arg);
+
 const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
 static bool find_binaries();
+static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
 static struct my_option g_options[] = {
@@ -236,12 +238,15 @@ int main(int argc, char **argv) {
     goto end;
   }
 
-  g_atrt_path = get_atrt_path(argv[0]);
-  if (!set_atrt_scripts_path(g_atrt_path))
   {
-    g_logger.critical("Failed to set atrt scripts path");
-    return_code = ATRT_FAILURE;
-    goto end;
+    BaseString atrt_path = get_atrt_path(argv[0]);
+    assert(atrt_path != "");
+
+    if (!find_scripts(atrt_path.c_str())) {
+      g_logger.critical("Failed to find required atrt scripts for execution");
+      return_code = ATRT_FAILURE;
+      goto end;
+    }
   }
 
   g_config.m_config_type = atrt_config::CNF;
@@ -1816,37 +1821,24 @@ static bool find_binaries() {
   return ok;
 }
 
-const char *get_atrt_path(const char *arg)
-{
-  char atrt_path[PATH_MAX];
-  realpath(arg, atrt_path);
-  char *pos = strrchr(atrt_path, '/');
-  atrt_path[int(pos - atrt_path)] = '\0';
-  return strdup(atrt_path);
-}
-
-bool set_atrt_scripts_path(const char *g_atrt_path)
-{
+bool find_scripts(const char *atrt_path) {
   g_logger.info("Locating scripts...");
-  struct script_path
-  {
+
+  struct script_path {
     const char *name;
     const char **path;
   };
-
   std::vector<struct script_path> scripts = {
       {"atrt-gather-result.sh", &g_gather_progname},
       {"atrt-analyze-result.sh", &g_analyze_progname},
       {"atrt-setup.sh", &g_setup_progname}};
 
-  for (auto &script : scripts)
-  {
+  for (auto &script : scripts) {
     BaseString script_full_path;
-    script_full_path.assfmt("%s/%s", g_atrt_path, script.name);
-    if (!File_class::exists(script_full_path.c_str()))
-    {
-      g_logger.critical(
-          "atrt script %s could not be found in %s", script.name, g_atrt_path);
+    script_full_path.assfmt("%s/%s", atrt_path, script.name);
+    if (!File_class::exists(script_full_path.c_str())) {
+      g_logger.critical("atrt script %s could not be found in %s", script.name,
+                        atrt_path);
       return false;
     }
     *script.path = strdup(script_full_path.c_str());
@@ -1875,6 +1867,21 @@ static bool find_config_ini_files() {
   }
 
   return found;
+}
+
+BaseString get_atrt_path(const char *arg) {
+  char *fullPath = realpath(arg, nullptr);
+  if (fullPath == nullptr) return {};
+
+  BaseString path;
+  char *last_folder_sep = strrchr(fullPath, '/');
+  if (last_folder_sep != nullptr) {
+    *last_folder_sep = '\0';
+    path.assign(fullPath);
+  }
+
+  free(fullPath);
+  return path;
 }
 
 template class Vector<Vector<SimpleCpcClient::Process> >;
