@@ -2646,6 +2646,14 @@ class THD : public MDL_context_owner,
     set_time();
   }
   void set_time_after_lock() {
+    /*
+      If mysql_lock_tables() is called multiple times,
+      we stick with the first timestamp. This prevents
+      anomalities with things like CREATE INDEX, where
+      otherwise, we'll get the lock timestamp for the
+      data dictionary update.
+    */
+    if (utime_after_lock != start_utime) return;
     utime_after_lock = my_micro_time();
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi,
                                   (utime_after_lock - start_utime));
