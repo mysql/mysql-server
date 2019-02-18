@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,12 +116,6 @@ public:
   void setLength(Uint32);
   
 public:
-#define VMS_DATA_SIZE \
-  (MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS + MAX_KEY_SIZE_IN_WORDS)
-
-#if VMS_DATA_SIZE > 8192
-#error "VMSignal buffer is too small"
-#endif
 
   Uint32 m_sectionPtrI[3];
   SignalHeader header; // 28 bytes
