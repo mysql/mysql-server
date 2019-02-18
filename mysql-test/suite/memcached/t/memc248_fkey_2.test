@@ -49,7 +49,7 @@ CREATE TABLE t2        (c1 VARCHAR(32),
 			c2 VARCHAR(255),
 			c21 VARCHAR(255),
 			c3 INT, c4 BIGINT UNSIGNED, c5 INT, primary key(c1),
-                        FOREIGN KEY ft2(c11) REFERENCES t1(c1))
+                        CONSTRAINT ft2 FOREIGN KEY (c11) REFERENCES t1(c1))
 ENGINE = INNODB;
 
 INSERT INTO t1 VALUES ('Dd', 'Hessen', 'M', 0, 0, 0);
