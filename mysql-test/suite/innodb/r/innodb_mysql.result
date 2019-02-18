@@ -1819,7 +1819,7 @@ CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
 ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
-FOREIGN KEY f1 (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
+CONSTRAINT f1 FOREIGN KEY (c) REFERENCES t1 (a,k) ON UPDATE NO ACTION) engine=innodb;
 ERROR 42000: Incorrect foreign key definition for 'f1': Key reference and table reference don't match
 CREATE TABLE t2 (c INT NOT NULL, d INT NOT NULL, PRIMARY KEY (c,d),
 CONSTRAINT c1 FOREIGN KEY f1 (c) REFERENCES t1 (a) ON DELETE NO ACTION,
@@ -1834,8 +1834,8 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`c`,`d`),
   CONSTRAINT `c1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
-  CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
-  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
+  CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
