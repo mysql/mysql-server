@@ -47,7 +47,8 @@ class Check_constraints : virtual public Object_table_impl {
     FIELD_NAME,
     FIELD_ENFORCED,
     FIELD_CHECK_CLAUSE,
-    FIELD_CHECK_CLAUSE_UTF8
+    FIELD_CHECK_CLAUSE_UTF8,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

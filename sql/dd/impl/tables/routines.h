@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +74,8 @@ class Routines : public Entity_object_table_impl {
     FIELD_LAST_ALTERED,
     FIELD_COMMENT,
     FIELD_OPTIONS,
-    FIELD_EXTERNAL_LANGUAGE
+    FIELD_EXTERNAL_LANGUAGE,
+    NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 
   enum enum_indexes {

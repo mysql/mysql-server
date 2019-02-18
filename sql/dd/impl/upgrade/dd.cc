@@ -35,9 +35,17 @@
 #include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
 #include "sql/dd/impl/system_registry.h"                // dd::System_tables
 #include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::DD_properties
+#include "sql/dd/impl/tables/events.h"         // dd::tables::Events
 #include "sql/dd/impl/tables/foreign_key_column_usage.h"  // dd::tables::Fore...
-#include "sql/dd/impl/tables/foreign_keys.h"  // dd::tables::Foreign_keys
-#include "sql/dd/impl/tables/tables.h"        // dd::tables::Tables
+#include "sql/dd/impl/tables/foreign_keys.h"      // dd::tables::Foreign_keys
+#include "sql/dd/impl/tables/index_partitions.h"  // dd::tables::Index_partitions
+#include "sql/dd/impl/tables/indexes.h"           // dd::tables::Indexes
+#include "sql/dd/impl/tables/routines.h"          // dd::tables::Routines
+#include "sql/dd/impl/tables/schemata.h"          // dd::tables::Schemata
+#include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
+#include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
+#include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
+#include "sql/dd/impl/tables/triggers.h"          // dd::tables::Triggers
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
@@ -286,6 +294,8 @@ bool update_meta_data(THD *thd) {
       Remove ENCRYPTION clause for unencrypted non-InnoDB tablespaces.
       Because its only InnoDB that support encryption in 8.0.16.
     */
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tablespaces ts "
@@ -297,6 +307,8 @@ bool update_meta_data(THD *thd) {
     }
 
     // Remove ENCRYPTION clause for non-InnoDB tables.
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tables tbl "
@@ -323,6 +335,14 @@ bool update_meta_data(THD *thd) {
       This is done as we expect all innodb tablespaces to have proper
       'encryption' flag set.
     */
+    static_assert(dd::tables::Index_partitions::NUMBER_OF_FIELDS == 5,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Table_partitions::NUMBER_OF_FIELDS == 12,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.index_partitions ip "
@@ -354,6 +374,12 @@ bool update_meta_data(THD *thd) {
       This is done as we expect all innodb tablespaces to have proper
       'encryption' flag set.
     */
+    static_assert(dd::tables::Indexes::NUMBER_OF_FIELDS == 15,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.indexes i "
@@ -371,6 +397,8 @@ bool update_meta_data(THD *thd) {
       Update ENCRYPTION clause for unencrypted InnoDB tablespaces.
       Where the 'encryption' key value is empty string ''.
     */
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tablespaces ts "
@@ -385,6 +413,8 @@ bool update_meta_data(THD *thd) {
       Store ENCRYPTION clause for unencrypted InnoDB general tablespaces,
       when the 'encryption' key is not yet present.
     */
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tablespaces ts "
@@ -402,6 +432,10 @@ bool update_meta_data(THD *thd) {
       table as of 8.0.15, so we ignore to check for partitioned tables
       using general tablespace.
     */
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                  "SQL statements rely on a specific table definition");
+    static_assert(dd::tables::Tablespaces::NUMBER_OF_FIELDS == 6,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tables t "
@@ -420,6 +454,8 @@ bool update_meta_data(THD *thd) {
       Store 'encrypt_type=N' for unencrypted InnoDB file-per-table tables,
       for tables which does not have a 'encrypt_type' key stored already.
     */
+    static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                  "SQL statements rely on a specific table definition");
     if (dd::execute_query(
             thd,
             "UPDATE mysql.tables t "
@@ -483,27 +519,119 @@ bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
   */
   std::set<String_type> migrated_set{};
 
-  /* Version dependent migration of meta data can be added here. */
-
-  /* Upgrade from 80012. */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80013)) {
-    migrated_set.insert("tables");
-    if (dd::execute_query(thd,
-                          "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+  /*
+    Version dependent migration of meta data can be added here. The migration
+    should be grouped by table with a conditional expression for each table,
+    branching out to do one single migration step for each table. Note that
+    if more than one migration step (i.e., an INSERT into the target table)
+    being executed for a table, then each step will overwrite the result of
+    the previous one.
+  */
+  auto migrate_table = [&](const String_type &name, const String_type &stmt) {
+    DBUG_ASSERT(create_set.find(name) != create_set.end());
+    /* A table must be migrated only once. */
+    DBUG_ASSERT(migrated_set.find(name) == migrated_set.end());
+    migrated_set.insert(name);
+    if (dd::execute_query(thd, stmt)) {
       return dd::end_transaction(thd, true);
+    }
+    return false;
+  };
+
+  auto is_dd_upgrade_from_before = [](uint dd_version) {
+    return bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
+        dd_version);
+  };
+
+  /********************* Migration of mysql.tables *********************/
+  /* Upgrade from 80012 or earlier. */
+  static_assert(dd::tables::Tables::NUMBER_OF_FIELDS == 35,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80013)) {
+    /* Column 'last_checked_for_upgrade' was added. */
+    if (migrate_table("tables",
+                      "INSERT INTO tables SELECT *, 0 FROM mysql.tables")) {
+      return true;
     }
   }
 
-  /* Upgrade from 80014. */
-  if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade_from_before(
-          bootstrap::DD_VERSION_80016)) {
-    migrated_set.insert("schemata");
+  /********************* Migration of mysql.events *********************/
+  /* Upgrade from 80013 or earlier. */
+  static_assert(dd::tables::Events::NUMBER_OF_FIELDS == 24,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80014)) {
+    /*
+      SQL mode 'INVALID_DATES' was renamed to 'ALLOW_INVALID_DATES'.
+      Migrate the SQL mode as an integer.
+    */
+    if (migrate_table(
+            "events",
+            "INSERT INTO events SELECT  id, schema_id, name, definer, "
+            "  time_zone, definition, definition_utf8, execute_at, "
+            "  interval_value, interval_field, sql_mode+0, starts, ends, "
+            "  status, on_completion, created, last_altered, "
+            "  last_executed, comment, originator, client_collation_id, "
+            "  connection_collation_id, schema_collation_id, options "
+            "  FROM mysql.events")) {
+      return true;
+    }
+  }
 
-    // Store 'NO' for new mysql.schemata.default_encryption column.
-    if (dd::execute_query(
-            thd, "INSERT INTO schemata SELECT *, 'NO' FROM mysql.schemata")) {
-      return dd::end_transaction(thd, true);
+  /********************* Migration of mysql.routines *********************/
+  /* Upgrade from 80013 or earlier. */
+  static_assert(dd::tables::Routines::NUMBER_OF_FIELDS == 29,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80014)) {
+    /*
+      SQL mode 'INVALID_DATES' was renamed to 'ALLOW_INVALID_DATES'.
+      Migrate the SQL mode as an integer.
+    */
+    if (migrate_table(
+            "routines",
+            "INSERT INTO routines SELECT id, schema_id, name, type, "
+            "  result_data_type, result_data_type_utf8, result_is_zerofill, "
+            "  result_is_unsigned, result_char_length, "
+            "  result_numeric_precision, result_numeric_scale, "
+            "  result_datetime_precision, result_collation_id, "
+            "  definition, definition_utf8, parameter_str, is_deterministic, "
+            "  sql_data_access, security_type, definer, sql_mode+0, "
+            "  client_collation_id, connection_collation_id, "
+            "  schema_collation_id, created, last_altered, comment, options, "
+            "  external_language FROM mysql.routines")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.triggers *********************/
+  /* Upgrade from 80013 or earlier. */
+  static_assert(dd::tables::Triggers::NUMBER_OF_FIELDS == 17,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80014)) {
+    /*
+      SQL mode 'INVALID_DATES' was renamed to 'ALLOW_INVALID_DATES'.
+      Migrate the SQL mode as an integer.
+    */
+    if (migrate_table(
+            "triggers",
+            "INSERT INTO triggers SELECT id, schema_id, name, event_type, "
+            "  table_id, action_timing, action_order, action_statement, "
+            "  action_statement_utf8, created, last_altered, sql_mode+0, "
+            "  definer, client_collation_id, connection_collation_id, "
+            "  schema_collation_id, options FROM mysql.triggers")) {
+      return true;
+    }
+  }
+
+  /********************* Migration of mysql.schemata *********************/
+  /* Upgrade from 80014 or earlier. */
+  static_assert(dd::tables::Schemata::NUMBER_OF_FIELDS == 8,
+                "SQL statements rely on a specific table definition");
+  if (is_dd_upgrade_from_before(bootstrap::DD_VERSION_80016)) {
+    /* Store 'NO' for new mysql.schemata.default_encryption column. */
+    if (migrate_table(
+            "schemata",
+            "INSERT INTO schemata SELECT *, 'NO' FROM mysql.schemata")) {
+      return true;
     }
   }
 
