@@ -33,9 +33,13 @@
 #include <ndb_version.h>
 #include <random.h>
 #include <NdbMutex.h>
+#include <NdbEnv.h>
 #include <signaldata/DumpStateOrd.hpp>
 
 static Vector<BaseString> table_list;
+
+static Uint32 preVersion = 0;
+static Uint32 postVersion = 0;
 
 struct NodeInfo
 {
@@ -43,6 +47,23 @@ struct NodeInfo
   int processId;
   int nodeGroup;
 };
+
+static
+const char* getBaseDir()
+{
+  /* Atrt basedir exposed via env var MYSQL_HOME */
+  const char* envHome = NdbEnv_GetEnv("MYSQL_HOME", NULL, 0);
+
+  if (envHome == NULL)
+  {
+    ndbout_c("testUpgrade getBaseDir() MYSQL_HOME not set");
+    return "./";
+  }
+  else
+  {
+    return envHome;
+  }
+}
 
 int CMT_createTableHook(Ndb* ndb,
                         NdbDictionary::Table& table,
@@ -1646,7 +1667,6 @@ runStartBlockLcp(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
-
 static
 int
 runUpgradeAndFail(NDBT_Context* ctx, NDBT_Step* step)
@@ -1724,6 +1744,9 @@ runUpgradeAndFail(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  ndbout << "Node changed version and in NOSTART state" << endl;
+  ndbout << "Arranging for start failure to cause return to NOSTART" << endl;
+
   /* We need the node to go to NO START after crash.  */
   int restartDump[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
   if (restarter.dumpStateOneNode(nodeId, restartDump, 2))
@@ -1733,21 +1756,262 @@ runUpgradeAndFail(NDBT_Context* ctx, NDBT_Step* step)
    * NDBD_EXIT_UPGRADE_INITIAL_REQUIRED */
   restarter.insertErrorInNode(nodeId, 1007);
 
-  /* Wait for the node to go to no start */
-  if (restarter.waitNodesNoStart(&nodeId, 1))
+  int origConnectCount = restarter.getNodeConnectCount(nodeId);
+
+  ndbout << "Starting node" << endl;
+  /* Now start it, should fail */
+  restarter.startAll();
+
+  ndbout << "Waiting for node to return to NOSTART state" << endl;
+
+  int newConnectCount = origConnectCount;
+
+  while (newConnectCount == origConnectCount)
   {
-    g_err << "Node never crashed" << nodeId << endl;
-    return NDBT_FAILED;
+    /* Wait for the node to go to no start */
+    if (restarter.waitNodesNoStart(&nodeId, 1))
+    {
+      g_err << "Node never crashed" << nodeId << endl;
+      return NDBT_FAILED;
+    }
+
+    newConnectCount = restarter.getNodeConnectCount(nodeId);
   }
 
+  ndbout << "Node reconnected and returned to NOSTART state "
+         << "due to start failure"
+         << endl;
+
+  return NDBT_OK;
+}
+
+static
+int
+runShowVersion(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const bool postUpgrade =
+    (ctx->getProperty("PostUpgrade", Uint32(0))) != 0;
+
+  ndbout_c("*******************************");
+  ndbout_c("%s version",
+           (postUpgrade?"Post":"Pre"));
+
+  ndbout_c("  Mysql version : %u.%u.%u%s",
+           MYSQL_VERSION_MAJOR,
+           MYSQL_VERSION_MINOR,
+           MYSQL_VERSION_PATCH,
+           MYSQL_VERSION_EXTRA);
+  ndbout_c("  Ndb version   : %u.%u.%u %s",
+           NDB_VERSION_MAJOR,
+           NDB_VERSION_MINOR,
+           NDB_VERSION_BUILD,
+           NDB_VERSION_STATUS);
+  ndbout_c("*******************************");
+
+  if (!postUpgrade)
+  {
+    ndbout_c("  Note that this test may fail if Post version does"
+             "  not implement ShowVersions, this is not a bug");
+  }
+  return NDBT_OK;
+}
+
+static const char* preVersionFileName = "preVersion.txt";
+static const char* postVersionFileName = "postVersion.txt";
+
+static BaseString
+getFileName(bool post)
+{
+  BaseString nameBuff;
+  nameBuff.assfmt("%s/%s",
+                  getBaseDir(),
+                  (post?
+                   postVersionFileName:
+                   preVersionFileName));
+  return nameBuff;
+}
+
+static int
+runRecordVersion(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const bool postUpgrade =
+    (ctx->getProperty("PostUpgrade", Uint32(0))) != 0;
+  BaseString fileNameBuf = getFileName(postUpgrade);
+  const char* fileName = fileNameBuf.c_str();
+
+  FILE* versionFile = fopen(fileName, "w");
+  if (!versionFile)
+  {
+    ndbout_c("Error opening file %s",
+             fileName);
+    return NDBT_FAILED;
+  }
+  fprintf(versionFile,
+          "%u.%u.%u\n",
+           NDB_VERSION_MAJOR,
+           NDB_VERSION_MINOR,
+           NDB_VERSION_BUILD);
+  fclose(versionFile);
+
+  return NDBT_OK;
+}
+
+static
+bool
+readVersionFile(const char* fileName,
+                Uint32& version)
+{
+  bool ok = true;
+  version = 0;
+
+  FILE* versionFile = fopen(fileName, "r");
+  if (versionFile != NULL)
+  {
+    unsigned int major = 0;
+    unsigned int minor = 0;
+    unsigned int build = 0;
+    int res = fscanf(versionFile,
+                     "%u.%u.%u",
+                     &major,
+                     &minor,
+                     &build);
+    if (res == 3)
+    {
+      version = NDB_MAKE_VERSION(major, minor, build);
+    }
+    else
+    {
+      ndbout_c("Version file %s read failed res = %d",
+               fileName,
+               res);
+      ok = false;
+    }
+
+    fclose(versionFile);
+  }
+
+  return ok;
+}
+
+/**
+ * runReadVersions
+ *
+ * Read, print and store version info captured by previous test
+ * run including runRecordVersion on both versions
+ *
+ * This can allow version specific conditions to be included
+ * in tests.
+ */
+static int
+runReadVersions(NDBT_Context* ctx, NDBT_Step* step)
+{
+  preVersion = postVersion = 0;
+
+  const bool preVersionReadOk =
+    readVersionFile(getFileName(false).c_str(),
+                    preVersion);
+  const bool postVersionReadOk =
+    readVersionFile(getFileName(true).c_str(),
+                    postVersion);
+
+  ndbout_c("runReadVersions");
+  ndbout_c("  PreVersion %s  : %u.%u.%u",
+           (preVersionReadOk?"read":"not found"),
+           ndbGetMajor(preVersion),
+           ndbGetMinor(preVersion),
+           ndbGetBuild(preVersion));
+  ndbout_c("  PostVersion %s : %u.%u.%u",
+           (postVersionReadOk?"read":"not found"),
+           ndbGetMajor(postVersion),
+           ndbGetMinor(postVersion),
+           ndbGetBuild(postVersion));
+
+  return NDBT_OK;
+}
+
+/**
+ * runSkipIfCannotKeepFS
+ *
+ * Check whether we can perform an upgrade while keeping the
+ * FS with the versions being tested.
+ * If not, skip
+ */
+static int
+runSkipIfCannotKeepFS(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (preVersion == 0 || postVersion == 0)
+  {
+    ndbout_c("Missing version info to determine whether to skip, running.");
+    return NDBT_OK;
+  }
+
+  const Uint32 problemBoundary = NDB_MAKE_VERSION(7,6,3);  // NDBD_LOCAL_SYSFILE_VERSION
+
+  if (versionsSpanBoundary(preVersion, postVersion, problemBoundary))
+  {
+    ndbout_c("Cannot run with these versions as they do not support "
+                  "non initial upgrades.");
+    return NDBT_SKIPPED;
+  }
+  return NDBT_OK;
+}
+
+/**
+ * runSkipIfPostCanKeepFS
+ *
+ * Will skip unless the post version cannot handle a
+ * 'keepFS' upgrade.
+ */
+static int
+runSkipIfPostCanKeepFS(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (preVersion == 0 ||
+      postVersion == 0)
+  {
+    ndbout_c("Not running as specific version info missing");
+    return NDBT_SKIPPED;
+  }
+
+  const bool upgrade = (postVersion > preVersion);
+
+  if (!upgrade)
+  {
+    /* Only  support upgrade test, downgrade is not handled cleanly attm */
+    ndbout_c("Not running as not an upgrade");
+    return NDBT_SKIPPED;
+  }
+
+  const Uint32 problemBoundary = NDB_MAKE_VERSION(7,6,3); // NDBD_LOCAL_SYSFILE_VERSION
+
+  if (!versionsSpanBoundary(preVersion, postVersion, problemBoundary))
+  {
+    ndbout_c("Not running as versions involved are not relevant for this test");
+    return NDBT_SKIPPED;
+  }
   return NDBT_OK;
 }
 
 
 NDBT_TESTSUITE(testUpgrade);
+TESTCASE("ShowVersions",
+         "Upgrade API, showing actual versions run")
+{
+  INITIALIZER(runCheckStarted);
+  STEP(runShowVersion);
+  STEP(runRecordVersion);
+  VERIFIER(startPostUpgradeChecks);
+}
+POSTUPGRADE("ShowVersions")
+{
+  TC_PROPERTY("PostUpgrade", Uint32(1));
+  INITIALIZER(runCheckStarted);
+  STEP(runShowVersion);
+  STEP(runRecordVersion);
+};
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
   INITIALIZER(runBug48416);
   STEP(runUpgrade_NR1);
   VERIFIER(startPostUpgradeChecks);
@@ -1784,6 +2048,8 @@ TESTCASE("Upgrade_FS",
 {
   TC_PROPERTY("KeepFS", 1);
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(runSkipIfCannotKeepFS);
   INITIALIZER(runCreateAllTables);
   INITIALIZER(runLoadAll);
   STEP(runUpgrade_Traffic);
@@ -1815,6 +2081,8 @@ TESTCASE("Upgrade_Traffic_FS",
   TC_PROPERTY("UseRangeScanT1", (Uint32)1);
   TC_PROPERTY("KeepFS", 1);
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(runSkipIfCannotKeepFS);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -1844,6 +2112,8 @@ TESTCASE("Upgrade_Traffic_FS_one",
 {
   TC_PROPERTY("KeepFS", 1);
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(runSkipIfCannotKeepFS);
   INITIALIZER(runCreateOneTable);
   STEP(runUpgrade_Traffic);
   STEP(runBasic);
@@ -1946,6 +2216,8 @@ TESTCASE("Upgrade_SR_ManyTablesMaxFrag",
   TC_PROPERTY("SkipMgmds", Uint32(1)); /* For 7.0.14... */
   TC_PROPERTY("FragmentCount", ~Uint32(0));
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(runSkipIfCannotKeepFS);
   INITIALIZER(createManyTables);
   STEP(runUpgrade_SR);
   VERIFIER(startPostUpgradeChecks);
@@ -1981,10 +2253,11 @@ TESTCASE("Upgrade_Newer_LCP_FS_Fail",
          "(Bug#27308632)")
 {
   INITIALIZER(runCheckStarted);
+  INITIALIZER(runReadVersions);
+  INITIALIZER(runSkipIfPostCanKeepFS);
   STEP(runUpgradeAndFail);
   // No postupgradecheck required as the upgrade is expected to fail
 }
-  
 NDBT_TESTSUITE_END(testUpgrade)
 
 int main(int argc, const char** argv){
