@@ -1485,6 +1485,7 @@ result announce_tcp(xcom_port port) {
     }
 
     free(sock_addr);
+    sock_addr = NULL;
     init_server_addr(&sock_addr, &sock_addr_len, port, AF_INET);
     if (bind(fd.val, sock_addr, sock_addr_len) < 0) {
       int err = to_errno(GET_OS_ERR);
