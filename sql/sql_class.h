@@ -2126,6 +2126,12 @@ class THD : public MDL_context_owner,
            system_thread == SYSTEM_THREAD_INIT_FILE;
   }
 
+  // Check if this THD belongs to a server upgrade thread. Server upgrade
+  // threads execute statements that are compiled into the server.
+  bool is_server_upgrade_thread() const {
+    return system_thread == SYSTEM_THREAD_SERVER_UPGRADE;
+  }
+
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
