@@ -295,3 +295,9 @@ select 1 where 'b%a' like '#%a' escape '#';
 select 1 where 'b_a' like '#_a' escape '#';
 
 SET NAMES default;
+
+--echo #
+--echo # Bug#29368521: ASSERTION `!THD->IS_ERROR()' FAILED
+--echo #
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
