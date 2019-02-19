@@ -42,15 +42,7 @@ select * from t1;
 
 --echo # Check that data in fully replicated table t1 is present in
 --echo # all 4 partitions i.e p0-p3 should have a 1 in the 'has_rows' column.
-# NOTE! This check fails on Windows due to BUG#27924016, use small temporary
-# workaround to simulate that data are in all partitions until problem is fixed
---disable_query_log ONCE
-SELECT
-  PARTITION_NAME,
-  IF(CONVERT(@@version_compile_os using latin1)
-       IN ('Win32', 'Win64', 'Windows'),
-       1, /* Temporary workaround for BUG#27924016 */
-       TABLE_ROWS > 0) as has_rows
+SELECT PARTITION_NAME, TABLE_ROWS > 0
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_NAME = 't1';
 
