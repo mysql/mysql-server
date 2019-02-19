@@ -6400,9 +6400,36 @@ int MYSQL_BIN_LOG::new_file_impl(
   if (!is_relay_log) {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error = gtid_state->save_gtids_of_last_binlog_into_table(true))) {
-      close_on_error = true;
-      snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
-               ER_THD(current_thd, ER_OOM_SAVE_GTIDS));
+      if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
+        close_on_error =
+            m_binlog_file->get_real_file_size() >=
+                static_cast<my_off_t>(max_size) ||
+            DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false);
+
+        if (!close_on_error) {
+          LogErr(ERROR_LEVEL, ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY,
+                 "Current binlog file was flushed to disk and will be kept in "
+                 "use.");
+        } else {
+          snprintf(close_on_error_msg, sizeof close_on_error_msg,
+                   ER_THD(current_thd, ER_RPL_GTID_TABLE_CANNOT_OPEN), "mysql",
+                   "gtid_executed");
+
+          if (binlog_error_action != ABORT_SERVER)
+            LogErr(WARNING_LEVEL,
+                   ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY,
+                   "Binary logging going to be disabled.");
+        }
+
+        DBUG_EXECUTE_IF("gtid_executed_readonly",
+                        { DBUG_SET("-d,gtid_executed_readonly"); });
+        DBUG_EXECUTE_IF("simulate_max_binlog_size",
+                        { DBUG_SET("-d,simulate_max_binlog_size"); });
+      } else {
+        close_on_error = true;
+        snprintf(close_on_error_msg, sizeof close_on_error_msg, "%s",
+                 ER_THD(current_thd, ER_OOM_SAVE_GTIDS));
+      }
       goto end;
     }
   }
@@ -6536,7 +6563,8 @@ end:
                close_on_error_msg);
       exec_binlog_error_action_abort(abort_msg);
     } else
-      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING, new_name_ptr, errno);
+      LogErr(ERROR_LEVEL, ER_BINLOG_CANT_OPEN_FOR_LOGGING,
+             new_name_ptr != nullptr ? new_name_ptr : "new file", errno);
 
     close(LOG_CLOSE_INDEX, false /*need_lock_log=false*/,
           false /*need_lock_index=false*/);
@@ -6967,7 +6995,8 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool *check_purge) {
   *check_purge = false;
 
   if (DBUG_EVALUATE_IF("force_rotate", 1, 0) || force_rotate ||
-      (m_binlog_file->get_real_file_size() >= (my_off_t)max_size)) {
+      (m_binlog_file->get_real_file_size() >= (my_off_t)max_size) ||
+      DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false)) {
     error = new_file_without_locking(nullptr);
     *check_purge = true;
   }
@@ -8158,7 +8187,8 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   *out_queue_var = first_seen;
   *total_bytes_var = total_bytes;
   if (total_bytes > 0 &&
-      m_binlog_file->get_real_file_size() >= (my_off_t)max_size)
+      (m_binlog_file->get_real_file_size() >= (my_off_t)max_size ||
+       DBUG_EVALUATE_IF("simulate_max_binlog_size", true, false)))
     *rotate_var = true;
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("no_flushes:= %d", no_flushes));

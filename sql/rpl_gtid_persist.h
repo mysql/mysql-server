@@ -108,6 +108,9 @@ class Gtid_table_access_context : public System_table_access {
   Open_tables_backup m_backup;
   /* Save binlog options. */
   ulonglong m_tmp_disable_binlog__save_options;
+  /* Whether or not `THD::set_skip_readonly_check` was invoked during `THD`
+     initialization */
+  bool m_skip_readonly_set{false};
 
   /* Prevent user from invoking default assignment function. */
   Gtid_table_access_context &operator=(const Gtid_table_access_context &info);
