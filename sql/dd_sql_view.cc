@@ -736,8 +736,8 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   DBUG_RETURN(error);
 }
 
-void push_view_warning_or_error(THD *thd, const char *db,
-                                const char *view_name) {
+std::string push_view_warning_or_error(THD *thd, const char *db,
+                                       const char *view_name) {
   // Report error for "SHOW FIELDS/DESCRIBE" operations.
   if (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)
     my_error(ER_VIEW_INVALID, MYF(0), db, view_name);
@@ -745,4 +745,15 @@ void push_view_warning_or_error(THD *thd, const char *db,
     // Push invalid view warning.
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VIEW_INVALID,
                         ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+
+  /*
+     We can probably fetch the error message string from DA. The problem
+     is, the DA may not contain the condition if max_error_count is zero.
+     Even if max_error_count is non-zero, we have to fetch the last sql
+     condition from QA. Instead (as this is error handling code) to keep it
+     simple, we just prepare the error/warning string.
+   */
+  char err_message[MYSQL_ERRMSG_SIZE];
+  sprintf(err_message, ER_THD(thd, ER_VIEW_INVALID), db, view_name);
+  return std::string(err_message);
 }

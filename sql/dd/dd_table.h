@@ -467,5 +467,15 @@ bool is_generated_check_constraint_name(const char *table_name,
 */
 bool rename_check_constraints(const char *old_table_name, dd::Table *new_tab);
 
+/**
+  Check if table uses general tablespace.
+
+  @param   thd  Thread handle.
+  @param   t    dd::Table instance.
+
+  @returns true if table users general tablespace, false otherwise.
+*/
+bool uses_general_tablespace(const Table &t);
+
 }  // namespace dd
 #endif  // DD_TABLE_INCLUDED

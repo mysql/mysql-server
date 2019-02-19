@@ -2897,4 +2897,18 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const HA_CREATE_INFO *ci,
   return {error, encrypted};
 }
 
+bool uses_general_tablespace(const Table &t) {
+  /*
+    dd::Table::tablespace_id() and dd::Partition::tablespace_id() is set
+    only when table is using general partition.
+  */
+  if (t.tablespace_id() != INVALID_OBJECT_ID) return true;
+
+  for (const dd::Partition *p : t.leaf_partitions()) {
+    if (p->tablespace_id() != INVALID_OBJECT_ID) return true;
+  }
+
+  return false;
+}
+
 }  // namespace dd

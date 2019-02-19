@@ -122,7 +122,7 @@ select table_name, table_type, table_comment from information_schema.tables
 where table_schema='test';
 TABLE_NAME	TABLE_TYPE	TABLE_COMMENT
 v1	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
-v2	VIEW	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
+v2	VIEW	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warnings:
 Warning	1356	View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them

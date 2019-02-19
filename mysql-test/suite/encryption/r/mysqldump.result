@@ -264,7 +264,7 @@ SHOW CREATE TABLE db1.i_ts3;
 Table	Create Table
 i_ts3	CREATE TABLE `i_ts3` (
   `f1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='y'
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci /*!80016 ENCRYPTION='y' */
 SHOW CREATE TABLE db1.i_ts4;
 Table	Create Table
 i_ts4	CREATE TABLE `i_ts4` (

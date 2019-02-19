@@ -1,6 +1,6 @@
 #ifndef DD_SQL_VIEW_INCLUDED
 #define DD_SQL_VIEW_INCLUDED
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,13 +158,16 @@ bool update_referencing_views_metadata(
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname);
 
 /**
-  Push error or warnings in case a view is invalid.
+  Push error or warnings in case a view is invalid and return
+  the error message to the caller.
 
   @param        thd            Thread handle.
   @param        db             Database name.
   @param        view_name      View name.
+
+  returns The error/warning message string.
 */
-void push_view_warning_or_error(THD *thd, const char *db,
-                                const char *view_name);
+std::string push_view_warning_or_error(THD *thd, const char *db,
+                                       const char *view_name);
 
 #endif  // DD_SQL_VIEW_INCLUDED
