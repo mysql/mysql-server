@@ -4328,17 +4328,37 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
         redefinition if we are changing a field in the SELECT part
       */
       if (field_no < (*select_field_pos) || dup_no >= (*select_field_pos)) {
-        if (dup_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+        // If one of the columns is a functional index column, but not both,
+        // return an error saying that the column name is in use. The reason we
+        // only raise an error if one, but not both, is a functional index
+        // column, is that we want to report a "duplicate key name"-error if the
+        // user renames a functional index to an existing functional index name:
+        //
+        //  CREATE TABLE t1 (
+        //    col1 INT
+        //    , INDEX idx ((col1 + 1))
+        //    , INDEX idx2 ((col1 + 2)));
+        //
+        // ALTER TABLE t1 RENAME INDEX idx TO idx2;
+        //
+        // Note that duplicate names for regular indexes are detected later, so
+        // we don't bother checking those here.
+        if ((is_field_for_functional_index(dup_field) !=
+             is_field_for_functional_index(sql_field))) {
           std::string error_description;
           error_description.append("The column name '");
           error_description.append(sql_field->field_name);
           error_description.append("' is already in use by a hidden column");
 
           my_error(ER_INTERNAL_ERROR, MYF(0), error_description.c_str());
-        } else
-          my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
+          DBUG_RETURN(true);
+        }
 
-        DBUG_RETURN(true);
+        if (!is_field_for_functional_index(dup_field) &&
+            !is_field_for_functional_index(sql_field)) {
+          my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
+          DBUG_RETURN(true);
+        }
       } else {
         /* Field redefined */
 
@@ -4834,7 +4854,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       key_part_length = column_length;
   }  // column_length
   else if (key_part_length == 0) {
-    if (sql_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+    if (is_field_for_functional_index(sql_field)) {
       // In case this is a functional index, print a more friendly error
       // message.
       Item *expression = column->get_expression();
@@ -7352,8 +7372,7 @@ bool mysql_prepare_create_table(
       // add_functional_index_to_create_list().
       Create_field *new_create_field =
           alter_info->create_list[alter_info->create_list.elements - 1];
-      DBUG_ASSERT(new_create_field->hidden ==
-                  dd::Column::enum_hidden_type::HT_HIDDEN_SQL);
+      DBUG_ASSERT(is_field_for_functional_index(new_create_field));
       if (prepare_create_field(thd, create_info, &alter_info->create_list,
                                &select_field_pos, file, new_create_field,
                                ++field_no)) {

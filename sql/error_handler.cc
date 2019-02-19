@@ -256,7 +256,7 @@ Functional_index_error_handler::Functional_index_error_handler(
       m_force_error_code(-1) {
   DBUG_ASSERT(field != nullptr);
 
-  if (field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL) {
+  if (is_field_for_functional_index(field)) {
     m_thd->push_internal_handler(this);
     m_pop_error_handler = true;
   }

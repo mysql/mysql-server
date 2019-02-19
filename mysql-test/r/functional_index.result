@@ -717,3 +717,16 @@ DROP TABLE t1;
 #
 CREATE TABLE t (j JSON, KEY k (((j,j))));
 ERROR HY000: Expression of functional index 'k' cannot refer to a row value.
+#
+# Bug#29360763	WL#1075: FUNCTIONAL INDEX: INCORRECT ERROR MESSAGE REVEALS
+#              HIDDEN COLUMN NAME
+#
+CREATE TABLE t1 (
+j1 JSON,
+j3 JSON,
+KEY my_idx ((CAST(j1->'$[0]' as SIGNED))),
+KEY my_idx_char ((CAST(j3->'$[0]' as CHAR(10))))
+);
+ALTER TABLE t1 RENAME KEY my_idx_char TO my_idx;
+ERROR 42000: Duplicate key name 'my_idx'
+DROP TABLE t1;

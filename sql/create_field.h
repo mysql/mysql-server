@@ -262,4 +262,8 @@ class Create_field {
   static constexpr size_t LONGBLOB_MAX_SIZE_IN_BYTES{4294967295};
 };
 
+/// @returns whether or not this field is a hidden column that represents a
+///          functional index.
+bool is_field_for_functional_index(const Create_field *create_field);
+
 #endif
