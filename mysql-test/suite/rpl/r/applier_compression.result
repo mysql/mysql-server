@@ -1,0 +1,139 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+[connection slave]
+[connection master]
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+[connection slave]
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+[connection master]
+include/rpl_reset.inc
+# SCENARIO 1: AC, IC
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
+include/assert.inc [MASTER_BINLOG: compressed bytes < DML size]
+include/assert.inc [MASTER_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: compressed bytes < uncompressed bytes]
+include/assert.inc [SLAVE_RELAYLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes < DML size]
+include/assert.inc [SLAVE_RELAYLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes < uncompressed bytes]
+include/assert.inc [SLAVE_BINLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_BINLOG: compressed bytes < DML size]
+include/assert.inc [SLAVE_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: compressed bytes < uncompressed bytes]
+[connection master]
+[connection slave]
+[connection master]
+include/rpl_reset.inc
+# SCENARIO 2: AC, IR
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
+include/assert.inc [MASTER_BINLOG: compressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: compressed bytes = uncompressed bytes]
+include/assert.inc [SLAVE_RELAYLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes = uncompressed bytes]
+include/assert.inc [SLAVE_BINLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_BINLOG: compressed bytes < DML size]
+include/assert.inc [SLAVE_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: compressed bytes < uncompressed bytes]
+[connection master]
+[connection slave]
+[connection master]
+include/rpl_reset.inc
+# SCENARIO 3: AR, IC
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
+include/assert.inc [MASTER_BINLOG: compressed bytes < DML size]
+include/assert.inc [MASTER_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: compressed bytes < uncompressed bytes]
+include/assert.inc [SLAVE_RELAYLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes < DML size]
+include/assert.inc [SLAVE_RELAYLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes < uncompressed bytes]
+include/assert.inc [SLAVE_BINLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_BINLOG: compressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: compressed bytes = uncompressed bytes]
+[connection master]
+[connection slave]
+[connection master]
+include/rpl_reset.inc
+# SCENARIO 4: AR, IR
+[connection master]
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+[connection slave]
+include/assert.inc [MASTER_BINLOG: The expected number of transactions was handled]
+include/assert.inc [MASTER_BINLOG: compressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [MASTER_BINLOG: compressed bytes = uncompressed bytes]
+include/assert.inc [SLAVE_RELAYLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_RELAYLOG: compressed bytes = uncompressed bytes]
+include/assert.inc [SLAVE_BINLOG: The expected number of transactions was handled]
+include/assert.inc [SLAVE_BINLOG: compressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: uncompressed bytes > DML size]
+include/assert.inc [SLAVE_BINLOG: compressed bytes = uncompressed bytes]
+[connection master]
+[connection slave]
+[connection master]
+include/rpl_reset.inc
+[connection master]
+SET @@SESSION.binlog_transaction_compression = SAVED;
+SET @@GLOBAL.binlog_transaction_compression = SAVED;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+[connection slave]
+SET @@SESSION.binlog_transaction_compression = SAVED;
+SET @@GLOBAL.binlog_transaction_compression = SAVED;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+include/rpl_reset.inc
+include/rpl_end.inc

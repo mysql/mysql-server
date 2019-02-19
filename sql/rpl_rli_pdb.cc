@@ -923,6 +923,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
   std::string key(dbname, dblength);
   entry = find_or_nullptr(rli->mapping_db_to_worker, key);
   if (!entry) {
+    DBUG_PRINT("debug", ("NO ENTRY found for: %s!", dbname));
     /*
       The database name was not found which means that a worker never
       processed events from that database. In such case, we need to
@@ -995,7 +996,11 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       goto err;
     }
     DBUG_PRINT("info", ("Inserted %s, %zu", entry->db, strlen(entry->db)));
+    DBUG_PRINT("debug", ("worker=%lu, partition=%s, usage=%ld, wait=false!",
+                         entry->worker->id, entry->db,
+                         entry->worker->usage_partition++));
   } else {
+    DBUG_PRINT("debug", ("ENTRY found for: %s!", entry->db));
     /* There is a record. Either  */
     if (entry->usage == 0) {
       entry->worker = (!last_worker)
@@ -1003,10 +1008,17 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                           : last_worker;
       entry->worker->usage_partition++;
       entry->usage++;
+      DBUG_PRINT(
+          "debug",
+          ("worker=%lu, partition=%s, usage=%ld (was 0), wait=false!",
+           entry->worker->id, entry->db, entry->worker->usage_partition++));
     } else if (entry->worker == last_worker || !last_worker) {
       DBUG_ASSERT(entry->worker);
 
       entry->usage++;
+      DBUG_PRINT("debug", ("worker=%lu, partition=%s, usage=%ld, wait=false!",
+                           entry->worker->id, entry->db,
+                           entry->worker->usage_partition++));
     } else {
       // The case APH contains a W_d != W_c != NULL assigned to
       // D-partition represents
@@ -1018,6 +1030,9 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
       // future assignenment and marking at the same time
       entry->worker = last_worker;
+      DBUG_PRINT("debug", ("worker=%lu, partition=%s, usage=%ld, wait=true!",
+                           entry->worker->id, entry->db,
+                           entry->worker->usage_partition++));
       // loop while a user thread is stopping Coordinator gracefully
       do {
         thd->ENTER_COND(
@@ -1124,7 +1139,9 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     /*
       DDL that has not yet updated the slave info repository does it now.
     */
-    if (ev->get_type_code() != binary_log::XID_EVENT && !is_committed_ddl(ev)) {
+    if (ev->get_type_code() != binary_log::XID_EVENT &&
+        ev->get_type_code() != binary_log::TRANSACTION_PAYLOAD_EVENT &&
+        !is_committed_ddl(ev)) {
       commit_positions(ev, ptr_g, true);
       DBUG_EXECUTE_IF(
           "crash_after_commit_and_update_pos",
@@ -1161,6 +1178,17 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     Cleanup relating to the last executed group regardless of error.
   */
   if (current_mts_submode->get_type() == MTS_PARALLEL_TYPE_DB_NAME) {
+#ifndef DBUG_OFF
+    {
+      std::stringstream ss;
+      for (size_t i = 0; i < curr_group_exec_parts.size(); i++) {
+        if (curr_group_exec_parts[i]->db_len) {
+          ss << curr_group_exec_parts[i]->db << ", ";
+        }
+      }
+      DBUG_PRINT("debug", ("UNASSIGN %p %s", current_thd, ss.str().c_str()));
+    }
+#endif
     for (size_t i = 0; i < curr_group_exec_parts.size(); i++) {
       db_worker_hash_entry *entry = curr_group_exec_parts[i];
 
@@ -1951,6 +1979,12 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
         ev->future_event_relay_log_pos = relaylog_file_reader.position();
         ev->mts_group_idx = gaq_index;
 
+        // event was re-read again, thence context was lost, attach
+        // additional context needed, before re-executing (just like in
+        // the main loop before exec_relay_log_event)
+        rli->current_mts_submode->set_multi_threaded_applier_context(*rli, *ev);
+
+        // we re-assign partitions only on retries
         if (is_mts_db_partitioned(rli) && ev->contains_partition_info(true))
           assign_partition_db(ev);
 

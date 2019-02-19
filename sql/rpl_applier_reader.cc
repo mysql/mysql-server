@@ -515,7 +515,10 @@ void Rpl_applier_reader::debug_print_next_event_positions() {
   DBUG_ASSERT(m_relaylog_file_reader.position() >= BIN_LOG_HEADER_SIZE);
   DBUG_ASSERT(m_relaylog_file_reader.position() ==
                   m_rli->get_event_relay_log_pos() ||
-              m_rli->is_parallel_exec());
+              (m_rli->is_parallel_exec() ||
+               // TODO: double check that this is safe:
+               (m_rli->info_thd != nullptr &&
+                m_rli->info_thd->variables.binlog_trx_compression)));
 
   DBUG_PRINT(
       "info",

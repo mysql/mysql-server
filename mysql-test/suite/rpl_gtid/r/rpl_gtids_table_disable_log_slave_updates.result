@@ -66,6 +66,7 @@ include/assert.inc [purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4]
 SET @SIZE_DEFAULT=@@MAX_BINLOG_SIZE;
 SET GLOBAL MAX_BINLOG_SIZE=4096;
 SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
+SET @@session.binlog_transaction_compression=FALSE;
 BEGIN;
 INSERT INTO t1 VALUES (1);;
 INSERT INTO t1 VALUES (2);;
@@ -136,5 +137,6 @@ SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
 source_uuid	interval_start	interval_end
 SLAVE_UUID	1	2
 SLAVE_UUID	3	3
+SET @@session.binlog_transaction_compression= SAVED;
 DROP TABLE t1,t2;
 include/rpl_end.inc

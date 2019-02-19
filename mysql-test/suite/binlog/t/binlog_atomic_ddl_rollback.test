@@ -51,11 +51,9 @@ if (!$gtid_mode_on)
   --let $gtid_event= Anonymous_Gtid
 }
 
---let $dont_print_pattern= 1
 --let $event_sequence= $gtid_event # !Begin # !Q(DELETE.*) # !Commit
 --source include/assert_binlog_events.inc
 --let $dont_print_pattern= 0
-
 
 # Cleanup:
 

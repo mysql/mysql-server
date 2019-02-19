@@ -3,7 +3,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-create view coord_wait_list  as SELECT id from Information_Schema.processlist where state like 'Waiting for Slave Worker%';
 include/stop_slave.inc
 set @save.slave_parallel_workers= @@global.slave_parallel_workers;
 set @@global.slave_parallel_workers= 4;
@@ -29,7 +28,10 @@ insert into d3.t1 values (null);
 use d1;
 insert into d1.t1 values (null);
 commit;
-*** Coordinator must be in waiting for a Worker to unassign from a partition ***
+Either the coordinator is waiting for a worker to unlock d1
+(binlog transaction compression OFF) or the coordinator
+has scheduled the 2nd transaction to the sane worker (binlog
+transaction compression ON)
 rollback;
 include/sync_slave_sql_with_master.inc
 select count(*) from d1.t1 into @d1;
@@ -76,6 +78,5 @@ drop database d1;
 drop database d2;
 drop database d3;
 include/sync_slave_sql_with_master.inc
-drop view coord_wait_list;
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

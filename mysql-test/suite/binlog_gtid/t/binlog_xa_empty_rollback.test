@@ -361,13 +361,19 @@ XA ROLLBACK 'trx';
 --echo #
 --echo # S8. Check binlog for related event (should be found).
 --echo #
+
 --let $event_sequence= Gtid/SET.* # Query/use.* # Gtid/SET.* # Query/XA START.* # Table_map/.* # Write_rows/.* # Query/XA END.* # XA_prepare/XA PREPARE.* # Gtid/SET.* # Query/XA ROLLBACK.*
 --source include/assert_binlog_events.inc
 
 --echo #
 --echo # S9. Check GTID_EXECUTED for the executed UUID (should be found).
 --echo #
---let $gtid_set= query_get_value("SHOW BINLOG EVENTS LIMIT 13,1", Info, 1)
+--let $event_no = 13
+if (`SELECT @@session.binlog_transaction_compression`)
+{
+  --let $event_no = 14
+}
+--let $gtid_set= query_get_value("SHOW BINLOG EVENTS LIMIT $event_no,1", Info, 1)
 --let $gtid_split= `SELECT SUBSTRING_INDEX("$gtid_set", "'", -2)`
 --let $gtid= `SELECT SUBSTRING_INDEX("$gtid_split", "'", 1)`
 

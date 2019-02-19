@@ -15,6 +15,11 @@
 --source include/rpl_connection_slave.inc
 --source include/start_slave_io.inc
 
+# this test case makes the receiver thread to parse and
+# events (WRITE_ROWS). These events are enclosed in
+# a Transaction_payload event when compression is on.
+--source include/not_binlog_transaction_compression_on.inc
+
 # Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
 SET @save_debug=@@global.debug;
 SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";

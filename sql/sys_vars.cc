@@ -1353,6 +1353,38 @@ static Sys_var_enum Sys_binlog_row_metadata(
     binlog_row_metadata_names, DEFAULT(BINLOG_ROW_METADATA_MINIMAL),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
+static bool check_binlog_trx_compression(sys_var *self MY_ATTRIBUTE((unused)),
+                                         THD *thd, set_var *var) {
+  DBUG_TRACE;
+  if (check_session_admin(self, thd, var)) return true;
+
+  if (!var->is_global_persist() && thd->in_active_multi_stmt_transaction()) {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
+             var->var->name.str);
+    return true;
+  }
+  return false;
+}
+
+static Sys_var_bool Sys_binlog_trx_compression(
+    "binlog_transaction_compression",
+    "Whether to compress transactions or not. Transactions are compressed "
+    "using the ZSTD compression algorythm.",
+    SESSION_VAR(binlog_trx_compression), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_trx_compression));
+
+#include "libbinlogevents/include/compression/zstd.h"
+static Sys_var_uint Sys_binlog_transaction_compression_level_zstd(
+    "binlog_transaction_compression_level_zstd",
+    "Specifies the transaction compression level for ZSTD "
+    "transaction compression in the binary log.",
+    SESSION_VAR(binlog_trx_compression_level_zstd), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 22),
+    DEFAULT(binary_log::transaction::compression::Zstd_comp::
+                DEFAULT_COMPRESSION_LEVEL),
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    ON_CHECK(check_binlog_trx_compression), ON_UPDATE(NULL));
+
 static bool on_session_track_gtids_update(sys_var *, THD *thd, enum_var_type) {
   thd->session_tracker.get_tracker(SESSION_GTIDS_TRACKER)->update(thd);
   return false;

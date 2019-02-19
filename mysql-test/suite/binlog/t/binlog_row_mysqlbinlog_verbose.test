@@ -100,6 +100,8 @@ INSERT INTO t1 VALUES ("
   ")|
 --delimiter ;
 
+DROP TABLE t1;
+
 --let $binlog_stop_position= query_get_value("SHOW MASTER STATUS", Position, 1)
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $datadir= `SELECT @@datadir`
@@ -140,5 +142,4 @@ if (!$match)
 END_OF_FILE
 
 # Clean up
-DROP TABLE t1;
 --remove_file $TMP_FILE

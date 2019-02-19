@@ -1,3 +1,9 @@
 --source include/have_binlog_format_row.inc
 
+#
+# The test case records the output of mysqlbinlog, thence if compression
+# is enabled, then it fails as the compression event is printed.
+#
+--source include/not_binlog_transaction_compression_on.inc
+
 --source extra/binlog_tests/binlog_mysqlbinlog_row.inc

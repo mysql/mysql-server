@@ -37,6 +37,12 @@
 --source include/have_debug_sync.inc
 --source include/master-slave.inc
 
+# this test requires the receiver thread to parse the event
+# stream and extract a WRITE_ROWS log event. With compression
+# on this is not happening, since the Transaction_payload
+# event encapsulates the WRITE ROWS event.
+--source include/not_binlog_transaction_compression_on.inc
+
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 --source include/sync_slave_sql_with_master.inc
 --echo # Set a debug point on slave to simulate unknown ignorable log events.

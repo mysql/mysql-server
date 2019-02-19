@@ -28,6 +28,7 @@
 #include <memory>
 
 #include "lex_string.h"
+#include "libbinlogevents/include/compression/iterator.h"
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -41,6 +42,7 @@
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
+#include "sql/binlog_reader.h"
 #include "sql/debug_sync.h"
 #include "sql/log.h"
 #include "sql/log_event.h"  // Query_log_event
@@ -179,6 +181,131 @@ int Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
   }
 
   return !cant_sync ? ret : -1;
+}
+
+bool Mts_submode_database::unfold_transaction_payload_event(
+    Format_description_event &fde, Transaction_payload_log_event &tple,
+    std::vector<Log_event *> &events) {
+  bool error = false;
+  /*
+    disable checksums - there are no checksums for events inside the tple
+    otherwise, the last 4 bytes would be truncated.
+
+    We do this by copying the fdle from the rli. Then we disable the checksum
+    in the copy. Then we use it to decode the events in the payload instead
+    of the original fdle.
+
+    We allocate the fdle copy in the stack.
+
+    TODO: simplify this by breaking the binlog_event_deserialize API
+    and make it take a single boolean instead that states whether the
+    event has a checksum in it or not.
+  */
+  Format_description_log_event fdle(fde.reader().buffer(), &fde);
+  fdle.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  fdle.register_temp_buf(const_cast<char *>(fde.reader().buffer()), false);
+
+  // unpack the event
+  binary_log::transaction::compression::Iterable_buffer it(
+      tple.get_payload(), tple.get_payload_size(), tple.get_uncompressed_size(),
+      tple.get_compression_type());
+
+  for (auto ptr : it) {
+    Log_event *next = nullptr;
+    size_t event_len = uint4korr(ptr + EVENT_LEN_OFFSET);
+    if (binlog_event_deserialize(reinterpret_cast<const unsigned char *>(ptr),
+                                 event_len, &fdle, true, &next)) {
+      error = true; /* purecov: inspected */
+      break;        /* purecov: inspected */
+    } else {
+      DBUG_ASSERT(next != nullptr);
+      events.push_back(next);
+    }
+  }
+
+  return error;
+}
+
+bool Mts_submode_database::set_multi_threaded_applier_context(
+    const Relay_log_info &rli, Log_event &ev) {
+  bool error = false;
+
+  // if this is a transaction payload event, we need to set the proper
+  // databases that its internal events update
+  if (ev.get_type_code() == binary_log::TRANSACTION_PAYLOAD_EVENT) {
+    Mts_db_names toset;
+    bool max_mts_dbs_in_event = false;
+    std::set<std::string> dbs;
+    auto &tple = static_cast<Transaction_payload_log_event &>(ev);
+    std::vector<Log_event *> events;
+    unfold_transaction_payload_event(*rli.get_rli_description_event(), tple,
+                                     events);
+
+    for (auto inner : events) {
+      Mts_db_names mts_dbs;
+
+      // This transaction payload event is already marked to run in
+      // isolation or the event being handled does not contain partition
+      // information
+      if (max_mts_dbs_in_event || !inner->contains_partition_info(true)) {
+        delete inner;
+        continue;
+      }
+
+      // The following queries should run in isolation, thence setting
+      // OVER_MAX_DBS_IN_EVENT_MTS
+      if ((inner->get_type_code() == binary_log::QUERY_EVENT)) {
+        auto qev = static_cast<Query_log_event *>(inner);
+        if (qev->is_query_prefix_match(STRING_WITH_LEN("XA COMMIT")) ||
+            qev->is_query_prefix_match(STRING_WITH_LEN("XA ROLLBACK"))) {
+          max_mts_dbs_in_event = true;
+          delete inner;
+          continue;
+        }
+      }
+
+      // OK, now that we have ruled the exceptions, lets handle the databases
+      // in the inner event.
+      inner->get_mts_dbs(&mts_dbs, rli.rpl_filter);
+
+      // inner event has mark to run in isolation
+      if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
+        max_mts_dbs_in_event = true;
+        delete inner;
+        continue;
+      }
+
+      // iterate over the databases and add them to the set
+      for (int i = 0; i < mts_dbs.num; i++) {
+        dbs.insert(mts_dbs.name[i]);
+        if (dbs.size() == MAX_DBS_IN_EVENT_MTS) {
+          max_mts_dbs_in_event = true;
+          break;
+        }
+      }
+
+      // inner event not needed anymore. Delete.
+      delete inner;
+    }
+
+    // now set the database information in the event
+    if (max_mts_dbs_in_event) {
+      toset.name[0] = "\0";
+      toset.num = OVER_MAX_DBS_IN_EVENT_MTS;
+    } else {
+      int i = 0;
+      // set the databases
+      for (auto &db : dbs) toset.name[i++] = db.c_str();
+
+      // set the number of databases
+      toset.num = dbs.size();
+    }
+
+    // save the mts_dbs to the payload event
+    tple.set_mts_dbs(toset);
+  }
+
+  return error;
 }
 
 /**

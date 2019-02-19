@@ -8,6 +8,7 @@ use performance_schema;
 show tables;
 Tables_in_performance_schema
 accounts
+binary_log_transaction_compression_stats
 cond_instances
 data_lock_waits
 data_locks

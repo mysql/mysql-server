@@ -62,6 +62,7 @@
 #endif
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <map>
 #include <string>
 #include <utility>
@@ -70,6 +71,7 @@
 #include "errmsg.h"  // CR_*
 #include "lex_string.h"
 #include "libbinlogevents/include/binlog_event.h"
+#include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"
 #include "m_ctype.h"
@@ -272,6 +274,8 @@ enum enum_slave_apply_event_and_update_pos_retval {
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR = 1,
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR = 2,
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR = 3,
+  SLAVE_APPLY_EVENT_RETRY = 4,
+  SLAVE_APPLY_EVENT_UNTIL_REACHED = 5,
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_MAX
 };
 
@@ -4705,7 +4709,8 @@ static bool coord_handle_partial_binlogged_transaction(Relay_log_info *rli,
   @retval 1 The event was not applied.
 */
 static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
-                                Rpl_applier_reader *applier_reader) {
+                                Rpl_applier_reader *applier_reader,
+                                Log_event *in) {
   DBUG_TRACE;
 
   /*
@@ -4719,7 +4724,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 #ifndef DBUG_OFF
   if (!abort_slave_event_count || rli->events_until_exit--)
 #endif
-    ev = applier_reader->read_next_event();
+    ev = in;
 
   Log_event **ptr_ev = nullptr;
   RLI_current_event_raii rli_c_ev(rli, ev);
@@ -4817,7 +4822,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       rli->abort_slave = true;
       mysql_mutex_unlock(&rli->data_lock);
       delete ev;
-      return 1;
+      return SLAVE_APPLY_EVENT_UNTIL_REACHED;
     }
 
     { /**
@@ -4971,7 +4976,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
             LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_INIT_RELAY_LOG_POSITION,
                    rli->get_for_channel_str(), errmsg);
           else {
-            exec_res = SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK;
+            exec_res = SLAVE_APPLY_EVENT_RETRY;
             /* chance for concurrent connection to get more locks */
             slave_sleep(thd,
                         min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
@@ -4985,7 +4990,6 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
                                         rli->trans_retries);
               }
             }
-
             rli->retried_trans++;
             mysql_mutex_unlock(&rli->data_lock);
 #ifndef DBUG_OFF
@@ -5030,7 +5034,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       mysql_mutex_lock(&rli->data_lock);
       rli->abort_slave = true;
       mysql_mutex_unlock(&rli->data_lock);
-      return 1;
+      return SLAVE_APPLY_EVENT_UNTIL_REACHED;
     }
     return exec_res;
   }
@@ -5056,7 +5060,7 @@ the master's or slave's MySQL code. If you want to check the master's binary \
 log or slave's relay log, you will be able to know their names by issuing \
 'SHOW SLAVE STATUS' on this slave.\
 ");
-  return 1;
+  return SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR;
 }
 
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info) {
@@ -6708,6 +6712,7 @@ static int report_apply_event_error(THD *thd, Relay_log_info *rli) {
 extern "C" void *handle_slave_sql(void *arg) {
   THD *thd; /* needs to be first for thread_stack */
   bool thd_added = false;
+  bool main_loop_error = false;
   char llbuff[22], llbuff1[22];
   char saved_log_name[FN_REFLEN];
   char saved_master_log_name[FN_REFLEN];
@@ -6975,11 +6980,11 @@ extern "C" void *handle_slave_sql(void *arg) {
 
     /* Read queries from the IO/THREAD until this thread is killed */
 
-    while (!sql_slave_killed(thd, rli)) {
+    while (!main_loop_error && !sql_slave_killed(thd, rli)) {
+      Log_event *ev = nullptr;
       THD_STAGE_INFO(thd, stage_reading_event_from_the_relay_log);
       DBUG_ASSERT(rli->info_thd == thd);
       THD_CHECK_SENTRY(thd);
-
       if (saved_skip && rli->slave_skip_counter == 0) {
         LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SKIP_COUNTER_EXECUTED,
                (ulong)saved_skip, saved_log_name, (ulong)saved_log_pos,
@@ -6991,18 +6996,50 @@ extern "C" void *handle_slave_sql(void *arg) {
         saved_skip = 0;
       }
 
-      if (exec_relay_log_event(thd, rli, &applier_reader)) {
-        DBUG_PRINT("info", ("exec_relay_log_event() failed"));
+      // read next event
+      mysql_mutex_lock(&rli->data_lock);
+      ev = applier_reader.read_next_event();
+      mysql_mutex_unlock(&rli->data_lock);
 
-        // do not scare the user if SQL thread was simply killed or stopped
-        if (!sql_slave_killed(thd, rli)) {
-          slave_errno = report_apply_event_error(thd, rli);
-        }
-        goto err;
+      // set additional context as needed by the scheduler before execution
+      // takes place
+      if (ev != nullptr && rli->is_parallel_exec() &&
+          rli->current_mts_submode != nullptr)
+        rli->current_mts_submode->set_multi_threaded_applier_context(*rli, *ev);
+
+      // try to execute the event
+      switch (exec_relay_log_event(thd, rli, &applier_reader, ev)) {
+        case SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK:
+          /** success, we read the next event. */
+          /** fall through */
+        case SLAVE_APPLY_EVENT_UNTIL_REACHED:
+          /** this will make the main loop abort in the next iteration */
+          /** fall through */
+        case SLAVE_APPLY_EVENT_RETRY:
+          /** single threaded applier has to retry.
+              Next iteration reads the same event. */
+          break;
+
+        case SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR:
+          /** fall through */
+        case SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR:
+          /** fall through */
+        case SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR:
+          main_loop_error = true;
+          break;
+
+        default:
+          /* This shall never happen. */
+          DBUG_ASSERT(0); /* purecov: inspected */
+          break;
       }
     }
-
   err:
+
+    // report error
+    if (main_loop_error == true && !sql_slave_killed(thd, rli))
+      slave_errno = report_apply_event_error(thd, rli);
+
     /* At this point the SQL thread will not try to work anymore. */
     rli->atomic_is_stopping = true;
     (void)RUN_HOOK(
@@ -7237,6 +7274,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   ulonglong original_commit_timestamp = 0;
   bool info_error{false};
   binary_log::Log_event_basic_info log_event_info;
+  ulonglong compressed_transaction_bytes = 0;
+  ulonglong uncompressed_transaction_bytes = 0;
+  auto compression_type = binary_log::transaction::compression::type::NONE;
   Log_event_type event_type = (Log_event_type)buf[EVENT_TYPE_OFFSET];
 
   DBUG_ASSERT(checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_OFF ||
@@ -7631,6 +7671,20 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       goto end;
     } break;
 
+    case binary_log::TRANSACTION_PAYLOAD_EVENT: {
+      binary_log::Transaction_payload_event tpe(buf,
+                                                mi->get_mi_description_event());
+      compression_type = tpe.get_compression_type();
+      compressed_transaction_bytes = tpe.get_payload_size();
+      uncompressed_transaction_bytes = tpe.get_uncompressed_size();
+      auto gtid_monitoring_info = mi->get_gtid_monitoring_info();
+      gtid_monitoring_info->update(compression_type,
+                                   compressed_transaction_bytes,
+                                   uncompressed_transaction_bytes);
+      inc_pos = event_len;
+      break;
+    }
+
     case binary_log::GTID_LOG_EVENT: {
       /*
         This can happen if the master uses GTID_MODE=OFF_PERMISSIVE, and
@@ -7657,6 +7711,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       gtid.gno = gtid_ev.get_gno();
       original_commit_timestamp = gtid_ev.original_commit_timestamp;
       immediate_commit_timestamp = gtid_ev.immediate_commit_timestamp;
+      compressed_transaction_bytes = uncompressed_transaction_bytes =
+          gtid_ev.transaction_length - gtid_ev.get_event_length();
+
       inc_pos = event_len;
     } break;
 
@@ -7702,6 +7759,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       Gtid_log_event anon_gtid_ev(buf, mi->get_mi_description_event());
       original_commit_timestamp = anon_gtid_ev.original_commit_timestamp;
       immediate_commit_timestamp = anon_gtid_ev.immediate_commit_timestamp;
+      compressed_transaction_bytes = uncompressed_transaction_bytes =
+          anon_gtid_ev.transaction_length - anon_gtid_ev.get_event_length();
     }
     /* fall through */
     default:
@@ -7840,6 +7899,11 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         // set the timestamp for the start time of queueing this transaction
         mi->started_queueing(gtid, original_commit_timestamp,
                              immediate_commit_timestamp);
+
+        auto gtid_monitoring_info = mi->get_gtid_monitoring_info();
+        gtid_monitoring_info->update(
+            binary_log::transaction::compression::type::NONE,
+            compressed_transaction_bytes, uncompressed_transaction_bytes);
       }
     } else {
       /*

@@ -8,7 +8,6 @@
 -- source include/have_plugin_auth.inc
 
 --let $offset_of_query_event= 2
-
 #
 # BUG#59708: 'CREATE USER ... IDENTIFIED WITH ..' statement is
 #            binlogged wrongly

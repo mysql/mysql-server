@@ -159,6 +159,9 @@ Error_log_throttle slave_ignored_err_throttle(
     " replicate-*-table rules\" got suppressed.");
 #endif /* MYSQL_SERVER */
 
+#include "libbinlogevents/include/codecs/binary.h"
+#include "libbinlogevents/include/codecs/factory.h"
+#include "libbinlogevents/include/compression/iterator.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_record.h"  // enum_row_image_type, Bit_reader
 #include "sql/rpl_utility.h"
@@ -970,6 +973,8 @@ const char *Log_event::get_type_str(Log_event_type type) {
       return "XA_prepare";
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       return "Update_rows_partial";
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      return "Transaction_payload";
     default:
       return "Unknown"; /* impossible */
   }
@@ -2527,6 +2532,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs) {
   switch (get_type_code()) {
     case binary_log::TABLE_MAP_EVENT:
     case binary_log::EXECUTE_LOAD_QUERY_EVENT:
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
       res = true;
 
       break;
@@ -2792,6 +2798,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
            binary_log::DELETE_FILE_EVENT);
 
       DBUG_ASSERT((!ends_group() ||
+                   (get_type_code() == binary_log::TRANSACTION_PAYLOAD_EVENT) ||
                    (get_type_code() == binary_log::QUERY_EVENT &&
                     static_cast<Query_log_event *>(this)->is_query_prefix_match(
                         STRING_WITH_LEN("XA ROLLBACK")))) ||
@@ -2815,6 +2822,19 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli) {
       */
       rli->curr_group_isolated = true;
     }
+#ifndef DBUG_OFF
+    {
+      std::ostringstream oss;
+      for (i = 0;
+           i < ((mts_dbs.num != OVER_MAX_DBS_IN_EVENT_MTS) ? mts_dbs.num : 1);
+           i++) {
+        if (mts_dbs.name[i] != 0) {
+          oss << mts_dbs.name[i] << ", ";
+        }
+      }
+      DBUG_PRINT("debug", ("ASSIGN %p %s", current_thd, oss.str().c_str()));
+    }
+#endif
 
     /* One run of the loop in the case of over-max-db:s */
     for (i = 0;
@@ -4370,7 +4390,8 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
 */
 void Query_log_event::attach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info *rli) {
-  rli->current_mts_submode->attach_temp_tables(thd_arg, rli, this);
+  if (!is_skip_temp_tables_handling_by_worker())
+    rli->current_mts_submode->attach_temp_tables(thd_arg, rli, this);
 }
 
 /**
@@ -4383,7 +4404,8 @@ void Query_log_event::attach_temp_tables_worker(THD *thd_arg,
 */
 void Query_log_event::detach_temp_tables_worker(THD *thd_arg,
                                                 const Relay_log_info *rli) {
-  rli->current_mts_submode->detach_temp_tables(thd_arg, rli, this);
+  if (!is_skip_temp_tables_handling_by_worker())
+    rli->current_mts_submode->detach_temp_tables(thd_arg, rli, this);
 }
 
 /*
@@ -6045,10 +6067,9 @@ bool Xid_log_event::do_commit(THD *thd_arg) {
    @return zero as success or non-zero as an error
 */
 int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w) {
+  DBUG_TRACE;
   int error = 0;
   bool skipped_commit_pos = true;
-
-  DBUG_TRACE;
 
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
@@ -12995,6 +13016,7 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   transaction_length += get_commit_timestamp_length();
   transaction_length += get_server_version_length();
   transaction_length += is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
+
   /*
     Notice that it is not possible to determine the transaction_length field
     size using pack.cc:net_length_size() since the length of the field itself
@@ -13573,6 +13595,226 @@ void View_change_log_event::set_certification_info(
       (ENCODED_CERT_INFO_KEY_SIZE_LEN + ENCODED_CERT_INFO_VALUE_LEN) *
       certification_info.size();
 }
+
+size_t Transaction_payload_log_event::get_data_size() {
+  /* purecov: begin inspected */
+  DBUG_TRACE;
+  DBUG_ASSERT(false);
+  return 0;
+  /* purecov: end */
+}
+
+#ifdef MYSQL_SERVER
+uint8 Transaction_payload_log_event::get_mts_dbs(
+    Mts_db_names *arg, Rpl_filter *rpl_filter MY_ATTRIBUTE((unused))) {
+  Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
+  if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
+    arg->name[0] = 0;
+    arg->num = OVER_MAX_DBS_IN_EVENT_MTS;
+  } else {
+    for (int i = 0; i < mts_dbs.num; i++) arg->name[i] = mts_dbs.name[i];
+    arg->num = mts_dbs.num;
+  }
+
+  return arg->num;
+}
+
+void Transaction_payload_log_event::set_mts_dbs(Mts_db_names &arg) {
+  m_applier_ctx.reset();
+  Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
+  mts_dbs.num = arg.num;
+  if (mts_dbs.num < MAX_DBS_IN_EVENT_MTS) {
+    for (int i = 0; i < arg.num; i++)
+      // strndup already adds the string terminator
+      mts_dbs.name[i] = strndup(arg.name[i], NAME_LEN);
+  }
+#ifndef DBUG_OFF
+  else
+    DBUG_ASSERT(mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS);
+#endif
+}
+
+uint8 Transaction_payload_log_event::mts_number_dbs() {
+  return m_applier_ctx.get_mts_db_names().num;
+}
+
+int Transaction_payload_log_event::do_apply_event(Relay_log_info const *rli) {
+  DBUG_TRACE;
+  int res = 0;
+  PSI_stage_info old_stage;
+
+  /* apply events in the payload */
+
+  binary_log::transaction::compression::Iterable_buffer it(
+      m_payload, m_payload_size, m_uncompressed_size, m_compression_type);
+
+  thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
+                   __FILE__, __LINE__);
+  for (auto ptr : it) {
+    THD_STAGE_INFO(thd, old_stage);
+    if ((res = apply_payload_event(rli, (const uchar *)ptr))) break;
+    thd->enter_stage(&stage_binlog_transaction_decompress, &old_stage, __func__,
+                     __FILE__, __LINE__);
+  }
+  THD_STAGE_INFO(thd, old_stage);
+
+  return res;
+}
+
+static bool shall_delete_event_after_apply(Log_event *ev) {
+  bool res = false;
+  if (ev == nullptr) return res;
+  switch (ev->get_type_code()) {
+    case binary_log::FORMAT_DESCRIPTION_EVENT:
+      /*
+        Format_description_log_event should not be deleted because it will
+        be used to read info about the relay log's format; it will be
+        deleted when the SQL thread does not need it, i.e. when this
+        thread terminates.
+      */
+
+      /* fall through */
+    case binary_log::ROWS_QUERY_LOG_EVENT:
+      /*
+         ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement
+         clean-up routine.
+      */
+      res = false;
+      break;
+    default:
+      DBUG_PRINT("info", ("Deleting the event after it has been executed"));
+      res = true;
+      break;
+  }
+
+  return res;
+}
+
+bool Transaction_payload_log_event::apply_payload_event(
+    Relay_log_info const *rli, const uchar *event_buf) {
+  DBUG_TRACE;
+  bool res = false;
+  const uchar *ptr = event_buf;
+  Log_event *ev = nullptr;
+  bool copied_buffer = false;
+  uchar *copy_buffer = nullptr;
+
+  /*
+    disable checksums - there are no checksums for events inside the tple
+    otherwise, the last 4 bytes would be truncated.
+
+    We do this by copying the fdle from the rli. Then we disable the checksum
+    in the copy. Then we use it to decode the events in the payload instead
+    of the original fdle.
+
+    We allocate the fdle copy in the stack.
+
+    TODO: simplify this by breaking the binlog_event_deserialize API
+    and make it take a single boolean instead that states whether the
+    event has a checksum in it or not.
+  */
+  Format_description_event *fde = rli->get_rli_description_event();
+  Format_description_log_event fdle(fde->reader().buffer(), fde);
+  fdle.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+  fdle.register_temp_buf(const_cast<char *>(fde->reader().buffer()), false);
+  size_t event_len = uint4korr(ptr + EVENT_LEN_OFFSET);
+  if (binlog_event_deserialize(ptr, event_len, &fdle, true, &ev)) {
+    res = true;
+    goto end;
+  }
+
+  if (!shall_delete_event_after_apply(ev)) {
+    copy_buffer =
+        (uchar *)my_malloc(key_memory_log_event, event_len, MYF(MY_WME));
+    memcpy(copy_buffer, ptr, event_len);
+    copied_buffer = true;
+  } else {
+    copy_buffer = const_cast<uchar *>(ptr);
+    copied_buffer = false;
+  }
+
+  ev->register_temp_buf((char *)copy_buffer, copied_buffer);
+  ev->common_header->log_pos = header()->log_pos;
+
+  thd->server_id = ev->server_id;  // use the original server id for logging
+  thd->unmasked_server_id = ev->common_header->unmasked_server_id;
+  thd->set_time();  // time the query
+  thd->lex->set_current_select(0);
+  if (!ev->common_header->when.tv_sec)
+    my_micro_time_to_timeval(my_micro_time(), &ev->common_header->when);
+  ev->thd = thd;  // because up to this point, ev->thd == 0
+
+  // TODO: HATE THIS
+  if (is_mts_worker(thd)) {
+    auto worker =
+        static_cast<Slave_worker *>(const_cast<Relay_log_info *>(rli));
+    this->worker = worker;
+
+    // set in the event context
+    ev->future_event_relay_log_pos = this->future_event_relay_log_pos;
+    ev->mts_group_idx = mts_group_idx;
+    ev->worker = worker;
+
+    // set in the worker context
+    worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
+    worker->set_master_log_pos(static_cast<ulong>(ev->common_header->log_pos));
+    worker->set_gaq_index(ev->mts_group_idx);
+
+    if (ev->get_type_code() == binary_log::QUERY_EVENT)
+      static_cast<Query_log_event *>(ev)
+          ->set_skip_temp_tables_handling_by_worker();
+    res = ev->do_apply_event_worker(worker);
+  } else {
+    auto coord = const_cast<Relay_log_info *>(rli);
+    ev->future_event_relay_log_pos = coord->get_future_event_relay_log_pos();
+    res = ev->apply_event(coord);
+  }
+
+  if (shall_delete_event_after_apply(ev)) delete ev;
+
+end:
+  return res;
+}
+
+Log_event::enum_skip_reason Transaction_payload_log_event::do_shall_skip(
+    Relay_log_info *rli) {
+  return Log_event::continue_group(rli);
+}
+
+bool Transaction_payload_log_event::write(Basic_ostream *ostream) {
+  DBUG_TRACE;
+  auto codec = binary_log::codecs::Factory::build_codec(header()->type_code);
+  auto buffer_size = MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN;
+  unsigned char buffer[MAX_DATA_LENGTH + LOG_EVENT_HEADER_LEN];
+  auto result = codec->encode(*this, buffer, buffer_size);
+  size_t data_size = result.first + m_payload_size;
+
+  if (result.second == true) goto end;
+
+  return write_header(ostream, data_size) ||
+         wrapper_my_b_safe_write(ostream, (uchar *)buffer, result.first) ||
+         wrapper_my_b_safe_write(ostream,
+                                 reinterpret_cast<const uchar *>(m_payload),
+                                 m_payload_size) ||
+         write_footer(ostream);
+end:
+  return true;
+}
+
+int Transaction_payload_log_event::pack_info(Protocol *protocol) {
+  std::ostringstream oss;
+  oss << "compression='";
+  oss << binary_log::transaction::compression::type_to_string(
+      m_compression_type);
+  oss << "', decompressed_size=";
+  oss << m_uncompressed_size << " bytes";
+  protocol->store(oss.str().c_str(), &my_charset_bin);
+  return 0;
+}
+
+bool Transaction_payload_log_event::ends_group() const { return true; }
+
+#endif
 
 #ifndef MYSQL_SERVER
 /**

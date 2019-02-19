@@ -41,7 +41,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -56,7 +56,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -72,7 +72,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UUID() function.
@@ -86,7 +86,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UUID() function.
@@ -100,7 +100,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UUID() function.
@@ -114,7 +114,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -131,7 +131,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -144,7 +144,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -158,7 +158,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -172,7 +172,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
@@ -186,7 +186,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -201,7 +201,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -214,7 +214,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UUID() function.
@@ -228,7 +228,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UUID() function.
@@ -242,7 +242,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -257,7 +257,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UUID() function.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -270,7 +270,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UUID() function.
@@ -284,7 +284,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UUID() function.
@@ -298,7 +298,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -313,7 +313,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -328,7 +328,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe UUID() function.
@@ -342,7 +342,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe UUID() function.
@@ -356,7 +356,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe UUID() function.
@@ -370,7 +370,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -387,7 +387,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing @@hostname unsafeness ====
@@ -403,7 +403,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -418,7 +418,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -434,7 +434,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
@@ -448,7 +448,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
@@ -462,7 +462,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe @@hostname variable.
@@ -476,7 +476,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -493,7 +493,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -506,7 +506,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -520,7 +520,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -534,7 +534,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
@@ -548,7 +548,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -563,7 +563,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -576,7 +576,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
@@ -590,7 +590,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
@@ -604,7 +604,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -619,7 +619,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -632,7 +632,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
@@ -646,7 +646,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
@@ -660,7 +660,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -675,7 +675,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing SELECT...LIMIT unsafeness ====
@@ -691,7 +691,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -704,7 +704,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -718,7 +718,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -732,7 +732,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
@@ -746,7 +746,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -761,7 +761,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -774,7 +774,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
@@ -788,7 +788,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
@@ -802,7 +802,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -817,7 +817,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -830,7 +830,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
@@ -844,7 +844,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
@@ -858,7 +858,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -873,7 +873,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -888,7 +888,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -902,7 +902,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -916,7 +916,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
@@ -930,7 +930,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -947,7 +947,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of insert of two autoinc values ====
@@ -963,7 +963,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -976,7 +976,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -990,7 +990,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -1004,7 +1004,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
@@ -1018,7 +1018,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1033,7 +1033,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1046,7 +1046,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
@@ -1060,7 +1060,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
@@ -1074,7 +1074,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1089,7 +1089,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1102,7 +1102,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
@@ -1116,7 +1116,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
@@ -1130,7 +1130,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1145,7 +1145,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of UDF's ====
@@ -1161,7 +1161,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_1();
 
@@ -1176,7 +1176,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT func_retval_2();
 DROP FUNCTION func_retval_2;
@@ -1192,7 +1192,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UDF.
@@ -1206,7 +1206,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UDF.
@@ -1220,7 +1220,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UDF.
@@ -1234,7 +1234,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -1251,7 +1251,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1264,7 +1264,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1278,7 +1278,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1292,7 +1292,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
@@ -1306,7 +1306,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1321,7 +1321,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1334,7 +1334,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UDF.
@@ -1348,7 +1348,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UDF.
@@ -1362,7 +1362,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1377,7 +1377,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1390,7 +1390,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UDF.
@@ -1404,7 +1404,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UDF.
@@ -1418,7 +1418,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1433,7 +1433,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
@@ -1446,7 +1446,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1460,7 +1460,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1474,7 +1474,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
@@ -1488,7 +1488,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP VIEW view_sidef_1;
 
@@ -1503,7 +1503,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing unsafeness of access to mysql.general_log ====
@@ -1519,7 +1519,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1532,7 +1532,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1546,7 +1546,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1560,7 +1560,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
@@ -1574,7 +1574,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1589,7 +1589,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1602,7 +1602,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
@@ -1616,7 +1616,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
@@ -1630,7 +1630,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1645,7 +1645,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1658,7 +1658,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
@@ -1672,7 +1672,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
@@ -1686,7 +1686,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -1701,7 +1701,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_1;
 
@@ -1716,7 +1716,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1730,7 +1730,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1744,7 +1744,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe use of mysql.general_log.
@@ -1758,7 +1758,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 * Invoke statement so that return value is dicarded: expect no warning.
 SELECT * FROM view_retval_2;
 DROP VIEW view_retval_2;
@@ -1775,7 +1775,7 @@ include/assert.inc [There should be 1 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing a statement that is unsafe in many ways ====
@@ -1797,7 +1797,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -1816,7 +1816,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1836,7 +1836,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1856,7 +1856,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe in many ways.
@@ -1876,7 +1876,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -1897,7 +1897,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -1916,7 +1916,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
@@ -1936,7 +1936,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe in many ways.
@@ -1956,7 +1956,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -1977,7 +1977,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -1996,7 +1996,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
@@ -2016,7 +2016,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe in many ways.
@@ -2036,7 +2036,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -2057,7 +2057,7 @@ include/assert.inc [There should be 7 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 
 ==== Testing a statement that is unsafe several times ====
@@ -2074,7 +2074,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
@@ -2088,7 +2088,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2103,7 +2103,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2118,7 +2118,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
@@ -2133,7 +2133,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP FUNCTION func_sidef_1;
 
@@ -2149,7 +2149,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
@@ -2163,7 +2163,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe several times.
@@ -2178,7 +2178,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe several times.
@@ -2193,7 +2193,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP PROCEDURE proc_1;
 
@@ -2209,7 +2209,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
@@ -2223,7 +2223,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe several times.
@@ -2238,7 +2238,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe several times.
@@ -2253,7 +2253,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 DROP TRIGGER trig_1;
 
@@ -2269,7 +2269,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 
 Invoking function func_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
 CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
@@ -2283,7 +2283,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP FUNCTION func_sidef_2;
 
 Invoking procedure proc_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2298,7 +2298,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PROCEDURE proc_2;
 
 Invoking trigger trig_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2313,7 +2313,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP TRIGGER trig_2;
 
 Invoking view view_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
@@ -2328,7 +2328,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP VIEW view_sidef_2;
 DROP VIEW view_sidef_1;
 
@@ -2344,7 +2344,7 @@ include/assert.inc [There should be 2 warning(s)]
 include/assert.inc [There should be 0 warning(s)]
 include/assert.inc [Only two events should exist in the binary log]
 * binlog_format = MIXED: expect row events in binlog and no warning.
-include/assert.inc [Event number 5 should be a Table_map_log_event]
+include/assert.inc [Event should be a Table_map_log_event]
 DROP PREPARE prep_1;
 DROP TRIGGER double_autoinc_trig;
 DROP TABLE t0, t1, t2, t3, ta0, ta1, ta2, ta3,

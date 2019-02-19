@@ -37,6 +37,10 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 2
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+  --let $binlog_limit= 3
+}
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc
@@ -73,6 +77,10 @@ SET PASSWORD FOR 'user1'@'localhost' = 'auth_secret';
 # Check the binlog contents on the master
 --let $binlog_start= $saved_master_pos
 --let $binlog_limit= 2
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+  --let $binlog_limit= 3
+}
 --source include/show_binlog_events.inc
 # Check the binlog contents on the slave
 --source include/sync_slave_sql_with_master.inc

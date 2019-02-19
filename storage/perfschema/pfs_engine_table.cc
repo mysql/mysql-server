@@ -53,6 +53,7 @@
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"
 #include "storage/perfschema/table_accounts.h"
+#include "storage/perfschema/table_binary_log_transaction_compression_stats.h"
 #include "storage/perfschema/table_data_lock_waits.h"
 #include "storage/perfschema/table_data_locks.h"
 #include "storage/perfschema/table_ees_by_account_by_error.h"
@@ -669,7 +670,7 @@ static PFS_engine_table_share *all_shares[] = {
     &table_variables_info::m_share,
     &table_persisted_variables::m_share,
     &table_user_defined_functions::m_share,
-
+    &table_binary_log_transaction_compression_stats::m_share,
     nullptr};
 
 static PSI_mutex_key key_LOCK_pfs_share_list;

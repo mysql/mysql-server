@@ -74,6 +74,11 @@
 # BUG#18089914: REFACTORING: RENAME GROUP TO GTID
 # - changed NOT_YET_DETERMINED_GROUP to NOT_YET_DETERMINED_GTID
 
+# this test case expects certain events in a given order. This
+# is not allowed when compression is on, because the transaction
+# shows up compressed in a single event.
+--source include/not_binlog_transaction_compression_on.inc
+
 --source include/have_binlog_format_mixed_or_row.inc
 
 # MTS does not allow row events outside transactions.

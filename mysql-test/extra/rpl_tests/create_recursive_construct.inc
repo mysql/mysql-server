@@ -366,8 +366,13 @@ if ($CRC_RET_stmt_sidef) {
   #  3. Gtid_log_event
   #  4. Query_event('BEGIN')
   #  5. Table_map_log_event for the unsafe statement.
-  --let $assert_text= Event number 5 should be a Table_map_log_event
-  --let $assert_cond= "[SHOW BINLOG EVENTS, Event_type, 5]" = "Table_map"
+  --let $tbl_map_event_pos = 5
+  if (`SELECT @@binlog_transaction_compression=TRUE`)
+  {
+    --let $tbl_map_event_pos = 6
+  }
+  --let $assert_text= Event should be a Table_map_log_event
+  --let $assert_cond= "[SHOW BINLOG EVENTS, Event_type, $tbl_map_event_pos]" = "Table_map"
   --source include/assert.inc
   SET binlog_format = STATEMENT;
 

@@ -22,6 +22,16 @@ drop table t1,t2;
 #
 # binlog rotation after one big transaction
 #
+
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
 reset master;
 let $1=100;
 
@@ -40,6 +50,12 @@ drop table t1;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --source include/show_binlog_events.inc
 --let $binlog_file=
+
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 #
 # Bug#22540 - Incorrect value in column End_log_pos of
@@ -74,6 +90,15 @@ drop table t1;
 # now show that nothing breaks if we need to read from the cache more
 # than once, resulting in split event-headers
 
+# test requires big transaction, which compression would invalidate
+# so, we are disabling compression explcitly just for this test case.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
+
 set @bcs = @@binlog_cache_size;
 set global binlog_cache_size=4096;
 reset master;
@@ -102,6 +127,11 @@ drop table t1;
 
 set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 #
 # Bug#33798: prepared statements improperly handle large unsigned ints
@@ -247,6 +277,15 @@ drop table t1,t2,t3,tt1;
 #Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
 # server should not hang, binlog must rotate in the end
 reset master;
+
+# temporarily disable compression for this test case, since it needs
+# to create a large binlog to rotate it.
+--disable_result_log
+--disable_query_log
+SET @saved_btc = @@session.binlog_transaction_compression;
+SET @@session.binlog_transaction_compression = FALSE;
+--enable_result_log
+--enable_query_log
 --disable_warnings
 drop table if exists t3;
 --enable_warnings
@@ -263,6 +302,14 @@ dec $it;
 --echo *** show new binlog index after rotating ***
 --echo File $binlog_file2
 drop table t3;
+
+# clean up
+RESET MASTER;
+--disable_result_log
+--disable_query_log
+SET @@session.binlog_transaction_compression = @saved_btc;
+--enable_result_log
+--enable_query_log
 
 --echo #
 --echo # Bug #45998: database crashes when running "create as select"

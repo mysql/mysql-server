@@ -5626,7 +5626,7 @@ static void bind_date_conv(uint row_count, bool preserveFractions) {
   my_bind[2].buffer_type = MYSQL_TYPE_DATETIME;
   my_bind[3].buffer_type = MYSQL_TYPE_DATE;
 
-  for (i = 0; i < array_elements(my_bind); i++) {
+  for (i = 0; i < (uint)array_elements(my_bind); i++) {
     my_bind[i].buffer = (void *)&tm[i];
     my_bind[i].is_null = &is_null[i];
     my_bind[i].length = &length[i];
@@ -5648,7 +5648,7 @@ static void bind_date_conv(uint row_count, bool preserveFractions) {
   check_execute(stmt, rc);
 
   for (count = 0; count < row_count; count++) {
-    for (i = 0; i < array_elements(my_bind); i++) {
+    for (i = 0; i < (uint)array_elements(my_bind); i++) {
       tm[i].neg = false;
       tm[i].second_part = second_part + count;
       if (my_bind[i].buffer_type != MYSQL_TYPE_TIME) {
@@ -16864,7 +16864,7 @@ static void test_bug40365(void) {
   memset(my_bind, 0, sizeof(my_bind));
   my_bind[0].buffer_type = MYSQL_TYPE_DATETIME;
   my_bind[1].buffer_type = MYSQL_TYPE_DATE;
-  for (i = 0; i < array_elements(my_bind); i++) {
+  for (i = 0; i < (uint)array_elements(my_bind); i++) {
     my_bind[i].buffer = (void *)&tm[i];
     my_bind[i].is_null = &is_null[i];
   }

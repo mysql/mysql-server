@@ -120,7 +120,8 @@
   performance_schema tables changed in MySQL 8.0.17
   - WL#12571 increases the HOST name length from 60 to 255.
 
-  Version published is now 800171. The next number to use is 80018.
+
+  Version published is now 80019. The next number to use is 80020.
 
   80018:
 
@@ -137,8 +138,12 @@
   TLS_CIPHERSUITES
   - replication_applier_configuration, added column
   REQUIRE_ROW_FORMAT
+
+  80020:
+
+  - WL#3549 created binary_log_transaction_compression_stats
 */
 
-static const uint PFS_DD_VERSION = 80019;
+static const uint PFS_DD_VERSION = 80020;
 
 #endif /* PFS_DD_VERSION_H */

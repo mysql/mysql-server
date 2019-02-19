@@ -7,6 +7,9 @@
 # not gtids because it uses create...select and BUG#11756034 has not been fixed
 --source include/have_binlog_format_mixed.inc
 
+# this test requires implicit rotation due to fabricated large transaction
+--source include/not_binlog_transaction_compression_on.inc
+
 RESET MASTER;
 
 # replace_regex should replace output of SHOW BINLOG EVENTS

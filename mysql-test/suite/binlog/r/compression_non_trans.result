@@ -1,0 +1,87 @@
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+#
+# Test 1: single non-trans statement
+#
+INSERT INTO t1 VALUES (2, REPEAT ('c', 1000));
+include/assert.inc [Expected event type Query (begin)]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Write_rows]
+include/assert.inc [Expected event type Query (commit)]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 0 for compression_type != NONE]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
+DROP TABLE IF EXISTS t1, t2;
+SET SESSION binlog_transaction_compression = SAVED;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+#
+# Test 2: single non-trans + trans statement
+#
+UPDATE t1, t2 SET t1.c1 = 2, t2.c1=2;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Previous_gtids	#	#	
+binlog.000001	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t1)
+binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Query	#	#	COMMIT
+binlog.000001	#	Anonymous_Gtid	#	#	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+binlog.000001	#	Query	#	#	BEGIN
+binlog.000001	#	Table_map	#	#	table_id: # (test.t2)
+binlog.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+binlog.000001	#	Xid	#	#	COMMIT /* XID */
+include/assert.inc [Expected event type Query (begin)]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Update_rows]
+include/assert.inc [Expected event type Query (commit)]
+include/assert.inc [Expected event type Query (begin)]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Update_rows]
+include/assert.inc [Expected event type Xid]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 0 for compression_type != NONE]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
+DROP TABLE IF EXISTS t1, t2;
+SET SESSION binlog_transaction_compression = SAVED;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = MYISAM;
+CREATE TABLE t2(c1 INT PRIMARY KEY, data TEXT(30000)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+INSERT INTO t2 VALUES (1, REPEAT ('b', 1000));
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+#
+# Test 3: transaction with non-trans and trans statement
+#
+BEGIN;
+UPDATE t2 SET c1=2;
+UPDATE t1 SET c1=2;
+COMMIT;
+include/assert.inc [Expected event type Query (begin)]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Update_rows]
+include/assert.inc [Expected event type Query (commit)]
+include/assert.inc [Expected event type Query (begin)]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Update_rows]
+include/assert.inc [Expected event type Xid]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 0 for compression_type != NONE]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
+DROP TABLE IF EXISTS t1, t2;
+SET SESSION binlog_transaction_compression = SAVED;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;

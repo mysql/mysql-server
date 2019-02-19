@@ -1,0 +1,19 @@
+call mtr.add_suppression("An incident event has been written to the binary log which will stop the slaves");
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1(c1 INT PRIMARY KEY, data TEXT(30000));
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+# Adding debug point 'binlog_compression_inject_incident' to @@GLOBAL.debug
+INSERT INTO t1 VALUES (1, REPEAT ('a', 1000));
+# Removing debug point 'binlog_compression_inject_incident' from @@GLOBAL.debug
+include/assert.inc [Expected event type Query]
+include/assert.inc [Expected event type Table_map]
+include/assert.inc [Expected event type Write_rows]
+include/assert.inc [Expected event type Xid]
+include/assert.inc [Expected event type Incident]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 0 for compression_type != NONE (because of incident event)]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1 for compression_type = NONE]
+DROP TABLE t1;
+SET SESSION binlog_transaction_compression = SAVED;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;

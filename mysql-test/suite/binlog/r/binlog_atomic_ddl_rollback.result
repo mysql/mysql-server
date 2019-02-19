@@ -9,5 +9,5 @@ SET DEBUG_SYNC= 'now SIGNAL continue';
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 include/save_binlog_position.inc
 DELETE FROM tmp;
-include/assert_binlog_events.inc
+include/assert_binlog_events.inc [Anonymous_Gtid # !Begin # !Q(DELETE.*) # !Commit]
 DROP VIEW v_12;

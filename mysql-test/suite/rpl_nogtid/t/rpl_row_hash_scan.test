@@ -28,6 +28,9 @@
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
+# sql_slave_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 call mtr.add_suppression("Slave SQL for channel '': .*Could not execute Update_rows event on table test.t1; Can't find record in 't1', Error_code: 1032; handler error HA_ERR_END_OF_FILE; the event's master log master-bin.[0-9]*, end_log_pos [0-9]*, Error_code: MY-001032");

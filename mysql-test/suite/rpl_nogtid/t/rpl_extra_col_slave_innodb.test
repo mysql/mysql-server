@@ -4,6 +4,9 @@
 -- source include/master-slave.inc
 CALL mtr.add_suppression("Slave: .*Duplicate column name");
 
+# sql_slave_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
 let $engine_type = 'InnoDB';
 -- source extra/rpl_tests/rpl_extra_col_slave.test
 --source include/rpl_end.inc

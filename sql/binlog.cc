@@ -48,16 +48,18 @@
 #include <list>
 #include <map>
 #include <new>
+#include <queue>
 #include <sstream>
 #include <string>
 
 #include "dur_prop.h"
+#include "libbinlogevents/include/compression/base.h"
+#include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/control_events.h"
 #include "libbinlogevents/include/debug_vars.h"
 #include "libbinlogevents/include/rows_event.h"
 #include "libbinlogevents/include/statement_events.h"
 #include "libbinlogevents/include/table_id.h"
-#include "m_ctype.h"
 #include "mf_wcomp.h"    // wild_one, wild_many
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_base.h"
@@ -77,6 +79,8 @@
 #include "mysqld_error.h"
 #include "partition_info.h"
 #include "prealloced_array.h"
+#include "sql/binlog/global.h"
+#include "sql/binlog/tools/iterators.h"
 #include "sql/binlog_ostream.h"
 #include "sql/binlog_reader.h"
 #include "sql/create_field.h"
@@ -179,9 +183,10 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 static xa_status_code binlog_xa_commit(handlerton *hton, XID *xid);
 static xa_status_code binlog_xa_rollback(handlerton *hton, XID *xid);
 static void exec_binlog_error_action_abort(const char *err_string);
-static int binlog_recover(Binlog_file_reader *binlog_file_reader,
-                          my_off_t *valid_pos);
+static bool binlog_recover(Binlog_file_reader *binlog_file_reader,
+                           my_off_t *valid_pos);
 static void binlog_prepare_row_images(const THD *thd, TABLE *table);
+static bool is_loggable_xa_prepare(THD *thd);
 
 bool normalize_binlog_name(char *to, const char *from, bool is_relay_log) {
   DBUG_TRACE;
@@ -576,6 +581,17 @@ class binlog_cache_data {
   int flush(THD *thd, my_off_t *bytes, bool *wrote_xid);
   int write_event(Log_event *event);
   size_t get_event_counter() { return event_counter; }
+  size_t get_compressed_size() { return m_compressed_size; }
+  size_t get_decompressed_size() { return m_decompressed_size; }
+  binary_log::transaction::compression::type get_compression_type() {
+    return m_compression_type;
+  }
+
+  void set_compressed_size(size_t s) { m_compressed_size = s; }
+  void set_decompressed_size(size_t s) { m_decompressed_size = s; }
+  void set_compression_type(binary_log::transaction::compression::type t) {
+    m_compression_type = t;
+  }
 
   virtual ~binlog_cache_data() {
     DBUG_ASSERT(is_binlog_empty());
@@ -679,6 +695,9 @@ class binlog_cache_data {
     */
     cache_state_map.clear();
     event_counter = 0;
+    m_compressed_size = 0;
+    m_decompressed_size = 0;
+    m_compression_type = binary_log::transaction::compression::NONE;
     DBUG_ASSERT(is_binlog_empty());
   }
 
@@ -767,6 +786,11 @@ class binlog_cache_data {
     bytes), we need to keep track of how many events are in the binlog cache.
   */
   size_t event_counter = 0;
+
+  size_t m_compressed_size = 0;
+  size_t m_decompressed_size = 0;
+  binary_log::transaction::compression::type m_compression_type =
+      binary_log::transaction::compression::type::NONE;
   /*
     It truncates the cache to a certain position. This includes deleting the
     pending event. It corresponds to rollback statement or rollback to
@@ -862,6 +886,8 @@ class binlog_cache_data {
     */
     bool with_content : 1;
   } flags;
+
+  virtual bool compress(THD *);
 
  private:
   /*
@@ -1448,8 +1474,8 @@ bool MYSQL_BIN_LOG::assign_automatic_gtids_to_flush_group(THD *first_seen) {
   @retval false Success.
   @retval true Error.
 */
-bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
-                               Binlog_event_writer *writer) {
+bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
+                                      Binlog_event_writer *writer) {
   DBUG_TRACE;
 
   /*
@@ -1460,7 +1486,6 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
               thd->owned_gtid.sidno > 0);
 
   int64 sequence_number, last_committed;
-
   /* Generate logical timestamps for MTS */
   m_dependency_tracker.get_dependency(thd, sequence_number, last_committed);
 
@@ -1574,18 +1599,17 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     // Clear the session variable to have cleared states for next transaction.
     thd->variables.original_server_version = UNDEFINED_SERVER_VERSION;
   }
-  /*
-    Generate and write the Gtid_log_event.
-  */
   Gtid_log_event gtid_event(
       thd, cache_data->is_trx_cache(), last_committed, sequence_number,
       cache_data->may_have_sbr_stmts(), original_commit_timestamp,
       immediate_commit_timestamp, trx_original_server_version,
       trx_immediate_server_version);
+
   // Set the transaction length, based on cache info
   gtid_event.set_trx_length_by_cache_size(cache_data->get_byte_position(),
                                           writer->is_checksum_enabled(),
                                           cache_data->get_event_counter());
+
   DBUG_PRINT("debug", ("cache_data->get_byte_position()= %llu",
                        cache_data->get_byte_position()));
   DBUG_PRINT("debug", ("cache_data->get_event_counter()= %lu",
@@ -1598,7 +1622,26 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
              ("transaction_length= %llu", gtid_event.transaction_length));
 
   bool ret = gtid_event.write(writer);
+  if (ret) goto end;
 
+  /*
+    finally write the transaction data, if it was not compressed
+    and written as part of the gtid event already
+  */
+  ret = mysql_bin_log.write_cache(thd, cache_data, writer);
+
+  if (!ret) {
+    // update stats if monitoring is active
+    binlog::global_context.monitoring_context()
+        .transaction_compression()
+        .update(binlog::monitoring::log_type::BINARY,
+                cache_data->get_compression_type(), thd->owned_gtid,
+                gtid_event.immediate_commit_timestamp,
+                cache_data->get_compressed_size(),
+                cache_data->get_decompressed_size());
+  }
+
+end:
   return ret;
 }
 
@@ -1821,6 +1864,116 @@ err:
   return true;
 }
 
+bool binlog_cache_data::compress(THD *thd) {
+  DBUG_TRACE;
+  auto error{false};
+  auto ctype{binary_log::transaction::compression::type::NONE};
+  auto uncompressed_size{m_cache.length()};
+  auto size{uncompressed_size};
+  auto &cctx{thd->rpl_thd_ctx.transaction_compression_ctx()};
+  binary_log::transaction::compression::Compressor *compressor{nullptr};
+
+  // no compression enabled (ctype == NONE at this point)
+  if (thd->variables.binlog_trx_compression == false) goto end;
+
+  // do not compress if there are incident events
+  DBUG_EXECUTE_IF("binlog_compression_inject_incident", set_incident(););
+  if (has_incident()) goto end;
+
+  // do not compress if there are non-transactional changes
+  if (thd->get_transaction()->has_modified_non_trans_table(
+          Transaction_ctx::STMT) ||
+      thd->get_transaction()->has_modified_non_trans_table(
+          Transaction_ctx::SESSION))
+    goto end;
+
+  // do not compress if has SBR
+  if (may_have_sbr_stmts()) goto end;
+
+  // Unable to get a reference to a compressor, fallback to
+  // non compressed
+  if ((compressor = cctx.get_compressor(thd)) == nullptr) goto end;
+
+  // compression is enabled and all pre-conditions checked.
+  // now compress
+  else {
+    std::size_t old_capacity{0};
+    unsigned char *buffer{nullptr};
+    unsigned char *old_buffer{nullptr};
+    Transaction_payload_log_event tple{thd};
+    Compressed_ostream stream;
+    PSI_stage_info old_stage;
+
+    // set the thread stage to compressing transaction
+    thd->enter_stage(&stage_binlog_transaction_compress, &old_stage, __func__,
+                     __FILE__, __LINE__);
+    // do we have enough compression buffer ? If not swap with a larger one
+    std::tie(buffer, std::ignore, old_capacity) = compressor->get_buffer();
+    if (old_capacity < size) {
+      old_buffer = buffer;
+      auto new_buffer = (unsigned char *)malloc(size);
+      if (new_buffer)
+        compressor->set_buffer(new_buffer, size);
+      else {
+        /* purecov: begin inspected */
+        // OOM
+        error = true;
+        goto compression_end;
+        /* purecov: end */
+      }
+    }
+
+    ctype = compressor->compression_type_code();
+
+    compressor->open();
+
+    // inject the compressor in the output stream
+    stream.set_compressor(compressor);
+
+    // FIXME: innefficient, we should not copy caches around
+    //        This should be fixed when we revamp the capture
+    //        cache handling (and make this more geared towards
+    //        possible enhancements, such as streaming the changes)
+    //        Also, if the cache actually spills to disk, this may
+    //        the impact may be amplified, since reiniting the
+    //        causes a flush to disk
+    if ((error = m_cache.copy_to(&stream))) goto compression_end;
+
+    compressor->close();
+
+    if ((error = m_cache.truncate(0))) goto compression_end;
+
+    // fill in the new transport event
+    std::tie(buffer, size, std::ignore) = compressor->get_buffer();
+    tple.set_payload((const char *)buffer);
+    tple.set_payload_size(size);
+    tple.set_compression_type(ctype);
+    tple.set_uncompressed_size(uncompressed_size);
+
+    // write back the new cache contents
+    error = write_event(&tple);
+
+  compression_end:
+    // revert back to the default buffer, so that we don't overuse memory
+    if (old_buffer) {
+      std::tie(buffer, std::ignore, std::ignore) = compressor->get_buffer();
+      compressor->set_buffer(old_buffer, old_capacity);
+      free(buffer);
+    }
+
+    // revert the stage if needed
+    if (old_stage.m_key != 0) THD_STAGE_INFO(thd, old_stage);
+  }
+
+end:
+  if (!error) {
+    set_compression_type(ctype);
+    set_compressed_size(m_cache.length());
+    set_decompressed_size(uncompressed_size);
+  }
+  return error;
+}
+
 /**
   This function finalizes the cache preparing for commit or rollback.
 
@@ -1842,8 +1995,9 @@ int binlog_cache_data::finalize(THD *thd, Log_event *end_event) {
     DBUG_ASSERT(!flags.finalized);
     if (int error = flush_pending_event(thd)) return error;
     if (int error = write_event(end_event)) return error;
-    flags.finalized = true;
+    if (int error = this->compress(thd)) return error;
     DBUG_PRINT("debug", ("flags.finalized: %s", YESNO(flags.finalized)));
+    flags.finalized = true;
   }
   return 0;
 }
@@ -1943,10 +2097,15 @@ int binlog_cache_data::flush(THD *thd, my_off_t *bytes_written,
       }
     };);
 
+    DBUG_EXECUTE_IF("fault_injection_reinit_io_cache_while_flushing_to_file",
+                    { DBUG_SET("+d,fault_injection_reinit_io_cache"); });
+
     if (!error)
-      if ((error = mysql_bin_log.write_gtid(thd, this, &writer)))
+      if ((error = mysql_bin_log.write_transaction(thd, this, &writer)))
         thd->commit_error = THD::CE_FLUSH_ERROR;
-    if (!error) error = mysql_bin_log.write_cache(thd, this, &writer);
+
+    DBUG_EXECUTE_IF("fault_injection_reinit_io_cache_while_flushing_to_file",
+                    { DBUG_SET("-d,fault_injection_reinit_io_cache"); });
 
     if (flags.with_xid && error == 0) *wrote_xid = true;
 
@@ -3094,7 +3253,7 @@ template <class BINLOG_FILE_READER>
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
   Protocol *protocol = thd->get_protocol();
   List<Item> field_list;
-  const char *errmsg = nullptr;
+  std::string errmsg;
   LOG_INFO linfo;
 
   DBUG_TRACE;
@@ -3110,6 +3269,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
         max<my_off_t>(BIN_LOG_HEADER_SIZE, lex_mi->pos);  // user-friendly
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
+    Log_event *ev = nullptr;
 
     unit->set_limit(thd, thd->lex->current_select());
     limit_start = unit->offset_limit_cnt;
@@ -3161,44 +3321,86 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     if (!binary_log->is_active(linfo.log_file_name)) end_pos = 0;
 
     DEBUG_SYNC(thd, "after_show_binlog_event_found_file");
-    for (event_count = 0; event_count < limit_end; event_count++) {
-      Log_event *ev = binlog_file_reader.read_event_object();
-      if (ev == nullptr) {
-        if (binlog_file_reader.has_fatal_error())
-          errmsg = binlog_file_reader.get_error_str();
-        break;
-      }
 
+    /**
+      Relaylog_file_reader and Binlog_file_reader are typedefs to
+      Basic_binlog_file_reader whereas Relaylog_file_reader uses
+      a Relaylog_ifile in the template instantiation and
+      Binlog_file_reader uses a Binlog_ifile in the template
+      instantiation.
+
+      Binlog_ifile and Relaylog_ifile differ only in the open()
+      member function and they both derive from Basic_binlog_ifile.
+
+      Therefore, it is OK to cast to Binlog_file_reader here.
+
+      TODO: in the future investigate if some refactoring is needed
+            here. Perhaps make the Iterator itself templated.
+     */
+    binlog::tools::Iterator it(
+        reinterpret_cast<Binlog_file_reader *>(&binlog_file_reader));
+
+    /*
+      Unpacked events shall copy their part of the buffer from uncompressed
+      buffer (the cointainer, i.e., the buffer iterator goes out of scope
+      once the events are inflated and put in a vector). However, it is
+      unclear if the *buffer* from which events are deserialized is still
+      needed for the porposes of displaying events in SHOW BINLOG/RELAYLOG
+      EVENTS.
+    */
+    my_off_t last_log_pos = 0;
+    for (event_count = 0, ev = it.begin(); ev != it.end();) {
       DEBUG_SYNC(thd, "wait_in_show_binlog_events_loop");
       if (event_count >= limit_start &&
           ev->net_send(protocol, linfo.log_file_name, pos)) {
+        /* purecov: begin inspected */
         errmsg = "Net error";
         delete ev;
+        ev = nullptr;
         goto err;
+        /* purecov: end */
       }
+      last_log_pos = ev->common_header->log_pos;
       delete ev;
+      ev = nullptr;
       pos = binlog_file_reader.position();
-      if (end_pos > 0 && pos >= end_pos) break;
+
+      if (++event_count == limit_end) break;
+      if ((ev = it.next()) == it.end()) break;
+      if (it.has_error()) break;
+      if (end_pos > 0 && pos >= end_pos &&
+          (ev->common_header->log_pos != last_log_pos)) {
+        delete ev;
+        ev = nullptr;
+        break;
+      }
     }
+
+    if (binlog_file_reader.has_fatal_error())
+      errmsg = binlog_file_reader.get_error_str();
+    else if (it.has_error())
+      errmsg = it.get_error_message(); /* purecov: inspected */
+    else
+      errmsg = "";
   }
   // Check that linfo is still on the function scope.
   DEBUG_SYNC(thd, "after_show_binlog_events");
 
 err:
-  if (errmsg) {
+  if (!errmsg.empty()) {
     if (thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS)
       my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), "SHOW RELAYLOG EVENTS",
-               errmsg);
+               errmsg.c_str());
     else
       my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0), "SHOW BINLOG EVENTS",
-               errmsg);
+               errmsg.c_str());
   } else
     my_eof(thd);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo = nullptr;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
-  return errmsg != nullptr;
+  return !errmsg.empty();
 }
 
 bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
@@ -6493,6 +6695,18 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
 
       if (mi->is_queueing_trx()) {
         mi->finished_queueing();
+
+        Trx_monitoring_info processing;
+        Trx_monitoring_info last;
+        mi->get_gtid_monitoring_info()->copy_info_to(&processing, &last);
+
+        // update the compression information
+        binlog::global_context.monitoring_context()
+            .transaction_compression()
+            .update(binlog::monitoring::log_type::RELAY, last.compression_type,
+                    last.gtid, last.end_time, last.compressed_bytes,
+                    last.uncompressed_bytes,
+                    mi->rli->get_gtid_set()->get_sid_map());
       }
       mysql_mutex_unlock(&mi->data_lock);
 
@@ -7515,7 +7729,8 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
 
     /*
       If the binary log was not properly closed it means that the server
-      may have crashed. In that case, we need to call MYSQL_BIN_LOG::recover
+      may have crashed. In that case, we need to call
+      MYSQL_BIN_LOG::binlog_recover
       to:
 
         a) collect logged XIDs;
@@ -8314,6 +8529,7 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
     binlog_cache_mngr *cache_mngr = thd_get_cache_mngr(thd);
     if (cache_mngr) cache_mngr->reset();
   }
+
   if (thd->get_transaction()->sequence_number != SEQ_UNINIT) {
     mysql_mutex_lock(&LOCK_slave_trans_dep_tracker);
     m_dependency_tracker.update_max_committed(thd);
@@ -8766,46 +8982,66 @@ commit_stage:
   the binary log is rotated we force engines to commit (and we fsync
   the old binary log).
 
-  @retval 0 Success
-  @retval 1 Out of memory, or storage engine returns error.
+  @retval false Success
+  @retval true Out of memory, or storage engine returns error.
 */
-static int binlog_recover(Binlog_file_reader *binlog_file_reader,
-                          my_off_t *valid_pos) {
-  Log_event *ev;
+static bool binlog_recover(Binlog_file_reader *binlog_file_reader,
+                           my_off_t *valid_pos) {
+  bool res = false;
+  binlog::tools::Iterator it(binlog_file_reader);
+  it.set_copy_event_buffer();
+
   /*
     The flag is used for handling the case that a transaction
     is partially written to the binlog.
   */
   bool in_transaction = false;
   int memory_page_size = my_getpagesize();
-
   {
     MEM_ROOT mem_root(key_memory_binlog_recover_exec, memory_page_size);
     mem_root_unordered_set<my_xid> xids(&mem_root);
 
-    while ((ev = binlog_file_reader->read_event_object())) {
-      if (ev->get_type_code() == binary_log::QUERY_EVENT &&
-          !strcmp(((Query_log_event *)ev)->query, "BEGIN"))
-        in_transaction = true;
+    /*
+      now process events in the queue. Queue is dynamically changed
+      everytime we process an event. This may be a bit suboptimal
+      since it adds an indirection, but it helps to generalize the
+      usage of the transaction payload event (which unfolds into
+      several events into the queue when it is processed).
+    */
+    for (Log_event *ev = it.begin(); !res && (ev != it.end()); ev = it.next()) {
+      switch (ev->get_type_code()) {
+        // may be begin, middle or end of a transaction
+        case binary_log::QUERY_EVENT: {
+          // starts a transaction
+          if (!strcmp(((Query_log_event *)ev)->query, "BEGIN"))
+            in_transaction = true;
 
-      if (ev->get_type_code() == binary_log::QUERY_EVENT &&
-          !strcmp(((Query_log_event *)ev)->query, "COMMIT")) {
-        DBUG_ASSERT(in_transaction == true);
-        in_transaction = false;
-      } else if (ev->get_type_code() == binary_log::XID_EVENT ||
-                 is_atomic_ddl_event(ev)) {
-        my_xid xid;
-
-        if (ev->get_type_code() == binary_log::XID_EVENT) {
+          // ends a transaction
+          if (!strcmp(((Query_log_event *)ev)->query, "COMMIT")) {
+            DBUG_ASSERT(in_transaction == true);
+            in_transaction = false;
+          }
+          // starts and ends a transaction
+          if (is_atomic_ddl_event(ev)) {
+            DBUG_ASSERT(in_transaction == false);
+            auto qev = dynamic_cast<Query_log_event *>(ev);
+            DBUG_ASSERT(qev != nullptr);
+            res = (qev == nullptr || !xids.insert(qev->ddl_xid).second);
+          }
+          break;
+        }
+        // ends a transaction
+        case binary_log::XID_EVENT: {
           DBUG_ASSERT(in_transaction == true);
           in_transaction = false;
-          Xid_log_event *xev = (Xid_log_event *)ev;
-          xid = xev->xid;
-        } else {
-          xid = ((Query_log_event *)ev)->ddl_xid;
+          Xid_log_event *xev = dynamic_cast<Xid_log_event *>(ev);
+          DBUG_ASSERT(xev != nullptr);
+          res = (xev == nullptr || !xids.insert(xev->xid).second);
+          break;
         }
-
-        if (!xids.insert(xid).second) goto err1;
+        default: {
+          break;
+        }
       }
 
       /*
@@ -8847,6 +9083,8 @@ static int binlog_recover(Binlog_file_reader *binlog_file_reader,
         *valid_pos = binlog_file_reader->position();
 
       delete ev;
+      ev = nullptr;
+      res = it.has_error();
     }
 
     /*
@@ -8855,14 +9093,11 @@ static int binlog_recover(Binlog_file_reader *binlog_file_reader,
       will result in an assert. (Production builds would be safe since
       ha_recover returns right away if total_ha_2pc <= opt_log_bin.)
      */
-    if (total_ha_2pc > 1 && ha_recover(&xids)) goto err1;
+    res = res || (total_ha_2pc > 1 && ha_recover(&xids));
   }
 
-  return 0;
-
-err1:
-  LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
-  return 1;
+  if (res) LogErr(ERROR_LEVEL, ER_BINLOG_CRASH_RECOVERY_FAILED);
+  return res;
 }
 
 void MYSQL_BIN_LOG::report_missing_purged_gtids(

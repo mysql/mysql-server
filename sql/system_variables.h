@@ -246,6 +246,9 @@ struct System_variables {
   ulong rbr_exec_mode_options;  // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;
   ulong binlog_row_image;  // see enum_binlog_row_image
+  bool binlog_trx_compression;
+  ulong binlog_trx_compression_type;  // see enum_binlog_trx_compression
+  uint binlog_trx_compression_level_zstd;
   ulonglong binlog_row_value_options;
   bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm

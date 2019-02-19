@@ -103,19 +103,23 @@ perl;
       {
         $declared_stages{$1} = 1;
       }
-      # Figure out when we enter and leave the array initialization.
+      # Figure out when we enter the array initialization.
       elsif (/PSI_stage_info\s*\*\s*all_server_stages\s*\[/)
       {
         $in_server_stage_list= 1;
       }
-      elsif (/\};/) {
-        $in_server_stage_list= 0;
-      }
-      # Read element from list.
-      elsif ($in_server_stage_list &&
-             /\&\s*([A-Za-z_0-9]+)\s*,?/)
+      elsif ($in_server_stage_list)
       {
-        push(@listed_stages, $1);
+        # Read element from list.
+        if (/\&\s*([A-Za-z_0-9]+)\s*,?/) {
+          push(@listed_stages, $1);
+        }
+
+        # Figure out when we leave the array initialization.
+        # note that the last element may end with &stage_...};
+        if (/\};/) {
+          $in_server_stage_list= 0;
+        }
       }
     }
     close MYSQLD_CC or die "Error $? closing $mysqld: $!";

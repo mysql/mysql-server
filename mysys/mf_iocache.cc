@@ -386,6 +386,8 @@ bool reinit_io_cache(IO_CACHE *info, enum cache_type type, my_off_t seek_offset,
   info->error = 0;
   init_functions(info);
 
+  if (DBUG_EVALUATE_IF("fault_injection_reinit_io_cache", true, false))
+    return true;
   return false;
 } /* reinit_io_cache */
 

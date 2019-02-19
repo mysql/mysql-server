@@ -345,6 +345,8 @@ enum Log_event_type {
   */
   PARTIAL_UPDATE_ROWS_EVENT = 39,
 
+  TRANSACTION_PAYLOAD_EVENT = 40,
+
   /**
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
@@ -833,7 +835,8 @@ class Binary_log_event {
     ROWS_HEADER_LEN_V2 = 10,
     TRANSACTION_CONTEXT_HEADER_LEN = 18,
     VIEW_CHANGE_HEADER_LEN = 52,
-    XA_PREPARE_HEADER_LEN = 0
+    XA_PREPARE_HEADER_LEN = 0,
+    TRANSACTION_PAYLOAD_HEADER_LEN = 0,
   };  // end enum_post_header_length
  protected:
   /**

@@ -96,6 +96,9 @@ SET @SIZE_DEFAULT=@@MAX_BINLOG_SIZE;
 SET GLOBAL MAX_BINLOG_SIZE=4096;
 SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
 
+--let $saved_binlog_transaction_compression = `SELECT @@session.binlog_transaction_compression`
+SET @@session.binlog_transaction_compression=FALSE;
+
 --let $i= 1
 BEGIN;
 while ($i < 60) {
@@ -110,6 +113,9 @@ SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
 --replace_result $slave_uuid SLAVE_UUID
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
+
+--replace_result $saved_binlog_transaction_compression SAVED
+--eval SET @@session.binlog_transaction_compression= $saved_binlog_transaction_compression
 
 --connection master
 DROP TABLE t1,t2;

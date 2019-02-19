@@ -41,6 +41,10 @@
 
 # This test is independent of binlog format. Choosing 'row' format.
 --source include/have_binlog_format_row.inc
+
+# sql_slave_skip_counter is not supported with compression
+--source include/not_binlog_transaction_compression_on.inc
+
 # Performance schema Query used to test memory growth
 --let $perf_query=SELECT high_number_of_bytes_used/1024/1024 FROM performance_schema.memory_summary_global_by_event_name WHERE event_name = 'memory/sql/thd::main_mem_root'
 --let $master_uuid=`SELECT @@SERVER_UUID`

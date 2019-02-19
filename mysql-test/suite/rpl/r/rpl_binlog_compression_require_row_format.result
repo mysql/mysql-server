@@ -1,0 +1,141 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+[connection slave]
+include/stop_slave.inc
+SET @@global.binlog_transaction_compression=TRUE;
+CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL '';
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+[connection master]
+SET @@session.binlog_transaction_compression=TRUE;
+[connection slave]
+FLUSH LOGS;
+[connection master]
+FLUSH LOGS;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+BEGIN;
+INSERT INTO t1 VALUES (10, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (9, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (8, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (7, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (6, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (5, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (4, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (3, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (2, REPEAT('a', 1000000));
+INSERT INTO t1 VALUES (1, REPEAT('a', 1000000));
+COMMIT;
+BINLOG EVENTS on master []
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
+master-bin.000002	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
+master-bin.000002	#	Query	#	#	BEGIN
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000002	#	Xid	#	#	COMMIT /* XID */
+[connection slave]
+include/start_slave_io.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+[connection master]
+include/sync_slave_io_with_master.inc
+RELAY LOG EVENTS for 
+include/show_relaylog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000006	#	Format_desc	#	#	SERVER_VERSION, BINLOG_VERSION
+slave-relay-bin.000006	#	Rotate	#	#	master-bin.000002;pos=POS
+slave-relay-bin.000006	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
+slave-relay-bin.000006	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
+slave-relay-bin.000006	#	Query	#	#	BEGIN
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Table_map	#	#	table_id: # (test.t1)
+slave-relay-bin.000006	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-relay-bin.000006	#	Xid	#	#	COMMIT /* XID */
+include/start_slave_sql.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [Assert that master and slave tables have the same content]
+BINLOG EVENTS on slave contain compressed events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000002	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT)
+slave-bin.000002	#	Transaction_payload	#	#	compression='ZSTD', decompressed_size=## bytes
+slave-bin.000002	#	Query	#	#	BEGIN
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Table_map	#	#	table_id: # (test.t1)
+slave-bin.000002	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+slave-bin.000002	#	Xid	#	#	COMMIT /* XID */
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@global.binlog_transaction_compression=SAVED;
+[connection slave]
+SET @@global.binlog_transaction_compression=SAVED;
+include/stop_slave.inc
+CHANGE MASTER TO REQUIRE_ROW_FORMAT=SAVED;
+include/start_slave.inc
+[connection master]
+include/rpl_reset.inc
+include/rpl_end.inc

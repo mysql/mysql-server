@@ -290,6 +290,9 @@ Binlog_read_error::Error_type binlog_event_deserialize(
     case binary_log::PARTIAL_UPDATE_ROWS_EVENT:
       ev = new Update_rows_log_event(buf, fde);
       break;
+    case binary_log::TRANSACTION_PAYLOAD_EVENT:
+      ev = new Transaction_payload_log_event(buf, fde);
+      break;
     default:
       /*
         Create an object of Ignorable_log_event for unrecognized sub-class.

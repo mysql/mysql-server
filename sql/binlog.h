@@ -702,8 +702,8 @@ class MYSQL_BIN_LOG : public TC_LOG {
     @return Returns false if succeeds, otherwise true is returned.
   */
   bool assign_automatic_gtids_to_flush_group(THD *first_seen);
-  bool write_gtid(THD *thd, binlog_cache_data *cache_data,
-                  class Binlog_event_writer *writer);
+  bool write_transaction(THD *thd, binlog_cache_data *cache_data,
+                         Binlog_event_writer *writer);
 
   /**
      Write a dml into statement cache and then flush it into binlog. It writes

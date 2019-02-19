@@ -1,5 +1,129 @@
-include/mysqlbinlog.inc
-include/mysqlbinlog.inc
-include/mysqlbinlog.inc
-include/mysqlbinlog.inc
-include/assert.inc [Assert that bytes written to socket are less with compression]
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+SET GLOBAL binlog_transaction_compression = ON;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 0 (0 = 0)]
+FLUSH LOGS;
+DROP TABLE t1;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+include/assert.inc [Table contents is the same after replaying with mysqlbinlog]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+DROP TABLE t1;
+RESET MASTER;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000000));
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1 (1 = 1)]
+FLUSH LOGS;
+DELETE FROM t1;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+include/assert.inc [Table contents is the same after replaying with mysqlbinlog]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1]
+include/assert.inc [Compression bytes is the same after replaying with mysqlbinlog]
+include/assert.inc [Uncompressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction commpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction uncommpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction id is the same after replaying with mysqlbinlog]
+DROP TABLE t1;
+RESET MASTER;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000000));
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+UPDATE t1 SET c2=REPEAT('c', 1000000);
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1 (1 = 1)]
+FLUSH LOGS;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000000));
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+include/assert.inc [Table contents is the same after replaying with mysqlbinlog]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1]
+include/assert.inc [Compression bytes is the same after replaying with mysqlbinlog]
+include/assert.inc [Uncompressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction commpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction uncommpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction id is the same after replaying with mysqlbinlog]
+DROP TABLE t1;
+RESET MASTER;
+CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000000));
+UPDATE t1 SET c2=REPEAT('c', 1000000);
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+DELETE FROM t1;
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1 (1 = 1)]
+FLUSH LOGS;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (2, REPEAT('b', 1000000));
+UPDATE t1 SET c2=REPEAT('c', 1000000);
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+include/assert.inc [Table contents is the same after replaying with mysqlbinlog]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats = 1]
+include/assert.inc [The number of transactions reported is 1]
+include/assert.inc [Compression bytes is the same after replaying with mysqlbinlog]
+include/assert.inc [Uncompressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction commpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction uncommpressed bytes is roughly the same after replaying with mysqlbinlog]
+include/assert.inc [Last transaction id is the same after replaying with mysqlbinlog]
+DROP TABLE t1;
+RESET MASTER;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+FLUSH LOGS;
+include/assert_grep.inc [mysqlbinlog prints comments for compressed transactions as instructed by the specification]
+include/assert_grep.inc [mysqlbinlog prints comments for compressed transactions as instructed by the specification]
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;
+SET GLOBAL binlog_transaction_compression = OFF;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+DROP TABLE t1;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats where log_type='BINARY' AND compression = 'ZSTD' is 0]
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression_stats where log_type='BINARY' AND compression = 'NONE' is 1]
+DROP TABLE t1;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = ON;;
+SET SESSION SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+SET SESSION SQL_LOG_BIN=1;
+include/assert.inc [No rows in the performance schema table.]
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = OFF;;
+SET SESSION SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+SET SESSION SQL_LOG_BIN=1;
+include/assert.inc [No rows in the performance schema table.]
+RESET MASTER;
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+SET SESSION binlog_transaction_compression = SAVED;
+SET GLOBAL binlog_transaction_compression = SAVED;

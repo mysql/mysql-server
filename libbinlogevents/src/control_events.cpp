@@ -21,6 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "control_events.h"
+#include <sstream>
+#include "codecs/factory.h"
+#include "compression/base.h"
 #include "event_reader_macros.h"
 
 namespace binary_log {
@@ -134,6 +137,7 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
           VIEW_CHANGE_HEADER_LEN,
           XA_PREPARE_HEADER_LEN,
           ROWS_HEADER_LEN_V2,
+          TRANSACTION_PAYLOAD_EVENT,
       };
       /*
         Allows us to sanity-check that all events initialized their
@@ -366,6 +370,68 @@ XA_prepare_event::XA_prepare_event(const char *buf,
   READER_CATCH_ERROR;
   BAPI_VOID_RETURN;
 }
+
+Transaction_payload_event::Transaction_payload_event(const char *payload,
+                                                     uint64_t payload_size,
+                                                     uint16_t compression_type,
+                                                     uint64_t uncompressed_size)
+    : Binary_log_event(TRANSACTION_PAYLOAD_EVENT),
+      m_payload(payload),
+      m_payload_size(payload_size),
+      m_compression_type((transaction::compression::type)compression_type),
+      m_uncompressed_size(uncompressed_size) {}
+
+Transaction_payload_event::Transaction_payload_event(const char *payload,
+                                                     uint64_t payload_size)
+    : Transaction_payload_event(payload, payload_size,
+                                transaction::compression::type::NONE,
+                                payload_size) {}
+
+Transaction_payload_event::~Transaction_payload_event() {}
+
+Transaction_payload_event::Transaction_payload_event(
+    const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  if (header()->get_is_valid()) {
+    auto codec = codecs::Factory::build_codec(header()->type_code);
+    // decode the post LOG_EVENT header
+    auto buffer = (const unsigned char *)reader().ptr();
+    size_t buffer_size = reader().available_to_read();
+    auto result = codec->decode(buffer, buffer_size, *this);
+
+    header()->set_is_valid(result.second == false);
+    if (result.second == false) {
+      // move the reader position forward
+      reader().forward(result.first);
+
+      // set the payload to the rest of the input buffer
+      set_payload(reader().ptr());
+    }
+  }
+}
+
+std::string Transaction_payload_event::to_string() const {
+  std::ostringstream oss;
+  std::string comp_type =
+      binary_log::transaction::compression::type_to_string(m_compression_type);
+
+  oss << "\tpayload_size=" << m_payload_size;
+  oss << "\tcompression_type=" << comp_type;
+  if (m_compression_type != binary_log::transaction::compression::type::NONE)
+    oss << "\tuncompressed_size=" << m_uncompressed_size;
+
+  return oss.str();
+}
+
+#ifndef HAVE_MYSYS
+void Transaction_payload_event::print_event_info(std::ostream &os) {
+  os << to_string();
+}
+
+void Transaction_payload_event::print_long_info(std::ostream &os) {
+  print_event_info(os);
+}
+#endif
 
 Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
     : Binary_log_event(&buf, fde),

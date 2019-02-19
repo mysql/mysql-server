@@ -28,6 +28,9 @@
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave = 1
 --source include/master-slave.inc
+# do not run with binlog compression on, otherwise it will make
+# this test fail, since it needs large transactions
+--source include/not_binlog_transaction_compression_on.inc
 
 
 --echo #### Initialize ####

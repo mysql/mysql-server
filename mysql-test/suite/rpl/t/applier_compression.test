@@ -1,0 +1,313 @@
+#
+# WL#3549: binlog compression
+#
+# This test file contains tests for the applier.
+# It tests the following scenarios:
+#
+# - Scenario 1: AC, IC
+# - Scenario 2: AC, IR
+# - Scenario 3: AR, IC
+# - Scenario 4: AR, IR
+#
+# Legend:
+# - AC - Applier Compresses  (applier thread running with binlog_transaction_compression = ON)
+# - AR - Applier Regular     (applier thread running with binlog_transaction_compression = OFF)
+# - IC - Incoming Compressed (incoming compressed transactions from the master)
+# - IR - Incoming Regular    (incoming regular transactions)
+#
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+# setup
+
+--source include/rpl_connection_master.inc
+--let $saved_global_binlog_transaction_compression_master = `SELECT @@GLOBAL.binlog_transaction_compression`
+--let $saved_session_binlog_transaction_compression_master = `SELECT @@SESSION.binlog_transaction_compression`
+
+--source include/rpl_connection_slave.inc
+--let $saved_global_binlog_transaction_compression_slave = `SELECT @@GLOBAL.binlog_transaction_compression`
+--let $saved_session_binlog_transaction_compression_slave = `SELECT @@SESSION.binlog_transaction_compression`
+
+--source include/rpl_connection_master.inc
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+--source include/rpl_connection_slave.inc
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+--source include/rpl_connection_master.inc
+--source include/rpl_reset.inc
+
+--disable_query_log
+--disable_result_log
+
+# global variables
+--let $show_rpl_debug_info = 0
+--let $trx_size_bytes = 1000000
+--let $ntrx_per_iteration = 3
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+
+# the four scenarios
+--let $i=1
+while($i<5)
+{
+  if ($i == 1)
+  {
+    --echo # SCENARIO 1: AC, IC
+    #
+    # Scenario 1: AC, IC
+    #
+    # Expectation is that the applier applies compressed transactions
+    # and compresses those transactions that writes to its binary log
+    #
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    SET GLOBAL binlog_transaction_compression = ON;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
+    SET SESSION binlog_transaction_compression = ON;
+
+    --let $comparison_master_cbytes_vs_trx_size_bytes = <
+    --let $comparison_master_ubytes_vs_trx_size_bytes = >
+    --let $comparison_master_cbytes_vs_ubytes = <
+
+    --let $comparison_slave_relaylog_cbytes_vs_trx_size_bytes = $comparison_master_cbytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_ubytes_vs_trx_size_bytes = $comparison_master_ubytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_cbytes_vs_ubytes = $comparison_master_cbytes_vs_ubytes
+
+    --let $comparison_slave_binlog_cbytes_vs_trx_size_bytes = <
+    --let $comparison_slave_binlog_ubytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_cbytes_vs_ubytes = <
+  }
+
+  if ($i == 2)
+  {
+    --echo # SCENARIO 2: AC, IR
+
+    #
+    # Scenario 2: AC, IR
+    #
+    # Expectation is that the applier applies regular transactions
+    # and compresses those transactions that writes to its binary log
+    #
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    SET GLOBAL binlog_transaction_compression = ON;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
+    SET SESSION binlog_transaction_compression = OFF;
+
+    --let $comparison_master_cbytes_vs_trx_size_bytes = >
+    --let $comparison_master_ubytes_vs_trx_size_bytes = >
+    --let $comparison_master_cbytes_vs_ubytes = =
+
+    --let $comparison_slave_relaylog_cbytes_vs_trx_size_bytes = $comparison_master_cbytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_ubytes_vs_trx_size_bytes = $comparison_master_ubytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_cbytes_vs_ubytes = $comparison_master_cbytes_vs_ubytes
+
+    --let $comparison_slave_binlog_cbytes_vs_trx_size_bytes = <
+    --let $comparison_slave_binlog_ubytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_cbytes_vs_ubytes = <
+  }
+
+  if ($i == 3)
+  {
+    --echo # SCENARIO 3: AR, IC
+
+    #
+    # Scenario 3: AR, IC
+    #
+    # Expectation is that the applier applies compressed transactions
+    # and does not compress those transactions that writes to its binary log
+    #
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    SET GLOBAL binlog_transaction_compression = OFF;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
+    SET SESSION binlog_transaction_compression = ON;
+
+    --let $comparison_master_cbytes_vs_trx_size_bytes = <
+    --let $comparison_master_ubytes_vs_trx_size_bytes = >
+    --let $comparison_master_cbytes_vs_ubytes = <
+
+    --let $comparison_slave_relaylog_cbytes_vs_trx_size_bytes = $comparison_master_cbytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_ubytes_vs_trx_size_bytes = $comparison_master_ubytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_cbytes_vs_ubytes = $comparison_master_cbytes_vs_ubytes
+
+    --let $comparison_slave_binlog_cbytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_ubytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_cbytes_vs_ubytes = =
+  }
+
+  if ($i == 4)
+  {
+    --echo # SCENARIO 4: AR, IR
+
+    #
+    # Scenario 4: AR, IR
+    #
+    # Expectation is that the applier applies regular transactions
+    # and does not compress those transactions that writes to its binary log
+    #
+    --source include/rpl_connection_master.inc
+    SET SESSION binlog_transaction_compression = OFF;
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    SET GLOBAL binlog_transaction_compression = OFF;
+    --source include/start_slave.inc
+
+    --let $comparison_master_cbytes_vs_trx_size_bytes = >
+    --let $comparison_master_ubytes_vs_trx_size_bytes = >
+    --let $comparison_master_cbytes_vs_ubytes = =
+
+    --let $comparison_slave_relaylog_cbytes_vs_trx_size_bytes = $comparison_master_cbytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_ubytes_vs_trx_size_bytes = $comparison_master_ubytes_vs_trx_size_bytes
+    --let $comparison_slave_relaylog_cbytes_vs_ubytes = $comparison_master_cbytes_vs_ubytes
+
+    --let $comparison_slave_binlog_cbytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_ubytes_vs_trx_size_bytes = >
+    --let $comparison_slave_binlog_cbytes_vs_ubytes = =
+  }
+
+  # DDL: create table
+  --source include/rpl_connection_master.inc
+  CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+  --source include/sync_slave_sql_with_master.inc
+
+  # master: INSERT values
+  --source include/rpl_connection_master.inc
+  --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes));
+  --source include/sync_slave_sql_with_master.inc
+
+  # DDL: drop table
+  --source include/rpl_connection_master.inc
+  DROP TABLE t1;
+  --source include/sync_slave_sql_with_master.inc
+
+  # get the stats
+  --source include/rpl_connection_master.inc
+  --let $master_cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
+  --let $master_ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
+  --let $master_ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'BINARY'`
+
+  --source include/rpl_connection_slave.inc
+  --let $slave_relaylog_cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'RELAY'`
+  --let $slave_relaylog_ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'RELAY'`
+  --let $slave_relaylog_ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'RELAY'`
+
+  --let $slave_binlog_cbytes = `SELECT compressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
+  --let $slave_binlog_ubytes = `SELECT uncompressed_bytes_counter FROM $pfs_table WHERE log_type = 'BINARY'`
+  --let $slave_binlog_ctrxs = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'BINARY'`
+
+  #
+  # Assertions
+  #
+
+  # MASTER, SLAVE_RELAYLOG, SLAVE_BINARY
+  --let $j = 1
+  while($j<4)
+  {
+    if ($j == 1)
+    {
+      --let $TAG = MASTER_BINLOG
+
+      --let $cbytes = $master_cbytes
+      --let $ubytes = $master_ubytes
+      --let $ctrxs = $master_ctrxs
+
+      --let $rel1 = $comparison_master_cbytes_vs_trx_size_bytes
+      --let $rel2 = $comparison_master_ubytes_vs_trx_size_bytes
+      --let $rel3 = $comparison_master_cbytes_vs_ubytes
+    }
+
+    if ($j == 2)
+    {
+      --let $TAG = SLAVE_RELAYLOG
+
+      --let $cbytes = $slave_relaylog_cbytes
+      --let $ubytes = $slave_relaylog_ubytes
+      --let $ctrxs = $slave_relaylog_ctrxs
+
+      --let $rel1 = $comparison_slave_relaylog_cbytes_vs_trx_size_bytes
+      --let $rel2 = $comparison_slave_relaylog_ubytes_vs_trx_size_bytes
+      --let $rel3 = $comparison_slave_relaylog_cbytes_vs_ubytes
+    }
+
+    if ($j == 3)
+    {
+      --let $TAG = SLAVE_BINLOG
+
+      --let $cbytes = $slave_binlog_cbytes
+      --let $ubytes = $slave_binlog_ubytes
+      --let $ctrxs = $slave_binlog_ctrxs
+
+      --let $rel1 = $comparison_slave_binlog_cbytes_vs_trx_size_bytes
+      --let $rel2 = $comparison_slave_binlog_ubytes_vs_trx_size_bytes
+      --let $rel3 = $comparison_slave_binlog_cbytes_vs_ubytes
+    }
+
+    --let $assert_cond= $ctrxs = $ntrx_per_iteration
+    --let $assert_text= $TAG: The expected number of transactions was handled
+    --source include/assert.inc
+
+    --let $assert_cond= $cbytes $rel1 $trx_size_bytes
+    --let $assert_text= $TAG: compressed bytes $rel1 DML size
+    --source include/assert.inc
+
+    --let $assert_cond= $ubytes $rel2 $trx_size_bytes
+    --let $assert_text= $TAG: uncompressed bytes $rel2 DML size
+    --source include/assert.inc
+
+    --let $assert_cond= $cbytes $rel3 $ubytes
+    --let $assert_text= $TAG: compressed bytes $rel3 uncompressed bytes
+    --source include/assert.inc
+
+    --inc $j
+  }
+
+  --source include/rpl_connection_master.inc
+  TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+  --source include/rpl_connection_slave.inc
+  TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+  --source include/rpl_connection_master.inc
+
+  # clean up
+  --source include/rpl_reset.inc
+  --inc $i
+}
+
+--enable_query_log
+--enable_result_log
+
+#
+# Clean up
+#
+--source include/rpl_connection_master.inc
+--replace_result $saved_session_binlog_transaction_compression_master SAVED
+--eval SET @@SESSION.binlog_transaction_compression = $saved_session_binlog_transaction_compression_master
+
+--replace_result $saved_global_binlog_transaction_compression_master SAVED
+--eval SET @@GLOBAL.binlog_transaction_compression = $saved_global_binlog_transaction_compression_master
+
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+--source include/rpl_connection_slave.inc
+
+--replace_result $saved_session_binlog_transaction_compression_slave SAVED
+--eval SET @@SESSION.binlog_transaction_compression = $saved_session_binlog_transaction_compression_slave
+
+--replace_result $saved_global_binlog_transaction_compression_slave SAVED
+--eval SET @@GLOBAL.binlog_transaction_compression = $saved_global_binlog_transaction_compression_slave
+
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+
+--source include/rpl_reset.inc
+--source include/rpl_end.inc

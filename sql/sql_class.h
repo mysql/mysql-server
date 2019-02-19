@@ -3120,12 +3120,12 @@ class THD : public MDL_context_owner,
     A1. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = OFF/OFF_PERMISSIVE:
         The thread acquires anonymous ownership in
         gtid_state->generate_automatic_gtid called from
-        MYSQL_BIN_LOG::write_gtid.
+        MYSQL_BIN_LOG::write_transaction.
 
     A2. If GTID_NEXT = 'AUTOMATIC' and GTID_MODE = ON/ON_PERMISSIVE:
         The thread generates the GTID and acquires ownership in
         gtid_state->generate_automatic_gtid called from
-        MYSQL_BIN_LOG::write_gtid.
+        MYSQL_BIN_LOG::write_transaction.
 
     A3. If GTID_NEXT = 'UUID:NUMBER': The thread acquires ownership in
         the following ways:

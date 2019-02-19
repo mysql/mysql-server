@@ -18,6 +18,10 @@ CREATE TABLE t1 (a VARCHAR(256));
 --eval $query
 
 --let $row_number= 3
+if (`SELECT @@session.binlog_transaction_compression`)
+{
+  --let $row_number= 4
+}
 --let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $row_number)
 --let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
 --source include/assert.inc

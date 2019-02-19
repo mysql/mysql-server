@@ -52,12 +52,11 @@ include/save_binlog_position.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
 BEGIN;
 INSERT INTO t1 VALUES (repeat('a', 8192));
-SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 COMMIT;
 Warnings:
-Error	3	Error writing file <tmp_file_name> (Errcode: ##)
 Error	1026	Error writing file <tmp_file_name> (Errcode: ##)
-SET SESSION debug = "-d,simulate_tmpdir_partition_full";
+SET SESSION debug = "-d,fault_injection_reinit_io_cache_while_flushing_to_file";
 include/assert_grep.inc [An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'.]
 # restart
 include/show_binlog_events.inc
@@ -76,7 +75,7 @@ include/save_binlog_position.inc
 SET GLOBAL binlog_error_action = ABORT_SERVER;
 BEGIN;
 INSERT INTO t2 VALUES (repeat('b', 8192));
-SET SESSION debug = "+d,simulate_tmpdir_partition_full";
+SET SESSION debug = "+d,fault_injection_reinit_io_cache_while_flushing_to_file";
 COMMIT;
 ERROR HY000: Binary logging not possible. Message: An error occurred during flush stage of the commit. 'binlog_error_action' is set to 'ABORT_SERVER'. Hence aborting the server.
 # restart

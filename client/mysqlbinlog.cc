@@ -48,6 +48,9 @@
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "compression.h"
+#include "libbinlogevents/include/codecs/factory.h"
+#include "libbinlogevents/include/compression/factory.h"
+#include "libbinlogevents/include/compression/iterator.h"
 #include "libbinlogevents/include/trx_boundary_parser.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
@@ -69,171 +72,586 @@
 #include "typelib.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
+#include <tuple>
+
 using std::max;
 using std::min;
 
-/*
-  Map containing the names of databases to be rewritten,
-  to a different one.
+/**
+  For storing information of the Format_description_event of the currently
+  active binlog. it will be changed each time a new Format_description_event is
+  found in the binlog.
 */
-static std::map<std::string, std::string> map_mysqlbinlog_rewrite_db;
-
-static bool rewrite_db(char **buf, ulong *buf_size, uint offset_db,
-                       uint offset_len) {
-  char *ptr = *buf;
-  char *old_db = ptr + offset_db;
-  uint old_db_len = (uint)ptr[offset_len];
-  std::map<std::string, std::string>::iterator new_db_it =
-      map_mysqlbinlog_rewrite_db.find(std::string(old_db, old_db_len));
-  if (new_db_it == map_mysqlbinlog_rewrite_db.end()) return false;
-  const char *new_db = new_db_it->second.c_str();
-  DBUG_ASSERT(new_db && new_db != old_db);
-
-  size_t new_db_len = strlen(new_db);
-
-  // Reallocate buffer if needed.
-  if (new_db_len > old_db_len) {
-    char *new_buf =
-        (char *)my_realloc(PSI_NOT_INSTRUMENTED, *buf,
-                           *buf_size + new_db_len - old_db_len, MYF(0));
-    if (!new_buf) return true;
-    *buf = new_buf;
-  }
-
-  // Move the tail of buffer to the correct place.
-  if (new_db_len != old_db_len)
-    memmove(*buf + offset_db + new_db_len, *buf + offset_db + old_db_len,
-            *buf_size - (offset_db + old_db_len));
-
-  // Write new_db and new_db_len.
-  memcpy((*buf) + offset_db, new_db, new_db_len);
-  (*buf)[offset_len] = (char)new_db_len;
-
-  // Update event length in header.
-  int4store((*buf) + EVENT_LEN_OFFSET, (*buf_size) - old_db_len + new_db_len);
-
-  // finally update the event len argument
-  *buf_size = (*buf_size) - old_db_len + new_db_len;
-
-  return false;
-}
+Format_description_event glob_description_event(BINLOG_VERSION, server_version);
 
 /**
-  Replace the database by another database in the buffer of a
-  Table_map_log_event.
+  This class abstracts the rewriting of databases for RBR events.
+ */
+class Database_rewrite {
+ public:
+  using Rewrite_result =
+      std::tuple<unsigned char *, std::size_t, std::size_t, bool>;
 
-  The TABLE_MAP event buffer structure :
+ private:
+  class Transaction_payload_content_rewriter {
+    using Rewrite_payload_result = std::tuple<unsigned char *, std::size_t,
+                                              std::size_t, std::size_t, bool>;
 
-  Before Rewriting :
+   private:
+    /**
+      The event rewriter reference.
+     */
+    Database_rewrite &m_event_rewriter;
 
-    +-------------+-----------+----------+------+----------------+
-    |common_header|post_header|old_db_len|old_db|event data...   |
-    +-------------+-----------+----------+------+----------------+
+    /**
+      Expands the buffer if needed.
+    */
+    std::tuple<unsigned char *, std::size_t, bool> reserve(
+        unsigned char *buffer, std::size_t capacity, std::size_t size) {
+      if (size > capacity) {
+        auto outsize{size};
+        outsize = round(((size + BINLOG_CHECKSUM_LEN) / 1024.0) + 1) * 1024;
+        buffer = (unsigned char *)realloc(buffer, outsize);
+        if (!buffer) {
+          return std::make_tuple(nullptr, 0, true);
+        }
+        return std::make_tuple(buffer, outsize, false);
+      } else
+        return std::make_tuple(buffer, capacity, false);
+    }
 
-  After Rewriting :
+    class Buffer_realloc_manager {
+     private:
+      unsigned char **m_buffer{nullptr};
 
-    +-------------+-----------+----------+------+----------------+
-    |common_header|post_header|new_db_len|new_db|event data...   |
-    +-------------+-----------+----------+------+----------------+
+     public:
+      Buffer_realloc_manager(unsigned char **buffer) : m_buffer{buffer} {}
+      ~Buffer_realloc_manager() {
+        if (m_buffer != nullptr) free(*m_buffer);
+      }
+      void release() { m_buffer = nullptr; }
+    };
 
-  In case the new database name is longer than the old database
-  length, it will reallocate the buffer.
+    Rewrite_payload_result rewrite_inner_events(
+        binary_log::transaction::compression::type compression_type,
+        const char *orig_payload, std::size_t orig_payload_size,
+        std::size_t orig_payload_uncompressed_size,
+        const binary_log::Format_description_event &fde) {
+      // to return error or not
+      auto err{false};
+      auto error_val = Rewrite_payload_result{nullptr, 0, 0, 0, true};
 
-  @param[in,out] buf                Pointer to event buffer to be processed
-  @param[in,out] event_len          Length of the event
-  @param[in]     fde                The Format_description_log_event
+      // output variables
+      unsigned char *obuffer{nullptr};
+      std::size_t obuffer_size{0};
+      std::size_t obuffer_capacity{0};
+      std::size_t obuffer_size_uncompressed{0};
 
-  @retval false Success
-  @retval true Out of memory
-*/
-bool Table_map_log_event::rewrite_db_in_buffer(
-    char **buf, ulong *event_len, const Format_description_event &fde) {
-  uint headers_len = fde.common_header_len +
-                     fde.post_header_len[binary_log::TABLE_MAP_EVENT - 1];
+      // temporary buffer for holding uncompressed and rewritten events
+      unsigned char *ibuffer{nullptr};
+      std::size_t ibuffer_capacity{0};
 
-  return rewrite_db(buf, event_len, headers_len + 1, headers_len);
-}
+      // RAII objects
+      Buffer_realloc_manager obuffer_dealloc_guard(&obuffer);
+      Buffer_realloc_manager ibuffer_dealloc_guard(&ibuffer);
+
+      // iterator to decompress events
+      binary_log::transaction::compression::Iterable_buffer it(
+          orig_payload, orig_payload_size, orig_payload_uncompressed_size,
+          compression_type);
+
+      // compressor to compress this again
+      auto compressor =
+          binary_log::transaction::compression::Factory::build_compressor(
+              compression_type);
+
+      compressor->set_buffer(obuffer, obuffer_size);
+      compressor->reserve(orig_payload_uncompressed_size);
+      compressor->open();
+
+      // rewrite and compress
+      for (auto ptr : it) {
+        std::size_t ev_len{uint4korr(ptr + EVENT_LEN_OFFSET)};
+
+        // reserve input buffer size (we are modifying the input buffer contents
+        // before compressing it back).
+        std::tie(ibuffer, ibuffer_capacity, err) =
+            reserve(ibuffer, ibuffer_capacity, ev_len);
+        if (err) return error_val;
+        memcpy(ibuffer, ptr, ev_len);
+
+        // rewrite the database name if needed
+        std::tie(ibuffer, ibuffer_capacity, ev_len, err) =
+            m_event_rewriter.rewrite_event(ibuffer, ibuffer_capacity, ev_len,
+                                           fde);
+        if (err) return error_val;
+
+        auto left{ev_len};
+        while (left > 0 && !err) {
+          auto pos{ibuffer + (ev_len - left)};
+          std::tie(left, err) = compressor->compress(pos, left);
+        }
+
+        if (err) return error_val;
+        obuffer_size_uncompressed += ev_len;
+      }
+
+      compressor->close();
+      std::tie(obuffer, obuffer_size, obuffer_capacity) =
+          compressor->get_buffer();
+
+      // do not dispose of the obuffer (disable RAII for obuffer)
+      obuffer_dealloc_guard.release();
+
+      // set the new one and adjust event settings
+      return Rewrite_payload_result{obuffer, obuffer_capacity, obuffer_size,
+                                    obuffer_size_uncompressed, false};
+    }
+
+   public:
+    Transaction_payload_content_rewriter(Database_rewrite &rewriter)
+        : m_event_rewriter(rewriter) {}
+
+    /**
+      This member function SHALL decompress, rewrite the contents of the
+      payload event, compress it again and then re-encode it.
+
+      @param the buffer holding this event encoded.
+      @param buffer_capacity the capacity of the buffer.
+      @param fde The format description event to decode this event.
+
+      @return a tuple with the result of the rewrite.
+     */
+    Rewrite_result rewrite_transaction_payload(
+        unsigned char *buffer, std::size_t buffer_capacity,
+        binary_log::Format_description_event const &fde) {
+      DBUG_ASSERT(buffer[EVENT_TYPE_OFFSET] ==
+                  binary_log::TRANSACTION_PAYLOAD_EVENT);
+      binary_log::Transaction_payload_event tpe((const char *)buffer, &fde);
+
+      auto orig_payload{tpe.get_payload()};
+      auto orig_payload_size{tpe.get_payload_size()};
+      auto orig_payload_uncompressed_size{tpe.get_uncompressed_size()};
+      auto orig_payload_compression_type{tpe.get_compression_type()};
+
+      unsigned char *rewritten_payload{nullptr};
+      std::size_t rewritten_payload_size{0};
+      std::size_t rewritten_payload_capacity{0};
+      std::size_t rewritten_payload_uncompressed_size{0};
+
+      auto rewrite_payload_res{false};
+      auto has_crc{fde.footer()->checksum_alg ==
+                   binary_log::BINLOG_CHECKSUM_ALG_CRC32};
+
+      // Rewrite its contents as needed
+      std::tie(rewritten_payload, rewritten_payload_capacity,
+               rewritten_payload_size, rewritten_payload_uncompressed_size,
+               rewrite_payload_res) =
+          rewrite_inner_events(orig_payload_compression_type, orig_payload,
+                               orig_payload_size,
+                               orig_payload_uncompressed_size, fde);
+
+      if (rewrite_payload_res) return Rewrite_result{nullptr, 0, 0, true};
+
+      // create a new TPE with the new buffer
+      binary_log::Transaction_payload_event new_tpe(
+          reinterpret_cast<const char *>(rewritten_payload),
+          rewritten_payload_size, orig_payload_compression_type,
+          rewritten_payload_uncompressed_size);
+
+      // start encoding it
+      auto codec =
+          binary_log::codecs::Factory::build_codec(tpe.header()->type_code);
+      uchar tpe_buffer[binary_log::Transaction_payload_event::MAX_DATA_LENGTH];
+      auto result = codec->encode(new_tpe, tpe_buffer, sizeof(tpe_buffer));
+      if (result.second == true) return Rewrite_result{nullptr, 0, 0, true};
+
+      // Now adjust the event buffer itself
+      auto new_data_size = result.first + rewritten_payload_size;
+      auto new_event_size = LOG_EVENT_HEADER_LEN + new_data_size;
+      if (has_crc) new_event_size += BINLOG_CHECKSUM_LEN;
+      if (new_event_size > buffer_capacity)
+        buffer = (unsigned char *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
+                                             new_event_size, MYF(0));
+
+      // now write everything into the event buffer
+      auto ptr = buffer;
+
+      // preserve the current event header, but adjust the event size
+      int4store(ptr + EVENT_LEN_OFFSET, new_event_size);
+      ptr += LOG_EVENT_HEADER_LEN;
+
+      // add the new tpe header
+      memmove(ptr, tpe_buffer, result.first);
+      ptr += result.first;
+
+      // add the new payload
+      memmove(ptr, rewritten_payload, rewritten_payload_size);
+      ptr += rewritten_payload_size;
+
+      // now can free the new payload, as we have moved it to the
+      // event buffer
+      free(rewritten_payload);
+
+      // recalculate checksum
+      if (has_crc) {
+        ha_checksum crc{0};
+        uchar buf[BINLOG_CHECKSUM_LEN];
+        crc = checksum_crc32(crc, buffer, new_event_size - BINLOG_CHECKSUM_LEN);
+        int4store(buf, crc);
+        memcpy(ptr, buf, sizeof(buf));
+      }
+
+      return Rewrite_result{buffer, new_event_size, new_event_size, false};
+    }
+  };
+
+ protected:
+  /**
+    A map that establishes the relationship between from the source
+    database name that is to be rewritten into the target one.
+
+    The key of the map is the "from" database name. The value of the
+    map is is the "to" database name that we are rewritting the
+    name into.
+   */
+  std::map<std::string, std::string> m_dict;
+
+  /**
+    A special rewriter for those transactions that are enclosed in a
+    Transaction_payload event.
+   */
+  std::unique_ptr<Transaction_payload_content_rewriter>
+      m_transaction_payload_rewriter{nullptr};
+
+  /**
+    This function gets the offset in the buffer for the dbname and
+    dbname length.
+
+    @param buffer the event buffer
+    @param buffer_size the event length
+    @param fde the format description event to decode parts of this buffer
+
+    @return a tuple containing:
+            - dbname offset
+            - dbname length offset
+            - boolean specifying whether this is an event that needs rewrite
+              checks
+            - boolean specifying whether an error was found
+  */
+  std::tuple<my_off_t, my_off_t, bool, bool> get_dbname_and_dblen_offsets(
+      const unsigned char *buffer, size_t buffer_size,
+      binary_log::Format_description_event const &fde) {
+    my_off_t off_dbname = 0;
+    my_off_t off_dbname_len = 0;
+    bool error = false;
+    bool needs_rewrite_check = false;
+    auto event_type = (Log_event_type)buffer[EVENT_TYPE_OFFSET];
+
+    switch (event_type) {
+      case binary_log::TABLE_MAP_EVENT: {
+        /*
+          Before rewriting:
+
+          +-------------+-----------+----------+------+----------------+
+          |common_header|post_header|old_db_len|old_db|event data...   |
+          +-------------+-----------+----------+------+----------------+
+
+          Note that table map log event uses only one byte for database length.
+
+        */
+        off_dbname_len = fde.common_header_len +
+                         fde.post_header_len[binary_log::TABLE_MAP_EVENT - 1];
+        off_dbname = off_dbname_len + 1;
+        needs_rewrite_check = true;
+      } break;
+      case binary_log::EXECUTE_LOAD_QUERY_EVENT:
+      case binary_log::QUERY_EVENT: {
+        /*
+          The QUERY_EVENT buffer structure:
+
+          Before Rewriting :
+
+            +-------------+-----------+-----------+------+------+
+            |common_header|post_header|status_vars|old_db|...   |
+            +-------------+-----------+-----------+------+------+
+
+          After Rewriting :
+
+            +-------------+-----------+-----------+------+------+
+            |common_header|post_header|status_vars|new_db|...   |
+            +-------------+-----------+-----------+------+------+
+
+          The db_len is inside the post header, more specifically:
+
+            +---------+---------+------+--------+--------+------+
+            |thread_id|exec_time|db_len|err_code|status_vars_len|
+            +---------+---------+------+--------+--------+------+
+
+          Thence we need to change the post header and the payload,
+          which is the one carrying the database name.
+
+          In case the new database name is longer than the old database
+          length, it will reallocate the buffer.
+        */
+        uint8 common_header_len = fde.common_header_len;
+        uint8 query_header_len =
+            fde.post_header_len[binary_log::QUERY_EVENT - 1];
+        const unsigned char *ptr = buffer;
+        uint sv_len = 0;
+
+        DBUG_EXECUTE_IF("simulate_corrupt_event_len", buffer_size = 0;);
+        /* Error if the event content is too small */
+        if (buffer_size < (common_header_len + query_header_len)) {
+          error = true;
+          goto end;
+        }
+
+        /* Check if there are status variables in the event */
+        if ((query_header_len -
+             binary_log::Query_event::QUERY_HEADER_MINIMAL_LEN) > 0) {
+          sv_len = uint2korr(ptr + common_header_len +
+                             binary_log::Query_event::Q_STATUS_VARS_LEN_OFFSET);
+        }
+
+        /* now we have a pointer to the position where the database is. */
+        off_dbname_len =
+            common_header_len + binary_log::Query_event::Q_DB_LEN_OFFSET;
+        off_dbname = common_header_len + query_header_len + sv_len;
+
+        if (off_dbname_len > buffer_size || off_dbname > buffer_size) {
+          error = true;
+          goto end;
+        }
+
+        if (event_type == binary_log::EXECUTE_LOAD_QUERY_EVENT)
+          off_dbname += Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN;
+        needs_rewrite_check = true;
+      } break;
+      default:
+        break;
+    }
+
+  end:
+    return std::make_tuple(off_dbname, off_dbname_len, needs_rewrite_check,
+                           error);
+  }
+
+  Rewrite_result rewrite_event(unsigned char *buffer, size_t buffer_capacity,
+                               size_t data_size,
+                               binary_log::Format_description_event const &fde,
+                               bool recalculate_crc = false) {
+    auto the_buffer{buffer};
+    auto the_buffer_capacity{buffer_capacity};
+    auto the_data_size{data_size};
+    std::string from{};
+    std::string to{};
+    int64_t delta{0};
+    unsigned char *dbname_ptr{nullptr};
+    unsigned char *dbname_len_ptr{nullptr};
+
+    bool error{false};
+    bool needs_rewrite{false};
+    size_t offset_dbname_len{0};
+    size_t offset_dbname{0};
+    uint8_t dbname_len{0};
+    const char *dbname{nullptr};
+
+    std::tie(offset_dbname, offset_dbname_len, needs_rewrite, error) =
+        get_dbname_and_dblen_offsets(buffer, data_size, fde);
+    if (error || !needs_rewrite) goto end;
+
+    // build the "from"
+    dbname_len = static_cast<uint8_t>(buffer[offset_dbname_len]);
+    dbname = reinterpret_cast<const char *>(buffer + offset_dbname);
+    from = std::string(dbname, dbname_len);
+
+    // check if we need to continue
+    if (!is_rewrite_needed(from)) goto end;
+
+    // if we do, we need to find the name to rewrite to (the "to")
+    to = m_dict[from];
+
+    // need to adjust the buffer layout or even reallocate
+    delta = to.size() - from.size();
+    // need to reallocate
+    if ((delta + data_size) > buffer_capacity) {
+      the_buffer_capacity = buffer_capacity + delta;
+      the_buffer = (unsigned char *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
+                                               the_buffer_capacity, MYF(0));
+      /* purecov: begin inspected */
+      if (!the_buffer) {
+        // OOM
+        error = true;
+        goto end;
+      }
+      /* purecov: end */
+    }
+
+    // adjust the size of the event
+    the_data_size += delta;
+
+    // need to move bytes around in the buffer if needed
+    if (the_data_size != data_size) {
+      unsigned char *to_tail_ptr = the_buffer + offset_dbname + to.size();
+      unsigned char *from_tail_ptr = the_buffer + offset_dbname + from.size();
+      size_t to_tail_size = data_size - (offset_dbname + from.size());
+
+      // move the tail (so we do not risk overwriting it)
+      memmove(to_tail_ptr, from_tail_ptr, to_tail_size);
+    }
+
+    dbname_ptr = the_buffer + offset_dbname;
+    memcpy(dbname_ptr, to.c_str(), to.size());
+
+    DBUG_ASSERT(to.size() < UINT8_MAX);
+    dbname_len_ptr = the_buffer + offset_dbname_len;
+    *dbname_len_ptr = (char)to.size();
+
+    // Update event length in header.
+    int4store(the_buffer + EVENT_LEN_OFFSET, the_data_size);
+
+    // now recalculate the checksum
+    if (recalculate_crc) {
+      auto ptr = the_buffer + the_data_size - BINLOG_CHECKSUM_LEN;
+      ha_checksum crc{};
+      uchar buf[BINLOG_CHECKSUM_LEN];
+      crc = checksum_crc32(crc, the_buffer, (ptr - the_buffer));
+      int4store(buf, crc);
+      memcpy(ptr, buf, sizeof(buf));
+    }
+
+  end:
+    return std::make_tuple(the_buffer, the_buffer_capacity, the_data_size,
+                           error);
+  }
+
+  /**
+    This function shall return true if the event needs to be processed for
+    rewriting the database.
+
+    @param event_type the event type code.
+
+    @return true if the database needs to be rewritten.
+   */
+  bool is_rewrite_needed_for_event(Log_event_type event_type) {
+    switch (event_type) {
+      case binary_log::TABLE_MAP_EVENT:
+      case binary_log::EXECUTE_LOAD_QUERY_EVENT:
+      case binary_log::QUERY_EVENT:
+      case binary_log::TRANSACTION_PAYLOAD_EVENT:
+        return true;
+      default:
+        return false;
+    }
+  }
+
+ public:
+  Database_rewrite() = default;
+
+  ~Database_rewrite() { m_dict.clear(); }
+
+  /**
+    Shall register a rule to rewrite from one database name to another.
+    @param from the database name to rewrite from.
+    @param to the database name to rewrite to.
+   */
+  void register_rule(std::string from, std::string to) {
+    m_dict.insert(std::pair<std::string, std::string>(from, to));
+  }
+
+  /**
+    Shall unregister a rewrite rule for a given database. If the name is
+    not registered, then no action is taken and no error reported.
+    The name of database to be used in this invokation is the original
+    database name.
+
+    @param from the original database name used when the rewrite rule
+                was registered.
+   */
+  void unregister_rule(std::string from) { m_dict.erase(from); }
+
+  /**
+    Returns true if this database name needs to be rewritten.
+
+    @param dbname The database name.
+    @return true if a database name rewrite is needed, false otherwise.
+   */
+  bool is_rewrite_needed(std::string dbname) {
+    return !m_dict.empty() && m_dict.find(dbname) != m_dict.end();
+  }
+
+  /**
+    Shall rewrite the database name in the given buffer. This function
+    is called when rewriting events in raw_mode.
+
+    @param buffer the full event still not decoded.
+    @param buffer_capacity the event buffer size.
+    @param data_size the size of the buffer filled with meaningful data.
+    @param fde the format description event to decode the event.
+    @param skip_transaction_payload_event Whether to skip the
+                                          Transaction_payload_event or not
+
+    @return a tuple containing:
+            - A pointer to the buffer after the changes (if any).
+            - The buffer capacity size updated.
+            - The event data size.
+            - A boolean specifying whether there was an error or not.
+   */
+  Rewrite_result rewrite_raw(unsigned char *buffer, size_t buffer_capacity,
+                             size_t data_size,
+                             binary_log::Format_description_event const &fde,
+                             bool skip_transaction_payload_event = false) {
+    DBUG_ASSERT(buffer_capacity >= data_size);
+    auto event_type = (Log_event_type)buffer[EVENT_TYPE_OFFSET];
+    if (m_dict.empty() || !is_rewrite_needed_for_event(event_type))
+      return Rewrite_result{buffer, buffer_capacity, data_size, false};
+
+    switch (event_type) {
+      case binary_log::TRANSACTION_PAYLOAD_EVENT: {
+        if (!skip_transaction_payload_event) {
+          if (m_transaction_payload_rewriter == nullptr)
+            m_transaction_payload_rewriter =
+                std::make_unique<Transaction_payload_content_rewriter>(*this);
+          return m_transaction_payload_rewriter->rewrite_transaction_payload(
+              buffer, buffer_capacity, fde);
+        } else
+          return Rewrite_result{buffer, buffer_capacity, buffer_capacity,
+                                false};
+      }
+      default: {
+        bool recalculate_crc =
+            fde.footer()->checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_CRC32;
+        return rewrite_event(buffer, buffer_capacity, data_size, fde,
+                             recalculate_crc);
+      }
+    }
+  }
+
+  /**
+    Rewrites the event database if needed. This function is called when
+    rewriting events not in raw mode.
+
+    @param buffer the full event still not decoded.
+    @param buffer_capacity the event buffer size.
+    @param data_size the size of the buffer filled with meaningful data.
+    @param fde the format description event to decode the event.
+
+    @return a tuple with the pointer to the buffer with the database rewritten,
+            the rewritten buffer capacity, the rewritten buffer meaningful
+            bytes, and whether there was an error or not.
+   */
+  Rewrite_result rewrite(unsigned char *buffer, size_t buffer_capacity,
+                         size_t data_size,
+                         binary_log::Format_description_event const &fde) {
+    return rewrite_raw(buffer, buffer_capacity, data_size, fde, true);
+  }
+};
 
 /**
-  Replace the database by another database in the buffer of a
-  Query_log_event.
-
-  The QUERY_EVENT buffer structure:
-
-  Before Rewriting :
-
-    +-------------+-----------+-----------+------+------+
-    |common_header|post_header|status_vars|old_db|...   |
-    +-------------+-----------+-----------+------+------+
-
-  After Rewriting :
-
-    +-------------+-----------+-----------+------+------+
-    |common_header|post_header|status_vars|new_db|...   |
-    +-------------+-----------+-----------+------+------+
-
-  The db_len is inside the post header, more specifically:
-
-    +---------+---------+------+--------+--------+------+
-    |thread_id|exec_time|db_len|err_code|status_vars_len|
-    +---------+---------+------+--------+--------+------+
-
-  Thence we need to change the post header and the payload,
-  which is the one carrying the database name.
-
-  In case the new database name is longer than the old database
-  length, it will reallocate the buffer.
-
-  @param[in,out] buf                Pointer to event buffer to be processed
-  @param[in,out] event_len          Length of the event
-  @param[in]     fde                The Format_description_log_event
-
-  @retval false Success
-  @retval true Out of memory
-*/
-bool Query_log_event::rewrite_db_in_buffer(
-    char **buf, ulong *event_len, const Format_description_event &fde) {
-  uint8 common_header_len = fde.common_header_len;
-  uint8 query_header_len = fde.post_header_len[binary_log::QUERY_EVENT - 1];
-  char *ptr = *buf;
-  uint sv_len = 0;
-
-  DBUG_EXECUTE_IF("simulate_corrupt_event_len", *event_len = 0;);
-  /* Error if the event content is too small */
-  if (*event_len < (common_header_len + query_header_len)) return true;
-
-  /* Check if there are status variables in the event */
-  if ((query_header_len - QUERY_HEADER_MINIMAL_LEN) > 0) {
-    sv_len = uint2korr(ptr + common_header_len + Q_STATUS_VARS_LEN_OFFSET);
-  }
-
-  /* now we have a pointer to the position where the database is. */
-  uint offset_len = common_header_len + Q_DB_LEN_OFFSET;
-  uint offset_db = common_header_len + query_header_len + sv_len;
-
-  if ((uint)((*buf)[EVENT_TYPE_OFFSET]) == binary_log::EXECUTE_LOAD_QUERY_EVENT)
-    offset_db += Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN;
-
-  return rewrite_db(buf, event_len, offset_db, offset_len);
-}
-
-static bool rewrite_db_filter(char **buf, ulong *event_len,
-                              const Format_description_event &fde) {
-  if (map_mysqlbinlog_rewrite_db.empty()) return false;
-
-  uint event_type = (uint)((*buf)[EVENT_TYPE_OFFSET]);
-
-  switch (event_type) {
-    case binary_log::TABLE_MAP_EVENT:
-      return Table_map_log_event::rewrite_db_in_buffer(buf, event_len, fde);
-    case binary_log::QUERY_EVENT:
-    case binary_log::EXECUTE_LOAD_QUERY_EVENT:
-      return Query_log_event::rewrite_db_in_buffer(buf, event_len, fde);
-    default:
-      break;
-  }
-  return false;
-}
+  The database rewriter handler for Table map and Query log events.
+ */
+Database_rewrite global_database_rewriter;
 
 /*
   The character set used should be equal to the one used in mysqld.cc for
@@ -351,13 +769,6 @@ static uint opt_zstd_compress_level = default_zstd_compression_level;
 static char *opt_compress_algorithm = nullptr;
 
 static bool opt_print_table_metadata;
-
-/**
-  For storing information of the Format_description_event of the currently
-  active binlog. it will be changed each time a new Format_description_event is
-  found in the binlog.
-*/
-Format_description_event glob_description_event(BINLOG_VERSION, server_version);
 
 /**
   Exit status for functions in this file.
@@ -934,6 +1345,7 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info) {
   @param[in] ev Log_event to process.
   @param[in] pos Offset from beginning of binlog file.
   @param[in] logname Name of input binlog.
+  @param[in] skip_pos_check skip filename and position check.
 
   @retval ERROR_STOP An error occurred - the program should terminate.
   @retval OK_CONTINUE No error, the program should continue.
@@ -942,7 +1354,8 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info) {
 */
 static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
                                  Log_event *ev, my_off_t pos,
-                                 const char *logname) {
+                                 const char *logname,
+                                 bool skip_pos_check = false) {
   char ll_buff[21];
   Log_event_type ev_type = ev->get_type_code();
   DBUG_TRACE;
@@ -976,8 +1389,17 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
           (filter_server_id != ev->server_id))
         goto end;
     }
-    if (((my_time_t)(ev->common_header->when.tv_sec) >= stop_datetime) ||
-        (pos >= stop_position_mot)) {
+
+    // reached stop position, but make sure that we print all events
+    // that have the same position (compressed events)
+    if (!skip_pos_check && (pos >= stop_position_mot)) {
+      /* end the program */
+      retval = OK_STOP;
+      goto end;
+    }
+
+    // reached stop time
+    if (((my_time_t)(ev->common_header->when.tv_sec) >= stop_datetime)) {
       /* end the program */
       retval = OK_STOP;
       goto end;
@@ -996,6 +1418,10 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
     if (shall_skip_gtids(ev)) goto end;
 
     switch (ev_type) {
+      case binary_log::TRANSACTION_PAYLOAD_EVENT:
+        ev->print(result_file, print_event_info);
+        if (head->error == -1) goto err;
+        break;
       case binary_log::QUERY_EVENT: {
         Query_log_event *qle = (Query_log_event *)ev;
         bool parent_query_skips =
@@ -1103,6 +1529,10 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
             'FLUSH LOGS | FLUSH RELAY LOGS', or get the signal SIGHUP.
         */
         if (!ev->is_relay_log_event()) {
+          /* Assignment copy. We need this to be able to check later,
+             for instance, that this FD has checksums enabled. */
+          glob_description_event =
+              dynamic_cast<Format_description_event &>(*ev);
           static bool is_first_fd = true;
 
           /*
@@ -1776,7 +2206,7 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
         return true;
       }
       /* Add the database to the mapping */
-      map_mysqlbinlog_rewrite_db[from_db] = to_db;
+      global_database_rewriter.register_rule(from_db, to_db);
       break;
     }
     case 'p':
@@ -2158,7 +2588,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   my_off_t old_off = start_position_mot;
   char log_file_name[FN_REFLEN + 1];
   Exit_status retval = OK_CONTINUE;
-  char *event_buf = nullptr;
+  unsigned char *event_buf = nullptr;
   ulong event_len;
 
   DBUG_TRACE;
@@ -2230,6 +2660,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   transaction_parser.reset();
 
   for (;;) {
+    bool res{false};
     if (mysql_binlog_fetch(mysql, &rpl))  // Error packet
     {
       error("Got error reading packet from server: %s", mysql_error(mysql));
@@ -2248,13 +2679,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event *ev = nullptr;
     Destroy_log_event_guard del(&ev);
     event_len = rpl.size - 1;
-    if (!(event_buf =
-              (char *)my_malloc(key_memory_log_event, event_len + 1, MYF(0)))) {
+    if (!(event_buf = (unsigned char *)my_malloc(key_memory_log_event,
+                                                 event_len + 1, MYF(0)))) {
       error("Out of memory.");
       return ERROR_STOP;
     }
     memcpy(event_buf, rpl.buffer + 1, event_len);
-    if (rewrite_db_filter(&event_buf, &event_len, glob_description_event)) {
+
+    std::tie(event_buf, std::ignore, event_len, res) =
+        raw_mode ? global_database_rewriter.rewrite_raw(
+                       event_buf, event_len, event_len, glob_description_event)
+                 : global_database_rewriter.rewrite(
+                       event_buf, event_len, event_len, glob_description_event);
+    if (res) {
       error("Got a fatal error while applying rewrite db filter.");
       my_free(event_buf);
       return ERROR_STOP;
@@ -2271,7 +2708,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         my_free(event_buf);
         return ERROR_STOP;
       }
-      ev->register_temp_buf(event_buf);
+      ev->register_temp_buf((char *)event_buf);
     }
 
     {
@@ -2437,15 +2874,21 @@ class Mysqlbinlog_event_data_istream : public Binlog_event_data_istream {
   bool m_multi_binlog_magic = false;
 
   bool rewrite_db(unsigned char **buffer, unsigned int *length) {
-    ulong len = *length;
-    if (rewrite_db_filter(reinterpret_cast<char **>(buffer), &len,
-                          glob_description_event)) {
+    bool ret{false};
+    size_t buffer_capacity{0};
+    std::tie(*buffer, buffer_capacity, *length, ret) =
+        global_database_rewriter.rewrite(*buffer, *length, *length,
+                                         glob_description_event);
+    if (ret) {
       error("Error applying filter while reading event");
-      return m_error->set_type(Binlog_read_error::MEM_ALLOCATE);
+      ret = m_error->set_type(Binlog_read_error::MEM_ALLOCATE);
+      if (buffer_capacity > 0) {
+        my_free(*buffer);
+        *buffer = nullptr;
+        *length = 0;
+      }
     }
-    DBUG_ASSERT(len < UINT_MAX);
-    *length = static_cast<unsigned int>(len);
-    return false;
+    return ret;
   }
 
   bool read_event_header() override {
@@ -2895,3 +3338,124 @@ int main(int argc, char **argv) {
 
   return (retval == ERROR_STOP ? EXIT_FAILURE : EXIT_SUCCESS);
 }
+
+#ifndef MYSQL_SERVER
+void Transaction_payload_log_event::print(FILE *,
+                                          PRINT_EVENT_INFO *info) const {
+  DBUG_TRACE;
+
+  bool has_crc{(glob_description_event.footer()->checksum_alg ==
+                binary_log::BINLOG_CHECKSUM_ALG_CRC32)};
+  Format_description_event fde_no_crc = glob_description_event;
+  fde_no_crc.footer()->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
+
+  bool error{false};
+  IO_CACHE *const head = &info->head_cache;
+  size_t current_buffer_size = 1024;
+  auto buffer = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, current_buffer_size,
+                                   MYF(MY_WME));
+  if (!info->short_form) {
+    std::ostringstream oss;
+    oss << "\tTransaction_Payload\t" << to_string() << std::endl;
+    oss << "# Start of compressed events!" << std::endl;
+    print_header(head, info, false);
+    my_b_printf(head, "%s", oss.str().c_str());
+  }
+
+  // print the payload
+  binary_log::transaction::compression::Iterable_buffer it(
+      m_payload, m_payload_size, m_uncompressed_size, m_compression_type);
+
+  for (auto ptr : it) {
+    Log_event *ev = nullptr;
+    bool is_deferred_event = false;
+
+    // fix the checksum part
+    size_t event_len = uint4korr(ptr + EVENT_LEN_OFFSET);
+
+    // resize the buffer we are using to handle the event if needed
+    if (event_len > current_buffer_size) {
+      current_buffer_size =
+          round(((event_len + BINLOG_CHECKSUM_LEN) / 1024.0) + 1) * 1024;
+      buffer = (uchar *)my_realloc(PSI_NOT_INSTRUMENTED, buffer,
+                                   current_buffer_size, MYF(0));
+
+      /* purecov: begin inspected */
+      if (!buffer) {
+        // OOM
+        head->error = -1;
+        my_b_printf(head, "# Out of memory!");
+        goto end;
+      }
+      /* purecov: end */
+    }
+
+    memcpy(buffer, ptr, event_len);
+
+    // rewrite the database name if needed
+    std::tie(buffer, current_buffer_size, event_len, error) =
+        global_database_rewriter.rewrite(buffer, current_buffer_size, event_len,
+                                         fde_no_crc);
+
+    /* purecov: begin inspected */
+    if (error) {
+      head->error = -1;
+      my_b_printf(head, "# Error while rewriting db for compressed events!");
+      goto end;
+    }
+    /* purecov: end */
+
+    // update the CRC
+    if (has_crc) {
+      int4store(buffer + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
+      int4store(buffer + event_len, checksum_crc32(0, buffer, event_len));
+      event_len += BINLOG_CHECKSUM_LEN;
+    }
+
+    // now deserialize the event
+    if (binlog_event_deserialize((const unsigned char *)buffer, event_len,
+                                 &glob_description_event, true, &ev)) {
+      /* purecov: begin inspected */
+      head->error = -1;
+      my_b_printf(
+          head, "# Error while handling compressed events! Corrupted binlog?");
+      goto end;
+      /* purecov: end */
+    }
+
+    switch (ev->get_type_code()) {
+      // Statement Based Replication
+      //   deferred events have to keep a copy of the buffer
+      //   they are output only when the correct event comes
+      //   later (Query_log_event)
+      case binary_log::INTVAR_EVENT: /* purecov: inspected */
+      case binary_log::RAND_EVENT:
+      case binary_log::USER_VAR_EVENT:
+        is_deferred_event = true; /* purecov: inspected */
+        break;                    /* purecov: inspected */
+      default:
+        is_deferred_event = false;
+        break;
+    }
+
+    ev->register_temp_buf((char *)buffer, is_deferred_event);
+    ev->common_header->log_pos = header()->log_pos;
+
+    // TODO: make this iterative, not recursive (process_event may rely
+    // on global vars, and this may cause problems).
+    process_event(info, ev, header()->log_pos, "", true);
+
+    // lets make the buffer be allocated again, as the current
+    // buffer ownership has been handed over to the defferred event
+    if (is_deferred_event) {
+      buffer = nullptr;        /* purecov: inspected */
+      current_buffer_size = 0; /* purecov: inspected */
+    }
+  }
+
+  if (!info->short_form) my_b_printf(head, "# End of compressed events!\n");
+
+end:
+  my_free(buffer);
+}
+#endif

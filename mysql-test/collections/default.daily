@@ -65,6 +65,10 @@ perl mysql-test-run.pl --force --timer   --comment=rpl_with_gtid --vardir=var-rp
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
 perl mysql-test-run.pl --force --timer   --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+
+# Additional rpl run with binlog Compression enabled.
+perl mysql-test-run.pl --timer --force --parallel=8 --comment=replication_compression --vardir=var-rpl-comp --mysqld=--binlog-transaction-compression=ON --do-suite=rpl --mysqld=--binlog-format=ROW --no-skip
+
 ################END OF SECTION3(EXTENDED RPL/BINLOG)  ####################
 
 

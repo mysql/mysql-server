@@ -1,90 +1,348 @@
+#
+# WL#3549: Binlog Compression
+#
+# This file contains tests for mysqlbinlog with binlog compression turned on
+#
+# - Test 1: Generate a compressed binlog and apply it back to the server
+#
+#   This test case generates a compressed binlog, resets the server,
+#   replays the binary log again and verifies that the result is
+#   the same.
+#
+# - Test 2: Asserts that mysqlbinlog outputs the comments as per
+#   WL#3549 spec
+#
 
 # no need to run the tests in this file more than one combination
-#
-# WL#12475
-#
-# This test checks that the binlog output using the compressed
-# protocol transfer mode is the same as the one using the
-# non-compressed protocol transfer
-#
-# This test also checks that the binlog data transferred over
-# network is less when executing mysqlbinlog with compression
-# option compared to executing mysqlbinlog without compression
-#
-# no need to log result or query logs
-
---source include/linux.inc
 --source include/have_binlog_format_row.inc
 
---disable_query_log
---disable_result_log
+--let $show_rpl_debug_info = 0
+
+--let $saved_binlog_transaction_compression_session_master = `SELECT @@SESSION.binlog_transaction_compression`
+--let $saved_binlog_transaction_compression_global_master = `SELECT @@GLOBAL.binlog_transaction_compression`
+--let $trx_size_bytes = 1000000
+--let $compression_type = ZSTD
+--let $pfs_table = performance_schema.binary_log_transaction_compression_stats
+--let $tmp_binlog_file_prefix=`SELECT UUID()`
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+--let $tmp_binlog_file = $MYSQL_TMP_DIR/$tmp_binlog_file_prefix.000001
+--let $tmp_binlog_dump_file = $MYSQL_TMP_DIR/$tmp_binlog_file_prefix.sql
+--let $ntrans_expected = 4
 
 RESET MASTER;
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=$MYSQLD_DATADIR/$binlog_file
+--eval TRUNCATE $pfs_table
 
-# generate some binlog entries
-CREATE TABLE t1 (c1 INT);
---let $iterations=10
-while($iterations)
+# transactions executed in this session shall be compressed
+SET SESSION binlog_transaction_compression = ON;
+
+# transactions replayed through mysqlbinlog will also be compressed
+SET GLOBAL binlog_transaction_compression = ON;
+
+#
+# Test 1: Generate a compressed binlog and apply it back to the server
+#
+--let $i = 4
+while($i > 0)
 {
-  --eval INSERT INTO t1 VALUES ($iterations)
-  --dec $iterations
+  if ($i == 4)
+  {
+    CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+    --let $ntrans_expected = 0
+  }
+
+  if ($i == 3)
+  {
+    CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+    RESET MASTER;
+    --eval TRUNCATE $pfs_table
+    --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+    --let $ntrans_expected = 1
+  }
+
+  if ($i == 2)
+  {
+    CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+    --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+    RESET MASTER;
+    --eval TRUNCATE $pfs_table
+    --eval UPDATE t1 SET c2=REPEAT('c', $trx_size_bytes)
+    --let $ntrans_expected = 1
+  }
+
+  if ($i == 1)
+  {
+    CREATE TABLE t1 (c1 INT UNSIGNED PRIMARY KEY, c2 LONGTEXT);
+    --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+    --eval UPDATE t1 SET c2=REPEAT('c', $trx_size_bytes)
+    RESET MASTER;
+    --eval TRUNCATE $pfs_table
+    DELETE FROM t1;
+    --let $ntrans_expected = 1
+  }
+
+  # assert that we have the stats on the table
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+  --let $assert_cond = $nrows = 1
+  --let $assert_text = Number of rows in $pfs_table = 1
+  --source include/assert.inc
+
+  if ($i != 4)
+  {
+    --let $ntrxs = `SELECT transaction_counter FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $assert_cond = $ntrxs = $ntrans_expected
+  }
+
+  if ($i == 4)
+  {
+    --let $nrows_compressed = `SELECT count(*) FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $assert_cond = $nrows_compressed = $ntrans_expected
+  }
+
+  --let $assert_text = The number of transactions reported is $ntrans_expected ($assert_cond)
+  --source include/assert.inc
+
+  --let $cbytes = `SELECT COMPRESSED_BYTES_COUNTER FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+  --let $ubytes = `SELECT UNCOMPRESSED_BYTES_COUNTER FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+  --let $last_trx_id = `SELECT LAST_TRANSACTION_ID FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+  --let $last_trx_cbytes = `SELECT LAST_TRANSACTION_COMPRESSED_BYTES FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+  --let $last_trx_ubytes = `SELECT LAST_TRANSACTION_UNCOMPRESSED_BYTES FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+
+  --let $checksum_before = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+  FLUSH LOGS;
+
+  # save a backup of the file
+  --copy_file $binlog_file $tmp_binlog_file
+
+  # clean up to start from a clean slate
+  if ($i == 4)
+  {
+    DROP TABLE t1;
+  }
+
+  if ($i == 3)
+  {
+    DELETE FROM t1;
+  }
+
+  if ($i == 2)
+  {
+    DELETE FROM t1;
+    --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+  }
+
+  if ($i == 1)
+  {
+    DELETE FROM t1;
+    --eval INSERT INTO t1 VALUES (2, REPEAT('b', $trx_size_bytes))
+    --eval UPDATE t1 SET c2=REPEAT('c', $trx_size_bytes)
+  }
+
+  --eval TRUNCATE $pfs_table
+  RESET MASTER;
+
+  # replay the binary log
+  --exec $MYSQL_BINLOG $tmp_binlog_file > $tmp_binlog_dump_file
+  --exec $MYSQL test < $tmp_binlog_dump_file
+
+  --let $count = 1
+  --let $table = $pfs_table
+  --source include/wait_until_rows_count.inc
+
+  --let $checksum_after = query_get_value(CHECKSUM TABLE t1 EXTENDED, Checksum, 1)
+
+  --let $assert_cond = $checksum_before = $checksum_after
+  --let $assert_text = Table contents is the same after replaying with mysqlbinlog
+  --source include/assert.inc
+
+  # assert that we have the stats on the table
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+  --let $assert_cond = $nrows = 1
+  --let $assert_text = Number of rows in $pfs_table = 1
+  --source include/assert.inc
+
+  --let $ntrxs_after = `SELECT SUM(transaction_counter) FROM $pfs_table WHERE log_type = 'BINARY'`
+
+
+  # DDL are not compressed
+  if ($i != 4)
+  {
+    --let $assert_cond = $ntrxs_after = $ntrxs
+    --let $assert_text = The number of transactions reported is $ntrxs_after
+    --source include/assert.inc
+
+    --let $cbytes_after = `SELECT COMPRESSED_BYTES_COUNTER FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $ubytes_after = `SELECT UNCOMPRESSED_BYTES_COUNTER FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $last_trx_id_after = `SELECT LAST_TRANSACTION_ID FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $last_trx_cbytes_after = `SELECT LAST_TRANSACTION_COMPRESSED_BYTES FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+    --let $last_trx_ubytes_after = `SELECT LAST_TRANSACTION_UNCOMPRESSED_BYTES FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+
+    #
+    # We give +/- 10% since replaying using BINLOG events may compress
+    # a bit differently from when executing SQL statements
+    #
+
+    --let $assert_cond = ($cbytes_after < ($cbytes * 1.1)) or ($cbytes_after > ($cbytes * 0.9))
+    --let $assert_text = Compression bytes is the same after replaying with mysqlbinlog
+    --source include/assert.inc
+
+    --let $assert_cond = ($ubytes_after < ($ubytes * 1.1)) or ($ubytes_after > ($ubytes * 0.9))
+    --let $assert_text = Uncompressed bytes is roughly the same after replaying with mysqlbinlog
+    --source include/assert.inc
+
+    --let $assert_cond = ($last_trx_cbytes_after < ($last_trx_cbytes * 1.1)) or ($last_trx_cbytes_after > ($last_trx_cbytes * 0.9))
+    --let $assert_text = Last transaction commpressed bytes is roughly the same after replaying with mysqlbinlog
+    --source include/assert.inc
+
+    --let $assert_cond = ($last_trx_ubytes_after < ($last_trx_ubytes * 1.1)) or ($last_trx_ubytes_after > ($last_trx_ubytes * 0.9))
+    --let $assert_text = Last transaction uncommpressed bytes is roughly the same after replaying with mysqlbinlog
+    --source include/assert.inc
+
+    --let $assert_cond = "$last_trx_id_after" = "$last_trx_id"
+    --let $assert_text = Last transaction id is the same after replaying with mysqlbinlog
+    --source include/assert.inc
+  }
+
+  DROP TABLE t1;
+  RESET MASTER;
+  --remove_file $tmp_binlog_file
+  --remove_file $tmp_binlog_dump_file
+
+  --dec $i
 }
-DROP TABLE t1;
 
---let $not_compressed_result_file = $MYSQL_TMP_DIR/binlog-no-compress.000001
---let $compressed_result_file = $MYSQL_TMP_DIR/binlog-compress.000001
 
---let $mysqlbinlog_parameters = --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $not_compressed_result_file
---source include/mysqlbinlog.inc
+#
+# Test 2: Search for the compression comment from mysqlbinlog
+#
 
---let $mysqlbinlog_parameters = --compression-algorithms="zlib" --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $compressed_result_file
---source include/mysqlbinlog.inc
-
---let NOT_COMPRESSED=not_compressed_result_file
---let COMPRESSED=$compressed_result_file
-
---perl
-use File::Compare;
-my $uncompressed=$ENV{'NOT_COMPRESSED'} or die ("Uncompressed result file name not set!");
-my $compressed=$ENV{'COMPRESSED'} or die ("Compressed result file name not set!");
-die ("Comparison between the output of mysqlbinlog parsing of binary logs transferred with and without compression differs!") if compare($uncompressed, $compressed) == 0;
-EOF
-
---remove_file $not_compressed_result_file
---remove_file $compressed_result_file
-
-# RESET MASTER for the next test to start clean
 RESET MASTER;
-# Check compression achieved using compress option
-# Generate a large transaction that is over 1MB
-CREATE TABLE t (a LONGTEXT);
-INSERT INTO t VALUES (REPEAT('a', 1000000));
-DROP TABLE t;
+--eval TRUNCATE $pfs_table
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=$MYSQLD_DATADIR/$binlog_file
 
-# Get the initial number of bytes written to the socket
---let $before= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
-# Execute mysqlbinlog with compression
---let $mysqlbinlog_parameters = --compression-algorithms="zlib" --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
---source include/mysqlbinlog.inc
-# Get the byte count through socket after executing mysqlbinlog with compression
---let $after_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+# transactions executed in this session shall be compressed
+SET SESSION binlog_transaction_compression = ON;
 
-# Execute mysqlbinlog without compression
---let $mysqlbinlog_parameters = --read-from-remote-server --user=root --socket=$MASTER_MYSOCK $binlog_file
---source include/mysqlbinlog.inc
-# Get the byte count through socket after executing mysqlbinlog without compression
---let $after_no_compression= `SELECT SUM_NUMBER_OF_BYTES_WRITE FROM performance_schema.socket_summary_by_event_name WHERE EVENT_NAME = 'wait/io/socket/sql/client_connection'`
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+FLUSH LOGS;
 
-# The transaction when compressed will be just in the order of Kilo Bytes
-# Hence assert that $after_no_compression-$before is much bigger than $after_compression-$before
---let $assert_text= Assert that bytes written to socket are less with compression
---let $assert_cond= $after_no_compression-$before > 100 * ($after_compression-$before)
+--exec $MYSQL_BINLOG -vv $binlog_file > $tmp_binlog_dump_file
+
+--let $assert_file = $tmp_binlog_dump_file
+--let $assert_select= ^#.*payload_size=.*compression_type=.*uncompressed_size=.*
+--let $assert_match=
+--let $assert_count= 1
+--let $assert_text= mysqlbinlog prints comments for compressed transactions as instructed by the specification
+--source include/assert_grep.inc
+
+--let $assert_file = $tmp_binlog_dump_file
+--let $assert_select= ^#.*payload_size=.*compression_type=.*uncompressed_size=.*
+--let $assert_match=
+--let $assert_count= 1
+--let $assert_text= mysqlbinlog prints comments for compressed transactions as instructed by the specification
+--source include/assert_grep.inc
+
+
+--remove_file $tmp_binlog_dump_file
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+#
+# Test 3: Replaying compressed binlogs through a session without binlog compression on
+# must originate uncompressed binlogs
+#
+
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $binlog_file=$MYSQLD_DATADIR/$binlog_file
+
+# transactions executed in this session shall be compressed
+SET SESSION binlog_transaction_compression = ON;
+
+# transactions executed in new connections shall not be compressed
+SET GLOBAL binlog_transaction_compression = OFF;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+FLUSH LOGS;
+--copy_file $binlog_file $tmp_binlog_file
+
+DROP TABLE t1;
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+--exec $MYSQL_BINLOG $tmp_binlog_file | $MYSQL test
+
+# assert that we have the stats on the table
+--let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = '$compression_type'`
+--let $assert_cond = $nrows = 0
+--let $assert_text = Number of rows in $pfs_table where log_type='BINARY' AND compression = '$compression_type' is 0
 --source include/assert.inc
 
-# clean up the binlog
-RESET MASTER;
+--let $nrows = `SELECT COUNT(*) FROM $pfs_table WHERE log_type = 'BINARY' AND compression_type = 'NONE'`
+--let $assert_cond = $nrows = 1
+--let $assert_text = Number of rows in $pfs_table where log_type='BINARY' AND compression = 'NONE' is 1
+--source include/assert.inc
 
-# enabling result and query log back
---enable_result_log
---enable_query_log
+--remove_file $tmp_binlog_file
+DROP TABLE t1;
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+#
+# Test 4: If session disables binlog, then no entry in the performance schema
+#
+
+--let $i=2
+while ($i>0)
+{
+  RESET MASTER;
+  --eval TRUNCATE $pfs_table
+
+
+  if ($i == 2)
+  {
+    # transactions executed in this session shall be compressed
+    --let $onoff = ON
+  }
+
+  if ($i == 1)
+  {
+    # transactions executed in this session shall not be compressed
+    --let $onoff = OFF
+  }
+
+  --eval SET SESSION binlog_transaction_compression = $onoff;
+
+  SET SESSION SQL_LOG_BIN=0;
+  CREATE TABLE t1 (c1 INT);
+  INSERT INTO t1 VALUES (1);
+  DROP TABLE t1;
+  SET SESSION SQL_LOG_BIN=1;
+
+  # assert that we have the stats on the table
+  --let $nrows = `SELECT COUNT(*) FROM $pfs_table`
+  --let $assert_cond = $nrows = 0
+  --let $assert_text = No rows in the performance schema table.
+  --source include/assert.inc
+
+  --dec $i
+}
+
+RESET MASTER;
+--eval TRUNCATE $pfs_table
+
+#
+# Clean up
+#
+--replace_result $saved_binlog_transaction_compression_session_master SAVED
+--eval SET SESSION binlog_transaction_compression = $saved_binlog_transaction_compression_session_master
+
+--replace_result $saved_binlog_transaction_compression_session_master SAVED
+--eval SET GLOBAL binlog_transaction_compression = $saved_binlog_transaction_compression_global_master

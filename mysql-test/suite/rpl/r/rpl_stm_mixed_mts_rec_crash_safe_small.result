@@ -587,8 +587,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (7, 4)
@@ -604,8 +604,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (8, 4)
@@ -621,8 +621,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 2)
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (9, 4)
@@ -638,8 +638,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 2)
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (10, 4)
@@ -655,8 +655,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (11, 4)
@@ -672,8 +672,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (12, 4)
@@ -689,8 +689,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 2)
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (13, 4)
@@ -706,8 +706,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 2)
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (14, 4)
@@ -723,8 +723,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (15, 4)
@@ -740,8 +740,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (16, 4)
@@ -757,8 +757,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 2)
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (17, 4)
@@ -774,8 +774,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 2)
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (18, 4)
@@ -791,8 +791,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 2)
 master-bin.000001	#	Query	#	#	use `test_1`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (19, 4)
@@ -808,8 +808,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 2)
 master-bin.000001	#	Query	#	#	use `test_2`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (20, 4)
@@ -825,8 +825,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 2)
 master-bin.000001	#	Query	#	#	use `test_3`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (21, 4)
@@ -842,8 +842,8 @@ INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2);
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4);
 COMMIT;
 -b-b-b-b-b-b-b-b-b-b-b- >> B T T C << -b-b-b-b-b-b-b-b-b-b-b-
+include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= Gtid_set
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 2)
 master-bin.000001	#	Query	#	#	use `test_4`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (22, 4)

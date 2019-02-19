@@ -871,6 +871,9 @@ ENDIF()
 SET(BINLOG_SOURCE
   basic_istream.cc
   basic_ostream.cc
+  binlog/global.cc
+  binlog/monitoring/context.cc
+  binlog/tools/iterators.cc
   binlog.cc
   binlog_istream.cc
   binlog_ostream.cc

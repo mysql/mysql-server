@@ -96,6 +96,10 @@ DELIMITER ;|
 --let $binlog_start= $saved_master_pos
 # print the top five events.
 --let $binlog_limit= 5
+if (`SELECT @@session.binlog_transaction_compression = TRUE`)
+{
+  --let $binlog_limit = `SELECT $binlog_limit + 1`
+}
 --source include/show_binlog_events.inc
 
 --source include/sync_slave_sql_with_master.inc
