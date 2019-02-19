@@ -108,6 +108,9 @@ INSERT INTO t1 VALUES (1);
 --let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Switch: executing Primary election%"
 --source include/wait_condition.inc
 
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.events_stages_current WHERE event_name LIKE "%Primary Election: applying buffered transactions%"
+--source include/wait_condition.inc
+
 
 --echo
 --echo ############################################################
