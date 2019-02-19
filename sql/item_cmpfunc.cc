@@ -5602,6 +5602,7 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
 
   String buf;
   String *escape_str = escape_item->val_str(&buf);
+  if (thd->is_error()) return true;
   if (escape_str) {
     const char *escape_str_ptr = escape_str->ptr();
     if (escape_used_in_parsing &&

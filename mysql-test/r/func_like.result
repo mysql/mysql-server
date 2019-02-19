@@ -318,3 +318,8 @@ SELECT 'aa' LIKE CONVERT('%a' USING utf8);
 1
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+#
+# Bug#29368521: ASSERTION `!THD->IS_ERROR()' FAILED
+#
+SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
