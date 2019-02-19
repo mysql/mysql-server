@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 # by C++ vs. Java. Tthis causes warnings about "type qualifiers ignored
 # on function return type" (which is turned on by -Wextra in maintainer.cmake).
 # Avoid the superfluous warnings by turning them off.
-MY_CHECK_CXX_COMPILER_FLAG("-Wignored-qualifiers" HAVE_IGNORED_QUALIFIERS)
-IF(HAVE_IGNORED_QUALIFIERS)
+MY_CHECK_CXX_COMPILER_WARNING("ignored-qualifiers" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
   MESSAGE(STATUS "Turning off ignored qualifier warnings for jtie tests")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-ignored-qualifiers")
+  STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
 ENDIF()
 
 ADD_SUBDIRECTORY(myapi)

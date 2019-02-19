@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -152,15 +152,13 @@ endif()
 
 # Disable certain compiler warnings
 FOREACH(warning
-        "unused-parameter"
-        "cast-function-type"
-        "undefined-reinterpret-cast"
-       )
-  STRING(REPLACE "-" "_" warning_ ${warning})
-  STRING(TOUPPER ${warning_} WARNING)
-  CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
-  IF(HAVE_${WARNING})
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+    "unused-parameter"
+    "cast-function-type"
+    "undefined-reinterpret-cast"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
   ENDIF()
 ENDFOREACH()
 
