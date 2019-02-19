@@ -154,7 +154,8 @@ bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
   /* length == 0 : nothing to encrypt */
   if (length == 0) DBUG_RETURN(false);
 
-  if (EVP_Cipher(m_ctx, dest, src, length) == 0) DBUG_RETURN(true);
+  if (EVP_Cipher(m_ctx, dest, const_cast<unsigned char *>(src), length) == 0)
+    DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
