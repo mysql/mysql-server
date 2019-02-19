@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,6 +108,9 @@ class Gtid_table_access_context : public System_table_access {
   Open_tables_backup m_backup;
   /* Save binlog options. */
   ulonglong m_tmp_disable_binlog__save_options;
+  /* Whether or not `THD::set_skip_readonly_check` was invoked during `THD`
+     initialization */
+  bool m_skip_readonly_set{false};
 
   /* Prevent user from invoking default assignment function. */
   Gtid_table_access_context &operator=(const Gtid_table_access_context &info);

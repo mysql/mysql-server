@@ -19101,6 +19101,9 @@ ER_GRP_DELAYED_VCLE_LOGGING
 ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
   eng "Cannot grant roles to an anonymous user."
 
+ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY
+  eng "Unable to create a new binlog file: Table `mysql.gtid_executed` couldn't be opened. %s"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
