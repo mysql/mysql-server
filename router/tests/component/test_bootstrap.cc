@@ -112,7 +112,8 @@ using mysql_harness::SidPtr;
 
 static void check_ace_access_rights_local_service(
     const std::string &file_name, ACCESS_ALLOWED_ACE *access_ace,
-    const bool read_only) {
+    const bool read_only, bool& is_local_service_ace) {
+  is_local_service_ace = false;
   SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
   DWORD sid_size = SECURITY_MAX_SID_SIZE;
   SidPtr local_service_sid(static_cast<SID *>(std::malloc(sid_size)));
@@ -148,6 +149,8 @@ static void check_ace_access_rights_local_service(
                << "(Write privilege for Local Service user missing).";
       }
     }
+
+    is_local_service_ace = true;
   }
 }
 
@@ -162,6 +165,7 @@ static void check_acl_access_rights_local_service(const std::string &file_name,
                              std::to_string(GetLastError()));
   }
 
+  bool checked_local_service_ace = false;
   for (DWORD ace_idx = 0; ace_idx < dacl_size_info.AceCount; ++ace_idx) {
     LPVOID ace = nullptr;
 
@@ -171,10 +175,17 @@ static void check_acl_access_rights_local_service(const std::string &file_name,
       continue;
     }
 
-    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE)
+    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE) {
+      bool is_local_service_ace;
       check_ace_access_rights_local_service(
-          file_name, static_cast<ACCESS_ALLOWED_ACE *>(ace), read_only);
+          file_name, static_cast<ACCESS_ALLOWED_ACE *>(ace), read_only, is_local_service_ace);
+      checked_local_service_ace |= is_local_service_ace;
+    }
   }
+
+  if (!checked_local_service_ace)
+    FAIL() << "Permissions not set for user 'LocalService' on file '"
+           << file_name << "'.";
 }
 
 static void check_security_descriptor_access_rights(
