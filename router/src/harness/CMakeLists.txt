@@ -62,30 +62,45 @@ SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
 SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
                         ${SSL_INCLUDE_DIRS})
 
-SET(GENERATED_SOURCES
-  ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/src/dynamic_state_schema.h
-  )
-  
-SET_SOURCE_FILES_PROPERTIES(${GENERATED_SOURCES} PROPERTIES GENERATED TRUE)
+# Generate dynamic_state_schema.cc
+# With *one* common custom command, generating dynamic_state_schema.[cc|h]
+# we had spurious build failures on Windows:
+# CustomBuild: Failed to open output file 'dynamic_state_schema.cc':
+# Permission denied
+# Seems like Visual Studio wants to generate dynamic_state_schema.cc
+# at least twice, once for the static library, once for the dynamic one.
+# If both generation jobs run simultaneously, one of them may fail.
+# The solution is to have separate commands, for the STATIC and SHARED targets.
+FUNCTION(ADD_DYNAMIC_STATE_SCHEMA_COMMAND SHARED_OR_STATIC)
+  SET(SUBDIR src_${SHARED_OR_STATIC})
+  SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}/dynamic_state_schema.h
+    )
+  SET(GENERATED_SOURCES_${SHARED_OR_STATIC}
+    ${GENERATED_SOURCES_${SHARED_OR_STATIC}} PARENT_SCOPE)
+  SET_SOURCE_FILES_PROPERTIES(${GENERATED_SOURCES_${SHARED_OR_STATIC}}
+    PROPERTIES GENERATED TRUE)
+  FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR})
 
-#generate dynamic_state_schema.cc
-FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/src/)
-ADD_CUSTOM_COMMAND(OUTPUT ${GENERATED_SOURCES}
-                   COMMAND json_schema_embedder
-                     ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_state_schema.js
-                     dynamic_state_schema.cc
-                     dynamic_state_schema.h
-                     "StateFileJsonSchema"
-                   WORKING_DIRECTORY src/
-                   DEPENDS json_schema_embedder)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT ${GENERATED_SOURCES_${SHARED_OR_STATIC}}
+    COMMAND json_schema_embedder
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/dynamic_state_schema.js
+    dynamic_state_schema.cc
+    dynamic_state_schema.h
+    "StateFileJsonSchema"
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${SUBDIR}
+    COMMENT "Generating sources for ${SHARED_OR_STATIC} harness library"
+    DEPENDS json_schema_embedder)
+ENDFUNCTION()
 
-ADD_CUSTOM_TARGET(GenerateDynamicStateSchema DEPENDS ${GENERATED_SOURCES})
+ADD_DYNAMIC_STATE_SCHEMA_COMMAND(SHARED)
+ADD_DYNAMIC_STATE_SCHEMA_COMMAND(STATIC)
 
 SET(harness_source
   src/loader.cc src/utilities.cc src/config_parser.cc src/designator.cc
   src/dynamic_state.cc
-  src/dynamic_state_schema.cc
   src/loader_config.cc
   src/common.cc
   src/filesystem.cc
@@ -156,10 +171,11 @@ CONFIGURE_FILE(plugin.h.in ${MySQLRouter_BINARY_DIR}/${INSTALL_INCLUDE_DIR}/plug
   ESCAPE_QUOTES @ONLY)
 
 # create harness library - static version
-ADD_LIBRARY(harness-archive STATIC ${harness_source})
-ADD_DEPENDENCIES(harness-archive GenerateDynamicStateSchema)
+ADD_LIBRARY(harness-archive STATIC
+  ${harness_source} ${GENERATED_SOURCES_STATIC})
 TARGET_LINK_LIBRARIES(harness-archive ${common_libraries})
-TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/src/)
+TARGET_INCLUDE_DIRECTORIES(harness-archive PUBLIC
+  include ${CMAKE_CURRENT_BINARY_DIR}/src_STATIC)
 IF(WIN32)
   SET_TARGET_PROPERTIES(harness-archive PROPERTIES
     COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
@@ -169,10 +185,11 @@ IF(THREADS_HAVE_PTHREAD_ARG)
 ENDIF()
 
 # create harness library - dynamic version
-ADD_LIBRARY(harness-library SHARED ${harness_source})
-ADD_DEPENDENCIES(harness-library GenerateDynamicStateSchema)
+ADD_LIBRARY(harness-library SHARED
+  ${harness_source} ${GENERATED_SOURCES_SHARED})
 TARGET_LINK_LIBRARIES(harness-library ${common_libraries})
-TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/src/)
+TARGET_INCLUDE_DIRECTORIES(harness-library PUBLIC
+  include ${CMAKE_CURRENT_BINARY_DIR}/src_SHARED)
 
 generate_export_header(harness-library
   BASE_NAME HARNESS
