@@ -4697,13 +4697,13 @@ inline bool is_blob(enum_field_types sql_type) {
 */
 const char *get_field_name_or_expression(THD *thd, const Field *field);
 
-/*
+/**
   Perform per item-type checks to determine if the expression is allowed for
   a generated column, default value expression, a functional index or a check
   constraint. Note that validation of the specific function is done later in
   procedures open_table_from_share and fix_value_generators_fields.
 
-  @param expr                 the expression to check for validity
+  @param expression           the expression to check for validity
   @param name                 used for error reporting
   @param source               Source of value generator(a generated column, a
                               regular column with generated default value or

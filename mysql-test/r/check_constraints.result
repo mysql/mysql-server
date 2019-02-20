@@ -1506,12 +1506,12 @@ DROP PROCEDURE proc;
 # User variable
 SET @v = 10;
 CREATE TABLE t1 (id INT CHECK (id != @v));
-ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variables.
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
 # System variables.
 CREATE TABLE t1 (id INT CHECK (id != @@global.max_execution_time));
-ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variables.
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
 CREATE TABLE t1 (id INt CHECK (id != @@session.max_execution_time));
-ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variables.
+ERROR HY000: An expression of a check constraint 't1_chk_1' cannot refer to a user or system variable.
 # Subquery
 CREATE TABLE t1 (id INT CHECK (id != (SELECT 1)));
 ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
@@ -2233,9 +2233,31 @@ SELECT * FROM t2;
 c1	c2
 1	5
 DROP TRIGGER after_t2_update;
+CREATE TRIGGER before_t1_insert
+BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+IF (NEW.c2 >= 10) THEN
+SET NEW.c2 = 0;
+END IF;
+END
+//
+CREATE TRIGGER before_t1_update
+BEFORE UPDATE ON t1
+FOR EACH ROW
+BEGIN
+IF (NEW.c2 >= 10) THEN
+SET NEW.c2 = 0;
+END IF;
+END
+//
+INSERT INTO t1 VALUES(1, 11);
+UPDATE t1 SET c2 = 11 WHERE c1 = 1;
+DROP TRIGGER before_t1_insert;
+DROP TRIGGER before_t1_update;
 DROP TABLE t1,t2;
 #-----------------------------------------------------------------------
-# Test case to verify check constraint with triggers old style.
+# Test case uses triggers to work as check constraints.
 #-----------------------------------------------------------------------
 CREATE TABLE t1(c1 int CONSTRAINT ck1 CHECK(c1 < 5));
 CREATE PROCEDURE proc1 (IN val1 INT)
@@ -2611,3 +2633,83 @@ c1	c2
 1	5
 DROP VIEW v1;
 DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Test case to verify error reporting when check constraint evaluation
+# fails due to type conversion issue.
+#-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 CHAR(10) CHECK (f1 < 10));
+INSERT INTO t1 VALUES ("xy");
+ERROR HY000: Check constraint 't1_chk_1' is violated.
+# Show warnings lists error reported for type conversion issue too.
+SHOW WARNINGS;
+Level	Code	Message
+Error	1292	Truncated incorrect DOUBLE value: 'xy'
+Error	3820	Check constraint 't1_chk_1' is violated.
+DROP TABLE t1;
+#-----------------------------------------------------------------------
+# Bug#29191994 - MULTIPLE CONSTRAINTS ARE NOT ACCEPTED WHEN FIRST IS
+#                CHECK CONSTRAINT IN COLUMN.
+#-----------------------------------------------------------------------
+CREATE TABLE t1(a INTEGER CHECK (a > 0) NOT NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t1_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2(a INTEGER CHECK (a > 0) UNIQUE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  CONSTRAINT `t2_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3(a INTEGER CHECK (a > 0) PRIMARY KEY);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  CONSTRAINT `t3_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t4(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t4_chk_1` CHECK ((`a` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t5(a INTEGER CHECK (a > 0) NOT ENFORCED NOT NULL);
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  CONSTRAINT `t5_chk_1` CHECK ((`a` > 0)) /*!80016 NOT ENFORCED */
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t6(a INTEGER CHECK (a > 0) UNIQUE CHECK (a IS NOT NULL) NULL CHECK (a < 100));
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  CONSTRAINT `t6_chk_1` CHECK ((`a` > 0)),
+  CONSTRAINT `t6_chk_2` CHECK ((`a` is not null)),
+  CONSTRAINT `t6_chk_3` CHECK ((`a` < 100))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t7(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+# [NOT] ENFORCED must follow check constraint clause. Error is reported otherwise.
+CREATE TABLE t8(a INTEGER ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' ENFORCED)' at line 1
+CREATE TABLE t8(a INTEGER NOT ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOT ENFORCED)' at line 1
+CREATE TABLE t8(a INTEGER AUTO_INCREMENT NOT ENFORCED);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NOT ENFORCED)' at line 1
+# Error is reported if column check constraints reference other columns of the
+# table. Following cases verify the same when multiple check constraints are
+# defined for a column.
+CREATE TABLE t8(a INTEGER, b INTEGER CHECK (a + b > 0) UNIQUE CHECK ( a - b < 1000));
+ERROR HY000: Column check constraint 't8_chk_1' references other column.
+CREATE TABLE t7(a INTEGER, b INTEGER CHECK (b > 0) UNIQUE CHECK ( a - b < 1000));
+ERROR HY000: Column check constraint 't7_chk_2' references other column.
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;

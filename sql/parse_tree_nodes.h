@@ -3272,18 +3272,6 @@ class PT_check_constraint final : public PT_table_constraint_def {
   void set_column_name(const LEX_STRING &name) { cc_spec.column_name = name; }
 
   bool contextualize(Table_ddl_parse_context *pc) override {
-    /*
-      On slave, add check constraint only if master server is on version
-      supporting check constraints. Check constraint support is introduced
-      in 80016.
-    */
-    THD *thd = pc->thd;
-    if ((thd->system_thread &
-         (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
-        (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
-         thd->variables.original_server_version < 80016))
-      return false;
-
     if (super::contextualize(pc) ||
         cc_spec.check_expr->itemize(pc, &cc_spec.check_expr))
       return true;
@@ -3301,22 +3289,19 @@ class PT_column_def : public PT_table_element {
 
   const LEX_STRING field_ident;
   PT_field_def_base *field_def;
-  // For column check constraint.
-  PT_check_constraint *opt_column_constraint{nullptr};
+  // Currently we ignore that constraint in the executor.
+  PT_table_constraint_def *opt_column_constraint;
 
   const char *opt_place;
 
  public:
   PT_column_def(const LEX_STRING &field_ident, PT_field_def_base *field_def,
-                PT_table_constraint_def *column_constraint,
+                PT_table_constraint_def *opt_column_constraint,
                 const char *opt_place = NULL)
-      : field_ident(field_ident), field_def(field_def), opt_place(opt_place) {
-    if (column_constraint) {
-      opt_column_constraint =
-          down_cast<PT_check_constraint *>(column_constraint);
-      opt_column_constraint->set_column_name(field_ident);
-    }
-  }
+      : field_ident(field_ident),
+        field_def(field_def),
+        opt_column_constraint(opt_column_constraint),
+        opt_place(opt_place) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 };

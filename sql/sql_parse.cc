@@ -5280,43 +5280,45 @@ bool mysql_test_parse_for_slave(THD *thd) {
 /**
   Store field definition for create.
 
-  @param thd                    The thread handler.
-  @param field_name             The field name.
-  @param type                   The type of the field.
-  @param length                 The length of the field or NULL.
-  @param decimals               The length of a decimal part or NULL.
-  @param type_modifier          Type modifiers & constraint flags of the field.
-  @param default_value          The default value or NULL.
-  @param on_update_value        The ON UPDATE expression or NULL.
-  @param comment                The comment.
-  @param change                 The old column name (if renaming) or NULL.
-  @param interval_list          The list of ENUM/SET values or NULL.
-  @param cs                     The character set of the field.
-  @param has_explicit_collation Column has an explicit COLLATE attribute.
-  @param uint_geom_type         The GIS type of the field.
-  @param gcol_info              The generated column data or NULL.
-  @param default_val_expr       The expression for generating default values,
-                                if there is one, or nullptr.
-  @param opt_after              The name of the field to add after or
-                                the @see first_keyword pointer to insert first.
-  @param srid                   The SRID for this column (only relevant if this
-                                is a geometry column).
-  @param hidden                 Whether or not this field shoud be hidden.
+  @param thd                       The thread handler.
+  @param field_name                The field name.
+  @param type                      The type of the field.
+  @param length                    The length of the field or NULL.
+  @param decimals                  The length of a decimal part or NULL.
+  @param type_modifier             Type modifiers & constraint flags of the
+                                   field.
+  @param default_value             The default value or NULL.
+  @param on_update_value           The ON UPDATE expression or NULL.
+  @param comment                   The comment.
+  @param change                    The old column name (if renaming) or NULL.
+  @param interval_list             The list of ENUM/SET values or NULL.
+  @param cs                        The character set of the field.
+  @param has_explicit_collation    Column has an explicit COLLATE attribute.
+  @param uint_geom_type            The GIS type of the field.
+  @param gcol_info                 The generated column data or NULL.
+  @param default_val_expr          The expression for generating default values,
+                                   if there is one, or nullptr.
+  @param opt_after                 The name of the field to add after or
+                                   the @see first_keyword pointer to insert
+                                   first.
+  @param srid                      The SRID for this column (only relevant if
+                                   this is a geometry column).
+  @param col_check_const_spec_list List of column check constraints.
+  @param hidden                    Whether or not this field shoud be hidden.
 
   @return
     Return 0 if ok
 */
-bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
-                           enum_field_types type, const char *length,
-                           const char *decimals, uint type_modifier,
-                           Item *default_value, Item *on_update_value,
-                           LEX_STRING *comment, const char *change,
-                           List<String> *interval_list, const CHARSET_INFO *cs,
-                           bool has_explicit_collation, uint uint_geom_type,
-                           Value_generator *gcol_info,
-                           Value_generator *default_val_expr,
-                           const char *opt_after, Nullable<gis::srid_t> srid,
-                           dd::Column::enum_hidden_type hidden) {
+bool Alter_info::add_field(
+    THD *thd, const LEX_STRING *field_name, enum_field_types type,
+    const char *length, const char *decimals, uint type_modifier,
+    Item *default_value, Item *on_update_value, LEX_STRING *comment,
+    const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
+    bool has_explicit_collation, uint uint_geom_type,
+    Value_generator *gcol_info, Value_generator *default_val_expr,
+    const char *opt_after, Nullable<gis::srid_t> srid,
+    Sql_check_constraint_spec_list *col_check_const_spec_list,
+    dd::Column::enum_hidden_type hidden) {
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
 
@@ -5411,6 +5413,24 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
     flags |= Alter_info::ALTER_COLUMN_ORDER;
     new_field->after = (char *)(opt_after);
   }
+
+  if (col_check_const_spec_list) {
+    /*
+      Set column name, required for column check constraint validation in
+      Sql_check_constraint_spec::pre_validate().
+    */
+    for (auto &cc_spec : *col_check_const_spec_list) {
+      cc_spec->column_name = *field_name;
+    }
+    /*
+      Move column check constraint specifications to table check constraints
+      specfications list.
+    */
+    std::move(col_check_const_spec_list->begin(),
+              col_check_const_spec_list->end(),
+              std::back_inserter(check_constraint_spec_list));
+  }
+
   DBUG_RETURN(0);
 }
 

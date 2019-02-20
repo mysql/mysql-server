@@ -226,7 +226,7 @@ bool check_record(THD *thd, Field **ptr);
   @param  table                 Instance of TABLE.
 
   @retval  false  If all enforced check constraints are satisfied.
-  @retval  true   Otherwise.
+  @retval  true   Otherwise. THD::is_error() may be "true" in this case.
 */
 bool invoke_table_check_constraints(THD *thd, const TABLE *table);
 

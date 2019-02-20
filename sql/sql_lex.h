@@ -2285,7 +2285,6 @@ union YYSTYPE {
     Item *expr;
   } sp_default;
   class PT_field_def_base *field_def;
-  class PT_check_constraint *check_constraint;
   struct {
     fk_option fk_update_opt;
     fk_option fk_delete_opt;

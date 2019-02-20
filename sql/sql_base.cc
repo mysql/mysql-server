@@ -9142,13 +9142,25 @@ static bool check_inserting_record(THD *thd, Field **ptr) {
   @param  table                 Instance of TABLE.
 
   @retval  false  If all enforced check constraints are satisfied.
-  @retval  true   Otherwise.
+  @retval  true   Otherwise. THD::is_error() may be "true" in this case.
 */
 
 bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
   if (table->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table->table_check_constraint_list) {
       if (table_cc->is_enforced()) {
+        /*
+          Invoke check constraints only if column(s) used by check constraint is
+          updated.
+        */
+        if ((thd->lex->sql_command == SQLCOM_UPDATE ||
+             thd->lex->sql_command == SQLCOM_UPDATE_MULTI) &&
+            !bitmap_is_subset(&table_cc->value_generator()->base_columns_map,
+                              const_cast<TABLE *>(table)->write_set)) {
+          DEBUG_SYNC(thd, "skip_check_constraints_on_unaffected_columns");
+          continue;
+        }
+
         /*
           Set the columns used by the enforced check constraint expression in
           the TABLE read_set.
@@ -9165,18 +9177,11 @@ bool invoke_table_check_constraints(THD *thd, const TABLE *table) {
           If check constraint is violated then report an error. If expression
           operand types are incompatible and reported error in conversion even
           then report a more user friendly error. Sql_conditions of DA still has
-          a conversion error in the error stack.
+          a conversion(actual reported) error in the error stack.
          */
         if (is_constraint_violated || thd->is_error()) {
           if (thd->is_error()) thd->clear_error();
-          const char *cc_name = table_cc->name().str;
-          /*
-            Use actual check constraint name to report error if constraint
-            names ares adjusted for the operation.
-          */
-          if (thd->m_cc_adjusted_names_map != nullptr)
-            cc_name = thd->m_cc_adjusted_names_map->actual_name(cc_name);
-          my_error(ER_CHECK_CONSTRAINT_VIOLATED, MYF(0), cc_name);
+          my_error(ER_CHECK_CONSTRAINT_VIOLATED, MYF(0), table_cc->name().str);
           return true;
         }
       }

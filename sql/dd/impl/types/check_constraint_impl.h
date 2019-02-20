@@ -111,6 +111,26 @@ class Check_constraint_impl : public Entity_object_impl,
   }
 
   /////////////////////////////////////////////////////////////////////////
+  // Alter mode ( true / false).
+  // Set during ALTER TABLE operation. In alter mode, alias_name is stored
+  // in data-dictionary to avoid name conflicts.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_alter_mode() const override { return m_alter_mode; }
+
+  void set_alter_mode(bool alter_mode) override { m_alter_mode = alter_mode; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // Alias check constriaint name.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const String_type &alias_name() const { return m_alias_name; }
+
+  virtual void set_alias_name(const String_type &alias_name) {
+    m_alias_name = alias_name;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
@@ -146,6 +166,8 @@ class Check_constraint_impl : public Entity_object_impl,
   enum_constraint_state m_constraint_state{CS_ENFORCED};
   String_type m_check_clause;
   String_type m_check_clause_utf8;
+  bool m_alter_mode{false};
+  String_type m_alias_name;
   Object_id m_schema_id;
 
   // References to the Table object.

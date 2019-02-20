@@ -123,7 +123,9 @@ bool Check_constraint_impl::restore_attributes(const Raw_record &r) {
 
 bool Check_constraint_impl::store_attributes(dd::Raw_record *r) {
   return store_id(r, Check_constraints::FIELD_ID) ||
-         store_name(r, Check_constraints::FIELD_NAME) ||
+         (is_alter_mode()  // Store alias name in alter mode.
+              ? r->store(Check_constraints::FIELD_NAME, m_alias_name)
+              : store_name(r, Check_constraints::FIELD_NAME)) ||
          r->store(Check_constraints::FIELD_SCHEMA_ID, m_table->schema_id()) ||
          r->store(Check_constraints::FIELD_TABLE_ID, m_table->id()) ||
          r->store(Check_constraints::FIELD_ENFORCED, m_constraint_state) ||
@@ -164,14 +166,17 @@ bool Check_constraint_impl::deserialize(Sdi_rcontext *rctx,
 
 void Check_constraint_impl::debug_print(String_type &outb) const {
   dd::Stringstream_type ss;
-  ss << "VIEW TABLE OBJECT: { "
+  ss << "CHECK CONSTRAINT OBJECT: { "
      << "m_id: {OID: " << id() << "}; "
      << "m_schema_id: {OID: " << m_table->schema_id() << "}; "
      << "m_table: {OID: " << m_table->id() << "}; "
      << "m_name: " << name() << ";"
      << "m_constraint_state: " << m_constraint_state << "; "
      << "m_check_clause: <excluded from output>; "
-     << "m_check_clause_utf8: " << m_check_clause_utf8 << "; ";
+     << "m_check_clause_utf8: " << m_check_clause_utf8 << "; "
+     << "m_alter_mode: " << m_alter_mode << "; "
+     << "m_alias_name: " << m_alias_name << "; "
+     << " }";
 
   outb = ss.str();
 }
@@ -185,6 +190,8 @@ Check_constraint_impl::Check_constraint_impl(const Check_constraint_impl &src,
       m_constraint_state(src.m_constraint_state),
       m_check_clause(src.m_check_clause),
       m_check_clause_utf8(src.m_check_clause_utf8),
+      m_alter_mode(src.m_alter_mode),
+      m_alias_name(src.m_alias_name),
       m_schema_id(src.m_schema_id),
       m_table(parent) {}
 

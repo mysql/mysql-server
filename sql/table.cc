@@ -2373,7 +2373,7 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
   // functional index names. Since functional indexes is implemented as
   // indexed hidden generated columns, we may end up printing out the
   // auto-generated column name if we don't have an extra error handler.
-  if (source == VGS_GENERATED_COLUMN || source == VGS_DEFAULT_EXPRESSION)
+  if (source == VGS_GENERATED_COLUMN)
     functional_index_error_handler =
         std::unique_ptr<Functional_index_error_handler>(
             new Functional_index_error_handler(field, thd));
@@ -2607,8 +2607,7 @@ bool unpack_value_generator(THD *thd, TABLE *table,
   */
   *val_generator = parser_state.result;
   /* Keep attribute of generated column */
-  if (source == VGS_GENERATED_COLUMN || source == VGS_DEFAULT_EXPRESSION)
-    (*val_generator)->set_field_stored(field->stored_in_db);
+  if (field != nullptr) (*val_generator)->set_field_stored(field->stored_in_db);
 
   DBUG_ASSERT((*val_generator)->expr_item && !(*val_generator)->expr_str.str);
 
@@ -3124,17 +3123,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               name, expr_str, cc_share->is_enforced(), val_gen, outparam);
       if (table_cc == nullptr) goto err;  // OOM
 
-      /*
-        Use actual name for error reporting if check constraint name is
-        adjusted for the operation.
-      */
-      const char *cc_name = table_cc->name().str;
-      if (thd->m_cc_adjusted_names_map != nullptr)
-        cc_name = thd->m_cc_adjusted_names_map->actual_name(cc_name);
-
       // Unpack check constraint expression.
       if (unpack_value_generator(thd, outparam, &val_gen, VGS_CHECK_CONSTRAINT,
-                                 cc_name, nullptr, is_create_table,
+                                 table_cc->name().str, nullptr, is_create_table,
                                  &error_reported))
         goto err;
 

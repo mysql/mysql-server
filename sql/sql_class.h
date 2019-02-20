@@ -2432,12 +2432,6 @@ class THD : public MDL_context_owner,
   // We don't want to load/unload plugins for unit tests.
   bool m_enable_plugins;
 
-  /*
-    Map of check constraints adjusted names to actual names. Needed for error
-    reporting during ALTER TABLE.
-  */
-  Check_constraints_adjusted_names_map *m_cc_adjusted_names_map{nullptr};
-
   THD(bool enable_plugins = true);
 
   /*

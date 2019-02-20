@@ -1671,11 +1671,43 @@ UPDATE t2 SET c2=20 WHERE c1=1;
 SELECT * FROM t1;
 SELECT * FROM t2;
 DROP TRIGGER after_t2_update;
+
+# before insert trigger to adjust value to pass check constraint.
+DELIMITER //;
+CREATE TRIGGER before_t1_insert
+  BEFORE INSERT ON t1
+  FOR EACH ROW
+  BEGIN
+    IF (NEW.c2 >= 10) THEN
+      SET NEW.c2 = 0;
+    END IF;
+  END
+//
+
+# before update trigger to adjust value to pass check constraint.
+CREATE TRIGGER before_t1_update
+  BEFORE UPDATE ON t1
+  FOR EACH ROW
+  BEGIN
+    IF (NEW.c2 >= 10) THEN
+      SET NEW.c2 = 0;
+    END IF;
+  END
+//
+DELIMITER ;//
+
+# Check constraint violation error is not reported for following statements as
+# triggers adjusts the value to pass check constraint.
+INSERT INTO t1 VALUES(1, 11);
+UPDATE t1 SET c2 = 11 WHERE c1 = 1;
+
+DROP TRIGGER before_t1_insert;
+DROP TRIGGER before_t1_update;
 DROP TABLE t1,t2;
 
 
 --echo #-----------------------------------------------------------------------
---echo # Test case to verify check constraint with triggers old style.
+--echo # Test case uses triggers to work as check constraints.
 --echo #-----------------------------------------------------------------------
 CREATE TABLE t1(c1 int CONSTRAINT ck1 CHECK(c1 < 5));
 
@@ -1915,3 +1947,50 @@ SELECT * FROM t1;
 SELECT * FROM v1;
 DROP VIEW v1;
 DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Test case to verify error reporting when check constraint evaluation
+--echo # fails due to type conversion issue.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1 (f1 CHAR(10) CHECK (f1 < 10));
+--error ER_CHECK_CONSTRAINT_VIOLATED
+INSERT INTO t1 VALUES ("xy");
+--echo # Show warnings lists error reported for type conversion issue too.
+SHOW WARNINGS;
+DROP TABLE t1;
+
+
+--echo #-----------------------------------------------------------------------
+--echo # Bug#29191994 - MULTIPLE CONSTRAINTS ARE NOT ACCEPTED WHEN FIRST IS
+--echo #                CHECK CONSTRAINT IN COLUMN.
+--echo #-----------------------------------------------------------------------
+CREATE TABLE t1(a INTEGER CHECK (a > 0) NOT NULL);
+SHOW CREATE TABLE t1;
+CREATE TABLE t2(a INTEGER CHECK (a > 0) UNIQUE);
+SHOW CREATE TABLE t2;
+CREATE TABLE t3(a INTEGER CHECK (a > 0) PRIMARY KEY);
+SHOW CREATE TABLE t3;
+CREATE TABLE t4(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+SHOW CREATE TABLE t4;
+CREATE TABLE t5(a INTEGER CHECK (a > 0) NOT ENFORCED NOT NULL);
+SHOW CREATE TABLE t5;
+CREATE TABLE t6(a INTEGER CHECK (a > 0) UNIQUE CHECK (a IS NOT NULL) NULL CHECK (a < 100));
+SHOW CREATE TABLE t6;
+CREATE TABLE t7(a INTEGER CHECK (a > 0) ENFORCED NOT NULL);
+--echo # [NOT] ENFORCED must follow check constraint clause. Error is reported otherwise.
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER ENFORCED);
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER NOT ENFORCED);
+--error ER_PARSE_ERROR
+CREATE TABLE t8(a INTEGER AUTO_INCREMENT NOT ENFORCED);
+--echo # Error is reported if column check constraints reference other columns of the
+--echo # table. Following cases verify the same when multiple check constraints are
+--echo # defined for a column.
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t8(a INTEGER, b INTEGER CHECK (a + b > 0) UNIQUE CHECK ( a - b < 1000));
+--error ER_COLUMN_CHECK_CONSTRAINT_REFERENCES_OTHER_COLUMN
+CREATE TABLE t7(a INTEGER, b INTEGER CHECK (b > 0) UNIQUE CHECK ( a - b < 1000));
+#Cleanup
+DROP TABLE t1,t2,t3,t4,t5,t6,t7;
