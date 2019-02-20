@@ -63,7 +63,6 @@ max_parts.partition_max_sub_parts_range_innodb @windows     : BUG#27681900 Disab
 max_parts.innodb_partition_open_files_limit                 : BUG#27423163 Test times out consistently on Hudson.
 
 # perfschema suite test
-perfschema.innodb_is_data_locks : BUG#27491547
 perfschema.threads_history      : BUG#27712231
 
 # rpl_gtid suite tests
