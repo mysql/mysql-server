@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -426,6 +426,7 @@ Ndb_move_data::Op::Op()
   updateop = 0;
   values = 0;
   buflen = 32 * 1024;
+  static_assert(32 * 1024 >= (4 * MAX_TUPLE_SIZE_IN_WORDS), "");
   require(buflen >= (4 * MAX_TUPLE_SIZE_IN_WORDS));
   buf1 = new char [buflen];
   buf2 = new char [buflen];
