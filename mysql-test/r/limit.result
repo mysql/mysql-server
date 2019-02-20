@@ -620,3 +620,24 @@ INSERT INTO t1 VALUES (1);
 SELECT t1.pk FROM (SELECT DISTINCT * FROM t1) AS t1 WHERE t1.pk=1 LIMIT 1 OFFSET 2;
 pk
 DROP TABLE t1;
+#
+# Bug #29373972: SIG 6 AT HANDLER::START_PSI_BATCH_MODE()
+#
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+EXPLAIN
+-> Limit/Offset: 2/5 row(s)
+    -> Group aggregate: json_objectagg(NULL,'')
+        -> Nested loop inner join
+            -> Sort: t1.pk
+                -> Table scan on t1
+            -> Table scan on t2
+
+SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+ERROR 22032: JSON documents may not contain NULL member names.
+FLUSH TABLES;
+DROP TABLE t1;
+set optimizer_switch=@old_opt_switch;

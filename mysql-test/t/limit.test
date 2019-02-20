@@ -296,3 +296,23 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
 INSERT INTO t1 VALUES (1);
 SELECT t1.pk FROM (SELECT DISTINCT * FROM t1) AS t1 WHERE t1.pk=1 LIMIT 1 OFFSET 2;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #29373972: SIG 6 AT HANDLER::START_PSI_BATCH_MODE()
+--echo #
+
+#
+# Set up an error that occurs during OFFSET processing, and force the table
+# to be closed so that we verify that it's not stuck in performance schema
+# batch mode.
+#
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='block_nested_loop=off';
+CREATE TABLE t1 ( pk INTEGER );
+INSERT INTO t1 VALUES (1), (2);
+EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+--error ER_JSON_DOCUMENT_NULL_KEY
+SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
+FLUSH TABLES;
+DROP TABLE t1;
+set optimizer_switch=@old_opt_switch;

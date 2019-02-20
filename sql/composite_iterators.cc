@@ -95,21 +95,63 @@ bool LimitOffsetIterator::Init() {
   if (m_source->Init()) {
     return true;
   }
-  for (ha_rows row_idx = 0; row_idx < m_offset; ++row_idx) {
-    int err = m_source->Read();
-    if (err == 1) {
-      return true;  // Note that this will propagate Read() errors to Init().
-    } else if (err == -1) {
-      m_seen_rows = m_limit;  // So that Read() will return -1.
-      return false;           // EOF is not an error.
-    }
-    if (m_skipped_rows != nullptr) {
-      ++*m_skipped_rows;
-    }
-    m_source->UnlockRow();
+  if (m_offset > 0) {
+    m_seen_rows = m_limit;
+    m_needs_offset = true;
+  } else {
+    m_seen_rows = 0;
+    m_needs_offset = false;
   }
-  m_seen_rows = m_offset;
   return false;
+}
+
+int LimitOffsetIterator::Read() {
+  if (m_seen_rows >= m_limit) {
+    // We either have hit our LIMIT, or we need to skip OFFSET rows.
+    // Check which one.
+    if (m_needs_offset) {
+      // We skip OFFSET rows here and not in Init(), since performance schema
+      // batch mode may not be set up by the executor before the first Read().
+      // This makes sure that
+      //
+      //   a) we get the performance benefits of batch mode even when reading
+      //      OFFSET rows, and
+      //   b) we don't inadvertedly enable batch mode (e.g. through the
+      //      NestedLoopIterator) during Init(), since the executor may not
+      //      be ready to _disable_ it if it gets an error before first Read().
+      for (ha_rows row_idx = 0; row_idx < m_offset; ++row_idx) {
+        int err = m_source->Read();
+        if (err != 0) {
+          // Note that we'll go back into this loop if Init() is called again,
+          // and return the same error/EOF status.
+          return err;
+        }
+        if (m_skipped_rows != nullptr) {
+          ++*m_skipped_rows;
+        }
+        m_source->UnlockRow();
+      }
+      m_seen_rows = m_offset;
+      m_needs_offset = false;
+
+      // Fall through to LIMIT testing.
+    }
+
+    if (m_seen_rows >= m_limit) {
+      // We really hit LIMIT (or hit LIMIT immediately after OFFSET finished),
+      // so EOF.
+      if (m_count_all_rows) {
+        // Count rows until the end or error (ignore the error if any).
+        while (m_source->Read() == 0) {
+          ++*m_skipped_rows;
+        }
+      }
+      return -1;
+    }
+  }
+
+  ++m_seen_rows;
+  return m_source->Read();
 }
 
 vector<RowIterator::Child> FilterIterator::children() const {
@@ -137,20 +179,6 @@ vector<RowIterator::Child> FilterIterator::children() const {
   });
 
   return ret;
-}
-
-int LimitOffsetIterator::Read() {
-  if (m_seen_rows++ >= m_limit) {
-    if (m_count_all_rows) {
-      // Count rows until the end or error (ignore the error if any).
-      while (m_source->Read() == 0) {
-        ++*m_skipped_rows;
-      }
-    }
-    return -1;
-  } else {
-    return m_source->Read();
-  }
 }
 
 bool AggregateIterator::Init() {
@@ -573,6 +601,15 @@ bool MaterializeIterator::Init() {
     Opt_trace_array trace_steps(trace, "steps");
 
     if (m_subquery_iterator->Init()) {
+      // Nothing should really enable PSI batch mode from Init(), since nothing
+      // calls Read() from Init() without also being capable of cleaning up
+      // (e.g. MaterializeIterator); see the comment in
+      // LimitOffsetIterator::Read(). Nevertheless, just to be sure, we clean up
+      // here.
+      if (m_join->qep_tab != nullptr && m_join->primary_tables > 0) {
+        QEP_TAB *last_qep_tab = &m_join->qep_tab[m_join->primary_tables - 1];
+        last_qep_tab->table()->file->end_psi_batch_mode_if_started();
+      }
       return true;
     }
 

@@ -1,7 +1,7 @@
 #ifndef SQL_COMPOSITE_ITERATORS_INCLUDED
 #define SQL_COMPOSITE_ITERATORS_INCLUDED
 
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -153,7 +153,17 @@ class LimitOffsetIterator final : public RowIterator {
 
  private:
   unique_ptr_destroy_only<RowIterator> m_source;
+
+  // Note: The number of seen rows starts off at m_limit if we have OFFSET,
+  // which means we don't need separate LIMIT and OFFSET tests on the
+  // fast path of Read().
   ha_rows m_seen_rows;
+
+  /**
+     Whether we have OFFSET rows that we still need to skip.
+   */
+  bool m_needs_offset;
+
   const ha_rows m_limit, m_offset;
   const bool m_count_all_rows;
   ha_rows *m_skipped_rows;
