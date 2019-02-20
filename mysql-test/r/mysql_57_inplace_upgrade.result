@@ -33,7 +33,7 @@ Pattern "ACL table mysql\.role_edges missing\. Some operations may fail\." found
 Pattern "ACL table mysql\.default_roles missing\. Some operations may fail\." found
 Pattern "ACL table mysql\.global_grants missing\. Some operations may fail\." found
 Pattern "ACL table mysql\.password_history missing\. Some operations may fail\." found
-Pattern "Missing system table mysql\.global_grants; please run mysql_upgrade to create it\." found
+Pattern "The system table mysql\.global_grants is missing. Please perform the MySQL upgrade procedure\." found
 Pattern "System table \'func\' is expected to be transactional\." found
 Pattern "Info table is not ready to be used\. Table \'mysql.slave_master_info\' cannot be opened\." found
 Pattern "Error in checking mysql\.slave_master_info repository info type of TABLE\." found

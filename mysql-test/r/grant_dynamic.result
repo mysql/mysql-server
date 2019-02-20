@@ -1,4 +1,4 @@
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression(".*The system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 #
 # Bug25303916 WL8131:FLUSH DOES NOT UPDATE THE GRANT STATUS IN
