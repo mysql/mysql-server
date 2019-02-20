@@ -140,9 +140,9 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
 
 /**
   This function does the following in sequence:
-    1. Load source plugin.
-    2. Load destination plugin.
-    3. Disable access to keyring service APIs.
+    1. Disable access to keyring service APIs.
+    2. Load source plugin.
+    3. Load destination plugin.
     4. Fetch all keys from source plugin and upon
        sucess store in destination plugin.
     5. Enable access to keyring service APIs.
@@ -158,25 +158,30 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
 bool Migrate_keyring::execute() {
   DBUG_ENTER("Migrate_keyring::execute");
 
+  char **tmp_m_argv;
+
+  /* Disable access to keyring service APIs */
+  if (migrate_connect_options && disable_keyring_operations()) goto error;
+
   /* Load source plugin. */
   if (load_plugin(enum_plugin_type::SOURCE_PLUGIN)) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to initialize source keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
-  /* Load destination source plugin. */
+  /* Load destination plugin. */
   if (load_plugin(enum_plugin_type::DESTINATION_PLUGIN)) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to initialize destination keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
   /* skip program name */
   m_argc--;
   /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
    * lose access to the alloced mem and hence there would be leak */
-  char **tmp_m_argv = m_argv + 1;
+  tmp_m_argv = m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1) {
     struct my_option no_opts[] = {
@@ -191,15 +196,11 @@ bool Migrate_keyring::execute() {
     }
   }
 
-  /* Disable access to keyring service APIs */
-  if (migrate_connect_options && disable_keyring_operations()) goto error;
-
   /* Fetch all keys from source plugin and store into destination plugin. */
   if (fetch_and_store_keys()) goto error;
 
   /* Enable access to keyring service APIs */
   if (migrate_connect_options) enable_keyring_operations();
-
   DBUG_RETURN(false);
 
 error:
