@@ -58,7 +58,7 @@ update t1_is set x = 2 where id = 0;
 # Wait for con2 to block
 let $wait_condition= SELECT COUNT(*) = 1  FROM performance_schema.data_locks
   where object_name="t1_is" and lock_type = "RECORD"
-  and lock_mode = "X" and lock_status = "WAITING";
+  and lock_mode = "X,REC_NOT_GAP" and lock_status = "WAITING";
 --source include/wait_condition.inc
 
 begin;
