@@ -22,6 +22,7 @@
 
 #include "sql_check_constraint.h"
 
+#include "binlog_event.h"  // UNDEFINED_SERVER_VERSION
 #include "item_func.h"     // print
 #include "mysqld_error.h"  // ER_*
 #include "sql_parse.h"     // check_string_char_length
@@ -113,4 +114,11 @@ bool Sql_check_constraint_spec::expr_refers_to_only_column(
 
 Sql_table_check_constraint::~Sql_table_check_constraint() {
   if (m_val_gen != nullptr) delete m_val_gen;
+}
+
+bool is_slave_with_master_without_check_constraints_support(THD *thd) {
+  return ((thd->system_thread &
+           (SYSTEM_THREAD_SLAVE_SQL | SYSTEM_THREAD_SLAVE_WORKER)) &&
+          (thd->variables.original_server_version == UNDEFINED_SERVER_VERSION ||
+           thd->variables.original_server_version < 80016));
 }

@@ -759,37 +759,6 @@ t_set	CREATE TABLE `t_set` (
 # Remove copied files
 # Restart the server with default options.
 # restart
-#-----------------------------------------------------------------------
-# WL#929: CHECK Constraint
-#         Test case to verify upgrade from version before check
-#         constraint suppport.
-#-----------------------------------------------------------------------
-# Copy the remote tablespace & DB zip files from suite location to working location.
-# Check that the file exists in the working folder.
-# Set different paths for --datadir
-CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
-# After upgrade CHECK_CONSTRAINTS table should be present and should list
-# check constraints.
-SELECT * FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS;
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	CHECK_CLAUSE
-def	test	t1_chk_1	(`f1` < 10)
-# After upgrade TABLE_CONSTRAINTS should list check constraints.
-SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE TABLE_NAME='t1';
-CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE	ENFORCED
-def	test	t1_chk_1	test	t1	CHECK	YES
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `f1` int(11) DEFAULT NULL,
-  CONSTRAINT `t1_chk_1` CHECK ((`f1` < 10))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-INSERT INTO t1 VALUES (100);
-ERROR HY000: Check constraint 't1_chk_1' is violated.
-DROP TABLE t1;
-# Stop the server
-# Remove copied files
-# Restart the server with default options.
-# restart
 #
 # Bug #28884503 UPGRADE FROM 5.7.23+ TO 8.0.11+ FAILS WHEN INNODB_PAGE_SIZE=4K
 #

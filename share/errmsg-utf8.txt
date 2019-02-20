@@ -8785,7 +8785,7 @@ ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
   eng "An expression of a check constraint '%-.192s' contains disallowed function."
 
 ER_CHECK_CONSTRAINT_VARIABLES
-  eng "An expression of a check constraint '%-.192s' cannot refer to a user or system variables."
+  eng "An expression of a check constraint '%-.192s' cannot refer to a user or system variable."
 
 ER_CHECK_CONSTRAINT_ROW_VALUE
   eng "Check constraint '%-.192s' cannot refer to a row value."

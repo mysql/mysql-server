@@ -213,13 +213,14 @@ static bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
                                                  Alter_info *alter_info);
 static bool prepare_check_constraints_for_create_like_table(
     THD *thd, TABLE_LIST *src_table, TABLE_LIST *table, Alter_info *alter_info);
-static bool prepare_check_constraints_for_alter(
-    THD *thd, const TABLE *table, Alter_info *alter_info,
-    Alter_table_ctx *alter_tbl_ctx,
-    Check_constraints_adjusted_names_map &cc_adjusted_names_map);
-static bool adjust_check_constraint_names(THD *thd, const char *old_table_db,
-                                          dd::Table *old_table,
-                                          dd::Table *new_table);
+static bool prepare_check_constraints_for_alter(THD *thd, const TABLE *table,
+                                                Alter_info *alter_info,
+                                                Alter_table_ctx *alter_tbl_ctx);
+static void set_check_constraints_alter_mode(dd::Table *table,
+                                             Alter_info *alter_info);
+static void reset_check_constraints_alter_mode(dd::Table *table);
+static bool adjust_check_constraint_names_for_old_table_version(
+    THD *thd, const char *old_table_db, dd::Table *old_table);
 static bool is_any_check_constraints_evaluation_required(
     const Alter_info *alter_info);
 
@@ -6140,15 +6141,8 @@ static bool prepare_foreign_key(THD *thd, HA_CREATE_INFO *create_info,
         fk_info->update_opt == FK_OPTION_CASCADE) {
       for (auto &cc_spec : alter_info->check_constraint_spec_list) {
         if (cc_spec->expr_refers_column(find->field_name)) {
-          const char *cc_name = cc_spec->name.str;
-          /*
-            Use actual name for error reporting if check constraint name is
-            adjusted for the operation.
-          */
-          if (thd->m_cc_adjusted_names_map != nullptr)
-            cc_name = thd->m_cc_adjusted_names_map->actual_name(cc_name);
           my_error(ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN,
-                   MYF(0), find->field_name, cc_name, fk_info->name);
+                   MYF(0), find->field_name, cc_spec->name.str, fk_info->name);
           DBUG_RETURN(true);
         }
       }
@@ -6442,15 +6436,8 @@ static bool prepare_preexisting_foreign_key(
         fk->update_opt == FK_OPTION_CASCADE) {
       for (auto &cc_spec : alter_info->check_constraint_spec_list) {
         if (cc_spec->expr_refers_column(sql_field->field_name)) {
-          const char *cc_name = cc_spec->name.str;
-          /*
-            Use actual name for error reporting if check constraint name is
-            adjusted for the operation.
-          */
-          if (thd->m_cc_adjusted_names_map != nullptr)
-            cc_name = thd->m_cc_adjusted_names_map->actual_name(cc_name);
           my_error(ER_CHECK_CONSTRAINT_CLAUSE_USING_FK_REFER_ACTION_COLUMN,
-                   MYF(0), sql_field->field_name, cc_name, fk->name);
+                   MYF(0), sql_field->field_name, cc_spec->name.str, fk->name);
           return true;
         }
       }
@@ -12425,8 +12412,8 @@ static bool mysql_inplace_alter_table(
 
     DEBUG_SYNC_C("alter_table_after_dd_client_drop");
 
-    if (adjust_check_constraint_names(thd, nullptr, nullptr, altered_table_def))
-      goto cleanup2;
+    // Reset check constraint's mode.
+    reset_check_constraints_alter_mode(altered_table_def);
 
     if ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
       /*
@@ -15339,17 +15326,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (create_field->change != nullptr) columns.emplace(create_field->change);
   }
 
-  // Map to store adjusted names to actual check constraint names.
-  Check_constraints_adjusted_names_map cc_adjusted_names_map;
   // Prepare check constraints for alter table operation.
-  if (prepare_check_constraints_for_alter(thd, table, alter_info, &alter_ctx,
-                                          cc_adjusted_names_map))
+  if (prepare_check_constraints_for_alter(thd, table, alter_info, &alter_ctx))
     DBUG_RETURN(true);
-  // For non-temorary table, set thd->m_cc_adjusted_names_map.
-  if (!cc_adjusted_names_map.empty())
-    thd->m_cc_adjusted_names_map = &cc_adjusted_names_map;
-  auto guard_thd_cc_adjusted_names_map =
-      create_scope_guard([&thd] { thd->m_cc_adjusted_names_map = nullptr; });
 
   if (mysql_prepare_alter_table(thd, old_table_def, table, create_info,
                                 alter_info, &alter_ctx)) {
@@ -15611,6 +15590,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
             alter_ctx.new_db, alter_ctx.tmp_name, &table_def))
       goto err_new_table_cleanup;
 
+    set_check_constraints_alter_mode(table_def, alter_info);
+
     DBUG_ASSERT(table_def);
   }
 
@@ -15822,8 +15803,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                      *table_def);
         (void)trans_intermediate_ddl_commit(thd, result);
       }
-      // Reset THD::m_cc_adjusted_names_map.
-      thd->m_cc_adjusted_names_map = nullptr;
 
       is_noop = true;
       goto end_inplace_noop;
@@ -16460,16 +16439,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     columns, backup_table, new_table))
       goto err_with_mdl; /* purecov: deadcode */
 
-    bool update = !cc_adjusted_names_map.empty();
+    bool update = (new_table->check_constraints()->size() > 0);
+    // Set mode for new_table's check constraints.
+    set_check_constraints_alter_mode(new_table, alter_info);
+
     /*
       Check constraint names are unique per schema, we cannot create them while
       both table version exists. Adjust check constraint names in old table
-      version and restore check constraint name in new version from
-      cc_adjusted_names_map.
+      version.
     */
-    if (adjust_check_constraint_names(thd, alter_ctx.db, backup_table,
-                                      new_table))
+    if (adjust_check_constraint_names_for_old_table_version(thd, alter_ctx.db,
+                                                            backup_table))
       goto err_with_mdl;
+
+    // Reset check constraint's mode.
+    reset_check_constraints_alter_mode(new_table);
 
     /*
       Since trigger names have to be unique per schema, we cannot
@@ -17442,6 +17426,15 @@ static bool prepare_check_constraints_for_create(THD *thd, const char *db_name,
   MDL_request_list cc_mdl_request_list;
   uint cc_max_generated_number = 0;
 
+  /*
+    Do not process check constraint specification list if master is on version
+    not supporting check constraints feature.
+  */
+  if (is_slave_with_master_without_check_constraints_support(thd)) {
+    alter_info->check_constraint_spec_list.clear();
+    DBUG_RETURN(false);
+  }
+
   for (auto &cc_spec : alter_info->check_constraint_spec_list) {
     // If check constraint name is omitted then generate name.
     if (cc_spec->name.length == 0) {
@@ -17577,16 +17570,13 @@ static bool prepare_check_constraints_for_create_like_table(
                                              for table being altered.
   @param            alter_tbl_ctx            Runtime context for
                                              ALTER TABLE.
-  @param[out]       cc_adjusted_names_map    Adjusted name of check constraint
-                                             to actual name map.
 
   @retval           false                    Success.
   @retval           true                     Failure.
 */
 static bool prepare_check_constraints_for_alter(
     THD *thd, const TABLE *table, Alter_info *alter_info,
-    Alter_table_ctx *alter_tbl_ctx,
-    Check_constraints_adjusted_names_map &cc_adjusted_names_map) {
+    Alter_table_ctx *alter_tbl_ctx) {
   DBUG_ENTER("prepare_check_constraints_for_alter");
   MDL_request_list cc_mdl_request_list;
   Sql_check_constraint_spec_list new_check_cons_list(thd->mem_root);
@@ -17596,8 +17586,18 @@ static bool prepare_check_constraints_for_alter(
   uint table_name_len = strlen(alter_tbl_ctx->table_name);
 
   /*
-    List of new or adjusted check constraint names. Used at STEP 9 to verify
-    check constraint names conflict with existing check constraint names.
+    Do not process check constraint specification list if master is on version
+    not supporting check constraints feature.
+  */
+  if (is_slave_with_master_without_check_constraints_support(thd)) {
+    alter_info->check_constraint_spec_list.clear();
+    DBUG_RETURN(false);
+  }
+
+  /*
+    List of check constraint names. Used after acquiring MDL locks on final list
+    of check constraints to verify if check constraint names conflict with
+    existing check constraint names.
   */
   std::vector<const char *> new_cc_names;
   auto erase_cc_name = [](std::vector<const char *> &names, const char *s) {
@@ -17608,19 +17608,18 @@ static bool prepare_check_constraints_for_alter(
   };
 
   /*
-    Step 1: Prepare check constraint specification for the existing check
-            constraints on the table.
+    Prepare check constraint specification for the existing check constraints on
+    the table.
 
-            * Get max sequence number for generated names. This is required
-              in Step 2.
+    * Get max sequence number for generated names. This is required when
+      handling new check constraints added to the table.
 
-            * If table is renamed, adjust generated check constraint names
-              to use new table name.
+    * If table is renamed, adjust generated check constraint names to use new
+      table name.
 
-            * Create MDL request on all check constraints.
-              - Also on adjusted check constraint names if table is renamed.
-              - If database changed then on all check constraints with the
-                new database.
+    * Create MDL request on all check constraints.
+      - Also on adjusted check constraint names if table is renamed.
+      - If database changed then on all check constraints with the new database.
   */
   if (table->table_check_constraint_list != nullptr) {
     for (auto &table_cc : *table->table_check_constraint_list) {
@@ -17696,15 +17695,15 @@ static bool prepare_check_constraints_for_alter(
   }
 
   /*
-    Step 2: Handle new check constraints added to the table.
+    Handle new check constraints added to the table.
 
-            * Generate name if name is not specified.
-              If table already has check constraints with generated name
-              then use sequence number from Step 1.
+    * Generate name if name is not specified.
+      If table already has check constraints with generated name then use
+      sequence number generated when handling existing check constraint names.
 
-            * pre-validate check constraint.
+    * pre-validate check constraint.
 
-            * Prepare MDL request for new check constraints.
+    * Prepare MDL request for new check constraints.
   */
   for (auto &cc_spec : alter_info->check_constraint_spec_list) {
     // If check constraint name is omitted then generate name.
@@ -17728,7 +17727,7 @@ static bool prepare_check_constraints_for_alter(
     new_cc_names.push_back(cc_spec->name.str);
   }
 
-  // Step 3: Remove specifications of check constraints marked for drop.
+  // Remove specifications of check constraints marked for drop.
   for (auto *cc_drop : alter_info->drop_list) {
     if (cc_drop->type != Alter_drop::CHECK_CONSTRAINT) {
       new_drop_list.push_back(cc_drop);
@@ -17756,8 +17755,8 @@ static bool prepare_check_constraints_for_alter(
   }
 
   /*
-     Step 4: If check constraint refers to only one column and that column
-             is marked for drop then drop check constraint too.
+    If check constraint refers to only one column and that column is marked for
+    drop then drop check constraint too.
   */
   for (auto *cc_drop : alter_info->drop_list) {
     if (cc_drop->type == Alter_drop::COLUMN) {
@@ -17774,7 +17773,7 @@ static bool prepare_check_constraints_for_alter(
     }
   }
 
-  // Step 5: Update check constraint state (i.e. enforced or not enforced).
+  // Update check constraint state (i.e. enforced or not enforced).
   for (auto *cc_state : alter_info->alter_state_list) {
     if (cc_state->type != Alter_state::Type::CHECK_CONSTRAINT) {
       new_state_list.push_back(cc_state);
@@ -17798,15 +17797,14 @@ static bool prepare_check_constraints_for_alter(
   }
 
   /*
-    Step 6: Adjust Alter_info::flags.
+    Adjust Alter_info::flags.
 
-            * Check if final list has any check constraint whose state is
-              changed from NOT ENFORCED to ENFORCED.
+    * Check if final list has any check constraint whose state is changed from
+      NOT ENFORCED to ENFORCED.
 
-            * Check if list has any new check constraints added with ENFORCED
-              state.
+    * Check if list has any new check constraints added with ENFORCED state.
 
-            * Update Alter_info::flags accordingly.
+    * Update Alter_info::flags accordingly.
   */
   bool final_enforced_state = false;
   for (auto &cc : new_check_cons_list) {
@@ -17839,27 +17837,31 @@ static bool prepare_check_constraints_for_alter(
     alter_info->flags &= ~Alter_info::ENFORCE_CHECK_CONSTRAINT;
 
   /*
-    Step 7: Adjust check constraint names to avoid name conflicts.
+    Set alter mode for each check constraint specification instance.
 
-            For non-temporary table prepare temporary check constraint names.
-            During ALTER TABLE operation, two versions of table exists and to
-            avoid check constraint name conflicts temporary names assigned to
-            newer version. Check constraint names are restored later in ALTER
-            TABLE operation. MDL request to temporary name is also created to
-            avoid creation of table with same name by concurrent operation.
-            Map from temporary name to actual name is stored in
-            cc_adjusted_names_map.
+    For non-temporary table prepare temporary check constraint names. During
+    ALTER TABLE operation, two versions of table exists and to avoid check
+    constraint name conflicts temporary(adjusted) names stored for newer
+    version and alter mode is set. Check constraint names are restored
+    later in ALTER TABLE operation. MDL request to temporary name is also
+    created to avoid creation of table with same name by concurrent operation.
 
-            * Prepare temporary name for each check constraint specification.
+    * Prepare temporary(adjusted) name for each check constraint specification.
 
-            * Prepare MDL request for each temporary name.
+    * Set alter mode for each check constraint specification.
 
-            * Store mapping between temporary to actual check constraint name.
+    * Prepare MDL request for each temporary name.
   */
   if (table->s->tmp_table == NO_TMP_TABLE) {
     ulong id = 1;
-    for (auto &cc : new_check_cons_list) {
-      char temp_name_buf[3 + 20 + 10 + 20 + 3];
+    for (Sql_check_constraint_spec *cc : new_check_cons_list) {
+      const int prefix_len = 3;  // #cc
+      const int process_id_len = 20;
+      const int thread_id_len = 10;
+      const int id_len = 20;
+      const int separator_len = 1;
+      char temp_name_buf[prefix_len + process_id_len + thread_id_len + id_len +
+                         (separator_len * 3) + 1];
       snprintf(temp_name_buf, sizeof(temp_name_buf), "#cc_%lu_%u_%lu",
                current_pid, thd->thread_id(), id++);
 
@@ -17868,16 +17870,14 @@ static bool prepare_check_constraints_for_alter(
               thd, alter_tbl_ctx->new_db, temp_name_buf, cc_mdl_request_list))
         DBUG_RETURN(true);
 
-      // Store map from adjusted name to actual name.
-      cc_adjusted_names_map.insert(temp_name_buf, cc->name.str);
-
-      cc->name.length = strlen(temp_name_buf);
-      cc->name.str =
-          strmake_root(thd->mem_root, temp_name_buf, cc->name.length);
+      cc->is_alter_mode = true;
+      cc->alias_name.length = strlen(temp_name_buf);
+      cc->alias_name.str =
+          strmake_root(thd->mem_root, temp_name_buf, cc->alias_name.length);
     }
   }
 
-  // Step 8: Acquire MDL lock on all the MDL_request prepared in this method.
+  // Acquire MDL lock on all the MDL_request prepared in this method.
   DEBUG_SYNC(thd, "before_acquiring_lock_on_check_constraints");
   if (thd->mdl_context.acquire_locks(&cc_mdl_request_list,
                                      thd->variables.lock_wait_timeout))
@@ -17885,9 +17885,8 @@ static bool prepare_check_constraints_for_alter(
   DEBUG_SYNC(thd, "after_acquiring_lock_on_check_constraints");
 
   /*
-    Step 9: Make sure new check constraint names do not conflict with any
-            existing check constraint names before starting expensive ALTER
-            operation.
+    Make sure new check constraint names do not conflict with any existing check
+    constraint names before starting expensive ALTER operation.
   */
   dd::Schema_MDL_locker mdl_locker(thd);
   const dd::Schema *new_schema = nullptr;
@@ -17925,58 +17924,89 @@ static bool prepare_check_constraints_for_alter(
 }
 
 /**
-  Make old table definition's check constraint use temporary names and restore
-  check constraint names from new table definition. This is needed to avoid
-  problems with duplicate check constraint names while we have two definitions
-  of the same table.
+  During alter table operation, check constraints of a new table are marked as
+  in alter mode. If a table object is stored to the data-dictionary in this
+  mode then alias name is stored to avoid name conflicts due to two versions
+  of table objects. dd::Table object of a new table read from the
+  data-dictionary contains only alias name. So dd::Table object of a new table
+  is patched up here with the real name and alter mode to reflect the fact the
+  check constraint is in alter_mode as this information is not stored
+  parsistently.
+
+  @param    new_table               New table definition.
+  @param    alter_info              Alter_info object containing list of list of
+                                    check constraint spec for table being
+                                    altered.
+*/
+static void set_check_constraints_alter_mode(dd::Table *new_table,
+                                             Alter_info *alter_info) {
+  for (dd::Check_constraint *cc : *new_table->check_constraints()) {
+    if (cc->is_alter_mode()) continue;
+    for (Sql_check_constraint_spec *cc_spec :
+         alter_info->check_constraint_spec_list) {
+      if (!my_strcasecmp(system_charset_info, cc->name().c_str(),
+                         cc_spec->alias_name.str)) {
+        cc->set_name(cc_spec->name.str);
+        cc->set_alias_name(cc_spec->alias_name.str);
+        cc->set_alter_mode(true);
+      }
+    }
+  }
+}
+
+/**
+  Reset alter mode of check constraints.
+
+  Method updates only dd::Table object. It is not stored or updated to
+  data-dictionary in this method.
+
+  @param  new_table               New table definition.
+*/
+static void reset_check_constraints_alter_mode(dd::Table *new_table) {
+  for (dd::Check_constraint *cc : *new_table->check_constraints()) {
+    DBUG_ASSERT(cc->is_alter_mode());
+    cc->set_alter_mode(false);
+  }
+}
+
+/**
+  Make old table definition's check constraint use temporary names. This is
+  needed to avoid  problems with duplicate check constraint names while we
+  have two definitions of the same table.
   Method updates only dd::Table object. It is not stored or updated to
   data-dictionary in this method.
 
   @param  thd                     Thread context.
   @param  old_table_db            Database of old table.
   @param  old_table               Old table definition.
-  @param  new_table               New table definition.
 
-  @returns False - Success, True - Failure.
+  @returns false - Success, true - Failure.
 */
-static bool adjust_check_constraint_names(THD *thd, const char *old_table_db,
-                                          dd::Table *old_table,
-                                          dd::Table *new_table) {
-  if (thd->m_cc_adjusted_names_map == nullptr) return false;
-  DBUG_ASSERT(!thd->m_cc_adjusted_names_map->empty());
+static bool adjust_check_constraint_names_for_old_table_version(
+    THD *thd, const char *old_table_db, dd::Table *old_table) {
+  MDL_request_list mdl_requests;
+  for (dd::Check_constraint *cc : *old_table->check_constraints()) {
+    const int prefix_len = 4;  // #cc_
+    const int id_len = 20;
+    char temp_cc_name[prefix_len + id_len + 1];
+    snprintf(temp_cc_name, sizeof(temp_cc_name), "#cc_%llu",
+             (ulonglong)cc->id());
 
-  if (old_table) {
-    MDL_request_list mdl_requests;
-    for (auto &cc : *old_table->check_constraints()) {
-      char temp_cc_name[3 + 20 + 2];
-      snprintf(temp_cc_name, sizeof(temp_cc_name), "#cc_%llu",
-               (ulonglong)cc->id());
-
-      /*
-        Acquire lock on temporary names before updating data-dictionary just in
-        case somebody tries to create check constraints with same name.
-      */
-      if (push_check_constraint_mdl_request_to_list(thd, old_table_db,
-                                                    temp_cc_name, mdl_requests))
-        return true;
-
-      // Set adjusted name.
-      cc->set_name(temp_cc_name);
-    }
-
-    if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                       thd->variables.lock_wait_timeout))
+    /*
+      Acquire lock on temporary names before updating data-dictionary just in
+      case somebody tries to create check constraints with same name.
+    */
+    if (push_check_constraint_mdl_request_to_list(thd, old_table_db,
+                                                  temp_cc_name, mdl_requests))
       return true;
+
+    // Set adjusted name.
+    cc->set_name(temp_cc_name);
   }
 
-  // Restore check constraint names from cc_adjusted_names_map for new table.
-  for (auto &cc : *new_table->check_constraints()) {
-    cc->set_name(thd->m_cc_adjusted_names_map->actual_name(cc->name().c_str()));
-  }
-
-  // After restore map is not needed.
-  thd->m_cc_adjusted_names_map->clear();
-  thd->m_cc_adjusted_names_map = nullptr;
+  if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                     thd->variables.lock_wait_timeout))
+    return true;
 
   return false;
 }

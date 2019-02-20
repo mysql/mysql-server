@@ -947,7 +947,7 @@ void Table_impl::drop_trigger(const Trigger *trigger) {
 
 Check_constraint *Table_impl::add_check_constraint() {
   Check_constraint_impl *cc = new (std::nothrow) Check_constraint_impl(this);
-  m_check_constraints.push_back(cc);
+  if (cc != nullptr) m_check_constraints.push_back(cc);
   return cc;
 }
 

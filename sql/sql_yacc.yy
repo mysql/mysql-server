@@ -1271,7 +1271,7 @@ void warn_about_deprecated_national(THD *thd)
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         filter_wild_db_table_string
-        opt_constraint
+        opt_constraint_name
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name opt_ts_datafile_name
         opt_describe_column
         opt_datadir_ssl default_encryption
@@ -1497,6 +1497,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_retain_current_password
         opt_discard_old_password
         opt_constraint_enforcement
+        constraint_enforcement
         opt_not
 
 %type <show_cmd_type> opt_show_cmd_type
@@ -1803,7 +1804,9 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <field_def> field_def
 
-%type <check_constraint> check_constraint opt_check_or_references
+%type <item> check_constraint
+
+%type <table_constraint_def> opt_references
 
 %type <fk_options> opt_on_update_delete
 
@@ -6162,15 +6165,14 @@ table_element:
         ;
 
 column_def:
-          ident field_def opt_check_or_references
+          ident field_def opt_references
           {
             $$= NEW_PTN PT_column_def($1, $2, $3);
           }
         ;
 
-opt_check_or_references:
+opt_references:
           /* empty */      { $$= NULL; }
-        | check_constraint { $$= $1; }
         |  references
           {
             /* Currently we ignore FK references here: */
@@ -6196,7 +6198,7 @@ table_constraint_def:
           {
             $$= NEW_PTN PT_inline_index_definition(KEYTYPE_SPATIAL, $3, NULL, $5, $7);
           }
-        | opt_constraint constraint_key_type opt_index_name_and_type
+        | opt_constraint_name constraint_key_type opt_index_name_and_type
           '(' key_list_with_expression ')' opt_index_options
           {
             /*
@@ -6206,7 +6208,7 @@ table_constraint_def:
             LEX_STRING name= $3.name.str != NULL ? $3.name : $1;
             $$= NEW_PTN PT_inline_index_definition($2, name, $3.type, $5, $7);
           }
-        | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
+        | opt_constraint_name FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             $$= NEW_PTN PT_foreign_key_definition($1, $4, $6, $8.table_name,
                                                   $8.reference_list,
@@ -6214,18 +6216,18 @@ table_constraint_def:
                                                   $8.fk_update_opt,
                                                   $8.fk_delete_opt);
           }
-        | check_constraint { $$= $1; }
-        ;
-
-check_constraint:
-          opt_constraint CHECK_SYM '(' expr ')' opt_constraint_enforcement
+        | opt_constraint_name check_constraint opt_constraint_enforcement
           {
-            $$= NEW_PTN PT_check_constraint($1, $4, $6);
+            $$= NEW_PTN PT_check_constraint($1, $2, $3);
             if ($$ == nullptr) MYSQL_YYABORT; // OOM
           }
         ;
 
-opt_constraint:
+check_constraint:
+          CHECK_SYM '(' expr ')' { $$= $3; }
+        ;
+
+opt_constraint_name:
           /* empty */          { $$= NULL_STR; }
         | CONSTRAINT opt_ident { $$= $2; }
         ;
@@ -6236,8 +6238,12 @@ opt_not:
         ;
 
 opt_constraint_enforcement:
-          /* empty */           { $$= true; }
-        | opt_not ENFORCED_SYM  { $$ = !($1); }
+          /* empty */            { $$= true; }
+        | constraint_enforcement { $$= $1; }
+        ;
+
+constraint_enforcement:
+          opt_not ENFORCED_SYM  { $$= !($1); }
         ;
 
 field_def:
@@ -6615,11 +6621,33 @@ column_attribute_list:
           column_attribute_list column_attribute
           {
             $$= $1;
-            if ($$->push_back($2))
+            if ($2 == nullptr)
               MYSQL_YYABORT; // OOM
+
+            if ($2->has_constraint_enforcement()) {
+              // $2 is `[NOT] ENFORCED`
+              if ($1->back()->set_constraint_enforcement(
+                      $2->is_constraint_enforced())) {
+                // $1 is not `CHECK(...)`
+                YYTHD->syntax_error_at(@2);
+                MYSQL_YYABORT;
+              }
+            } else {
+              if ($$->push_back($2))
+                MYSQL_YYABORT; // OOM
+            }
           }
         | column_attribute
           {
+            if ($1 == nullptr)
+              MYSQL_YYABORT; // OOM
+
+            if ($1->has_constraint_enforcement()) {
+              // [NOT] ENFORCED doesn't follow the CHECK clause
+              YYTHD->syntax_error_at(@1);
+              MYSQL_YYABORT;
+            }
+
             $$=
               NEW_PTN Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
@@ -6696,6 +6724,24 @@ column_attribute:
               MYSQL_YYABORT;
             }
             $$= NEW_PTN PT_srid_column_attr(static_cast<gis::srid_t>($2));
+          }
+        | opt_constraint_name check_constraint
+          /* See the next branch for [NOT] ENFORCED. */
+          {
+            $$= NEW_PTN PT_check_constraint_column_attr($1, $2);
+          }
+        | constraint_enforcement
+          /*
+            This branch is needed to workaround the need of a lookahead of 2 for
+            the grammar:
+
+             { [NOT] NULL | CHECK(...) [NOT] ENFORCED } ...
+
+            Note: the column_attribute_list rule rejects all unexpected
+                  [NOT] ENFORCED sequences.
+          */
+          {
+            $$ = NEW_PTN PT_constraint_enforcement_attr($1);
           }
         ;
 
@@ -8003,7 +8049,7 @@ alter_commands_modifier_list:
         ;
 
 alter_list_item:
-          ADD opt_column ident field_def opt_check_or_references opt_place
+          ADD opt_column ident field_def opt_references opt_place
           {
             $$= NEW_PTN PT_alter_table_add_column($3, $4, $5, $6);
           }
@@ -8068,9 +8114,9 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_index_visible($3.str, $4);
           }
-        | ALTER CHECK_SYM ident opt_not ENFORCED_SYM
+        | ALTER CHECK_SYM ident constraint_enforcement
           {
-            $$ = NEW_PTN PT_alter_table_check_constraint($3.str, !($4));
+            $$ = NEW_PTN PT_alter_table_check_constraint($3.str, $4);
           }
         | RENAME opt_to table_ident
           {

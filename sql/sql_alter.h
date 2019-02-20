@@ -457,6 +457,7 @@ class Alter_info {
                  bool has_explicit_collation, uint uint_geom_type,
                  Value_generator *gcol_info, Value_generator *default_val_expr,
                  const char *opt_after, Nullable<gis::srid_t> srid,
+                 Sql_check_constraint_spec_list *check_cons_list,
                  dd::Column::enum_hidden_type hidden);
 
  private:

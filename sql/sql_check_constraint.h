@@ -41,7 +41,7 @@ class Value_generator;
 */
 class Sql_check_constraint_spec {
  public:
-  /*
+  /**
     Validate check constraint name, perform per item-type to check if the
     expression is allowed for the check constraint. Check expression is
     pre-validated at this stage. Validation of specific functions in expression
@@ -52,15 +52,15 @@ class Sql_check_constraint_spec {
   */
   bool pre_validate();
 
-  /*
+  /**
     Write check constraint expression into a String with proper syntax.
 
-    @param[in]   THD   Thread handle.
+    @param[in]   thd   Thread handle.
     @param[out]  out   Check constraint expression.
   */
   void print_expr(THD *thd, String &out);
 
-  /*
+  /**
     Method to check if column "column_name" referred in the check constraint
     expression.
 
@@ -71,8 +71,8 @@ class Sql_check_constraint_spec {
   */
   bool expr_refers_column(const char *column_name);
 
-  /*
-    Method to check if constraint expresssion refers to only "column_name"
+  /**
+    Method to check if constraint expression refers to only "column_name"
     column of the table.
 
     @param[in]  column_name   Column name.
@@ -95,6 +95,19 @@ class Sql_check_constraint_spec {
 
   /// Check constraint state (enforced/not enforced)
   bool is_enforced{true};
+
+  /**
+    During ALTER TABLE operation, the state of the Sql_check_constraint_spec
+    instance(s) is set to alter mode in new table definition. In this
+    mode, alias_name is stored to data-dictionary tables to avoid name
+    conflicts. The name of the check constraint is updated to actual name after
+    older table version is either dropped or when new version of table is
+    renamed to actual table name.
+  */
+  bool is_alter_mode{false};
+
+  /// Alias name for check constraints.
+  LEX_STRING alias_name{nullptr, 0};
 };
 
 /**
@@ -107,7 +120,6 @@ class Sql_check_constraint_spec {
 */
 class Sql_check_constraint_share {
  public:
-  // Default check constraint.
   Sql_check_constraint_share() = default;
 
   Sql_check_constraint_share(const LEX_CSTRING &name,
@@ -119,26 +131,28 @@ class Sql_check_constraint_share {
     if (m_expr_str.str != nullptr) delete m_expr_str.str;
   }
 
-  // Constraint name.
+  /// Constraint name.
   LEX_CSTRING &name() { return m_name; }
-  // Check expression in string form.
+  /// Check expression in string form.
   LEX_CSTRING &expr_str() { return m_expr_str; }
-  // Check constraint state (enforced / not enforced)
+  /// Check constraint state (enforced / not enforced)
   bool is_enforced() { return m_is_enforced; }
 
  private:
-  // Check constraint name.
+  /// Check constraint name.
   LEX_CSTRING m_name{nullptr, 0};
 
-  // Check constraint expression.
+  /// Check constraint expression.
   LEX_CSTRING m_expr_str{nullptr, 0};
 
-  // Check constraint state.
+  /// Check constraint state.
   bool m_is_enforced{true};
 
  private:
-  // Delete default copy and assignment operator to avoid accidental destruction
-  // of shallow copied Sql_table_check_constraint_share objects.
+  /**
+    Delete default copy and assignment operator to avoid accidental destruction
+    of shallow copied Sql_table_check_constraint_share objects.
+  */
   Sql_check_constraint_share(const Sql_check_constraint_share &) = delete;
   Sql_check_constraint_share &operator=(const Sql_check_constraint_share &) =
       delete;
@@ -166,89 +180,59 @@ class Sql_table_check_constraint : public Sql_check_constraint_share {
 
   ~Sql_table_check_constraint();
 
-  // Value generator.
+  /// Value generator.
   Value_generator *value_generator() { return m_val_gen; }
   void set_value_generator(Value_generator *val_gen) { m_val_gen = val_gen; }
 
-  // Reference to owner table.
+  /// Reference to owner table.
   TABLE *table() const { return m_table; }
 
  private:
-  // Value generator for the check constraint expression.
+  /// Value generator for the check constraint expression.
   Value_generator *m_val_gen{nullptr};
 
-  // Parent table reference.
+  /// Parent table reference.
   TABLE *m_table{nullptr};
 
  private:
-  // Delete default copy and assignment operator to avoid accidental destruction
-  // of shallow copied Sql_table_check_constraint objects.
+  /**
+    Delete default copy and assignment operator to avoid accidental destruction
+    of shallow copied Sql_table_check_constraint objects.
+  */
   Sql_table_check_constraint(const Sql_table_check_constraint &) = delete;
   Sql_table_check_constraint &operator=(const Sql_table_check_constraint &) =
       delete;
 };
 
-// Type for the list of Sql_check_constraint_spec elements.
+/// Type for the list of Sql_check_constraint_spec elements.
 using Sql_check_constraint_spec_list =
     Mem_root_array<Sql_check_constraint_spec *>;
 
-// Type for the list of Sql_check_constraint_share elements.
+/// Type for the list of Sql_check_constraint_share elements.
 using Sql_check_constraint_share_list =
     Mem_root_array<Sql_check_constraint_share *>;
 
-// Type for the list of Sql_table_check_constraint elements.
+/// Type for the list of Sql_table_check_constraint elements.
 using Sql_table_check_constraint_list =
     Mem_root_array<Sql_table_check_constraint *>;
 
 /**
-  Class to represent the adjusted check constraint names to actual check
-  constraint names during ALTER TABLE operation.
+  Method to check if server is a slave server and master server is on a
+  version not supporting check constraints feature. Check constraint support
+  is introduced in server version 80016.
 
-  During ALTER TABLE operation the check constraint names of a table is
-  adjusted to avoid check constraint name conflicts and restored after older
-  table version is either dropped or when new version is renamed to table
-  name. Instance of this class holds the mapping between adjusted name to
-  actual check constraint names. Actual names are required to restore and also
-  to report errors with correct check constraint name. Class is a wrapper over
-  a std::map<dd::String_type, const char*> class.
+  Method is used by methods prepare_check_constraints_for_create() and
+  prepare_check_constraints_for_alter(). Check constraints are not prepared
+  (and specification list is cleared) when this method returns to true.
+  In older versions, check constraint syntax was supported but check constraint
+  feature was not supported. So if master is on older version and slave gets
+  event with check constraint syntax then on slave supporting check constraint,
+  query is parsed but during prepare time the specifications are ignored
+  for the statement(event).
+
+  @retval  true   if server is a slave server and master server is on a version
+                  not supporting check constraints feature.
+  @retval  false  Otherwise.
 */
-class Check_constraints_adjusted_names_map final {
- public:
-  Check_constraints_adjusted_names_map() = default;
-  /**
-    Method to insert adjusted name and actual name to map.
-
-    @param   adjusted_name     Adjusted name of check constraint.
-    @param   actual_name       Actual name of check constraint.
-  */
-  void insert(const char *adjusted_name, const char *actual_name) {
-    m_names_map.insert({adjusted_name, actual_name});
-  }
-  /**
-    Method to get actual check constraint name from the adjusted name.
-
-    @param   adjusted_name     Adjusted name of check constraint.
-
-    @retval  Actual name of check constraint.
-  */
-  const char *actual_name(const char *adjusted_name) {
-    auto name = m_names_map.find(adjusted_name);
-    DBUG_ASSERT(name != m_names_map.end());
-    return name->second;
-  }
-  /**
-    Method to check if map is empty.
-
-    @retval   true  If map is empty.
-    @retval   false Otherwise.
-  */
-  bool empty() { return m_names_map.empty(); }
-  /**
-    Method to clear map.
-  */
-  void clear() { m_names_map.clear(); }
-
- private:
-  std::map<dd::String_type, const char *> m_names_map;
-};
+bool is_slave_with_master_without_check_constraints_support(THD *thd);
 #endif  // SQL_CHECK_CONSTRAINT_INCLUDED

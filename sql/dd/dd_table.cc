@@ -1763,9 +1763,17 @@ bool fill_dd_check_constraints(
 
   for (auto &cc_spec : *check_cons_spec) {
     Check_constraint *cc = tab_obj->add_check_constraint();
+    if (cc == nullptr) return true;  // OOM
 
     // Constraint name.
     cc->set_name(cc_spec->name.str);
+
+    if (cc_spec->is_alter_mode) {
+      // alter mode.
+      cc->set_alter_mode(true);
+      // Alias name.
+      cc->set_alias_name(cc_spec->alias_name.str);
+    }
 
     // Constraint clause.
     char buffer[256];

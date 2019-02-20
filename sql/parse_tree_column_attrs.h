@@ -33,6 +33,7 @@
 #include "sql/item_timefunc.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_alter.h"
+#include "sql/sql_check_constraint.h"  // Sql_check_constraint_spec
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
@@ -76,6 +77,41 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
       Column_parse_context *, const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
       bool *has_explicit_collation MY_ATTRIBUTE((unused))) const {
     return false;
+  }
+  virtual bool add_check_constraints(
+      Sql_check_constraint_spec_list *check_const_list MY_ATTRIBUTE((unused))) {
+    return false;
+  }
+
+  /**
+    Check for the [NOT] ENFORCED characteristic.
+
+    @returns true  if the [NOT] ENFORCED follows the CHECK(...) clause,
+             false otherwise.
+  */
+  virtual bool has_constraint_enforcement() const { return false; }
+
+  /**
+    Check if constraint is enforced.
+    Method must be called only when has_constraint_enforcement() is true (i.e
+    when [NOT] ENFORCED follows the CHECK(...) clause).
+
+    @returns true  if constraint is enforced.
+             false otherwise.
+  */
+  virtual bool is_constraint_enforced() const { return false; }
+
+  /**
+    Update the ENFORCED/NOT ENFORCED state of the CHECK constraint.
+
+    @param   enforced     true if ENFORCED, false if NOT ENFORCED.
+
+    @returns false if success, true if error (e.g. if [NOT] ENFORCED follows
+             something other than the CHECK clause.)
+  */
+  virtual bool set_constraint_enforcement(
+      bool enforced MY_ATTRIBUTE((unused))) {
+    return true;  // error
   }
 };
 
@@ -145,6 +181,60 @@ class PT_primary_key_column_attr : public PT_column_attr_base {
   virtual void apply_alter_info_flags(ulonglong *flags) const {
     *flags |= Alter_info::ALTER_ADD_INDEX;
   }
+};
+
+/**
+  Node for the @SQL{[CONSTRAINT [symbol]] CHECK '(' expr ')'} column attribute.
+
+  @ingroup ptn_column_attrs
+*/
+class PT_check_constraint_column_attr : public PT_column_attr_base {
+  typedef PT_column_attr_base super;
+  Sql_check_constraint_spec col_cc_spec;
+
+ public:
+  explicit PT_check_constraint_column_attr(LEX_STRING &name, Item *expr) {
+    col_cc_spec.name = name;
+    col_cc_spec.check_expr = expr;
+  }
+
+  bool set_constraint_enforcement(bool enforced) override {
+    col_cc_spec.is_enforced = enforced;
+    return false;
+  }
+
+  void apply_alter_info_flags(ulonglong *flags) const override {
+    *flags |= Alter_info::ADD_CHECK_CONSTRAINT;
+  }
+
+  bool add_check_constraints(
+      Sql_check_constraint_spec_list *check_const_list) override {
+    DBUG_ASSERT(check_const_list != nullptr);
+    return (check_const_list->push_back(&col_cc_spec));
+  }
+
+  bool contextualize(Column_parse_context *pc) override {
+    return (super::contextualize(pc) ||
+            col_cc_spec.check_expr->itemize(pc, &col_cc_spec.check_expr));
+  }
+};
+
+/**
+  Node for the @SQL{[NOT] ENFORCED} column attribute.
+
+  @ingroup ptn_column_attrs
+*/
+class PT_constraint_enforcement_attr : public PT_column_attr_base {
+ public:
+  explicit PT_constraint_enforcement_attr(bool enforced)
+      : m_enforced(enforced) {}
+
+  bool has_constraint_enforcement() const override { return true; }
+
+  bool is_constraint_enforced() const override { return m_enforced; }
+
+ private:
+  const bool m_enforced;
 };
 
 /**
@@ -737,6 +827,8 @@ class PT_field_def_base : public Parse_tree_node {
   /// Holds the expression to generate default values
   Value_generator *default_val_info;
   Nullable<gis::srid_t> m_srid;
+  // List of column check constraint's specification.
+  Sql_check_constraint_spec_list *check_const_spec_list{nullptr};
 
  protected:
   PT_type *type_node;
@@ -762,6 +854,9 @@ class PT_field_def_base : public Parse_tree_node {
     charset = type_node->get_charset();
     uint_geom_type = type_node->get_uint_geom_type();
     interval_list = type_node->get_interval_list();
+    check_const_spec_list = new (pc->thd->mem_root)
+        Sql_check_constraint_spec_list(pc->thd->mem_root);
+    if (check_const_spec_list == nullptr) return true;  // OOM
     return false;
   }
 
@@ -781,6 +876,7 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_srid_modifier(&m_srid);
         if (attr->apply_collation(pc, &charset, &has_explicit_collation))
           return true;
+        if (attr->add_check_constraints(check_const_spec_list)) return true;
       }
     }
     return false;
