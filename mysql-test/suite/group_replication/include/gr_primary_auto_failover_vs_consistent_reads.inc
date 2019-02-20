@@ -156,6 +156,8 @@ SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+--let $wait_condition= SELECT @@GLOBAL.read_only = 0
+--source include/wait_condition_or_abort.inc
 DROP TABLE t1;
 
 --source include/group_replication_end.inc
