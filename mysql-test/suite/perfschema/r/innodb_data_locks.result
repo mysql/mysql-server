@@ -1491,3 +1491,63 @@ drop table t1_min;
 drop table t1_max;
 drop table t1_part;
 drop table t1_subpart;
+CREATE TABLE t (
+id INT NOT NULL,
+u INT NOT NULL,
+s INT NOT NULL,
+u1 INT NOT NULL,
+u2 INT NOT NULL,
+s1 INT NOT NULL,
+s2 INT NOT NULL,
+PRIMARY KEY k_id(id),
+KEY k_s(s),
+KEY k_s1_s2(s1,s2),
+UNIQUE KEY k_u(u),
+UNIQUE KEY k_u1_u2(u1,u2)
+) Engine = InnoDB;
+INSERT INTO t VALUES (1,2,3,4,5,6,7), (10,20,30,40,50,60,70);
+BEGIN;
+SELECT * FROM t WHERE id=1 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+1	2	3	4	5	6	7
+SELECT * FROM t WHERE u=2 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+1	2	3	4	5	6	7
+SELECT * FROM t WHERE u1=3 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+SELECT * FROM t WHERE s=3 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+1	2	3	4	5	6	7
+SELECT * FROM t WHERE u1=4 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+1	2	3	4	5	6	7
+SELECT * FROM t WHERE u1=40 AND u2=50 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+10	20	30	40	50	60	70
+SELECT * FROM t WHERE s1=6 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+1	2	3	4	5	6	7
+SELECT * FROM t WHERE s1=60 AND s2=70 FOR UPDATE;
+id	u	s	u1	u2	s1	s2
+10	20	30	40	50	60	70
+SELECT lock_type,index_name,lock_mode,lock_data
+FROM performance_schema.data_locks
+WHERE object_schema="test" AND object_name="t"
+ORDER BY 1,2,3,4;
+lock_type	index_name	lock_mode	lock_data
+RECORD	k_s	X	3, 1
+RECORD	k_s	X,GAP	30, 10
+RECORD	k_s1_s2	X	6, 7, 1
+RECORD	k_s1_s2	X	60, 70, 10
+RECORD	k_s1_s2	X	supremum pseudo-record
+RECORD	k_s1_s2	X,GAP	60, 70, 10
+RECORD	k_u	X,REC_NOT_GAP	2, 1
+RECORD	k_u1_u2	X	4, 5, 1
+RECORD	k_u1_u2	X,GAP	4, 5, 1
+RECORD	k_u1_u2	X,GAP	40, 50, 10
+RECORD	k_u1_u2	X,REC_NOT_GAP	40, 50, 10
+RECORD	PRIMARY	X,REC_NOT_GAP	1
+RECORD	PRIMARY	X,REC_NOT_GAP	10
+TABLE	NULL	IX	NULL
+ROLLBACK;
+DROP TABLE t;

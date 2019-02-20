@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -670,7 +670,7 @@ void p_s_fill_lock_data(const char **lock_data, const lock_t *lock,
 
   index = lock_rec_get_index(lock);
 
-  n_fields = dict_index_get_n_unique(index);
+  n_fields = dict_index_get_n_unique_in_tree(index);
 
   ut_a(n_fields > 0);
 
