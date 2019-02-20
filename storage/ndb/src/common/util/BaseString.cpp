@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -341,7 +341,7 @@ BaseString::substr(ssize_t start, ssize_t stop) const
   if(stop < 0)
     stop = length();
   ssize_t len = stop-start;
-  if(len <= 0)
+  if(len <= 0 || stop > m_len)
     return BaseString("");
   BaseString s;
   s.assign(m_chr+start, len);
@@ -681,6 +681,10 @@ TAPTEST(BaseString)
 	OK(BaseString("hamburger").substr(3) == "burger");
 	OK(BaseString("hamburger").substr(4,8) == "urge");
 	OK(BaseString("smiles").substr(1,5) == "mile");
+	OK(BaseString("smiles").substr(1,10) == "");
+	OK(BaseString("smiles").substr(10, 1) == "");
+	OK(BaseString("smiles").substr(1,1) == "");
+	OK(BaseString("smiles").substr(11, 15) == "");
 	OK(BaseString("012345").indexOf('2') == 2);
 	OK(BaseString("hej").indexOf('X') == -1);
     }
