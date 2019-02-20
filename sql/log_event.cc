@@ -10976,6 +10976,7 @@ void Table_map_log_event::print(FILE *,
       Optional_metadata_fields fields(m_optional_metadata,
                                       m_optional_metadata_len);
 
+      if (m_optional_metadata) DBUG_ASSERT(fields.is_valid);
       print_columns(&print_event_info->head_cache, fields);
       print_primary_key(&print_event_info->head_cache, fields);
     }
