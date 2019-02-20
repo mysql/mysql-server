@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,41 +29,6 @@
 #include "event_reader_macros.h"
 
 namespace binary_log {
-/**
-  Get the length of next field.
-  Change parameter to point at fieldstart.
-
-  @param  packet pointer to a buffer containing the field in a row.
-  @return pos    length of the next field
-*/
-static unsigned long get_field_length(unsigned char **packet) {
-  unsigned char *pos = *packet;
-  uint32_t temp = 0;
-  if (*pos < 251) {
-    (*packet)++;
-    return *pos;
-  }
-  if (*pos == 251) {
-    (*packet)++;
-    return ((unsigned long)~0);  // NULL_LENGTH;
-  }
-  if (*pos == 252) {
-    (*packet) += 3;
-    memcpy(&temp, pos + 1, 2);
-    temp = le32toh(temp);
-    return (unsigned long)temp;
-  }
-  if (*pos == 253) {
-    (*packet) += 4;
-    memcpy(&temp, pos + 1, 3);
-    temp = le32toh(temp);
-    return (unsigned long)temp;
-  }
-  (*packet) += 9; /* Must be 254 when here */
-  memcpy(&temp, pos + 1, 4);
-  temp = le32toh(temp);
-  return (unsigned long)temp;
-}
 
 Table_map_event::Table_map_event(const char *buf,
                                  const Format_description_event *fde)
@@ -153,14 +118,17 @@ Table_map_event::~Table_map_event() {
 /**
    Parses SIGNEDNESS field.
 
-   @param[out] vec     stores the signedness flags extracted from field.
-   @param[in]  field   SIGNEDNESS field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores the signedness flags extracted from field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
-static void parse_signedness(std::vector<bool> &vec, unsigned char *field,
+static void parse_signedness(std::vector<bool> &vec, Event_reader &reader_obj,
                              unsigned int length) {
   for (unsigned int i = 0; i < length; i++) {
-    for (unsigned char c = 0x80; c != 0; c >>= 1) vec.push_back(field[i] & c);
+    char field = reader_obj.read<unsigned char>();
+    if (reader_obj.has_error()) return;
+    for (unsigned char c = 0x80; c != 0; c >>= 1) vec.push_back(field & c);
   }
 }
 
@@ -168,18 +136,22 @@ static void parse_signedness(std::vector<bool> &vec, unsigned char *field,
    Parses DEFAULT_CHARSET field.
 
    @param[out] default_charset  stores collation numbers extracted from field.
-   @param[in]  field   DEFAULT_CHARSET field in table_map_event.
-   @param[in]  length  length of the field
+   @param[in]  reader_obj       the Event_reader object containing the
+                                serialized field.
+   @param[in]  length           length of the field
  */
 static void parse_default_charset(
     Table_map_event::Optional_metadata_fields::Default_charset &default_charset,
-    unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+    Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  default_charset.default_charset = get_field_length(&p);
-  while (p < field + length) {
-    unsigned int col_index = get_field_length(&p);
-    unsigned int col_charset = get_field_length(&p);
+  default_charset.default_charset = reader_obj.net_field_length_ll();
+  if (reader_obj.has_error()) return;
+  while (reader_obj.ptr() < field + length) {
+    unsigned int col_index = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
+    unsigned int col_charset = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
 
     default_charset.charset_pairs.push_back(
         std::make_pair(col_index, col_charset));
@@ -189,58 +161,77 @@ static void parse_default_charset(
 /**
    Parses COLUMN_CHARSET field.
 
-   @param[out] vec     stores collation numbers extracted from field.
-   @param[in]  field   COLUMN_CHARSET field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores collation numbers extracted from field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
 static void parse_column_charset(std::vector<unsigned int> &vec,
-                                 unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+                                 Event_reader &reader_obj,
+                                 unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length) vec.push_back(get_field_length(&p));
+  while (reader_obj.ptr() < field + length) {
+    vec.push_back(reader_obj.net_field_length_ll());
+    if (reader_obj.has_error()) return;
+  }
 }
 
 /**
    Parses COLUMN_NAME field.
 
-   @param[out] vec     stores column names extracted from field.
-   @param[in]  field   COLUMN_NAME field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores column names extracted from field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
 static void parse_column_name(std::vector<std::string> &vec,
-                              unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+                              Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length) {
-    unsigned len = get_field_length(&p);
-    vec.push_back(std::string(reinterpret_cast<char *>(p), len));
-    p += len;
+  while (reader_obj.ptr() < field + length) {
+    unsigned len = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
+
+    if (!reader_obj.can_read(len)) {
+      reader_obj.set_error("Cannot point to out of buffer bounds");
+      return;
+    }
+    vec.push_back(std::string(reader_obj.ptr(len), len));
   }
 }
 
 /**
    Parses SET_STR_VALUE/ENUM_STR_VALUE field.
 
-   @param[out] vec     stores SET/ENUM column's string values extracted from
-                       field. Each SET/ENUM column's string values are stored
-                       into a string separate vector. All of them are stored
-                       in 'vec'.
-   @param[in]  field   COLUMN_NAME field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores SET/ENUM column's string values extracted from
+                          field. Each SET/ENUM column's string values are stored
+                          into a string separate vector. All of them are stored
+                          in 'vec'.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
 static void parse_set_str_value(
     std::vector<Table_map_event::Optional_metadata_fields::str_vector> &vec,
-    unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+    Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length) {
-    unsigned int count = get_field_length(&p);
+  while (reader_obj.ptr() < field + length) {
+    unsigned int count = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
 
     vec.push_back(std::vector<std::string>());
     for (unsigned int i = 0; i < count; i++) {
-      unsigned len1 = get_field_length(&p);
-      vec.back().push_back(std::string(reinterpret_cast<char *>(p), len1));
-      p += len1;
+      unsigned len1 = reader_obj.net_field_length_ll();
+      if (reader_obj.has_error()) return;
+
+      if (!reader_obj.can_read(len1)) {
+        reader_obj.set_error("Cannot point to out of buffer bounds");
+        return;
+      }
+
+      vec.back().push_back(std::string(reader_obj.ptr(len1), len1));
     }
   }
 }
@@ -248,113 +239,126 @@ static void parse_set_str_value(
 /**
    Parses GEOMETRY_TYPE field.
 
-   @param[out] vec     stores geometry column's types extracted from field.
-   @param[in]  field   GEOMETRY_TYPE field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores geometry column's types extracted from field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
 static void parse_geometry_type(std::vector<unsigned int> &vec,
-                                unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+                                Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length) vec.push_back(get_field_length(&p));
+  while (reader_obj.ptr() < field + length) {
+    vec.push_back(reader_obj.net_field_length_ll());
+    if (reader_obj.has_error()) return;
+  }
 }
 
 /**
    Parses SIMPLE_PRIMARY_KEY field.
 
-   @param[out] vec     stores primary key's column information extracted from
-                       field. Each column has an index and a prefix which are
-                       stored as a unit_pair. prefix is always 0 for
-                       SIMPLE_PRIMARY_KEY field.
-   @param[in]  field   SIMPLE_PRIMARY_KEY field in table_map_event.
-   @param[in]  length  length of the field
+   @param[out] vec        stores primary key's column information extracted from
+                          field. Each column has an index and a prefix which are
+                          stored as a unit_pair. prefix is always 0 for
+                          SIMPLE_PRIMARY_KEY field.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
+   @param[in]  length     length of the field
  */
 static void parse_simple_pk(
     std::vector<Table_map_event::Optional_metadata_fields::uint_pair> &vec,
-    unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+    Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length)
-    vec.push_back(std::make_pair(get_field_length(&p), 0));
+  while (reader_obj.ptr() < field + length) {
+    vec.push_back(std::make_pair(reader_obj.net_field_length_ll(), 0));
+    if (reader_obj.has_error()) return;
+  }
 }
 
 /**
    Parses PRIMARY_KEY_WITH_PREFIX field.
 
-   @param[out] vec     stores primary key's column information extracted from
-                       field. Each column has an index and a prefix which are
-                       stored as a unit_pair.
-   @param[in]  field   PRIMARY_KEY_WITH_PREFIX field in table_map_event.
+   @param[out] vec        stores primary key's column information extracted from
+                          field. Each column has an index and a prefix which are
+                          stored as a unit_pair.
+   @param[in]  reader_obj the Event_reader object containing the serialized
+                          field.
    @param[in]  length  length of the field
  */
 
 static void parse_pk_with_prefix(
     std::vector<Table_map_event::Optional_metadata_fields::uint_pair> &vec,
-    unsigned char *field, unsigned int length) {
-  unsigned char *p = field;
+    Event_reader &reader_obj, unsigned int length) {
+  const char *field = reader_obj.ptr();
 
-  while (p < field + length) {
-    unsigned int col_index = get_field_length(&p);
-    unsigned int col_prefix = get_field_length(&p);
+  while (reader_obj.ptr() < field + length) {
+    unsigned int col_index = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
+    unsigned int col_prefix = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
     vec.push_back(std::make_pair(col_index, col_prefix));
   }
 }
 
 Table_map_event::Optional_metadata_fields::Optional_metadata_fields(
     unsigned char *optional_metadata, unsigned int optional_metadata_len) {
-  unsigned char *field = optional_metadata;
+  char *field = reinterpret_cast<char *>(optional_metadata);
+  is_valid = false;
 
-  if (optional_metadata == NULL) return;
+  if (optional_metadata == nullptr) return;
 
-  while (field < optional_metadata + optional_metadata_len) {
+  Event_reader reader_obj(field, optional_metadata_len);
+  while (reader_obj.available_to_read()) {
     unsigned int len;
     Optional_metadata_field_type type =
-        static_cast<Optional_metadata_field_type>(field[0]);
+        static_cast<Optional_metadata_field_type>(
+            reader_obj.read<unsigned char>());
+    if (reader_obj.has_error()) return;
 
     // Get length and move field to the value.
-    field++;
-    len = get_field_length(&field);
-
+    len = reader_obj.net_field_length_ll();
+    if (reader_obj.has_error()) return;
     switch (type) {
       case SIGNEDNESS:
-        parse_signedness(m_signedness, field, len);
+        parse_signedness(m_signedness, reader_obj, len);
         break;
       case DEFAULT_CHARSET:
-        parse_default_charset(m_default_charset, field, len);
+        parse_default_charset(m_default_charset, reader_obj, len);
         break;
       case COLUMN_CHARSET:
-        parse_column_charset(m_column_charset, field, len);
+        parse_column_charset(m_column_charset, reader_obj, len);
         break;
       case COLUMN_NAME:
-        parse_column_name(m_column_name, field, len);
+        parse_column_name(m_column_name, reader_obj, len);
         break;
       case SET_STR_VALUE:
-        parse_set_str_value(m_set_str_value, field, len);
+        parse_set_str_value(m_set_str_value, reader_obj, len);
         break;
       case ENUM_STR_VALUE:
-        parse_set_str_value(m_enum_str_value, field, len);
+        parse_set_str_value(m_enum_str_value, reader_obj, len);
         break;
       case GEOMETRY_TYPE:
-        parse_geometry_type(m_geometry_type, field, len);
+        parse_geometry_type(m_geometry_type, reader_obj, len);
         break;
       case SIMPLE_PRIMARY_KEY:
-        parse_simple_pk(m_primary_key, field, len);
+        parse_simple_pk(m_primary_key, reader_obj, len);
         break;
       case PRIMARY_KEY_WITH_PREFIX:
-        parse_pk_with_prefix(m_primary_key, field, len);
+        parse_pk_with_prefix(m_primary_key, reader_obj, len);
         break;
       case ENUM_AND_SET_DEFAULT_CHARSET:
-        parse_default_charset(m_enum_and_set_default_charset, field, len);
+        parse_default_charset(m_enum_and_set_default_charset, reader_obj, len);
         break;
       case ENUM_AND_SET_COLUMN_CHARSET:
-        parse_column_charset(m_enum_and_set_column_charset, field, len);
+        parse_column_charset(m_enum_and_set_column_charset, reader_obj, len);
         break;
       default:
         BAPI_ASSERT(0);
     }
-    // next field
-    field += len;
+    if (reader_obj.has_error()) return;
   }
+  is_valid = true;
 }
 
 Rows_event::Rows_event(const char *buf, const Format_description_event *fde)

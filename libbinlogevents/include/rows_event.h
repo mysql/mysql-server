@@ -603,6 +603,8 @@ class Table_map_event : public Binary_log_event {
      */
     Optional_metadata_fields(unsigned char *optional_metadata,
                              unsigned int optional_metadata_len);
+    // It is used to specify the validity of the deserialized structure
+    bool is_valid;
   };
 
   /**
