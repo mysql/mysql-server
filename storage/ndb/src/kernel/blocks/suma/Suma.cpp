@@ -196,11 +196,20 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_maxBufferedEpochs = maxBufferedEpochs;
   infoEvent("Buffering maximum epochs %u", c_maxBufferedEpochs);
 
-  // Calculate needed gcp pool as 10 records + the ones needed
-  // during a possible api timeout
-  Uint32 dbApiHbInterval, gcpInterval, microGcpInterval = 0;
-  ndb_mgm_get_int_parameter(p, CFG_DB_API_HEARTBEAT_INTERVAL,
-			    &dbApiHbInterval);
+  // Need GCP records for every non-fully-acknowledged
+  // GCP from the API nodes
+  // GCPs may be un-acked due to API node failure, or
+  // overload
+  // Users specify a maxBufferedEpochs value which we will use
+  // as a disconnect threshold
+  // Disconnect takes non-zero time, so we should allow
+  // some extra records to absorb this time
+  // If epoch buffering is a tighter bound than API heartbeats
+  // then API heartbeat failure may be handled and logged as
+  // a problem with max buffered epochs.
+  // That should be ok.
+  //
+  Uint32 gcpInterval, microGcpInterval = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_GCP_INTERVAL,
                             &gcpInterval);
   ndb_mgm_get_int_parameter(p, CFG_DB_MICRO_GCP_INTERVAL,
@@ -210,8 +219,14 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     gcpInterval = microGcpInterval;
   }
-  Uint32 poolSize= MAX(c_maxBufferedEpochs,
-		       10 + (4*dbApiHbInterval+gcpInterval-1)/gcpInterval);
+
+  const Uint32 disconnectBufferSeconds = 5;
+  const Uint32 disconnectBufferEpochs =
+    ((disconnectBufferSeconds * 1000) + gcpInterval - 1) /
+    gcpInterval;
+
+  const Uint32 poolSize= disconnectBufferEpochs + c_maxBufferedEpochs;
+
   c_gcp_pool.setSize(poolSize);
 
   Uint32 maxBufferedEpochBytes, numPages, numPageChunks;
@@ -5833,7 +5848,8 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
-  if (ERROR_INSERTED(13037))
+  if (ERROR_INSERTED(13037) ||
+      ERROR_INSERTED(13052))
   {
     jam();
     ndbout_c("Simulating exceeding the MaxBufferedEpochs, ignoring ack");
