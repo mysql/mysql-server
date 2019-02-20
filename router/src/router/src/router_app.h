@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -162,9 +162,11 @@ class MySQLRouter {
    * @param config Configuaration to be used to initialize logger
    * @param raw_mode If true, all messages are logged raw; if false, messages
    *        are subject formatting
+   * @param use_os_log If true, Windows EventLog will be used instead of STDERR;
+   *        Currently this option is only meaningful on Windows
    *
    * @throws std::runtime_error on:
-   * - failure to initialize file logger
+   * - failure to initialize file or OS logger
    * - bad configuration
    *
    * @note This function is static and public, because unlike
@@ -172,7 +174,7 @@ class MySQLRouter {
    * startup, close to main().
    */
   static void init_main_logger(mysql_harness::LoaderConfig &config,
-                               bool raw_mode = false);
+                               bool raw_mode = false, bool use_os_log = false);
 
   // Information member function
   std::string get_package_name() noexcept;

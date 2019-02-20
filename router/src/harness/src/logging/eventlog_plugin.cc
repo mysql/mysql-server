@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "eventlog_plugin.h"
+#include "mysql/harness/logging/eventlog_plugin.h"
+
 #include "eventlog_rc/message.h"
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
@@ -138,9 +139,10 @@ static void create_eventlog_registry_entry() {
 }
 
 EventlogHandler::EventlogHandler(bool format_messages,
-                                 mysql_harness::logging::LogLevel level)
+                                 mysql_harness::logging::LogLevel level,
+                                 bool create_registry_entries /*= true*/)
     : mysql_harness::logging::Handler(format_messages, level) {
-  create_eventlog_registry_entry();
+  if (create_registry_entries) create_eventlog_registry_entry();
 
   event_src_ = RegisterEventSourceA(NULL, kEventSourceName);
   if (!event_src_) {

@@ -48,10 +48,14 @@ class EventlogHandler final : public mysql_harness::logging::Handler {
    * @param format_messages flag indicating if the logged messages should be
    * formatted
    * @param level minimal log level for the handler
+   * @param create_registry_entries If true, initialisation will perform extra
+   *        steps (which may potentially fail, thus you might prefer to disable
+   *        them for mission-critical usage)
    *
    * @throw std::runtime_error on WinAPI calls failures
    */
-  EventlogHandler(bool format_messages, mysql_harness::logging::LogLevel level);
+  EventlogHandler(bool format_messages, mysql_harness::logging::LogLevel level,
+                  bool create_registry_entries = true);
 
   ~EventlogHandler();
 

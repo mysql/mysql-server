@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -243,7 +243,7 @@ void clear_registry(Registry &registry);
  * as a parameter.
  *
  * @note Loggers will not have any handlers attached, this needs to be done
- *       separately (see `create_main_logfile_handler()`)
+ *       separately (see `create_main_log_handler()`)
  *
  * @param registry Registry object, typically managed by DIM
  * @param level The log level of the logger
@@ -277,23 +277,29 @@ void create_logger(Registry &registry, const LogLevel level,
  * Initialize logfile handler
  *
  * Initializes handler which will handle application's log. This handler
- * will be attached to all currently-registered loggers. If `logging_folder`
- * is empty, handler will log messages to console, otherwise, logfile will be
- * used and its path and filename will be derived from `program` and
- * `logging_folder` parameters.
+ * will be attached to all currently-registered loggers.
+ * If `logging_folder` is provided, handler will log messages to logfile; its
+ * path and filename will be derived from `program` and `logging_folder`
+ * parameters.
+ * If `logging_folder` is empty, handler will log messages to console, unless
+ * `use_os_log` is set to true, in which case it will log to system logger
+ * instead (i.e. Syslog, Windows Eventlog, etc. Currently, only Windows
+ * Eventlog is supported).
  *
  * @param registry Registry object, typically managed by DIM
  * @param program Name of the main program (Router)
  * @param logging_folder logging_folder provided in configuration file
  * @param format_messages If set to true, log messages will be formatted
  *        (prefixed with log level, timestamp, etc) before logging
+ * @param use_os_log If true, use system logger instead of STDERR (currently,
+ *        only Windows Eventlog is supported)
  *
- * @throws std::runtime_error if opening log file fails
+ * @throws std::runtime_error if opening log file or OS log fails
  */
 HARNESS_EXPORT
-void create_main_logfile_handler(Registry &registry, const std::string &program,
-                                 const std::string &logging_folder,
-                                 bool format_messages);
+void create_main_log_handler(Registry &registry, const std::string &program,
+                             const std::string &logging_folder,
+                             bool format_messages, bool use_os_log = false);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
