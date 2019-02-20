@@ -1010,7 +1010,7 @@ Error messages are issued to the server log.
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
 fil_space_t *fil_space_create(const char *name, space_id_t space_id,
-                              ulint flags, fil_type_t purpose)
+                              uint32_t flags, fil_type_t purpose)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Assigns a new space id for a new single-table tablespace.
@@ -1041,14 +1041,14 @@ page_no_t fil_space_get_size(space_id_t space_id)
 in the memory cache.
 @param[in]	space_id	Tablespace ID for which to get the flags
 @return flags, ULINT_UNDEFINED if space not found */
-ulint fil_space_get_flags(space_id_t space_id)
+uint32_t fil_space_get_flags(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets the flags of the tablespace. The tablespace must be locked
 in MDL_EXCLUSIVE MODE.
 @param[in]	space		tablespace in-memory struct
 @param[in]	flags		tablespace flags */
-void fil_space_set_flags(fil_space_t *space, ulint flags);
+void fil_space_set_flags(fil_space_t *space, uint32_t flags);
 
 /** Open each file of a tablespace if not already open.
 @param[in]	space_id	Tablespace ID
@@ -1239,7 +1239,7 @@ dberr_t fil_rename_tablespace(space_id_t space_id, const char *old_path,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       ulint flags, page_no_t size)
+                       uint32_t flags, page_no_t size)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Create a session temporary tablespace (IBT) file.
@@ -1251,7 +1251,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
                                 must be >= FIL_IBT_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
-                       ulint flags, page_no_t size)
+                       uint32_t flags, page_no_t size)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Deletes an IBD tablespace, either general or single-table.
@@ -1291,7 +1291,7 @@ from it
                                 by upgrade
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
-                     ulint flags, const char *space_name,
+                     uint32_t flags, const char *space_name,
                      const char *table_name, const char *path_in, bool strict,
                      bool old_space) MY_ATTRIBUTE((warn_unused_result));
 

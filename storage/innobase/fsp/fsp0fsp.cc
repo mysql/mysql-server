@@ -195,7 +195,7 @@ fsp_header_t *fsp_get_space_header(space_id_t id, const page_size_t &page_size,
 
   ut_ad(id == mach_read_from_4(FSP_SPACE_ID + header));
 #ifdef UNIV_DEBUG
-  const ulint flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
+  const uint32_t flags = mach_read_from_4(FSP_SPACE_FLAGS + header);
   ut_ad(page_size_t(flags).equals_to(page_size));
 #endif /* UNIV_DEBUG */
   return (header);
@@ -212,7 +212,7 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */
-ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact) {
+uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact) {
   /* If the table in this file-per-table tablespace is Compact
   row format, the low order bit will not indicate Compact. */
   bool post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(fsp_flags);
@@ -224,8 +224,8 @@ ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact) {
   flag position in the table flags. But it would go into flags2 if
   any code is created where that is needed. */
 
-  ulint flags = dict_tf_init(post_antelope | compact, zip_ssize, atomic_blobs,
-                             data_dir, shared_space);
+  uint32_t flags = dict_tf_init(post_antelope | compact, zip_ssize,
+                                atomic_blobs, data_dir, shared_space);
 
   return (flags);
 }
@@ -538,7 +538,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) xdes_t
   ulint limit;
   ulint size;
   page_no_t descr_page_no;
-  ulint flags;
+  uint32_t flags;
   page_t *descr_page;
 #ifdef UNIV_DEBUG
   const fil_space_t *fspace = fil_space_get(space);
@@ -706,7 +706,7 @@ static void fsp_space_modify_check(space_id_t id, const mtr_t *mtr) {
     {
       const fil_type_t type = fil_space_get_type(id);
       ut_a(fsp_is_system_temporary(id) ||
-           fil_space_get_flags(id) == ULINT_UNDEFINED ||
+           fil_space_get_flags(id) == UINT32_UNDEFINED ||
            type == FIL_TYPE_TEMPORARY || type == FIL_TYPE_IMPORT ||
            fil_space_is_redo_skipped(id) || !undo::is_active(id, false));
     }
@@ -775,8 +775,8 @@ void fsp_init() {
 void fsp_header_init_fields(
     page_t *page,        /*!< in/out: first page in the space */
     space_id_t space_id, /*!< in: space id */
-    ulint flags)         /*!< in: tablespace flags
-                         (FSP_SPACE_FLAGS) */
+    uint32_t flags)      /*!< in: tablespace flags
+                      (FSP_SPACE_FLAGS) */
 {
   ut_a(fsp_flags_is_valid(flags));
 
@@ -1120,7 +1120,7 @@ page_size_t fsp_header_get_page_size(const page_t *page) {
 @param[in,out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(ulint fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
                                    page_t *page) {
   ulint offset;
   const page_size_t page_size(fsp_flags);
@@ -1383,7 +1383,7 @@ static void fsp_fill_free_list(bool init_space, fil_space_t *space,
                                fsp_header_t *header, mtr_t *mtr) {
   page_no_t limit;
   page_no_t size;
-  ulint flags;
+  uint32_t flags;
   xdes_t *descr;
   ulint count = 0;
   page_no_t i;
@@ -4130,7 +4130,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = ENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+      fsp_flags_set_encryption(space->flags);
     } else {
       /* Assert that tablespace is encrypted */
       ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
@@ -4153,7 +4153,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       space->encryption_op_in_progress = UNENCRYPTION;
 
       /* Update Encryption flag for tablespace */
-      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+      fsp_flags_unset_encryption(space->flags);
 
       /* Don't erase Encryption info from page 0 yet */
     }
@@ -4197,7 +4197,7 @@ dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
       ut_ad(space->encryption_op_in_progress == UNENCRYPTION);
 
       /* Update Encryption flag for tablespace */
-      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+      fsp_flags_unset_encryption(space->flags);
 
       /* Don't erase Encryption information from page 0 yet */
     }
@@ -4220,7 +4220,7 @@ all_done:
   /* For unencryption, if server crashed, before tablespace flags were flushed
   on disk. Set them now. */
   if (in_recovery && !to_encrypt) {
-    FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+    fsp_flags_unset_encryption(space->flags);
   }
 
   /* If it was an Unencryption operation */
@@ -4428,11 +4428,11 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
     mtr_start(&mtr);
     block = buf_page_get(page_id_t(space_id, 0), pageSize, RW_X_LATCH, &mtr);
     page = buf_block_get_frame(block);
-    ulint latest_fsp_flags = fsp_header_get_flags(page);
+    uint32_t latest_fsp_flags = fsp_header_get_flags(page);
     if (FSP_FLAGS_GET_ENCRYPTION(latest_fsp_flags)) {
-      FSP_FLAGS_SET_ENCRYPTION(space->flags);
+      fsp_flags_set_encryption(space->flags);
     } else {
-      FSP_FLAGS_UNSET_ENCRYPTION(space->flags);
+      fsp_flags_unset_encryption(space->flags);
     }
     ut_ad(space->flags == latest_fsp_flags);
     mtr_commit(&mtr);

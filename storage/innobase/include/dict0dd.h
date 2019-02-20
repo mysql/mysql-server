@@ -602,7 +602,7 @@ void dd_update_v_cols(dd::Table *dd_table, table_id_t id);
 @param[in]	fsp_flags	InnoDB tablespace flags
 @param[in]	state		InnoDB tablespace state */
 void dd_write_tablespace(dd::Tablespace *dd_space, space_id_t space_id,
-                         ulint fsp_flags, dd_space_states state);
+                         uint32_t fsp_flags, dd_space_states state);
 
 /** Add fts doc id column and index to new table
 when old table has hidden fts doc id without fulltext index
@@ -767,7 +767,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 @return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
-                                   uint *flags, uint32 *server_version,
+                                   uint32_t *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
                                    dd::String_type *state,
                                    dict_table_t *dd_spaces);
@@ -962,7 +962,7 @@ void dd_filename_to_spacename(const char *space_name,
 @retval true on failure */
 bool dd_create_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
                           const char *dd_space_name, space_id_t space_id,
-                          ulint flags, const char *filename, bool discarded,
+                          uint32_t flags, const char *filename, bool discarded,
                           dd::Object_id &dd_space_id);
 
 /** Create metadata for implicit tablespace

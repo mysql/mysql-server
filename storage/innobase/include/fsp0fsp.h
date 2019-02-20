@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -405,14 +405,8 @@ page_size_t fsp_header_get_page_size(const page_t *page);
 @param[in,out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(ulint fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
                                    page_t *page);
-
-/** Check the encryption key from the first page of a tablespace.
-@param[in]	fsp_flags	tablespace flags
-@param[in]	page		first page of a tablespace
-@return true if success */
-bool fsp_header_check_encryption_key(ulint fsp_flags, page_t *page);
 
 /** Get encryption operation type in progress from the first
 page of a tablespace.
@@ -434,7 +428,7 @@ bool fsp_check_tablespace_size(space_id_t space_id);
 void fsp_header_init_fields(
     page_t *page,        /*!< in/out: first page in the space */
     space_id_t space_id, /*!< in: space id */
-    ulint flags);        /*!< in: tablespace flags
+    uint32_t flags);     /*!< in: tablespace flags
                          (FSP_SPACE_FLAGS): 0, or
                          table->flags if newer than COMPACT */
 
@@ -713,7 +707,7 @@ bool fsp_is_ibd_tablespace(space_id_t space_id) {
 @param[in]	fsp_flags	tablespace flags
 @return true if tablespace is file-per-table. */
 UNIV_INLINE
-bool fsp_is_file_per_table(space_id_t space_id, ulint fsp_flags) {
+bool fsp_is_file_per_table(space_id_t space_id, uint32_t fsp_flags) {
   return (!fsp_is_shared_tablespace(fsp_flags) &&
           fsp_is_ibd_tablespace(space_id));
 }
@@ -727,14 +721,14 @@ bool fsp_is_dd_tablespace(space_id_t space_id);
 @param[in]	flags	Tablespace flags
 @return true if compressed, false if not compressed */
 UNIV_INLINE
-bool fsp_flags_is_compressed(ulint flags);
+bool fsp_flags_is_compressed(uint32_t flags);
 
 /** Determine if two tablespaces are equivalent or compatible.
 @param[in]	flags1	First tablespace flags
 @param[in]	flags2	Second tablespace flags
 @return true the flags are compatible, false if not */
 UNIV_INLINE
-bool fsp_flags_are_equal(ulint flags1, ulint flags2);
+bool fsp_flags_are_equal(uint32_t flags1, uint32_t flags2);
 
 /** Initialize an FSP flags integer.
 @param[in]	page_size	page sizes in bytes and compression flag.
@@ -745,9 +739,9 @@ bool fsp_flags_are_equal(ulint flags1, ulint flags2);
 @param[in]	is_encrypted	This tablespace is encrypted.
 @return tablespace flags after initialization */
 UNIV_INLINE
-ulint fsp_flags_init(const page_size_t &page_size, bool atomic_blobs,
-                     bool has_data_dir, bool is_shared, bool is_temporary,
-                     bool is_encrypted = false);
+uint32_t fsp_flags_init(const page_size_t &page_size, bool atomic_blobs,
+                        bool has_data_dir, bool is_shared, bool is_temporary,
+                        bool is_encrypted = false);
 
 /** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
 This can only be done for a tablespace that was built as a file-per-table
@@ -760,7 +754,7 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 @param[in]	fsp_flags	fil_space_t::flags
 @param[in]	compact		true if not Redundant row format
 @return tablespace flags (fil_space_t::flags) */
-ulint fsp_flags_to_dict_tf(ulint fsp_flags, bool compact);
+uint32_t fsp_flags_to_dict_tf(uint32_t fsp_flags, bool compact);
 
 /** Calculates the descriptor index within a descriptor page.
 @param[in]	page_size	page size

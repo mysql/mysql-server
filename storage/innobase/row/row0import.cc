@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -227,7 +227,7 @@ struct row_import {
 
   page_size_t m_page_size; /*!< Tablespace page size */
 
-  ulint m_flags; /*!< Table flags */
+  uint32_t m_flags; /*!< Table flags */
 
   ulint m_n_cols; /*!< Number of columns in the
                   meta-data file */
@@ -372,8 +372,8 @@ class AbstractCallback : public PageCallback {
         m_space(SPACE_UNKNOWN),
         m_xdes(),
         m_xdes_page_no(FIL_NULL),
-        m_space_flags(ULINT_UNDEFINED),
-        m_table_flags(ULINT_UNDEFINED) UNIV_NOTHROW {}
+        m_space_flags(UINT32_UNDEFINED),
+        m_table_flags(UINT32_UNDEFINED) UNIV_NOTHROW {}
 
   /** Free any extent descriptor instance */
   virtual ~AbstractCallback() { UT_DELETE_ARRAY(m_xdes); }
@@ -512,11 +512,11 @@ class AbstractCallback : public PageCallback {
   page_no_t m_xdes_page_no;
 
   /** Flags value read from the header page */
-  ulint m_space_flags;
+  uint32_t m_space_flags;
 
   /** Derived from m_space_flags and row format type, the row format
   type is determined from the page header. */
-  ulint m_table_flags;
+  uint32_t m_table_flags;
 };
 
 /** Determine the page size to use for traversing the tablespace
@@ -598,14 +598,14 @@ struct FetchIndexRootPages : public AbstractCallback {
   /** Check if the .ibd file row format is the same as the table's.
   @param ibd_table_flags determined from space and page.
   @return DB_SUCCESS or error code. */
-  dberr_t check_row_format(ulint ibd_table_flags) UNIV_NOTHROW {
+  dberr_t check_row_format(uint32_t ibd_table_flags) UNIV_NOTHROW {
     dberr_t err;
     rec_format_t ibd_rec_format;
     rec_format_t table_rec_format;
 
     if (!dict_tf_is_valid(ibd_table_flags)) {
       ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-              ".ibd file has invalid table flags: %lx", ibd_table_flags);
+              ".ibd file has invalid table flags: %x", ibd_table_flags);
 
       return (DB_CORRUPTION);
     }
@@ -3144,7 +3144,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   }
 
   ulint space_flags = mach_read_from_4(value);
-  ut_ad(space_flags != ULINT_UNDEFINED);
+  ut_ad(space_flags != UINT32_UNDEFINED);
   cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(space_flags);
 
   return (DB_SUCCESS);
@@ -3661,9 +3661,9 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   we will not be writing any redo log for it before we have invoked
   fil_space_set_imported() to declare it a persistent tablespace. */
 
-  ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
+  uint32_t fsp_flags = dict_tf_to_fsp_flags(table->flags);
   if (table->encryption_key != NULL) {
-    FSP_FLAGS_SET_ENCRYPTION(fsp_flags);
+    fsp_flags_set_encryption(fsp_flags);
   }
 
   std::string tablespace_name;

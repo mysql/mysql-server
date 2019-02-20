@@ -5559,7 +5559,7 @@ dberr_t os_file_read_first_page_func(IORequest &type, os_file_t file, void *buf,
       os_file_read_page(type, file, buf, 0, UNIV_ZIP_SIZE_MIN, NULL, true);
 
   if (err == DB_SUCCESS) {
-    ulint flags = fsp_header_get_flags(static_cast<byte *>(buf));
+    uint32_t flags = fsp_header_get_flags(static_cast<byte *>(buf));
     const page_size_t page_size(flags);
     ut_ad(page_size.physical() <= n);
     err =

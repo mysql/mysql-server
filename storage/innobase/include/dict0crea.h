@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -136,7 +136,7 @@ struct tab_node_t {
 @param[in]	is_create	true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
-                                         ulint in_flags, bool is_create);
+                                         uint32_t in_flags, bool is_create);
 
 /* Index create node struct */
 

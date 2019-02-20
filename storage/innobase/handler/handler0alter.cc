@@ -359,7 +359,7 @@ struct alter_table_old_info_t {
 static UNIV_COLD void my_error_innodb(
     dberr_t error,     /*!< in: InnoDB error code */
     const char *table, /*!< in: table name */
-    ulint flags)       /*!< in: table flags */
+    uint32_t flags)    /*!< in: table flags */
 {
   switch (error) {
     case DB_MISSING_HISTORY:
@@ -4165,8 +4165,8 @@ template <typename Table>
 static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     Alter_inplace_info *ha_alter_info, const TABLE *altered_table,
     const TABLE *old_table, const Table *old_dd_tab, Table *new_dd_tab,
-    const char *table_name, ulint flags, ulint flags2, ulint fts_doc_id_col,
-    bool add_fts_doc_id, bool add_fts_doc_id_idx) {
+    const char *table_name, uint32_t flags, uint32_t flags2,
+    ulint fts_doc_id_col, bool add_fts_doc_id, bool add_fts_doc_id_idx) {
   bool dict_locked = false;
   ulint *add_key_nums;     /* MySQL key numbers */
   index_def_t *index_defs; /* index definitions */
@@ -6153,7 +6153,7 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool rollback_inplace_alter_table(
     /* The table could have been closed in commit phase */
     if (ctx->new_table != nullptr) {
       dberr_t err = DB_SUCCESS;
-      ulint flags = ctx->new_table->flags;
+      uint32_t flags = ctx->new_table->flags;
       /* DML threads can access ctx->new_table via the
       online rebuild log. Free it first. */
       innobase_online_rebuild_log_free(prebuilt->table);

@@ -164,7 +164,7 @@ module. */
 @param[in]	page_id		Page id of the redo log record
 @param[in]	flags		Tablespace flags
 @param[in]	name		Tablespace filename */
-static void meb_tablespace_redo_create(const page_id_t &page_id, ulint flags,
+static void meb_tablespace_redo_create(const page_id_t &page_id, uint32_t flags,
                                        const char *name);
 
 /** Process a MLOG_FILE_RENAME redo record.
@@ -882,8 +882,8 @@ class Fil_shard {
   @param[in]	purpose		Tablespace purpose
   @return pointer to created tablespace
   @retval nullptr on failure (such as when the same tablespace exists) */
-  fil_space_t *space_create(const char *name, space_id_t space_id, ulint flags,
-                            fil_type_t purpose)
+  fil_space_t *space_create(const char *name, space_id_t space_id,
+                            uint32_t flags, fil_type_t purpose)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Adjust temporary auto-generated names created during
@@ -2276,7 +2276,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   os_file_close(file->handle);
 
-  ulint flags = fsp_header_get_flags(page);
+  uint32_t flags = fsp_header_get_flags(page);
   space_id_t space_id = fsp_header_get_space_id(page);
 
   /* To determine if tablespace is from 5.7 or not, we
@@ -2352,8 +2352,8 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
 
   /* Make a copy of space->flags and flags from the page header
   so that they can be compared. */
-  ulint fil_space_flags = space->flags;
-  ulint header_fsp_flags = flags;
+  uint32_t fil_space_flags = space->flags;
+  uint32_t header_fsp_flags = flags;
 
   /* If a crash occurs while an UNDO space is being truncated,
   it will be created new at startup. In that case, the fil_space_t
@@ -2365,8 +2365,8 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   the srv_master_thread did not yet have time to apply it.
   So don't compare the encryption flag for undo tablespaces. */
   if (fsp_is_undo_tablespace(space->id)) {
-    FSP_FLAGS_UNSET_ENCRYPTION(fil_space_flags);
-    FSP_FLAGS_UNSET_ENCRYPTION(header_fsp_flags);
+    fsp_flags_unset_encryption(fil_space_flags);
+    fsp_flags_unset_encryption(header_fsp_flags);
   }
 
   /* Make sure the space_flags are the same as the header page flags. */
@@ -2940,7 +2940,7 @@ Error messages are issued to the server log.
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
 fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
-                                     ulint flags, fil_type_t purpose) {
+                                     uint32_t flags, fil_type_t purpose) {
   ut_ad(mutex_owned());
 
   /* Look for a matching tablespace. */
@@ -3021,7 +3021,7 @@ Error messages are issued to the server log.
 @return pointer to created tablespace, to be filled in with fil_node_create()
 @retval nullptr on failure (such as when the same tablespace exists) */
 fil_space_t *fil_space_create(const char *name, space_id_t space_id,
-                              ulint flags, fil_type_t purpose) {
+                              uint32_t flags, fil_type_t purpose) {
   ut_ad(fsp_flags_is_valid(flags));
   ut_ad(srv_page_size == UNIV_PAGE_SIZE_ORIG || flags != 0);
 
@@ -3249,16 +3249,16 @@ page_no_t fil_space_get_size(space_id_t space_id) {
 in the memory cache.
 @param[in]	space_id	Tablespace ID for which to get the flags
 @return flags, ULINT_UNDEFINED if space not found */
-ulint fil_space_get_flags(space_id_t space_id) {
+uint32_t fil_space_get_flags(space_id_t space_id) {
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
 
   fil_space_t *space = shard->space_load(space_id);
 
-  ulint flags;
+  uint32_t flags;
 
-  flags = (space != nullptr) ? space->flags : ULINT_UNDEFINED;
+  flags = (space != nullptr) ? space->flags : UINT32_UNDEFINED;
 
   shard->mutex_release();
 
@@ -3317,9 +3317,9 @@ The tablespace must be cached in the memory cache.
 @param[out]	found		true if tablespace was found
 @return page size */
 const page_size_t fil_space_get_page_size(space_id_t space_id, bool *found) {
-  const ulint flags = fil_space_get_flags(space_id);
+  const uint32_t flags = fil_space_get_flags(space_id);
 
-  if (flags == ULINT_UNDEFINED) {
+  if (flags == UINT32_UNDEFINED) {
     *found = false;
     return (univ_page_size);
   }
@@ -3913,7 +3913,7 @@ dberr_t fil_close_tablespace(trx_t *trx, space_id_t space_id) {
 @param[in,out]	mtr		mini-transaction */
 static void fil_op_write_log(mlog_id_t type, space_id_t space_id,
                              const char *path, const char *new_path,
-                             ulint flags, mtr_t *mtr) {
+                             uint32_t flags, mtr_t *mtr) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
   byte *log_ptr;
@@ -4252,7 +4252,7 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
 
   os_file_close(fh);
 
-  ulint flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
 
   /* Delete the fil_space_t object for the new_space_id if it exists. */
   if (fil_space_get(new_space_id) != nullptr) {
@@ -4956,7 +4956,7 @@ dberr_t fil_rename_tablespace_by_id(space_id_t space_id, const char *old_name,
 @param[in]	type		FIL_TYPE_TABLESPACE or FIL_TYPE_TEMPORARY
 @return DB_SUCCESS or error code */
 static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
-                                     const char *path, ulint flags,
+                                     const char *path, uint32_t flags,
                                      page_no_t size, fil_type_t type) {
   pfs_os_file_t file;
   dberr_t err;
@@ -5201,7 +5201,7 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
                                 must be >= FIL_IBD_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
-                       ulint flags, page_no_t size) {
+                       uint32_t flags, page_no_t size) {
   ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
   ut_ad(!srv_read_only_mode);
   return (fil_create_tablespace(space_id, name, path, flags, size,
@@ -5217,7 +5217,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
                                 must be >= FIL_IBT_FILE_INITIAL_SIZE
 @return DB_SUCCESS or error code */
 dberr_t fil_ibt_create(space_id_t space_id, const char *name, const char *path,
-                       ulint flags, page_no_t size) {
+                       uint32_t flags, page_no_t size) {
   ut_a(size >= FIL_IBT_FILE_INITIAL_SIZE);
   return (fil_create_tablespace(space_id, name, path, flags, size,
                                 FIL_TYPE_TEMPORARY));
@@ -5251,7 +5251,7 @@ The fil_node_t::handle will not be left open.
                                 by upgrade
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
-                     ulint flags, const char *space_name,
+                     uint32_t flags, const char *space_name,
                      const char *table_name, const char *path_in, bool strict,
                      bool old_space) {
   Datafile df;
@@ -6617,7 +6617,7 @@ as well as in the form of database/tablespace
 @param[out]	absolute_path	absolute path of tablespace
 corresponds to target dir
 @param[out]	tablespace_name	name in the form of database/table */
-static void meb_make_abs_file_path(const std::string &name, ulint flags,
+static void meb_make_abs_file_path(const std::string &name, uint32_t flags,
                                    space_id_t space_id,
                                    std::string &absolute_path,
                                    std::string &tablespace_name) {
@@ -6690,7 +6690,7 @@ static void meb_make_abs_file_path(const std::string &name, ulint flags,
 @param[in]	page_id		Page id of the redo log record
 @param[in]	flags		Tablespace flags
 @param[in]	name		Tablespace filename */
-static void meb_tablespace_redo_create(const page_id_t &page_id, ulint flags,
+static void meb_tablespace_redo_create(const page_id_t &page_id, uint32_t flags,
                                        const char *name) {
   std::string abs_file_path;
   std::string tablespace_name;
@@ -8848,7 +8848,7 @@ bool Fil_path::is_valid() const {
 in MDL_EXCLUSIVE MODE.
 @param[in]	space	tablespace in-memory struct
 @param[in]	flags	tablespace flags */
-void fil_space_set_flags(fil_space_t *space, ulint flags) {
+void fil_space_set_flags(fil_space_t *space, uint32_t flags) {
   ut_ad(fsp_flags_is_valid(flags));
 
   rw_lock_x_lock(&space->latch);
@@ -9479,7 +9479,7 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
   }
 
 #ifdef UNIV_HOTBACKUP
-  ulint flags = mach_read_from_4(ptr);
+  uint32_t flags = mach_read_from_4(ptr);
 #else
     /* Skip the flags, not used here. */
 #endif /* UNIV_HOTBACKUP */
@@ -10201,7 +10201,7 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
         return (dict_sys_t::s_invalid_space_id);
       }
 
-      ulint flags;
+      uint32_t flags;
 
       flags = mach_read_from_4(reinterpret_cast<byte *>(buf));
 

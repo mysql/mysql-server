@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -314,13 +314,13 @@ ibool dict_table_has_fts_index(
 @param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf_is_valid(ulint flags) {
+bool dict_tf_is_valid(uint32_t flags) {
   bool compact = DICT_TF_GET_COMPACT(flags);
-  ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
+  uint32_t zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
   bool atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(flags);
   bool data_dir = DICT_TF_HAS_DATA_DIR(flags);
   bool shared_space = DICT_TF_HAS_SHARED_SPACE(flags);
-  ulint unused = DICT_TF_GET_UNUSED(flags);
+  uint32_t unused = DICT_TF_GET_UNUSED(flags);
 
   /* Make sure there are no bits that we do not know about. */
   if (unused != 0) {
@@ -366,7 +366,7 @@ are compatible.
 @param[in]	flags2	Table flags2
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf2_is_valid(ulint flags, ulint flags2) {
+bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2) {
   if (!dict_tf_is_valid(flags)) {
     return (false);
   }
@@ -388,31 +388,32 @@ bool dict_tf2_is_valid(ulint flags, ulint flags2) {
  @return Same as input after validating it as a SYS_TABLES TYPE field.
  If there is an error, return ULINT_UNDEFINED. */
 UNIV_INLINE
-ulint dict_sys_tables_type_validate(ulint type,   /*!< in: SYS_TABLES.TYPE */
-                                    ulint n_cols) /*!< in: SYS_TABLES.N_COLS */
+uint32_t dict_sys_tables_type_validate(
+    uint32_t type,   /*!< in: SYS_TABLES.TYPE */
+    uint32_t n_cols) /*!< in: SYS_TABLES.N_COLS */
 {
-  ulint low_order_bit = DICT_TF_GET_COMPACT(type);
-  ulint redundant = !(n_cols & DICT_N_COLS_COMPACT);
-  ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(type);
-  ulint atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(type);
-  ulint unused = DICT_TF_GET_UNUSED(type);
+  uint32_t low_order_bit = DICT_TF_GET_COMPACT(type);
+  uint32_t redundant = !(n_cols & DICT_N_COLS_COMPACT);
+  uint32_t zip_ssize = DICT_TF_GET_ZIP_SSIZE(type);
+  uint32_t atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(type);
+  uint32_t unused = DICT_TF_GET_UNUSED(type);
 
   /* The low order bit of SYS_TABLES.TYPE is always set to 1.
   If !atomic_blobs, this field is the same
   as dict_table_t::flags. Zero is not allowed here. */
   if (!low_order_bit) {
-    return (ULINT_UNDEFINED);
+    return (UINT32_UNDEFINED);
   }
 
   if (redundant) {
     if (zip_ssize || atomic_blobs) {
-      return (ULINT_UNDEFINED);
+      return (UINT32_UNDEFINED);
     }
   }
 
   /* Make sure there are no bits that we do not know about. */
   if (unused) {
-    return (ULINT_UNDEFINED);
+    return (UINT32_UNDEFINED);
   }
 
   if (atomic_blobs) {
@@ -426,7 +427,7 @@ ulint dict_sys_tables_type_validate(ulint type,   /*!< in: SYS_TABLES.TYPE */
 
   } else if (zip_ssize) {
     /* Antelope does not support COMPRESSED format. */
-    return (ULINT_UNDEFINED);
+    return (UINT32_UNDEFINED);
   }
 
   if (zip_ssize) {
@@ -435,12 +436,12 @@ ulint dict_sys_tables_type_validate(ulint type,   /*!< in: SYS_TABLES.TYPE */
     should be in N_COLS, but we already know about the
     low_order_bit and DICT_N_COLS_COMPACT flags. */
     if (!atomic_blobs) {
-      return (ULINT_UNDEFINED);
+      return (UINT32_UNDEFINED);
     }
 
     /* Validate that the number is within allowed range. */
     if (zip_ssize > PAGE_ZIP_SSIZE_MAX) {
-      return (ULINT_UNDEFINED);
+      return (UINT32_UNDEFINED);
     }
   }
 
@@ -458,7 +459,8 @@ ulint dict_sys_tables_type_validate(ulint type,   /*!< in: SYS_TABLES.TYPE */
  other row_format, flags is nonzero and DICT_TF_COMPACT will also be set.
  @return file format version */
 UNIV_INLINE
-rec_format_t dict_tf_get_rec_format(ulint flags) /*!< in: dict_table_t::flags */
+rec_format_t dict_tf_get_rec_format(
+    uint32_t flags) /*!< in: dict_table_t::flags */
 {
   ut_a(dict_tf_is_valid(flags));
 
@@ -494,7 +496,7 @@ bool dict_table_has_atomic_blobs(const dict_table_t *table) {
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
+void dict_tf_set(uint32_t *flags, rec_format_t format, ulint zip_ssize,
                  bool use_data_dir, bool shared_space) {
   switch (format) {
     case REC_FORMAT_REDUNDANT:
@@ -531,9 +533,9 @@ void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
 @param[in]	data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-ulint dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
-                   bool data_dir, bool shared_space) {
-  ulint flags = 0;
+uint32_t dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
+                      bool data_dir, bool shared_space) {
+  uint32_t flags = 0;
 
   if (compact) {
     flags |= DICT_TF_COMPACT;
@@ -570,12 +572,12 @@ ulint dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
  ==================================================================
  @return ulint containing SYS_TABLES.TYPE */
 UNIV_INLINE
-ulint dict_sys_tables_type_to_tf(
-    ulint type,   /*!< in: SYS_TABLES.TYPE field */
-    ulint n_cols) /*!< in: SYS_TABLES.N_COLS field */
+uint32_t dict_sys_tables_type_to_tf(
+    uint32_t type,   /*!< in: SYS_TABLES.TYPE field */
+    uint32_t n_cols) /*!< in: SYS_TABLES.N_COLS field */
 {
-  ulint flags;
-  ulint redundant = !(n_cols & DICT_N_COLS_COMPACT);
+  uint32_t flags;
+  uint32_t redundant = !(n_cols & DICT_N_COLS_COMPACT);
 
   /* Adjust bit zero. */
   flags = redundant ? 0 : 1;
@@ -599,7 +601,7 @@ ulint dict_sys_tables_type_to_tf(
  ==================================================================
  @return ulint containing SYS_TABLES.TYPE */
 UNIV_INLINE
-ulint dict_tf_to_sys_tables_type(ulint flags) /*!< in: dict_table_t::flags */
+ulint dict_tf_to_sys_tables_type(uint32_t flags) /*!< in: dict_table_t::flags */
 {
   ulint type;
 
@@ -621,7 +623,7 @@ ulint dict_tf_to_sys_tables_type(ulint flags) /*!< in: dict_table_t::flags */
 @return a structure containing the compressed and uncompressed
 page sizes and a boolean indicating if the page is compressed. */
 UNIV_INLINE
-const page_size_t dict_tf_get_page_size(ulint flags) {
+const page_size_t dict_tf_get_page_size(uint32_t flags) {
   const ulint zip_ssize = DICT_TF_GET_ZIP_SSIZE(flags);
 
   if (zip_ssize == 0) {
@@ -1315,8 +1317,9 @@ ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col) {
 @param[in,out]     n_col   number of non-virtual column
 @param[in,out]     n_v_col number of virtual column */
 UNIV_INLINE
-void dict_table_decode_n_col(ulint encoded, ulint *n_col, ulint *n_v_col) {
-  ulint num = encoded & ~DICT_N_COLS_COMPACT;
+void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
+                             uint32_t *n_v_col) {
+  uint32_t num = encoded & ~DICT_N_COLS_COMPACT;
   *n_v_col = num >> 16;
   *n_col = num & 0xFFFF;
 }

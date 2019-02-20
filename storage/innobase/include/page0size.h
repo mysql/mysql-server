@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,8 +78,8 @@ class page_size_t {
 
   /** Constructor from (fsp_flags).
   @param[in]	fsp_flags	filespace flags */
-  explicit page_size_t(ulint fsp_flags) {
-    ulint ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
+  explicit page_size_t(uint32_t fsp_flags) {
+    uint32_t ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
 
     /* If the logical page size is zero in fsp_flags, then use the
     legacy 16k page size. */
@@ -173,15 +173,15 @@ class page_size_t {
             a.is_compressed() == m_is_compressed);
   }
 
-  inline void set_flag(ulint fsp_flags) {
-    ulint ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
+  inline void set_flag(uint32_t fsp_flags) {
+    uint32_t ssize = FSP_FLAGS_GET_PAGE_SSIZE(fsp_flags);
 
     /* If the logical page size is zero in fsp_flags, then
     use the legacy 16k page size. */
     ssize = (0 == ssize) ? UNIV_PAGE_SSIZE_ORIG : ssize;
 
     /* Convert from a 'log2 minus 9' to a page size in bytes. */
-    const ulint size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
+    const uint32_t size = ((UNIV_ZIP_SIZE_MIN >> 1) << ssize);
 
     ut_ad(size <= UNIV_PAGE_SIZE_MAX);
     ut_ad(size <= (1 << PAGE_SIZE_T_SIZE_BITS));

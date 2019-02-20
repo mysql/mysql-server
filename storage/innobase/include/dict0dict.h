@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -605,7 +605,7 @@ bool dict_table_has_atomic_blobs(const dict_table_t *table)
 @param[in]	use_data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
+void dict_tf_set(uint32_t *flags, rec_format_t format, ulint zip_ssize,
                  bool use_data_dir, bool shared_space);
 
 /** Initialize a dict_table_t::flags pointer.
@@ -615,8 +615,8 @@ void dict_tf_set(ulint *flags, rec_format_t format, ulint zip_ssize,
 @param[in]	data_dir	Table uses DATA DIRECTORY
 @param[in]	shared_space	Table uses a General Shared Tablespace */
 UNIV_INLINE
-ulint dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
-                   bool data_dir, bool shared_space);
+uint32_t dict_tf_init(bool compact, ulint zip_ssize, bool atomic_blobs,
+                      bool data_dir, bool shared_space);
 
 /** Convert a 32 bit integer table flags to the 32 bit FSP Flags.
 Fsp Flags are written into the tablespace header at the offset
@@ -630,13 +630,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @return tablespace flags (fil_space_t::flags) */
-ulint dict_tf_to_fsp_flags(ulint table_flags) MY_ATTRIBUTE((const));
+uint32_t dict_tf_to_fsp_flags(uint32_t table_flags) MY_ATTRIBUTE((const));
 
 /** Extract the page size from table flags.
 @param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-const page_size_t dict_tf_get_page_size(ulint flags) MY_ATTRIBUTE((const));
+const page_size_t dict_tf_get_page_size(uint32_t flags) MY_ATTRIBUTE((const));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
@@ -1482,7 +1482,7 @@ void dict_set_merge_threshold_all_debug(uint merge_threshold_all);
 @param[in]	flags	Table flags
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf_is_valid(ulint flags);
+bool dict_tf_is_valid(uint32_t flags);
 
 /** Validate both table flags and table flags2 and make sure they
 are compatible.
@@ -1490,7 +1490,7 @@ are compatible.
 @param[in]	flags2	Table flags2
 @return true if valid. */
 UNIV_INLINE
-bool dict_tf2_is_valid(ulint flags, ulint flags2);
+bool dict_tf2_is_valid(uint32_t flags, uint32_t flags2);
 
 /** Check if the tablespace for the table has been discarded.
  @return true if the tablespace has been discarded. */
@@ -1594,7 +1594,8 @@ ulint dict_table_encode_n_col(ulint n_col, ulint n_v_col);
 @param[in,out]	n_col	number of non-virtual column
 @param[in,out]	n_v_col	number of virtual column */
 UNIV_INLINE
-void dict_table_decode_n_col(ulint encoded, ulint *n_col, ulint *n_v_col);
+void dict_table_decode_n_col(uint32_t encoded, uint32_t *n_col,
+                             uint32_t *n_v_col);
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */

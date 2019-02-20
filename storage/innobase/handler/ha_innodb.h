@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -803,8 +803,8 @@ class create_table_info_t {
   - all but name/path is used, when validating options and using flags. */
   create_table_info_t(THD *thd, TABLE *form, HA_CREATE_INFO *create_info,
                       char *table_name, char *remote_path, char *tablespace,
-                      bool file_per_table, bool skip_strict, ulint old_flags,
-                      ulint old_flags2)
+                      bool file_per_table, bool skip_strict, uint32_t old_flags,
+                      uint32_t old_flags2)
       : m_thd(thd),
         m_trx(thd_to_trx(thd)),
         m_form(form),
@@ -868,10 +868,10 @@ class create_table_info_t {
   void set_remote_path_flags();
 
   /** Get table flags. */
-  ulint flags() const { return (m_flags); }
+  uint32_t flags() const { return (m_flags); }
 
   /** Get table flags2. */
-  ulint flags2() const { return (m_flags2); }
+  uint32_t flags2() const { return (m_flags2); }
 
   /** Reset table flags. */
   void flags_reset() { m_flags = 0; }
@@ -972,10 +972,10 @@ class create_table_info_t {
   bool m_use_shared_space;
 
   /** Table flags */
-  ulint m_flags;
+  uint32_t m_flags;
 
   /** Table flags2 */
-  ulint m_flags2;
+  uint32_t m_flags2;
 
   /** Skip strict check */
   bool m_skip_strict;
@@ -1213,11 +1213,11 @@ inline bool trx_is_registered_for_2pc(const trx_t *trx) {
 /** Converts an InnoDB error code to a MySQL error code.
 Also tells to MySQL about a possible transaction rollback inside InnoDB caused
 by a lock wait timeout or a deadlock.
-@param[in]	error	InnoDB error code.
-@param[in]	flags	InnoDB table flags or 0.
-@param[in]	thd	MySQL thread or NULL.
+@param[in]  error   InnoDB error code.
+@param[in]  flags   InnoDB table flags or 0.
+@param[in]  thd     MySQL thread or NULL.
 @return MySQL error code */
-int convert_error_code_to_mysql(dberr_t error, ulint flags, THD *thd);
+int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd);
 
 /** Converts a search mode flag understood by MySQL to a flag understood
 by InnoDB.
