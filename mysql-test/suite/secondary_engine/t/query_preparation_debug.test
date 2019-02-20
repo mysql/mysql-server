@@ -113,9 +113,13 @@ SET @@optimizer_trace='enabled=off';
 # Set a debug flag so that the join order is chosen based on how early
 # a table with the alias X is.
 SET DEBUG = "+d,secondary_engine_mock_change_join_order";
+# The note in the warning from EXPLAIN shows the alias X in different case
+# on different platforms, so disable warnings to hide the differences.
+--disable_warnings
 EXPLAIN SELECT * FROM t1 AS X JOIN t2 ON X.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
 EXPLAIN SELECT * FROM t1 JOIN t2 AS X ON t1.x = X.y LEFT JOIN t3 ON X.x = t3.y;
 EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 AS X ON t2.x = X.y;
+--enable_warnings
 SET DEBUG = "-d,secondary_engine_mock_change_join_order";
 SET DEBUG = "+d,secondary_engine_mock_compare_cost_error";
 # The injected error causes fallback to the primary engine.
