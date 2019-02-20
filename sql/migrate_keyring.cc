@@ -169,12 +169,18 @@ bool Migrate_keyring::execute()
 {
   DBUG_ENTER("Migrate_keyring::execute");
 
+  char **tmp_m_argv;
+
+  /* Disable access to keyring service APIs */
+  if (migrate_connect_options && disable_keyring_operations())
+      goto error;
+
   /* Load source plugin. */
   if (load_plugin(SOURCE_PLUGIN))
   {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
              "Failed to initialize source keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
   /* Load destination source plugin. */
@@ -182,14 +188,14 @@ bool Migrate_keyring::execute()
   {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
              "Failed to initialize destination keyring");
-    DBUG_RETURN(true);
+    goto error;
   }
 
   /* skip program name */
   m_argc--;
   /* We use a tmp ptr instead of m_argv since if the latter gets changed, we
    * lose access to the alloced mem and hence there would be leak */
-  char **tmp_m_argv= m_argv + 1;
+  tmp_m_argv= m_argv + 1;
   /* check for invalid options */
   if (m_argc > 1)
   {
@@ -211,9 +217,6 @@ bool Migrate_keyring::execute()
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
   }
-  /* Disable access to keyring service APIs */
-  if (migrate_connect_options && disable_keyring_operations())
-    goto error;
 
   /* Fetch all keys from source plugin and store into destination plugin. */
   if (fetch_and_store_keys())
