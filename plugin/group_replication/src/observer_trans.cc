@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -389,7 +389,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   // serialize transaction context into a transaction message.
-  binary_event_serialize(tcle, transaction_msg);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    binary_event_serialize(tcle, transaction_msg);
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    error = pre_wait_error;
+    goto err;
+  }
 
   if (*(param->original_commit_timestamp) == UNDEFINED_COMMIT_TIMESTAMP) {
     /*
@@ -424,7 +432,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
     account.
   */
   gle->set_trx_length_by_cache_size(cache_log_position);
-  binary_event_serialize(gle, transaction_msg);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    binary_event_serialize(gle, transaction_msg);
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
+    error = pre_wait_error;
+    goto err;
+  }
 
   transaction_size = cache_log_position + transaction_msg->length();
   if (is_dml && transaction_size_limit &&
@@ -436,13 +452,21 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
   // Copy binlog cache content to buffer.
-  if (cache_log->copy_to(transaction_msg)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
-                 param->thread_id);
+  // There is a chance you encounter an OOM in Transaction_message::write()
+  // here, so we take care accordingly.
+  try {
+    if (cache_log->copy_to(transaction_msg)) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
+                   param->thread_id);
+      error = pre_wait_error;
+      goto err;
+      /* purecov: end */
+    }
+  } catch (const std::bad_alloc &) {
+    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
     error = pre_wait_error;
     goto err;
-    /* purecov: end */
   }
 
   if (transactions_latch->registerTicket(param->thread_id)) {
