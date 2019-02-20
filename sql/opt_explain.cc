@@ -55,6 +55,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
@@ -1995,8 +1996,7 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
-vector<string> FullDebugString(THD *, const RowIterator &iterator) {
-  // The THD object will be used in the next patch.
+vector<string> FullDebugString(const THD *thd, const RowIterator &iterator) {
   vector<string> ret = iterator.DebugString();
   if (iterator.expected_rows() >= 0.0) {
     // NOTE: We cannot use %.0f, since MSVC and GCC round 0.5 in different
@@ -2006,6 +2006,14 @@ vector<string> FullDebugString(THD *, const RowIterator &iterator) {
     snprintf(str, sizeof(str), "  (cost=%.2f rows=%lld)",
              iterator.estimated_cost(), llrint(iterator.expected_rows()));
     ret.back() += str;
+  }
+  if (thd->lex->is_explain_analyze) {
+    if (iterator.expected_rows() < 0.0) {
+      // We always want a double space between the iterator name and the costs.
+      ret.back().push_back(' ');
+    }
+    ret.back().push_back(' ');
+    ret.back() += iterator.TimingString();
   }
   return ret;
 }
@@ -2132,6 +2140,21 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 }
 
 /**
+  A query result handler that does nothing. It is used during EXPLAIN ANALYZE,
+  to ignore the output of the query when it's being run.
+ */
+class Query_result_null : public Query_result_interceptor {
+ public:
+  Query_result_null() : Query_result_interceptor() {}
+  uint field_count(List<Item> &) const override { return 0; }
+  bool send_result_set_metadata(THD *, List<Item> &, uint) override {
+    return false;
+  }
+  bool send_data(THD *, List<Item> &) override { return false; }
+  bool send_eof(THD *) override { return false; }
+};
+
+/**
   EXPLAIN handling for SELECT, INSERT/REPLACE SELECT, and multi-table
   UPDATE/DELETE queries
 
@@ -2170,7 +2193,26 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   const bool other = (explain_thd != query_thd);
 
-  if (explain_thd->lex->explain_format->is_tree()) {
+  LEX *lex = explain_thd->lex;
+  if (lex->explain_format->is_tree()) {
+    if (lex->is_explain_analyze) {
+      // Run the query, but with the result suppressed.
+      Query_result_null null_result;
+      if (unit->is_simple()) {
+        unit->first_select()->set_query_result(&null_result);
+        unit->first_select()->join->exec();
+        unit->set_executed();
+        if (query_thd->is_error()) return true;
+      } else {
+        unit->change_query_result(explain_thd, &null_result, nullptr);
+        if (unit->fake_select_lex != nullptr) {
+          unit->fake_select_lex->set_query_result(&null_result);
+        }
+        DBUG_ASSERT(explain_thd == query_thd);
+        if (unit->execute(explain_thd)) return true;
+      }
+    }
+
     return ExplainIterator(explain_thd, query_thd, unit);
   }
 

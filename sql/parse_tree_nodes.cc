@@ -2346,6 +2346,10 @@ Sql_cmd *PT_explain_for_connection::make_cmd(THD *thd) {
              "non-standalone EXPLAIN FOR CONNECTION");
     return nullptr;
   }
+  if (thd->lex->is_explain_analyze) {
+    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXPLAIN ANALYZE FOR CONNECTION");
+    return nullptr;
+  }
   return &m_cmd;
 }
 
@@ -2360,6 +2364,10 @@ Sql_cmd *PT_explain::make_cmd(THD *thd) {
       break;
     case Explain_format_type::TREE:
       lex->explain_format = new (thd->mem_root) Explain_format_tree;
+      break;
+    case Explain_format_type::TREE_WITH_EXECUTE:
+      lex->explain_format = new (thd->mem_root) Explain_format_tree;
+      lex->is_explain_analyze = true;
       break;
   }
   if (lex->explain_format == nullptr) return nullptr;  // OOM

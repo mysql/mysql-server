@@ -13038,6 +13038,10 @@ opt_explain_format_type:
               MYSQL_YYABORT;
             }
           }
+        | ANALYZE_SYM
+          {
+            $$= Explain_format_type::TREE_WITH_EXECUTE;
+          }
         ;
 
 opt_describe_column:

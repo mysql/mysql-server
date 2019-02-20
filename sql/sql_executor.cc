@@ -1226,7 +1226,7 @@ static unique_ptr_destroy_only<RowIterator> CreateInvalidatorIterator(
           Mem_root_array<const CacheInvalidatorIterator *>(thd->mem_root);
     }
     (*tab2)->invalidators->push_back(
-        down_cast<CacheInvalidatorIterator *>(invalidator.get()));
+        down_cast<CacheInvalidatorIterator *>(invalidator->real_iterator()));
   }
   return invalidator;
 }
@@ -1484,8 +1484,7 @@ static unique_ptr_destroy_only<RowIterator> CreateWeedoutIterator(
         thd, move(iterator), /*limit=*/1, /*offset=*/0,
         /*count_all_rows=*/false, /*skipped_rows=*/nullptr);
   } else {
-    return unique_ptr_destroy_only<RowIterator>(new (
-        thd->mem_root) WeedoutIterator(thd, move(iterator), weedout_table));
+    return NewIterator<WeedoutIterator>(thd, move(iterator), weedout_table);
   }
 }
 
@@ -1775,7 +1774,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
 
     if (!rematerialize) {
       MaterializeIterator *materialize =
-          down_cast<MaterializeIterator *>(table_iterator.get());
+          down_cast<MaterializeIterator *>(table_iterator->real_iterator());
       if (qep_tab->invalidators != nullptr) {
         for (const CacheInvalidatorIterator *iterator :
              *qep_tab->invalidators) {
@@ -2333,7 +2332,7 @@ void JOIN::create_iterators() {
           qep_tab->join()->thd, qep_tab->filesort, move(iterator),
           &qep_tab->join()->examined_rows);
       qep_tab->table()->sorting_iterator =
-          down_cast<SortingIterator *>(qep_tab->iterator.get());
+          down_cast<SortingIterator *>(qep_tab->iterator->real_iterator());
     }
   }
 
@@ -2638,7 +2637,7 @@ void JOIN::create_iterators() {
         iterator = NewIterator<SortingIterator>(thd, dup_filesort,
                                                 move(iterator), &examined_rows);
         qep_tab->table()->duplicate_removal_iterator =
-            down_cast<SortingIterator *>(iterator.get());
+            down_cast<SortingIterator *>(iterator->real_iterator());
       }
     }
 
@@ -2646,7 +2645,7 @@ void JOIN::create_iterators() {
       iterator = NewIterator<SortingIterator>(thd, filesort, move(iterator),
                                               &examined_rows);
       qep_tab->table()->sorting_iterator =
-          down_cast<SortingIterator *>(iterator.get());
+          down_cast<SortingIterator *>(iterator->real_iterator());
     }
   }
 
@@ -4469,7 +4468,7 @@ void join_setup_iterator(QEP_TAB *tab) {
                                                  tab->filesort, move(iterator),
                                                  &tab->join()->examined_rows);
     tab->table()->sorting_iterator =
-        down_cast<SortingIterator *>(tab->iterator.get());
+        down_cast<SortingIterator *>(tab->iterator->real_iterator());
   }
 }
 
@@ -4709,7 +4708,8 @@ AlternativeIterator::AlternativeIterator(
     : RowIterator(thd),
       m_ref(ref),
       m_source_iterator(std::move(source)),
-      m_table_scan_iterator(thd, table, qep_tab, examined_rows) {
+      m_table_scan_iterator(
+          NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows)) {
   for (unsigned key_part_idx = 0; key_part_idx < ref->key_parts;
        ++key_part_idx) {
     bool *cond_guard = ref->cond_guards[key_part_idx];
@@ -4724,7 +4724,7 @@ bool AlternativeIterator::Init() {
   m_iterator = m_source_iterator.get();
   for (bool *cond_guard : m_applicable_cond_guards) {
     if (!*cond_guard) {
-      m_iterator = &m_table_scan_iterator;
+      m_iterator = m_table_scan_iterator.get();
       break;
     }
   }
@@ -4732,7 +4732,10 @@ bool AlternativeIterator::Init() {
 }
 
 vector<string> AlternativeIterator::DebugString() const {
-  const KEY *key = &m_table_scan_iterator.table()->key_info[m_ref->key];
+  const TABLE *table =
+      down_cast<TableScanIterator *>(m_table_scan_iterator->real_iterator())
+          ->table();
+  const KEY *key = &table->key_info[m_ref->key];
   string ret = "Alternative plans for IN subquery: Index lookup unless ";
   if (m_applicable_cond_guards.size() > 1) {
     ret += " any of (";

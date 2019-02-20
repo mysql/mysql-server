@@ -3090,6 +3090,7 @@ struct LEX : public Query_tables_list {
   }
   /// @return true if this is an EXPLAIN statement
   bool is_explain() const { return explain_format != nullptr; }
+  bool is_explain_analyze = false;
   LEX_STRING name;
   char *help_arg;
   char *to_log; /* For PURGE MASTER LOGS TO */

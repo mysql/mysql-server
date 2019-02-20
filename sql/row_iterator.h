@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "my_dbug.h"
+
 class Item;
 class JOIN;
 class THD;
@@ -145,6 +147,12 @@ class RowIterator {
   // (see set_estimated_cost() etc.) if present.
   virtual std::vector<std::string> DebugString() const = 0;
 
+  virtual std::string TimingString() const {
+    // Valid for TimingIterator only.
+    DBUG_ASSERT(false);
+    return "";
+  }
+
   // If this is the root iterator of a join, points back to the join object.
   // This has one single purpose: EXPLAIN uses it to be able to get the SELECT
   // list and print out any subselects in it; they are not children of
@@ -202,6 +210,14 @@ class RowIterator {
   }
   double expected_rows() const { return m_expected_rows; }
 
+  /**
+    If this iterator is wrapping a different iterator (e.g. TimingIterator<T>)
+    and you need to down_cast<> to a specific iterator type, this allows getting
+    at the wrapped iterator.
+   */
+  virtual RowIterator *real_iterator() { return this; }
+  virtual const RowIterator *real_iterator() const { return this; }
+
  protected:
   THD *thd() const { return m_thd; }
 
@@ -232,8 +248,9 @@ class TableRowIterator : public RowIterator {
   friend class AlternativeIterator;
 };
 
-// Return iterator.DebugString(), but with cost information appended
+// Return iterator.DebugString(), but with cost and timing information appended
 // in textual form, if available.
-std::vector<std::string> FullDebugString(THD *thd, const RowIterator &iterator);
+std::vector<std::string> FullDebugString(const THD *thd,
+                                         const RowIterator &iterator);
 
 #endif  // SQL_ROW_ITERATOR_H_

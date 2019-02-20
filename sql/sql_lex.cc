@@ -457,6 +457,7 @@ void LEX::reset() {
   create_info = NULL;
   server_options.reset();
   explain_format = NULL;
+  is_explain_analyze = false;
   is_lex_started = true;
   reset_slave_info.all = false;
   mi.channel = NULL;

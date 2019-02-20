@@ -228,7 +228,7 @@ struct Value_or_default {
   T value;  ///< undefined if is_default is true
 };
 
-enum class Explain_format_type { TRADITIONAL, JSON, TREE };
+enum class Explain_format_type { TRADITIONAL, JSON, TREE, TREE_WITH_EXECUTE };
 
 // Compatibility with Bison 2.3:
 #ifndef YYSTYPE_IS_DECLARED
