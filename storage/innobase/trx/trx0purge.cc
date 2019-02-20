@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -368,7 +368,7 @@ void trx_purge_add_update_undo_to_history(
   }
 }
 
-/** Remove undo log header from the history list.
+/** Remove an rseg header from the history list.
 @param[in,out]	rseg_hdr	rollback segment header
 @param[in]	log_hdr		undo log segment header
 @param[in,out]	mtr		mini transaction. */
@@ -380,8 +380,8 @@ static void trx_purge_remove_log_hdr(trx_rsegf_t *rseg_hdr,
   os_atomic_decrement_ulint(&trx_sys->rseg_history_len, 1);
 }
 
-/** Frees an undo log segment which is in the history list. Removes the
-undo log hdr from the history list.
+/** Frees a rollback segment which is in the history list.
+Removes the rseg hdr from the history list.
 @param[in,out]	rseg		rollback segment
 @param[in]	hdr_addr	file address of log_hdr
 @param[in]	noredo		skip redo logging. */
@@ -519,7 +519,7 @@ loop:
 
   if (undo_trx_no >= limit->trx_no) {
     /* limit space_id should match the rollback segment
-    space id to avoid freeing of the page belongs to
+    space id to avoid freeing if the page belongs to a
     different rollback segment for the same trx_no. */
     if (undo_trx_no == limit->trx_no &&
         rseg->space_id == limit->undo_rseg_space) {
