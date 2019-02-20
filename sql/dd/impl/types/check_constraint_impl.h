@@ -54,26 +54,24 @@ class Check_constraint_impl : public Entity_object_impl,
 
   Check_constraint_impl(const Check_constraint_impl &src, Table_impl *parent);
 
-  virtual ~Check_constraint_impl() {}
-
  public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
-  virtual const Object_table &object_table() const;
+  const Object_table &object_table() const override;
 
-  virtual bool validate() const;
+  bool validate() const override;
 
-  virtual bool store(Open_dictionary_tables_ctx *otx);
+  bool store(Open_dictionary_tables_ctx *otx) override;
 
-  virtual bool store_attributes(Raw_record *r);
+  bool store_attributes(Raw_record *r) override;
 
-  virtual bool restore_attributes(const Raw_record &r);
+  bool restore_attributes(const Raw_record &r) override;
 
-  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const override;
 
-  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) override;
 
-  virtual void debug_print(String_type &outb) const;
+  void debug_print(String_type &outb) const override;
 
   void set_ordinal_position(uint) {}
 
@@ -84,11 +82,11 @@ class Check_constraint_impl : public Entity_object_impl,
   // State.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_constraint_state constraint_state() const {
+  enum_constraint_state constraint_state() const override {
     return m_constraint_state;
   }
 
-  virtual void set_constraint_state(bool is_enabled) {
+  void set_constraint_state(bool is_enabled) override {
     m_constraint_state = is_enabled ? CS_ENFORCED : CS_NOT_ENFORCED;
   }
 
@@ -96,17 +94,17 @@ class Check_constraint_impl : public Entity_object_impl,
   // Check clause/utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &check_clause() const { return m_check_clause; }
+  const String_type &check_clause() const override { return m_check_clause; }
 
-  virtual void set_check_clause(const String_type &check_clause) {
+  void set_check_clause(const String_type &check_clause) override {
     m_check_clause = check_clause;
   }
 
-  virtual const String_type &check_clause_utf8() const {
+  const String_type &check_clause_utf8() const override {
     return m_check_clause_utf8;
   }
 
-  virtual void set_check_clause_utf8(const String_type &check_clause_utf8) {
+  void set_check_clause_utf8(const String_type &check_clause_utf8) override {
     m_check_clause_utf8 = check_clause_utf8;
   }
 
@@ -124,9 +122,9 @@ class Check_constraint_impl : public Entity_object_impl,
   // Alias check constriaint name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &alias_name() const { return m_alias_name; }
+  const String_type &alias_name() const override { return m_alias_name; }
 
-  virtual void set_alias_name(const String_type &alias_name) {
+  void set_alias_name(const String_type &alias_name) override {
     m_alias_name = alias_name;
   }
 
@@ -134,9 +132,9 @@ class Check_constraint_impl : public Entity_object_impl,
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Table &table() const;
+  const Table &table() const override;
 
-  virtual Table &table();
+  Table &table() override;
 
  public:
   static Check_constraint_impl *restore_item(Table_impl *table) {
@@ -149,16 +147,18 @@ class Check_constraint_impl : public Entity_object_impl,
   }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const {
+  Entity_object_impl *impl() override { return Entity_object_impl::impl(); }
+  const Entity_object_impl *impl() const override {
     return Entity_object_impl::impl();
   }
-  virtual Object_id id() const { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const {
+  Object_id id() const override { return Entity_object_impl::id(); }
+  bool is_persistent() const override {
     return Entity_object_impl::is_persistent();
   }
-  virtual const String_type &name() const { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name) {
+  const String_type &name() const override {
+    return Entity_object_impl::name();
+  }
+  void set_name(const String_type &name) override {
     Entity_object_impl::set_name(name);
   }
 
