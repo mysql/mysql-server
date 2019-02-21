@@ -1438,12 +1438,20 @@ void DB_restrictions_aggregator_db_revoke::aggregate(
     */
     m_privs_not_processed = m_requested_access;
   } else {
-    const ulong revoke_mask = (m_grantee_global_access & m_requested_access);
-    if (revoke_mask) /* Create restrictions only for available global privs */
+    /*
+      Filter out the access for which grantee does not have DB level access but
+      the Global level access.
+    */
+    const ulong revoke_mask =
+        (m_grantee_global_access &
+         (m_requested_access & (m_requested_access ^ m_grantee_db_access)));
+    if (revoke_mask)  // Create restrictions only if there is a restriction mask
       restrictions.add(m_db_name, revoke_mask);
-    /* Filter out if some DB level privilege need to be revoked too. */
-    m_privs_not_processed =
-        (m_grantee_global_access ^ m_requested_access) & m_requested_access;
+    /*
+      Filter out the access other than restrictions from the request_acess
+      to let next level handlers take care of those access.
+    */
+    m_privs_not_processed = m_requested_access ^ revoke_mask;
   }
   m_status = Status::Aggregated;
 }

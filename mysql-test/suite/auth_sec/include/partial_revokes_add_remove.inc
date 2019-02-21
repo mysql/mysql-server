@@ -506,6 +506,14 @@ SHOW GRANTS FOR bar;
 --echo #       as revoke applicable DB level privileges(select and delete)
 REVOKE INSERT, UPDATE, DELETE, SELECT ON robo.* FROM bar;
 SHOW GRANTS FOR bar;
+--echo # 12.3 Grant global and DB level privilege then revoke the DB level
+       #      privilege as well as create a partial revoke
+GRANT SELECT, DROP ON *.* TO foo;
+GRANT DROP ON robo.* TO foo;
+SHOW GRANTS FOR foo;
+REVOKE SELECT, DROP ON robo.* FROM foo;
+SHOW GRANTS FOR foo;
+# Cleanup
 DROP USER foo,bar;
 DROP DATABASE robo;
 --echo #
