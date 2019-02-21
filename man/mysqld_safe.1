@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -175,9 +175,10 @@ should be able to create\&. The option value is passed to
 \fBNote\fR
 .ps -1
 .br
-Disabling
+The
 innodb_buffer_pool_in_core_file
-can help reduce core file size\&.
+variable can be used to reduce the size of core files on operating systems that support it\&. For more information, see
+Section\ \&15.8.3.8, \(lqExcluding Buffer Pool Pages from Core Files\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -1001,7 +1002,7 @@ Section\ \&5.4.2.3, \(lqError Logging to the System Log\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

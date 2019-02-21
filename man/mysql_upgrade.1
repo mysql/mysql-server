@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -33,21 +33,78 @@ mysql_upgrade \- check and upgrade MySQL tables
 .HP \w'\fBmysql_upgrade\ [\fR\fB\fIoptions\fR\fR\fB]\fR\ 'u
 \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .SH "DESCRIPTION"
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
 .PP
+As of MySQL 8\&.0\&.16, the MySQL server performs the upgrade tasks previously handled by
 \fBmysql_upgrade\fR
-examines all tables in all databases for incompatibilities with the current version of MySQL Server\&.
+(for details, see
+Section\ \&2.11.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequently,
 \fBmysql_upgrade\fR
-also upgrades the system tables so that you can take advantage of new privileges or capabilities that might have been added\&.
+is unneeded and is deprecated as of that version, and will be removed in a future MySQL version\&. Because
+\fBmysql_upgrade\fR
+no longer performs upgrade tasks, it exits with status 2 (EXIT_ALREADY_UPGRADED), except that it exits with status 0 (EXIT_SUCCESS) if invoked with the
+\fB\-\-force\fR
+option\&.
+.sp .5v
+.RE
+.PP
+Each time you upgrade MySQL, you should execute
+\fBmysql_upgrade\fR, which looks for incompatibilities with the upgraded MySQL server:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It upgrades the system tables in the
+mysql
+schema so that you can take advantage of new privileges or capabilities that might have been added\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It upgrades the Performance Schema,
+INFORMATION_SCHEMA, and
+sys
+schema\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+It examines user schemas\&.
+.RE
 .PP
 If
 \fBmysql_upgrade\fR
 finds that a table has a possible incompatibility, it performs a table check and, if problems are found, attempts a table repair\&. If the table cannot be repaired, see
-Section\ \&2.11.3, \(lqRebuilding or Repairing Tables or Indexes\(rq
+Section\ \&2.11.13, \(lqRebuilding or Repairing Tables or Indexes\(rq
 for manual table repair strategies\&.
-.PP
-You should execute
-\fBmysql_upgrade\fR
-each time you upgrade MySQL\&.
 .PP
 \fBmysql_upgrade\fR
 communicates directly with the MySQL server, sending it the SQL statements required to perform an upgrade\&.
@@ -69,14 +126,42 @@ You should always back up your current MySQL installation
 performing an upgrade\&. See
 Section\ \&7.2, \(lqDatabase Backup Methods\(rq\&.
 .PP
-Some upgrade incompatibilities may require special handling before you upgrade your MySQL installation and run
+Some upgrade incompatibilities may require special handling
+\fIbefore\fR
+upgrading your MySQL installation and running
 \fBmysql_upgrade\fR\&. See
-Section\ \&2.11.1, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
+Section\ \&2.11, \(lqUpgrading MySQL\(rq, for instructions on determining whether any such incompatibilities apply to your installation and how to handle them\&.
 .sp .5v
 .RE
 .PP
-To use
-\fBmysql_upgrade\fR, make sure that the server is running\&. Then invoke it like this to check and repair tables and to upgrade the system tables:
+Use
+\fBmysql_upgrade\fR
+like this:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Ensure that the server is running\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Invoke
+\fBmysql_upgrade\fR
+to upgrade the system tables in the
+mysql
+schema and check and repair tables in other schemas:
 .sp
 .if n \{\
 .RS 4
@@ -87,13 +172,22 @@ shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .if n \{\
 .RE
 .\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+Stop the server and restart it so that any system table changes take effect\&.
+.RE
 .PP
-After running
-\fBmysql_upgrade\fR, stop the server and restart it so that any changes made to the system tables take effect\&.
-.PP
-If you have multiple MySQL server instances running, invoke
+If you have multiple MySQL server instances to upgrade, invoke
 \fBmysql_upgrade\fR
-with connection parameters appropriate for connecting to the desired server\&. For example, with servers running on the local host on parts 3306 through 3308, upgrade each of them by connecting to the appropriate port:
+with connection parameters appropriate for connecting to each of the desired servers\&. For example, with servers running on the local host on parts 3306 through 3308, upgrade each of them by connecting to the appropriate port:
 .sp
 .if n \{\
 .RS 4
@@ -110,121 +204,6 @@ shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\
 For local host connections on Unix, the
 \fB\-\-protocol=tcp\fR
 option forces a connection using TCP/IP rather than the Unix socket file\&.
-.if n \{\
-.sp
-.\}
-.RS 4
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.ps +1
-\fBNote\fR
-.ps -1
-.br
-.PP
-If you run the server with the
-disabled_storage_engines
-system variable set to disable certain storage engines (for example,
-MyISAM),
-\fBmysql_upgrade\fR
-might fail with an error like this:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-mysql_upgrade: [ERROR] 3161: Storage engine MyISAM is disabled
-(Table creation is disallowed)\&.
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-To handle this, restart the server with
-disabled_storage_engines
-disabled\&. Then you should be able to run
-\fBmysql_upgrade\fR
-successfully\&. After that, restart the server with
-disabled_storage_engines
-set to its original value\&.
-.sp .5v
-.RE
-.PP
-\fBmysql_upgrade\fR
-processes all tables in all databases, which might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&.
-.PP
-For details about what table\-checking operations entail, see the description of the
-FOR UPGRADE
-option of the
-CHECK TABLE
-statement (see
-Section\ \&13.7.3.2, \(lqCHECK TABLE Syntax\(rq)\&.
-.PP
-All checked and repaired tables are marked with the current MySQL version number\&. This ensures that next time you run
-\fBmysql_upgrade\fR
-with the same version of the server, it can tell whether there is any need to check or repair the table again\&.
-.PP
-\fBmysql_upgrade\fR
-also saves the MySQL version number in a file named
-mysql_upgrade_info
-in the data directory\&. This is used to quickly check whether all tables have been checked for this release so that table\-checking can be skipped\&. To ignore this file and perform the check regardless, use the
-\fB\-\-force\fR
-option\&.
-.PP
-\fBmysql_upgrade\fR
-checks
-user
-table rows and, for any row with an empty
-plugin
-column, sets that column to
-\*(Aqmysql_native_password\*(Aq
-if the credentials use a hash format compatible with that plugin\&. Rows with a pre\-4\&.1 password hash must be upgraded manually\&.
-.PP
-\fBmysql_upgrade\fR
-does not upgrade the contents of the help tables\&. For upgrade instructions, see
-Section\ \&5.1.15, \(lqServer-Side Help\(rq\&.
-.PP
-Unless invoked with the
-\fB\-\-skip\-sys\-schema\fR
-option,
-\fBmysql_upgrade\fR
-installs the
-sys
-schema if it is not installed, and upgrades it to the current version otherwise\&.
-\fBmysql_upgrade\fR
-returns an error if a
-sys
-schema exists but has no
-version
-view, on the assumption that its absence indicates a user\-created schema:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-Error occurred: A sys schema exists with no sys\&.version view\&. If
-you have a user created sys schema, this must be renamed for the
-upgrade to succeed\&.
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-To upgrade in this case, remove or rename the existing
-sys
-schema first\&.
-.PP
-\fBmysql_upgrade\fR
-checks for partitioned
-InnoDB
-tables that were created using the generic partitioning handler and attempts to upgrade them to
-InnoDB
-native partitioning\&. You can upgrade such tables individually in the
-\fBmysql\fR
-client using the
-ALTER TABLE \&.\&.\&. UPGRADE PARTITIONING
-SQL statement\&.
 .PP
 By default,
 \fBmysql_upgrade\fR
@@ -281,6 +260,123 @@ shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .if n \{\
 .RE
 .\}
+.sp
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+If you run the server with the
+disabled_storage_engines
+system variable set to disable certain storage engines (for example,
+MyISAM),
+\fBmysql_upgrade\fR
+might fail with an error like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+mysql_upgrade: [ERROR] 3161: Storage engine MyISAM is disabled
+(Table creation is disallowed)\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To handle this, restart the server with
+disabled_storage_engines
+disabled\&. Then you should be able to run
+\fBmysql_upgrade\fR
+successfully\&. After that, restart the server with
+disabled_storage_engines
+set to its original value\&.
+.sp .5v
+.RE
+.PP
+Unless invoked with the
+\fB\-\-upgrade\-system\-tables\fR
+option,
+\fBmysql_upgrade\fR
+processes all tables in all user schemas as necessary\&. Table checking might take a long time to complete\&. Each table is locked and therefore unavailable to other sessions while it is being processed\&. Check and repair operations can be time\-consuming, particularly for large tables\&. Table checking uses the
+FOR UPGRADE
+option of the
+CHECK TABLE
+statement\&. For details about what this option entails, see
+Section\ \&13.7.3.2, \(lqCHECK TABLE Syntax\(rq\&.
+.PP
+\fBmysql_upgrade\fR
+marks all checked and repaired tables with the current MySQL version number\&. This ensures that the next time you run
+\fBmysql_upgrade\fR
+with the same version of the server, it can be determined whether there is any need to check or repair a given table again\&.
+.PP
+\fBmysql_upgrade\fR
+saves the MySQL version number in a file named
+mysql_upgrade_info
+in the data directory\&. This is used to quickly check whether all tables have been checked for this release so that table\-checking can be skipped\&. To ignore this file and perform the check regardless, use the
+\fB\-\-force\fR
+option\&.
+.PP
+\fBmysql_upgrade\fR
+checks
+mysql\&.user
+system table rows and, for any row with an empty
+plugin
+column, sets that column to
+\*(Aqmysql_native_password\*(Aq
+if the credentials use a hash format compatible with that plugin\&. Rows with a pre\-4\&.1 password hash must be upgraded manually\&.
+.PP
+\fBmysql_upgrade\fR
+does not upgrade the contents of the time zone tables or help tables\&. For upgrade instructions, see
+Section\ \&5.1.13, \(lqMySQL Server Time Zone Support\(rq, and
+Section\ \&5.1.14, \(lqServer-Side Help Support\(rq\&.
+.PP
+Unless invoked with the
+\fB\-\-skip\-sys\-schema\fR
+option,
+\fBmysql_upgrade\fR
+installs the
+sys
+schema if it is not installed, and upgrades it to the current version otherwise\&. An error occurs if a
+sys
+schema exists but has no
+version
+view, on the assumption that its absence indicates a user\-created schema:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+A sys schema exists with no sys\&.version view\&. If
+you have a user created sys schema, this must be renamed for the
+upgrade to succeed\&.
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+To upgrade in this case, remove or rename the existing
+sys
+schema first\&.
+.PP
+\fBmysql_upgrade\fR
+checks for partitioned
+InnoDB
+tables that were created using the generic partitioning handler and attempts to upgrade them to
+InnoDB
+native partitioning\&. You can upgrade such tables individually in the
+\fBmysql\fR
+client using the
+ALTER TABLE \&.\&.\&. UPGRADE PARTITIONING
+SQL statement\&.
 .PP
 \fBmysql_upgrade\fR
 supports the following options, which can be specified on the command line or in the
@@ -301,19 +397,6 @@ Section\ \&4.2.7, \(lqUsing Option Files\(rq\&.
 \fB\-\-help\fR
 .sp
 Display a short help message and exit\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-\fB\-\-basedir=\fR\fB\fIdir_name\fR\fR
-.sp
-The path to the MySQL installation directory\&.
 .RE
 .sp
 .RS 4
@@ -793,6 +876,7 @@ option to enable shared\-memory connections\&.
 .\}
 \fB\-\-skip\-sys\-schema\fR
 .sp
+By default,
 \fBmysql_upgrade\fR
 installs the
 sys
@@ -921,9 +1005,25 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -938,7 +1038,9 @@ Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 \fB\-\-upgrade\-system\-tables\fR,
 \fB\-s\fR
 .sp
-Upgrade only the system tables, do not upgrade data\&.
+Upgrade only the system tables in the
+mysql
+schema, do not upgrade user schemas\&.
 .RE
 .sp
 .RS 4
@@ -1012,7 +1114,7 @@ When the server is running with global transaction identifiers (GTIDs) enabled (
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_restore\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_RESTORE\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -841,6 +841,7 @@ Section\ \&22.5.3.2, \(lqUsing The NDB Cluster Management Client to Create a Bac
 When restoring cluster backups, you must be sure to restore all data nodes from backups having the same backup ID\&. Using files from different backups will at best result in restoring the cluster to an inconsistent state, and may fail altogether\&.
 .sp .5v
 .RE
+In NDB 8\&.0\&.15 and later, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -1979,6 +1980,8 @@ Specify the node ID of the data node on which the backup was taken\&.
 .sp
 When restoring to a cluster with different number of data nodes from that where the backup was taken, this information helps identify the correct set or sets of files to be restored to a given node\&. (In such cases, multiple files usually need to be restored to a single data node\&.) See
 the section called \(lqRestoring to a different number of data nodes\(rq, for additional information and examples\&.
+.sp
+In NDB 8\&.0\&.15 and later, this option is required\&.
 .RE
 .sp
 .RS 4
@@ -2790,7 +2793,7 @@ to restore the privilege tables\&.
 This works only if the privilege tables were converted to
 NDB
 before the backup was taken\&. For more information, see
-Section\ \&22.5.15, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
+Section\ \&22.5.16, \(lqDistributed MySQL Privileges for NDB Cluster\(rq\&.
 .RE
 .sp
 .RS 4
@@ -3345,7 +3348,7 @@ or the equivalent, so that the new (target) cluster starts with clean data node 
 .sp -1
 .IP "  5." 4.2
 .\}
-Copy two different sets of two backup files to each of the target data nodes\&. For this example, copy the backup files from nodes 2 and 6 from the original cluster to node 3 in the target cluster\&. These files are listed here:
+Copy two different sets of two backup files to each of the target data nodes\&. For this example, copy the backup files from nodes 2 and 4 from the original cluster to node 3 in the target cluster\&. These files are listed here:
 .sp
 .RS 4
 .ie n \{\
@@ -3413,7 +3416,7 @@ BACKUP\-1\&.6\&.ctl
 BACKUP\-1\&.6\&.log
 .RE
 .sp
-Then copy the backup files from nodes 4 and 8 to node 5; these files are shown in the following list:
+Then copy the backup files from nodes 6 and 8 to node 5; these files are shown in the following list:
 .sp
 .RS 4
 .ie n \{\
@@ -3494,7 +3497,7 @@ on each of nodes 3 and 5\&.
 .sp -1
 .IP "  6." 4.2
 .\}
-On each of the two target data nodes, you must restore from both sets of backups\&. First, restore the backups from nodes 2 and 6 to node 3 by invoking
+On each of the two target data nodes, you must restore from both sets of backups\&. First, restore the backups from nodes 2 and 4 to node 3 by invoking
 \fBndb_restore\fR
 on
 host3
@@ -3511,7 +3514,7 @@ shell> \fBndb_restore \-c host20 \-\-nodeid=4 \-\-backupid=1 \-\-restore_data \-
 .RE
 .\}
 .sp
-Then restore the backups from nodes 4 and 8 to node 5 by invoking
+Then restore the backups from nodes 6 and 8 to node 5 by invoking
 \fBndb_restore\fR
 on
 host5, like this:
@@ -3595,7 +3598,7 @@ This assumes that the desired backup ID is 1\&.
 .sp -1
 .IP "  2." 4.2
 .\}
-Create a backup of the schema\&. In NDB 7\&.5\&.2 and later, this step is necessary only if the total number of LCP threads or LQH threads per node group is changed\&.
+Create a backup of the schema\&. This step is necessary only if the total number of LCP threads or LQH threads per node group is changed\&.
 .sp
 .if n \{\
 .RS 4
@@ -3820,7 +3823,7 @@ can contact the management server\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

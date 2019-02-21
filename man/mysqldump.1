@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -778,9 +778,25 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -1496,7 +1512,7 @@ respectively\&. These are the master server coordinates from which the slave sho
 .ps -1
 .br
 Inconsistencies in the sequence of transactions from the relay log which have been executed can cause the wrong position to be used\&. See
-Section\ \&17.4.1.34, \(lqReplication and Transaction Inconsistencies\(rq
+Section\ \&17.4.1.33, \(lqReplication and Transaction Inconsistencies\(rq
 for more information\&.
 .sp .5v
 .RE
@@ -1810,8 +1826,8 @@ These options are used with the
 option and have the same meaning as the corresponding
 FIELDS
 clauses for
-LOAD DATA INFILE\&. See
-Section\ \&13.2.7, \(lqLOAD DATA INFILE Syntax\(rq\&.
+LOAD DATA\&. See
+Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1850,8 +1866,8 @@ This option is used with the
 option and has the same meaning as the corresponding
 LINES
 clause for
-LOAD DATA INFILE\&. See
-Section\ \&13.2.7, \(lqLOAD DATA INFILE Syntax\(rq\&.
+LOAD DATA\&. See
+Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2040,7 +2056,7 @@ The output from the
 client when run using the
 \fB\-\-xml\fR
 option also follows the preceding rules\&. (See
-the section called \(lqMYSQL OPTIONS\(rq\&.)
+the section called \(lqMYSQL CLIENT OPTIONS\(rq\&.)
 .sp
 XML output from
 \fBmysqldump\fR
@@ -2200,7 +2216,7 @@ statements to create the events\&.
 .\}
 \fB\-\-ignore\-error=\fR\fB\fIerror[,error]\&.\&.\&.\fR\fR
 .sp
-Ignore the specified errors\&. The option value is a comma\-separated list of error numbers specifying the errors to ignore during
+Ignore the specified errors\&. The option value is a list of comma\-separated error numbers specifying the errors to ignore during
 \fBmysqldump\fR
 execution\&. If the
 \fB\-\-force\fR
@@ -2560,7 +2576,7 @@ database for proper restoration\&.
 .br
 For upgrades to MySQL 5\&.7\&.2 or higher from older versions, do not use
 \fB\-\-flush\-privileges\fR\&. For upgrade instructions in this case, see
-Section\ \&2.11.1.3, \(lqChanges in MySQL 8.0\(rq\&.
+Section\ \&2.11.4, \(lqChanges in MySQL 8.0\(rq\&.
 .sp .5v
 .RE
 .RE
@@ -2983,7 +2999,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

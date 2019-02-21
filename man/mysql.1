@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -28,7 +28,7 @@
 .\" * MAIN CONTENT STARTS HERE *
 .\" -----------------------------------------------------------------
 .SH "NAME"
-mysql \- the MySQL command\-line tool
+mysql \- the MySQL command\-line client
 .SH "SYNOPSIS"
 .HP \w'\fBmysql\ [\fR\fB\fIoptions\fR\fR\fB]\ \fR\fB\fIdb_name\fR\fR\ 'u
 \fBmysql [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR
@@ -115,8 +115,8 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 On Unix, the
 \fBmysql\fR
 client logs statements executed interactively to a history file\&. See
-the section called \(lqMYSQL LOGGING\(rq\&.
-.SH "MYSQL OPTIONS"
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
+.SH "MYSQL CLIENT OPTIONS"
 .PP
 \fBmysql\fR
 supports the following options, which can be specified on the command line or in the
@@ -594,7 +594,7 @@ form only, or use named commands only at the beginning of a line ending with a s
 starts with this option
 \fIenabled\fR
 by default\&. However, even with this option, long\-format commands still work from the first line\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -680,12 +680,12 @@ Section\ \&6.5.1.3, \(lqCaching SHA-2 Pluggable Authentication\(rq\&.
 .\}
 \fB\-\-histignore\fR
 .sp
-A colon\-separated list of one or more patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file, and to
+A list of one or more colon\-separated patterns specifying statements to ignore for logging purposes\&. These patterns are added to the default pattern list ("*IDENTIFIED*:*PASSWORD*")\&. The value specified for this option affects logging of statements written to the history file, and to
 syslog
 if the
 \fB\-\-syslog\fR
 option is given\&. For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&.
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .RE
 .sp
 .RS 4
@@ -773,7 +773,7 @@ Write line numbers for errors\&. Disable this with
 Enable or disable
 LOCAL
 capability for
-LOAD DATA INFILE\&. For
+LOAD DATA\&. For
 \fBmysql\fR, this capability is disabled by default\&. With no value, the option enables
 LOCAL\&. The option may be given as
 \fB\-\-local\-infile=0\fR
@@ -827,7 +827,7 @@ and
 both are recognized\&. Use
 \fB\-\-skip\-named\-commands\fR
 to disable named commands\&. See
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1007,7 +1007,7 @@ environment variable\&. Valid pagers are
 \fBmore\fR,
 \fBcat [> filename]\fR, and so forth\&. This option works only on Unix and only in interactive mode\&. To disable paging, use
 \fB\-\-skip\-pager\fR\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses output paging further\&.
 .RE
 .sp
 .RS 4
@@ -1111,7 +1111,7 @@ Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 .sp
 Set the prompt to the specified format\&. The default is
 mysql>\&. The special sequences that the prompt can contain are described in
-the section called \(lqMYSQL COMMANDS\(rq\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1526,7 +1526,7 @@ Mar  7 12:39:28 myhost MysqlClient[20824]:
 .\}
 .sp
 For more information, see
-the section called \(lqMYSQL LOGGING\(rq\&.
+the section called \(lqMYSQL CLIENT LOGGING\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1554,7 +1554,23 @@ Display output in table format\&. This is the default for interactive use, but c
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
 .sp
 Append a copy of output to the given file\&. This option works only in interactive mode\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+the section called \(lqMYSQL CLIENT COMMANDS\(rq, discusses tee files further\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
 .RE
 .sp
 .RS 4
@@ -1567,7 +1583,7 @@ the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
 .\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -1796,7 +1812,7 @@ SELECT
 statements when using
 \fB\-\-safe\-updates\fR\&. (Default value is 1,000\&.)
 .RE
-.SH "MYSQL COMMANDS"
+.SH "MYSQL CLIENT COMMANDS"
 .PP
 \fBmysql\fR
 sends each SQL statement that you issue to the server to be executed\&. There is also a set of commands that
@@ -1893,7 +1909,7 @@ help
 command,
 \fBmysql\fR
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. For more information, see
-the section called \(lqMYSQL SERVER\-SIDE HELP\(rq\&.
+the section called \(lqMYSQL CLIENT SERVER\-SIDE HELP\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1978,7 +1994,7 @@ is set to something other than the default of
 ;, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&28.7.19, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&28.7.23, \(lqC API Multiple Statement Execution Support\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -2222,7 +2238,7 @@ Resetting a connection has effects similar to
 mysql_change_user()
 or an auto\-reconnect except that the connection is not closed and reopened, and re\-authentication is not done\&. See
 Section\ \&28.7.7.3, \(lqmysql_change_user()\(rq) and see
-Section\ \&28.7.24, \(lqC API Automatic Reconnection Control\(rq)\&.
+Section\ \&28.7.28, \(lqC API Automatic Reconnection Control\(rq)\&.
 .sp
 This example shows how
 resetconnection
@@ -2861,7 +2877,7 @@ mysql>
 .RE
 .\}
 .RE
-.SH "MYSQL LOGGING"
+.SH "MYSQL CLIENT LOGGING"
 .PP
 The
 \fBmysql\fR
@@ -3070,7 +3086,7 @@ To specify additional patterns, use the
 \fB\-\-histignore\fR
 option or set the
 MYSQL_HISTIGNORE
-environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a colon\-separated list of one or more patterns, which are appended to the default pattern list\&.
+environment variable\&. (If both are specified, the option value takes precedence\&.) The value should be a list of one or more colon\-separated patterns, which are appended to the default pattern list\&.
 .PP
 Patterns specified on the command line might need to be quoted or escaped to prevent your command interpreter from treating them specially\&. For example, to suppress logging for
 UPDATE
@@ -3269,7 +3285,7 @@ Mar  7 12:39:28 myhost MysqlClient[20824]:
 .if n \{\
 .RE
 .\}
-.SH "MYSQL SERVER\-SIDE HELP"
+.SH "MYSQL CLIENT SERVER\-SIDE HELP"
 .sp
 .if n \{\
 .RS 4
@@ -3288,7 +3304,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.15, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.14, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3373,12 +3389,12 @@ Lists the binary log files on the server\&. This statement is used as
 part of the procedure described in [purge\-binary\-logs], that shows how
 to determine which logs can be purged\&.
 mysql> SHOW BINARY LOGS;
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| Log_name      | File_size |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| binlog\&.000015 |    724935 |
-| binlog\&.000016 |    733481 |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| Log_name      | File_size | Encrypted |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| binlog\&.000015 |    724935 | Yes       |
+| binlog\&.000016 |    733481 | Yes       |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
 .fi
 .if n \{\
 .RE
@@ -3509,7 +3525,7 @@ with an option such as
 .PP
 For more information about batch mode, see
 Section\ \&3.5, \(lqUsing mysql in Batch Mode\(rq\&.
-.SH "MYSQL TIPS"
+.SH "MYSQL CLIENT TIPS"
 .PP
 This section describes some techniques that can help you use
 \fBmysql\fR
@@ -3953,11 +3969,11 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&28.7.24, \(lqC API Automatic Reconnection Control\(rq\&.
+Section\ \&28.7.28, \(lqC API Automatic Reconnection Control\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

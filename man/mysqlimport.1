@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlimport\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLIMPORT\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLIMPORT\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -37,13 +37,13 @@ mysqlimport \- a data import program
 The
 \fBmysqlimport\fR
 client provides a command\-line interface to the
-LOAD DATA INFILE
+LOAD DATA
 SQL statement\&. Most options to
 \fBmysqlimport\fR
 correspond directly to clauses of
-LOAD DATA INFILE
+LOAD DATA
 syntax\&. See
-Section\ \&13.2.7, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
 .PP
 Invoke
 \fBmysqlimport\fR
@@ -128,7 +128,7 @@ Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 \fB\-\-columns=\fR\fB\fIcolumn_list\fR\fR,
 \fB\-c \fR\fB\fIcolumn_list\fR\fR
 .sp
-This option takes a comma\-separated list of column names as its value\&. The order of the column names indicates how to match data file columns with table columns\&.
+This option takes a list of comma\-separated column names as its value\&. The order of the column names indicates how to match data file columns with table columns\&.
 .RE
 .sp
 .RS 4
@@ -334,8 +334,8 @@ Section\ \&6.5.1.4, \(lqClient-Side Cleartext Pluggable Authentication\(rq\&.)
 \fB\-\-fields\-escaped\-by=\&.\&.\&.\fR
 .sp
 These options have the same meaning as the corresponding clauses for
-LOAD DATA INFILE\&. See
-Section\ \&13.2.7, \(lqLOAD DATA INFILE Syntax\(rq\&.
+LOAD DATA\&. See
+Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -437,9 +437,9 @@ lines of the data file\&.
 \fB\-\-lines\-terminated\-by=\&.\&.\&.\fR
 .sp
 This option has the same meaning as the corresponding clause for
-LOAD DATA INFILE\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
+LOAD DATA\&. For example, to import Windows files that have lines terminated with carriage return/linefeed pairs, use
 \fB\-\-lines\-terminated\-by="\er\en"\fR\&. (You might have to double the backslashes, depending on the escaping conventions of your command interpreter\&.) See
-Section\ \&13.2.7, \(lqLOAD DATA INFILE Syntax\(rq\&.
+Section\ \&13.2.7, \(lqLOAD DATA Syntax\(rq\&.
 .RE
 .sp
 .RS 4
@@ -865,9 +865,25 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -964,7 +980,7 @@ shell> \fBmysql \-e \*(AqSELECT * FROM imptest\*(Aq test\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
