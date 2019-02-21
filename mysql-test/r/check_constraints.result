@@ -2644,7 +2644,7 @@ ERROR HY000: Check constraint 't1_chk_1' is violated.
 SHOW WARNINGS;
 Level	Code	Message
 Error	1292	Truncated incorrect DOUBLE value: 'xy'
-Error	3820	Check constraint 't1_chk_1' is violated.
+Error	3819	Check constraint 't1_chk_1' is violated.
 DROP TABLE t1;
 #-----------------------------------------------------------------------
 # Bug#29191994 - MULTIPLE CONSTRAINTS ARE NOT ACCEPTED WHEN FIRST IS
