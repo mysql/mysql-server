@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
 {
   const Uint32 limit = 512;
   ndbout_c("dirty pages");
-  for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
     printf("  %d : ", i);
     PagePtr ptr;
@@ -156,7 +156,7 @@ Dbtup::dump_disk_alloc(Dbtup::Disk_alloc_info & alloc)
     ndbout_c(" ");
   }
   ndbout_c("page requests");
-  for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
     printf("  %d : ", i);
     Ptr<Page_request> ptr;
@@ -330,7 +330,7 @@ Dbtup::update_extent_pos(EmulatedJamBuffer* jamBuf,
 #if defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 cnt = 0;
   Uint32 sum = 0;
-  for(Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  for(Uint32 i = 0; i < EXTENT_SEARCH_MATRIX_COLS; i++)
   {
     cnt += extentPtr.p->m_free_page_count[i];
     sum += extentPtr.p->m_free_page_count[i] * alloc.calc_page_free_space(i);
@@ -498,10 +498,10 @@ Dbtup::restart_setup_page(Ptr<Fragrecord> fragPtr,
     if (prealloc)
     {
       /**
-       * tsman.alloc_page sets the uncommitted-bits to MAX_FREE_LIST -1
+       * tsman.alloc_page sets the uncommitted-bits to EXTENT_SEARCH_MATRIX_COLS -1
        *   to avoid page being preallocated several times
        */
-      ddassert(uncommitted == MAX_FREE_LIST - 1);
+      ddassert(uncommitted == EXTENT_SEARCH_MATRIX_COLS - 1);
     }
     else
     {
@@ -1260,7 +1260,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   list.addFirst(pagePtr);
   
   // Make sure no one will allocate it...
-  tsman.unmap_page(&key, MAX_FREE_LIST - 1);
+  tsman.unmap_page(&key, EXTENT_SEARCH_MATRIX_COLS - 1);
   jamEntry();
 }
 
