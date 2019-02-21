@@ -52,7 +52,7 @@ class Cursor_command_delegate : public Streaming_command_delegate {
 class Crud_command_delegate : public Streaming_command_delegate {
  public:
   Crud_command_delegate(ngs::Session_interface *session);
-  ~Crud_command_delegate();
+  ~Crud_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,
                         const uint32_t statement_warn_count,
@@ -64,7 +64,7 @@ class Crud_command_delegate : public Streaming_command_delegate {
 class Stmt_command_delegate : public Streaming_command_delegate {
  public:
   Stmt_command_delegate(ngs::Session_interface *session);
-  ~Stmt_command_delegate();
+  ~Stmt_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,
                         const uint32_t statement_warn_count,
@@ -91,7 +91,7 @@ class Prepare_command_delegate : public Streaming_command_delegate {
       std::bitset<Notice_level_flags::k_notice_level_flags_size>;
 
   Prepare_command_delegate(ngs::Session_interface *session);
-  ~Prepare_command_delegate();
+  ~Prepare_command_delegate() override;
 
   bool try_send_notices(const uint32_t server_status,
                         const uint32_t statement_warn_count,
