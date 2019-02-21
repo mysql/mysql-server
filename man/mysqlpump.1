@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlpump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLPUMP\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLPUMP\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -869,7 +869,7 @@ to disable it\&.
 \fB\-\-exclude\-databases=\fR\fB\fIdb_list\fR\fR
 .sp
 Do not dump the databases in
-\fIdb_list\fR, which is a comma\-separated list of one or more database names\&. Multiple instances of this option are additive\&. For more information, see
+\fIdb_list\fR, which is a list of one or more comma\-separated database names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -884,7 +884,7 @@ mysqlpump Object Selection\&.
 \fB\-\-exclude\-events=\fR\fB\fIevent_list\fR\fR
 .sp
 Do not dump the databases in
-\fIevent_list\fR, which is a comma\-separated list of one or more event names\&. Multiple instances of this option are additive\&. For more information, see
+\fIevent_list\fR, which is a list of one or more comma\-separated event names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -899,7 +899,7 @@ mysqlpump Object Selection\&.
 \fB\-\-exclude\-routines=\fR\fB\fIroutine_list\fR\fR
 .sp
 Do not dump the events in
-\fIroutine_list\fR, which is a comma\-separated list of one or more routine (stored procedure or function) names\&. Multiple instances of this option are additive\&. For more information, see
+\fIroutine_list\fR, which is a list of one or more comma\-separated routine (stored procedure or function) names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -914,7 +914,7 @@ mysqlpump Object Selection\&.
 \fB\-\-exclude\-tables=\fR\fB\fItable_list\fR\fR
 .sp
 Do not dump the tables in
-\fItable_list\fR, which is a comma\-separated list of one or more table names\&. Multiple instances of this option are additive\&. For more information, see
+\fItable_list\fR, which is a list of one or more comma\-separated table names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -929,7 +929,7 @@ mysqlpump Object Selection\&.
 \fB\-\-exclude\-triggers=\fR\fB\fItrigger_list\fR\fR
 .sp
 Do not dump the triggers in
-\fItrigger_list\fR, which is a comma\-separated list of one or more trigger names\&. Multiple instances of this option are additive\&. For more information, see
+\fItrigger_list\fR, which is a list of one or more comma\-separated trigger names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -944,7 +944,7 @@ mysqlpump Object Selection\&.
 \fB\-\-exclude\-users=\fR\fB\fIuser_list\fR\fR
 .sp
 Do not dump the user accounts in
-\fIuser_list\fR, which is a comma\-separated list of one or more account names\&. Multiple instances of this option are additive\&. For more information, see
+\fIuser_list\fR, which is a list of one or more comma\-separated account names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1042,7 +1042,7 @@ Dump data from the MySQL server on the given host\&.
 \fB\-\-include\-databases=\fR\fB\fIdb_list\fR\fR
 .sp
 Dump the databases in
-\fIdb_list\fR, which is a comma\-separated list of one or more database names\&. The dump includes all objects in the named databases\&. Multiple instances of this option are additive\&. For more information, see
+\fIdb_list\fR, which is a list of one or more comma\-separated database names\&. The dump includes all objects in the named databases\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1057,7 +1057,7 @@ mysqlpump Object Selection\&.
 \fB\-\-include\-events=\fR\fB\fIevent_list\fR\fR
 .sp
 Dump the events in
-\fIevent_list\fR, which is a comma\-separated list of one or more event names\&. Multiple instances of this option are additive\&. For more information, see
+\fIevent_list\fR, which is a list of one or more comma\-separated event names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1072,7 +1072,7 @@ mysqlpump Object Selection\&.
 \fB\-\-include\-routines=\fR\fB\fIroutine_list\fR\fR
 .sp
 Dump the routines in
-\fIroutine_list\fR, which is a comma\-separated list of one or more routine (stored procedure or function) names\&. Multiple instances of this option are additive\&. For more information, see
+\fIroutine_list\fR, which is a list of one or more comma\-separated routine (stored procedure or function) names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1087,7 +1087,7 @@ mysqlpump Object Selection\&.
 \fB\-\-include\-tables=\fR\fB\fItable_list\fR\fR
 .sp
 Dump the tables in
-\fItable_list\fR, which is a comma\-separated list of one or more table names\&. Multiple instances of this option are additive\&. For more information, see
+\fItable_list\fR, which is a list of one or more comma\-separated table names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1102,7 +1102,7 @@ mysqlpump Object Selection\&.
 \fB\-\-include\-triggers=\fR\fB\fItrigger_list\fR\fR
 .sp
 Dump the triggers in
-\fItrigger_list\fR, which is a comma\-separated list of one or more trigger names\&. Multiple instances of this option are additive\&. For more information, see
+\fItrigger_list\fR, which is a list of one or more comma\-separated trigger names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1117,7 +1117,7 @@ mysqlpump Object Selection\&.
 \fB\-\-include\-users=\fR\fB\fIuser_list\fR\fR
 .sp
 Dump the user accounts in
-\fIuser_list\fR, which is a comma\-separated list of one or more user names\&. Multiple instances of this option are additive\&. For more information, see
+\fIuser_list\fR, which is a list of one or more comma\-separated user names\&. Multiple instances of this option are additive\&. For more information, see
 mysqlpump Object Selection\&.
 .RE
 .sp
@@ -1282,7 +1282,7 @@ Section\ \&4.2.8, \(lqCommand-Line Options that Affect Option-File Handling\(rq\
 \fB\-\-parallel\-schemas=[\fR\fB\fIN\fR\fR\fB:]\fR\fB\fIdb_list\fR\fR
 .sp
 Create a queue for processing the databases in
-\fIdb_list\fR, which is a comma\-separated list of one or more database names\&. If
+\fIdb_list\fR, which is a list of one or more comma\-separated database names\&. If
 \fIN\fR
 is given, the queue uses
 \fIN\fR
@@ -1816,9 +1816,25 @@ causes the client to produce a warning at startup and to operate in non\-FIPS mo
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -2037,7 +2053,7 @@ apply to user accounts\&.
 .PP
 Any inclusion or exclusion option may be given multiple times\&. The effect is additive\&. Order of these options does not matter\&.
 .PP
-The value of each inclusion and exclusion option is a comma\-separated list of names of the appropriate object type\&. For example:
+The value of each inclusion and exclusion option is a list of comma\-separated names of the appropriate object type\&. For example:
 .sp
 .if n \{\
 .RS 4
@@ -2234,7 +2250,7 @@ sets up a processing queue for dumping the databases named in
 \fIdb_list\fR
 and optionally specifies how many threads the queue uses\&.
 \fIdb_list\fR
-is a comma\-separated list of database names\&. If the option argument begins with
+is a list of comma\-separated database names\&. If the option argument begins with
 \fIN\fR:, the queue uses
 \fIN\fR
 threads\&. Otherwise, the
@@ -2387,7 +2403,7 @@ shell> \fBmysqlpump mysql user db \&.\&.\&.\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

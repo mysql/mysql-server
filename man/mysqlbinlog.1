@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/23/2018
+.\"      Date: 02/20/2019
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/23/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "02/20/2019" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -129,9 +129,9 @@ can be re\-executed (for example, by using it as input to
 \fBmysql\fR) to redo the statements in the log\&. This is useful for recovery operations after a server crash\&. For other usage examples, see the discussion later in this section and in
 Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery Using the Binary Log\(rq\&.
 .PP
-Normally, you use
+You can use
 \fBmysqlbinlog\fR
-to read binary log files directly and apply them to the local MySQL server\&. It is also possible to read binary logs from a remote server by using the
+to read binary log files directly and apply them to the local MySQL server\&. You can also read binary logs from a remote server by using the
 \fB\-\-read\-from\-remote\-server\fR
 option\&. To read remote binary logs, the connection parameter options can be given to indicate how to connect to the server\&. These options are
 \fB\-\-host\fR,
@@ -142,6 +142,22 @@ option\&. To read remote binary logs, the connection parameter options can be gi
 \fB\-\-user\fR; they are ignored except when you also use the
 \fB\-\-read\-from\-remote\-server\fR
 option\&.
+.PP
+When binary log files have been encrypted, which can be done from MySQL 8\&.0\&.14 onwards,
+\fBmysqlbinlog\fR
+cannot read them directly, but can read them from the server using the
+\fB\-\-read\-from\-remote\-server\fR
+option\&. Binary log files are encrypted when the server\*(Aqs
+binlog_encryption
+system variable is set to
+ON\&. The
+SHOW BINARY LOGS
+statement shows whether a particular binary log file is encrypted or unencrypted\&. Encrypted and unencrypted binary log files can also be distinguished using the magic number at the start of the file header for encrypted log files (0xFD62696E), which differs from that used for unencrypted log files (0xFE62696E)\&. Note that from MySQL 8\&.0\&.14,
+\fBmysqlbinlog\fR
+returns a suitable error if you attempt to read an encrypted binary log file directly, but older versions of
+\fBmysqlbinlog\fR
+do not recognise the file as a binary log file at all\&. For more information on binary log encryption, see
+Section\ \&17.3.10, \(lqEncrypting Binary Log Files and Relay Log Files\(rq\&.
 .PP
 When running
 \fBmysqlbinlog\fR
@@ -355,6 +371,21 @@ Specify the maximum size of a row\-based binary log event, in bytes\&. Rows are 
 .sp
 The directory where character sets are installed\&. See
 Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compress\fR
+.sp
+Compress all information sent between the client and the server if both support compression\&.
+.sp
+This option was added in MySQL 8\&.0\&.17\&.
 .RE
 .sp
 .RS 4
@@ -839,7 +870,7 @@ Display only the groups listed in the
 \fB\-l \fR\fB\fIdir_name\fR\fR
 .sp
 Prepare local temporary files for
-LOAD DATA INFILE
+LOAD DATA
 in the specified directory\&.
 .if n \{\
 .sp
@@ -1636,9 +1667,25 @@ Section\ \&7.3, \(lqExample Backup and Recovery Strategy\(rq\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-tls\-ciphersuites=\fR\fB\fIciphersuite_list\fR\fR
+.sp
+For client programs, specifies which TLSv1\&.3 ciphersuites the client permits for encrypted connections\&. The value is a list of one or more colon\-separated ciphersuite names\&. The ciphersuites that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
+.sp
+This option was added in MySQL 8\&.0\&.16\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-tls\-version=\fR\fB\fIprotocol_list\fR\fR
 .sp
-The protocols permitted by the client for encrypted connections\&. The value is a comma\-separated list containing one or more protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
+The protocols the client permits for encrypted connections\&. The value is a list of one or more comma\-separated protocol names\&. The protocols that can be named for this option depend on the SSL library used to compile MySQL\&. For details, see
 Section\ \&6.4.6, \(lqEncrypted Connection Protocols and Ciphers\(rq\&.
 .RE
 .sp
@@ -1902,13 +1949,13 @@ For streamed input, do not use
 \fBmysqlbinlog\fR
 cannot identify the last log file to apply this option\&.
 .PP
-\fBLOAD DATA INFILE operations\fR. \fBmysqlbinlog\fR
+\fBLOAD DATA operations\fR. \fBmysqlbinlog\fR
 can produce output that reproduces a
-LOAD DATA INFILE
+LOAD DATA
 operation without the original data file\&.
 \fBmysqlbinlog\fR
 copies the data to a temporary file and writes a
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statement that refers to the file\&. The default location of the directory where these files are written is system\-specific\&. To specify a directory explicitly, use the
 \fB\-\-local\-load\fR
 option\&.
@@ -1916,9 +1963,9 @@ option\&.
 Because
 \fBmysqlbinlog\fR
 converts
-LOAD DATA INFILE
+LOAD DATA
 statements to
-LOAD DATA LOCAL INFILE
+LOAD DATA LOCAL
 statements (that is, it adds
 LOCAL), both the client and the server that you use to process the statements must be configured with the
 LOCAL
@@ -2468,6 +2515,25 @@ is forcibly terminated\&. When the connection ends,
 \fBmysqlbinlog\fR
 does not wait and retry the connection, unlike a slave replication server\&. To continue a live backup after the server has been restarted, you must also restart
 \fBmysqlbinlog\fR\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBImportant\fR
+.ps -1
+.br
+.PP
+\fBmysqlbinlog\fR
+can back up both encrypted and unencrypted binary log files \&. However, copies of encrypted binary log files that are generated using
+\fBmysqlbinlog\fR
+are stored in an unencrypted format\&.
+.sp .5v
+.RE
 .PP
 Binary log backup requires that you invoke
 \fBmysqlbinlog\fR
@@ -2567,13 +2633,13 @@ statement to see the current names\&. Suppose that the statement produces this o
 .\}
 .nf
 mysql> \fBSHOW BINARY LOGS;\fR
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| Log_name      | File_size |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
-| binlog\&.000130 |     27459 |
-| binlog\&.000131 |     13719 |
-| binlog\&.000132 |     43268 |
-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| Log_name      | File_size | Encrypted |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| binlog\&.000130 |     27459 | No        |
+| binlog\&.000131 |     13719 | No        |
+| binlog\&.000132 |     43268 | No        |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
 .fi
 .if n \{\
 .RE
@@ -2880,7 +2946,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright \(co 1997, 2019, Oracle and/or its affiliates. All rights reserved.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
