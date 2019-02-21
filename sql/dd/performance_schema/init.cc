@@ -50,7 +50,6 @@
 #include "sql/dd/types/table.h"
 #include "sql/derror.h"
 #include "sql/handler.h"
-#include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
 #include "sql/set_var.h"
 #include "sql/sql_class.h"  // THD
@@ -308,20 +307,8 @@ bool initialize_pfs(THD *thd) {
     add_pfs_definition(table);
   }
 
-  /*
-    Initialize the cost model, but delete it after the pfs is initialized.
-    Cost model is needed while dropping and creating pfs tables to
-    update metadata of referencing views (if there are any).
-  */
-  init_optimizer_cost_module(false);
-
-  bool retval = create_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
-                create_pfs_tables(thd);
-
-  /* Now that the pfs is initialized, delete the cost model. */
-  delete_optimizer_cost_module();
-
-  return retval;
+  return create_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
+         create_pfs_tables(thd);
 }
 
 }  // anonymous namespace
