@@ -1847,6 +1847,8 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
 
       if (is_skip_table) continue;
 
+      log_sink_buffer_check_timeout();
+
       // Create an entry in the new DD.
       bool result = false;
       result = migrate_table_to_dd(thd, schema_name, table_name,

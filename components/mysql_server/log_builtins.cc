@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1351,7 +1351,24 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
 
 /**
   services: log sinks: buffered logging
-  Will save log-event for later filtering and output.
+
+  During start-up, we buffer log-info until a) we have basic info for
+  the built-in logger (what file to log to, verbosity, and so on), and
+  b) advanced info (any logging components to load, any configuration
+  for them, etc.).
+
+  As a failsafe, if start-up takes very long long and a time-out is
+  reached before reaching b) and we actually have something worth
+  reporting (e.g. errors, as opposed to info), we try to keep the user
+  informed by user the basic logger configured in a), while going on
+  buffering all info and flushing it to any advanced loggers when b)
+  is reached.
+
+  1) This function checks and, if needed, updates the time-out, and calls
+     the flush functions as needed. It is internal to the logger and should
+     not be called from elsewhere.
+
+  2) Function will save log-event (if given) for later filtering and output.
 
   @param           instance             instance handle
                                         Not currently used in this writer;
@@ -1360,59 +1377,68 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
                                         is called before the structured
                                         logger's locks are initialized, so
                                         that must remain a valid argument!
-  @param           ll                   the log line to write
+  @param           ll                   The log line to write,
+                                        or nullptr to not add a new logline,
+                                        but to check whether the time-out
+                                        has been reached and if so, flush
+                                        as needed.
 
   @retval          -1                   can not add event to buffer (OOM?)
   @retval          >0                   number of added fields
 */
 static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
                            log_line *ll) {
-  log_line_buffer *llb;  ///< log-line buffer
+  log_line_buffer *llb = nullptr;  ///< log-line buffer
   ulonglong now = 0;
   int count = 0;
 
-  if ((llb = (log_line_buffer *)my_malloc(key_memory_log_error_stack,
-                                          sizeof(log_line_buffer), MYF(0))) ==
-      nullptr)
-    return -1; /* purecov: inspected */
-
-  llb->next = nullptr;
-
-  /*
-    Don't let the submitter free the keys/values; we'll do it later when
-    the buffer is flushed and then de-allocated!
-    (No lock needed for copy as the target-event is still private to this
-    function, and the source-event is alloc'd in the caller.)
-  */
-  log_line_duplicate(&llb->ll, ll);
-
-  /*
-    Remember when an error event was buffered.
-    If buffered logging times out and the buffer contains an error,
-    we force a premature flush so the user will know what's going on.
-  */
-  {
-    int index_prio = log_line_index_by_type(&llb->ll, LOG_ITEM_LOG_PRIO);
-
-    if ((index_prio >= 0) &&
-        (llb->ll.item[index_prio].data.data_integer <= ERROR_LEVEL))
-      log_buffering_flushworthy = true;
-  }
-
-  // save the time so we can regenerate the timestamp once we have the options
+  // save the time to regenerate the timestamp once we have the options
   now = my_micro_time();
-  if (!log_line_full(&llb->ll)) {
-    log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
+
+  if (ll != nullptr) {
+    if ((llb = (log_line_buffer *)my_malloc(key_memory_log_error_stack,
+                                            sizeof(log_line_buffer), MYF(0))) ==
+        nullptr)
+      return -1; /* purecov: inspected */
+
+    llb->next = nullptr;
+
+    /*
+      Don't let the submitter free the keys/values; we'll do it later when
+      the buffer is flushed and then de-allocated!
+      (No lock needed for copy as the target-event is still private to this
+      function, and the source-event is alloc'd in the caller.)
+    */
+    log_line_duplicate(&llb->ll, ll);
+
+    /*
+      Remember when an error event was buffered.
+      If buffered logging times out and the buffer contains an error,
+      we force a premature flush so the user will know what's going on.
+    */
+    {
+      int index_prio = log_line_index_by_type(&llb->ll, LOG_ITEM_LOG_PRIO);
+
+      if ((index_prio >= 0) &&
+          (llb->ll.item[index_prio].data.data_integer <= ERROR_LEVEL))
+        log_buffering_flushworthy = true;
+    }
+
+    if (!log_line_full(&llb->ll)) {
+      log_line_item_set(&llb->ll, LOG_ITEM_LOG_BUFFERED)->data_integer = now;
+    }
   }
 
   // insert the new last event into the buffer (a singly linked list of events)
   if (log_builtins_inited) mysql_mutex_lock(&THR_LOCK_log_buffered);
 
-  *log_line_buffer_tail = llb;
-  log_line_buffer_tail = &(llb->next);
+  if (ll != nullptr) {
+    *log_line_buffer_tail = llb;
+    log_line_buffer_tail = &(llb->next);
 
-  // Save as time-out flush may release underlying log line buffer, llb.
-  count = llb->ll.count;
+    // Save as time-out flush may release underlying log line buffer, llb.
+    count = llb->ll.count;
+  }
 
   // handle buffering time-out
   if (log_buffering_timeout == 0)
@@ -1453,6 +1479,14 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
 
   return count;
 }
+
+/**
+  Convenience function. Same as log_sink_buffer(), except we only
+  check whether the time-out for buffered logging has been reached
+  during start-up, and act accordingly; not new logging information
+  is added (i.e., only functionality 1 described in log_sink_buffer()).
+*/
+void log_sink_buffer_check_timeout(void) { log_sink_buffer(nullptr, nullptr); }
 
 /**
   Process all buffered log-events.
