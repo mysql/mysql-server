@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5931,7 +5931,6 @@ fil_flush(
                 size changes to keep OS metadata in sync. */
 		ut_ad(!space->is_in_unflushed_spaces);
 		ut_ad(fil_space_is_flushed(space));
-		ut_ad(space->n_pending_flushes == 0);
 
 		/* Flush only if the file size changes */
 		bool no_flush = true;
@@ -5941,7 +5940,6 @@ fil_flush(
 #ifdef UNIV_DEBUG
 			ut_ad(node->modification_counter
 			      == node->flush_counter);
-			ut_ad(node->n_pending_flushes == 0);
 #endif /* UNIV_DEBUG */
 			if (node->flush_size != node->size) {
 				/* Found at least one file whose size has changed */
