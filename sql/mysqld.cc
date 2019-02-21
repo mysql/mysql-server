@@ -6338,7 +6338,6 @@ int mysqld_main(int argc, char **argv)
   */
   if (mysqld_partial_revokes() == false && is_partial_revoke_exists(nullptr)) {
     set_mysqld_partial_revokes(true);
-    LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY);
     LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
   }
 

@@ -3755,13 +3755,6 @@ class THD : public MDL_context_owner,
   LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
   bool has_invoker() const { return m_invoker_user.str != nullptr; }
 
-  void set_active_roles(const LEX_STRING *active_roles) {
-    m_active_roles.str = active_roles->str;
-    m_active_roles.length = active_roles->length;
-  }
-  LEX_CSTRING get_active_roles() const { return m_active_roles; }
-  bool has_active_roles() const { return m_active_roles.str != nullptr; }
-
   void mark_transaction_to_rollback(bool all);
 
  private:
@@ -3803,12 +3796,6 @@ class THD : public MDL_context_owner,
    */
   LEX_CSTRING m_invoker_user;
   LEX_CSTRING m_invoker_host;
-
-  /**
-    Points to active roles in the Query_log_event.
-    DWL thread use it in case of partial revokes.
-  */
-  LEX_CSTRING m_active_roles;
 
   friend class Protocol_classic;
 

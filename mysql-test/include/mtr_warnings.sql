@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -260,11 +260,6 @@ INSERT INTO global_suppressions VALUES
    SSL Library instrumentation failed
  */
  ("The SSL library function CRYPTO_set_mem_functions failed"),
-
- /*
-   partial_revokes
- */
- ("mysqlbinlog tool may not be able to process"),
 
  ("THE_LAST_SUPPRESSION")||
 

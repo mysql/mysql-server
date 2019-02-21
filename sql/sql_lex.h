@@ -3613,6 +3613,23 @@ class LEX_COLUMN {
   LEX_COLUMN(const String &x, const uint &y) : column(x), rights(y) {}
 };
 
+enum class role_enum;
+
+/*
+  This structure holds information about grantor's context
+*/
+class LEX_GRANT_AS {
+ public:
+  LEX_GRANT_AS();
+  void cleanup();
+
+ public:
+  bool grant_as_used;
+  role_enum role_type;
+  LEX_USER *user;
+  List<LEX_USER> *role_list;
+};
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX : public Query_tables_list {
@@ -3653,6 +3670,7 @@ struct LEX : public Query_tables_list {
   LEX_STRING ident;
   LEX_USER *grant_user;
   LEX_ALTER alter_password;
+  LEX_GRANT_AS grant_as;
   THD *thd;
   Value_generator *gcol_info;
 

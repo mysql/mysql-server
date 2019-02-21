@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,8 +85,10 @@ class Security_context {
                     bool validate_access = false);
   void clear_active_roles(void);
   List_of_auth_id_refs *get_active_roles();
+  size_t get_num_active_roles() const;
+  void get_active_roles(THD *, List<LEX_USER> &);
   void checkout_access_maps(void);
-  ulong db_acl(LEX_CSTRING db, bool use_pattern_scan = true);
+  ulong db_acl(LEX_CSTRING db, bool use_pattern_scan = true) const;
   ulong procedure_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
   ulong function_acl(LEX_CSTRING db, LEX_CSTRING procedure_name);
   ulong table_acl(LEX_CSTRING db, LEX_CSTRING table);
@@ -260,7 +262,7 @@ class Security_context {
 
   bool change_security_context(THD *thd, const LEX_CSTRING &definer_user,
                                const LEX_CSTRING &definer_host, LEX_STRING *db,
-                               Security_context **backup);
+                               Security_context **backup, bool force = false);
 
   void restore_security_context(THD *thd, Security_context *backup);
 

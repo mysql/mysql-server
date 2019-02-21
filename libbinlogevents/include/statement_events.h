@@ -526,15 +526,6 @@ class Query_event : public Binary_log_event {
     Q_SQL_REQUIRE_PRIMARY_KEY,
 
     /*
-      Replicate active roles
-    */
-    Q_ACTIVE_ROLES,
-
-    /*
-      Incompatible statement for mysqlbinlog utility
-    */
-    Q_CANT_REPLAY_WITH_MYSQLBINLOG,
-    /*
       Replicate default_table_encryption.
     */
     Q_DEFAULT_TABLE_ENCRYPTION
@@ -652,13 +643,6 @@ class Query_event : public Binary_log_event {
   /* Default collation for the utf8mb4 set. Used in cross-version replication */
   uint16_t default_collation_for_utf8mb4_number;
   uint8_t sql_require_primary_key;
-
-  /* Active role information */
-  const char *active_roles;
-  size_t active_roles_len;
-
-  /* Incompatible for mysqlbinlog */
-  bool cant_replay_with_mysqlbinlog;
 
   uint8_t default_table_encryption;
 

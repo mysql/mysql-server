@@ -225,30 +225,30 @@ CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -289,16 +289,16 @@ CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
@@ -353,12 +353,12 @@ SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 SET GLOBAL table_encryption_privilege_check=false;
@@ -707,30 +707,30 @@ CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -771,16 +771,16 @@ CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' ENCRYPTION='y';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
@@ -1182,30 +1182,30 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -1246,16 +1246,16 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
@@ -1308,12 +1308,12 @@ SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
 ERROR HY000: Source tablespace is encrypted but target tablespace is not.
 SET GLOBAL table_encryption_privilege_check=false;
@@ -1658,30 +1658,30 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_system ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_system ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -1722,16 +1722,16 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
@@ -2123,30 +2123,30 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -2185,16 +2185,16 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';
@@ -2245,16 +2245,16 @@ SET GLOBAL table_encryption_privilege_check=false;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -2584,30 +2584,30 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t2 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t3 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 ALTER TABLE db1.t4 TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=false;
 # Verify the ENCRYPTION clause value.
 SHOW CREATE TABLE db1.t1;
@@ -2646,16 +2646,16 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLESPACE tsA ADD DATAFILE 'ts_a.ibd' ENCRYPTION='n';
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t3 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t4 (f1 int) TABLESPACE=tsA ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SET GLOBAL table_encryption_privilege_check=true;
 # Run ALTER TABLE and check for errors/warnings
 ALTER TABLE db1.t1 TABLESPACE=innodb_file_per_table ENCRYPTION='y';

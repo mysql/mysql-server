@@ -313,6 +313,7 @@ SET(SQL_SHARED_SOURCES
   auth/service_security_context.cc
   auto_thd.cc
   keyring_service.cc
+  auth/roles.cc
   auth/role_tables.cc
   auth/sha2_password_common.cc
   auth/sha2_password.cc

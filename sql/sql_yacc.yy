@@ -15080,7 +15080,7 @@ grant:
             MAKE_CMD(tmp);
           }
         | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
-          grant_options
+          grant_options opt_grant_as
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -15100,7 +15100,7 @@ grant:
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options
+          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options opt_grant_as
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -15597,6 +15597,31 @@ opt_grant_option:
           /* empty */       { $$= false; }
         | WITH GRANT OPTION { $$= true; }
         ;
+opt_with_roles:
+          /* empty */
+          { Lex->grant_as.role_type = role_enum::ROLE_NONE; }
+        | WITH ROLE_SYM role_list
+          { Lex->grant_as.role_type = role_enum::ROLE_NAME;
+            Lex->grant_as.role_list = $3;
+          }
+        | WITH ROLE_SYM ALL opt_except_role_list
+          {
+            Lex->grant_as.role_type = role_enum::ROLE_ALL;
+            Lex->grant_as.role_list = $4;
+          }
+        | WITH ROLE_SYM NONE_SYM
+          { Lex->grant_as.role_type = role_enum::ROLE_NONE; }
+        | WITH ROLE_SYM DEFAULT_SYM
+          { Lex->grant_as.role_type = role_enum::ROLE_DEFAULT; }
+
+opt_grant_as:
+          /* empty */
+          { Lex->grant_as.grant_as_used = false; }
+        | AS user opt_with_roles
+          {
+            Lex->grant_as.grant_as_used = true;
+            Lex->grant_as.user = $2;
+          }
 
 begin_stmt:
           BEGIN_SYM

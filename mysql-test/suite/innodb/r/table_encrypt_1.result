@@ -12,7 +12,7 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -21,19 +21,19 @@ CREATE TABLE t1(c int) ENCRYPTION="Y" tablespace innodb_system;
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1(c int) ENCRYPTION="N" tablespace innodb_system;
 DROP TABLE t1;
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="Y";
 ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3834	ENCRYPTION clause is not valid for temporary tablespace.
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3834	ENCRYPTION clause is not valid for temporary tablespace.
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
 ERROR HY000: Invalid encryption option.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;

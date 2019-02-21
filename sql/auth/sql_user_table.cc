@@ -655,6 +655,7 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
                                 Requried for query rewriting
   @param transactional_table    Nature of ACL tables
   @param extra_users            Users which were not processed
+  @param rewrite_params         Information required for query rewrite
   @param extra error            Used in cases where error handler
                                 is suppressed.
   @param write_to_binlog        Skip writing to binlog.
@@ -669,6 +670,7 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
 
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users, /* = NULL */
+                            Rewrite_params *rewrite_params,    /* = NULL */
                             bool extra_error,                  /* = true */
                             bool write_to_binlog,              /* = true */
                             bool notify_htons) {
@@ -678,8 +680,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
   result = thd->is_error() || extra_error || thd->transaction_rollback_request;
   /* Write to binlog and textlogs only if there is no error */
   if (!result) {
-    User_params user_params(extra_users);
-    mysql_rewrite_acl_query(thd, Consumer_type::BINLOG, &user_params);
+    mysql_rewrite_acl_query(thd, Consumer_type::BINLOG, rewrite_params);
     if (write_to_binlog) {
       LEX_CSTRING query;
       enum_sql_command command;
@@ -738,7 +739,7 @@ bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
       Rewrite query in the thd again for the consistent logging for all consumer
       type TEXTLOG later on. For instance: Audit logs.
     */
-    mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, &user_params);
+    mysql_rewrite_acl_query(thd, Consumer_type::TEXTLOG, rewrite_params);
   }
 
   if (acl_end_trans_and_close_tables(thd, result, notify_htons)) result = 1;

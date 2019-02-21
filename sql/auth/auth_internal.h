@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +47,7 @@ class Json_object;
 class Json_wrapper;
 class Restrictions;
 struct TABLE;
+class Rewrite_params;
 
 typedef struct user_resources USER_RESOURCES;
 void append_identifier(const THD *thd, String *packet, const char *name,
@@ -208,6 +209,7 @@ void acl_print_ha_error(int handler_error);
 bool check_engine_type_for_acl_table(TABLE_LIST *tables, bool report_error);
 bool log_and_commit_acl_ddl(THD *thd, bool transactional_tables,
                             std::set<LEX_USER *> *extra_users = NULL,
+                            Rewrite_params *rewrite_params = NULL,
                             bool extra_error = false, bool log_to_binlog = true,
                             bool notify_htons = true);
 /* sql_authorization */

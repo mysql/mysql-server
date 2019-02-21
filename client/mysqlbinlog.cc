@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -991,18 +991,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info,
             !qle->is_trans_keyword() && shall_skip_database(qle->db);
         bool ends_group = ((Query_log_event *)ev)->ends_group();
         bool starts_group = ((Query_log_event *)ev)->starts_group();
-        /*
-          Stop if mysqlbinlog can not handle the event
-        */
-        if (qle->cant_replay_with_mysqlbinlog) {
-          error(
-              "Attempting to dump binlog '%s', which contains some entries"
-              " that could not be reliably replayed with mysqlbinlog."
-              " Typically, this happens when --partial_revokes is set to ON"
-              " at source.",
-              logname);
-          goto err;
-        }
 
         for (size_t i = 0; i < buff_ev->size(); i++) {
           buff_event_info pop_event_array = buff_ev->at(i);

@@ -1,7 +1,5 @@
 # Enable partial revokes
 SET @@global.partial_revokes = ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 # -----------------------------------------------------------------------
 # Start : DML Tests for Partial Revokes
 # -----------------------------------------------------------------------

@@ -8769,9 +8769,6 @@ ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
   eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
-ER_CLIENT_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY
-  eng "mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog."
-
 ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
   eng "An expression of non-boolean type specified to a check constraint '%-.192s'."
 
@@ -8840,6 +8837,12 @@ ER_CANNOT_USE_ENCRYPTION_CLAUSE
 
 ER_INVALID_MULTIPLE_CLAUSES
   eng "Multiple %s clauses"
+
+ER_UNSUPPORTED_USE_OF_GRANT_AS
+  eng "GRANT ... AS is currently supported only for global privileges."
+
+ER_UKNOWN_AUTH_ID_OR_ACCESS_DENIED_FOR_GRANT_AS
+  eng "Either some of the authorization IDs in the AS clause are invalid or the current user lacks privileges to execute the statement."
 
 #
 #  End of 8.0 error messages.
@@ -19001,9 +19004,6 @@ ER_WILDCARD_DB_GRANT_CONFLICTS_WITH_PARTIAL_REVOKES
 
 ER_WARN_WILDCARD_DB_GRANT_IGNORED_WITH_PARTIAL_REVOKES
   eng "Ignored database grant with wildcard characters '%s' for user '%s'@'%s' because --partial_revokes is set to ON."
-
-ER_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY
-  eng "mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog."
 
 ER_GRP_RPL_INVALID_COMMUNICATION_PROTOCOL
   eng "'%s' is an invalid value for group_replication_communication_protocol_join, please use a MySQL version between 5.7.14 and this server's version"

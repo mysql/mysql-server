@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1938,7 +1938,7 @@ bool Sql_cmd_drop_role::execute(THD *thd) {
 
 bool Sql_cmd_set_role::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_set_role::execute");
-  int ret = 0;
+  bool ret = 0;
   switch (role_type) {
     case role_enum::ROLE_NONE:
       ret = mysql_set_active_role_none(thd);
@@ -1953,7 +1953,7 @@ bool Sql_cmd_set_role::execute(THD *thd) {
       ret = mysql_set_active_role(thd, role_list);
       break;
   }
-  DBUG_RETURN(ret != 0);
+  DBUG_RETURN(ret);
 }
 
 bool Sql_cmd_grant_roles::execute(THD *thd) {
@@ -2001,7 +2001,7 @@ bool Sql_cmd_show_grants::execute(THD *thd) {
     LEX_USER current_user;
     get_default_definer(thd, &current_user);
     if (using_users == 0 || using_users->elements == 0) {
-      List_of_auth_id_refs *active_list =
+      const List_of_auth_id_refs *active_list =
           thd->security_context()->get_active_roles();
       DBUG_RETURN(mysql_show_grants(thd, &current_user, *active_list,
                                     show_mandatory_roles));

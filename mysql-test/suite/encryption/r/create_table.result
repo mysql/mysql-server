@@ -149,7 +149,7 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 SET GLOBAL table_encryption_privilege_check=false;
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -339,7 +339,7 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 SET GLOBAL table_encryption_privilege_check=false;
 CREATE TABLE db1.t1 (f1 int) ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -535,7 +535,7 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 SET GLOBAL table_encryption_privilege_check=false;
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=innodb_file_per_table ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -715,7 +715,7 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 SET GLOBAL table_encryption_privilege_check=false;
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=innodb_system ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -919,7 +919,7 @@ CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 SET GLOBAL table_encryption_privilege_check=false;
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

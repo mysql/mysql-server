@@ -287,7 +287,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='y';
 ERROR HY000: This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3830	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
+Error	3829	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -413,7 +413,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='y';
 ERROR HY000: This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3830	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
+Error	3829	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -539,7 +539,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='y';
 ERROR HY000: This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3830	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
+Error	3829	This tablespace can't be encrypted, because one of table's schema has default encryption OFF and user doesn't have enough privilege.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -609,10 +609,10 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'df_u.ibd' ENCRYPTION='n';
 CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -652,10 +652,10 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'df_u.ibd' ENCRYPTION='n';
 CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -697,10 +697,10 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'df_u.ibd' ENCRYPTION='n';
 CREATE DATABASE db1 DEFAULT ENCRYPTION='y';
 CREATE TABLE db1.t1 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 CREATE TABLE db1.t2 (f1 int) TABLESPACE=ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -892,10 +892,10 @@ SET SESSION default_table_encryption=false;
 SET GLOBAL table_encryption_privilege_check=false;
 ALTER TABLESPACE ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -938,7 +938,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='n';
 ERROR HY000: This tablespace can't be decrypted, because one of table's schema has default encryption ON and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3831	This tablespace can't be decrypted, because one of table's schema has default encryption ON and user doesn't have enough privilege.
+Error	3830	This tablespace can't be decrypted, because one of table's schema has default encryption ON and user doesn't have enough privilege.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -979,10 +979,10 @@ SET SESSION default_table_encryption=false;
 SET GLOBAL table_encryption_privilege_check=true;
 ALTER TABLESPACE ts1 ENCRYPTION='n';
 Warnings:
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW WARNINGS;
 Level	Code	Message
-Warning	3825	Creating an unencrypted table in a database with default encryption enabled.
+Warning	3824	Creating an unencrypted table in a database with default encryption enabled.
 SHOW CREATE TABLE db1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

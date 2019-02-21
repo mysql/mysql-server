@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,10 +70,6 @@
 #ifndef NAME_LEN
 #define NAME_LEN (NAME_CHAR_LEN * SYSTEM_CHARSET_MBMAXLEN)
 #endif
-#define USERNAME_CHAR_LENGTH 32
-#ifndef USERNAME_LENGTH
-#define USERNAME_LENGTH (USERNAME_CHAR_LENGTH * SYSTEM_CHARSET_MBMAXLEN)
-#endif
 /* Length of the server_version_split array in FDE class */
 #ifndef ST_SERVER_VER_SPLIT_LEN
 #define ST_SERVER_VER_SPLIT_LEN 3
@@ -115,14 +111,6 @@
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
 /**
-  Maximum limits for role
-  format: /`rolename/`@/`%/`,...
-*/
-#define NUM_ROLES 48
-#define MAX_ACTIVE_ROLES_IN_EVENT \
-  (NUM_ROLES * ((USERNAME_LENGTH) + (7U * SYSTEM_CHARSET_MBMAXLEN)))
-
-/**
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
   First, an auxiliary log_event status vars estimation:
@@ -140,10 +128,7 @@
    60 /* type, user_len, user, host_len, host */ + 1U +                       \
    1 /* type, explicit_def..ts*/ + 1U + 8 /* type, xid of DDL */ + 1U +       \
    2 /* type, default_collation_for_utf8mb4_number */ +                       \
-   1 /* sql_require_primary_key */ + +1U + 2U +                               \
-   MAX_ACTIVE_ROLES_IN_EVENT /* type, active_roles_len */ +                   \
-   1U /* cant_replay_with_mysqlbinlog */ + 1 +                                \
-   1 /* type, default_table_encryption */)
+   1 /* sql_require_primary_key */ + 1 /* type, default_table_encryption */)
 
 /**
    Uninitialized timestamp value (for either last committed or sequence number).

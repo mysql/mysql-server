@@ -43,10 +43,7 @@ Query_event::Query_event(Log_event_type type_arg)
       host(0),
       host_len(0),
       db_len(0),
-      q_len(0),
-      active_roles(nullptr),
-      active_roles_len(0),
-      cant_replay_with_mysqlbinlog(false) {}
+      q_len(0) {}
 
 /**
   The constructor used by MySQL master to create a query event, to be
@@ -87,9 +84,6 @@ Query_event::Query_event(
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
-      active_roles(nullptr),
-      active_roles_len(0),
-      cant_replay_with_mysqlbinlog(false),
       default_table_encryption(0xff) {}
 
 /**
@@ -141,9 +135,6 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       ddl_xid(INVALID_XID),
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
-      active_roles(nullptr),
-      active_roles_len(0),
-      cant_replay_with_mysqlbinlog(false),
       default_table_encryption(0xff) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
@@ -335,14 +326,6 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         break;
       case Q_SQL_REQUIRE_PRIMARY_KEY:
         READER_TRY_SET(sql_require_primary_key, read<uint8_t>);
-        break;
-      case Q_ACTIVE_ROLES:
-        READER_TRY_SET(active_roles_len, read_and_letoh<uint16_t>);
-        active_roles = READER_CALL(ptr);
-        READER_TRY_CALL(forward, active_roles_len);
-        break;
-      case Q_CANT_REPLAY_WITH_MYSQLBINLOG:
-        cant_replay_with_mysqlbinlog = true;
         break;
       case Q_DEFAULT_TABLE_ENCRYPTION:
         READER_TRY_SET(default_table_encryption, read<uint8_t>);

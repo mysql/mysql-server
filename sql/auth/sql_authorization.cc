@@ -88,6 +88,7 @@
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/auth/role_tables.h"
+#include "sql/auth/roles.h"
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
@@ -114,9 +115,10 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h" /* get_current_user */
-#include "sql/sql_show.h"  /* append_identifier */
-#include "sql/sql_view.h"  /* VIEW_ANY_ACL */
+#include "sql/sql_parse.h"   /* get_current_user */
+#include "sql/sql_rewrite.h" /* Grant_params */
+#include "sql/sql_show.h"    /* append_identifier */
+#include "sql/sql_view.h"    /* VIEW_ANY_ACL */
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -224,6 +226,291 @@ opt_always_activate_roles_on_login is set to true.
  mysql.role_edges table.
 
  */
+
+namespace {
+/**
+  Class to handle sanity checks for GRANT ... AS ... statement
+*/
+
+class Grant_validator {
+ public:
+  explicit Grant_validator(THD *thd, const char *db,
+                           const List<LEX_USER> &user_list, ulong rights,
+                           bool revoke,
+                           const List<LEX_CSTRING> &dynamic_privilege,
+                           bool grant_all, LEX_GRANT_AS *grant_as,
+                           TABLE *dynamic_priv_table)
+      : m_thd(thd),
+        m_db(db),
+        m_user_list(user_list),
+        m_rights(rights),
+        m_revoke(revoke),
+        m_dynamic_privilege(dynamic_privilege),
+        m_grant_all(grant_all),
+        m_grant_as(grant_as),
+        m_dynamic_priv_table(dynamic_priv_table),
+        m_restore(false),
+        m_backup(nullptr) {}
+  ~Grant_validator();
+  bool validate();
+
+ private:
+  bool mask_and_return_error();
+  bool validate_system_user_privileges();
+  bool validate_dynamic_privileges();
+  bool validate_wildcard_db_grants();
+  bool validate_and_process_grant_as();
+
+ private:
+  THD *m_thd;
+  const char *m_db;
+  const List<LEX_USER> &m_user_list;
+  ulong m_rights;
+  bool m_revoke;
+  const List<LEX_CSTRING> &m_dynamic_privilege;
+  bool m_grant_all;
+  LEX_GRANT_AS *m_grant_as;
+  TABLE *m_dynamic_priv_table;
+  bool m_restore;
+  Security_context *m_backup;
+  Security_context m_security_context;
+};
+
+/*
+  Destructor. Restores original security context.
+*/
+Grant_validator::~Grant_validator() {
+  if (m_restore)
+    m_thd->security_context()->restore_security_context(m_thd, m_backup);
+}
+
+/**
+  Helper function to mask specific error with generic one.
+
+  @returns true always.
+*/
+bool Grant_validator::mask_and_return_error() {
+  DBUG_ENTER("Grant_validator::mask_and_return_error");
+  /* Restore security context */
+  if (m_restore)
+    m_thd->security_context()->restore_security_context(m_thd, m_backup);
+  m_restore = false;
+  /*
+    Any error set before this point may potentially give away
+    information about user and/or role. So, clear any error
+    that may have been raised and replace it with a generic error.
+  */
+  m_thd->get_stmt_da()->reset_diagnostics_area();
+  my_error(ER_UKNOWN_AUTH_ID_OR_ACCESS_DENIED_FOR_GRANT_AS, MYF(0));
+  DBUG_RETURN(true);
+}
+
+/**
+  Perform sanity checks for GRANT ... AS ...
+
+  @returns status of checks
+    @retval false Success. Security context may have been changed
+    @retval true  Failure. Error has been raised.
+*/
+bool Grant_validator::validate_and_process_grant_as() {
+  DBUG_ENTER("Grant_validator::validate_and_process_grant_as");
+
+  if (m_grant_as == nullptr || !m_grant_as->grant_as_used) DBUG_RETURN(false);
+
+  LEX_USER *user = get_current_user(m_thd, m_grant_as->user);
+  if (user == nullptr) DBUG_RETURN(mask_and_return_error());
+
+  /* Change security context */
+  if (m_security_context.change_security_context(m_thd, user->user, user->host,
+                                                 nullptr, &m_backup, true))
+    DBUG_RETURN(mask_and_return_error());
+
+  m_restore = true;
+
+  Roles::Role_activation role_activation(m_thd, m_thd->security_context(),
+                                         m_grant_as->role_type,
+                                         m_grant_as->role_list, false);
+
+  if (role_activation.activate()) DBUG_RETURN(mask_and_return_error());
+
+  /* Compare restrictions */
+  Restrictions this_restrictions = m_thd->security_context()->restrictions();
+  Restrictions other_restrictions = m_backup->restrictions();
+  if (this_restrictions.has_more_db_restrictions(other_restrictions, m_rights))
+    DBUG_RETURN(mask_and_return_error());
+
+  DBUG_RETURN(false);
+}
+
+/**
+  Validate that if grantee has SYSTEM_USER privileges, current user has it too.
+
+  @returns status of the check
+    @retval false Success
+    @retval true  Current user lacks SYSTEM_USER privilege
+*/
+bool Grant_validator::validate_system_user_privileges() {
+  DBUG_ENTER("Grant_validator::validate_system_user_privileges");
+  if (check_system_user_privilege(m_thd, m_user_list)) DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
+/**
+  Permission and sanity checks for dynamic privileges.
+
+  We check:
+  1. Dynamic privilege is granted at *.* level
+  2. Current user's ability to grant dynamic privilege
+  3. SYSTEM_USER is not granted to mandatory roles
+
+  @returns status of checks
+    @retval false Success
+    @retval true  Error validating dynamic privileges
+*/
+bool Grant_validator::validate_dynamic_privileges() {
+  DBUG_ENTER("Grant_validator::validate_dynamic_privileges");
+
+  /* Dynamic privileges are allowed only for global grants */
+  if (m_db && m_db != any_db && m_dynamic_privilege.elements > 0) {
+    String privs;
+    List_iterator<LEX_CSTRING> it(
+        const_cast<List<LEX_CSTRING> &>(m_dynamic_privilege));
+    LEX_CSTRING *priv;
+    bool comma = false;
+    while ((priv = it++)) {
+      if (comma) privs.append(",");
+      privs.append(priv->str, priv->length);
+      comma = true;
+    }
+    my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
+    DBUG_RETURN(true);
+  }
+
+  /* Sanity checks for dynamic privileges */
+  if (!m_db && (m_dynamic_privilege.elements > 0 || m_grant_all)) {
+    LEX_CSTRING *priv;
+    Update_dynamic_privilege_table update_table(m_thd, m_dynamic_priv_table);
+    List<LEX_CSTRING> *privileges_to_check;
+    if (m_grant_all) {
+      /*
+        Copy all currently available dynamic privileges to the list of
+        dynamic privileges to grant.
+      */
+      privileges_to_check = new (m_thd->mem_root) List<LEX_CSTRING>;
+      iterate_all_dynamic_privileges(m_thd, [&](const char *str) {
+        LEX_CSTRING *new_str = (LEX_CSTRING *)m_thd->alloc(sizeof(LEX_CSTRING));
+        new_str->str = str;
+        new_str->length = strlen(str);
+        privileges_to_check->push_back(new_str);
+        return false;
+      });
+    } else
+      privileges_to_check =
+          &const_cast<List<LEX_CSTRING> &>(m_dynamic_privilege);
+    List_iterator<LEX_CSTRING> priv_it(*privileges_to_check);
+    bool error = false;
+    Security_context *sctx = m_thd->security_context();
+    while ((priv = priv_it++) && !error) {
+      /*
+        Privilege to grant dynamic privilege to others is granted if the user
+        either has super user privileges (currently UPDATE_ACL on mysql.*) or
+        if the user has a GRANT_OPTION on the specific dynamic privilege he
+        wants to grant.
+        Note that this is different than the rules which apply for other
+        privileges since for them the GRANT OPTION applies on a privilege
+        scope level (ie global, db or table level).
+        From a user POV it might appear confusing that some privileges are
+        more strictly associated with GRANT OPTION than others, but this
+        choice is made to preserve back compatibility while also paving way
+        for future improvements where all privileges objects have their own
+        grant option.
+      */
+      if (check_access(m_thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
+                       1) &&
+          !sctx->has_global_grant(priv->str, priv->length).second) {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "GRANT OPTION");
+        DBUG_RETURN(true);
+      }
+
+      if (!m_revoke) {
+        // Do not grant SYSTEM_USER privilege to a mandatory role
+        if (consts::system_user.compare(priv->str) == 0) {
+          std::vector<Role_id> mandatory_roles;
+          get_mandatory_roles(&mandatory_roles);
+          List_iterator<LEX_USER> str_list(
+              const_cast<List<LEX_USER> &>(m_user_list));
+          LEX_USER *user, *target_user;
+          while ((target_user = str_list++)) {
+            if (!(user = get_current_user(m_thd, target_user))) {
+              my_error(ER_OUTOFMEMORY, MYF(0), sizeof(LEX_USER));
+              DBUG_RETURN(true);
+            }
+            Auth_id_ref auth_id = create_authid_from(user);
+            for (const auto &rid : mandatory_roles) {
+              if (rid == auth_id) {
+                my_error(ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE, MYF(0),
+                         auth_id.first.str, auth_id.second.str, priv->str);
+                DBUG_RETURN(true);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+  Check if wildcard DB grant is allowed
+
+  @returns status of the check
+    @retval false Success
+    @retval true  Error because --partial_revokes is set to ON
+*/
+bool Grant_validator::validate_wildcard_db_grants() {
+  DBUG_ENTER("Grant_validator::validate_wildcard_db_grants");
+
+  /* Do not permit db grants with wildcard if partial_revokes is ON */
+  if (m_db && !m_revoke) {
+    std::string db_name(m_db);
+    if (has_wildcards_in_db_grant(db_name)) {
+      if (mysqld_partial_revokes()) {
+        my_error(ER_NO_WILDCARD_DB_GRANT_WITH_PARTIAL_REVOKES, MYF(0));
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+/**
+  Umbrella method to perform validation
+
+  A possible side effect of this method is that active security context of the
+  session may have been changed. This is true if GRANT ... AS ... is used.
+
+  @returns status of checks
+    @retval false Success
+    @retval true  Error found during validation
+*/
+bool Grant_validator::validate() {
+  DBUG_ENTER("Grant_validator::validate");
+  if (validate_system_user_privileges()) DBUG_RETURN(true);
+  if (validate_dynamic_privileges()) DBUG_RETURN(true);
+  if (validate_wildcard_db_grants()) DBUG_RETURN(true);
+
+  /*
+    This must be the last check because it may change
+    the active security context of a thread.
+  */
+  if (validate_and_process_grant_as()) DBUG_RETURN(true);
+  DBUG_RETURN(false);
+}
+
+}  // namespace
 
 Granted_roles_graph *g_granted_roles = 0;
 Role_index_map *g_authid_to_vertex = 0;
@@ -2602,8 +2889,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     }
   }
 
-  if (!result) /* success */
-    my_ok(thd);
+  if (!result) my_ok(thd);
 
   thd->lex->restore_backup_query_tables_list(&backup);
   get_global_acl_cache()->increase_version();
@@ -2760,7 +3046,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
               thd->lex->sql_command == SQLCOM_CREATE_PROCEDURE ||
               thd->lex->sql_command == SQLCOM_CREATE_SPFUNCTION);
 
-  result = log_and_commit_acl_ddl(thd, transactional_tables, NULL, result,
+  result = log_and_commit_acl_ddl(thd, transactional_tables, NULL, NULL, result,
                                   write_to_binlog, write_to_binlog);
 
   {
@@ -2888,7 +3174,7 @@ bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
 
   DBUG_ASSERT(!errors || thd->is_error());
 
-  errors = log_and_commit_acl_ddl(thd, transactional_tables, NULL);
+  errors = log_and_commit_acl_ddl(thd, transactional_tables);
 
   if (!errors) my_ok(thd);
 
@@ -3061,8 +3347,7 @@ std::string handle_unquotted_wildcards(const char *db, bool is_revoke) {
 bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
-                 bool grant_all_current_privileges) {
-  Security_context *sctx = thd->security_context();
+                 bool grant_all_current_privileges, LEX_GRANT_AS *grant_as) {
   List_iterator<LEX_USER> str_list(list);
   LEX_USER *user, *target_user, *proxied_user = NULL;
   char tmp_db[NAME_LEN + 1];
@@ -3074,6 +3359,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   int ret;
   TABLE *dynpriv_table;
   std::set<LEX_USER *> existing_users;
+  bool partial_revokes = false;
   DBUG_ENTER("mysql_grant");
   DBUG_ASSERT(initialized);
 
@@ -3106,7 +3392,23 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
     DBUG_RETURN(true);
   }
 
-  if (check_system_user_privilege(thd, list)) {
+  bool with_grant_option = ((rights & GRANT_ACL) != 0);
+  bool grant_option = thd->lex->grant_privilege;
+  if (db == 0 && with_grant_option && (rights | GRANT_ACL) == 0 &&
+      dynamic_privilege.elements > 0) {
+    /*
+      If this is a grant on global privilege level and there only dynamic
+      privileges specified; don't apply the GRANT OPTION on a global privilege
+      level.
+    */
+    rights = 0;
+  }
+
+  dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
+  Grant_validator grant_validator(
+      thd, db, list, rights, revoke_grant, dynamic_privilege,
+      grant_all_current_privileges, grant_as, dynpriv_table);
+  if (grant_validator.validate()) {
     commit_and_close_mysql_tables(thd);
     DBUG_RETURN(true);
   }
@@ -3115,11 +3417,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
   if (db && !revoke_grant) {
     std::string db_name(db);
     if (has_wildcards_in_db_grant(db_name)) {
-      if (mysqld_partial_revokes()) {
-        my_error(ER_NO_WILDCARD_DB_GRANT_WITH_PARTIAL_REVOKES, MYF(0));
-        commit_and_close_mysql_tables(thd);
-        DBUG_RETURN(true);
-      } else {
+      if (!mysqld_partial_revokes()) {
         wildcard_db_grant = true;
       }
     }
@@ -3127,7 +3425,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
 
   /* go through users in user_list */
   grant_version++;
-  dynpriv_table = tables[ACL_TABLES::TABLE_DYNAMIC_PRIV].table;
   while ((target_user = str_list++)) {
     if (!(user = get_current_user(thd, target_user))) {
       error = true;
@@ -3142,19 +3439,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
       continue;
     }
 
-    bool with_grant_option = ((rights & GRANT_ACL) != 0);
-    bool grant_option = thd->lex->grant_privilege;
-    if (db == 0 && with_grant_option && (rights | GRANT_ACL) == 0 &&
-        dynamic_privilege.elements > 0) {
-      /*
-        If this is a grant on global privilege level and there only dynamic
-        privileges specified; don't apply the GRANT OPTION on a global privilege
-        level.
-      */
-      rights = 0;
-    }
-
-    Auth_id_ref auth_id = create_authid_from(user);
     ACL_USER *this_user = find_acl_user(user->host.str, user->user.str, true);
     Restrictions restrictions(nullptr);
     DB_restrictions db_restrictions(nullptr);
@@ -3163,6 +3447,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         Restrictions_aggregator_factory::create(thd, this_user, db, rights,
                                                 grant_all_current_privileges);
     if (aggregator) {
+      partial_revokes = true;
       if (aggregator->generate(db_restrictions)) {
         error = true;
         break;
@@ -3226,22 +3511,6 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
         continue;
       }
     }
-    /* Handle dynamic privileges if there are any */
-    if (db && db != any_db && dynamic_privilege.elements > 0) {
-      String privs;
-      List_iterator<LEX_CSTRING> it(
-          const_cast<List<LEX_CSTRING> &>(dynamic_privilege));
-      LEX_CSTRING *priv;
-      bool comma = false;
-      while ((priv = it++)) {
-        if (comma) privs.append(",");
-        privs.append(priv->str, priv->length);
-        comma = true;
-      }
-      my_error(ER_ILLEGAL_PRIVILEGE_LEVEL, MYF(0), privs.c_ptr());
-      error = true;
-      break;
-    }
 
     if (!db &&
         (dynamic_privilege.elements > 0 || grant_all_current_privileges)) {
@@ -3266,46 +3535,12 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
             &const_cast<List<LEX_CSTRING> &>(dynamic_privilege);
       List_iterator<LEX_CSTRING> priv_it(*privileges_to_check);
       while ((priv = priv_it++) && !error) {
-        /*
-          Privilege to grant dynamic privilege to others is granted if the user
-          either has super user privileges (currently UPDATE_ACL on mysql.*) or
-          if the user has a GRANT_OPTION on the specific dynamic privilege he
-          wants to grant.
-          Note that this is different than the rules which apply for other
-          privileges since for them the GRANT OPTION applies on a privilege
-          scope level (ie global, db or table level).
-          From a user POV it might appear confusing that some privileges are
-          more strictly associated with GRANT OPTION than others, but this
-          choice is made to preserve back compatibility while also paving way
-          for future improvements where all privileges objects have their own
-          grant option.
-        */
-        if (check_access(thd, UPDATE_ACL, consts::mysql.c_str(), NULL, NULL, 1,
-                         1) &&
-            !has_dynamic_privilege_grant_option(
-                sctx, std::string(priv->str, priv->length))) {
-          my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "GRANT OPTION");
-          error = true;
-          break;
-        }
+        /* We already checked privileges required to perform GRANT/REVOKE */
         if (revoke_grant) {
           error = revoke_dynamic_privilege(*priv, user->user, user->host,
                                            update_table);
         } else {
-          // Do not grant SYSTEM_USER privilege to a mandatory role
-          if (consts::system_user.compare(priv->str) == 0) {
-            std::vector<Role_id> mandatory_roles;
-            get_mandatory_roles(&mandatory_roles);
-            for (const auto &rid : mandatory_roles) {
-              if (rid == auth_id) {
-                my_error(ER_CANNOT_GRANT_SYSTEM_PRIV_TO_MANDATORY_ROLE, MYF(0),
-                         auth_id.first.str, auth_id.second.str, priv->str);
-                error = true;
-                break;
-              }
-            }
-          }
-
+          /* We performed SYSTEM_USER check before */
           error = grant_dynamic_privilege(*priv, user->user, user->host,
                                           with_grant_option, update_table);
         }
@@ -3338,7 +3573,56 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
 
   DBUG_ASSERT(!error || thd->is_error());
 
-  error = log_and_commit_acl_ddl(thd, transactional_tables);
+  {
+    /*
+      We want to add AS ... clause while rewritting GRANT statement in
+      following cases:
+
+      1. The GRANT statement being executed contains AS clause.
+         In this case we retain it as it is except rewriting
+         CURRENT_USER() and use current session's user/host part.
+      2. If all of the following condtions are met:
+         - --partial_revokes is ON
+         - Statement is a GRANT at global level (*.*)
+         This is required because, current user may have restriction
+         list and grant may propagate the same to grantee. In order
+         to repliably replay this on other nodes in an HA setup, details
+         of current user has to be captured.
+    */
+    LEX_GRANT_AS *grant_as_ptr = nullptr;
+    bool grant_as_specified = false;
+    LEX_GRANT_AS grant_as_for_rewrite;
+    if (grant_as->grant_as_used) {
+      grant_as_specified = grant_as->grant_as_used;
+      grant_as_ptr = grant_as;
+    } else if (partial_revokes && !revoke_grant && !is_proxy && !db) {
+      /* Set LEX_GRANT_AS for given GRANT */
+      grant_as_for_rewrite.grant_as_used = true;
+
+      grant_as_for_rewrite.role_type =
+          thd->security_context()->get_active_roles()->size()
+              ? role_enum::ROLE_NAME
+              : role_enum::ROLE_NONE;
+
+      LEX_CSTRING priv_user = thd->security_context()->priv_user();
+      LEX_CSTRING priv_host = thd->security_context()->priv_host();
+      grant_as_for_rewrite.user = LEX_USER::alloc(thd, (LEX_STRING *)&priv_user,
+                                                  (LEX_STRING *)&priv_host);
+
+      if (grant_as_for_rewrite.role_type == role_enum::ROLE_NAME) {
+        grant_as_for_rewrite.role_list = new (thd->mem_root) List<LEX_USER>;
+        thd->security_context()->get_active_roles(
+            thd, *grant_as_for_rewrite.role_list);
+      }
+      grant_as_specified = false;
+      grant_as_ptr = &grant_as_for_rewrite;
+    }
+
+    Grant_params grant_rewrite_params(grant_as_specified, grant_as_ptr);
+
+    error = log_and_commit_acl_ddl(thd, transactional_tables, nullptr,
+                                   &grant_rewrite_params);
+  }
 
   {
     /* Notify audit plugin. We will ignore the return value. */
@@ -4976,8 +5260,8 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   } while (revoked);
 
   /* We don't want to write to binlog or notify htons about this. */
-  result |= log_and_commit_acl_ddl(thd, transactional_tables, NULL, result,
-                                   false, false);
+  result |= log_and_commit_acl_ddl(thd, transactional_tables, NULL, NULL,
+                                   result, false, false);
 
   thd->pop_internal_handler();
   DBUG_RETURN(error_handler.has_errors() || result);
@@ -6093,7 +6377,7 @@ bool mysql_alter_or_clear_default_roles(THD *thd, role_enum role_type,
     }
   }
 
-  ret = log_and_commit_acl_ddl(thd, true, nullptr, ret);
+  ret = log_and_commit_acl_ddl(thd, true, nullptr, nullptr, ret);
   get_global_acl_cache()->increase_version();
 
   DBUG_RETURN(ret);
@@ -6282,23 +6566,23 @@ std::string create_authid_str_from(const Role_id &user) {
   return tmp;
 }
 
+/**
+  Reset active roles
+
+  @param [in] thd THD handle
+
+  @returns status of resetting active roles
+    @retval false Success
+    @retval true  Error
+*/
 int mysql_set_active_role_none(THD *thd) {
-  thd->security_context()->clear_active_roles();
-  thd->security_context()->clear_db_restrictions();
-  thd->security_context()->checkout_access_maps();
-  ulong new_db_access = thd->security_context()->db_acl(thd->db());
-  thd->security_context()->cache_current_db_access(new_db_access);
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) return 1;
-  ACL_USER *user =
-      find_acl_user(thd->security_context()->priv_host().str,
-                    thd->security_context()->priv_user().str, true);
-  if (user) {
-    thd->security_context()->set_master_access(
-        user->access, acl_restrictions->find_restrictions(user));
-  }
-  my_ok(thd);
-  return 0;
+  DBUG_ENTER("mysql_set_active_role_none");
+  bool ret = false;
+  Roles::Role_activation role_activation(thd, thd->security_context(),
+                                         role_enum::ROLE_NONE, nullptr, false);
+  ret = role_activation.activate();
+  if (!ret) my_ok(thd);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -6313,64 +6597,13 @@ int mysql_set_active_role_none(THD *thd) {
      @retval != 0 Failure. DA is set.
 */
 int mysql_set_role_default(THD *thd) {
-  int ret = 0;
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) return 1;
-  List_of_auth_id_refs *active_list =
-      thd->security_context()->get_active_roles();
-  List_of_auth_id_refs authids;
-  List_of_auth_id_refs backup_active_list;
-  backup_active_list.reserve(active_list->size());
-  /* Shallow copy of LEX_CSTRING pairs. Memory not duplicated */
-  std::copy(active_list->begin(), active_list->end(),
-            std::back_inserter(backup_active_list));
-  /* Clear active roles but don't free memory */
-  thd->security_context()->get_active_roles()->clear();
-  LEX_USER current_user;
-  /* hack for the current_user token */
-  get_default_definer(thd, &current_user);
-  Auth_id_ref current_user_authid = create_authid_from(&current_user);
-  /*
-    Search global structure for target user;
-    authids have their own memory storage (Role_id)
-  */
-  get_default_roles(current_user_authid, authids);
-  if (authids.size() > 0) {
-    List_of_auth_id_refs::iterator it = authids.begin();
-    for (; it != authids.end() && ret == 0; ++it) {
-      /*
-         Activating a role allocates new memory for the activated role
-         and perform a deep copy of the default role.
-      */
-      ret = thd->security_context()->activate_role(it->first, it->second, true);
-      if (ret) {
-        my_error(ER_ROLE_NOT_GRANTED, MYF(0), it->first.str, it->second.str,
-                 current_user_authid.first.str, current_user_authid.second.str);
-      }
-    }
-  }
-  if (ret == 0) {
-    thd->security_context()->checkout_access_maps();
-    ulong new_db_access = thd->security_context()->db_acl(thd->db());
-    thd->security_context()->cache_current_db_access(new_db_access);
-    /* Old memory in the backup list must now be freed. */
-    for (auto &&role : backup_active_list) {
-      my_free(const_cast<char *>(role.first.str));
-      my_free(const_cast<char *>(role.second.str));
-    }
-    my_ok(thd);
-  } else {
-    /*
-      Failing to activate all roles will rollback the statement and reset
-      the previous roles.
-      1. Remove any newly activated roles and deallocate memory
-      2. Copy the backup elements to the active_list (shallow copy)
-    */
-    thd->security_context()->clear_active_roles();
-    std::copy(backup_active_list.begin(), backup_active_list.end(),
-              std::back_inserter(*active_list));
-  }
-  return ret;
+  DBUG_ENTER("mysql_set_role_default");
+  bool ret = 0;
+  Roles::Role_activation role_activation(thd, thd->security_context(),
+                                         role_enum::ROLE_DEFAULT, nullptr);
+  ret = role_activation.activate();
+  if (!ret) my_ok(thd);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -6387,197 +6620,23 @@ int mysql_set_role_default(THD *thd) {
      @retval != 0 Failure. DA is set.
 */
 int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users) {
-  Security_context *sctx = thd->security_context();
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) return 1;
-
-  List_of_auth_id_refs *active_list = sctx->get_active_roles();
-  List_of_auth_id_refs backup_active_list;
-  backup_active_list.reserve(active_list->size());
-  std::copy(active_list->begin(), active_list->end(),
-            std::back_inserter(backup_active_list));
-  sctx->get_active_roles()->clear();
-
-  sctx->clear_active_roles();
-  int ret = 0;
-  LEX_USER *current_user = create_default_definer(thd);
-  std::string authid = create_authid_str_from(current_user);
-  Role_index_map::iterator it;
-  List_of_granted_roles granted_roles;
-
-  if ((it = g_authid_to_vertex->find(authid)) != g_authid_to_vertex->end()) {
-    Role_vertex_descriptor user_vertex = it->second;
-    get_granted_roles(user_vertex, &granted_roles);
-    std::vector<Role_id> mandatory_roles;
-    get_mandatory_roles(&mandatory_roles);
-    for (auto &&rid : mandatory_roles) {
-      granted_roles.push_back(std::make_pair(rid, false));
-    }
-    List_of_granted_roles::iterator role_it = granted_roles.begin();
-    for (; role_it != granted_roles.end(); ++role_it) {
-      bool found_except_user = false;
-      if (except_users && except_users->elements > 0) {
-        List_iterator<LEX_USER> except_users_it(
-            *(const_cast<List<LEX_USER> *>(except_users)));
-        while (LEX_USER *except_user = (LEX_USER *)except_users_it.next()) {
-          if ((except_user->user.length == role_it->first.user().length()) &&
-              (except_user->host.length == role_it->first.host().length()) &&
-              strncmp(except_user->user.str, role_it->first.user().c_str(),
-                      except_user->user.length) == 0 &&
-              native_strncasecmp(except_user->host.str,
-                                 role_it->first.host().c_str(),
-                                 except_user->host.length) == 0) {
-            found_except_user = true;
-            break;
-          }
-        }
-      }
-      if (!found_except_user) {
-        ret = sctx->activate_role(
-            {role_it->first.user().c_str(), role_it->first.user().length()},
-            {role_it->first.host().c_str(), role_it->first.host().length()},
-            true);
-        if (ret != 0) {
-          my_error(ER_ROLE_NOT_GRANTED, MYF(0), role_it->first.user().c_str(),
-                   role_it->first.host().c_str(), current_user->user.str,
-                   current_user->host.str);
-          break;
-        }
-      }
-    }  // end for
-  }
-  if (ret == 0) {
-    thd->security_context()->checkout_access_maps();
-    ulong new_db_access = thd->security_context()->db_acl(thd->db());
-    thd->security_context()->cache_current_db_access(new_db_access);
-    /* Drop backup */
-    for (auto &&ref : backup_active_list) {
-      my_free(const_cast<char *>(ref.first.str));
-      my_free(const_cast<char *>(ref.second.str));
-    }
-    my_ok(thd);
-  } else {
-    /* restore backup */
-    active_list->clear();
-    std::copy(backup_active_list.begin(), backup_active_list.end(),
-              std::back_inserter(*active_list));
-  }
-  return ret;
+  DBUG_ENTER("mysql_set_active_role_all");
+  bool ret = 0;
+  Roles::Role_activation role_activation(thd, thd->security_context(),
+                                         role_enum::ROLE_ALL, except_users);
+  ret = role_activation.activate();
+  if (!ret) my_ok(thd);
+  DBUG_RETURN(ret);
 }
 
 int mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list) {
-  int ret = 0;
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) return 1;
-
-  List_of_auth_id_refs *active_list =
-      thd->security_context()->get_active_roles();
-  List_of_auth_id_refs backup_active_list;
-  backup_active_list.reserve(active_list->size());
-  std::copy(active_list->begin(), active_list->end(),
-            std::back_inserter(backup_active_list));
-  thd->security_context()->get_active_roles()->clear();
-  List_iterator<LEX_USER> it(*(const_cast<List<LEX_USER> *>(role_list)));
-  LEX_USER *role = 0;
-  while (ret == 0 && (role = it++)) {
-    ret = thd->security_context()->activate_role(role->user, role->host, true);
-  }
-
-  if (ret == 0) {
-    thd->security_context()->checkout_access_maps();
-    ulong new_db_access = thd->security_context()->db_acl(thd->db());
-    thd->security_context()->cache_current_db_access(new_db_access);
-    /* Drop backup */
-    for (auto &&ref : backup_active_list) {
-      my_free(const_cast<char *>(ref.first.str));
-      my_free(const_cast<char *>(ref.second.str));
-    }
-    my_ok(thd);
-  } else {
-    if (role) {
-      my_error(ER_ROLE_NOT_GRANTED, MYF(0), role->user.str, role->host.str,
-               thd->security_context()->priv_user().str,
-               thd->security_context()->priv_host().str);
-    }
-    /* restore backup */
-    active_list->clear();
-    std::copy(backup_active_list.begin(), backup_active_list.end(),
-              std::back_inserter(*active_list));
-  }
-  return ret;
-}
-
-bool mysql_set_active_role_for_applier(THD *thd, LEX_CSTRING roles_string) {
-  /* At this point no one but applier thread should call this function */
-  DBUG_ASSERT(thd->slave_thread);
-
-  /* Need to lock caches in read mode */
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) return true;
-
-  /* Feed LEX_CSTRING to std::string */
-  std::string roles(roles_string.str, roles_string.length);
-
-  /* We hold parsed roles here */
-  std::vector<Role_id> roles_list;
-
-  /* Convert comma separate, quoted string to list of Auth_id_ref */
-  iterate_comma_separated_quoated_string(
-      roles, [&roles_list](const std::string item) {
-        auto el = get_authid_from_quoted_string(item);
-        if (el.second == "") el.second = "%";
-        Role_id role_id(el.first, el.second);
-        if (role_id.user() == "") {
-          // Anonymous user is not allowed as role - skip
-          return false;
-        }
-
-        if (find_acl_user(role_id.host().c_str(), role_id.user().c_str(),
-                          true) != NULL) {
-          roles_list.push_back(role_id);
-        }
-        // Skip invalid ones
-        return false;
-      });
-
-  /* Save a copy of current set of active roles. */
-  List_of_auth_id_refs *active_list =
-      thd->security_context()->get_active_roles();
-  List_of_auth_id_refs backup_active_list;
-  backup_active_list.reserve(active_list->size());
-  std::copy(active_list->begin(), active_list->end(),
-            std::back_inserter(backup_active_list));
-
-  /* Clear active roles list */
-  thd->security_context()->get_active_roles()->clear();
-
-  /*
-    Now that everything is ready, push each role from
-    roles_list as active role in current security context
-  */
-  for (auto &it : roles_list) {
-    LEX_CSTRING user;
-    LEX_CSTRING host;
-    user.str = it.user().c_str();
-    user.length = it.user().length();
-    host.str = it.host().c_str();
-    host.length = it.host().length();
-    /* We don't want to validate role grant because this is slave thread */
-    (void)thd->security_context()->activate_role(user, host, false);
-  }
-
-  /* Checkout access map and activate new set of roles */
-  thd->security_context()->checkout_access_maps();
-  ulong new_db_access = thd->security_context()->db_acl(thd->db());
-  thd->security_context()->cache_current_db_access(new_db_access);
-
-  /* Free memory for previous set of active roles */
-  for (auto &&ref : backup_active_list) {
-    my_free(const_cast<char *>(ref.first.str));
-    my_free(const_cast<char *>(ref.second.str));
-  }
-
-  return false;
+  DBUG_ENTER("mysql_set_active_role");
+  bool ret = false;
+  Roles::Role_activation role_activation(thd, thd->security_context(),
+                                         role_enum::ROLE_NAME, role_list);
+  ret = role_activation.activate();
+  if (!ret) my_ok(thd);
+  DBUG_RETURN(ret);
 }
 
 /**
@@ -7347,6 +7406,7 @@ bool check_system_user_privilege(THD *thd, List<LEX_USER> list) {
   Security_context *sctx = thd->security_context();
   List_iterator<LEX_USER> user_list(list);
   DBUG_ASSERT(assert_acl_cache_read_lock(thd));
+  if (list.elements == 0) return (false);
   while ((tmp_user = user_list++)) {
     if (!(user = get_current_user(thd, tmp_user))) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
