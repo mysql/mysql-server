@@ -10364,7 +10364,7 @@ void Dbdih::startGcpMasterTakeOver(Signal* signal, Uint32 oldMasterId){
   m_gcp_save.m_master.m_new_gci = m_gcp_save.m_gci;
 
   setLocalNodefailHandling(signal, oldMasterId, NF_GCP_TAKE_OVER);
-}//Dbdih::handleNewMaster()
+}
 
 void Dbdih::startRemoveFailedNode(Signal* signal, NodeRecordPtr failedNodePtr)
 {
@@ -21941,6 +21941,19 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     /* Handle case 7) above) */
     jam();
     ndbrequire(signal->length() == LcpCompleteRep::SignalLength);
+
+    /**
+     * During master takeover, some participant nodes could have been
+     * in IDLE state since they have already completed the lcpId under
+     * the old master before it failed. However, they may receive
+     * LCP_COMPLETE_REP again for the same lcpId from the new master.
+     */
+    if (c_lcpState.lcpStatus == LCP_STATUS_IDLE &&
+        c_lcpState.already_completed_lcp(lcpId, nodeId))
+    {
+      return;
+    }
+
     /**
      * Always allowed free pass through for signals from master that LCP is
      * completed.
