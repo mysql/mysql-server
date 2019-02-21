@@ -9282,7 +9282,9 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
                                      const char *space_name,
                                      std::string old_path,
                                      std::string *new_path) {
-  ut_ad(Fil_path::has_suffix(IBD, old_path));
+  ut_ad((fsp_is_ibd_tablespace(space_id) &&
+         Fil_path::has_suffix(IBD, old_path)) ||
+        fsp_is_undo_tablespace(space_id));
 
   /* Single threaded code, no need to acquire mutex. */
   const auto &end = recv_sys->deleted.end();
