@@ -48,11 +48,16 @@
 
 extern bool initialized;
 
-Security_context::Security_context() : m_restrictions(nullptr) { init(); }
-Security_context::Security_context(MEM_ROOT *mem_root)
-    : m_restrictions(mem_root) {
+Security_context::Security_context(THD *thd /*= nullptr */)
+    : m_restrictions(nullptr), m_thd(thd) {
   init();
 }
+
+Security_context::Security_context(MEM_ROOT *mem_root, THD *thd /* = nullptr*/)
+    : m_restrictions(mem_root), m_thd(thd) {
+  init();
+}
+
 Security_context::~Security_context() { destroy(); }
 
 Security_context::Security_context(const Security_context &src_sctx)
@@ -178,6 +183,14 @@ void Security_context::skip_grants(const char *user /*= "skip-grants user"*/,
   assign_priv_host(host, strlen(host));
   m_master_access = ~NO_ACCESS;
   m_is_skip_grants_user = true;
+
+  /*
+    If the security context is tied upto to the THD object and it is
+    current security context in THD then set the flag to true.
+  */
+  if (m_thd && m_thd->security_context() == this) {
+    m_thd->set_system_user(true);
+  }
   DBUG_VOID_RETURN;
 }
 

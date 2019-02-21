@@ -240,6 +240,19 @@ ngs::Error_code Sql_data_context::authenticate(
     std::string user_name = get_user_name();
     std::string host_or_ip = get_host_or_ip();
 
+    /*
+      Instead of modifying the current security context in switch_user()
+      method above, we must create a security_context to do the
+      security_context_lookup() on newly created security_context then set
+      that in the THD. Until that happens, we have to get the existing security
+      context and set that again in the THD. The latter opertion is nedded as
+      it may toggle the system_user flag in THD iff security_context has
+      SYSTEM_USER privilege.
+    */
+    MYSQL_SECURITY_CONTEXT scontext;
+    thd_get_security_context(get_thd(), &scontext);
+    thd_set_security_context(get_thd(), scontext);
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_account)
     (user_name.c_str(), static_cast<int>(user_name.length()),

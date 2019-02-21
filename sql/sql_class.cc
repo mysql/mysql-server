@@ -363,6 +363,8 @@ THD::THD(bool enable_plugins)
       status_var_aggregated(false),
       m_current_query_cost(0),
       m_current_query_partial_plans(0),
+      m_main_security_ctx(this),
+      m_security_ctx(&m_main_security_ctx),
       query_plan(this),
       m_current_stage_key(0),
       current_mutex(NULL),
@@ -439,7 +441,6 @@ THD::THD(bool enable_plugins)
   thread_stack = 0;
   m_catalog.str = "std";
   m_catalog.length = 3;
-  m_security_ctx = &m_main_security_ctx;
   password = 0;
   query_start_usec_used = false;
   check_for_truncated_fields = CHECK_FIELD_IGNORE;
@@ -549,6 +550,7 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   debug_binlog_xid_last.reset();
 #endif
+  set_system_user(false);
 }
 
 void THD::set_transaction(Transaction_ctx *transaction_ctx) {

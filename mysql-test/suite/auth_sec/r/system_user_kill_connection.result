@@ -1,0 +1,203 @@
+# Setup
+CREATE USER sys_user, non_sys_user;
+CREATE ROLE system_user_role;
+GRANT SYSTEM_USER ON *.* TO system_user_role;
+GRANT CONNECTION_ADMIN ON *.* TO non_sys_user;
+#------------------------------------------------------------------------
+# 1. User without SYSTEM_USER privilege cannot kill the connection of
+#    the user who has SYSTEM_USER privilege.
+#------------------------------------------------------------------------
+# non_sys_user should be able to kill as sys_user does not have
+# SYSTEM_USER privilege.
+KILL <CONNECTION_ID>;
+# Grant SYSTEM_USER privilege to sys_user and then try to kill its
+# session through non_sys_user.
+GRANT SYSTEM_USER ON *.* TO sys_user;
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Existing connection of sys_user cannot be killed by non_sys_user user
+# even after revoking the SYSTEM_USER privilege from former.
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# New connection of sys_user can be killed by non_sys_user user
+# after revoking the SYSTEM_USER privilege from former.
+KILL <CONNECTION_ID>;
+#------------------------------------------------------------------------
+# 2. Grant SYSTEM_USER privilege to non_sys_user and try to kill the
+#    connection of the sys_user who already had SYSTEM_USER privilege
+#------------------------------------------------------------------------
+GRANT SYSTEM_USER ON *.* TO sys_user,non_sys_user;
+# Must fail; Since THD::is_susytem_user of the existing session is not
+# updated about the SYSTEM_USER privilege granted
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Must be able to kill since the THD of new connection would know that
+# it has SYSTEM_USER privilege
+KILL <CONNECTION_ID>;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_user, sys_user;
+#------------------------------------------------------------------------
+# 3. Grant SYSTEM_USER privilege through roles
+#------------------------------------------------------------------------
+GRANT system_user_role TO sys_user;
+SET ROLE system_user_role;
+# Must fail. non_sys_user does not have SYSTEM_USER privilege while the
+# sys_user has activated that privilege through role.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+GRANT system_user_role TO non_sys_user;
+# Must fail. non_sys_user has desired role but latter is not yet
+# activated.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Must work. non_sys_user gets the SYSTEM_USER privilege through roles
+# activation.
+SET ROLE system_user_role;
+KILL <CONNECTION_ID>;
+SET ROLE system_user_role;
+SET ROLE NONE;
+# Must fail. non_sys_user has deactivated all roles.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+SET ROLE system_user_role;
+SET ROLE ALL EXCEPT system_user_role;
+# Must fail. non_sys_user has all roles activated except the one that
+# activates the SYSTEM_USER privilege
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+SET ROLE ALL;
+# Must Work. non_sys_user has all roles activated.
+KILL <CONNECTION_ID>;
+REVOKE system_user_role FROM non_sys_user;
+GRANT SELECT ON test.* TO sys_user;
+#------------------------------------------------------------------------
+# 4. Grant SYSTEM_USER privilege through default roles
+#------------------------------------------------------------------------
+SET DEFAULT ROLE system_user_role TO sys_user;
+# Must fail. non_sys_user does not have the SYSTEM_USER privilege
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+GRANT SYSTEM_USER ON *.* TO non_sys_user;
+# Must fail. non_sys_user is granted the SYSTEM_USER privilege but
+# existing session does not know about it.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Must work. non_sys_user has the SYSTEM_USER privilege
+KILL <CONNECTION_ID>;
+REVOKE SYSTEM_USER ON *.* FROM non_sys_user;
+SET DEFAULT ROLE NONE TO sys_user;
+# Must work. non_sys_user and sys_user both do not have SYSTEM_USER
+# privilege.
+KILL <CONNECTION_ID>;
+#------------------------------------------------------------------------
+# 5. Grant SYSTEM_USER privilege through role as well as GRANT statement
+#------------------------------------------------------------------------
+GRANT SYSTEM_USER ON *.* TO sys_user;
+SET ROLE NONE;
+# Must fail due to cumulative effect of SET ROLE and GRANT statement
+# on existing connection of sys_user.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+SET ROLE system_user_role;
+# Must fail due to cumulative effect of SET ROLE and REVOKE statement
+# on existing connection of sys_user.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+SET ROLE NONE;
+# Must work since existing connection does not have SYSTEM_USER even
+# cumulatively.
+KILL <CONNECTION_ID>;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+#------------------------------------------------------------------------
+# 6. Killing another sessions of itself
+#------------------------------------------------------------------------
+# 6.1 Through Roles
+SET ROLE system_user_role;
+# Must fail. Other session has SYSTEM_USER privilege through role
+# activation.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Must work. After activating the role in current session.
+SET ROLE system_user_role;
+KILL <CONNECTION_ID>;
+# 6.2 Through usual grant statement
+GRANT SYSTEM_USER ON *.* TO sys_user;
+KILL <CONNECTION_ID>;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+#------------------------------------------------------------------------
+# 7. SYSTEM_USER definer must not elevate session from regular to power
+#------------------------------------------------------------------------
+# 7.1 Verify through SET_ROLE statement
+CREATE USER baz@localhost;
+GRANT EXECUTE ON *.* TO non_sys_user;
+GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
+GRANT system_user_role TO baz@localhost;
+CREATE DEFINER=baz@localhost PROCEDURE test.role_proc()SET ROLE system_user_role;
+CALL role_proc();
+# Stored procedure should not have elevated the other session to
+# power_session.
+KILL <CONNECTION_ID>;
+#7.2 Verify through GRANT statement
+CREATE USER foo@localhost;
+GRANT CONNECTION_ADMIN ON *.* TO foo@localhost;
+CREATE DEFINER=root@localhost PROCEDURE test.grant_proc()
+BEGIN
+GRANT SYSTEM_USER ON *.* TO non_sys_user;
+END $$
+call grant_proc();
+# non_sys_user must have SYSTEM_USER privilege.
+SHOW GRANTS;
+Grants for non_sys_user@%
+GRANT EXECUTE ON *.* TO `non_sys_user`@`%`
+GRANT CONNECTION_ADMIN,SYSTEM_USER ON *.* TO `non_sys_user`@`%`
+# We should be able to kill the existing connection because stored
+# procedure should not have elevated the other session to power_session.
+KILL <CONNECTION_ID>;
+DROP PROCEDURE test.role_proc;
+DROP PROCEDURE test.grant_proc;
+DROP USER baz@localhost, foo@localhost;
+REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
+#------------------------------------------------------------------------
+# 8. SYSTEM_USER invoker may elevate session from regular to power
+#------------------------------------------------------------------------
+# 8.1 Verify through SET_ROLE statement
+CREATE USER baz@localhost;
+GRANT EXECUTE ON *.* TO non_sys_user;
+GRANT SET_USER_ID, EXECUTE ON *.* TO baz@localhost;
+GRANT system_user_role TO baz@localhost, non_sys_user;
+CREATE DEFINER=baz@localhost PROCEDURE test.role_proc() SQL SECURITY INVOKER
+SET ROLE system_user_role;
+CALL role_proc();
+# Stored procedure execution should have elevated the other session to
+# power_session.
+KILL <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+DROP PROCEDURE test.role_proc;
+DROP USER baz@localhost;
+REVOKE EXECUTE,SYSTEM_USER ON *.* FROM non_sys_user;
+REVOKE system_user_role ON *.* FROM non_sys_user;
+#------------------------------------------------------------------------
+# 9. Change the user in current session (COM_CHANGE_USER)
+#------------------------------------------------------------------------
+GRANT SYSTEM_USER ON *.* TO sys_user;
+CREATE USER baz;
+# Regular_user should not be able to kill the power_session
+KILL CONNECTION <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Change the user in power_session that does not have SYSTEM_USER
+# privilege. In other word change the user from power to regular
+# Now, regular session should be able to kill the previous session that
+# has been demoted from power_session to regular_session
+KILL CONNECTION <CONNECTION_ID>;
+# This time, change the user in regular session to power user. It must
+# promote the session to power_session;
+# Regular_user should not be able to kill the power_session
+KILL CONNECTION <CONNECTION_ID>;
+ERROR HY000: You are not owner of thread <CONNECTION_ID>
+# Change user in current session as well. Now, should be able to kill
+KILL CONNECTION <CONNECTION_ID>;
+DROP USER baz;
+# Cleanup
+DROP USER sys_user, non_sys_user;
+DROP ROLE system_user_role;

@@ -707,10 +707,10 @@ bool wildcard_db_grant_exists();
 
 /* sql_authorization */
 bool skip_grant_tables();
-int mysql_set_active_role_none(THD *thd);
-int mysql_set_role_default(THD *thd);
-int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users);
-int mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list);
+bool mysql_set_active_role_none(THD *thd);
+bool mysql_set_role_default(THD *thd);
+bool mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users);
+bool mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list);
 bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
@@ -973,6 +973,7 @@ class Grant_temporary_static_privileges
 
 bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 bool is_partial_revoke_exists(THD *thd);
+void set_system_user_flag(THD *thd, bool check_for_main_security_ctx = false);
 
 /**
   Storage container for default auth ids. Default roles are only weakly

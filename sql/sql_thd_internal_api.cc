@@ -97,7 +97,11 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
                 PSI_thread_key psi_key) {
   THD *thd = new THD(enable_plugins);
-  if (background_thread) thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  if (background_thread) {
+    thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+    // Skip grants and set the system_user flag in THD.
+    thd->security_context()->skip_grants();
+  }
   (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key);
   return thd;
 }

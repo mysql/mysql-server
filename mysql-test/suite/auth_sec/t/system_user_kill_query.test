@@ -1,0 +1,133 @@
+###############################################################################
+# WL#12364: Kill administration for system users                              #
+#                                                                             #
+#   This test file covers the scenarios around prohibiting the killing        #
+#   queries of a user who is granted the SYSTEM_USER dynamic privilege        #
+#   from the connections of a user who is not granted the SYSTEM_USER         #
+#   dynamic privilege.                                                        #
+#                                                                             #
+###############################################################################
+
+# Skip test if DEBUG_SYNC is not enabled
+--source include/have_debug_sync.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo # Setup
+CREATE USER sys_user, non_sys_user;
+GRANT CONNECTION_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO non_sys_user;
+GRANT SYSTEM_USER, CREATE, SELECT, INSERT, EXECUTE,SET_USER_ID,
+      SYSTEM_VARIABLES_ADMIN ON *.* TO sys_user;
+connect(sys_user_con,localhost,sys_user,,);
+connect(non_sys_user_con,localhost,non_sys_user,,);
+connection default;
+
+--echo #------------------------------------------------------------------------
+--echo # 1. User without SYSTEM_USER privilege cannot the kill query running
+--echo #    in the power session
+--echo #------------------------------------------------------------------------
+connection sys_user_con;
+let $SU_CON_ID= `SELECT CONNECTION_ID()`;
+--disable_query_log
+let $tab_count= 5;
+
+let $i= $tab_count;
+while ($i)
+{
+  eval CREATE TABLE t$i (a$i INT, KEY(a$i));
+  eval INSERT INTO t$i VALUES (1),(2),(3),(4),(5),(6),(7);
+  dec $i ;
+}
+SET SESSION optimizer_search_depth=0;
+
+let $i=$tab_count;
+while ($i)
+{
+  let $a= a$i;
+  let $t= t$i;
+  dec $i;
+  if ($i)
+  {
+    let $comma=,;
+    let $from=$comma$t$from;
+    let $where=a$i=$a $and $where;
+  }
+  if (!$i)
+  {
+    let $from=FROM $t$from;
+    let $where=WHERE $where;
+  }
+  let $and=AND;
+}
+--enable_query_log
+
+SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync WAIT_FOR continue';
+eval PREPARE stmt FROM 'EXPLAIN SELECT * $from $where';
+send EXECUTE stmt;
+
+--echo # Regular session should not be able to to kill the query running in
+--echo # power session.
+connection non_sys_user_con;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL QUERY $SU_CON_ID;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+connection sys_user_con;
+--disable_warnings
+reap;
+--enable_warnings
+SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync WAIT_FOR continue';
+send EXECUTE stmt;
+
+--echo # The running query cannot be killed by non_sys_user user
+--echo # even after revoking the SYSTEM_USER privilege from sys_user
+connection default;
+REVOKE SYSTEM_USER ON *.* FROM sys_user;
+
+connection non_sys_user_con;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+--replace_result $SU_CON_ID <CONNECTION_ID>
+--error ER_KILL_DENIED_ERROR
+eval KILL QUERY $SU_CON_ID;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+connection sys_user_con;
+--disable_warnings
+reap;
+--enable_warnings
+SET DEBUG_SYNC= 'before_join_optimize SIGNAL in_sync WAIT_FOR continue';
+send EXECUTE stmt;
+
+--echo # Another power_session should be able to kill the query.
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR in_sync';
+--replace_result $SU_CON_ID <CONNECTION_ID>
+eval KILL QUERY $SU_CON_ID;
+SET DEBUG_SYNC= 'now SIGNAL continue';
+
+--echo # Verify that query was killed
+connection sys_user_con;
+--error ER_QUERY_INTERRUPTED
+reap;
+SET DEBUG_SYNC = 'RESET';
+
+# Cleanup
+connection default;
+--disable_query_log
+let $i= $tab_count;
+while ($i)
+{
+  eval DROP TABLE t$i;
+  dec $i ;
+}
+--enable_query_log
+
+--echo # Test Cleanup
+connection default;
+disconnect sys_user_con;
+disconnect non_sys_user_con;
+DROP USER sys_user, non_sys_user;
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

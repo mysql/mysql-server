@@ -156,3 +156,25 @@ std::string get_one_priv(ulong &revoke_privs) {
   }
   return priv;
 }
+
+/**
+  Set the system_user flag in the THD. Probe the security context for the
+  SYSTEM_USER dynamic privileve only if it has not been changed from original
+  security context in the THD. If the original security context does not have
+  SYSTEM_USER privlege then reset the flag in the THD, otherwise set it.
+
+  @param [in, out]  thd Thead handle
+  @param [in] check_for_main_security_ctx If this flag value is true then we
+                                          toggle value in THD only if current
+                                          security context is same as main
+                                          security context.
+*/
+void set_system_user_flag(THD *thd,
+                          bool check_for_main_security_ctx /*= false*/) {
+  DBUG_ASSERT(thd);
+  Security_context *sctx = thd->security_context();
+  if (check_for_main_security_ctx == false || sctx == &thd->m_main_security_ctx)
+    thd->set_system_user(sctx->has_global_grant(consts::system_user.c_str(),
+                                                consts::system_user.length())
+                             .first);
+}

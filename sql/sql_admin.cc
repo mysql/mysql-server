@@ -1953,6 +1953,21 @@ bool Sql_cmd_set_role::execute(THD *thd) {
       ret = mysql_set_active_role(thd, role_list);
       break;
   }
+
+  /*
+    1. In case of role_enum::ROLE_NONE -
+       User might have SYSTEM_USER privilege granted explicitly using GRANT
+       statement.
+    2. For other cases -
+       User may have got SYSTEM_USER privilege either through one of the roles
+       OR, privilege may have been granted explicitly using GRANT statement.
+    Therefore, update the THD accordingly.
+
+    Update the flag in THD if invoker has SYSTEM_USER privilege not if the
+    definer user has that privilege.
+  */
+  if (!ret) set_system_user_flag(thd, true);
+
   DBUG_RETURN(ret);
 }
 

@@ -4062,6 +4062,14 @@ class THD : public MDL_context_owner,
       Secondary_engine_optimization::PRIMARY_ONLY;
 
   void cleanup_after_parse_error();
+  /**
+    Flag that indicates if the user of current session has SYSTEM_USER privilege
+  */
+  std::atomic<bool> m_is_system_user;
+
+ public:
+  bool is_system_user();
+  void set_system_user(bool system_user_flag);
 };
 
 /**
@@ -4207,6 +4215,26 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton);
 
 static inline bool is_engine_substitution_allowed(const THD *thd) {
   return !(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
+}
+
+/**
+  Returns if the user of the session has the SYSTEM_USER privilege or not.
+
+  @returns
+    @retval true  User has SYSTEM_USER privilege
+    @retval false Otherwise
+*/
+inline bool THD::is_system_user() {
+  return m_is_system_user.load(std::memory_order_seq_cst);
+}
+
+/**
+  Sets the system_user flag atomically for the current session.
+
+  @param [in] system_user_flag  boolean flag that indicates value to set.
+*/
+inline void THD::set_system_user(bool system_user_flag) {
+  m_is_system_user.store(system_user_flag, std::memory_order_seq_cst);
 }
 
 #endif /* SQL_CLASS_INCLUDED */

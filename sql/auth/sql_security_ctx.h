@@ -50,8 +50,8 @@ struct Grant_table_aggregate;
 
 class Security_context {
  public:
-  Security_context();
-  Security_context(MEM_ROOT *m_mem_root);
+  Security_context(THD *thd = nullptr);
+  Security_context(MEM_ROOT *m_mem_root, THD *thd = nullptr);
   ~Security_context();
 
   Security_context(const Security_context &src_sctx);
@@ -371,6 +371,11 @@ class Security_context {
   bool m_has_drop_policy;
   std::unique_ptr<std::function<void(Security_context *)>> m_drop_policy;
   Restrictions m_restrictions;
+
+  /**
+    m_thd - Thread handle, set to nullptr if this does not belong to any THD yet
+  */
+  THD *m_thd;
 };
 
 /**
