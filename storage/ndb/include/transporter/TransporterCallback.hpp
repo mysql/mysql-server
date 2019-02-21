@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 //**************************************************************************** 
 // 
 //  AUTHOR 
-//      Åsa Fransson 
+//      Ã…sa Fransson 
 // 
 //  NAME 
 //      TransporterCallback 
@@ -313,7 +313,7 @@ public:
    * method must return NULL rather than allow to exceed this amount.
    */
   virtual Uint32 *getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
-                              Uint32 max_use) = 0;
+                              Uint32 max_use, SendStatus *error) = 0;
   /**
    * Called when new signal is packed.
    *

@@ -1192,7 +1192,11 @@ struct mt_send_handle  : public TransporterSendBufferHandle
   mt_send_handle(thr_data* ptr) : m_selfptr(ptr) {}
   virtual ~mt_send_handle() {}
 
-  virtual Uint32 *getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max);
+  virtual Uint32 *getWritePtr(NodeId node,
+                              Uint32 len,
+                              Uint32 prio,
+                              Uint32 max,
+                              SendStatus* error);
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
   virtual void getSendBufferLevel(NodeId node, SB_LevelType &level);
   virtual bool forceSend(NodeId node);
@@ -5112,7 +5116,11 @@ mt_set_delayed_prepare(Uint32 self)
  * in ndbmtd.
  */
 Uint32 *
-mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
+mt_send_handle::getWritePtr(NodeId node,
+                            Uint32 len,
+                            Uint32 prio,
+                            Uint32 max,
+                            SendStatus* error)
 {
 
 #ifdef ERROR_INSERT
@@ -5129,7 +5137,7 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
 
   struct thr_send_buffer * b = m_selfptr->m_send_buffers+node;
   thr_send_page * p = b->m_last_page;
-  if (p != NULL)
+  if (likely(p != NULL))
   {
     assert(p->m_start == 0); //Nothing sent until flushed
     
@@ -5142,9 +5150,14 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
     if (!g_send_threads)
       try_send(m_selfptr, node);
   }
+  if(unlikely(len > thr_send_page::max_bytes()))
+  {
+    *error = SEND_MESSAGE_TOO_BIG;
+    return 0;
+  }
 
-  if ((p = m_selfptr->m_send_buffer_pool.seize(g_thr_repository->m_mm,
-                                               RG_TRANSPORTER_BUFFERS)) != 0)
+  if (likely((p = m_selfptr->m_send_buffer_pool.seize(g_thr_repository->m_mm,
+                                               RG_TRANSPORTER_BUFFERS)) != 0))
   {
     p->m_bytes = 0;
     p->m_start = 0;
@@ -5152,6 +5165,7 @@ mt_send_handle::getWritePtr(NodeId node, Uint32 len, Uint32 prio, Uint32 max)
     b->m_first_page = b->m_last_page = p;
     return (Uint32*)p->m_data;
   }
+  *error = SEND_BUFFER_FULL;
   return 0;
 }
 

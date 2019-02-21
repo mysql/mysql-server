@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ TFPool::init(size_t mem,
              size_t page_sz)
 {
   m_pagesize = page_sz;
+  assert(m_pagesize == sizeof(TFPage));
   m_tot_send_buffer_pages = mem/page_sz;
   size_t tot_alloc = m_tot_send_buffer_pages * page_sz;
   assert(reserved_mem < mem);
@@ -39,7 +40,6 @@ TFPool::init(size_t mem,
   for (size_t i = 0; i + page_sz <= tot_alloc; i += page_sz)
   {
     TFPage * p = (TFPage*)(ptr + i);
-    p->m_size = (Uint16)(page_sz - offsetof(TFPage, m_data));
     assert(((UintPtr)(&p->m_data[0]) & 3) == 0);
     p->init();
     p->m_next = m_first_free;
@@ -72,7 +72,8 @@ TFBuffer::validate() const
     assert(m_head == m_tail);
     if (m_head)
     {
-      assert(m_head->m_start < m_head->m_size);  // Full pages should be release
+      // Full pages should be release
+      assert(m_head->m_start < m_head->max_data_bytes());
       assert(m_head->m_bytes == 0);
     }
     return;
@@ -86,9 +87,9 @@ TFBuffer::validate() const
   TFPage * p = m_head;
   while (p)
   {
-    assert(p->m_bytes <= p->m_size);
-    assert(p->m_start <= p->m_size);
-    assert(p->m_start + p->m_bytes <= p->m_size);
+    assert(p->m_bytes <= p->max_data_bytes());
+    assert(p->m_start <= p->max_data_bytes());
+    assert(p->m_start + p->m_bytes <= p->max_data_bytes());
     assert(p->m_bytes <= (int)m_bytes_in_buffer);
     assert(p->m_next != p);
     if (p == m_tail)
