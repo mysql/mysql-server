@@ -7752,14 +7752,12 @@ void Fil_shard::space_flush(space_id_t space_id) {
     size changes to keep OЅ metadata in sync. */
     ut_ad(!space->is_in_unflushed_spaces);
     ut_ad(space_is_flushed(space));
-    ut_ad(space->n_pending_flushes == 0);
 
     /* Flush only if the file size changes */
     bool no_flush = true;
     for (const auto &file : space->files) {
 #ifdef UNIV_DEBUG
       ut_ad(file.modification_counter == file.flush_counter);
-      ut_ad(file.n_pending_flushes == 0);
 #endif /* UNIV_DEBUG */
       if (file.flush_size != file.size) {
         /* Found at least one file whose size has changed */
