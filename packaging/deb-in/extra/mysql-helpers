@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -148,6 +148,7 @@ verify_database() {
 		SQL=$(mktemp -u ${MYSQLFILES}/XXXXXXXXXX)
 		install /dev/null -m0600 -omysql -gmysql "${SQL}"
 		cat << EOF > ${SQL}
+SET @@SESSION.SQL_LOG_BIN=0;
 USE mysql;
 INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
 ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
