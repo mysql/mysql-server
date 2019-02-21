@@ -105,6 +105,7 @@ class DB_restrictions final : public Abstract_restrictions {
   void clear() override;
   void get_as_json(Json_array &restrictions_array) const;
   const db_revocations &get() const { return m_restrictions; }
+  bool has_more_restrictions(const DB_restrictions &, ulong) const;
 
  private:
   db_revocations &db_restrictions() { return m_restrictions; }
@@ -130,6 +131,7 @@ class Restrictions {
   Restrictions(Restrictions &&);
   Restrictions &operator=(const Restrictions &);
   Restrictions &operator=(Restrictions &&);
+  bool has_more_db_restrictions(const Restrictions &, ulong);
 
   ~Restrictions();
 
@@ -167,14 +169,14 @@ class Restrictions_aggregator_factory {
       const Db_access_map *db_map, const Db_access_map *db_wild_map);
 
  private:
-  static Auth_id fetch_grantor_and_set_binlog_invoker(THD *thd);
+  static Auth_id fetch_grantor(const Security_context *sctx);
   static Auth_id fetch_grantee(const ACL_USER *acl_user);
   static ulong fetch_grantor_db_access(THD *thd, const char *db);
   static ulong fetch_grantee_db_access(THD *thd, const ACL_USER *acl_user,
                                        const char *db);
-  static void fetch_grantor_access(
-      THD *thd, const char *db, ulong &access, Restrictions &restrictions,
-      std::unique_ptr<Security_context> &security_context);
+  static void fetch_grantor_access(const Security_context *sctx, const char *db,
+                                   ulong &global_access,
+                                   Restrictions &restrictions);
   static void fetch_grantee_access(const ACL_USER *grantee, ulong &access,
                                    Restrictions &restrictions);
 };
@@ -249,12 +251,13 @@ class DB_restrictions_aggregator : public Restrictions_aggregator {
 
  protected:
   using Status = Restrictions_aggregator::Status;
-  DB_restrictions_aggregator(
-      const Auth_id &grantor, const Auth_id grantee,
-      const ulong grantor_global_access, const ulong grantee_global_access,
-      const DB_restrictions &grantor_restrictions,
-      const DB_restrictions &grantee_restrictions, const ulong requested_access,
-      std::unique_ptr<Security_context> &&sctx = nullptr);
+  DB_restrictions_aggregator(const Auth_id &grantor, const Auth_id grantee,
+                             const ulong grantor_global_access,
+                             const ulong grantee_global_access,
+                             const DB_restrictions &grantor_restrictions,
+                             const DB_restrictions &grantee_restrictions,
+                             const ulong requested_access,
+                             const Security_context *sctx);
   bool find_if_require_next_level_operation(ulong &rights) const override;
 
   /* Helper methods and members for derived classes */
@@ -281,7 +284,7 @@ class DB_restrictions_aggregator : public Restrictions_aggregator {
   DB_restrictions m_grantee_rl;
 
   /** Security context of the current user */
-  std::unique_ptr<Security_context> m_sctx;
+  const Security_context *m_sctx;
 
  private:
   virtual Status validate() = 0;
@@ -319,7 +322,7 @@ class DB_restrictions_aggregator_global_grant final
       const ulong grantor_global_access, const ulong grantee_global_access,
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
-      std::unique_ptr<Security_context> &&sctx);
+      const Security_context *sctx);
 
   Status validate() override;
   void aggregate(DB_restrictions &restrictions) override;
@@ -334,7 +337,7 @@ class DB_restrictions_aggregator_global_revoke
       const ulong grantor_global_access, const ulong grantee_global_access,
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
-      std::unique_ptr<Security_context> &&sctx);
+      const Security_context *sctx);
   Status validate_if_grantee_rl_not_empty();
 
  private:
@@ -353,7 +356,7 @@ class DB_restrictions_aggregator_global_revoke_all final
       const ulong grantor_global_access, const ulong grantee_global_access,
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
-      std::unique_ptr<Security_context> &&sctx);
+      const Security_context *sctx);
   Status validate() override;
   void aggregate(DB_restrictions &restrictions) override;
   friend class Restrictions_aggregator_factory;
@@ -371,7 +374,7 @@ class DB_restrictions_aggregator_db_grant final
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
       bool is_grant_all, const std::string &db_name,
-      std::unique_ptr<Security_context> &&sctx);
+      const Security_context *sctx);
 
   void aggregate(DB_restrictions &restrictions) override;
   Status validate() override;
@@ -404,7 +407,7 @@ class DB_restrictions_aggregator_db_revoke final
       const DB_restrictions &grantor_restrictions,
       const DB_restrictions &grantee_restrictions, const ulong requested_access,
       bool is_revoke_all, const std::string &db_name,
-      std::unique_ptr<Security_context> &&sctx);
+      const Security_context *sctx);
 
   void aggregate(DB_restrictions &restrictions) override;
   Status validate() override;

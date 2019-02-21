@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -223,6 +223,7 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   @param[out]  backup  Save a pointer to the current security context
                        in the thread. In case of success it points to the
                        saved old context, otherwise it points to NULL.
+  @param       force   Force context switch
 
 
   @note The Security_context_factory should be used as a replacement to this
@@ -264,11 +265,9 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   @retval false success
 */
 
-bool Security_context::change_security_context(THD *thd,
-                                               const LEX_CSTRING &definer_user,
-                                               const LEX_CSTRING &definer_host,
-                                               LEX_STRING *db,
-                                               Security_context **backup) {
+bool Security_context::change_security_context(
+    THD *thd, const LEX_CSTRING &definer_user, const LEX_CSTRING &definer_host,
+    LEX_STRING *db, Security_context **backup, bool force) {
   bool needs_change;
 
   DBUG_ENTER("Security_context::change_security_context");
@@ -280,7 +279,7 @@ bool Security_context::change_security_context(THD *thd,
       (strcmp(definer_user.str, thd->security_context()->priv_user().str) ||
        my_strcasecmp(system_charset_info, definer_host.str,
                      thd->security_context()->priv_host().str));
-  if (needs_change) {
+  if (needs_change || force) {
     if (acl_getroot(thd, this, const_cast<char *>(definer_user.str),
                     const_cast<char *>(definer_host.str),
                     const_cast<char *>(definer_host.str),
@@ -429,7 +428,36 @@ List_of_auth_id_refs *Security_context::get_active_roles(void) {
   return &m_active_roles;
 }
 
-ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) {
+size_t Security_context::get_num_active_roles(void) const {
+  return m_active_roles.size();
+}
+
+/**
+  Get sorted list of roles in LEX_USER format
+
+  @param [in]  thd  For mem_root
+  @param [out] list List of active roles
+*/
+void Security_context::get_active_roles(THD *thd, List<LEX_USER> &list) {
+  List_of_granted_roles roles;
+  for (const auto &role : m_active_roles) {
+    roles.push_back(std::make_pair(Role_id(role.first, role.second), false));
+  }
+  if (roles.size()) std::sort(roles.begin(), roles.end());
+  for (const auto &role : roles) {
+    LEX_STRING user, host;
+    user.str = strmake_root(thd->mem_root, role.first.user().c_str(),
+                            role.first.user().length());
+    user.length = role.first.user().length();
+    host.str = strmake_root(thd->mem_root, role.first.host().c_str(),
+                            role.first.host().length());
+    host.length = role.first.host().length();
+    LEX_USER *user_lex = LEX_USER::alloc(thd, &user, &host);
+    list.push_back(user_lex);
+  }
+}
+
+ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
   DBUG_ENTER("Security_context::db_acl");
   if (m_acl_map == 0 || db.length == 0) DBUG_RETURN(0);
 
@@ -661,7 +689,7 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
                                         const std::string &privilege,
                                         bool cumulative /*= false */,
                                         bool ignore_if_nonextant /*= true */) {
-  DBUG_ENTER("check_privilege_mismatch");
+  DBUG_ENTER("Security_context::can_operate_with");
   Acl_cache_lock_guard acl_cache_lock(current_thd,
                                       Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) {
@@ -671,7 +699,14 @@ bool Security_context::can_operate_with(const Auth_id &auth_id,
   }
   ACL_USER *acl_user =
       find_acl_user(auth_id.host().c_str(), auth_id.user().c_str(), true);
-  if (!acl_user) DBUG_RETURN(ignore_if_nonextant ? false : true);
+  if (!acl_user) {
+    if (ignore_if_nonextant)
+      DBUG_RETURN(false);
+    else {
+      my_error(ER_USER_DOES_NOT_EXIST, MYF(0), auth_id.auth_str().c_str());
+      DBUG_RETURN(true);
+    }
+  }
 
   bool is_mismatch = false;
   if (fetch_global_grant(*acl_user, privilege, cumulative).first) {

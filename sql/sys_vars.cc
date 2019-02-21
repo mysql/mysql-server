@@ -862,10 +862,7 @@ static bool check_partial_revokes(sys_var *self, THD *thd, set_var *setv) {
 }
 
 /** Sets the changed value to the corresponding atomic system variable */
-static bool partial_revokes_update(sys_var *, THD *thd, enum_var_type) {
-  if (opt_partial_revokes)
-    push_warning(thd,
-                 ER_CLIENT_WARN_PARTIAL_REVOKE_MYSQLBINLOG_INCOMPATIBILITY);
+static bool partial_revokes_update(sys_var *, THD *, enum_var_type) {
   set_mysqld_partial_revokes(opt_partial_revokes);
   return false;
 }

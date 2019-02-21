@@ -3726,6 +3726,13 @@ int mysql_execute_command(THD *thd, bool first_level) {
     }
     case SQLCOM_REVOKE:
     case SQLCOM_GRANT: {
+      /* GRANT ... AS preliminery checks */
+      if (lex->grant_as.grant_as_used) {
+        if ((first_table || select_lex->db)) {
+          my_error(ER_UNSUPPORTED_USE_OF_GRANT_AS, MYF(0));
+          goto error;
+        }
+      }
       /*
         Skip access check if we're granting a proxy
       */
@@ -3833,10 +3840,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
           goto error;
         } else {
           /* Conditionally writes to binlog */
-          res = mysql_grant(thd, select_lex->db, lex->users_list, lex->grant,
-                            lex->sql_command == SQLCOM_REVOKE,
-                            lex->type == TYPE_ENUM_PROXY,
-                            lex->dynamic_privileges, lex->all_privileges);
+          res = mysql_grant(
+              thd, select_lex->db, lex->users_list, lex->grant,
+              lex->sql_command == SQLCOM_REVOKE, lex->type == TYPE_ENUM_PROXY,
+              lex->dynamic_privileges, lex->all_privileges, &lex->grant_as);
         }
       }
       break;

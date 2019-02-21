@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -235,7 +235,7 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
 
   switch (thd->lex->sql_command) {
     case SQLCOM_GRANT:
-      rw.reset(new Rewriter_grant(thd, type));
+      rw.reset(new Rewriter_grant(thd, type, params));
       break;
     case SQLCOM_SET_PASSWORD:
       rw.reset(new Rewriter_set_password(thd, type, params));
@@ -959,8 +959,11 @@ bool Rewriter_set_password::rewrite() const {
   return ret_val;
 }
 
-Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type)
-    : I_rewriter(thd, type) {}
+Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
+                               Rewrite_params *params)
+    : I_rewriter(thd, type) {
+  grant_params = dynamic_cast<Grant_params *>(params);
+}
 
 /**
   Rewrite the query for the GRANT statement.
@@ -977,6 +980,17 @@ bool Rewriter_grant::rewrite() const {
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
+
+  auto append_authids = [&rlb](THD *thd, List_iterator<LEX_USER> &list) {
+    LEX_USER *user_name, *tmp_user_name;
+    bool comma = false;
+    while ((tmp_user_name = list++)) {
+      if ((user_name = get_current_user(thd, tmp_user_name))) {
+        append_auth_id(thd, user_name, comma, rlb);
+        comma = true;
+      }
+    }
+  };
 
   rlb->append(STRING_WITH_LEN("GRANT "));
 
@@ -1084,14 +1098,53 @@ bool Rewriter_grant::rewrite() const {
 
   rlb->append(STRING_WITH_LEN(" TO "));
 
-  while ((tmp_user_name = user_list++)) {
-    if ((user_name = get_current_user(m_thd, tmp_user_name))) {
-      append_auth_id(m_thd, user_name, comma, rlb);
-      comma = true;
-    }
-  }
+  append_authids(m_thd, user_list);
   if (lex->grant & GRANT_ACL) {
     rlb->append(STRING_WITH_LEN(" WITH GRANT OPTION"));
+  }
+
+  /*
+    AS ... clause is added in following cases
+    1. User has explicitly executed GRANT ... AS ...
+       In this case we write it as it.
+    2. --partial_revokes is ON and we are rewritting
+       GRANT for binary log.
+  */
+  if (grant_params != nullptr) {
+    LEX_GRANT_AS *grant_as = grant_params->grant_as_info;
+    if (grant_params->grant_as_provided ||
+        (m_consumer_type == Consumer_type::BINLOG && grant_as &&
+         grant_as->grant_as_used)) {
+      if ((user_name = get_current_user(m_thd, grant_as->user))) {
+        rlb->append(STRING_WITH_LEN(" AS "));
+        append_auth_id(m_thd, user_name, false, rlb);
+        rlb->append(STRING_WITH_LEN(" WITH ROLE "));
+        switch (grant_as->role_type) {
+          case role_enum::ROLE_DEFAULT:
+            rlb->append(STRING_WITH_LEN("DEFAULT"));
+            break;
+          case role_enum::ROLE_ALL:
+            rlb->append(STRING_WITH_LEN("ALL"));
+            if (grant_as->role_list) {
+              rlb->append(STRING_WITH_LEN(" EXCEPT "));
+              List_iterator<LEX_USER> role_list(*grant_as->role_list);
+              append_authids(m_thd, role_list);
+            }
+            break;
+          case role_enum::ROLE_NAME: {
+            List_iterator<LEX_USER> role_list(*grant_as->role_list);
+            append_authids(m_thd, role_list);
+          } break;
+          case role_enum::ROLE_NONE:
+            rlb->append(STRING_WITH_LEN("NONE"));
+            break;
+          default:
+            DBUG_ASSERT(false);
+            rlb->append(STRING_WITH_LEN("NONE"));
+            break;
+        }
+      }
+    }
   }
   return true;
 }

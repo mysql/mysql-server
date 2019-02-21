@@ -15,8 +15,6 @@ FLUSH PRIVILEGES;
 #-----------------------------------------------------------------------
 # Case: Try to create db grant with wildcard when --partial_revokes is ON
 SET @@global.partial_revokes=ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 GRANT SELECT ON db_1.* TO foo;
 ERROR HY000: Use of wildcards in database grant is not permitted because --partial_revokes is set to ON.
 GRANT SELECT ON `db%1`.* TO foo;
@@ -33,8 +31,6 @@ SET @@global.partial_revokes=OFF;
 INSERT INTO mysql.db(user, host, db, Insert_priv) VALUES('foo', '%', 'db_1', 'Y');
 INSERT INTO mysql.db(user, host, db, Insert_priv) VALUES('foo', '%', 'db%1', 'Y');
 SET @@global.partial_revokes=ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 FLUSH PRIVILEGES;
 # Search for : Ignored database grant with wildcard characters 'db_1' for user 'foo'@'%' because --partial_revokes is set to ON
 Pattern "Ignored database grant with wildcard characters 'db_1' for user 'foo'@'%' because --partial_revokes is set to ON" found
@@ -50,8 +46,6 @@ SET @@global.partial_revokes=OFF;
 #-----------------------------------------------------------------------
 # Case: Partial revokes and nonwildcard db grants with _ and %
 SET @@global.partial_revokes=ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 GRANT SELECT ON *.* TO foo;
 REVOKE SELECT ON `db_1`.* FROM foo;
 REVOKE SELECT ON `db%1`.* FROM foo;
@@ -72,8 +66,6 @@ GRANT SELECT ON *.* TO `foo`@`%`
 REVOKE SELECT ON *.* FROM foo;
 SET @@global.partial_revokes=OFF;
 SET @@global.partial_revokes=ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 GRANT SELECT ON *.* TO foo;
 GRANT SELECT ON `db\_1`.* TO foo;
 GRANT SELECT ON `db\%1`.* TO foo;

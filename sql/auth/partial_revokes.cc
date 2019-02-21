@@ -334,6 +334,52 @@ void DB_restrictions::get_as_json(Json_array &restrictions_array) const {
 }
 
 /**
+  Compare is two restriction list for given privileges
+
+  @param [in] other DB_restrictions to compare against
+  @param [in] access Privilege filter
+
+  @returns Comparison result of two restriction lists
+    @retval false Other restriction list has less or equal restrictions
+    @retval true  Otherwise
+*/
+bool DB_restrictions::has_more_restrictions(const DB_restrictions &other,
+                                            ulong access) const {
+  if (other.size() == 0) return false;
+  access = access & DB_ACLS;
+  db_revocations other_revocations = other.get();
+
+  for (const auto &entry : other_revocations) {
+    /* We are only interested in privileges represented by access */
+    ulong other_mask = entry.second & access;
+    if (other_mask) {
+      ulong self_restrictions;
+      /*
+        If there exists a restriction that other list has but *this does not,
+        it means, other list has at least one more restriction than *this.
+        Stop here and return true.
+      */
+      if (!find(entry.first, self_restrictions)) return true;
+      /*
+        If both lists have restrictions but if *this does not have restriction
+        for privilege filter while other list does, it means, other list has
+        more restrictions than *this. Stop here and return true.
+      */
+      if ((other_mask & self_restrictions) != other_mask) return true;
+    }
+  }
+  /*
+    If we are here it means:
+    1. We looked at all restrictions from other restriction list
+    2. For each entry, *this has restrictions that is either equal
+       or greater than other.
+    3. Extra restrictions in *this do not matter because those are
+       not present in other list to begin with.
+  */
+  return false;
+}
+
+/**
   A factory method that creates objects from Restrictions_aggregator
   hierarchy.
 
@@ -363,17 +409,16 @@ Restrictions_aggregator_factory::create(THD *thd, const ACL_USER *acl_user,
   if (mysqld_partial_revokes() == false || acl_user == nullptr)
     return aggregator;
   enum_sql_command command = thd->lex->sql_command;
+  const Security_context *security_context = thd->security_context();
   /* Fetch grantor Auth_id */
-  const Auth_id grantor = fetch_grantor_and_set_binlog_invoker(thd);
+  const Auth_id grantor = fetch_grantor(security_context);
   /* Fetch grantee Auth_id */
   const Auth_id grantee = fetch_grantee(acl_user);
   /* Fetch access information of grantor */
   ulong grantor_global_access;
   Restrictions grantor_restrictions(nullptr);
-  std::unique_ptr<Security_context> security_context =
-      std::make_unique<Security_context>();
-  fetch_grantor_access(thd, db, grantor_global_access, grantor_restrictions,
-                       security_context);
+  fetch_grantor_access(security_context, db, grantor_global_access,
+                       grantor_restrictions);
   /* Fetch access infomation of grantee */
   ulong grantee_global_access;
   Restrictions grantee_restrictions(nullptr);
@@ -449,34 +494,18 @@ Restrictions_aggregator_factory::create(
 }
 
 /**
-  Returns the grantor user name and host id. If it is slave than fetch the
-  invoker user otherwise fetch the details from the security contest.
-  - It also records the CURRENT_USER in the binlog so that partial_revokes can
-    be executed on slave with context of current user
-
-  @param  [in]  thd Thread handle
+  Returns the grantor user name and host id.
+  @param  [in]  sctx Security context
 
   @returns
     @retval Grantor's user name and host info
 */
-Auth_id Restrictions_aggregator_factory::fetch_grantor_and_set_binlog_invoker(
-    THD *thd) {
+Auth_id Restrictions_aggregator_factory::fetch_grantor(
+    const Security_context *sctx) {
   LEX_CSTRING grantor_user, grantor_host;
-  if (thd->slave_thread) {
-    // Fetch the grantor auth_id from the invoker user set on slave
-    grantor_user = thd->get_invoker_user();
-    grantor_host = thd->get_invoker_host();
-  } else {
-    // Fetch the grantor auth_id from security context on master
-    grantor_user = thd->security_context()->priv_user();
-    grantor_host = thd->security_context()->priv_host();
-    /*
-      Record the CURRENT_USER in binlog so that partial revokes statements
-      on slave can be executed in context of CURRENT_SUER instead of default
-      user
-    */
-    thd->binlog_invoker();
-  }
+  // Fetch the grantor auth_id from security context on master
+  grantor_user = sctx->priv_user();
+  grantor_host = sctx->priv_host();
   Auth_id grantor(grantor_user, grantor_host);
   return grantor;
 }
@@ -534,49 +563,22 @@ ulong Restrictions_aggregator_factory::fetch_grantee_db_access(
 
 /**
   Returns the privileges and restrictions:
-    On master : privileges restrictions and security_context current user has.
-    On slave :  privileges and restrictions invoker user has. A temporary
-                security context that has all the roles activated for invoker
-                user. We need this security context to handle GRANT/REVOKE
-                precedes by SET ROLE statement.
 
-  @param  [in]  thd           THD handle
+  @param  [in]  sctx          security context of current user
   @param  [in]  db            Database name for which privileges to be fetched.
   @param  [out] global_access fetch grantor's global access
   @param  [out] restrictions  fetch grantor's restrictions
-  @param  [in, out] security_context security context of current user
 
   @returns
     @retval global privilege access to the grantor
 */
 void Restrictions_aggregator_factory::fetch_grantor_access(
-    THD *thd, const char *db, ulong &global_access, Restrictions &restrictions,
-    std::unique_ptr<Security_context> &security_context) {
-  if (thd->slave_thread && thd->has_invoker()) {
-    Security_context *backup = nullptr;
-    /*
-     Temporarily change the security context in THD handle to fetch the access
-     of invoker user and restore the security once get acsess.
-    */
-    security_context->change_security_context(thd, thd->get_invoker_user(),
-                                              thd->get_invoker_host(), nullptr,
-                                              &backup);
-    if (thd->has_active_roles())
-      (void)mysql_set_active_role_for_applier(thd, thd->get_active_roles());
-    /* Fetch global privileges of invoker user */
-    global_access = security_context->master_access(db ? db : "");
-    /* Fetch restrictions of invoker user */
-    restrictions = security_context->restrictions();
-    thd->security_context()->restore_security_context(thd, backup);
-  } else {
-    Security_context *sctx = thd->security_context();
-    /* Fetch global privileges of current user */
-    global_access = sctx->master_access(db ? db : "");
-    /* Fetch restrictions of current user */
-    restrictions = sctx->restrictions();
-    // Copy the security context
-    *security_context = *sctx;
-  }
+    const Security_context *sctx, const char *db, ulong &global_access,
+    Restrictions &restrictions) {
+  /* Fetch global privileges of current user */
+  global_access = sctx->master_access(db ? db : "");
+  /* Fetch restrictions of current user */
+  restrictions = sctx->restrictions();
 }
 
 void Restrictions_aggregator_factory::fetch_grantee_access(
@@ -635,13 +637,12 @@ DB_restrictions_aggregator::DB_restrictions_aggregator(
     const ulong grantor_global_access, const ulong grantee_global_access,
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
-    const ulong requested_access,
-    std::unique_ptr<Security_context> &&sctx /* = nullptr*/)
+    const ulong requested_access, const Security_context *sctx)
     : Restrictions_aggregator(grantor, grantee, grantor_global_access,
                               grantee_global_access, requested_access),
       m_grantor_rl(grantor_db_restrictions),
       m_grantee_rl(grantee_db_restrictions),
-      m_sctx(std::move(sctx)) {}
+      m_sctx(sctx) {}
 
 /**
   Driver function to aggregate restriction lists
@@ -873,7 +874,7 @@ void DB_restrictions_aggregator::aggregate_restrictions(
 ulong DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name) const {
   ulong db_access;
-  if (m_sctx && m_sctx->get_active_roles()->size() > 0) {
+  if (m_sctx && m_sctx->get_num_active_roles() > 0) {
     LEX_CSTRING db = {db_name.c_str(), db_name.length()};
     db_access = m_sctx->db_acl(db, false);
   } else {
@@ -896,7 +897,7 @@ ulong DB_restrictions_aggregator::get_grantee_db_access(
 */
 void DB_restrictions_aggregator::get_grantee_db_access(
     const std::string &db_name, ulong &access) const {
-  if (m_sctx && m_sctx->get_active_roles()->size() > 0) {
+  if (m_sctx && m_sctx->get_num_active_roles() > 0) {
     LEX_CSTRING db = {db_name.c_str(), db_name.length()};
     access = m_sctx->db_acl(db, false);
   }
@@ -924,7 +925,8 @@ DB_restrictions_aggregator_set_role::DB_restrictions_aggregator_set_role(
     const Db_access_map *db_wild_map)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
-                                 grantee_db_restrictions, requested_access),
+                                 grantee_db_restrictions, requested_access,
+                                 nullptr),
       m_db_map(db_map),
       m_db_wild_map(db_wild_map) {}
 /**
@@ -1001,11 +1003,11 @@ DB_restrictions_aggregator_global_grant::
         const ulong grantor_global_access, const ulong grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, std::unique_ptr<Security_context> &&sctx)
+        const ulong requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
-                                 std::move(sctx)) {}
+                                 sctx) {}
 /**
   Evaluates the restrictions list of grantor and grantee, as well as requested
   privilege.
@@ -1084,11 +1086,11 @@ DB_restrictions_aggregator_global_revoke::
         const ulong grantor_global_access, const ulong grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, std::unique_ptr<Security_context> &&sctx)
+        const ulong requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
-                                 std::move(sctx)) {}
+                                 sctx) {}
 
 /**
   Evaluates the restrictions list of grantor and grantee, as well as requested
@@ -1218,11 +1220,11 @@ DB_restrictions_aggregator_global_revoke_all::
         const ulong grantor_global_access, const ulong grantee_global_access,
         const DB_restrictions &grantor_db_restrictions,
         const DB_restrictions &grantee_db_restrictions,
-        const ulong requested_access, std::unique_ptr<Security_context> &&sctx)
+        const ulong requested_access, const Security_context *sctx)
     : DB_restrictions_aggregator_global_revoke(
           grantor, grantee, grantor_global_access, grantee_global_access,
           grantor_db_restrictions, grantee_db_restrictions, requested_access,
-          std::move(sctx)) {}
+          sctx) {}
 
 /** Validate restriction list for REVOKE ALL */
 Restrictions_aggregator::Status
@@ -1283,11 +1285,11 @@ DB_restrictions_aggregator_db_grant::DB_restrictions_aggregator_db_grant(
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
     const ulong requested_access, bool is_grant_all, const std::string &db_name,
-    std::unique_ptr<Security_context> &&sctx)
+    const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
-                                 std::move(sctx)),
+                                 sctx),
       m_grantor_db_access(grantor_db_access),
       m_grantee_db_access(grantee_db_access),
       m_is_grant_all(is_grant_all),
@@ -1387,11 +1389,11 @@ DB_restrictions_aggregator_db_revoke::DB_restrictions_aggregator_db_revoke(
     const DB_restrictions &grantor_db_restrictions,
     const DB_restrictions &grantee_db_restrictions,
     const ulong requested_access, bool is_revoke_all,
-    const std::string &db_name, std::unique_ptr<Security_context> &&sctx)
+    const std::string &db_name, const Security_context *sctx)
     : DB_restrictions_aggregator(grantor, grantee, grantor_global_access,
                                  grantee_global_access, grantor_db_restrictions,
                                  grantee_db_restrictions, requested_access,
-                                 std::move(sctx)),
+                                 sctx),
       m_grantor_db_access(grantor_db_access),
       m_grantee_db_access(grantee_db_access),
       m_is_revoke_all(is_revoke_all),
@@ -1493,6 +1495,12 @@ Restrictions &Restrictions::operator=(Restrictions &&restrictions) {
     m_db_restrictions = restrictions.m_db_restrictions;
   }
   return *this;
+}
+
+/* DB restrictions comparator */
+bool Restrictions::has_more_db_restrictions(const Restrictions &other,
+                                            ulong access) {
+  return m_db_restrictions.has_more_restrictions(other.db(), access);
 }
 
 /** Get database restrictions */

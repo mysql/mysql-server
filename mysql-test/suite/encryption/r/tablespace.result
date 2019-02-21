@@ -433,7 +433,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='y';
 ERROR HY000: Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3829	Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
+Error	3828	Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME LIKE 'ts1';
 NAME	ENCRYPTION
@@ -621,7 +621,7 @@ ALTER TABLESPACE ts1 ENCRYPTION='n';
 ERROR HY000: Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3829	Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
+Error	3828	Tablespace encryption differ from 'default_table_encryption' setting, and user doesn't have enough privilege.
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME LIKE 'ts1';
 NAME	ENCRYPTION

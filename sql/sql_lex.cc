@@ -48,6 +48,7 @@
 #include "sql/protocol.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sp_head.h"  // sp_head
+#include "sql/sql_admin.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -472,6 +473,7 @@ void LEX::reset() {
   option_type = OPT_DEFAULT;
 
   clear_privileges();
+  grant_as.cleanup();
 }
 
 /**
@@ -4863,3 +4865,12 @@ void LEX::set_secondary_engine_execution_context(
   destroy(m_secondary_engine_context);
   m_secondary_engine_context = context;
 }
+
+void LEX_GRANT_AS::cleanup() {
+  grant_as_used = false;
+  role_type = role_enum::ROLE_NONE;
+  user = nullptr;
+  role_list = nullptr;
+}
+
+LEX_GRANT_AS::LEX_GRANT_AS() { cleanup(); }

@@ -194,7 +194,7 @@ spatial INDEX idx2 (c7)
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
@@ -204,13 +204,13 @@ CREATE TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" TABLESPACE=`s_alt1`
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 DROP TABLESPACE s_alt1;
 CREATE TEMPORARY TABLE tde_db.t_encrypt (a int, b text) ENCRYPTION="Y" ENGINE=InnoDB;
 ERROR HY000: ENCRYPTION clause is not valid for temporary tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3834	ENCRYPTION clause is not valid for temporary tablespace.
+Error	3833	ENCRYPTION clause is not valid for temporary tablespace.
 CREATE TABLE tde_db.t_encrypt_myisam (a int, b text) ENCRYPTION="Y" ENGINE=MyISAM;
 ERROR 42000: The storage engine for the table doesn't support ENCRYPTION
 CREATE PROCEDURE tde_db.row_format_t_encrypt(row_form VARCHAR(1000))

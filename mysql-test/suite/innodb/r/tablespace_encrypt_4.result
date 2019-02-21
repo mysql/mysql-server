@@ -25,12 +25,12 @@ CREATE TABLE t1 (c int) TABLESPACE=encrypt_ts ENCRYPTION='n';
 ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='y';
 ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+Error	3825	Request to create 'encrypted' table while using an 'unencrypted' tablespace.
 CREATE TABLE t1 (c int) TABLESPACE=innodb_system ENCRYPTION='n';
 SHOW WARNINGS;
 Level	Code	Message
@@ -497,7 +497,7 @@ PARTITION P2 VALUES LESS THAN (30) TABLESPACE=encrypt_ts);
 ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 REORGANIZE PARTITION P2 INTO (
 PARTITION P2 VALUES LESS THAN (30) TABLESPACE=unencrypt_ts);
 ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.
@@ -532,7 +532,7 @@ PARTITION p3 VALUES LESS THAN (40) tablespace=encrypt_ts);
 ERROR HY000: Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3826	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+Error	3825	Request to create 'unencrypted' table while using an 'encrypted' tablespace.
 ALTER TABLE t1 ADD PARTITION (
 PARTITION p3 VALUES LESS THAN (40) tablespace=unencrypt_ts);
 ERROR HY000: InnoDB : A partitioned table is not allowed in a shared tablespace.

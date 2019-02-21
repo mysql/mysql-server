@@ -3,8 +3,6 @@ SELECT @@global.partial_revokes;
 @@global.partial_revokes
 0
 SET @@global.partial_revokes = ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 SELECT @@global.partial_revokes;
 @@global.partial_revokes
 1
@@ -1210,8 +1208,6 @@ SET @@global.partial_revokes = OFF;
 # 3. Drop user that had partial revoke and
 # then try to turn OFF the system variable
 SET @@global.partial_revokes = ON;
-Warnings:
-Warning	3812	mysqlbinlog tool may not be able to process GRANT/REVOKE correctly if --partial_revokes is set to ON. This may have implications on point in time recovery using mysqlbinlog.
 REVOKE INSERT ON mysql.* FROM foo;
 SET @@global.partial_revokes = OFF;
 ERROR HY000: At least one partial revoke exists on a database. The system variable '@@partial_revokes' must be set to ON.

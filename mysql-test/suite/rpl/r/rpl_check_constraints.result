@@ -35,7 +35,7 @@ t1	CREATE TABLE `t1` (
 update t1 set f1 = 80;
 [connection slave]
 # t1_chk_2 check constraint validation for update fails at slave.
-include/wait_for_slave_sql_error.inc [errno=3820]
+include/wait_for_slave_sql_error.inc [errno=3819]
 SELECT * from t1;
 f1
 20
@@ -43,7 +43,7 @@ f1
 insert into t1 values(90);
 [connection slave]
 # t1_chk_2 check constraint validation for insert fails at slave.
-include/wait_for_slave_sql_error.inc [errno=3820]
+include/wait_for_slave_sql_error.inc [errno=3819]
 SELECT * from t1;
 f1
 20

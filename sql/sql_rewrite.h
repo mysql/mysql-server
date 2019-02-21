@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 
 /* Forward declarations */
 class THD;
+class LEX_GRANT_AS;
 /**
   Target types where the rewritten query will be added. Query rewrite might
   vary based on this type.
@@ -41,7 +42,7 @@ enum class Consumer_type {
 
 /**
   An interface to wrap the paramters required by specific Rewriter.
-  Paramaters required by specific Rewriter must be added in the concrete
+  Parameters required by specific Rewriter must be added in the concrete
   implementation.
   Clients need to wrap the parameters in specific concrete object.
 */
@@ -49,8 +50,9 @@ class Rewrite_params {
  protected:
   virtual ~Rewrite_params() {}
 };
+
 /**
-  Wrapper object for user related paramaters required by:
+  Wrapper object for user related parameters required by:
   SET PASSWORD|CREATE USER|ALTER USER statements.
 */
 class User_params : public Rewrite_params {
@@ -59,14 +61,28 @@ class User_params : public Rewrite_params {
       : Rewrite_params(), users(users_set) {}
   std::set<LEX_USER *> *users;
 };
+
 /**
-  Wrapper object for paramaters required by SHOW CREATE USER statement.
+  Wrapper object for parameters required by SHOW CREATE USER statement.
 */
 class Show_user_params : public Rewrite_params {
  public:
   Show_user_params(bool hide_password_hash)
       : Rewrite_params(), hide_password_hash(hide_password_hash) {}
   bool hide_password_hash;
+};
+
+/**
+  Wrapper object for parameters required for GRANT statement.
+*/
+class Grant_params : public Rewrite_params {
+ public:
+  Grant_params(bool grant_as_specified, LEX_GRANT_AS *grant_as)
+      : Rewrite_params(),
+        grant_as_provided(grant_as_specified),
+        grant_as_info(grant_as) {}
+  bool grant_as_provided;
+  LEX_GRANT_AS *grant_as_info;
 };
 
 /**
@@ -233,8 +249,12 @@ class Rewriter_set_password final : public Rewriter_set {
 /** Rewrites the GRANT statement. */
 class Rewriter_grant final : public I_rewriter {
  public:
-  Rewriter_grant(THD *thd, Consumer_type type = Consumer_type::TEXTLOG);
+  Rewriter_grant(THD *thd, Consumer_type type, Rewrite_params *params);
   bool rewrite() const override;
+
+ private:
+  /* GRANT AS information */
+  Grant_params *grant_params = nullptr;
 };
 
 /** Rewrites the CHANGE MASTER statement. */

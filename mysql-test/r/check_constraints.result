@@ -464,7 +464,7 @@ INSERT INTO t1 VALUES(3, 1000);
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 INSERT IGNORE INTO t1 VALUES (3, 1000);
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 SELECT * FROM t1;
 f1	f2
 1	1
@@ -477,7 +477,7 @@ f1	f2
 2	NULL
 INSERT IGNORE INTO t1 SELECT * FROM t2;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 SELECT * FROM t1;
 f1	f2
 1	1
@@ -515,12 +515,12 @@ UPDATE t1 SET f2 = 1000;
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 UPDATE IGNORE t1 SET f2 = 1000;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
-Warning	3820	Check constraint 't1_chk_1' is violated.
-Warning	3820	Check constraint 't1_chk_1' is violated.
-Warning	3820	Check constraint 't1_chk_1' is violated.
-Warning	3820	Check constraint 't1_chk_1' is violated.
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 SELECT * FROM t1;
 f1	f2
 1	NULL
@@ -567,7 +567,7 @@ SELECT * FROM t1;
 f1	f2
 LOAD DATA INFILE 'tmp2.txt' IGNORE INTO TABLE t1;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 SELECT * FROM t1;
 f1	f2
 1	1
@@ -579,7 +579,7 @@ FIELDS TERMINATED BY '' ENCLOSED BY '' IGNORE 1 LINES;
 Warnings:
 Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
 Warning	1262	Row 3 was truncated; it contained more data than there were input columns
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 Warning	1261	Row 4 doesn't contain data for all columns
 Warning	1261	Row 4 doesn't contain data for all columns
 Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
@@ -620,7 +620,7 @@ SELECT * FROM t1;
 f1	f2
 LOAD XML INFILE "MYSQLTEST_VARDIR/tmp/tmp2.xml" IGNORE INTO TABLE t1;;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 SELECT * FROM t1;
 f1	f2
 1	1
@@ -637,7 +637,7 @@ f1	f2
 1	4
 INSERT IGNORE INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 INSERT INTO t1 VALUES (1, 1) ON DUPLICATE KEY UPDATE f2 = 20;
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 DROP TABLE t1;
@@ -652,7 +652,7 @@ UPDATE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
 ERROR HY000: Check constraint 't1_chk_1' is violated.
 UPDATE IGNORE t1,t2  SET t1.f2 = t1.f2 + 20 WHERE t1.f1 = t2.f1;
 Warnings:
-Warning	3820	Check constraint 't1_chk_1' is violated.
+Warning	3819	Check constraint 't1_chk_1' is violated.
 DROP TABLE t1, t2;
 CREATE TABLE t1 (
 `f1` int(10) unsigned NOT NULL auto_increment,
@@ -671,8 +671,8 @@ UPDATE t2,t1 set t2.f4 = t2.f4 + 1;
 ERROR HY000: Check constraint 't2_chk_1' is violated.
 UPDATE IGNORE t2,t1 set t2.f4 = t2.f4 + 1;
 Warnings:
-Warning	3820	Check constraint 't2_chk_1' is violated.
-Warning	3820	Check constraint 't2_chk_1' is violated.
+Warning	3819	Check constraint 't2_chk_1' is violated.
+Warning	3819	Check constraint 't2_chk_1' is violated.
 DROP TABLE t1, t2;
 #------------------------------------------------------------------------
 # Test cases to verify generated check constraint name updates due to

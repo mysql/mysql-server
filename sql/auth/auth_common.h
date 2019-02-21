@@ -59,6 +59,7 @@ struct MEM_ROOT;
 struct TABLE_LIST;
 enum class role_enum;
 enum class Consumer_type;
+class LEX_GRANT_AS;
 
 namespace consts {
 extern const std::string mysql;
@@ -710,11 +711,10 @@ int mysql_set_active_role_none(THD *thd);
 int mysql_set_role_default(THD *thd);
 int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users);
 int mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list);
-bool mysql_set_active_role_for_applier(THD *thd, LEX_CSTRING roles_string);
 bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
                  bool revoke_grant, bool is_proxy,
                  const List<LEX_CSTRING> &dynamic_privilege,
-                 bool grant_all_current_privileges);
+                 bool grant_all_current_privileges, LEX_GRANT_AS *grant_as);
 bool mysql_routine_grant(THD *thd, TABLE_LIST *table, bool is_proc,
                          List<LEX_USER> &user_list, ulong rights, bool revoke,
                          bool write_to_binlog);

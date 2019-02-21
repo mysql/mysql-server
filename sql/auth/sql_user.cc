@@ -1423,8 +1423,10 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   users.insert(combo);
 
 end:
+
+  User_params user_params(&users);
   commit_result = log_and_commit_acl_ddl(thd, transactional_tables, &users,
-                                         false, !result, false);
+                                         &user_params, false, !result, false);
 
   mysql_audit_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
@@ -2066,7 +2068,9 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
              is_anonymous_user ? "anonymous user" : wrong_users.c_ptr_safe());
   }
 
-  result = log_and_commit_acl_ddl(thd, transactional_tables, &extra_users);
+  User_params user_params(&extra_users);
+  result = log_and_commit_acl_ddl(thd, transactional_tables, &extra_users,
+                                  &user_params);
 
   {
     if (!result) {
@@ -2604,7 +2608,9 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
       my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
   }
 
-  result = log_and_commit_acl_ddl(thd, transactional_tables, &extra_users);
+  User_params user_params(&extra_users);
+  result = log_and_commit_acl_ddl(thd, transactional_tables, &extra_users,
+                                  &user_params);
   {
     /* Notify audit plugin. We will ignore the return value. */
     LEX_USER *audit_user;
