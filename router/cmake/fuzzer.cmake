@@ -22,11 +22,15 @@
 
 INCLUDE(CMakePushCheckState)
 
+# Only supported for Clang/llvm
+IF(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  RETURN()
+ENDIF()
+
 # ld.lld: error:
 # /usr/lib64/clang/7.0.1/lib/linux/libclang_rt.fuzzer-x86_64.a
 # (FuzzerLoop.cpp.o): unsupported SHT_GROUP format
-IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND
-    USE_LD_LLD AND C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
+IF(USE_LD_LLD AND C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT)
   STRING(REPLACE "-fuse-ld=lld" ""
     CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS})
   STRING(REPLACE "-fuse-ld=lld" ""
