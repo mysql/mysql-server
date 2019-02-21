@@ -2939,10 +2939,15 @@ static bool wait_for_relay_log_space(Relay_log_info *rli) {
   @param thd pointer to I/O Thread's Thd.
   @param mi  point to I/O Thread metadata class.
 
+  @param force_flush_mi_info when true, do not respect sync period and flush
+                             information.
+                             when false, flush will only happen if it is time to
+                             flush.
+
   @return 0 if everything went fine, 1 otherwise.
 */
-static int write_rotate_to_master_pos_into_relay_log(THD *thd,
-                                                     Master_info *mi) {
+static int write_rotate_to_master_pos_into_relay_log(THD *thd, Master_info *mi,
+                                                     bool force_flush_mi_info) {
   Relay_log_info *rli = mi->rli;
   int error = 0;
   DBUG_ENTER("write_rotate_to_master_pos_into_relay_log");
@@ -2976,7 +2981,7 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd,
                  " to the relay log, SHOW SLAVE STATUS may be"
                  " inaccurate");
     mysql_mutex_lock(&mi->data_lock);
-    if (flush_master_info(mi, true, false, false)) {
+    if (flush_master_info(mi, force_flush_mi_info, false, false)) {
       error = 1;
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_FLUSH_MASTER_INFO_FILE);
     }
@@ -3027,7 +3032,8 @@ static int write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi) {
     mysql_mutex_unlock(end_pos_lock);
 
     /* Generate the rotate based on mi position */
-    error = write_rotate_to_master_pos_into_relay_log(thd, mi);
+    error = write_rotate_to_master_pos_into_relay_log(
+        thd, mi, false /* force_flush_mi_info */);
   } else
     mysql_mutex_unlock(end_pos_lock);
 
@@ -7432,6 +7438,13 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         DBUG_ASSERT(memcmp(const_cast<char *>(mi->get_master_log_name()),
                            hb.get_log_ident(), hb.get_ident_len()) == 0);
 
+        DBUG_EXECUTE_IF("reached_heart_beat_queue_event", {
+          const char act[] =
+              "now SIGNAL check_slave_master_info WAIT_FOR "
+              "proceed_write_rotate";
+          DBUG_ASSERT(
+              !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        };);
         mi->set_master_log_pos(hb.common_header->log_pos);
 
         /*
@@ -7439,7 +7452,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         */
         inc_pos = 0;
         mysql_mutex_unlock(&mi->data_lock);
-        if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi))
+        if (write_rotate_to_master_pos_into_relay_log(
+                mi->info_thd, mi, false
+                /* force_flush_mi_info */))
           goto end;
         do_flush_mi = false; /* write_rotate_... above flushed master info */
       } else
@@ -7489,7 +7504,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       mi->set_master_log_pos(mi->get_master_log_pos() + event_len);
       mysql_mutex_unlock(&mi->data_lock);
 
-      if (write_rotate_to_master_pos_into_relay_log(mi->info_thd, mi)) goto err;
+      if (write_rotate_to_master_pos_into_relay_log(
+              mi->info_thd, mi, true /* force_flush_mi_info */))
+        goto err;
 
       do_flush_mi = false; /* write_rotate_... above flushed master info */
       goto end;
