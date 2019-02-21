@@ -105,7 +105,7 @@ class Mock_dd_field_longlong : public Base_mock_field_longlong {
     Note: Sun Studio needs a little help in resolving longlong.
   */
   MOCK_METHOD2(store, type_conversion_status(::longlong, bool));
-  MOCK_METHOD0(val_int, ::longlong(void));
+  MOCK_CONST_METHOD0(val_int, ::longlong(void));
   MOCK_METHOD0(val_uint, ::ulonglong(void));
 
   /*
@@ -142,7 +142,7 @@ class Mock_dd_field_varstring : public Base_mock_field_varstring {
   */
   MOCK_METHOD3(store, type_conversion_status(const char *, size_t length,
                                              const CHARSET_INFO *));
-  MOCK_METHOD2(val_str, String *(String *, String *));
+  MOCK_CONST_METHOD2(val_str, String *(String *, String *));
 
   /*
     Add fake methods to set and get expected contents.
