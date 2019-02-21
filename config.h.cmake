@@ -80,7 +80,6 @@
 /* Functions */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
 #cmakedefine HAVE_BACKTRACE 1
-#cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1

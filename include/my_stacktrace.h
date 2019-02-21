@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _my_stacktrace_h_
-#define _my_stacktrace_h_
+#ifndef MY_STACKTRACE_INCLUDED
+#define MY_STACKTRACE_INCLUDED
 
 /**
   @file include/my_stacktrace.h
@@ -40,11 +40,10 @@
 #include "my_macros.h"
 
 /*
-  HAVE_BACKTRACE - Linux, FreeBSD, OSX
-  HAVE_PRINTSTACK - Solaris
+  HAVE_BACKTRACE - Linux, FreeBSD, OSX, Solaris
   _WIN32 - Windows
 */
-#if defined(HAVE_BACKTRACE) || defined(HAVE_PRINTSTACK) || defined(_WIN32)
+#if defined(HAVE_BACKTRACE) || defined(_WIN32)
 #define HAVE_STACKTRACE 1
 void my_init_stacktrace();
 void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack);
@@ -54,7 +53,7 @@ void my_safe_puts_stderr(const char *val, size_t max_len);
 void my_set_exception_pointers(EXCEPTION_POINTERS *ep);
 void my_create_minidump(const char *name, HANDLE process, DWORD pid);
 #endif
-#endif /* HAVE_BACKTRACE || HAVE_PRINTSTACK || _WIN32 */
+#endif /* HAVE_BACKTRACE || _WIN32 */
 
 void my_write_core(int sig);
 
@@ -124,4 +123,4 @@ size_t my_write_stderr(const void *buf, size_t count);
 */
 void my_safe_print_system_time();
 
-#endif /* _my_stacktrace_h_ */
+#endif  // MY_STACKTRACE_INCLUDED

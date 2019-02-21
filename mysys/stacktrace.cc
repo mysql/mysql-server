@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,8 +71,8 @@ static const char *heap_start;
 extern char *__bss_start;
 #endif /* __linux */
 
-inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
-                     const char *heap_end MY_ATTRIBUTE((unused))) {
+static inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
+                            const char *heap_end MY_ATTRIBUTE((unused))) {
 #ifdef __linux__
   return p && p >= heap_start && p <= heap_end;
 #else
@@ -180,27 +180,7 @@ void my_safe_puts_stderr(const char *val, size_t max_len) {
   my_safe_printf_stderr("%s", "\n");
 }
 
-#if defined(HAVE_PRINTSTACK)
-
-/* Use Solaris' symbolic stack trace routine. */
-#include <ucontext.h>
-
-void my_print_stacktrace(uchar *stack_bottom MY_ATTRIBUTE((unused)),
-                         ulong thread_stack MY_ATTRIBUTE((unused))) {
-  if (printstack(fileno(stderr)) == -1)
-    my_safe_printf_stderr(
-        "%s", "Error when traversing the stack, stack appears corrupt.\n");
-  else
-    my_safe_printf_stderr(
-        "Please read "
-        "http://dev.mysql.com/doc/refman/%u.%u/en/resolve-stack-dump.html\n"
-        "and follow instructions on how to resolve the stack trace.\n"
-        "Resolved stack trace is much more helpful in diagnosing the\n"
-        "problem, so please do resolve it\n",
-        MYSQL_VERSION_MAJOR, MYSQL_VERSION_MINOR);
-}
-
-#elif defined(HAVE_BACKTRACE)
+#if defined(HAVE_BACKTRACE)
 
 #ifdef HAVE_ABI_CXA_DEMANGLE
 
@@ -228,7 +208,21 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s %s %s\n", line, demangled, end + 1);
-#else             // !__APPLE__
+#elif defined(__SUNPRO_CC)  // Solaris has different formatting .....
+  char *begin = strchr(line, '\'');
+  char *end = begin ? strchr(begin, '+') : NULL;
+  if (begin && end) {
+    *begin++ = *end++ = '\0';
+    int status = 0;
+    demangled = my_demangle(begin, &status);
+    if (!demangled || status) {
+      demangled = NULL;
+      begin[-1] = ' ';
+      end[-1] = '+';
+    }
+  }
+  if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
+#else                       // !__APPLE__ and !__SUNPRO_CC
   char *begin = strchr(line, '(');
   char *end = begin ? strchr(begin, '+') : NULL;
 
@@ -243,12 +237,14 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
-#endif            // !__APPLE__
+#endif
   bool ret = (demangled == NULL);
   free(demangled);
   return (ret);
 }
 
+// If it does not start with "_Z" it is a C function, and demangling fails.
+// Print the original line, with modifications done by my_demangle_symbol().
 static void my_demangle_symbols(char **addrs, int n) {
   for (int i = 0; i < n; i++) {
     if (my_demangle_symbol(addrs[i]))  // demangling failed
@@ -275,7 +271,7 @@ void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack) {
   }
 }
 
-#endif /* HAVE_PRINTSTACK || HAVE_BACKTRACE */
+#endif /* HAVE_BACKTRACE */
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */

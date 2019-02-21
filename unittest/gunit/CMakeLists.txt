@@ -469,6 +469,7 @@ OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
 IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_small_tests-t ${ALL_SMALL_TESTS}
     ADD_TEST merge_small_tests)
+  SET_TARGET_PROPERTIES(merge_small_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
     mysys mysys_ssl sqlgunitlib gunit_small)
   
@@ -478,6 +479,7 @@ IF (MERGE_UNITTESTS)
   LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
   MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS} SKIP_INSTALL)
+  SET_TARGET_PROPERTIES(merge_large_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -511,6 +513,7 @@ ENDIF()
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   ADD_COMPILE_DEFINITIONS(${test}-t.cc
     COMPILE_DEFINITIONS ${DISABLE_PSI_DEFINITIONS})
   TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug)
@@ -537,6 +540,7 @@ FOREACH(test ${SERVER_TESTS})
     LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
   TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
