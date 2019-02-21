@@ -393,10 +393,10 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
       else if (get_dictionary()->is_dd_schema_name(table->get_db_name()))
         continue;
       else {
-        LEX_STRING db_name = {const_cast<char *>(table->get_db_name()),
-                              strlen(table->get_db_name())};
-        LEX_STRING table_name = {const_cast<char *>(table->get_table_name()),
-                                 strlen(table->get_table_name())};
+        LEX_CSTRING db_name = {table->get_db_name(),
+                               strlen(table->get_db_name())};
+        LEX_CSTRING table_name = {table->get_table_name(),
+                                  strlen(table->get_table_name())};
 
         TABLE_CATEGORY table_category = get_table_category(db_name, table_name);
         if (table_category != TABLE_CATEGORY_USER &&
