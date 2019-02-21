@@ -3152,8 +3152,11 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
         simplify_const_condition(thd, &subq_pred, false, &cond_value))
       DBUG_RETURN(true);
 
-    if (!cond_value)
+    if (!cond_value) {
       (*subq)->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
+      // Unlink this subquery's query expression
+      (*subq)->unit->exclude_level();
+    }
 
     if ((*subq)->sj_selection == Item_exists_subselect::SJ_SELECTED)
       table_count += tables_added;
