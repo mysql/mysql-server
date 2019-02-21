@@ -580,6 +580,18 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT, UPDATE ON *.* TO `bar`@`%`
 REVOKE INSERT, UPDATE ON `robo`.* FROM `bar`@`%`
+# 12.3 Grant global and DB level privilege then revoke the DB level
+GRANT SELECT, DROP ON *.* TO foo;
+GRANT DROP ON robo.* TO foo;
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT SELECT, DROP ON *.* TO `foo`@`%`
+GRANT DROP ON `robo`.* TO `foo`@`%`
+REVOKE SELECT, DROP ON robo.* FROM foo;
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT SELECT, DROP ON *.* TO `foo`@`%`
+REVOKE SELECT ON `robo`.* FROM `foo`@`%`
 DROP USER foo,bar;
 DROP DATABASE robo;
 #
