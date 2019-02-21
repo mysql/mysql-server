@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include "my_dbug.h"
 #include "mysql/thread_type.h"
+#include "sql/handler.h"
 #include "sql/ndb_thd_ndb.h"
 #include "sql/sql_class.h"
 
@@ -102,4 +103,16 @@ bool ndb_thd_is_binlog_thread(const THD* thd)
 bool ndb_thd_is_background_thread(const THD* thd)
 {
   return thd->system_thread == SYSTEM_THREAD_BACKGROUND;
+}
+
+void ndb_thd_register_trans(THD *thd, bool register_trans)
+{
+  // Always register for the statement
+  trans_register_ha(thd, false, ndbcluster_hton, nullptr);
+
+  // Register for the transaction if requested.
+  if (register_trans &&
+      thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
+    trans_register_ha(thd, true, ndbcluster_hton, nullptr);
+  }
 }

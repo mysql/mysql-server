@@ -89,6 +89,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_metadata_change_monitor.cc
   ../../sql/ndb_schema_result_table.cc
   ../../sql/ndb_metadata_sync.cc
+  ../../sql/ndb_ddl_transaction_ctx.cc
 )
 
 # Include directories used when building ha_ndbcluster

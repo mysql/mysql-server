@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,5 +91,17 @@ bool ndb_thd_is_binlog_thread(const class THD* thd);
  @return true if thread matches condition
 */
 bool ndb_thd_is_background_thread(const class THD* thd);
+
+/*
+ @brief Register ndbcluster for a statement and optionally a transaction.
+
+ @param thd               Thread object
+ @param register_trans    Boolean flag to control registering for a transaction.
+                          Ndbcluster is registered for a transaction only if
+                          this is true.
+
+ @note trans_register_ha() is idempotent. So this function is idempotent too.
+*/
+void ndb_thd_register_trans(class THD *thd, bool register_trans);
 
 #endif

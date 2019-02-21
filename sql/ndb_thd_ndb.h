@@ -44,6 +44,7 @@ class Thd_ndb
 
   uint32 options;
   uint32 trans_options;
+  class Ndb_DDL_transaction_ctx *m_ddl_ctx;
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -270,6 +271,23 @@ public:
     @param      message Description of the operation that failed
   */
   void set_ndb_error(const NdbError &ndberr, const char *message) const;
+
+  /*
+    @brief Instantiate the Ndb_DDL_transaction_ctx object if its not
+           instantiated already and return the pointer to the object.
+
+    @param   create_if_not_exist      Boolean flag. If true, a new
+                                      ddl_transaction_ctx object will be
+                                      instantiated if there is none already.
+    @return  The pointer to Ndb_DDL_transaction_ctx object stored in Thd_ndb.
+  */
+  class Ndb_DDL_transaction_ctx *get_ddl_transaction_ctx(
+      bool create_if_not_exist = false);
+
+  /*
+    @brief Destroy the Ndb_DDL_transaction_ctx instance.
+  */
+  void clear_ddl_transaction_ctx();
 };
 
 #endif

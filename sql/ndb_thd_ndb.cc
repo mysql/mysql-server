@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include "my_dbug.h"
 #include "mysqld_error.h"
 #include "mysql/plugin.h"          // thd_get_thread_id
+#include "sql/ndb_ddl_transaction_ctx.h"
 #include "sql/ndb_log.h"
 #include "sql/ndb_thd.h"
 #include "sql/sql_error.h"
@@ -273,4 +274,19 @@ void Thd_ndb::set_ndb_error(const NdbError& ndberr,
                             const char* message) const {
   push_ndb_error_warning(ndberr);
   my_printf_error(ER_GET_ERRMSG, "%s", MYF(0), message);
+}
+
+Ndb_DDL_transaction_ctx *Thd_ndb::get_ddl_transaction_ctx(
+    bool create_if_not_exist) {
+  if (!m_ddl_ctx && create_if_not_exist) {
+    /* There is no DDL context yet. Instantiate it. */
+    m_ddl_ctx = new Ndb_DDL_transaction_ctx(m_thd);
+  }
+  return m_ddl_ctx;
+}
+
+void Thd_ndb::clear_ddl_transaction_ctx() {
+  DBUG_ASSERT(m_ddl_ctx != nullptr);
+  delete m_ddl_ctx;
+  m_ddl_ctx = nullptr;
 }

@@ -57,6 +57,7 @@
 #include "sql/ndb_component.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_dist_priv_util.h"
+#include "sql/ndb_ddl_transaction_ctx.h"
 #include "sql/ndb_create_helper.h"
 #include "sql/ndb_event_data.h"
 #include "sql/ndb_global_schema_lock.h"
@@ -1282,6 +1283,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_slave_thread(thd->slave_thread),
   options(0),
   trans_options(0),
+  m_ddl_ctx(nullptr),
   global_schema_lock_trans(NULL),
   global_schema_lock_count(0),
   global_schema_lock_error(0),
@@ -1315,6 +1317,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
 Thd_ndb::~Thd_ndb()
 {
   DBUG_ASSERT(global_schema_lock_count == 0);
+  DBUG_ASSERT(m_ddl_ctx == nullptr);
 
   delete ndb;
 
@@ -8351,11 +8354,9 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    trans_register_ha(thd, false, ht, NULL);
+    ndb_thd_register_trans(thd, trans == nullptr);
     if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
-      if (!trans)
-        trans_register_ha(thd, true, ht, NULL);
       thd_ndb->m_handler= NULL;
     }
     else
@@ -8815,6 +8816,14 @@ int ndbcluster_commit(handlerton*, THD *thd, bool all)
   DBUG_ENTER("ndbcluster_commit");
   DBUG_ASSERT(ndb);
   DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
+
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
+  if (all && ddl_ctx != nullptr && ddl_ctx->has_uncommitted_schema_changes()) {
+    /* There is an ongoing DDL transaction that needs to be committed.
+       Call commit on the DDL transaction context. */
+    ddl_ctx->commit();
+  }
+
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
   {
@@ -9004,6 +9013,16 @@ static int ndbcluster_rollback(handlerton*, THD *thd, bool all)
   DBUG_PRINT("enter", ("all: %d  thd_ndb->save_point_count: %d",
                        all, thd_ndb->save_point_count));
   DBUG_ASSERT(ndb);
+
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
+  if (ddl_ctx != nullptr && ddl_ctx->has_uncommitted_schema_changes()) {
+    /* There is an ongoing DDL transaction that needs to be rollbacked.
+       Call rollback on the DDL transaction context. */
+    if (!ddl_ctx->rollback()) {
+      thd_ndb->push_warning("DDL rollback failed.");
+    }
+  }
+
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL)
   {
@@ -9053,6 +9072,22 @@ static int ndbcluster_rollback(handlerton*, THD *thd, bool all)
   DBUG_RETURN(res);
 }
 
+/*
+  @brief  Finalize a DDL transaction by wrapping it up if required and
+          then clear the DDL transaction context stored in the Thd_ndb.
+
+  @param  thd Thread object
+*/
+static void ndbcluster_post_ddl(THD *thd)
+{
+  DBUG_TRACE;
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Ndb_DDL_transaction_ctx *ddl_ctx = thd_ndb->get_ddl_transaction_ctx();
+  if (ddl_ctx != nullptr) {
+    /* Destroy and clear the ddl_ctx in thd_ndb */
+    thd_ndb->clear_ddl_transaction_ctx();
+  }
+}
 
 static const char* ndb_table_modifier_prefix = "NDB_TABLE=";
 
@@ -14087,6 +14122,7 @@ int ndbcluster_init(void* handlerton_ptr)
   hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
   hton->notify_alter_table = ndbcluster_notify_alter_table;
   hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
+  hton->post_ddl = ndbcluster_post_ddl;
 
   // Initialize NdbApi
   ndb_init_internal(1);
