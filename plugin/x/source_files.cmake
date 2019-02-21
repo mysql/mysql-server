@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/buffering_command_delegate.h"
   "${MYSQLX_PROJECT_DIR}/src/callback_command_delegate.h"
   "${MYSQLX_PROJECT_DIR}/src/streaming_command_delegate.h"
+  "${MYSQLX_PROJECT_DIR}/src/custom_command_delegates.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_context.h"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_result.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_resultset.h"
@@ -169,6 +170,7 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/buffering_command_delegate.cc"
   "${MYSQLX_PROJECT_DIR}/src/callback_command_delegate.cc"
   "${MYSQLX_PROJECT_DIR}/src/streaming_command_delegate.cc"
+  "${MYSQLX_PROJECT_DIR}/src/custom_command_delegates.cc"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_context.cc"
   "${MYSQLX_PROJECT_DIR}/src/sql_data_result.cc"
   "${MYSQLX_PROJECT_DIR}/src/sql_user_require.cc"

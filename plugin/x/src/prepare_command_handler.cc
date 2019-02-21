@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -170,26 +170,24 @@ ngs::Error_code Prepare_command_handler::execute_prepare(const Prepare &msg) {
 }
 
 ngs::Error_code Prepare_command_handler::execute_execute(const Execute &msg) {
-  Streaming_resultset rset(&m_session->proto(),
-                           &m_session->get_notice_output_queue(),
-                           msg.compact_metadata());
   m_session->update_status(&ngs::Common_status_variables::m_prep_execute);
 
-  const auto error = execute_execute_impl(msg, rset);
-
-  if (!error) m_session->proto().send_exec_ok();
-
-  return error;
-}
-
-ngs::Error_code Prepare_command_handler::execute_execute_impl(
-    const Execute &msg, ngs::Resultset_interface &rset) {
   Prepared_stmt_info *prep_stmt_info = get_stmt_if_allocated(msg.stmt_id());
   if (nullptr == prep_stmt_info)
     return ngs::Error(ER_X_BAD_STATEMENT_ID,
                       "Statement with ID=%" PRIu32 " was not prepared",
                       msg.stmt_id());
 
+  Streaming_resultset<Prepare_command_delegate> rset(m_session,
+                                                     msg.compact_metadata());
+  rset.get_delegate().set_notice_level(get_notice_level_flags(prep_stmt_info));
+
+  return execute_execute_impl(msg, rset, prep_stmt_info);
+}
+
+ngs::Error_code Prepare_command_handler::execute_execute_impl(
+    const Execute &msg, ngs::Resultset_interface &rset,
+    Prepared_stmt_info *prep_stmt_info) {
   ngs::Error_code error = check_argument_placeholder_consistency(
       msg.args_size(), prep_stmt_info->m_placeholder_ids,
       prep_stmt_info->m_args_offset);
@@ -216,8 +214,6 @@ ngs::Error_code Prepare_command_handler::execute_execute_impl(
       prep_stmt_info->m_server_stmt_id, prep_stmt_info->m_has_cursor,
       params.data(), params.size(), &rset);
   if (error) return error;
-
-  send_notices(prep_stmt_info, rset.get_info(), rset.get_callbacks().got_eof());
 
   return ngs::Success();
 }
@@ -298,6 +294,24 @@ Prepared_stmt_info *Prepare_command_handler::get_stmt_if_allocated(
   if (m_prepared_stmt_info.end() == iterator) return nullptr;
 
   return &iterator->second;
+}
+
+Prepare_command_delegate::Notice_level
+Prepare_command_handler::get_notice_level_flags(
+    const Prepared_stmt_info *stmt_info) const {
+  using Notice_level_flags = Prepare_command_delegate::Notice_level_flags;
+  Prepare_command_delegate::Notice_level retval;
+
+  if (stmt_info->m_type != Prepare::OneOfMessage::FIND)
+    retval.set(Notice_level_flags::k_send_affected_rows);
+
+  if (stmt_info->m_type == Prepare::OneOfMessage::INSERT ||
+      stmt_info->m_type == Prepare::OneOfMessage::STMT) {
+    retval.set(stmt_info->m_is_table_model
+                   ? Notice_level_flags::k_send_generated_insert_id
+                   : Notice_level_flags::k_send_generated_document_ids);
+  }
+  return retval;
 }
 
 void Prepare_command_handler::send_notices(
@@ -403,7 +417,11 @@ ngs::Error_code Prepare_command_handler::execute_cursor_open(const Open &msg) {
   statement_info->m_has_cursor = true;
   statement_info->m_cursor_id = cursor_id;
 
-  auto error = execute_execute_impl(prepare_execute, cursor_info->m_resultset);
+  auto error = execute_execute_impl(prepare_execute, cursor_info->m_resultset,
+                                    statement_info);
+
+  send_notices(statement_info, cursor_info->m_resultset.get_info(),
+               cursor_info->m_resultset.get_callbacks().got_eof());
 
   if (error) {
     m_cursors_info.erase(cursor_id);
@@ -419,9 +437,7 @@ ngs::Error_code Prepare_command_handler::execute_cursor_open(const Open &msg) {
           execute_cursor_fetch_impl(cursor_id, cursor_info, msg.fetch_rows());
   }
 
-  if (!error) {
-    m_session->proto().send_exec_ok();
-  }
+  if (!error) m_session->proto().send_exec_ok();
 
   return error;
 }
@@ -489,11 +505,9 @@ Prepare_command_handler::Cursor_info *Prepare_command_handler::insert_cursor(
     const Id_type cursor_id, const Id_type client_statement_id,
     const bool compact_metadata, const bool ignore_fetch_suspended) {
   auto result = m_cursors_info.emplace(
-      cursor_id,
-      Cursor_info{client_statement_id,
-                  Cursor_resultset{&m_session->proto(),
-                                   &m_session->get_notice_output_queue(),
-                                   compact_metadata, ignore_fetch_suspended}});
+      cursor_id, Cursor_info{client_statement_id,
+                             Cursor_resultset{m_session, compact_metadata,
+                                              ignore_fetch_suspended}});
 
   return &((*result.first).second);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -70,22 +70,14 @@ ngs::Error_code Stmt_command_handler::sql_stmt_execute(
       ngs::Notice_type::k_warning);
   auto &proto = m_session->proto();
   auto &da = m_session->data_context();
-  auto &notice_queue = m_session->get_notice_output_queue();
-  Streaming_resultset resultset(&proto, &notice_queue, msg.compact_metadata());
+  Streaming_resultset<Stmt_command_delegate> resultset(m_session,
+                                                       msg.compact_metadata());
   ngs::Error_code error =
       da.execute(m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) {
     if (show_warnings) notices::send_warnings(da, proto, true);
     return error;
   }
-
-  const Streaming_resultset::Info &info = resultset.get_info();
-  if (info.num_warnings > 0 && show_warnings) notices::send_warnings(da, proto);
-  notices::send_rows_affected(proto, info.affected_rows);
-  if (info.last_insert_id > 0)
-    notices::send_generated_insert_id(proto, info.last_insert_id);
-  if (!info.message.empty()) notices::send_message(proto, info.message);
-  proto.send_exec_ok();
 
   return ngs::Success();
 }

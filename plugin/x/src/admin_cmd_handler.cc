@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -674,12 +674,11 @@ ngs::Error_code Admin_command_handler::list_objects(
   qb.put(" GROUP BY name ORDER BY name");
 
   log_debug("LIST: %s", qb.get().c_str());
-  Streaming_resultset resultset(&m_session->proto(), nullptr, false);
+  Streaming_resultset<> resultset(m_session, false);
   error = m_session->data_context().execute(qb.get().data(), qb.get().length(),
                                             &resultset);
   if (error) return error;
 
-  m_session->proto().send_exec_ok();
   return ngs::Success();
 }
 
