@@ -1204,6 +1204,8 @@ bool fill_dd_and_finalize(THD *thd) {
   if (Upgrade_status().update(Upgrade_status::enum_stage::USER_TABLE_UPGRADED))
     return true;
 
+  log_sink_buffer_check_timeout();
+
   // Add SDI information to all tablespaces
   if (add_sdi_info(thd))
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SDI_INFO_UPDATE_FAILED);
