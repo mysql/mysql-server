@@ -72,6 +72,9 @@ perl;
     s/^log-tc-size \d+/log-tc-size #####/;
     # Avoid test failures when adding new error message
     s/^performance-schema-error-size \d+/performance-schema-error-size ####/;
+    # Avoid test failures if PARTIAL_REVOKES_DEFAULT build flag is ON
+    s/^partial-revokes (TRUE|FALSE)/partial-revokes ####/;
+    next if/use --skip-partial-revokes to disable/;
     foreach $var (@env) { s/$ENV{$var}/$var/ }
     next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
     next if $skip;

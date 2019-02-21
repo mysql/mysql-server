@@ -171,7 +171,6 @@ bool acl_reload(THD *thd);
 bool grant_reload(THD *thd);
 void clean_user_cache();
 bool set_user_salt(ACL_USER *acl_user);
-void set_wildcard_db_grants(bool value);
 
 /* sql_user_table */
 Json_object *get_user_attributes(THD *thd, TABLE *user_table,

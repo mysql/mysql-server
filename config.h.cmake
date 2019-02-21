@@ -24,7 +24,7 @@
 #define MY_CONFIG_H
 
 /*
- * From configure.cmake, in order of appearance 
+ * From configure.cmake, in order of appearance
  */
 #cmakedefine HAVE_LLVM_LIBCPP 1
 
@@ -89,7 +89,7 @@
 #cmakedefine HAVE_FCHMOD 1
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FDATASYNC 1
-#cmakedefine HAVE_DECL_FDATASYNC 1 
+#cmakedefine HAVE_DECL_FDATASYNC 1
 #cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FSEEKO 1
 #cmakedefine HAVE_FSYNC 1
@@ -166,7 +166,7 @@
 #cmakedefine HAVE_POSIX_TIMERS 1
 
 /* Endianess */
-#cmakedefine WORDS_BIGENDIAN 1 
+#cmakedefine WORDS_BIGENDIAN 1
 
 /* Type sizes */
 #cmakedefine SIZEOF_VOIDP     @SIZEOF_VOIDP@
@@ -249,7 +249,7 @@
  * Readline
  */
 #cmakedefine HAVE_MBSTATE_T
-#cmakedefine HAVE_LANGINFO_CODESET 
+#cmakedefine HAVE_LANGINFO_CODESET
 #cmakedefine HAVE_WCSDUP
 #cmakedefine HAVE_WCHAR_T 1
 #cmakedefine HAVE_WINT_T 1
@@ -351,6 +351,9 @@
 
 /* For default value of --early_plugin_load */
 #cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
+
+/* For default value of --partial_revokes */
+#define DEFAULT_PARTIAL_REVOKES @DEFAULT_PARTIAL_REVOKES@
 
 #define SO_EXT "@CMAKE_SHARED_MODULE_SUFFIX@"
 

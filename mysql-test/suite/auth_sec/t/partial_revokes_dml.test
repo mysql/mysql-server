@@ -12,13 +12,20 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
---echo # Enable partial revokes
-SET @@global.partial_revokes = ON;
+
+--disable_query_log
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+--disable_warnings
+SET GLOBAL partial_revokes= ON;
+--enable_warnings
+--enable_query_log
 --let $TEST_MODE = NORMAL
 --source ../include/partial_revokes_dml.inc
 
---echo # Disable partial revokes
-SET @@global.partial_revokes = OFF;
-
+--disable_query_log
+--disable_warnings
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_warnings
+--enable_query_log
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

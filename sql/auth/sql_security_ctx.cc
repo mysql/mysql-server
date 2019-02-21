@@ -482,8 +482,16 @@ ulong Security_context::db_acl(LEX_CSTRING db, bool use_pattern_scan) const {
       Db_access_map::iterator it = m_acl_map->db_wild_acls()->begin();
       ulong access = 0;
       for (; it != m_acl_map->db_wild_acls()->end(); ++it) {
-        if (wild_case_compare(system_charset_info, db.str, db.length,
-                              it->first.c_str(), it->first.size()) == 0) {
+        /*
+          Do the usual string comparision if partial_revokes is ON,
+          otherwise do the wildcard grant comparision
+        */
+        if (mysqld_partial_revokes()
+                ? (my_strcasecmp(system_charset_info, db.str,
+                                 it->first.c_str()) == 0)
+                : (wild_case_compare(system_charset_info, db.str, db.length,
+                                     it->first.c_str(),
+                                     it->first.size()) == 0)) {
           DBUG_PRINT("info", ("Found matching db pattern %s for key %s",
                               it->first.c_str(), key.c_str()));
           access |= it->second;

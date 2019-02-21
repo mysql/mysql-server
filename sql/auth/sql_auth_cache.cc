@@ -163,16 +163,6 @@ bool allow_all_hosts = 1;
 uint grant_version = 0; /* Version of priv tables */
 bool validate_user_plugins = true;
 
-std::atomic<bool> wildcard_db_grants;
-
-bool wildcard_db_grant_exists() {
-  return wildcard_db_grants.load(std::memory_order_relaxed);
-}
-
-void set_wildcard_db_grants(bool value) {
-  wildcard_db_grants.store(value, std::memory_order_relaxed);
-}
-
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
 #define ACL_KEY_LENGTH (IP_ADDR_STRLEN + 1 + NAME_LEN + 1 + USERNAME_LENGTH + 1)
 
@@ -1182,8 +1172,16 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
   for (ACL_DB *acl_db = acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db) {
     if (!acl_db->user || !strcmp(user, acl_db->user)) {
       if (acl_db->host.compare_hostname(host, ip)) {
-        if (!acl_db->db || !wild_compare(db, strlen(db), acl_db->db,
-                                         strlen(acl_db->db), db_is_pattern)) {
+        /*
+          Do the usual string comparision if partial_revokes is ON,
+          otherwise do the wildcard grant comparision
+        */
+        if (!acl_db->db ||
+            (db &&
+             (mysqld_partial_revokes()
+                  ? (!strcmp(db, acl_db->db))
+                  : (!wild_compare(db, strlen(db), acl_db->db,
+                                   strlen(acl_db->db), db_is_pattern))))) {
           db_access = acl_db->access;
           if (acl_db->host.get_host()) goto exit;  // Fully specified. Take it
           break;                                   /* purecov: tested */
@@ -1355,8 +1353,15 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
            ++acl_db) {
         if (!acl_db->user || (user && user[0] && !strcmp(user, acl_db->user))) {
           if (acl_db->host.compare_hostname(host, ip)) {
-            if (!acl_db->db || (db && !wild_compare(db, strlen(db), acl_db->db,
-                                                    strlen(acl_db->db), 0))) {
+            /*
+              Do the usual string comparision if partial_revokes is ON,
+              otherwise do the wildcard grant comparision
+            */
+            if (!acl_db->db ||
+                (db && (mysqld_partial_revokes()
+                            ? (!strcmp(db, acl_db->db))
+                            : (!wild_compare(db, strlen(db), acl_db->db,
+                                             strlen(acl_db->db), 0))))) {
               sctx->cache_current_db_access(acl_db->access);
               break;
             }
@@ -1594,54 +1599,6 @@ void clean_user_cache() {
   acl_users->clear();
 }
 
-/**
-  Checks related to partial reovkes and inconsistency in DB grants.
-  Sets appropriate flags if required.
-
-  @param [in] user     User name
-  @param [in] host     Host name
-  @param [in] db       Database name
-  @param [in] db_privs Privileges
-
-  @returns if entry is to be ignored or note
-    @retval true  Skip adding entry to cache
-    @retval false Add enty to cache
-*/
-bool check_partial_revoke_inconsistency(const char *user, const char *host,
-                                        const char *db, ulong db_privs) {
-  DBUG_ENTER("check_partial_revoke_inconsistency");
-  DBUG_ASSERT(assert_acl_cache_read_lock(current_thd));
-  bool ignore = false;
-  std::string db_name(db ? db : "");
-  ACL_USER *acl_user = find_acl_user(host ? host : "", user ? user : "", true);
-  if (!acl_user) DBUG_RETURN(ignore);
-  Restrictions restrictions = acl_restrictions->find_restrictions(acl_user);
-  if (!restrictions.is_empty()) {
-    for (auto &db_entry : restrictions.db().get()) {
-      if (!wild_compare(db_entry.first.c_str(), (int)db_entry.first.length(),
-                        db_name.c_str(), db_name.length(), true)) {
-        if (db_entry.second & db_privs)
-          LogErr(WARNING_LEVEL, ER_WARN_PARTIAL_REVOKE_AND_DB_GRANT,
-                 user ? user : "", host ? host : "%", db_name.c_str());
-        break;
-      }
-    }
-  }
-
-  bool wildcard_db_grant = has_wildcards_in_db_grant(db_name);
-  if (db && wildcard_db_grant) {
-    if (mysqld_partial_revokes()) {
-      LogErr(WARNING_LEVEL,
-             ER_WARN_WILDCARD_DB_GRANT_IGNORED_WITH_PARTIAL_REVOKES,
-             db ? db : "", user ? user : "", host ? host : "%");
-      ignore = true;
-    } else {
-      set_wildcard_db_grants(true);
-    }
-  }
-  DBUG_RETURN(ignore);
-}
-
 /*
   Initialize structures responsible for user/db-level privilege checking
   and load information about grants from open privilege tables.
@@ -1696,7 +1653,6 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     goto end;
   table->use_all_columns();
   acl_dbs->clear();
-  set_wildcard_db_grants(false);
   int read_rec_errcode;
   while (!(read_rec_errcode = read_record_info->Read())) {
     /* Reading record in mysql.db */
@@ -1735,9 +1691,6 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
       if (db.access & CREATE_ACL)
         db.access |= REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
     }
-    if (check_partial_revoke_inconsistency(db.user, db.host.get_host(), db.db,
-                                           db.access))
-      continue;
     acl_dbs->push_back(db);
   }  // END reading records from mysql.db tables
 

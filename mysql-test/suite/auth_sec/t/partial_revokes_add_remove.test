@@ -13,8 +13,7 @@
 #                                                                             #
 ###############################################################################
 
---echo # Default server variable value must be OFF
-SELECT @@global.partial_revokes;
+
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -22,11 +21,12 @@ SELECT @@global.partial_revokes;
 CALL mtr.add_suppression("one or more privileges granted through");
 CALL mtr.add_suppression("these are not valid database privileges");
 CALL mtr.add_suppression("corresponding global privilege(s) are not granted");
+
+let $saved_partial_revokes = `SELECT @@global.partial_revokes`;
+--disable_warnings
+SET GLOBAL partial_revokes= ON;
+--enable_warnings
 --enable_query_log
-
-SET @@global.partial_revokes = ON;
-SELECT @@global.partial_revokes;
-
 --let $TEST_MODE = NORMAL
 --source ../../auth_sec/include/partial_revokes_add_remove.inc
 
@@ -63,7 +63,7 @@ while (-e $filetodelete) {
   sleep 1;
 }
 EOF
---exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--partial_revokes=OFF" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -73,9 +73,14 @@ EOF
 --source include/assert_grep.inc
 DROP USER foo;
 --echo # 5. @@partial_revokes can be turned OFF after there exists no
---echo # partial revokes in the user_attributes table
-SET @@global.partial_revokes = OFF;
+--echo #    partial revokes in the user_attributes table
+SET GLOBAL partial_revokes = OFF;
 --echo --------Toggling the system variable tests end --------------------------
+--disable_query_log
+--disable_warnings
+eval SET GLOBAL partial_revokes = $saved_partial_revokes;
+--enable_warnings
+--enable_query_log
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 call mtr.add_suppression(".*At least one partial revoke .* Turning ON the system variable .*");

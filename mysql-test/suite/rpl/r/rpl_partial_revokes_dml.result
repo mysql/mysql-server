@@ -323,7 +323,7 @@ partial_revokes_db_2
 performance_schema
 sys
 test
-GRANT INSERT ON `partial\_revokes\_db`.* TO baz@localhost;
+GRANT INSERT ON `partial_revokes_db`.* TO baz@localhost;
 SHOW GRANTS;
 Grants for baz@localhost
 GRANT SELECT, INSERT ON *.* TO `baz`@`localhost`
@@ -350,7 +350,7 @@ partial_revokes_db_2
 performance_schema
 sys
 test
-GRANT SELECT ON `partial\_revokes\_db`.* TO baz@localhost;
+GRANT SELECT ON `partial_revokes_db`.* TO baz@localhost;
 SHOW GRANTS;
 Grants for baz@localhost
 GRANT SELECT, INSERT ON *.* TO `baz`@`localhost`

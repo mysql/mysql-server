@@ -1,11 +1,3 @@
-# Default server variable value must be OFF
-SELECT @@global.partial_revokes;
-@@global.partial_revokes
-0
-SET @@global.partial_revokes = ON;
-SELECT @@global.partial_revokes;
-@@global.partial_revokes
-1
 CREATE DATABASE pr_db;
 CREATE DATABASE normal_db;
 CREATE TABLE pr_db.t1(c1 int, c2 int);
@@ -121,24 +113,22 @@ SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
 GRANT INSERT ON `mysql`.* TO `bar`@`%`
-# Should be able to gramt/revoke other DB level privileges without
+# Should be able to grant/revoke other DB level privileges without
 # affecting existing partial revokes.
 REVOKE ALL ON *.* FROM bar;
 GRANT INSERT ON *.* TO bar;
-GRANT INSERT ON `pr\_db`.* TO bar;
+GRANT INSERT ON `pr_db`.* TO bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-GRANT INSERT ON `pr\_db`.* TO `bar`@`%`
+GRANT INSERT ON `pr_db`.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
 # Revoke the privilge. Partial revokes should remain intact
-REVOKE INSERT ON `pr\_db`.* FROM bar;
+REVOKE INSERT ON `pr_db`.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT INSERT ON *.* TO `bar`@`%`
-GRANT INSERT ON `pr\_db`.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-REVOKE INSERT ON `pr\_db`.* FROM `bar`@`%`
 DROP USER foo, bar;
 #
 # 4. Grantor and grantee both have restriction list
@@ -213,12 +203,12 @@ Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
 # Grantor should be able to add additional restrictions list
-REVOKE INSERT,SELECT ON `pr\_db`.* FROM bar;
+REVOKE INSERT,SELECT ON `pr_db`.* FROM bar;
 SHOW GRANTS FOR bar;
 Grants for bar@%
 GRANT SELECT, INSERT ON *.* TO `bar`@`%`
 REVOKE INSERT ON `mysql`.* FROM `bar`@`%`
-REVOKE SELECT, INSERT ON `pr\_db`.* FROM `bar`@`%`
+REVOKE SELECT, INSERT ON `pr_db`.* FROM `bar`@`%`
 # Additional restrictions of Grantee should be removed.
 GRANT INSERT, SELECT ON *.* TO bar;
 SHOW GRANTS FOR bar;
@@ -479,7 +469,7 @@ REVOKE SELECT, UPDATE ON `secret_db`.* FROM `foo`@`%`
 # Should fail because foo cannot remove SELECT priv on bar
 REVOKE ALL ON *.* FROM bar;
 ERROR HY000: Access denied for AuthId `foo`@`%` to database 'secret_db'.
-GRANT SELECT ON `secret\_db`.* TO foo;
+GRANT SELECT ON `secret_db`.* TO foo;
 SHOW GRANTS FOR foo;
 Grants for foo@%
 GRANT SELECT, INSERT, UPDATE, CREATE USER ON *.* TO `foo`@`%` WITH GRANT OPTION
@@ -1189,7 +1179,51 @@ Pattern "ignored restrictions for privilege(s) 'DELETE' for database 'db1' as co
 # Search completed.
 DROP DATABASE db1;
 DROP USER u1;
--Tests related to invalid restrictions and privilege combinations end here-
+-Tests related to invalid restrictions & privilege combinations end here-
+
+-------------------------------------------------------------------------
+Partial revokes do not treat wildcard grants specially.
+-------------------------------------------------------------------------
+CREATE USER foo;
+CREATE DATABASE `db_1`;
+CREATE DATABASE `db%1`;
+GRANT SELECT ON *.* TO foo;
+# Create restriction - We dont use '\' to escape '_' or '%'
+REVOKE SELECT ON `db_1`.* FROM foo;
+REVOKE SELECT ON `db%1`.* FROM foo;
+# Should show 2 restrictions
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT SELECT ON *.* TO `foo`@`%`
+REVOKE SELECT ON `db%1`.* FROM `foo`@`%`
+REVOKE SELECT ON `db_1`.* FROM `foo`@`%`
+# Should not remove restrictions on db_1 or db%1,
+# instead both grants should be added on db(s) as it is.
+GRANT SELECT ON `db\_1`.* TO foo;
+GRANT SELECT ON `db\%1`.* TO foo;
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT SELECT ON *.* TO `foo`@`%`
+GRANT SELECT ON `db\%1`.* TO `foo`@`%`
+GRANT SELECT ON `db\_1`.* TO `foo`@`%`
+REVOKE SELECT ON `db%1`.* FROM `foo`@`%`
+REVOKE SELECT ON `db_1`.* FROM `foo`@`%`
+# Should remove two grants added above
+REVOKE SELECT ON `db\_1`.* FROM foo;
+REVOKE SELECT ON `db\%1`.* FROM foo;
+# Should show 2 restrictions
+SHOW GRANTS FOR foo;
+Grants for foo@%
+GRANT SELECT ON *.* TO `foo`@`%`
+REVOKE SELECT ON `db%1`.* FROM `foo`@`%`
+REVOKE SELECT ON `db_1`.* FROM `foo`@`%`
+REVOKE SELECT ON *.* FROM foo;
+DROP USER foo;
+DROP DATABASE `db_1`;
+DROP DATABASE `db%1`;
+-------------------------------------------------------------------------
+Test related to wildcard grants end here.
+-------------------------------------------------------------------------
 DROP DATABASE pr_db;
 DROP DATABASE normal_db;
 call mtr.add_suppression(".*Nothing to revoke. Global privilege.*");
@@ -1218,7 +1252,7 @@ ERROR HY000: At least one partial revoke exists on a database. The system variab
 include/assert_grep.inc [Found the expected warning line in the server log.]
 DROP USER foo;
 # 5. @@partial_revokes can be turned OFF after there exists no
-# partial revokes in the user_attributes table
-SET @@global.partial_revokes = OFF;
+#    partial revokes in the user_attributes table
+SET GLOBAL partial_revokes = OFF;
 --------Toggling the system variable tests end --------------------------
 call mtr.add_suppression(".*At least one partial revoke .* Turning ON the system variable .*");

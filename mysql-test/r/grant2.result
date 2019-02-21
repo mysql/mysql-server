@@ -1,6 +1,8 @@
 SET NAMES binary;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
+set @orig_partial_revokes = @@global.partial_revokes;
+SET GLOBAL partial_revokes= OFF;
 drop database if exists mysqltest;
 drop database if exists mysqltest_1;
 delete from mysql.user where user like 'mysqltest\_%';
