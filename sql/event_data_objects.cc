@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1058,6 +1058,15 @@ bool Event_job_data::execute(THD *thd, bool drop) {
     goto end;
   }
 
+  /*
+    In case the definer user has SYSTEM_USER privilege then make THD
+    non-killable through the users who do not have SYSTEM_USER privilege,
+    OR vice-versa.
+    Note - Do not forget to reset the flag after the saved security context is
+           restored.
+  */
+  if (save_sctx) set_system_user_flag(thd);
+
   if (check_access(thd, EVENT_ACL, m_schema_name.str, NULL, NULL, 0, 0)) {
     /*
       This aspect of behavior is defined in the worklog,
@@ -1179,7 +1188,13 @@ end:
       thd->security_context()->set_master_access(saved_master_access);
     }
   }
-  if (save_sctx) event_sctx.restore_security_context(thd, save_sctx);
+
+  if (save_sctx) {
+    event_sctx.restore_security_context(thd, save_sctx);
+    /* Restore the original value in THD */
+    set_system_user_flag(thd);
+  }
+
   thd->lex->unit->cleanup(thd, true);
   thd->end_statement();
   thd->cleanup_after_query();

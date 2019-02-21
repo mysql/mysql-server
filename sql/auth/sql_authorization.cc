@@ -6575,7 +6575,7 @@ std::string create_authid_str_from(const Role_id &user) {
     @retval false Success
     @retval true  Error
 */
-int mysql_set_active_role_none(THD *thd) {
+bool mysql_set_active_role_none(THD *thd) {
   DBUG_ENTER("mysql_set_active_role_none");
   bool ret = false;
   Roles::Role_activation role_activation(thd, thd->security_context(),
@@ -6596,7 +6596,7 @@ int mysql_set_active_role_none(THD *thd) {
      @retval 0 Success; the specified role was activated.
      @retval != 0 Failure. DA is set.
 */
-int mysql_set_role_default(THD *thd) {
+bool mysql_set_role_default(THD *thd) {
   DBUG_ENTER("mysql_set_role_default");
   bool ret = 0;
   Roles::Role_activation role_activation(thd, thd->security_context(),
@@ -6619,7 +6619,7 @@ int mysql_set_role_default(THD *thd) {
      @retval 0 Success; the specified role was activated.
      @retval != 0 Failure. DA is set.
 */
-int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users) {
+bool mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users) {
   DBUG_ENTER("mysql_set_active_role_all");
   bool ret = 0;
   Roles::Role_activation role_activation(thd, thd->security_context(),
@@ -6629,7 +6629,7 @@ int mysql_set_active_role_all(THD *thd, const List<LEX_USER> *except_users) {
   DBUG_RETURN(ret);
 }
 
-int mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list) {
+bool mysql_set_active_role(THD *thd, const List<LEX_USER> *role_list) {
   DBUG_ENTER("mysql_set_active_role");
   bool ret = false;
   Roles::Role_activation role_activation(thd, thd->security_context(),

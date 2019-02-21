@@ -1,0 +1,152 @@
+###############################################################################
+# WL#12364: Kill administration for system users                              #
+#                                                                             #
+#   This test file covers the scenarios around prohibiting the killing        #
+#   connections of a user who is granted the SYSTEM_USER dynamic privilege    #
+#   from the connections of a user who is not granted the SYSTEM_USER         #
+#   dynamic privilege.                                                        #
+#                                                                             #
+###############################################################################
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+create user unpriv@localhost;
+set password for unpriv@localhost = 'x';
+grant connection_admin on *.* to unpriv@localhost;
+create role sys_user_role;
+grant system_user on *.* to sys_user_role;
+grant sys_user_role to unpriv@localhost;
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/system_user_kill.tmp
+## Test data
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## create and activate new session
+-->newsession aux	x_root
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## switch back to default session
+-->setsession
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+### Create a separate session with diff account
+-->newsession unpriv	unpriv	x
+
+-->echo Should list unprivs session only
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo Try to kill a x_root session from regular session
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+}
+-->recverror 1095
+
+-->echo promote regular session to power session
+-->sql
+set role sys_user_role;
+-->endsql
+
+-->echo Try to kill a x_root session from unpriv
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->setsession
+
+-->sql
+select sleep(0.5);
+-->endsql
+-->echo Should two sessions
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+-->echo Now kill one power_session from another power_session
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 3
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select sleep(0.5);
+-->endsql
+-->echo Should list only x_root session
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+drop user unpriv@localhost;
+drop role sys_user_role;
+-->endsql
+EOF
+
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/system_user_kill.tmp 2>&1
+
+## Cleanup
+--source include/xplugin_drop_user.inc
+--remove_file $MYSQL_TMP_DIR/system_user_kill.tmp

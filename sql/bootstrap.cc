@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -364,7 +364,8 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   THD *thd = new THD;
   thd->system_thread = thread_type;
   thd->get_protocol_classic()->init_net(NULL);
-  thd->security_context()->set_master_access(~(ulong)0);
+  // Skip grants and set the system_user flag in THD.
+  thd->security_context()->skip_grants();
 
   thd->set_new_thread_id();
 

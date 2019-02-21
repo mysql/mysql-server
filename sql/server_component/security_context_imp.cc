@@ -75,7 +75,12 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
   if (!in_ctx) return true;
 
   try {
-    thd->set_security_context(reinterpret_cast<Security_context *>(in_ctx));
+    Security_context *in_sctx = reinterpret_cast<Security_context *>(in_ctx);
+    if (in_sctx) {
+      thd->set_security_context(in_sctx);
+      // Turn ON the flag in THD iff the user is granted SYSTEM_USER privilege
+      set_system_user_flag(thd);
+    }
     return false;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
