@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -85,13 +85,13 @@ void LoaderConfig::fill_and_check() {
 }
 
 void LoaderConfig::read(const Path &path) {
-  Config::read(path);  // throws std::invalid_argument, std::runtime_error,
-                       // syntax_error, ...
+  Config::read(
+      path);  // throws derivatives of std::runtime_error, std::logic_error
 
   // This means it is checked after each file load, which might
   // require changes in the future if checks that cover the entire
   // configuration are added. Right now it just contain safety checks.
-  fill_and_check();
+  fill_and_check();  // throws derivatives of std::runtime_error
 }
 
 bool LoaderConfig::logging_to_file() const {

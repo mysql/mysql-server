@@ -42,11 +42,6 @@
 #include <stdexcept>
 #include <vector>
 
-using std::make_tuple;
-using std::string;
-using std::tuple;
-using std::vector;
-
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
 
@@ -115,7 +110,7 @@ class MySQLRouter {
    * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const mysql_harness::Path &origin,
-              const vector<string> &arguments,
+              const std::vector<std::string> &arguments,
               std::ostream &out_stream = std::cout,
               std::ostream &err_stream = std::cerr
 #ifndef _WIN32
@@ -343,7 +338,7 @@ class MySQLRouter {
    * application.
    */
   void parse_command_options(
-      const vector<string> &arguments);  // throws std::runtime_error
+      const std::vector<std::string> &arguments);  // throws std::runtime_error
 
   /** @brief Finds all valid configuration files
    *
@@ -490,7 +485,7 @@ class MySQLRouter {
   /** @brief Vector with configuration files passed through command line
    * arguments **/
   // TODO move these to class ConfigFiles
-  std::vector<string> config_files_;
+  std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
 

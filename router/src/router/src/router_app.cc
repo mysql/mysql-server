@@ -165,7 +165,7 @@ static void check_and_add_conf(std::vector<string> &configs,
 // throws MySQLSession::Error, std::runtime_error, std::out_of_range,
 // std::logic_error, ...?
 MySQLRouter::MySQLRouter(const mysql_harness::Path &origin,
-                         const vector<string> &arguments,
+                         const std::vector<std::string> &arguments,
                          std::ostream &out_stream, std::ostream &err_stream
 #ifndef _WIN32
                          ,
