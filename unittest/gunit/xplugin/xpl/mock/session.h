@@ -193,6 +193,7 @@ class Mock_protocol_encoder : public Protocol_encoder_interface {
   MOCK_METHOD2(send_local_warning, void(const std::string &, bool));
   MOCK_METHOD1(send_auth_ok, void(const std::string &));
   MOCK_METHOD1(send_auth_continue, void(const std::string &));
+  MOCK_METHOD0(send_nothing, bool());
   MOCK_METHOD0(send_exec_ok, bool());
   MOCK_METHOD0(send_result_fetch_done, bool());
   MOCK_METHOD0(send_result_fetch_suspended, bool());

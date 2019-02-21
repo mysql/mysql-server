@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -103,6 +103,10 @@ class Prepare_command_handler {
   ngs::Error_code build_query(const Prepare::OneOfMessage &msg,
                               std::vector<uint32_t> *ids,
                               uint32_t *args_offset);
+
+  Prepare_command_delegate::Notice_level get_notice_level_flags(
+      const Prepared_stmt_info *stmt_info) const;
+
   void send_notices(const Prepared_stmt_info *stmt_info,
                     const ngs::Resultset_interface::Info &info,
                     const bool is_eof) const;
@@ -116,7 +120,8 @@ class Prepare_command_handler {
       const uint32_t args_offset);
 
   ngs::Error_code execute_execute_impl(const Execute &msg,
-                                       ngs::Resultset_interface &rset);
+                                       ngs::Resultset_interface &rset,
+                                       Prepared_stmt_info *prep_stmt_info);
   ngs::Error_code execute_deallocate_impl(const Id_type client_stmt_id,
                                           const Prepared_stmt_info *stmt_info);
   ngs::Error_code execute_cursor_fetch_impl(const Id_type cursor_id,

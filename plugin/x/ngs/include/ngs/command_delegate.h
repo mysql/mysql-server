@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -353,8 +353,8 @@ class Command_delegate {
     @param last_insert_id       Last insert id being assigned during execution
     @param message              A message from server
   */
-  virtual void handle_ok(uint server_status, uint statement_warn_count,
-                         ulonglong affected_rows, ulonglong last_insert_id,
+  virtual void handle_ok(uint32_t server_status, uint32_t statement_warn_count,
+                         uint64_t affected_rows, uint64_t last_insert_id,
                          const char *const message) {
     m_info.server_status = server_status;
     m_info.num_warnings = statement_warn_count;

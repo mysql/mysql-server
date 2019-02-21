@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <iostream>
 #include <string>
+#include <type_traits>
 
 #include "decimal.h"
 #include "my_dbug.h"
@@ -96,14 +97,14 @@ class Convert_if_necessary {
 }  // namespace
 
 Streaming_command_delegate::Streaming_command_delegate(
-    ngs::Protocol_encoder_interface *proto,
-    ngs::Notice_output_queue_interface *notice_queue)
-    : m_proto(proto),
-      m_notice_queue(notice_queue),
+    ngs::Session_interface *session)
+    : m_proto(&session->proto()),
+      m_notice_queue(&session->get_notice_output_queue()),
       m_sent_result(false),
-      m_compact_metadata(false) {}
+      m_compact_metadata(false),
+      m_session(session) {}
 
-Streaming_command_delegate::~Streaming_command_delegate() {}
+Streaming_command_delegate::~Streaming_command_delegate() { on_destruction(); }
 
 void Streaming_command_delegate::reset() {
   log_debug("Streaming_command_delegate::reset");
@@ -306,14 +307,6 @@ int Streaming_command_delegate::end_result_metadata(uint server_status,
             static_cast<int>(server_status));
   Command_delegate::end_result_metadata(server_status, warn_count);
 
-  const bool out_params = server_status & SERVER_PS_OUT_PARAMS;
-
-  if (out_params) {
-    m_proto->send_result_fetch_done_more_out_params();
-  } else if (m_handle_ok_received) {
-    m_proto->send_result_fetch_done_more_results();
-  }
-
   m_handle_ok_received = false;
 
   const auto &meta = m_proto->get_metadata_builder()->stop_metadata_encoding();
@@ -490,10 +483,10 @@ int Streaming_command_delegate::get_string(const char *const value,
 }
 
 /****** Getting execution status ******/
-void Streaming_command_delegate::handle_ok(uint server_status,
-                                           uint statement_warn_count,
-                                           ulonglong affected_rows,
-                                           ulonglong last_insert_id,
+void Streaming_command_delegate::handle_ok(uint32_t server_status,
+                                           uint32_t statement_warn_count,
+                                           uint64_t affected_rows,
+                                           uint64_t last_insert_id,
                                            const char *const message) {
   log_debug(
       "Streaming_command_delegate::handle_ok %i, warnings: %i, "
@@ -501,22 +494,15 @@ void Streaming_command_delegate::handle_ok(uint server_status,
       (int)server_status, (int)statement_warn_count, (int)affected_rows,
       (int)last_insert_id, message);
 
-  const bool out_params = server_status & SERVER_PS_OUT_PARAMS;
-  const bool more_results = server_status & SERVER_MORE_RESULTS_EXISTS;
-
-  if (m_handle_ok_received && !out_params) {
-    m_proto->send_result_fetch_done_more_results();
+  if (m_sent_result && !(server_status & SERVER_MORE_RESULTS_EXISTS)) {
+    m_wait_for_fetch_done = false;
+    m_proto->send_result_fetch_done();
   }
-  m_handle_ok_received = false;
 
-  if (m_sent_result) {
-    if (more_results) {
-      if (!out_params) m_handle_ok_received = true;
-    } else
-      m_proto->send_result_fetch_done();
-  }
-  Command_delegate::handle_ok(server_status, statement_warn_count,
-                              affected_rows, last_insert_id, message);
+  if (!m_handle_ok_received && !m_wait_for_fetch_done &&
+      try_send_notices(server_status, statement_warn_count, affected_rows,
+                       last_insert_id, message))
+    m_proto->send_exec_ok();
 }
 
 void Streaming_command_delegate::handle_error(uint sql_errno,
@@ -528,6 +514,76 @@ void Streaming_command_delegate::handle_error(uint sql_errno,
   m_handle_ok_received = false;
 
   Command_delegate::handle_error(sql_errno, err_msg, sqlstate);
+}
+
+bool Streaming_command_delegate::try_send_notices(
+    const uint32_t server_status, const uint32_t statement_warn_count,
+    const uint64_t affected_rows, const uint64_t last_insert_id,
+    const char *const message) {
+  Command_delegate::handle_ok(server_status, statement_warn_count,
+                              affected_rows, last_insert_id, message);
+  return true;
+}
+
+void Streaming_command_delegate::on_destruction() {
+  if (m_send_notice_deferred) {
+    try_send_notices(m_info.server_status, m_info.num_warnings,
+                     m_info.affected_rows, m_info.last_insert_id,
+                     m_info.message.c_str());
+    m_proto->send_exec_ok();
+    m_send_notice_deferred = false;
+  }
+}
+
+bool Streaming_command_delegate::defer_on_warning(
+    const uint32_t server_status, const uint32_t statement_warn_count,
+    const uint64_t affected_rows, const uint64_t last_insert_id,
+    const char *const message) {
+  if (!m_send_notice_deferred) {
+    Command_delegate::handle_ok(server_status, statement_warn_count,
+                                affected_rows, last_insert_id, message);
+    bool show_warnings =
+        m_session->get_notice_configuration().is_notice_enabled(
+            ngs::Notice_type::k_warning);
+    if (statement_warn_count > 0 && show_warnings) {
+      // We cannot send a warning at this point because it would use
+      // m_session->data_context() in here and we are already in
+      // data_context.execute(). That is why we will deffer the whole notice
+      // sending after we are done.
+      m_send_notice_deferred = true;
+      return true;
+    }
+  } else {
+    notices::send_warnings(m_session->data_context(), *m_proto);
+  }
+  return false;
+}
+
+void Streaming_command_delegate::handle_fetch_done_more_results(
+    uint32_t server_status) {
+  const bool out_params = server_status & SERVER_PS_OUT_PARAMS;
+  if (m_handle_ok_received && !out_params) {
+    m_proto->send_result_fetch_done_more_results();
+  }
+}
+
+void Streaming_command_delegate::end_result_metadata_handle_fetch(
+    uint32_t server_status) {
+  if (server_status & SERVER_PS_OUT_PARAMS)
+    m_proto->send_result_fetch_done_more_out_params();
+  handle_fetch_done_more_results(server_status);
+}
+
+void Streaming_command_delegate::handle_out_param_in_handle_ok(
+    uint32_t server_status) {
+  handle_fetch_done_more_results(server_status);
+
+  const bool out_params = server_status & SERVER_PS_OUT_PARAMS;
+  if (out_params) m_wait_for_fetch_done = true;
+
+  const bool more_results = server_status & SERVER_MORE_RESULTS_EXISTS;
+  m_handle_ok_received =
+      (m_sent_result && more_results && !out_params) ? true : false;
 }
 
 }  // namespace xpl

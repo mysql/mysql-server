@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ ngs::Error_code Crud_command_handler::execute(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
   notice_handling(resultset.get_info(), builder, msg);
-  (m_session->proto().*send_ok)();
+  if (send_ok) (m_session->proto().*send_ok)();
   return ngs::Success();
 }
 
@@ -216,12 +216,16 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
     const Mysqlx::Crud::Find &msg) {
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
-  Streaming_resultset rset(&m_session->proto(),
-                           &m_session->get_notice_output_queue(), false);
+  Streaming_resultset<Crud_command_delegate> rset(m_session, false);
   return execute(Find_statement_builder(gen), msg, rset,
-                 &ngs::Common_status_variables::m_crud_find,
-                 &ngs::Protocol_encoder_interface::send_exec_ok);
+                 &ngs::Common_status_variables::m_crud_find, nullptr);
 }
+
+template <>
+void Crud_command_handler::notice_handling(
+    const ngs::Resultset_interface::Info &info,
+    const Find_statement_builder & /*builder*/,
+    const Mysqlx::Crud::Find & /*msg*/) const {}
 
 template <>
 ngs::Error_code Crud_command_handler::error_handling(
