@@ -155,9 +155,14 @@ TEST(Mysys, CreateTempFile) {
   EXPECT_THAT(dst, MatchesRegex("/tmp/[a]+fd=[0-9]+"));
   aset(dst, 0xaa);
 
+  char *env_tmpdir = getenv("TMPDIR");
   fileno = create_temp_file(dst, nullptr, prefix, 42, UNLINK_FILE, 0);
   EXPECT_GE(fileno, 0);
-  EXPECT_THAT(dst, StartsWith("/tmp"));
+  if (env_tmpdir != nullptr) {
+    EXPECT_THAT(dst, StartsWith(env_tmpdir));
+  } else {
+    EXPECT_THAT(dst, StartsWith("/tmp"));
+  }
   my_close(fileno, 0);
   aset(dst, 0xaa);
 
