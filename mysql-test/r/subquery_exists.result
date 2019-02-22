@@ -349,8 +349,7 @@ DROP TABLE t1, t2;
 CREATE TABLE t1 (a INTEGER);
 explain SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE 127 = 55);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
 SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE 127 = 55);
