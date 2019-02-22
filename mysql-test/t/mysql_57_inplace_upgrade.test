@@ -237,6 +237,15 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 --let $MYSQLD_DATADIR= `select @@datadir`
 --file_exists $MYSQLD_DATADIR/mysql_upgrade_info
 
+--echo ###########################################################################
+--echo # Bug#29365552: LEFTOVER SYSTEM TABLES AFTER 5.7 => 8.0 IN-PLACE UPGRADE
+--echo ###########################################################################
+
+# These files must not exist
+# $MYSQLD_DATADIR/mysql/innodb_index_stats_backup57.ibd
+# $MYSQLD_DATADIR/mysql/innodb_table_stats_backup57.ibd
+--list_files $MYSQLD_DATADIR/mysql
+
 --let $shutdown_server_timeout = 300
 --source include/shutdown_mysqld.inc
 

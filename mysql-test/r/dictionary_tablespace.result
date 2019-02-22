@@ -185,8 +185,6 @@ t1	CREATE TABLE `t1` (
 general_log.CSM
 general_log.CSV
 general_log_XXX.sdi
-innodb_index_stats_backup57.ibd
-innodb_table_stats_backup57.ibd
 slow_log.CSM
 slow_log.CSV
 slow_log_XXX.sdi

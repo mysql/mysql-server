@@ -82,6 +82,15 @@ COUNT(*) != 0
 # There should be no errors
 Pattern "\[ERROR\]" not found
 ###########################################################################
+# Bug#29365552: LEFTOVER SYSTEM TABLES AFTER 5.7 => 8.0 IN-PLACE UPGRADE
+###########################################################################
+general_log.CSM
+general_log.CSV
+general_log_470.sdi
+slow_log.CSM
+slow_log.CSV
+slow_log_472.sdi
+###########################################################################
 # Cleanup
 ###########################################################################
 # restart:
