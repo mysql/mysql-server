@@ -8024,7 +8024,7 @@ ER_NO_ACCESS_TO_NATIVE_FCT
   eng "Access to native function '%.64s' is rejected."
 
 ER_RESET_MASTER_TO_VALUE_OUT_OF_RANGE
-  eng "The requested value '%lu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
+  eng "The requested value '%llu' for the next binary log index is out of range. Please use a value between '1' and '%lu'."
 
 ER_UNRESOLVED_TABLE_LOCK
   eng "Unresolved table name %s in locking clause."
