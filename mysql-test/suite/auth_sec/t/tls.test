@@ -36,15 +36,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --echo #T3: Setting TLS version TLSv1.2 from the client
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"
 
---echo #T4: Setting TLS version TLSv1.1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
-
---echo #T5: Setting TLS version TLSv1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
-
---echo #T6: Setting TLS version TLSv1, TLSv1.1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
-
 --echo #T7: Setting invalid TLS version value from the client, it should give error.
 --error 1
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLS_INVALID_VERSION -e "SHOW STATUS like 'Ssl_version'"
@@ -85,18 +76,6 @@ if ($openssl != 'Rsa_public_key'){
 
 --echo Connection will be possible, but server will not be enabled with ssl and connection is not ssl-enabled
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 --ssl-cipher=DHE-DSS-DES-CBC3-SHA -e "SHOW STATUS like 'Ssl_cipher'"
-
---echo #T11: Setting TLS version1.2 in the server and from client giving TLSv1.1, connection should fail
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---exec echo "restart:--tls-version=TLSv1.2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
-
---error 1
---exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
 
 --echo # restart server using restart
 --echo Restart server and provide ssl-cipher at server startup
