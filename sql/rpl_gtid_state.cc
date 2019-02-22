@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -326,8 +326,10 @@ bool Gtid_state::wait_for_gtid_set(THD *thd, Gtid_set* wait_for,
 
   DBUG_ASSERT(wait_for->get_sid_map() == global_sid_map);
 
-  if (timeout > 0)
-    set_timespec_nsec(&abstime, (ulonglong) timeout * 1000000000ULL);
+  if (timeout > 0) {
+    set_timespec_nsec(&abstime,
+                      static_cast<ulonglong>(timeout * 1000000000ULL));
+  }
 
   /*
     Algorithm:
