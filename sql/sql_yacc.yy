@@ -11606,6 +11606,7 @@ ulonglong_num:
 
 real_ulonglong_num:
           NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
+        | HEX_NUM       { $$= (ulonglong) my_strtoll($1.str, (char**) 0, 16); }
         | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
         | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, nullptr, &error); }
         | dec_num_error { MYSQL_YYABORT; }
@@ -13171,7 +13172,7 @@ slave_reset_options:
 
 master_reset_options:
           /* empty */ {}
-        | TO_SYM real_ulong_num
+        | TO_SYM real_ulonglong_num
           {
             if ($2 == 0 || $2 > MAX_ALLOWED_FN_EXT_RESET_MASTER)
             {

@@ -11,6 +11,7 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_mixed.inc
+--source include/force_restart.inc
 
 # This is to suppress the warnings generated after extension boundary value is reached.
 call mtr.add_suppression("Next log extension.* Remaining log filename extensions.");
@@ -125,8 +126,8 @@ RESET MASTER TO 2000000000;
 FLUSH BINARY LOGS;
 FLUSH BINARY LOGS;
 
---let $assert_only_after = CURRENT_TEST: binlog.binlog_reset_master_to_option
---let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_only_after=CURRENT_TEST: binlog.binlog_reset_master_to_option
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/binlog_reset_master_to_option.err
 --let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] Next log extension: .* Please consider archiving some logs.
 --let $assert_text= Found the expected log exhaustion warnings in the error log.
 --let $assert_count= 2
