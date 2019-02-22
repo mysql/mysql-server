@@ -42,11 +42,6 @@
 #include <stdexcept>
 #include <vector>
 
-using std::make_tuple;
-using std::string;
-using std::tuple;
-using std::vector;
-
 static const size_t kHelpScreenWidth = 72;
 static const size_t kHelpScreenIndent = 8;
 
@@ -115,7 +110,7 @@ class MySQLRouter {
    * @param sys_user_operations .oO( ... )
    */
   MySQLRouter(const mysql_harness::Path &origin,
-              const vector<string> &arguments,
+              const std::vector<std::string> &arguments,
               std::ostream &out_stream = std::cout,
               std::ostream &err_stream = std::cerr
 #ifndef _WIN32
@@ -267,6 +262,31 @@ class MySQLRouter {
     return extra_config_files_;
   }
 
+  /** @brief Returns predefined (computed) default paths
+   *
+   * Returns a map of predefined default paths, which are computed based on
+   * `origin` argument. This argument serves as base directory for any
+   * predefined relative paths. The returned map consists of absolue paths.
+   *
+   * @param origin Base directory which will be prepended to any relative
+   *        predefined directories
+   *
+   * @throws std::invalid_argument (std::logic_error) if `origin` is empty
+   */
+  static std::map<std::string, std::string> get_default_paths(
+      const mysql_harness::Path &origin);
+
+  /** @brief Returns absolute path to mysqlrouter.exe currently running
+   *
+   * @param argv0 1th element of `argv` array passed to `main()` (i.e.
+   * `argv[0]`)
+   *
+   * @throws std::runtime_error, ...?
+   *
+   * @note argv0 is currently ignored on Windows platforms
+   */
+  static std::string find_full_path(const std::string &argv0);
+
 #if !defined(_MSC_VER) && !defined(UNIT_TESTS)
   // MSVC produces different symbols for private vs public methods, which mean
   // the #define private public trick for unit-testing private methods doesn't
@@ -318,7 +338,7 @@ class MySQLRouter {
    * application.
    */
   void parse_command_options(
-      const vector<string> &arguments);  // throws std::runtime_error
+      const std::vector<std::string> &arguments);  // throws std::runtime_error
 
   /** @brief Finds all valid configuration files
    *
@@ -465,7 +485,7 @@ class MySQLRouter {
   /** @brief Vector with configuration files passed through command line
    * arguments **/
   // TODO move these to class ConfigFiles
-  std::vector<string> config_files_;
+  std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
 

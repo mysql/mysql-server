@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -157,7 +157,7 @@ std::string ConfigSection::do_replace(const std::string &value,
 }
 
 std::string ConfigSection::get(const std::string &option) const {
-  check_option(option);
+  check_option(option);  // throws bad::option (std::runtime_error)
   auto result = do_locate(option);
   if (std::get<1>(result)) return do_replace(std::get<0>(result)->second);
   throw bad_option("Value for '" + option + "' not found");
@@ -177,12 +177,12 @@ std::string ConfigSection::get_section_name(const std::string &option) const {
 }
 
 bool ConfigSection::has(const std::string &option) const {
-  check_option(option);
+  check_option(option);  // throws bad_option (std::runtime_error)
   return std::get<1>(do_locate(option));
 }
 
 std::pair<ConfigSection::OptionMap::const_iterator, bool>
-ConfigSection::do_locate(const std::string &option) const {
+ConfigSection::do_locate(const std::string &option) const noexcept {
   auto it = options_.find(lower(option));
   if (it != options_.end()) return {it, true};
 
@@ -193,7 +193,7 @@ ConfigSection::do_locate(const std::string &option) const {
 }
 
 void ConfigSection::set(const std::string &option, const std::string &value) {
-  check_option(option);  // throws bad_option
+  check_option(option);  // throws bad_option (std::runtime_error)
   options_[lower(option)] = value;
 }
 
@@ -262,15 +262,15 @@ const ConfigSection &Config::get(const std::string &section,
 }
 
 std::string Config::get_default(const std::string &option) const {
-  return defaults_->get(option);
+  return defaults_->get(option);  // throws bad_option (std::runtime_error)
 }
 
 bool Config::has_default(const std::string &option) const {
-  return defaults_->has(option);
+  return defaults_->has(option);  // throws bad_option (std::runtime_error)
 }
 
 void Config::set_default(const std::string &option, const std::string &value) {
-  defaults_->set(option, value);
+  defaults_->set(option, value);  // throws bad_option (std::runtime_error)
 }
 
 bool Config::is_reserved(const std::string &word) const {

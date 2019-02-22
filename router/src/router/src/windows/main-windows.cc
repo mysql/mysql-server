@@ -22,6 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "../router_app.h"
+#include "harness_assert.h"
 #include "mysql/harness/loader.h"
 #include "mysql/harness/logging/eventlog_plugin.h"
 #include "nt_servc.h"
@@ -31,6 +33,10 @@
 #include <winsock2.h>
 #include <fstream>
 #include <iostream>
+
+// forward declarations
+std::string get_logging_folder(const std::string &conf_file);
+void allow_windows_service_to_write_logs(const std::string &conf_file);
 
 namespace {
 
@@ -143,6 +149,19 @@ ServiceStatus check_service_operations(int argc, char **argv) noexcept {
               true);
           return ServiceStatus::Error;
         }
+
+        try {
+          // this will parse the config file, thus partially validate it as a
+          // side-effect
+          allow_windows_service_to_write_logs(config_path);
+        } catch (const std::runtime_error &e) {
+          log_error(
+              std::string(
+                  "Setting up file permissons for user LocalService failed: ") +
+              e.what());
+          return ServiceStatus::Error;
+        }
+
         {
           char abs_path[1024];
           GetFullPathName(argv[0], sizeof(abs_path), abs_path, NULL);
@@ -205,6 +224,126 @@ void do_windows_cleanup() noexcept {
 }
 
 }  // unnamed namespace
+
+/** @brief Returns path to directory containing Router's logfile
+ *
+ * This function first searches the config file for `logging_folder` and returns
+ * that if found. If not, it returns default value (computed based on `argv0`).
+ *
+ * @param conf_file Path to Router configuration file
+ *
+ * @throws std::runtime_error if opening/parsing config file fails.
+ *
+ * @note this function is private to this compilation unit, but outside of
+ *       unnamed namespace so it can be unit-tested.
+ */
+std::string get_logging_folder(const std::string &conf_file) {
+  constexpr char kLoggingFolder[] = "logging_folder";
+  std::string logging_folder;
+
+  // try to obtain the logging_folder from config; if logging_folder is not
+  // specified in the config file, config.read() will return an empty string
+  mysql_harness::LoaderConfig config(mysql_harness::Config::allow_keys);
+  {
+    try {
+      config.read(conf_file);  // throws (derivatives of) std::runtime_error,
+                               // std::logic_error, ...?
+    } catch (const std::exception &e) {
+      std::string msg = std::string("Reading configuration file '") +
+                        conf_file + "' failed: " + e.what();
+      throw std::runtime_error(msg);
+    }
+
+    try {
+      if (config.has_default(kLoggingFolder))
+        logging_folder = config.get_default(kLoggingFolder);
+    } catch (const std::runtime_error &) {
+      // it could throw only if kLoggingFolder contained illegal characters
+      harness_assert_this_should_not_execute();
+    }
+  }
+
+  // if not provided, we have to compute the the logging_folder based on exec
+  // path and predefined standard locations
+  if (logging_folder.empty()) {
+    const std::string router_exec_path =
+        MySQLRouter::find_full_path(std::string() /*ignored on Win*/);
+    const mysql_harness::Path router_parent_dir =
+        mysql_harness::Path(router_exec_path).dirname();
+    const auto default_paths =
+        MySQLRouter::get_default_paths(router_parent_dir);
+
+    harness_assert(
+        default_paths.count(kLoggingFolder));  // ensure .at() below won't throw
+    logging_folder = default_paths.at(kLoggingFolder);
+  }
+
+  return logging_folder;
+}
+
+/** @brief Sets appropriate permissions on log dir/file so that Router can run
+ *         as a Windows service
+ *
+ * This function first obtains logging_folder (first it checks Router config
+ * file, if not found there, it uses the predefined default) and then sets RW
+ * access for that folder, and log file inside of it (if present), such that
+ * Router can run as a Windows service (at the time of writing, it runs as user
+ * `LocalService`).
+ *
+ * @param conf_file Path to Router configuration file
+ *
+ * @throws std::runtime_error on any error (i.e. opening/parsing config file
+ *         fails, log dir or file is bogus, setting permissions on log dir or
+ *         file fails)
+ *
+ * @note At the moment we don't give delete rights, but these might be needed
+ *       when we implement log file rotation on Windows.
+ *
+ * @note this function is private to this compilation unit, but outside of
+ *       unnamed namespace so it can be unit-tested.
+ */
+void allow_windows_service_to_write_logs(const std::string &conf_file) {
+  // obtain logging_folder; throws std::runtime_error on failure
+  std::string logging_folder = get_logging_folder(conf_file);
+  harness_assert(!logging_folder.empty());
+
+  using mysql_harness::Path;
+  const Path path_to_logging_folder{logging_folder};
+  Path path_to_logging_file{path_to_logging_folder.join("mysqlrouter.log")};
+
+  if (!path_to_logging_folder.is_directory())
+    throw std::runtime_error(
+        std::string("logging_folder '") + logging_folder +
+        "' specified (or implied) by configuration file '" + conf_file +
+        "' does not point to a valid directory");
+
+  // set RW permission for user LocalService on log directory
+  try {
+    mysql_harness::make_file_private(
+        logging_folder, false /* false means: RW access for LocalService */);
+  } catch (const std::exception &e) {
+    std::string msg = "Setting RW access for LocalService on log directory '" +
+                      logging_folder + "' failed: " + e.what();
+    throw std::runtime_error(msg);
+  }
+
+  // set RW permission for user LocalService on log file
+  if (path_to_logging_file.is_regular()) {
+    try {
+      mysql_harness::make_file_private(
+          path_to_logging_file.str(),
+          false /* false means: RW access for LocalService */);
+    } catch (const std::exception &e) {
+      std::string msg = "Setting RW access for LocalService on log file '" +
+                        path_to_logging_file.str() + "' failed: " + e.what();
+      throw std::runtime_error(msg);
+    }
+  } else if (path_to_logging_file.exists()) {
+    throw std::runtime_error(std::string("Path '") +
+                             path_to_logging_file.str() +
+                             "' does not point to a regular file");
+  }
+}
 
 int proxy_main(int (*real_main)(int, char **, bool), int argc, char **argv) {
   int result = 0;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -216,7 +216,7 @@ class HARNESS_EXPORT ConfigSection {
   const int kMaxInterpolationDepth = 10;
 
   std::pair<OptionMap::const_iterator, bool> do_locate(
-      const std::string &option) const;
+      const std::string &option) const noexcept;
 
   const std::shared_ptr<const ConfigSection> defaults_;
   OptionMap options_;
@@ -438,6 +438,8 @@ class HARNESS_EXPORT Config {
    */
   bool has_any(const std::string &section) const;
 
+  // all 3 below throw bad_option (std::runtime_error) on illegal option name
+  // (one that contains illegal characters) */
   std::string get_default(const std::string &option) const;
   bool has_default(const std::string &option) const;
   void set_default(const std::string &option, const std::string &value);

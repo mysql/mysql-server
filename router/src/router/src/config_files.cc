@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ ConfigFiles::ConfigFiles(const std::vector<std::string> &default_config_files,
   auto config_file_containers = {&default_config_files, &config_files,
                                  &extra_config_files};
 
-  for (const vector<string> *vec : config_file_containers) {
+  for (const std::vector<std::string> *vec : config_file_containers) {
     for (const std::string &file : *vec) {
       auto pos = std::find(available_config_files_.begin(),
                            available_config_files_.end(), file);
