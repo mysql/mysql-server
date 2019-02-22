@@ -1166,7 +1166,8 @@ runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
     if (newTab.createTableInDb(pNdb) != 0) {
       ndbout << tabName << " could not be created: "
              << pDic->getNdbError() << endl;
-      if (pDic->getNdbError().code == 707 ||
+      if (pDic->getNdbError().code == 625 ||
+          pDic->getNdbError().code == 707 ||
           pDic->getNdbError().code == 708 ||
           pDic->getNdbError().code == 826 ||
           pDic->getNdbError().code == 827 ||

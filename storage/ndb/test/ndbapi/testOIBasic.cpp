@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1574,7 +1574,7 @@ Con::printerror(NdbOut& out)
         // 631 is new, occurs only on 4 db nodes, needs to be checked out
         if (code == 266 || code == 274 || code == 296 || code == 297 || code == 499 || code == 631)
           m_errtype = ErrDeadlock;
-        if (code == 826 || code == 827 || code == 902 || code == 921)
+        if (code == 625 || code == 826 || code == 827 || code == 902 || code == 921)
           m_errtype = ErrNospace;
       }
       if (m_op && m_op->getNdbError().code != 0) {
