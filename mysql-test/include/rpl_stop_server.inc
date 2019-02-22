@@ -55,6 +55,14 @@ if ($VALGRIND_TEST)
 {
   let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
 }
+
+let $have_sparc = `select convert(@@version_compile_machine using latin1) IN ("sparc")`;
+if ($have_sparc)
+{
+  let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`;
+}
+
+
 if ($rpl_force_stop)
 {
    # if force_stop is set, shutdown server immediately(equal to killing the server)
