@@ -180,9 +180,6 @@ IF(WIN32)
   SET_TARGET_PROPERTIES(harness-archive PROPERTIES
     COMPILE_FLAGS -DHARNESS_STATIC_DEFINE)
 ENDIF()
-IF(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(PUBLIC harness-archive "-pthread")
-ENDIF()
 
 # create harness library - dynamic version
 ADD_LIBRARY(harness-library SHARED
