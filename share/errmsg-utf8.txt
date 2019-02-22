@@ -6006,8 +6006,8 @@ ER_FOREIGN_DUPLICATE_KEY_OLD_UNUSED 23000 S1009
         eng "Upholding foreign key constraints for table '%.192s', entry '%-.192s', key %d would lead to a duplicate entry"
 # OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE
-        eng "Column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
-        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
+        eng "The column count of mysql.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
+        ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte verwenden Sie die MySQL-Upgrade-Prozedur, um den Fehler zu beheben."
 OBSOLETE_ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
         eng "Cannot switch out of the row-based binary log format when the session has open temporary tables"
         ger "Kann nicht aus dem zeilenbasierten Binärlog-Format herauswechseln, wenn die Sitzung offene temporäre Tabellen hat"
@@ -7137,8 +7137,8 @@ ER_FK_DEPTH_EXCEEDED
   eng "Foreign key cascade delete/update exceeds max depth of %d."
 
 ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
-        eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
-        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte benutzen Sie mysql_upgrade, um den Fehler zu beheben"
+        eng "The column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
+        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d erhalten. Erzeugt mit MySQL %d, jetzt unter %d. Bitte verwenden Sie die MySQL-Upgrade-Prozedur, um den Fehler zu beheben."
 
 ER_WARN_TRIGGER_DOESNT_HAVE_CREATED
   eng "Trigger %s.%s.%s does not have CREATED attribute."
@@ -7692,7 +7692,7 @@ ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
   eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using."
 
 ER_USER_COLUMN_OLD_LENGTH
-  eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please run mysql_upgrade."
+  eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
 
 ER_CANT_RESET_MASTER
   eng "RESET MASTER is not allowed because %-.384s."
@@ -9543,7 +9543,7 @@ ER_UDF_INVALID_ROW_IN_FUNCTION_TABLE
   eng "Invalid row in mysql.func table for function '%.64s'"
 
 ER_UDF_CANT_OPEN_FUNCTION_TABLE
-  eng "Can't open the mysql.func table. Please run mysql_upgrade to create it."
+  eng "Could not open the mysql.func table. Please perform the MySQL upgrade procedure."
 
 ER_XA_RECOVER_FOUND_TRX_IN_SE
   eng "Found %d prepared transaction(s) in %s"
@@ -9816,13 +9816,13 @@ ER_AUTHCACHE_PLUGIN_CONFIG
   eng "The plugin '%s' is used to authenticate user '%s'@'%.*s', %s configured. Nobody can currently login using this account."
 
 OBSOLETE_ER_AUTHCACHE_ROLE_TABLES_DODGY
-  eng "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless mysql_upgrade is executed."
+  eng "Could not load mysql.role_edges and mysql.default_roles tables. ACL DDLs will not work unless the MySQL upgrade procedure is performed."
 
 ER_AUTHCACHE_USER_SKIPPED_NEEDS_RESOLVE
   eng "'user' entry '%s@%s' ignored in --skip-name-resolve mode."
 
 ER_AUTHCACHE_USER_TABLE_DODGY
-  eng "Fatal error: mysql.user table is damaged. Please run mysql_upgrade."
+  eng "Fatal error: Could not read the column 'authentication_string' from table 'mysql.user'. Please perform the MySQL upgrade procedure."
 
 ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD
   eng "User entry '%s'@'%s' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore."
@@ -9837,7 +9837,7 @@ ER_AUTHCACHE_EXPIRED_PASSWORD_UNSUPPORTED
   eng "'user' entry '%s@%s' has the password ignore flag raised, but its authentication plugin doesn't support password expiration. The user id will be ignored."
 
 ER_NO_SUPER_WITHOUT_USER_PLUGIN
-  eng "Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value. If you are upgrading from MySQL 5.6 to MySQL 5.7 it means we were not able to substitute for empty plugin column. Probably because of pre 4.1 password hash. If your account is disabled you will need to: 1. Stop the server and restart it with --skip-grant-tables. 2. Run mysql_upgrade. 3. Restart the server with the parameters you normally use. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual"
+  eng "Some of the user accounts with SUPER privileges were disabled because of empty mysql.user.plugin value. If you are upgrading from MySQL 5.6 to MySQL 5.7 it means that substitution for the empty plugin column was not possible. Probably because of pre 4.1 password hash. If your account is disabled you will need to perform the MySQL upgrade procedure. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual."
 
 ER_AUTHCACHE_DB_IGNORED_EMPTY_NAME
   eng "Found an entry in the 'db' table with empty database name; Skipped"
@@ -9849,7 +9849,7 @@ ER_AUTHCACHE_DB_ENTRY_LOWERCASED_REVOKE_WILL_FAIL
   eng "'db' entry '%s %s@%s' had database in mixed case that has been forced to lowercase because lower_case_table_names is set. It will not be possible to remove this privilege using REVOKE."
 
 ER_AUTHCACHE_TABLE_PROXIES_PRIV_MISSING
-  eng "Missing system table mysql.proxies_priv; please run mysql_upgrade to create it"
+  eng "The system table mysql.proxies_priv is missing. Please perform the MySQL upgrade procedure."
 
 ER_AUTHCACHE_CANT_OPEN_AND_LOCK_PRIVILEGE_TABLES
   eng "Fatal error: Can't open and lock privilege tables: %s"
@@ -11079,7 +11079,7 @@ ER_PLUGIN_REGISTRATION_FAILED
   eng "Plugin '%s' registration as a %s failed."
 
 ER_PLUGIN_CANT_OPEN_PLUGIN_TABLE
-  eng "Can't open the mysql.plugin table. Please run mysql_upgrade to create it."
+  eng "Could not open the mysql.plugin table. Please perform the MySQL upgrade procedure."
 
 ER_PLUGIN_CANT_LOAD
   eng "Couldn't load plugin named '%s' with soname '%s'."
@@ -11730,7 +11730,7 @@ ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED
   eng "Could not add wild ignore table rule '%s'!"
 
 ER_PRIVILEGE_SYSTEM_INIT_FAILED
-  eng "The privilege system failed to initialize correctly. If you have upgraded your server, make sure you're executing mysql_upgrade to correct the issue."
+  eng "The privilege system failed to initialize correctly. For complete instructions on how to upgrade MySQL to a new version please see the 'Upgrading MySQL' section from the MySQL manual."
 
 ER_CANNOT_SET_LOG_ERROR_SERVICES
   eng "Cannot set services \"%s\" requested in --log-error-services, using defaults."
@@ -11769,7 +11769,7 @@ ER_RPL_SLAVE_RESET_FILTER_OPTIONS
   eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
 
 ER_MISSING_GRANT_SYSTEM_TABLE
-  eng "Missing system table mysql.global_grants; please run mysql_upgrade to create it."
+  eng "The system table mysql.global_grants is missing. Please perform the MySQL upgrade procedure."
 
 ER_MISSING_ACL_SYSTEM_TABLE
   eng "ACL table mysql.%.*s missing. Some operations may fail."
@@ -13998,7 +13998,7 @@ ER_GRP_RPL_SQL_SERVICE_FAILED_TO_FETCH_SECURITY_CTX
   eng "Error when trying to fetch security context when contacting the server for internal plugin requests."
 
 ER_GRP_RPL_SQL_SERVICE_SERVER_ACCESS_DENIED_FOR_USER
-  eng "There was an error when trying to access the server with user: %s. Make sure the user is present in the server and that mysql_upgrade was run after a server update."
+  eng "There was an error when trying to access the server with user: %s. Make sure the user is present in the server and that the MySQL upgrade procedure was run correctly."
 
 ER_GRP_RPL_SQL_SERVICE_MAX_CONN_ERROR_FROM_SERVER
   eng "Failed to establish an internal server connection to execute plugin operations since the server does not have available connections, please increase @@GLOBAL.MAX_CONNECTIONS. Server error: %i."
@@ -18300,7 +18300,7 @@ ER_SERVER_TABLE_CHECK_FAILED
   eng "Incorrect definition of table %s.%s: expected column '%s' at position %d, found '%s'."
 
 ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2
-  eng "Column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please use mysql_upgrade to fix this error."
+  eng "The column count of %s.%s is wrong. Expected %d, found %d. Created with MySQL %d, now running %d. Please perform the MySQL upgrade procedure."
 
 ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
   eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
@@ -18409,7 +18409,7 @@ ER_UPDATE_GTID_PURGED_WITH_GR
   eng "Cannot update GTID_PURGED with the Group Replication plugin running"
 
 ER_AUDIT_LOG_TABLE_DEFINITION_NOT_UPDATED
-  eng "'%s.%s' table definition has not been upgraded; to upgrade it, run mysql_upgrade command."
+  eng "'%s.%s' table definition has not been upgraded; Please perform the MySQL upgrade procedure."
 
 ER_DD_INITIALIZE_SQL_ERROR
   eng "Execution of server-side SQL statement '%s' failed with error code = %d, error message = '%s'."
