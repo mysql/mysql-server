@@ -65,3 +65,31 @@ DROP TABLE t1;
 # Remove copied files
 # Restart the server with default options.
 # restart
+#
+# Bug#28901821 - AFTER UPGRADE TO 8.0.13, SYS SCHEMA VIEWS ARE LISTED AS INVALID
+#                IN I_S.TABLES
+#
+# Copy the remote tablespace & DB zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop DB server which was created by MTR default
+# Start the DB server
+# Without fix, following views are listed as invalid.
+SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME = 'schema_auto_increment_columns' OR
+TABLE_NAME = 'schema_object_overview' OR
+TABLE_NAME = 'schema_redundant_indexes' OR
+TABLE_NAME = 'schema_unused_indexes' OR
+TABLE_NAME = 'x$schema_flattened_keys'
+         ORDER BY TABLE_NAME;
+TABLE_NAME	TABLE_COMMENT
+schema_auto_increment_columns	VIEW
+schema_object_overview	VIEW
+schema_redundant_indexes	VIEW
+schema_unused_indexes	VIEW
+x$schema_flattened_keys	VIEW
+# Stop the server and do cleanup.
+# Remove copied files
+# Restart the server with default options.
+# restart

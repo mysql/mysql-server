@@ -245,7 +245,8 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       if (vw_name == nullptr) DBUG_RETURN(true);
 
       vw->init_one_table(db_name, schema_name.length(), vw_name,
-                         view_name.length(), vw_name, TL_WRITE, MDL_EXCLUSIVE);
+                         view_name.length(), vw_name, TL_IGNORE, MDL_EXCLUSIVE);
+      vw->updating = true;
 
       views->push_back(vw);
       prepared_view_ids.insert(view_ids.at(idx));
@@ -551,24 +552,22 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
                                            const char *name) {
   DBUG_ENTER("is_view_metadata_update_needed");
 
-  // Update view metadata for only non temporary user tables.
-  auto is_non_temp_user_table = [](THD *thd, const char *db, const char *name) {
-    LEX_STRING lex_db = {const_cast<char *>(db), strlen(db)};
-    LEX_STRING lex_name = {const_cast<char *>(name), strlen(name)};
-
-    if (dd::get_dictionary()->is_dd_schema_name(db) ||
-        get_table_category(lex_db, lex_name) != TABLE_CATEGORY_USER ||
-        find_temporary_table(thd, db, name))
-      return false;
-
-    return true;
+  /*
+    View metadata update is needed if table is not a temporary or dictionary
+    table.
+  */
+  auto is_non_dictionary_or_temp_table = [=]() {
+    bool is_tmp_table =
+        (thd->lex->sql_command == SQLCOM_CREATE_TABLE)
+            ? (thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE)
+            : (find_temporary_table(thd, db, name) != nullptr);
+    return (!is_tmp_table && !dd::get_dictionary()->is_dd_table_name(db, name));
   };
 
   bool retval = false;
   switch (thd->lex->sql_command) {
     case SQLCOM_CREATE_TABLE:
-      retval = is_non_temp_user_table(thd, db, name) &&
-               !(thd->lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
+      retval = is_non_dictionary_or_temp_table();
       break;
     case SQLCOM_ALTER_TABLE: {
       DBUG_ASSERT(thd->lex->alter_info);
@@ -578,17 +577,17 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
           (Alter_info::ALTER_ADD_COLUMN | Alter_info::ALTER_DROP_COLUMN |
            Alter_info::ALTER_CHANGE_COLUMN | Alter_info::ALTER_RENAME |
            Alter_info::ALTER_OPTIONS | Alter_info::ALTER_CHANGE_COLUMN_DEFAULT);
-      retval = is_non_temp_user_table(thd, db, name) &&
+      retval = is_non_dictionary_or_temp_table() &&
                (thd->lex->alter_info->flags & alter_operations);
       break;
     }
     case SQLCOM_DROP_TABLE:
     case SQLCOM_RENAME_TABLE:
+    case SQLCOM_DROP_DB:
+      retval = is_non_dictionary_or_temp_table();
+      break;
     case SQLCOM_CREATE_VIEW:
     case SQLCOM_DROP_VIEW:
-    case SQLCOM_DROP_DB:
-      retval = is_non_temp_user_table(thd, db, name);
-      break;
     case SQLCOM_CREATE_SPFUNCTION:
     case SQLCOM_DROP_FUNCTION:
     case SQLCOM_INSTALL_PLUGIN:

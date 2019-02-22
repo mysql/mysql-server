@@ -5233,6 +5233,13 @@ static int init_server_components() {
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (!is_help_or_validate_option()) {
+    /*
+      Initialize the cost model, but delete it after the pfs is initialized.
+      Cost model is needed while dropping and creating pfs tables to
+      update metadata of referencing views (if there are any).
+    */
+    init_optimizer_cost_module(true);
+
     bool st;
     if (opt_initialize || dd_upgrade_was_initiated)
       st = dd::performance_schema::init_pfs_tables(
@@ -5240,6 +5247,9 @@ static int init_server_components() {
     else
       st = dd::performance_schema::init_pfs_tables(
           dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE);
+
+    /* Now that the pfs is initialized, delete the cost model. */
+    delete_optimizer_cost_module();
 
     if (st) {
       LogErr(ERROR_LEVEL, ER_PERFSCHEMA_TABLES_INIT_FAILED);
