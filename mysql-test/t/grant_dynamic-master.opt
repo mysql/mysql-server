@@ -1,6 +1,3 @@
---tls-version=TLSv1.2
---ssl-cipher=DHE-RSA-AES256-SHA
---tls-ciphersuites=""
 # Avoid GRANT rewrites on builds where partial_revokes is ON.
 # We already check GRANT rewrites through grant_as_ddl.test
 --partial-revokes=OFF
