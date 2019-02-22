@@ -39,15 +39,6 @@ let $MYSQL_PORT= `SELECT @@port`;
 --echo Setting TLS version TLSv1.2 from the client
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"
 
---echo Setting TLS version TLSv1.1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
-
---echo Setting TLS version TLSv1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1 -e "SHOW STATUS like 'Ssl_version'"
-
---echo Setting TLS version TLSv1, TLSv1.1 from the client
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
-
 --echo Setting TLS version TLSv1, TLSv1.1, TLSv1.2 from the client
 --exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1,TLSv1.1,TLSv1.2 -e "SHOW STATUS like 'Ssl_version'"
 
