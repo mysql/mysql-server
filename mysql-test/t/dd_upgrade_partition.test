@@ -30,7 +30,7 @@ call mtr.add_suppression("Column count of mysql.* is wrong");
 call mtr.add_suppression("Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
-call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
+call mtr.add_suppression(".*The system table mysql.global_grants is missing.*");
 # InnoDB reports "Lock wait timeout" warnings when it tries to drop persistent
 # statistics while persistent statistics table is altered during upgrade.
 # This issue doesn't seem to cause any further trouble (as there is no persistent

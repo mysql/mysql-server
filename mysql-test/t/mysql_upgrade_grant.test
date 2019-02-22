@@ -42,9 +42,7 @@ INSERT INTO mysql.user VALUES
 ('localhost','B19011337_ohash','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
 
 call mtr.add_suppression("Some of the user accounts with SUPER");
-call mtr.add_suppression("1. Stop");
-call mtr.add_suppression("2. Run");
-call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("perform the MySQL upgrade procedure");
 call mtr.add_suppression("For complete");
 call mtr.add_suppression("User entry .B19011337");
 
@@ -60,13 +58,7 @@ let SEARCH_FILE= $test_error_log;
 --let SEARCH_PATTERN= User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore.
 --source include/search_pattern.inc
 
---let SEARCH_PATTERN= 1. Stop
---source include/search_pattern.inc
-
---let SEARCH_PATTERN= 2. Run
---source include/search_pattern.inc
-
---let SEARCH_PATTERN= 3. Restart
+--let SEARCH_PATTERN= perform the MySQL upgrade procedure
 --source include/search_pattern.inc
 
 --let SEARCH_PATTERN= For complete instructions on how to upgrade MySQL

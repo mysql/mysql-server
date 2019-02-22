@@ -35,9 +35,7 @@ INSERT INTO mysql.user VALUES
 ('localhost','B19011337_nhash','*46ABF58B20022A84DF7B2E8B1AC8219C8DA71553','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N'),
 ('localhost','B19011337_ohash','0f0ea7602c473904','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
 call mtr.add_suppression("Some of the user accounts with SUPER");
-call mtr.add_suppression("1. Stop");
-call mtr.add_suppression("2. Run");
-call mtr.add_suppression("3. Restart");
+call mtr.add_suppression("perform the MySQL upgrade procedure");
 call mtr.add_suppression("For complete");
 call mtr.add_suppression("User entry .B19011337");
 # expect a warning in the error log
@@ -46,9 +44,7 @@ Warnings:
 Warning	1805	Column count of mysql.user is wrong. Expected 51, found 43. The table is probably corrupted
 # let's check for the presense of the warning
 Pattern "User entry 'B19011337_ohash'@'localhost' has a deprecated pre-4.1 password. The user will be ignored and no one can login with this user anymore." found
-Pattern "1. Stop" found
-Pattern "2. Run" found
-Pattern "3. Restart" found
+Pattern "perform the MySQL upgrade procedure" found
 Pattern "For complete instructions on how to upgrade MySQL" found
 # end of check for the presense of the warning
 # restart:--upgrade=FORCE --log-error=test_error_log
