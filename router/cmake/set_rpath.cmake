@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,13 @@ IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
   SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
 ENDIF()
 
-# If router plugindir not set, use $router_install_libdir/mysqlrouter
+# If router plugindir not set, use $router_install_libdir[/mysqlrouter]
 IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
+  IF(WIN32)
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}")
+  ELSE()
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
+  ENDIF()
 ENDIF()
 
 IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")

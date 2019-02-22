@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -129,6 +129,7 @@ class HARNESS_EXPORT Path {
                         const std::string &extension);
 
   bool operator==(const Path &rhs) const;
+  bool operator!=(const Path &rhs) const { return !(*this == rhs); }
 
   /**
    * Path ordering operator.
