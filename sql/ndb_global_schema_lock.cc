@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,62 @@ static bool ndb_is_gsl_participant_active()
 }
 
 
+/**
+ * Another potential scenario for a deadlock between MDL and GSL locks is as
+ * follows:
+ *
+ * A disk data table DDL will try and acquire the following -
+ *  - Global read lock of type INTENTION EXCLUSIVE (IX)
+ *  - IX lock on the schema
+ *  - Shared lock on the table
+ *  - Backup lock of type IX
+ *  - IX lock on the tablespace
+ *  - Upgrade the previously acquired shared lock on the table to an EXCLUSIVE
+ *    (X) lock
+ *  - The X lock is granted only after the GSL has been acquired
+ *
+ * A tablespace DDL will try and acquire the following -
+ *  - Global read lock of type IX
+ *  - X lock on the 'ts1' tablespace
+ *  - The X lock is granted only after the GSL has been acquired
+ *  - Backup lock of type IX
+ *
+ * Assume that the table DDL has acquired an IX lock on the tablespace and is
+ * waiting for the GSL in order to acquire an X lock on the table. At the same
+ * time the tablespace DDL has acquired the GSL and is waiting to acquire an X
+ * lock on the tablespace - Deadlock!
+ *
+ * We detect such a deadlock by tracking when the GSL is acquired (and released)
+ * during an attempt to obtain an X lock on a tablespace. When this condition
+ * holds true (along with the other 2 conditions specified in gsl_lock_ext()
+ * below), we assume that a deadlock has occurred
+ */
+
+static class Ndb_tablespace_gsl_guard {
+  std::mutex m_tablespace_gsl_acquired_mutex; // for m_tablespace_gsl_acquired
+  bool m_tablespace_gsl_acquired{false};
+
+public:
+  void tablespace_gsl_acquired() {
+    std::lock_guard<std::mutex>
+      lock_gsl_acquired(m_tablespace_gsl_acquired_mutex);
+    m_tablespace_gsl_acquired = true;
+  }
+
+  void tablespace_gsl_released() {
+    std::lock_guard<std::mutex>
+      lock_gsl_acquired(m_tablespace_gsl_acquired_mutex);
+    m_tablespace_gsl_acquired = false;
+  }
+
+  bool is_tablespace_gsl_acquired() {
+    std::lock_guard<std::mutex>
+      lock_gsl_acquired(m_tablespace_gsl_acquired_mutex);
+    return m_tablespace_gsl_acquired;
+  }
+} tablespace_gsl_guard;
+
+
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
 
@@ -143,19 +199,23 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
 
     /**
      * Check for MDL / GSL deadlock. A deadlock is assumed if:
-     *  1) ::execute failed with a timeout error.
-     *  2) There already is another THD being an participant
-     *     in a schema distr. operation (which implies that
-     *     the coordinator already held the GSL.
-     *  3) This THD holds a lock being waited for by another THD
+     *  1)  ::execute failed with a timeout error.
+     *  2a) There already is another THD being an participant in a schema distr.
+     *      operation (which implies that the coordinator already held the GSL
+     *                              OR
+     *  2b) The GSL has already been acquired for a pending exclusive MDL on a
+     *      tablespace. It's highly likely that there are two DDL statements
+     *      competing for a lock on the same tablespace
+     *  3)  This THD holds a lock being waited for by another THD
      *
      * Note: If we incorrectly assume a deadlock above, the caller
      * will still either retry indefinitely as today, (notify_alter),
      * or now be able to release locks gotten so far and retry later.
      */
-    if (trans->getNdbError().code == 266 &&     // 1)
-        ndb_is_gsl_participant_active()  &&     // 2)
-        thd->mdl_context.has_locks_waited_for())// 3)
+    if (trans->getNdbError().code == 266 &&                     // 1)
+        (ndb_is_gsl_participant_active() ||                     // 2a)
+         tablespace_gsl_guard.is_tablespace_gsl_acquired()) &&  // 2b)
+        thd->mdl_context.has_locks_waited_for())                // 3)
       goto error_handler;
 
   retry:
@@ -510,7 +570,7 @@ ndbcluster_notify_alter_table(THD *thd,
 static
 bool
 ndbcluster_notify_exclusive_mdl(THD *thd,
-                                const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
+                                const MDL_key *mdl_key,
                                 ha_notification_type notification,
                                 bool *victimized)
 {
@@ -525,6 +585,17 @@ ndbcluster_notify_exclusive_mdl(THD *thd,
   const bool result =
       notify_mdl_lock(thd,
                       notification == HA_NOTIFY_PRE_EVENT, victimized);
+  if (mdl_key->mdl_namespace() == MDL_key::TABLESPACE && !result)
+  {
+    if (notification == HA_NOTIFY_PRE_EVENT)
+    {
+      tablespace_gsl_guard.tablespace_gsl_acquired();
+    }
+    else
+    {
+      tablespace_gsl_guard.tablespace_gsl_released();
+    }
+  }
   DBUG_RETURN(result);
 }
 
