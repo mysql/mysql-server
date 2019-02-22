@@ -236,38 +236,64 @@ for f in mcc_config.py ndb_blob_tool ndb_config ndb_delete_all ndb_desc ndb_drop
 done
 %endif
 
-#  Remove test plugins
-for p in auth.so auth_test_plugin.so authentication_ldap_sasl.so \
-         authentication_ldap_simple.so component_example_component1.so \
-         component_example_component2.so component_example_component3.so \
-         component_log_sink_test.so component_pfs_example.so \
-         component_pfs_example_component_population.so component_test_host_application_signal.so \
+#  Remove test plugins, please keep alphabetical order
+for p in \
+         authentication_ldap_sasl.so \
+         authentication_ldap_simple.so \
+         auth.so \
+         auth_test_plugin.so \
+         component_example_component1.so \
+         component_example_component2.so \
+         component_example_component3.so \
+         component_log_sink_test.so \
+         component_mysqlx_global_reset.so \
+         component_pfs_example_component_population.so \
+         component_pfs_example.so \
+         component_test_audit_api_message.so \
+         component_test_backup_lock_service.so \
+         component_test_component_sys_var_service.so \
+         component_test_host_application_signal.so \
          component_test_mysql_runtime_error.so \
-         component_test_pfs_notification.so component_test_pfs_resource_group.so \
-         component_test_string_service_charset.so component_test_string_service.so \
-         component_test_string_service_long.so component_udf_reg_3_func.so \
-         component_udf_reg_int_same_func.so component_udf_reg_avg_func.so \
-         component_udf_reg_only_3_func.so component_udf_reg_int_func.so \
-         component_udf_reg_real_func.so component_test_udf_registration.so \
-         component_test_host_application_signal \
-         component_udf_unreg_3_func.so component_udf_unreg_int_func.so \
-         component_udf_unreg_real_func.so component_test_component_sys_var_service.so \
-         component_test_sys_var_service_int.so component_test_sys_var_service.so \
-         component_test_sys_var_service_same.so component_test_sys_var_service_str.so \
-         component_test_status_var_service.so\
-         component_test_status_var_service_int.so\
-         component_test_status_var_service_reg_only.so\
-         component_test_status_var_service_str.so\
-         component_test_status_var_service_unreg_only.so\
-         component_test_system_variable_source.so\
-         component_test_audit_api_message.so\
-         daemon_example.ini ha_example.so ha_mock.so libdaemon_example.so \
-         pfs_example_plugin_employee.so qa_auth_client.so qa_auth_interface.so \
-         qa_auth_server.so replication_observers_example_plugin.so \
-         test_security_context.so test_services_plugin_registry.so \
+         component_test_pfs_notification.so \
+         component_test_pfs_resource_group.so \
+         component_test_status_var_service_int.so \
+         component_test_status_var_service_reg_only.so \
+         component_test_status_var_service.so \
+         component_test_status_var_service_str.so \
+         component_test_status_var_service_unreg_only.so \
+         component_test_string_service_charset.so \
+         component_test_string_service_long.so \
+         component_test_string_service.so \
+         component_test_system_variable_source.so \
+         component_test_sys_var_service_int.so \
+         component_test_sys_var_service_same.so \
+         component_test_sys_var_service.so \
+         component_test_sys_var_service_str.so \
+         component_test_udf_registration.so \
+         component_udf_reg_3_func.so \
+         component_udf_reg_avg_func.so \
+         component_udf_reg_int_func.so \
+         component_udf_reg_int_same_func.so \
+         component_udf_reg_only_3_func.so \
+         component_udf_reg_real_func.so \
+         component_udf_unreg_3_func.so \
+         component_udf_unreg_int_func.so \
+         component_udf_unreg_real_func.so \
+         daemon_example.ini \
+         ha_example.so \
+         ha_mock.so \
+         libdaemon_example.so \
+         pfs_example_plugin_employee.so \
+         qa_auth_client.so \
+         qa_auth_interface.so \
+         qa_auth_server.so \
+         replication_observers_example_plugin.so \
+         test_security_context.so \
          test_services_host_application_signal.so \
-         udf_example.so  component_mysqlx_global_reset.so \
-         test_udf_services.so component_test_backup_lock_service.so ; do
+         test_services_plugin_registry.so \
+         test_udf_services.so \
+         udf_example.so \
+         ; do
     rm -f %{buildroot}%{_libdir}/mysql/plugin/$p
 done
 
