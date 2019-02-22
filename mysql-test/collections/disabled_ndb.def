@@ -43,7 +43,6 @@ ndb_rpl.ndb_rpl_ddl_open_trans : WL#9185 MySQL Cluster support for new DD.
 ndb_rpl.ndb_rpl_dd_advance : WL#11914 Synchronize metadata changes detected in NDB
 
 # ndb suite tests
-ndb.ndb_dbug_lock         : BUG#29110719 SEAGULL gsl locking order
 ndb.ndb_insert            : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_row_count         : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb.ndb_parallel_undo_log : BUG#28794807 FIX NDB.NDB_PARALLEL_UNDO_LOG TESTCASE FAILURE
