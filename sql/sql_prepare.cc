@@ -1254,6 +1254,7 @@ static bool check_prepared_statement(Prepared_statement *stmt) {
       res = mysql_test_create_view(stmt);
       break;
 
+    case SQLCOM_SET_PASSWORD:
     case SQLCOM_SET_OPTION:
       res = mysql_test_set_fields(stmt, tables, &lex->var_list);
       break;

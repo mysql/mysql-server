@@ -193,3 +193,24 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: '+ -><()~*:""&|'
 SET @@sort_buffer_size=DEFAULT;
 End of 5.0 tests.
+#
+# Bug#29387041: "SET PASSWORD FOR... " in PS throws error 1295
+#
+CREATE USER test_user1@'localhost';
+PREPARE stmt FROM "SET PASSWORD FOR test_user1@'localhost' = 'SoSecret'";
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+SET PASSWORD FOR @'localhost' = 'SoSecret';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@'localhost' = 'SoSecret'' at line 1
+PREPARE stmt FROM "SET PASSWORD FOR @'localhost' = 'SoSecret'";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '@'localhost' = 'SoSecret'' at line 1
+SET PASSWORD FOR test_user1@'localhost' = NULL;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+PREPARE stmt FROM "SET PASSWORD FOR test_user1@'localhost' = NULL";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'NULL' at line 1
+PREPARE stmt FROM "SET PASSWORD FOR test_user2@'localhost' = 'SoSecret'";
+EXECUTE stmt;
+ERROR 42000: Can't find any matching row in the user table
+DEALLOCATE PREPARE stmt;
+DROP USER test_user1@'localhost';
+End of 8.0 tests.
