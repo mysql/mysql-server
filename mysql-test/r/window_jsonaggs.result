@@ -867,3 +867,28 @@ SELECT (1 + CAST(JSON_OBJECTAGG(1,2) OVER () AS DECIMAL));
 1
 Warnings:
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_objectagg at row 1
+#
+# Bug#29397385 WRONG RESULT FOR JSON_OBJECTAGG WINDOW FUNCTION IF DUPLICATE KEYS & UNORDERED
+#
+CREATE TABLE t(`key` VARCHAR(10), i INT);
+INSERT INTO t VALUES ('e', 1), ('e', 2), ('f', 3),
+('a', 4), ('a', 5), ('b', 6);
+SELECT JSON_OBJECTAGG(`key`, i) OVER w AS agg
+FROM t WINDOW w AS (ORDER BY `key` ROWS CURRENT ROW);
+agg
+{"a": 4}
+{"a": 5}
+{"b": 6}
+{"e": 1}
+{"e": 2}
+{"f": 3}
+SELECT JSON_OBJECTAGG(`key`, i) OVER w AS agg
+FROM t WINDOW w AS (ORDER BY i ROWS CURRENT ROW);
+agg
+{"e": 1}
+{"e": 2}
+{"f": 3}
+{"a": 4}
+{"a": 5}
+{"b": 6}
+DROP TABLE t;
