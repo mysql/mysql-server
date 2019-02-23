@@ -70,7 +70,7 @@ if ($lctn == 2)
 
 --let SEARCH_FILE= $MYSQLD_LOG
 --echo # Search for the error message in the server error log.
---let SEARCH_PATTERN= Column count of mysql\.user is wrong. Expected \\d+, found 49\. Created with MySQL 80011, now running \\d+\.
+--let SEARCH_PATTERN= The column count of mysql\.user is wrong. Expected \\d+, found 49\. Created with MySQL 80011, now running \\d+\.
 --source include/search_pattern.inc
 
 --let SEARCH_PATTERN= Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\.
