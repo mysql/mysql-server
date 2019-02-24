@@ -661,7 +661,7 @@ struct MEM_ROOT;
 
 
 /**
-   @page page_protocol_connection_phase_authentication_methods Authenticatrion Methods
+   @page page_protocol_connection_phase_authentication_methods Authentication Methods
 
    To authenticate a user against the server the client server protocol employs one of
    several authentication methods.
