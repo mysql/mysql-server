@@ -562,7 +562,7 @@ struct MEM_ROOT;
 
   @startuml
   Client -> Server: COM_CHANGE_USER
-  Server -> Client: Auth Switch Requset Packet
+  Server -> Client: Auth Switch Request Packet
   == packets exchanged depending on the authentication method ==
   Server -> Client: ERR packet or OK packet
   @enduml
