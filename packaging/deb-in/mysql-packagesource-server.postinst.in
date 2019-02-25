@@ -90,6 +90,7 @@ EOF
 				PASSWD=""
 			else
 				cat << EOF > ${SQL}
+SET @@SESSION.SQL_LOG_BIN=0;
 USE mysql;
 INSTALL PLUGIN auth_socket SONAME 'auth_socket.so';
 ALTER USER 'root'@'localhost' IDENTIFIED WITH 'auth_socket';
