@@ -674,9 +674,9 @@ insert into t1 (c1) values (1), (2), (3);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c500 bit(1) column_format DYNAMIC;
 --error ER_TOO_BIG_ROWSIZE
-alter table t1 algorithm=copy, add column c502 varchar(2000);
+alter table t1 algorithm=copy, add column c502 varchar(18001) character set latin1;
 --error ER_TOO_BIG_ROWSIZE
-alter table t1 algorithm=inplace, add column c502 varchar(2000);
+alter table t1 algorithm=inplace, add column c502 varchar(18001) character set latin1;
 delete from t1;
 drop table t1;
 

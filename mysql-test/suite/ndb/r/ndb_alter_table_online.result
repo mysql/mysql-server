@@ -639,10 +639,10 @@ create table t1 ( c499 int, c498 int, c497 int, c496 int, c495 int, c494 int, c4
 insert into t1 (c1) values (1), (2), (3);
 alter table t1 algorithm=copy, modify c1 int auto_increment;
 alter table t1 algorithm=inplace, add column c500 bit(1) column_format DYNAMIC;
-alter table t1 algorithm=copy, add column c502 varchar(2000);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
-alter table t1 algorithm=inplace, add column c502 varchar(2000);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+alter table t1 algorithm=copy, add column c502 varchar(18001) character set latin1;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 30000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+alter table t1 algorithm=inplace, add column c502 varchar(18001) character set latin1;
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 30000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 delete from t1;
 drop table t1;
 create table t1(a int(10) unsigned not null auto_increment,
