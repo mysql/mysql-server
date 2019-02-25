@@ -600,6 +600,7 @@ SHOW GRANTS FOR u1;
 SELECT * FROM mysql.global_grants WHERE USER='u1';
 # check for binlog events
 RESET MASTER;
+--let $mask_grant_as_events=1
 --source include/show_binlog_events.inc
 GRANT SELECT ON *.* TO u1;
 --source include/show_binlog_events.inc
