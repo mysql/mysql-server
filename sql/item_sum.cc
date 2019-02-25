@@ -5741,7 +5741,12 @@ bool Item_sum_json_object::add() {
           auto it = m_key_map.find(key);
           if (it != m_key_map.end()) {
             int count = it->second - 1;
-            count > 0 ? it->second = count : object->remove(key);
+            if (count > 0) {
+              it->second = count;
+            } else {
+              m_key_map.erase(it);
+              object->remove(key);
+            }
           }
         }
         object->cardinality() == 0 ? null_value = true : null_value = false;
@@ -5772,7 +5777,7 @@ bool Item_sum_json_object::add() {
         count = count + it->second;
         it->second = count;
       } else
-        m_key_map.emplace(key, 0).first->second = count;
+        m_key_map.emplace(std::make_pair(key, count));
     }
 
     null_value = false;
