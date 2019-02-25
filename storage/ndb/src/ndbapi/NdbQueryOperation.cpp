@@ -3305,7 +3305,25 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       numSections= 2;
     }
 
-    const int res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    int res;
+    const Uint32 long_sections_size = m_keyInfo.getSize() + m_attrInfo.getSize();
+    const Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
+    if (long_sections_size <= NDB_MAX_LONG_SECTIONS_SIZE)
+    {
+      res = impl->sendSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else if (ndbd_frag_tckeyreq(nodeVersion))
+    {
+      res = impl->sendFragmentedSignal(&tSignal, nodeId, secs, numSections);
+    }
+    else
+    {
+      /* It should not be possible to see a table definition that supports
+       * big rows unless all data nodes that are started also can handle it.
+       */
+      require(ndbd_frag_tckeyreq(nodeVersion));
+    }
+
     if (unlikely(res == -1))
     {
       setErrorCode(Err_SendFailed);  // Error: 'Send to NDB failed'

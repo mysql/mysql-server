@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@
 #define NDB_MAX_KEY_SIZE (NDB_MAX_KEYSIZE_IN_WORDS*4)
 #define NDB_MAX_TUPLE_SIZE (NDB_MAX_TUPLE_SIZE_IN_WORDS*4)
 #define NDB_MAX_ACTIVE_EVENTS 100
+#define NDB_MAX_LONG_SECTIONS_SIZE (240 * 33)
 
 /* TUP ZATTR_BUFFER_SIZE 16384 (minus 1) minus place for getValue()s */
 #define NDB_MAX_SCANFILTER_SIZE_IN_WORDS (16384 - 1 - 1024)
