@@ -159,6 +159,7 @@ TABLE* Ndb_event_data::open_shadow_table(THD* thd, const char* db,
   DBUG_ENTER("Ndb_event_data::open_shadow_table");
   DBUG_ASSERT(table_def);
 
+  // Allocate memory for shadow table from MEM_ROOT
   TABLE_SHARE* shadow_table_share =
       (TABLE_SHARE*)mem_root.Alloc(sizeof(TABLE_SHARE));
   TABLE* shadow_table = (TABLE*)mem_root.Alloc(sizeof(TABLE));

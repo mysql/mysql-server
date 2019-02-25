@@ -3196,6 +3196,7 @@ class Ndb_schema_event_handler {
            Uint32 any_value)
     {
       DBUG_ENTER("Ndb_schema_op::create");
+      // Allocate memory in current MEM_ROOT
       Ndb_schema_op* schema_op=
         (Ndb_schema_op*)(*THR_MALLOC)->Alloc(sizeof(Ndb_schema_op));
       schema_op->unpack_event(event_data);
@@ -6964,6 +6965,7 @@ ndb_find_binlog_index_row(ndb_binlog_index_row **rows,
       row= row->next;
       if (row == NULL)
       {
+        // Allocate memory in current MEM_ROOT
         row= (ndb_binlog_index_row*)(*THR_MALLOC)->Alloc(sizeof(ndb_binlog_index_row));
         memset(row, 0, sizeof(ndb_binlog_index_row));
         row->next= first;

@@ -354,6 +354,7 @@ DependencyTracker*
 DependencyTracker::newDependencyTracker(MEM_ROOT* mem_root)
 {
   DependencyTracker* dt = NULL;
+  // Allocate memory from MEM_ROOT
   void* mem = mem_root->Alloc(sizeof(DependencyTracker));
   if (mem)
   {
@@ -393,7 +394,7 @@ track_operation(const NdbDictionary::Table* table,
                                                         row);
   DBUG_PRINT("info", ("Required length for key : %u", required_buff_size));
 
-  /* Alloc space for packed key and struct*/
+  /* Alloc space for packed key and struct in MEM_ROOT */
   uchar* packed_key_buff = (uchar*) mra.mem_root->Alloc(required_buff_size);
   void* element_mem = mra.mem_root->Alloc(sizeof(st_row_event_key_info));
 

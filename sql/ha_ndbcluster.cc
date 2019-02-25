@@ -1662,7 +1662,8 @@ static bool field_type_forces_var_part(enum_field_types type)
 uchar *
 ha_ndbcluster::get_buffer(Thd_ndb *thd_ndb, uint size)
 {
-  return (uchar*)(thd_ndb->m_batch_mem_root).Alloc(size);
+  // Allocate buffer memory from batch MEM_ROOT
+  return (uchar*)thd_ndb->m_batch_mem_root.Alloc(size);
 }
 
 uchar *
@@ -10054,9 +10055,9 @@ ha_ndbcluster::update_comment_info(THD* thd,
     mem_alloc_error(0);
     DBUG_VOID_RETURN;
   }
-  Uint32 new_len = strlen(updated_str);
-  char* new_str;
-  new_str = (char*)table->s->mem_root.Alloc((size_t)new_len);
+  const Uint32 new_len = strlen(updated_str);
+  // Allocate comment memory from TABLE_SHARE's MEM_ROOT
+  char* const new_str = (char*)table->s->mem_root.Alloc((size_t)new_len);
   if (new_str == NULL)
   {
     mem_alloc_error(0);
@@ -19067,6 +19068,7 @@ int show_ndb_status(THD* thd, SHOW_VAR* var, char*)
   struct st_ndb_status *st;
   SHOW_VAR *st_var;
   {
+    // Allocate memory in current MEM_ROOT
     char *mem= (char*)(*THR_MALLOC)->Alloc(sizeof(struct st_ndb_status) +
                                 sizeof(ndb_status_vars_dynamic));
     st= new (mem) st_ndb_status;
