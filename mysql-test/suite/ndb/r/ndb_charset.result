@@ -363,3 +363,43 @@ c1 varchar(10) collate utf8mb4_ja_0900_as_cs_ks,
 key(c1)
 ) engine = ndbcluster;
 drop table t1;
+create table t (
+ck char(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 'PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck char(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 'PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck varchar(1) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 'PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;
+create table t (
+ck varchar(10) collate utf8mb4_0900_ai_ci primary key
+) engine=ndb;
+insert into t values (_utf16 X'212B');
+insert into t values (_utf16 X'00C5');
+ERROR 23000: Duplicate entry 'Å' for key 'PRIMARY'
+select count(*) from t;
+count(*)
+1
+drop table t;

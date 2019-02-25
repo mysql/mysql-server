@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -794,7 +794,7 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
     // len:    Actual length of 'src'
     // defLen: Max defined length of src data 
     const unsigned defLen = maxBytes - lb;
-    const int n = NdbSqlUtil::strnxfrm_hash(cs,
+    const int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
                                        dstPtr, maxRead-indexBuf, 
                                        (const uchar*)srcPtr + lb, len, defLen);
     require(n != -1);
