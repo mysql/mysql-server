@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,6 +137,7 @@ public:
   static bool get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint32& lb, Uint32& len);
 
   static int strnxfrm_hash(const CHARSET_INFO* cs,
+                           Uint32 typeId,
                            uchar* dst, unsigned dstLen,
                            const uchar* src, unsigned srcLen,
                            unsigned maxLen);

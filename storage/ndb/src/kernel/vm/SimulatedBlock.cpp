@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4131,7 +4131,7 @@ SimulatedBlock::xfrm_attr_hash(
     // defLen: Max defined length of src data 
     const unsigned remLen = ((dstSize - dstPos) << 2);
     const unsigned defLen = srcBytes - lb;
-    int n = NdbSqlUtil::strnxfrm_hash(cs,
+    int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
                                  dstPtr, remLen, 
                                  srcPtr + lb, len, defLen);
     
