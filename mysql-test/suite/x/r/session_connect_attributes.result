@@ -149,7 +149,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5005
-  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too log, currently limited to 32"
+  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too long, currently limited to 32"
   sql_state: "HY000"
 }
 
@@ -169,7 +169,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5005
-  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too log, currently limited to 32"
+  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too long, currently limited to 32"
   sql_state: "HY000"
 }
 
@@ -231,7 +231,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5005
-  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too log, currently limited to 32"
+  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too long, currently limited to 32"
   sql_state: "HY000"
 }
 
@@ -251,7 +251,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 5005
-  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too log, currently limited to 32"
+  msg: "Key name beginning with \'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\'... is too long, currently limited to 32"
   sql_state: "HY000"
 }
 
