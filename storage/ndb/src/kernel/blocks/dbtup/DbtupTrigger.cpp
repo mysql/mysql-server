@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2350,6 +2350,7 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     tot += sec[i].sz;
 
   Uint32 * ptr = 0;
+  Uint32 used = m_suma_trigger_buffer.m_usedWords;
   Uint32 free = m_suma_trigger_buffer.m_freeWords;
   Uint32 pageId = m_suma_trigger_buffer.m_pageId;
   Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
@@ -2358,24 +2359,38 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     jam();
     if (pageId != RNIL)
     {
+      jam();
       flush_ndbmtd_suma_buffer(signal);
+      used = 0;
+      free = 0;
+      pageId = RNIL;
     }
     if (oom == 0)
     {
       jam();
       ndbassert(m_suma_trigger_buffer.m_pageId == RNIL);
-      void * vptr = m_ctx.m_mm.alloc_page(RT_SUMA_TRIGGER_BUFFER,
-                                          &m_suma_trigger_buffer.m_pageId,
-                                          Ndbd_mem_manager::NDB_ZONE_LE_32);
-      ptr = reinterpret_cast<Uint32*>(vptr);
-      free = GLOBAL_PAGE_SIZE_WORDS - tot;
+      Uint32 page_count = (tot - 1) / GLOBAL_PAGE_SIZE_WORDS + 1;
+      Uint32 count = page_count;
+      m_ctx.m_mm.alloc_pages(RT_SUMA_TRIGGER_BUFFER, &m_suma_trigger_buffer.m_pageId, &count, page_count);
+      pageId = m_suma_trigger_buffer.m_pageId;
+      if (count == 0)
+      {
+        jam();
+        ptr = 0;
+      }
+      else
+      {
+        jam();
+        ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
+        free = count * GLOBAL_PAGE_SIZE_WORDS - tot;
+      }
     }
   }
   else
   {
     jam();
     ptr = reinterpret_cast<Uint32*>(c_page_pool.getPtr(pageId));
-    ptr += (GLOBAL_PAGE_SIZE_WORDS - free);
+    ptr += used;
     free -= tot;
   }
 
@@ -2391,13 +2406,18 @@ Dbtup::ndbmtd_buffer_suma_trigger(Signal * signal,
     ptr += len;
     for (Uint32 i = 0; i<3; i++)
     {
+      jam();
       memcpy(ptr, sec[i].p, 4 * sec[i].sz);
       ptr += sec[i].sz;
     }
 
+    used += tot;
+
+    m_suma_trigger_buffer.m_usedWords = used;
     m_suma_trigger_buffer.m_freeWords = free;
     if (free < (len + 5))
     {
+      jam();
       flush_ndbmtd_suma_buffer(signal);
     }
   }
@@ -2414,7 +2434,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
   jam();
 
   Uint32 pageId = m_suma_trigger_buffer.m_pageId;
-  Uint32 free = m_suma_trigger_buffer.m_freeWords;
+  Uint32 used = m_suma_trigger_buffer.m_usedWords;
   Uint32 oom = m_suma_trigger_buffer.m_out_of_memory;
 
   if (pageId != RNIL)
@@ -2424,7 +2444,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
     save[0] = signal->theData[0];
     save[1] = signal->theData[1];
     signal->theData[0] = pageId;
-    signal->theData[1] =  GLOBAL_PAGE_SIZE_WORDS - free;
+    signal->theData[1] =  used;
     sendSignal(SUMA_REF, GSN_FIRE_TRIG_ORD_L, signal, 2, JBB);
 
     signal->theData[0] = save[0];
@@ -2445,6 +2465,7 @@ Dbtup::flush_ndbmtd_suma_buffer(Signal* signal)
   }
 
   m_suma_trigger_buffer.m_pageId = RNIL;
+  m_suma_trigger_buffer.m_usedWords = 0;
   m_suma_trigger_buffer.m_freeWords = 0;
   m_suma_trigger_buffer.m_out_of_memory = 0;
 }

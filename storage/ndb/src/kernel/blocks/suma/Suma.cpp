@@ -4833,6 +4833,8 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
   ndbassert(signal->getNoOfSections() == 0);
   Uint32 pageId = signal->theData[0];
   Uint32 len = signal->theData[1];
+  const Uint32 page_count =
+      (len + GLOBAL_PAGE_SIZE_WORDS - 1) / GLOBAL_PAGE_SIZE_WORDS;
 
   if (pageId == RNIL && len == 0)
   {
@@ -4879,7 +4881,8 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
     len -= msglen;
   }
 
-  m_ctx.m_mm.release_page(RT_SUMA_TRIGGER_BUFFER, pageId);
+  // Pages allocated in Dbtup::ndbmtd_buffer_suma_trigger().
+  m_ctx.m_mm.release_pages(RT_SUMA_TRIGGER_BUFFER, pageId, page_count);
 }
 
 void

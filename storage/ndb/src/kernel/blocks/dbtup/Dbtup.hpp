@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3063,10 +3063,15 @@ private:
 
   struct SumaTriggerBuffer
   {
-    SumaTriggerBuffer() { m_out_of_memory = 0;m_pageId = RNIL; m_freeWords = 0;}
+    SumaTriggerBuffer()
+    : m_out_of_memory(0),
+      m_pageId(RNIL),
+      m_freeWords(0),
+      m_usedWords(0) {}
     Uint32 m_out_of_memory;
     Uint32 m_pageId;
     Uint32 m_freeWords;
+    Uint32 m_usedWords;
   } m_suma_trigger_buffer;
 
 // *****************************************************************
