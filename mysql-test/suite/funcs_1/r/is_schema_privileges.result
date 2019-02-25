@@ -52,8 +52,8 @@ IS_GRANTABLE	varchar(3)	NO
 SELECT GRANTEE, TABLE_CATALOG, TABLE_SCHEMA, PRIVILEGE_TYPE
 FROM information_schema.schema_privileges WHERE table_catalog IS NOT NULL;
 GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
-'mysql.session'@'localhost'	def	performance\_schema	SELECT
 'mysql.sys'@'localhost'	def	sys	TRIGGER
+'mysql.session'@'localhost'	def	performance_schema	SELECT
 ''@'%'	def	test	SELECT
 ''@'%'	def	test	INSERT
 ''@'%'	def	test	UPDATE
