@@ -22,6 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <cstring>
+
 #include <ndb_global.h>
 #include <BaseString.hpp>
 
@@ -333,6 +335,25 @@ BaseString::lastIndexOf(char c) const
   if(p == NULL)
     return -1;
   return (ssize_t)(p-m_chr);
+}
+
+bool
+BaseString::starts_with(const BaseString& str) const
+{
+  return std::strncmp(m_chr, str.m_chr, str.m_len) == 0;
+}
+
+bool
+BaseString::starts_with(const char* str) const
+{
+  const char* p = m_chr;
+  const char* q = str;
+  while (*q != 0 && *p != 0 && *p == *q)
+  {
+    p++;
+    q++;
+  }
+  return *q == 0;
 }
 
 BaseString
@@ -683,6 +704,29 @@ TAPTEST(BaseString)
 	OK(BaseString("smiles").substr(1,5) == "mile");
 	OK(BaseString("012345").indexOf('2') == 2);
 	OK(BaseString("hej").indexOf('X') == -1);
+    }
+
+    {
+      BaseString base("123abcdef");
+      BaseString sub("123abc");
+      OK(base.starts_with(sub) == true);
+
+      BaseString base1("123abc");
+      BaseString sub1("123abcdef");
+      OK(base1.starts_with(sub1) == false)
+
+      BaseString base2("123abcdef");
+      BaseString sub2("");
+      OK(base2.starts_with(sub2) == true);
+
+      BaseString base3("");
+      BaseString sub3("123abcdef");
+      OK(base3.starts_with(sub3) == false);
+
+      OK(base.starts_with("123abc") == true);
+      OK(base1.starts_with("123abcdef") == false);
+      OK(base2.starts_with("") == true);
+      OK(base3.starts_with("123abcdef") == false);
     }
 
     {
