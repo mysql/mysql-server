@@ -4794,7 +4794,9 @@ Suma::reformat(Signal* signal,
   Uint32 noOfAttrs = 0, dataLen = 0;
   Uint32 * headers = signal->theData + 25;
   Uint32 * dst     = signal->theData + 25 + MAX_ATTRIBUTES_IN_TABLE;
-  
+
+  require(lsptr[0].sz + lsptr[2].sz <= SUMA_BUF_SZ);
+
   ptr[0].p  = headers;
   ptr[1].p  = dst;
   
@@ -4871,7 +4873,6 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
     ndbrequire( setTriggerBufferLock(trigId) );
 
     LinearSectionPtr lsptr[3];
-
     memcpy(signal->theData, ptr, 4 * siglen); // signal
     ptr += siglen;
 
@@ -4887,7 +4888,7 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
 
     memcpy(f_buffer + sec0len, ptr, 4*sec2len);
     lsptr[2].sz = sec2len;
-    lsptr[2].p = f_buffer + lsptr[0].sz;
+    lsptr[2].p = f_buffer + sec0len;
     ptr += sec2len;
 
     f_trigBufferSize = sec0len + sec2len;
@@ -4966,14 +4967,6 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
-  const Uint32 gci_hi    = trg->getGCI();
-  const Uint32 gci_lo    = trg->m_gci_lo;
-  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
-
-  Ptr<Subscription> subPtr;
-  c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
-
-  ndbrequire(gci > m_last_complete_gci);
 
   LinearSectionPtr lsptr[3];
   if (signal->getNoOfSections() > 0)
@@ -5023,7 +5016,6 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     lsptr[2].sz = trg->getNoOfAfterValueWords();
   }
 
-  jam();
   ndbrequire( checkTriggerBufferLock(trigId) );
 
   doFIRE_TRIG_ORD(signal, lsptr);
