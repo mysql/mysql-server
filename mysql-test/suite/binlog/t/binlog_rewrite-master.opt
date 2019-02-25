@@ -1,3 +1,0 @@
-# Avoid GRANT rewrites on builds where partial_revokes is ON.
-# We already check GRANT rewrites through grant_as_ddl.test
---partial-revokes=OFF

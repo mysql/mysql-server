@@ -62,6 +62,7 @@ CREATE USER 'test_user4'@'localhost';
 SET PASSWORD FOR 'test_user4'@'localhost' = 'azundris4';
 
 --let $mask_user_password_events=1
+--let $mask_grant_as_events=1
 --source include/show_binlog_events.inc
 --let $mask_user_password_events=0
 

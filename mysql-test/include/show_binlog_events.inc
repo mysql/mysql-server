@@ -73,6 +73,11 @@
 #     caching_sha2 authentication plugin. Note this is the default
 #     authentication plugin since 8.0.4
 #
+#   $mask_grant_as_events
+#      Do not print the AS <...> WITH <...> clause in the GRANT statement
+#      to avoid the test failure on the builds where partial_revokes is
+#      ON by default.
+#
 --let $include_filename= show_binlog_events.inc
 --source include/begin_include_file.inc
 

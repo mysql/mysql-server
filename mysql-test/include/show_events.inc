@@ -146,7 +146,14 @@ if ($mask_user_password_events)
 {
  --let $script= $script s{'caching_sha2_password' AS '(.*)'}{'caching_sha2_password' AS '<non-deterministic-password-hash>'}g;
  --let $script= $script s{SET PASSWORD FOR .*}{SET PASSWORD FOR '<some_user>'='<non-deterministic-password-hash>'};
- }
+}
+# Skip 'AS <..> WITH <..>' clause in the GRANT statement in case the
+# partial revokes is ON 
+if ($mask_grant_as_events)
+{
+ --let $script= $script s{ AS .* WITH ROLE .*}{};
+}
+
 if (!$keep_ddl_xid)
 {
   --let $script= $script s{ /\* XID # \*/}{};

@@ -92,6 +92,7 @@ DROP USER u1@localhost;
 --source include/sync_slave_sql_with_master.inc
 SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
+--let $mask_grant_as_events=1
 source include/show_binlog_events.inc;
 
 --source include/stop_slave.inc
