@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 
 namespace dd {
   class Table;
+  typedef unsigned long long Object_id;
 }
 
 
@@ -115,5 +116,11 @@ void ndb_dd_table_set_previous_mysql_version(dd::Table* table_def,
 */
 bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
                                              ulong& previous_mysql_version);
+
+/*
+  Set tablespace id for the table
+*/
+void ndb_dd_table_set_tablespace_id(dd::Table *table_def,
+                                    dd::Object_id tablespace_id);
 
 #endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,4 +238,15 @@ bool ndb_dd_table_get_previous_mysql_version(const dd::Table* table_def,
   }
   DBUG_PRINT("exit", ("previous_mysql_version: %lu", previous_mysql_version));
   DBUG_RETURN(true);
+}
+
+
+void ndb_dd_table_set_tablespace_id(dd::Table *table_def,
+                                    dd::Object_id tablespace_id)
+{
+  DBUG_ENTER("ndb_dd_table_set_tablespace_id");
+  DBUG_PRINT("enter", ("tablespace_id: %llu", tablespace_id));
+
+  table_def->set_tablespace_id(tablespace_id);
+  DBUG_VOID_RETURN;
 }
