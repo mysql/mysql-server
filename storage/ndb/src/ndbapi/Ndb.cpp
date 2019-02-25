@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -528,7 +528,7 @@ Ndb::computeHash(Uint32 *retval,
     if ((cs = partcols[i]->m_cs))
     {
       const Uint32 maxlen = (partcols[i]->m_attrSize * partcols[i]->m_arraySize) - lb;
-      int n = NdbSqlUtil::strnxfrm_hash(cs,
+      int n = NdbSqlUtil::strnxfrm_hash(cs, partcols[i]->m_type,
                                    pos, bufEnd-pos, 
                                    ((uchar*)keyData[i].ptr)+lb, len, maxlen);
 
@@ -677,7 +677,15 @@ Ndb::computeHash(Uint32 *retval,
     const CHARSET_INFO* cs = keyAttr.charset_info;
     if (cs)
     {      
-      const int n = NdbSqlUtil::strnxfrm_hash(cs,
+      NdbSqlUtil::Type::Enum typeId;
+      if (keyAttr.flags & NdbRecord::IsVar1ByteLen) {
+        typeId = NdbSqlUtil::Type::Varchar;
+      } else if (keyAttr.flags & NdbRecord::IsVar2ByteLen) {
+        typeId = NdbSqlUtil::Type::Longvarchar;
+      } else {
+        typeId = NdbSqlUtil::Type::Char;
+      }
+      const int n = NdbSqlUtil::strnxfrm_hash(cs, typeId,
                                          pos, bufEnd-pos,
                                          src, len, maxlen);
       if (unlikely(n == -1))
