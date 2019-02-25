@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,14 @@
  */
 
 #include "plugin/x/src/capabilities/handler_connection_attributes.h"
-#include "plugin/x/src/xpl_log.h"
+
+#include <algorithm>
+#include <string>
 
 #include "include/m_ctype.h"
 #include "include/mysql_com.h"
 #include "mysql/psi/mysql_thread.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
@@ -105,7 +108,7 @@ void Capability_connection_attributes::log_size_exceeded(
       "Capability session connect attributes failed, exceeded max %s size (%u"
       " bytes), current value is %u bytes long",
       name, static_cast<unsigned>(max_value), static_cast<unsigned>(value));
-};
+}
 
 unsigned char *Capability_connection_attributes::write_length_encoded_string(
     unsigned char *buf, const std::string &string) {
@@ -134,7 +137,7 @@ ngs::Error_code Capability_connection_attributes::validate_field(
   if (key.size() > k_max_key_size) {
     log_size_exceeded("key", key.size(), k_max_key_size);
     return ngs::Error(ER_X_BAD_CONNECTION_SESSION_ATTRIBUTE_KEY_LENGTH,
-                      "Key name beginning with '%s'... is too log, currently"
+                      "Key name beginning with '%s'... is too long, currently"
                       " limited to %u",
                       key.substr(0, k_max_key_size).c_str(),
                       static_cast<unsigned>(k_max_key_size));
