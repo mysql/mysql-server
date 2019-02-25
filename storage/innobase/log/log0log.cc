@@ -665,7 +665,7 @@ void log_sys_close() {
 
   log_sys_object->destroy();
 
-  ut_free(log_sys_object);
+  UT_DELETE(log_sys_object);
   log_sys_object = nullptr;
 
   log_sys = nullptr;
