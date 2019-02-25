@@ -37,7 +37,7 @@ ELSEIF(APPLE)
   ENDIF()
 ELSEIF(UNIX)
   # This is currently minimum version on all supported platforms.
-  IF(CMAKE_VERSION VERSION_LESS 3.4.3)
+  IF(CMAKE_VERSION VERSION_LESS 3.5.1)
     # Default cmake is 2.8.12.2 on RedHat
     IF(EXISTS "/etc/redhat-release")
       MESSAGE(WARNING "Please use cmake3 rather than cmake on this platform")
@@ -47,18 +47,39 @@ ELSEIF(UNIX)
       ELSE()
         MESSAGE(STATUS "Please install cmake3 (yum install cmake3)")
       ENDIF()
+    ELSE()
+      # On SunOS /opt/csw/bin/cmake is (most likely) too old.
+      FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
+      IF(MY_UNAME)
+        EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+        IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
+          FIND_PROGRAM(MY_CMAKE cmake /usr/bin
+            NO_CMAKE_ENVIRONMENT_PATH
+            NO_SYSTEM_ENVIRONMENT_PATH
+            )
+          IF(MY_CMAKE)
+            MESSAGE(STATUS "Found ${MY_CMAKE}")
+            EXEC_PROGRAM(${MY_CMAKE} ARGS --version)
+          ELSE()
+            MESSAGE(STATUS "Please install /usr/bin/cmake ")
+          ENDIF()
+        ENDIF()
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDIF()
-# CMake 3.4.3 is needed for Solaris due to CMake bug 15673.
-# 3.4.3 as minimum unless higher is checked above.
-CMAKE_MINIMUM_REQUIRED(VERSION 3.4.3)
+
+# CMake 3.5 is needed for TARGET_SOURCES(... $<TARGET_OBJECTS:${LIB}_objlib>)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 
 # Explicitly set CMP0018 and CMP0022 = NEW since newer versions of
 # CMake has OLD as default even if OLD is deprecated.
 # See cmake --help-policy CMP0018 / CMP0022
 CMAKE_POLICY(SET CMP0018 NEW)
 CMAKE_POLICY(SET CMP0022 NEW)
+
+# Include TARGET_OBJECTS expressions.
+CMAKE_POLICY(SET CMP0051 NEW)
 
 # Disallow use of the LOCATION property for build targets.
 IF(POLICY CMP0026)

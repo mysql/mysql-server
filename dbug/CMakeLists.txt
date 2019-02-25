@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,5 +21,4 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET(DBUG_SOURCES dbug.cc trace.cc)
-ADD_CONVENIENCE_LIBRARY(dbug ${DBUG_SOURCES})
-TARGET_LINK_LIBRARIES(dbug mysys)
+ADD_CONVENIENCE_LIBRARY(dbug ${DBUG_SOURCES} LINK_LIBRARIES mysys)

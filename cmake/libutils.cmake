@@ -62,47 +62,82 @@ ENDMACRO()
 
 
 # ADD_CONVENIENCE_LIBRARY(name source1...sourceN)
-# Create static library that can be merged with other libraries.
+# Create an OBJECT library ${name}_objlib containing all object files.
+# Create a STATIC library ${name} which can be used for linking.
+#
+# We use the OBJECT libraries for merging in MERGE_CONVENIENCE_LIBRARIES.
+# For APPLE, we create a STATIC library only,
+# see comments in MERGE_CONVENIENCE_LIBRARIES for Xcode
+#
+# Optional arguments:
+# [COMPILE_DEFINITIONS ...] for TARGET_COMPILE_DEFINITIONS
+# [COMPILE_OPTIONS ...]     for TARGET_COMPILE_OPTIONS
+# [DEPENDENCIES ...]        for ADD_DEPENDENCIES
+# [INCLUDE_DIRECTORIES ...] for TARGET_INCLUDE_DIRECTORIES
+# [LINK_LIBRARIES ...]      for TARGET_LINK_LIBRARIES
 MACRO(ADD_CONVENIENCE_LIBRARY)
   MYSQL_PARSE_ARGUMENTS(ARG
-    ""
+    "COMPILE_DEFINITIONS;COMPILE_OPTIONS;DEPENDENCIES;INCLUDE_DIRECTORIES;LINK_LIBRARIES"
     "EXCLUDE_FROM_ALL"
     ${ARGN}
     )
   LIST(GET ARG_DEFAULT_ARGS 0 TARGET)
   SET(SOURCES ${ARG_DEFAULT_ARGS})
   LIST(REMOVE_AT SOURCES 0)
-  ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
+
+  # For APPLE, we create a STATIC library only,
+  IF(APPLE)
+    SET(TARGET_LIB ${TARGET})
+    ADD_LIBRARY(${TARGET} STATIC ${SOURCES})
+  ELSE()
+    SET(TARGET_LIB ${TARGET}_objlib)
+    ADD_LIBRARY(${TARGET_LIB} OBJECT ${SOURCES})
+    ADD_LIBRARY(${TARGET} STATIC $<TARGET_OBJECTS:${TARGET_LIB}>)
+  ENDIF()
 
   # Collect all static libraries in the same directory
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
 
   IF(ARG_EXCLUDE_FROM_ALL)
-#   MESSAGE(STATUS "EXCLUDE_FROM_ALL ${TARGET}")
     SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
       SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
     ENDIF()
   ENDIF()
 
+  # Add COMPILE_DEFINITIONS to _objlib
+  IF(ARG_COMPILE_DEFINITIONS)
+    TARGET_COMPILE_DEFINITIONS(${TARGET_LIB} PRIVATE
+      ${ARG_COMPILE_DEFINITIONS})
+  ENDIF()
+
+  # Add COMPILE_OPTIONS to _objlib
+  IF(ARG_COMPILE_OPTIONS)
+    TARGET_COMPILE_OPTIONS(${TARGET_LIB} PRIVATE
+      ${ARG_COMPILE_OPTIONS})
+  ENDIF()
+
+  # Add DEPENDENCIES to _objlib
+  IF(ARG_DEPENDENCIES)
+    ADD_DEPENDENCIES(${TARGET_LIB} ${ARG_DEPENDENCIES})
+  ENDIF()
+
+  # Add INCLUDE_DIRECTORIES to _objlib
+  IF(ARG_INCLUDE_DIRECTORIES)
+    TARGET_INCLUDE_DIRECTORIES(${TARGET_LIB} PRIVATE
+      ${ARG_INCLUDE_DIRECTORIES})
+  ENDIF()
+
+  # Add LINK_LIBRARIES to static lib
+  IF(ARG_LINK_LIBRARIES)
+    TARGET_LINK_LIBRARIES(${TARGET} ${ARG_LINK_LIBRARIES})
+  ENDIF()
 
   # Keep track of known convenience libraries, in a global scope.
   SET(KNOWN_CONVENIENCE_LIBRARIES
     ${KNOWN_CONVENIENCE_LIBRARIES} ${TARGET} CACHE INTERNAL "" FORCE)
 
-  # Generate a cmake file which will save the name of the library.
-  CONFIGURE_FILE(
-    ${MYSQL_CMAKE_SCRIPT_DIR}/save_archive_location.cmake.in
-    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
-    @ONLY)
-  ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND}
-    -DTARGET_NAME=${TARGET}
-    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
-    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
-    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_location_${TARGET}.cmake
-    )
 ENDMACRO()
 
 
@@ -128,9 +163,9 @@ MACRO(MERGE_LIBRARIES_SHARED)
 
   CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
   IF(UNIX)
-    # Mark every export as explicitly needed, so that ld won't remove the .a files
-    # containing them. This has a similar effect as --Wl,--no-whole-archive,
-    # but is more focused.
+    # Mark every export as explicitly needed, so that ld won't remove the
+    # .a files containing them. This has a similar effect as
+    # --Wl,--no-whole-archive, but is more focused.
     FOREACH(SYMBOL ${ARG_EXPORTS})
       IF(APPLE)
         SET(export_link_flags "${export_link_flags} -Wl,-u,_${SYMBOL}")
@@ -149,7 +184,6 @@ MACRO(MERGE_LIBRARIES_SHARED)
     IF(NOT ARG_SKIP_INSTALL)
       MESSAGE(FATAL_ERROR "EXCLUDE_FROM_ALL requires SKIP_INSTALL")
     ENDIF()
-#   MESSAGE(STATUS "EXCLUDE_FROM_ALL ${TARGET}")
     SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
       SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
@@ -160,7 +194,8 @@ MACRO(MERGE_LIBRARIES_SHARED)
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
   IF(WIN32_CLANG AND WITH_ASAN)
-    TARGET_LINK_LIBRARIES(${TARGET} PRIVATE "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    TARGET_LINK_LIBRARIES(${TARGET} PRIVATE
+      "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
   ENDIF()
 
   IF(WIN32)
@@ -249,7 +284,6 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     IF(NOT ARG_SKIP_INSTALL)
       MESSAGE(FATAL_ERROR "EXCLUDE_FROM_ALL requires SKIP_INSTALL")
     ENDIF()
-#   MESSAGE(STATUS "EXCLUDE_FROM_ALL ${TARGET}")
     SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
     IF(WIN32)
       SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_DEFAULT_BUILD TRUE)
@@ -287,12 +321,6 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     # MESSAGE(STATUS "LIB ${LIB} LIB_TYPE ${LIB_TYPE}")
   ENDFOREACH()
 
-  IF(OSLIBS)
-    LIST(REMOVE_DUPLICATES OSLIBS)
-    TARGET_LINK_LIBRARIES(${TARGET} PRIVATE ${OSLIBS})
-    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
-  ENDIF()
-
   # Make the generated dummy source file depended on all static input
   # libs. If input lib changes,the source file is touched
   # which causes the desired effect (relink).
@@ -302,23 +330,46 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
     DEPENDS ${MYLIBS}
     )
 
+  # For Xcode the merging of TARGET_OBJECTS does not work.
+  # Rather than having a special implementation for Xcode only,
+  # we always use libtool directly for merging libraries.
+  IF(APPLE)
+    SET(STATIC_LIBS_STRING)
+    FOREACH(LIB ${MYLIBS})
+      STRING_APPEND(STATIC_LIBS_STRING " $<TARGET_FILE:${LIB}>")
+    ENDFOREACH()
+    # Convert string to list
+    STRING(REGEX REPLACE "[ ]+" ";" STATIC_LIBS_STRING "${STATIC_LIBS_STRING}" )
+    ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
+      COMMAND rm $<TARGET_FILE:${TARGET}>
+      COMMAND /usr/bin/libtool -static -o $<TARGET_FILE:${TARGET}>
+      ${STATIC_LIBS_STRING}
+      )
+  ELSE()
+    FOREACH(LIB ${MYLIBS})
+      TARGET_SOURCES(${TARGET} PRIVATE $<TARGET_OBJECTS:${LIB}_objlib>)
+    ENDFOREACH()
+  ENDIF()
+
+  # On Windows, ssleay32.lib/libeay32.lib or libssl.lib/libcrypto.lib
+  # must be merged into mysqlclient.lib
+  IF(WIN32 AND ${TARGET} STREQUAL "mysqlclient")
+    SET(LINKER_EXTRA_FLAGS "")
+    FOREACH(LIB ${SSL_LIBRARIES})
+      STRING_APPEND(LINKER_EXTRA_FLAGS " ${LIB}")
+    ENDFOREACH()
+    SET_TARGET_PROPERTIES(${TARGET}
+      PROPERTIES STATIC_LIBRARY_FLAGS "${LINKER_EXTRA_FLAGS}")
+  ENDIF()
+
+  IF(OSLIBS)
+    LIST(REMOVE_DUPLICATES OSLIBS)
+    TARGET_LINK_LIBRARIES(${TARGET} PRIVATE ${OSLIBS})
+    MESSAGE(STATUS "Library ${TARGET} depends on OSLIBS ${OSLIBS}")
+  ENDIF()
+
   MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES TARGET ${TARGET}")
   MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES LIBS ${LIBS}")
-  MESSAGE(STATUS "MERGE_CONVENIENCE_LIBRARIES MYLIBS ${MYLIBS}")
-
-  CONFIGURE_FILE(
-    ${MYSQL_CMAKE_SCRIPT_DIR}/merge_archives.cmake.in
-    ${CMAKE_BINARY_DIR}/archive_output_directory/lib_merge_${TARGET}.cmake
-    @ONLY)
-  ADD_CUSTOM_COMMAND(TARGET ${TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND}
-    -DTARGET_NAME=${TARGET}
-    -DTARGET_LOC=$<TARGET_FILE:${TARGET}>
-    -DTARGET_LINK_FLAGS=$<TARGET_PROPERTY:${TARGET},LINK_FLAGS>
-    -DCFG_INTDIR=${CMAKE_CFG_INTDIR}
-    -P ${CMAKE_BINARY_DIR}/archive_output_directory/lib_merge_${TARGET}.cmake
-    COMMENT "Merging library ${TARGET}"
-    )
 
   IF(NOT ARG_SKIP_INSTALL)
     IF(ARG_COMPONENT)

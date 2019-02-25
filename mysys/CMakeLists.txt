@@ -27,7 +27,7 @@ IF(SOLARIS)
  # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-   TARGET_COMPILE_OPTIONS(mytime PRIVATE
+   TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE
      $<$<CONFIG:RelWithDebInfo>:-xO1>)
  ENDIF()
 ENDIF()
@@ -146,9 +146,17 @@ IF(HAVE_LINUX_LARGE_PAGES)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.cc)
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
-TARGET_LINK_LIBRARIES(mysys dbug mytime strings ${ZLIB_LIBRARY} 
- ${LIBNSL} ${LIBM} ${LIBRT} ${LIBEXECINFO})
+ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
+  LINK_LIBRARIES
+  dbug
+  mytime
+  strings
+  ${ZLIB_LIBRARY}
+  ${LIBNSL}
+  ${LIBM}
+  ${LIBRT}
+  ${LIBEXECINFO}
+  )
 
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")

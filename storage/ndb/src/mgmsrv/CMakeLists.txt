@@ -31,8 +31,8 @@ ADD_CONVENIENCE_LIBRARY(ndbconf
                ConfigInfo.cpp
                InitConfigFileParser.cpp
                ${NDB_SOURCE_DIR}/src/kernel/vm/mt_thr_config.cpp
-)
-TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
+               LINK_LIBRARIES ndbmgmapi
+               )
 
 IF(WITHOUT_SERVER)
   RETURN()
