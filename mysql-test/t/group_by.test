@@ -2881,3 +2881,21 @@ INSERT INTO c VALUES ('a'),('b'),('c'),('d'),('e');
 SELECT COUNT(pk) FROM d WHERE EXISTS (SELECT col_varchar FROM c);
 
 DROP TABLE c, d;
+
+--echo #
+--echo # Bug #29396628: SIG 6 AT LIST<ITEM>::END | SQL_LIST.H
+--echo #
+
+#
+# This bug is not related to ROLLUP per se, and can probably be triggered
+# without it, but ROLLUP processing happens to check the validity of the
+# linked list representing all the fields, so it's the simplest way to
+# trigger the bug.
+#
+CREATE TABLE t1 (
+  f1 integer,
+  f2 integer,
+  f3 integer
+);
+SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
+DROP TABLE t1;

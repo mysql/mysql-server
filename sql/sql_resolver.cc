@@ -174,9 +174,6 @@ bool SELECT_LEX::prepare(THD *thd) {
   trace_prepare.add_select_number(select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
-  // Initially, "all_fields" is the select list
-  all_fields = fields_list;
-
   /*
     Setup the expressions in the SELECT list. Wait with privilege checking
     until all derived tables are resolved, except do privilege checking for
@@ -234,6 +231,9 @@ bool SELECT_LEX::prepare(THD *thd) {
 
   if (with_wild && setup_wild(thd)) DBUG_RETURN(true);
   if (setup_base_ref_items(thd)) DBUG_RETURN(true); /* purecov: inspected */
+
+  // Initially, "all_fields" is the select list (after expansion of *).
+  all_fields = fields_list;
 
   if (setup_fields(thd, base_ref_items, fields_list, thd->want_privilege,
                    &all_fields, true, false))

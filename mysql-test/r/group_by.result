@@ -3861,3 +3861,14 @@ SELECT COUNT(pk) FROM d WHERE EXISTS (SELECT col_varchar FROM c);
 COUNT(pk)
 5
 DROP TABLE c, d;
+#
+# Bug #29396628: SIG 6 AT LIST<ITEM>::END | SQL_LIST.H
+#
+CREATE TABLE t1 (
+f1 integer,
+f2 integer,
+f3 integer
+);
+SELECT * FROM t1 GROUP BY f3,f2,f1 WITH ROLLUP;
+f1	f2	f3
+DROP TABLE t1;
