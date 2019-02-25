@@ -68,7 +68,7 @@ inline const char* dbgmask(const Uint32 bm[2]) {
 #define ZMIN_PAGE_LIMIT_TUPKEYREQ 5
 #define ZTUP_VERSION_BITS 15
 #define ZTUP_VERSION_MASK ((1 << ZTUP_VERSION_BITS) - 1)
-#define MAX_FREE_LIST 4
+#define MAX_FREE_LIST 5
 
 inline Uint32* ALIGN_WORD(void * ptr)
 {
@@ -3473,7 +3473,8 @@ private:
   }
 #endif
 
-  Uint32 calculate_free_list_impl(Uint32) const ;
+  Uint32 calculate_free_list_impl(Uint32) const;
+  Uint32 calculate_free_list_for_alloc(Uint32) const;
   Uint64 calculate_used_var_words(Fragrecord* fragPtr);
   void remove_free_page(Fragrecord*, Var_page*, Uint32);
   void insert_free_page(Fragrecord*, Var_page*, Uint32);
