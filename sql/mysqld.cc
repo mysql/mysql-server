@@ -6326,14 +6326,9 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (abort || acl_init(opt_noacl)) {
-    /*
-      During upgrade we might be missing the mysql.global_grants table
-      which is opened during acl_reload along with all the other core privilege
-      tables. If this operation fails we simply disable the privilege system
-      and issue a warning.
-    */
+    if (!abort) LogErr(ERROR_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
+    abort = true;
     opt_noacl = true;
-    LogErr(WARNING_LEVEL, ER_PRIVILEGE_SYSTEM_INIT_FAILED);
   }
 
   /*
