@@ -92,6 +92,7 @@ SET(harness_source
   keyring/keyring_manager.cc
   keyring/keyring_memory.cc
   keyring/keyring_file.cc
+  keyring/master_key_file.cc
   networking/ip_address.cc
   networking/ipv4_address.cc
   networking/ipv6_address.cc
