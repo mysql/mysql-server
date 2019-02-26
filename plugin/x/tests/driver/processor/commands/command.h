@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -223,7 +223,6 @@ class Command {
                        Value_callback value_callback, const bool quiet,
                        const bool print_column_info);
 
-  static bool put_variable_to(std::string *result, const std::string &value);
   static void try_result(Result result);
 };
 
