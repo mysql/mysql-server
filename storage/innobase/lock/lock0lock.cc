@@ -6115,6 +6115,19 @@ lock_rec_convert_impl_to_expl(
 	}
 }
 
+void
+lock_rec_convert_active_impl_to_expl(
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: user record on page */
+	dict_index_t*		index,	/*!< in: index of record */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	trx_t*			trx,	/*!< in/out: active transaction */
+	ulint			heap_no)/*!< in: rec heap number to lock */
+{
+	trx_reference(trx, true);
+	lock_rec_convert_impl_to_expl_for_trx(block, rec, index, offsets,
+					      trx, heap_no);
+}
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,

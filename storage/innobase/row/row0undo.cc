@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -130,7 +130,8 @@ row_undo_node_create(
 /*=================*/
 	trx_t*		trx,	/*!< in/out: transaction */
 	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
-	mem_heap_t*	heap)	/*!< in: memory heap where created */
+	mem_heap_t*	heap,	/*!< in: memory heap where created */
+	bool		partial_rollback) /*!< in: true if partial rollback */
 {
 	undo_node_t*	undo;
 
@@ -146,6 +147,8 @@ row_undo_node_create(
 
 	undo->state = UNDO_NODE_FETCH_NEXT;
 	undo->trx = trx;
+
+	undo->partial = partial_rollback;
 
 	btr_pcur_init(&(undo->pcur));
 
@@ -342,6 +345,44 @@ row_undo(
 	thr->run_node = node;
 
 	return(err);
+}
+
+void
+row_convert_impl_to_expl_if_needed(
+/*===============================*/
+	btr_cur_t*	cursor, /*!< in: cursor to record */
+	undo_node_t*	node)	/*!< in: undo node */
+{
+	ulint*		offsets = NULL;
+
+	/* In case of partial rollback implicit lock on the
+	record is released in the middle of transaction, which
+	can break the serializability of IODKU and REPLACE
+	statements. Normal rollback is not affected by this
+	becasue we release the locks after the rollback. So
+	to prevent any other transaction modifying the record
+	in between the partial rollback we convert the implicit
+	lock on the record to explict. When the record is actually
+	deleted this lock be inherited by the next record.  */
+
+	if (!node->partial
+	    || (node->trx == NULL)
+	    || node->trx->isolation_level < TRX_ISO_REPEATABLE_READ){
+		return;
+	}
+
+	ut_ad(node->trx->in_rollback);
+	dict_index_t*	index = btr_cur_get_index(cursor);
+	rec_t*		rec = btr_cur_get_rec(cursor);
+	buf_block_t*	block = btr_cur_get_block(cursor);
+	ulint		heap_no = page_rec_get_heap_no(rec);
+
+	if (heap_no != PAGE_HEAP_NO_SUPREMUM
+	    && !dict_table_is_intrinsic(index->table)
+	    && !dict_index_is_spatial(index)) {
+		lock_rec_convert_active_impl_to_expl(block, rec, index,
+						      offsets,node->trx,heap_no);
+	}
 }
 
 /***********************************************************//**

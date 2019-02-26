@@ -2136,6 +2136,18 @@ join_read_key_unlock_row(QEP_TAB *tab)
 }
 
 /**
+  Rows from const tables are read once but potentially used
+  multiple times during execution of a query.
+  Ensure such rows are never unlocked during query execution.
+*/
+
+void
+join_const_unlock_row(QEP_TAB *tab)
+{
+  DBUG_ASSERT(tab->type() == JT_CONST);
+}
+
+/**
   Read a table *assumed* to be included in execution of a pushed join.
   This is the counterpart of join_read_key() / join_read_always_key()
   for child tables in a pushed join.
@@ -2803,6 +2815,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab)
   case JT_CONST:
     read_first_record= join_read_const;
     read_record.read_record= join_no_more_records;
+    read_record.unlock_row= join_const_unlock_row;
     break;
 
   case JT_EQ_REF:

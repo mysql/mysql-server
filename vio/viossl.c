@@ -376,7 +376,8 @@ static int ssl_handshake_loop(Vio *vio, SSL *ssl,
 }
 
 
-static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
+static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio,
+                  long timeout MY_ATTRIBUTE((unused)),
                   ssl_handshake_func_t func,
                   unsigned long *ssl_errno_holder)
 {
@@ -401,8 +402,10 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   }
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
-  SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);
+#if !defined(HAVE_YASSL) && OPENSSL_VERSION_NUMBER > 0x00908000L
+  SSL_clear_options(ssl, SSL_OP_LEGACY_SERVER_CONNECT);
+#endif
 #if !defined(HAVE_YASSL) && defined(SSL_OP_NO_COMPRESSION)
   SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
 #elif OPENSSL_VERSION_NUMBER >= 0x00908000L /* workaround for OpenSSL 0.9.8 */

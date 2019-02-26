@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include <mysql/plugin.h>
 #include "i_keyring_io.h"
+#include "keyring.h"
 #include "logger.h"
 #include "keyring_memory.h"
 #include "buffer.h"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -231,10 +231,6 @@ struct ins_node_t{
 				entry_list and sys fields are stored here;
 				if this is NULL, entry list should be created
 				and buffers for sys fields in row allocated */
-	dict_index_t*   duplicate;
-				/* This is the first index that reported
-				DB_DUPLICATE_KEY.  Used in the case of REPLACE
-				or INSERT ... ON DUPLICATE UPDATE. */
 	ulint		magic_n;
 };
 

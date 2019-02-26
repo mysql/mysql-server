@@ -22,13 +22,6 @@ SET(INSTALL_ARGS
   COMPONENT Test
 )
 
-UNSET(HAVE_TIRPC)
-# rpcgen.cmake will store RPC_INCLUDE_DIR in the cache
-IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
-  ADD_DEFINITIONS(-DHAVE_TIRPC)
-  SET(HAVE_TIRPC 1)
-ENDIF()
-
 IF (WIN32)
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process_win.cc ${INSTALL_ARGS})
   MYSQL_ADD_EXECUTABLE(my_safe_kill safe_kill_win.cc ${INSTALL_ARGS})
@@ -36,12 +29,15 @@ ELSE()
   MYSQL_ADD_EXECUTABLE(my_safe_process safe_process.cc ${INSTALL_ARGS})
 ENDIF()
 
+IF(LINUX AND HAVE_ASAN)
+  MYSQL_CHECK_RPC()
+ENDIF()
 # Sun RPC, and XDR, is being removed from glibc, and into a separate libtirpc
 # library. This is not compatible with libasan. The interceptor functions
 # inserted into the code will segfault.
 # As a workaround, do LD_PRELOAD=/lib64/libtirpc.so
 # For dynamically linked libasan (default for gcc), we must preload that as well
-IF(HAVE_ASAN AND HAVE_TIRPC)
+IF(HAVE_ASAN AND TIRPC_FOUND)
   TARGET_INCLUDE_DIRECTORIES(my_safe_process
     PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 

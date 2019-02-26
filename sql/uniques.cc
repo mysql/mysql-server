@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -670,11 +670,14 @@ bool Unique::get(TABLE *table)
   my_off_t save_pos;
   bool error=1;
 
-      /* Open cached file if it isn't open */
-  DBUG_ASSERT(table->sort.io_cache == NULL);
-  outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
-                                                     sizeof(IO_CACHE),
-                                MYF(MY_ZEROFILL));
+  /*
+    Open cached file if it isn't open. Reuse the existing io_cache if it is
+    already present.
+  */
+  if (!table->sort.io_cache)
+    outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(key_memory_TABLE_sort_io_cache,
+                                                       sizeof(IO_CACHE),
+                                                       MYF(MY_ZEROFILL));
 
   if (!outfile || (! my_b_inited(outfile) &&
       open_cached_file(outfile,mysql_tmpdir,TEMP_PREFIX,READ_RECORD_BUFFER,

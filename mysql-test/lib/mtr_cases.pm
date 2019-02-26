@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -383,6 +383,17 @@ sub collect_one_suite($)
   my %disabled;
   my @disabled_collection= @{$opt_skip_test_list} if $opt_skip_test_list;
   unshift (@disabled_collection, "$testdir/disabled.def");
+
+  # Check for the tests to be skipped in a sanitizer which are listed
+  # in "mysql-test/collections/disabled-<sanitizer>.list" file.
+  if ($::opt_sanitize) {
+    # Check for disabled-asan.list
+    if ($::mysql_version_extra =~ /asan/i &&
+        !grep (/disabled-asan\.list$/, @{$opt_skip_test_list})) {
+      push(@disabled_collection, "collections/disabled-asan.list");
+    }
+  }
+
   for my $skip (@disabled_collection)
     {
       if ( open(DISABLED, $skip ) )

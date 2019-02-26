@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/include/memcached
                     ${CMAKE_CURRENT_SOURCE_DIR}/utilities 
                     ${CMAKE_CURRENT_SOURCE_DIR}/daemon                                    
-                    ${LIBEVENT_INCLUDE_DIR})
+                    ${LIBEVENT_INCLUDE_DIRS})
 
 IF(${CMAKE_COMPILER_IS_GNUCC})
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
@@ -77,7 +77,7 @@ add_executable(memcached ${MEMCACHED_SOURCES})
 
 target_link_libraries(memcached 
                       ndb_memcached_utilities
-                      ${LIBEVENT_LIBRARY}
+                      ${LIBEVENT_LIBRARIES}
                       ${LIBM} ${LIBNSL} ${LIBSOCKET})
 IF(HAVE_LIBDL)
 target_link_libraries(memcached dl)

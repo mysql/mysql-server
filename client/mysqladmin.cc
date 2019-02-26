@@ -1559,7 +1559,7 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
 {
   MYSQL_RES* result;
 
-  if (mysql_query(mysql, "SHOW VARIABLES LIKE 'pid_file'"))
+  if (mysql_query(mysql, "SELECT @@datadir, @@pid_file"))
   {
     my_printf_error(mysql_errno(mysql),
                     "The query to get the server's pid file failed,"
@@ -1570,8 +1570,13 @@ static my_bool get_pidfile(MYSQL *mysql, char *pidfile)
   if (result)
   {
     MYSQL_ROW row=mysql_fetch_row(result);
-    if (row)
-      my_stpcpy(pidfile, row[1]);
+    if (row) {
+      char datadir[FN_REFLEN];
+      char pidfile_option[FN_REFLEN];
+      my_stpcpy(datadir, row[0]);
+      my_stpcpy(pidfile_option, row[1]);
+      (void) my_load_path(pidfile, pidfile_option, datadir);
+    }
     mysql_free_result(result);
     return row == 0;				/* Error if row = 0 */
   }

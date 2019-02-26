@@ -129,6 +129,14 @@ UNLOCK TABLES;
 --source ../inc/kill_and_restart_mysqld.inc
 --echo # restarting
 
+--let $rpl_connection_name= server$non_donor_id
+--source include/rpl_connection.inc
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+--reap
+
+--let $rpl_connection_name= server_$non_donor_id
+--source include/rpl_connection.inc
 # Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= $non_donor_id
 --source include/rpl_reconnect.inc

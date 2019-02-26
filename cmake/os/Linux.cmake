@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 
 INCLUDE(CheckSymbolExists)
 INCLUDE(CheckCSourceRuns)
+
+SET(LINUX 1)
 
 # We require at least GCC 4.4 or Clang 3.3.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
