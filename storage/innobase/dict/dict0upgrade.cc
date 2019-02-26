@@ -1358,6 +1358,60 @@ static void dd_upgrade_drop_sys_tables() {
   mutex_exit(&dict_sys->mutex);
 }
 
+/** Drop all InnoDB stats backup tables (innodb_*_stats_backup57). This is done
+ * only at the end of successful upgrade */
+static void dd_upgrade_drop_stats_backup_tables() {
+  ut_ad(srv_is_upgrade_mode);
+
+  space_id_t space_id_index_stats =
+      fil_space_get_id_by_name("mysql/innodb_index_stats_backup57");
+  space_id_t space_id_table_stats =
+      fil_space_get_id_by_name("mysql/innodb_table_stats_backup57");
+  char *index_stats_filepath = fil_space_get_first_path(space_id_index_stats);
+  char *table_stats_filepath = fil_space_get_first_path(space_id_table_stats);
+
+  trx_t *trx = trx_allocate_for_mysql();
+
+  if (space_id_index_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_index_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_227)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(index_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << index_stats_filepath << "'!";
+    }
+    ut_free(index_stats_filepath);
+  }
+
+  if (space_id_table_stats != SPACE_UNKNOWN) {
+    dberr_t err;
+
+    err = fil_close_tablespace(trx, space_id_table_stats);
+    if (err != DB_SUCCESS) {
+      ib::info(ER_IB_MSG_228)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
+    }
+
+    if (!fil_delete_file(table_stats_filepath)) {
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << table_stats_filepath << "'!";
+    }
+    ut_free(table_stats_filepath);
+  }
+
+  trx_commit_for_mysql(trx);
+  trx_free_for_mysql(trx);
+}
+
 /** Rename back the FTS AUX tablespace names from 8.0 format to 5.7
 format on upgrade failure, else mark FTS aux tables evictable
 @param[in]	failed_upgrade		true on upgrade failure, else
@@ -1406,6 +1460,9 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
 
     /* Flush entire buffer pool. */
     buf_flush_sync_all_buf_pools();
+
+    /* Close and delete the backup stats tables */
+    dd_upgrade_drop_stats_backup_tables();
   }
 
   tables_with_fts.clear();

@@ -86,10 +86,10 @@ Pattern "\[ERROR\]" not found
 ###########################################################################
 general_log.CSM
 general_log.CSV
-general_log_470.sdi
+general_log_XXX.sdi
 slow_log.CSM
 slow_log.CSV
-slow_log_472.sdi
+slow_log_XXX.sdi
 ###########################################################################
 # Cleanup
 ###########################################################################

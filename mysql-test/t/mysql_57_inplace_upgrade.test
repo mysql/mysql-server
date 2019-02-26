@@ -244,6 +244,7 @@ SELECT COUNT(*) != 0 FROM mysql.help_topic;
 # These files must not exist
 # $MYSQLD_DATADIR/mysql/innodb_index_stats_backup57.ibd
 # $MYSQLD_DATADIR/mysql/innodb_table_stats_backup57.ibd
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
 --list_files $MYSQLD_DATADIR/mysql
 
 --let $shutdown_server_timeout = 300
