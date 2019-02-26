@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -221,6 +221,16 @@ ELSEIF(DEB_CODENAME STREQUAL "stretch")
   SET (DEB_INIT_APPARMOR "")
   SET (DEB_CONTROL_DBGSYM "")
   SET (DEB_RULES_STRIP "")
+ELSEIF(DEB_CODENAME STREQUAL "buster")
+  SET (DEB_PLATFORMRELEASE "debian10")
+  SET (DEB_CONTROL_BDEPS ", dh-systemd")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR "")
+  SET (DEB_RULES_APPARMOR_LOAD "")
+  SET (DEB_INSTALL_SERVER_APPARMOR "")
+  SET (DEB_INIT_APPARMOR "")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSEIF(DEB_CODENAME STREQUAL "sid")
   IF (DEFINED DEB_GCC_SNAPSHOT)
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DCMAKE_C_COMPILER=/usr/lib/gcc-snapshot/bin/gcc -DCMAKE_CXX_COMPILER=/usr/lib/gcc-snapshot/bin/g++ -DMYSQL_MAINTAINER_MODE=0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache")
@@ -365,6 +375,25 @@ ELSEIF(DEB_CODENAME STREQUAL "cosmic")
     # Cluster code triggers a lot of new warnings with GCC 7.2
     SET (DEB_DEBUG_MAINTAINER "-DMYSQL_MAINTAINER_MODE=0")
   ENDIF()
+ELSEIF(DEB_CODENAME STREQUAL "disco")
+  SET (DEB_PLATFORMRELEASE "ubuntu19.04")
+  SET (DEB_CONTROL_BDEPS ", dh-apparmor, dh-systemd (>=1.5)")
+  SET (DEB_INSTALL_SOURCE_XZ "../*.tar.xz usr/src/mysql/")
+  SET (DEB_RULES_INSTALL_APPARMOR
+  "
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	install -g root -o root -m 0644 -D debian/extra/apparmor-profile-router debian/tmp/etc/apparmor.d/usr.bin.mysqlrouter
+  ")
+  SET (DEB_RULES_APPARMOR_LOAD
+  "
+	dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld
+	dh_apparmor -pmysql-router-${DEB_PRODUCTNAME} --profile-name=usr.bin.mysqlrouter
+  ")
+  SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
+  SET (DEB_INSTALL_ROUTER_APPARMOR "etc/apparmor.d/usr.bin.mysqlrouter")
+  SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")

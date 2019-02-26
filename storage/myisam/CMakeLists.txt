@@ -14,6 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
 				ft_stopwords.c ft_update.c mi_cache.c mi_changed.c mi_check.c

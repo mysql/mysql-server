@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1055,16 +1055,25 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
     return FALSE;
   }
 
+  /* Prevent from adding the same plugin more than one time. */
+  if (!thd->audit_class_plugins.exists(plugin))
+  {
+    /* lock the plugin and add it to the list */
+    plugin= my_plugin_lock(NULL, &plugin);
+
+    /* The plugin could not be acquired. */
+    if (plugin == NULL)
+    {
+      /* Add this plugin mask to non subscribed mask. */
+      add_audit_mask(evt->not_subscribed_mask, data->class_mask);
+      return FALSE;
+    }
+
+    thd->audit_class_plugins.push_back(plugin);
+  }
+
   /* Copy subscription mask from the plugin into the array. */
   add_audit_mask(evt->subscribed_mask, data->class_mask);
-
-  /* Prevent from adding the same plugin more than one time. */
-  if (thd->audit_class_plugins.exists(plugin))
-    return FALSE;
-
-  /* lock the plugin and add it to the list */
-  plugin= my_plugin_lock(NULL, &plugin);
-  thd->audit_class_plugins.push_back(plugin);
 
   return FALSE;
 }

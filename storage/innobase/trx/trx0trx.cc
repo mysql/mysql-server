@@ -184,6 +184,7 @@ trx_init(
 	trx->lock.rec_cached = 0;
 
 	trx->lock.table_cached = 0;
+	trx->error_index = NULL;
 
 	/* During asynchronous rollback, we should reset forced rollback flag
 	only after rollback is complete to avoid race with the thread owning

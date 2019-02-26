@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -246,6 +246,26 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	/** Determine if the table will be rebuilt.
 	@return whether the table will be rebuilt */
 	bool need_rebuild () const { return(old_table != new_table); }
+
+	/** Set shared data between the passed in handler context
+	and current context.
+	@param[in] inplace_alter_handler_ctx        handler context */
+	void set_shared_data(
+		const inplace_alter_handler_ctx *ctx)
+	{
+		ut_ad(ctx != NULL);
+		if (this->add_autoinc == ULINT_UNDEFINED) {
+			return;
+		}
+		const ha_innobase_inplace_ctx* ha_ctx =
+			static_cast<const ha_innobase_inplace_ctx*> (ctx);
+
+		/* In InnoDB table, if it's adding AUTOINC column,
+		the sequence value should be shared among contexts.*/
+		ut_ad(ha_ctx->add_autoinc != ULINT_UNDEFINED);
+		this->sequence = ha_ctx->sequence;
+
+        }
 
 private:
 	// Disable copying
@@ -2542,6 +2562,75 @@ innobase_check_column_length(
 	return(false);
 }
 
+/** Search for a given column in each index that is not being dropped. Return true if the column is part of any of the active indexes or it is a system column.
+@param[in]	table	table object
+@param[in]	col_no	column number of the column which is to be checked
+@param[in]	is_v	if this is a virtual column
+@retval	true the column exists or it is a system column
+@retval	false column does not exist */
+static
+bool
+check_col_exists_in_indexes(
+	const dict_table_t*	table,
+	ulint			col_no,
+	bool			is_v)
+{
+	/* This function does not check system columns */
+	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
+		return(true);
+	}
+
+	for (dict_index_t* index = dict_table_get_first_index(table); index;
+		index = dict_table_get_next_index(index)) {
+
+		if (index->to_be_dropped) {
+			continue;
+		}
+
+		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
+			const dict_col_t* idx_col
+				= dict_index_get_nth_col(index, i);
+
+			if (is_v && dict_col_is_virtual(idx_col)) {
+				const dict_v_col_t*   v_col = reinterpret_cast<
+					const dict_v_col_t*>(idx_col);
+				if (v_col->v_pos == col_no) {
+					return(true);
+				}
+			}
+
+			if (!is_v && !dict_col_is_virtual(idx_col)
+			    && dict_col_get_no(idx_col) == col_no) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Reset dict_col_t::ord_part for those columns that fail to be indexed,
+Check every existing column to see if any current index references them.
+This should be checked after an index is dropped during ALTER TABLE.
+@param[in,out]	table	InnoDB table to check */
+static
+inline
+void
+reset_column_ord_part(
+	dict_table_t	*table) {
+	for (ulint i = 0; i < dict_table_get_n_cols(table); i++) {
+		if (!check_col_exists_in_indexes(table, i, false)) {
+			table->cols[i].ord_part = 0;
+		}
+	}
+
+	for (ulint i = 0; i < dict_table_get_n_v_cols(table); i++) {
+		if (!check_col_exists_in_indexes(table, i, true)) {
+			table->v_cols[i].m_col.ord_part = 0;
+		}
+	}
+}
+
 /********************************************************************//**
 Drop any indexes that we were not able to free previously due to
 open table handles. */
@@ -2564,6 +2653,7 @@ online_retry_drop_indexes_low(
 
 	if (table->drop_aborted) {
 		row_merge_drop_indexes(trx, table, TRUE);
+                reset_column_ord_part(table);
 	}
 }
 
@@ -4972,7 +5062,7 @@ error_handling:
 
 error_handled:
 
-	ctx->prebuilt->trx->error_info = NULL;
+	ctx->prebuilt->trx->error_index = NULL;
 	ctx->trx->error_state = DB_SUCCESS;
 
 	if (!dict_locked) {
@@ -5095,7 +5185,7 @@ innobase_check_foreign_key_index(
 			    ha_alter_info->index_add_count)) {
 
 			/* Index cannot be dropped. */
-			trx->error_info = index;
+			trx->error_index = index;
 			return(true);
 		}
 	}
@@ -5129,7 +5219,7 @@ innobase_check_foreign_key_index(
 			    ha_alter_info->index_add_count)) {
 
 			/* Index cannot be dropped. */
-			trx->error_info = index;
+			trx->error_index = index;
 			return(true);
 		}
 	}
@@ -5840,7 +5930,7 @@ check_if_can_drop_indexes:
 				m_prebuilt->trx, drop_fk, n_drop_fk)) {
 				row_mysql_unlock_data_dictionary(
 					m_prebuilt->trx);
-				m_prebuilt->trx->error_info = index;
+				m_prebuilt->trx->error_index = index;
 				print_error(HA_ERR_DROP_INDEX_FK,
 					    MYF(0));
 				goto err_exit;
@@ -6425,7 +6515,7 @@ oom:
 
 	/* prebuilt->table->n_ref_count can be anything here, given
 	that we hold at most a shared lock on the table. */
-	m_prebuilt->trx->error_info = NULL;
+	m_prebuilt->trx->error_index = NULL;
 	ctx->trx->error_state = DB_SUCCESS;
 
 	DBUG_RETURN(true);
@@ -6457,56 +6547,6 @@ innobase_online_rebuild_log_free(
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
 	rw_lock_x_unlock(&clust_index->lock);
-}
-
-/** For each user column, which is part of an index which is not going to be
-dropped, it checks if the column number of the column is same as col_no
-argument passed.
-@param[in]	table	table object
-@param[in]	col_no	column number of the column which is to be checked
-@param[in]	is_v	if this is a virtual column
-@retval true column exists
-@retval false column does not exist, true if column is system column or
-it is in the index. */
-static
-bool
-check_col_exists_in_indexes(
-	const dict_table_t*	table,
-	ulint			col_no,
-	bool			is_v)
-{
-	/* This function does not check system columns */
-	if (!is_v && dict_table_get_nth_col(table, col_no)->mtype == DATA_SYS) {
-		return(true);
-	}
-
-	for (dict_index_t* index = dict_table_get_first_index(table); index;
-	     index = dict_table_get_next_index(index)) {
-
-		if (index->to_be_dropped) {
-			continue;
-		}
-
-		for (ulint i = 0; i < index->n_user_defined_cols; i++) {
-			const dict_col_t* idx_col
-				= dict_index_get_nth_col(index, i);
-
-			if (is_v && dict_col_is_virtual(idx_col)) {
-				const dict_v_col_t*   v_col = reinterpret_cast<
-					const dict_v_col_t*>(idx_col);
-				if (v_col->v_pos == col_no) {
-					return(true);
-				}
-			}
-
-			if (!is_v && !dict_col_is_virtual(idx_col)
-			    && dict_col_get_no(idx_col) == col_no) {
-				return(true);
-			}
-		}
-	}
-
-	return(false);
 }
 
 /** Rollback a secondary index creation, drop the indexes with
@@ -6658,20 +6698,7 @@ func_exit:
 		}
 	}
 
-	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
-	we do this by checking every existing column, if any current
-	index would index them */
-	for (ulint i = 0; i < dict_table_get_n_cols(prebuilt->table); i++) {
-		if (!check_col_exists_in_indexes(prebuilt->table, i, false)) {
-			prebuilt->table->cols[i].ord_part = 0;
-		}
-	}
-
-	for (ulint i = 0; i < dict_table_get_n_v_cols(prebuilt->table); i++) {
-		if (!check_col_exists_in_indexes(prebuilt->table, i, true)) {
-			prebuilt->table->v_cols[i].m_col.ord_part = 0;
-		}
-	}
+	reset_column_ord_part(prebuilt->table);
 
 	trx_commit_for_mysql(prebuilt->trx);
 	MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
@@ -7954,7 +7981,7 @@ commit_cache_norebuild(
 	col_set::const_iterator col_it;
 
 	/* Check if the column, part of an index to be dropped is part of any
-	other index which is not being dropped. If it so, then set the ord_part
+	other index which is not being dropped. If not, then set the ord_part
 	of the column to 0. */
 	get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
 
@@ -9238,6 +9265,12 @@ ha_innopart::inplace_alter_table(
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
+
+		if (i != 0 && ha_alter_info->handler_ctx != NULL) {
+			ha_alter_info->handler_ctx->set_shared_data(
+				                  ctx_parts->ctx_array[i - 1]);
+                }
+
 		res = ha_innobase::inplace_alter_table(altered_table,
 						ha_alter_info);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);

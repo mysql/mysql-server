@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -178,4 +178,8 @@ ulong get_max_connections(void);
 */
 my_thread_attr_t *get_connection_attrib(void);
 
+/* Increment the status variable 'Aborted_connects'. */
+#ifndef EMBEDDED_LIBRARY
+void increment_aborted_connects();
+#endif
 #endif // THREAD_POOL_PRIV_INCLUDED

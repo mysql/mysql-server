@@ -7,6 +7,7 @@
 --source include/have_perfschema.inc
 --source include/not_embedded.inc
 --source include/no_protocol.inc
+--source include/count_sessions.inc
 
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 --echo
@@ -111,14 +112,90 @@ SELECT variable_value FROM status_by_thread
   WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_after;
 --echo
 --echo # Expect bytes_before > bytes_after
-SELECT @bytes_before > @bytes_after;
+SELECT @bytes_before > @bytes_after AS 'Expect 1';
 --echo
 --echo # Expect bytes_after is zero
-SELECT @bytes_after;
+SELECT @bytes_after AS 'Expect 0';
 
 disconnect con1;
+--source include/wait_until_count_sessions.inc
+
 
 --echo
+--echo # TEST 6
+--echo #
+--echo # Bug#28291258 FLUSH STATUS ADDS TWICE TO GLOBAL VALUES
+--echo #
+
+--echo
+--echo # Default connection
+--let $initial_global_value = query_get_value(SHOW GLOBAL STATUS LIKE 'Slow_queries', Value, 1)
+
+--source include/count_sessions.inc
+
+--echo
+--echo # First connection
+--connect (con1, localhost, root,,)
+
+## Global value requested from the first session must not change
+--let $current_global_value = query_get_value(SHOW GLOBAL STATUS LIKE 'Slow_queries', Value, 1)
+--let $assert_cond = $current_global_value - $initial_global_value = 0
+--let $assert_text = Global value requested from the first session must not change
+--source include/assert.inc
+
+--echo
+--echo # Generate a slow query
+--echo
+SET long_query_time = 2;
+SELECT SLEEP(4);
+SET long_query_time = @@global.long_query_time;
+--echo
+
+## Global value requested from the first session after SLEEP() must increase by 1
+--let $current_global_value = query_get_value(SHOW GLOBAL STATUS LIKE 'Slow_queries', Value, 1)
+--let $first_session_value = query_get_value(SHOW SESSION STATUS LIKE 'Slow_queries', Value, 1)
+--let $assert_cond = $current_global_value - $initial_global_value = 1
+--let $assert_text = Global value requested from the first session after SLEEP() must increase by 1
+--source include/assert.inc
+--let $assert_cond = $first_session_value = 1
+--let $assert_text = First session value must increase by 1
+--source include/assert.inc
+
+--connection default
+--disconnect con1
+--source include/wait_until_count_sessions.inc
+
+--echo
+--echo # Default connection
+--connection default
+
+## Global value requested from the default session after DISCONNECT must remain the same
+--let $current_global_value = query_get_value(SHOW GLOBAL STATUS LIKE 'Slow_queries', Value, 1)
+--let $default_session_value = query_get_value(SHOW SESSION STATUS LIKE 'Slow_queries', Value, 1)
+--let $assert_cond = $current_global_value - $initial_global_value = 1
+--let $assert_text = Global value requested from the default session after DISCONNECT must remain the same
+--source include/assert.inc
+
+## Default session value must remain zero
+--let $assert_cond = $default_session_value = 0
+--let $assert_text = Default session value must remain zero
+--source include/assert.inc
+
+--echo
+FLUSH STATUS;
+--echo
+
+## Global value requested from the default session after FLUSH must remain the same
+--let $current_global_value = query_get_value(SHOW GLOBAL STATUS LIKE 'Slow_queries', Value, 1)
+--let $default_session_value = query_get_value(SHOW SESSION STATUS LIKE 'Slow_queries', Value, 1)
+--let $assert_cond = $current_global_value - $initial_global_value = 1
+--let $assert_text = Global value requested from the default session after FLUSH must remain the same
+--source include/assert.inc
+
+## Default session value after FLUSH must remain zero
+--let $assert_cond = $default_session_value = 0
+--let $assert_text = Default session value after FLUSH must remain zero
+--source include/assert.inc
+
 --echo # CLEANUP
 set @@global.show_compatibility_56 = @show_compatibility_56_save;
-

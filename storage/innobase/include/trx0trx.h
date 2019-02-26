@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -89,11 +89,11 @@ trx_set_detailed_error_from_file(
 	trx_t*	trx,	/*!< in: transaction struct */
 	FILE*	file);	/*!< in: file to read message from */
 /****************************************************************//**
-Retrieves the error_info field from a trx.
+Retrieves the index causing the error from a trx.
 @return the error info */
 UNIV_INLINE
 const dict_index_t*
-trx_get_error_info(
+trx_get_error_index(
 /*===============*/
 	const trx_t*	trx);	/*!< in: trx object */
 /********************************************************************//**
@@ -1141,7 +1141,7 @@ struct trx_t {
 					doing the transaction is allowed to
 					set this field: this is NOT protected
 					by any mutex */
-	const dict_index_t*error_info;	/*!< if the error number indicates a
+	const dict_index_t*error_index;	/*!< if the error number indicates a
 					duplicate key error, a pointer to
 					the problematic index is stored here */
 	ulint		error_key_num;	/*!< if the index creation fails to a

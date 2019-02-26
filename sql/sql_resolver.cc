@@ -362,8 +362,15 @@ bool SELECT_LEX::prepare(THD *thd)
 
   sj_candidates= NULL;
 
+  /*
+    When reaching the top-most query block, or the next-to-top query block for
+    the SQL command SET and for SP instructions (indicated with SQLCOM_END),
+    apply local transformations to this query block and all underlying query
+    blocks.
+  */
   if (outer_select() == NULL ||
-      (parent_lex->sql_command == SQLCOM_SET_OPTION &&
+      ((parent_lex->sql_command == SQLCOM_SET_OPTION ||
+       parent_lex->sql_command == SQLCOM_END) &&
        outer_select()->outer_select() == NULL))
   {
     /*

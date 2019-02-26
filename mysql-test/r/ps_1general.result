@@ -293,7 +293,7 @@ t2	1	t2_idx	1	b	A	0	NULL	NULL	YES	BTREE
 prepare stmt4 from ' show table status from test like ''t2%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t2	InnoDB	10	Dynamic	0	0	16384	#	0	0	NULL	#	#	#	latin1_swedish_ci	NULL		
+t2	InnoDB	10	Dynamic	0	0	16384	#	16384	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 prepare stmt4 from ' show table status from test like ''t9%'' ';
 execute stmt4;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
