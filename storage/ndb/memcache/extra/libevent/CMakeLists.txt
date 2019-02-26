@@ -1,4 +1,4 @@
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ IF(HAVE_WORKING_KQUEUE)
         SET(LIBEVENT_KQUEUE_SOURCES kqueue.c)
 ENDIF()
 
-ADD_CONVENIENCE_LIBRARY(event 
+ADD_CONVENIENCE_LIBRARY(ndb_event
                          ${LIBEVENT_CORE_SOURCES} 
                          ${LIBEVENT_EXTRA_SOURCES} 
                          ${LIBEVENT_POLL_SOURCES} 
@@ -83,6 +83,6 @@ ADD_CONVENIENCE_LIBRARY(event
                          ${LIBEVENT_KQUEUE_SOURCES})
 
 if(LIBRT) 
-  target_link_libraries(event rt)
+  target_link_libraries(ndb_event rt)
 endif()
 
