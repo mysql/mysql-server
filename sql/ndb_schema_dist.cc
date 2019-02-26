@@ -123,10 +123,6 @@ bool Ndb_schema_dist_client::prepare(const char* db, const char* tabname)
     DBUG_RETURN(false);
   }
 
-  // Dimension max number of participants to what's supported by the slock
-  // column of ndb_schema
-  m_max_participants = schema_dist_table.get_slock_bytes() * 8;
-
   // Schema distribution is ready
   DBUG_RETURN(true);
 }

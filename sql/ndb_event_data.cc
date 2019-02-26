@@ -27,6 +27,7 @@
 #include "sql/dd_table_share.h"
 #include "sql/field.h"
 #include "sql/ndb_dd_table.h"
+#include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_table_map.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -257,4 +258,12 @@ void Ndb_event_data::destroy(const Ndb_event_data* event_data)
   delete event_data;
 
   DBUG_VOID_RETURN;
+}
+
+uint32 Ndb_event_data::unpack_uint32(unsigned attr_id) const {
+  return ndb_value[0][attr_id].rec->u_32_value();
+}
+
+const char* Ndb_event_data::unpack_string(unsigned attr_id) const {
+  return ndb_value[0][attr_id].rec->aRef();
 }

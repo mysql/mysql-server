@@ -116,9 +116,6 @@ class Ndb_schema_dist_client {
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
 
-  // Max number of participants supported
-  int m_max_participants{0};
-
   int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,

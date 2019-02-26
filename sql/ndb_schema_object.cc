@@ -31,6 +31,7 @@
 #include <unordered_map>
 
 #include "sql/ndb_bitmap.h"
+#include "sql/ndb_require.h"
 
 // List keeping track of active NDB_SCHEMA_OBJECTs. The list is used
 // by the schema distribution coordinator to find the correct NDB_SCHEMA_OBJECT
@@ -92,6 +93,15 @@ void NDB_SCHEMA_OBJECT::init(uint32 nodeid) {
   active_schema_clients.m_own_nodeid = nodeid;
 }
 
+void NDB_SCHEMA_OBJECT::get_schema_op_ids(std::vector<uint32>& ids)
+{
+  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
+  for (const auto entry : active_schema_clients.m_hash){
+    NDB_SCHEMA_OBJECT* schema_object = entry.second;
+    ids.push_back(schema_object->schema_op_id());
+  }
+}
+
 static uint32 next_schema_op_id() {
   static std::atomic<uint32> schema_op_id_sequence{1};
   uint32 id = schema_op_id_sequence++;
@@ -105,49 +115,30 @@ static uint32 next_schema_op_id() {
 
 NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, const char *db,
                                      const char *name, uint32 id,
-                                     uint32 version, uint slock_bits)
+                                     uint32 version)
     : m_key(key),
       m_db(db),
       m_name(name),
       m_id(id),
       m_version(version),
       m_schema_op_id(next_schema_op_id()) {
-  // Check legacy min limit for number of bits
-  DBUG_ASSERT(slock_bits >= 256);
-
-  // Initialize bitmap, clears all bits.
-  bitmap_init(&slock_bitmap, nullptr, slock_bits, false);
-
-  // Set all bits in order to expect answer from all other nodes by
-  // default(those who are not subscribed will be filtered away by the
-  // Coordinator which keep track of such stuff)
-  bitmap_set_all(&slock_bitmap);
-
-  mysql_mutex_init(PSI_INSTRUMENT_ME, &mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(PSI_INSTRUMENT_ME, &cond);
 }
 
 NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
   DBUG_ASSERT(m_use_count == 0);
-
-  mysql_cond_destroy(&cond);
-  mysql_mutex_destroy(&mutex);
-
-  bitmap_free(&slock_bitmap);
+  // Check that all participants have completed
+  DBUG_ASSERT(state.m_participants.size() == count_completed_participants());
+  // Coordinator should have completed
+  DBUG_ASSERT(state.m_coordinator_completed);
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
                                           const char *table_name, uint32 id,
-                                          uint32 version, uint participants,
+                                          uint32 version,
                                           bool create_if_not_exists) {
   DBUG_ENTER("NDB_SCHEMA_OBJECT::get");
   DBUG_PRINT("enter", ("db: '%s', table_name: '%s', id: %u, version: %u",
                        db, table_name, id, version));
-
-  // Number of partipcipants must be provided when allowing a new
-  // instance to be created
-  DBUG_ASSERT((create_if_not_exists && participants) ||
-              !create_if_not_exists);
 
   // Build a key on the form "./<db>/<name>_<id>_<version>"
   const std::string key = std::string("./") + db + "/" + table_name + "_" +
@@ -170,7 +161,7 @@ NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
   }
 
   ndb_schema_object = new (std::nothrow)
-      NDB_SCHEMA_OBJECT(key.c_str(), db, table_name, id, version, participants);
+      NDB_SCHEMA_OBJECT(key.c_str(), db, table_name, id, version);
   if (!ndb_schema_object) {
     DBUG_PRINT("info", ("failed to allocate"));
     DBUG_RETURN(nullptr);
@@ -221,29 +212,145 @@ NDB_SCHEMA_OBJECT::release(NDB_SCHEMA_OBJECT *ndb_schema_object)
   DBUG_VOID_RETURN;
 }
 
+std::string NDB_SCHEMA_OBJECT::waiting_participants_to_string() const {
+  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  const char* separator = "";
+  std::string participants("[");
+  for (const auto& it: state.m_participants){
+    if (it.second.m_completed == true)
+      continue; // Don't show completed
+    participants.append(separator).append(std::to_string(it.first));
+    separator = ",";
+  }
+  participants.append("]");
+  return participants;
+}
 
-void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
-{
-  std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
+size_t NDB_SCHEMA_OBJECT::count_completed_participants() const {
+  size_t count = 0;
+  for (const auto& it : state.m_participants) {
+    const State::Participant &participant = it.second;
+    if (participant.m_completed) count++;
+  }
+  return count;
+}
 
-  for (const auto &key_and_value : active_schema_clients.m_hash)
-  {
-    NDB_SCHEMA_OBJECT *schema_object = key_and_value.second;
-    schema_object->check_waiter(new_participants);
+void NDB_SCHEMA_OBJECT::register_participants(
+    const std::unordered_set<uint32> &nodes) const {
+  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+
+  // Assume the list of participants is empty
+  ndbcluster::ndbrequire(state.m_participants.size() == 0);
+  // Assume coordinator have not completed
+  ndbcluster::ndbrequire(!state.m_coordinator_completed);
+
+  // Insert new participants as specified by nodes list
+  for (const uint32 node: nodes)
+    state.m_participants[node];
+
+  // Double check that there are as many participants as nodes
+  ndbcluster::ndbrequire(nodes.size() == state.m_participants.size());
+}
+
+void NDB_SCHEMA_OBJECT::result_received_from_node(
+    uint32 participant_node_id, uint32 result,
+    const std::string &message) const {
+  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+
+  const auto it = state.m_participants.find(participant_node_id);
+  if (it == state.m_participants.end()) {
+    // Received reply from node not registered as participant, may happen
+    // when a node hears the schema op but this node hasn't registered it as
+    // subscriber yet.
+    return;
+  }
+
+  // Mark participant as completed and save result
+  State::Participant& participant = it->second;
+  participant.m_completed = true;
+  participant.m_result = result;
+  participant.m_message = message;
+}
+
+void NDB_SCHEMA_OBJECT::result_received_from_nodes(
+    const std::unordered_set<uint32> &nodes) const {
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+
+  // Mark the listed nodes as completed
+  for(auto node : nodes) {
+    const auto it = state.m_participants.find(node);
+    if (it == state.m_participants.end()) {
+      // Received reply from node not registered as participant, may happen
+      // when a node hears the schema op but this node hasn't registered it as
+      // subscriber yet.
+      return;
+    }
+
+    // Participant is not in list, mark it as failed
+    State::Participant& participant = it->second;
+    participant.m_completed = true;
+    // No result or message provided in old protocol
   }
 }
 
-void
-NDB_SCHEMA_OBJECT::check_waiter(const MY_BITMAP &new_participants)
-{
-  mysql_mutex_lock(&mutex);
-  bitmap_intersect(&slock_bitmap, &new_participants);
-  mysql_mutex_unlock(&mutex);
-
-  // Wakeup waiting Client
-  mysql_cond_signal(&cond);
+bool NDB_SCHEMA_OBJECT::check_all_participants_completed() const {
+  std::lock_guard<std::mutex> lock_participants(state.m_lock);
+  return state.m_participants.size() == count_completed_participants();
 }
 
-std::string NDB_SCHEMA_OBJECT::slock_bitmap_to_string() const {
-  return ndb_bitmap_to_hex_string(&slock_bitmap);
+void NDB_SCHEMA_OBJECT::fail_participants_not_in_list(
+    const std::unordered_set<uint32> &nodes, uint32 result,
+    const char *message) const {
+  for (auto& it : state.m_participants) {
+    if (nodes.find(it.first) != nodes.end()) {
+      // Participant still exist in list
+      continue;
+    }
+
+    // Participant is not in list, mark it as failed
+    State::Participant& participant = it.second;
+    participant.m_completed = true;
+    participant.m_result = result;
+    participant.m_message = message;
+  }
+}
+
+bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
+    const std::unordered_set<uint32> &new_subscribers, uint32 result,
+    const char *message) const {
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+
+  // Fail participants not in list of nodes
+  fail_participants_not_in_list(new_subscribers, result, message);
+
+  if (state.m_participants.size() != count_completed_participants()) {
+    // Not all participants have completed yet
+    return false;
+  }
+
+  // All participants have replied
+  return true;
+}
+
+void NDB_SCHEMA_OBJECT::check_coordinator_completed() const {
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  // Don't set completed unless all participants have replied
+  if (state.m_participants.size() != count_completed_participants()) return;
+
+  state.m_coordinator_completed = true;
+  // Signal the Client
+  state.m_cond.notify_one();
+}
+
+bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {
+  const auto timeout_time = std::chrono::seconds(max_wait_seconds);
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+
+  const bool completed =
+      state.m_cond.wait_for(lock_participants, timeout_time, [this]() {
+        return state.m_coordinator_completed &&
+               state.m_participants.size() == count_completed_participants();
+      });
+
+  return completed;
 }

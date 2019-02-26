@@ -25,11 +25,14 @@
 #ifndef NDB_SCHEMA_OBJECT_H
 #define NDB_SCHEMA_OBJECT_H
 
+#include <condition_variable>
+#include <mutex>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-#include "my_bitmap.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
+#include "my_inttypes.h"
 
 /*
   Used for communication between the schema distribution Client(which often is
@@ -68,24 +71,48 @@ class NDB_SCHEMA_OBJECT {
   // starts the schema operation
   const uint32 m_schema_op_id;
 
+  // State variables for the coordinator and client
+  mutable struct State {
+    // Mutex protecting state
+    std::mutex m_lock;
+    // Condition for communication betwen client and coordinator
+    std::condition_variable m_cond;
+    // List of participant nodes in schema operation.
+    // Used like this:
+    // 1) When coordinator recieves the schema op event it adds all the
+    //    nodes currently subscribed as participants
+    // 2) When coordinator recieves reply or failure from a participant it will
+    //    be removed from the list
+    // 3) When list of participants is empty the coordinator will
+    //    send the final ack, clearing all slock bits(thus releasing also any
+    //    old version nodes)
+    // 4) When final ack is received, client will be woken up
+    struct Participant {
+      bool m_completed{false};
+      uint32 m_result{0};
+      std::string m_message;
+      Participant() = default;
+      Participant(const Participant &) = delete;
+      Participant& operator=(const Participant&) = delete;
+    };
+    std::unordered_map<uint32, Participant> m_participants;
+
+    // Set after coordinator has received replies from all participants and
+    // recieved the final ack which cleared all the slock bits
+    bool m_coordinator_completed{false};
+  } state;
+
   NDB_SCHEMA_OBJECT() = delete;
   NDB_SCHEMA_OBJECT(const NDB_SCHEMA_OBJECT&) = delete;
   NDB_SCHEMA_OBJECT(const char *key, const char *db, const char *name,
-                    uint32 id, uint32 version, uint slock_bits);
+                    uint32 id, uint32 version);
   ~NDB_SCHEMA_OBJECT();
 
-  void check_waiter(const MY_BITMAP &new_participants);
-public:
+  void fail_participants_not_in_list(const std::unordered_set<uint32> &nodes,
+                                     uint32 result, const char *message) const;
 
-  mysql_mutex_t mutex; // Protects "slock_bitmap" and "cond"
-  mysql_cond_t cond;   // Signal/wait for slock_bitmap changes
-
-  // Bitmap which keep track of MySQL Servers participating in the schema
-  // operation. When the bitmap is cleared the operation has completed on all.
-  MY_BITMAP slock_bitmap;
-
-  // Return bitmap bits as hexadecimal string
-  std::string slock_bitmap_to_string() const;
+  size_t count_completed_participants() const;
+ public:
 
   const char * db() const { return m_db.c_str(); }
   const char * name() const { return m_name.c_str(); }
@@ -95,8 +122,8 @@ public:
   // Return the schema operation id
   uint32 schema_op_id() const { return m_schema_op_id; }
 
-  // Check if NDB_SCHEMA_OBJECTs should wakeup due to new participant status
-  static void check_waiters(const MY_BITMAP &new_participants);
+  // Return current list of waiting participants as human readable string
+  std::string waiting_participants_to_string() const;
 
   /**
      @brief Initialize the NDB_SCHEMA_OBJECT facility
@@ -104,6 +131,15 @@ public:
      @param nodeid The nodeid of this node
    */
   static void init(uint32 nodeid);
+
+  /**
+     @brief Return list of the schema operation id's for the currently active
+     NDB_SCHEMA_OBJECTS
+     @note Normally there is only one NDB_SCHEMA_OBJECT activa at a time
+
+     @param ids The list to populate
+   */
+  static void get_schema_op_ids(std::vector<uint32> &ids);
 
   /**
     @brief Get NDB_SCHEMA_OBJECT to be used for communication between Client
@@ -117,8 +153,6 @@ public:
     @param table_name  Part 2 of key, normally used for table
     @param id          Part 3 of key, normally used for id
     @param version     Part 4 of key, normally used for version
-    @param participants Number of participants to dimension for. This parameter
-                        must be provided when create_if_not_exists is true.
     @param create_if_not_exists Allow a new NDB_SCHEMA_OBJECT if one doesn't
                                 exist.
 
@@ -127,7 +161,6 @@ public:
   */
   static NDB_SCHEMA_OBJECT *get(const char *db, const char *table_name,
                                 uint32 id, uint32 version,
-                                uint participants = 0,
                                 bool create_if_not_exists = false);
 
   /**
@@ -151,6 +184,64 @@ public:
      @param ndb_schema_object pointer to NDB_SCHEMA_OBJECT to release
    */
   static void release(NDB_SCHEMA_OBJECT *ndb_schema_object);
+
+  /**
+     @brief Add list of nodes to participants
+     @param nodes List of nodes to add
+   */
+  void register_participants(const std::unordered_set<uint32>& nodes) const;
+
+
+  /**
+     @brief Save the result received from a node
+     @param participant_node_id The nodeid of the node who reported result
+     @param result The result received
+     @param message The message describing the result if != 0
+   */
+  void result_received_from_node(uint32 participant_node_id, uint32 result,
+                                 const std::string &message) const;
+
+  /**
+     @brief Save the acks received from several nodes
+     @note Used when using the old protocol, no result is provided
+     @param nodes The list of nodes which have been acked
+   */
+  void result_received_from_nodes(
+      const std::unordered_set<uint32> &nodes) const;
+
+  /**
+     @brief Check if all participants has completed.
+     @return true all participants completed
+   */
+  bool check_all_participants_completed() const;
+
+  /**
+     @brief Check if all participants have completed and notify waiter. This is
+     the last step in the normal path when participants reply. Requires that all
+     participants has completed.
+   */
+  void check_coordinator_completed() const;
+
+  /**
+     @brief Check if any client should wakeup after subscribers have changed.
+     This happens when node unsubscribes(one subscriber shutdown or fail) or
+     when cluster connection is lost(all subscribers are removed)
+     @param subscribers Current set of subscribers
+     @param result The result to set on the participant
+     @param message The message to set on the participant
+     @return true if all participants have completed
+   */
+  bool check_for_failed_subscribers(
+      const std::unordered_set<uint32> &new_subscribers, uint32 result,
+      const char *message) const;
+
+  /**
+     @brief Wait until coordinator indicates that all participants has completed
+     or timeout occurs
+     @param max_wait_seconds Max time to wait
+     @return true if all participants has completed
+   */
+  bool client_wait_completed(uint max_wait_seconds) const;
 };
 
 #endif

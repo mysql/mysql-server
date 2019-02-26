@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,6 +34,7 @@ namespace dd {
 
 struct NDB_SHARE;
 struct TABLE;
+union NdbValue;
 
 /*
   Ndb_event_data holds information related to
@@ -60,7 +61,7 @@ public:
   MEM_ROOT mem_root;
   TABLE *shadow_table;
   NDB_SHARE *share;
-  union NdbValue *ndb_value[2];
+  NdbValue *ndb_value[2];
 
   // Bitmap with all stored columns
   MY_BITMAP stored_columns;
@@ -81,6 +82,11 @@ public:
                                            class THD* owner_thd,
                                            const dd::Table *table_def);
   static void destroy(const Ndb_event_data*);
+
+  // Read uint32 value directly from NdbRecAttr in received event
+  uint32 unpack_uint32(unsigned attr_id) const;
+  // Read string value directly from NdbRecAttr in received event
+  const char* unpack_string(unsigned attr_id) const;
 };
 
 #endif
