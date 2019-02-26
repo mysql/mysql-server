@@ -1,5 +1,5 @@
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@ ENDIF()
 
 # 64 bit file offset support flag
 SET(_FILE_OFFSET_BITS 64)
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
 # Linux specific HUGETLB /large page support
 CHECK_SYMBOL_EXISTS(SHM_HUGETLB sys/shm.h  HAVE_DECL_SHM_HUGETLB)

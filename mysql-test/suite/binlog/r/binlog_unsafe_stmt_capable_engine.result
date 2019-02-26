@@ -1,0 +1,2078 @@
+#### Setup tables ####
+CREATE TABLE t0 (a CHAR(100));
+CREATE TABLE t1 (a CHAR(100));
+CREATE TABLE t2 (a CHAR(100));
+CREATE TABLE ta0 (a CHAR(100));
+CREATE TABLE ta1 (a CHAR(100));
+CREATE TABLE ta2 (a CHAR(100));
+CREATE TABLE autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
+CREATE TABLE data_table (a CHAR(100));
+INSERT INTO data_table VALUES ('foo');
+CREATE TABLE trigger_table_1 (a INT);
+CREATE TABLE trigger_table_2 (a INT);
+CREATE TABLE trigger_table_3 (a INT);
+CREATE TABLE double_autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
+SET @old_debug= @@global.debug;
+SET GLOBAL debug='+d,make_stmt_only_engines';
+CREATE TRIGGER double_autoinc_trig
+BEFORE INSERT ON double_autoinc_table FOR EACH ROW
+BEGIN
+INSERT INTO autoinc_table VALUES (NULL);
+END|
+CREATE FUNCTION multi_unsafe_func() RETURNS INT
+BEGIN
+INSERT INTO t0 VALUES(CONCAT(@@hostname, @@hostname));
+INSERT INTO t0 VALUES(0);
+INSERT INTO t0 VALUES(CONCAT(UUID(), @@hostname));
+RETURN 1;
+END|
+CREATE FUNCTION myfunc_int RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+
+==== Testing UUID() unsafeness ====
+
+Invoking function func_retval_1 returning value from unsafe UUID() function.
+CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); RETURN UUID(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 VALUES (func_retval_1());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_1();
+
+Invoking function func_retval_2 returning value from function func_retval_1 returning value from unsafe UUID() function.
+CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); RETURN func_retval_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 VALUES (func_retval_2());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_2();
+DROP FUNCTION func_retval_2;
+
+Invoking function func_sidef_2 invoking function func_retval_1 returning value from unsafe UUID() function.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UUID() function.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UUID() function.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UUID() function.
+CREATE VIEW view_retval_2 AS SELECT func_retval_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking function func_retval_1 returning value from unsafe UUID() function.
+PREPARE prep_2 FROM "INSERT INTO t1 VALUES (func_retval_1())";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_retval_1;
+
+Invoking function func_sidef_1 invoking unsafe UUID() function.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (UUID()); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UUID() function.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UUID() function.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UUID() function.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe UUID() function.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe UUID() function.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (UUID()); INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UUID() function.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UUID() function.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UUID() function.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe UUID() function.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe UUID() function.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (UUID()); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UUID() function.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UUID() function.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UUID() function.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe UUID() function.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking view view_retval_1 returning value from unsafe UUID() function.
+CREATE VIEW view_retval_1 AS SELECT UUID();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT * FROM view_retval_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_1;
+
+Invoking function func_sidef_2 invoking view view_retval_1 returning value from unsafe UUID() function.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe UUID() function.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_retval_1; INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe UUID() function.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe UUID() function.
+CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking view view_retval_1 returning value from unsafe UUID() function.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_retval_1";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_2;
+DROP VIEW view_retval_1;
+
+Invoking prepared statement prep_1 invoking unsafe UUID() function.
+PREPARE prep_1 FROM "INSERT INTO t0 VALUES (UUID())";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+DROP PREPARE prep_1;
+
+Invoking unsafe UUID() function.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t0 VALUES (UUID());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT UUID();
+
+==== Testing @@hostname unsafeness ====
+
+Invoking function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); RETURN @@hostname; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 VALUES (func_retval_1());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_1();
+
+Invoking function func_retval_2 returning value from function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); RETURN func_retval_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 VALUES (func_retval_2());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_2();
+DROP FUNCTION func_retval_2;
+
+Invoking function func_sidef_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe @@hostname variable.
+CREATE VIEW view_retval_2 AS SELECT func_retval_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking function func_retval_1 returning value from unsafe @@hostname variable.
+PREPARE prep_2 FROM "INSERT INTO t1 VALUES (func_retval_1())";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_retval_1;
+
+Invoking function func_sidef_1 invoking unsafe @@hostname variable.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (@@hostname); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe @@hostname variable.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe @@hostname variable.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (@@hostname); INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe @@hostname variable.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe @@hostname variable.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (@@hostname); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe @@hostname variable.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking prepared statement prep_1 invoking unsafe @@hostname variable.
+PREPARE prep_1 FROM "INSERT INTO t0 VALUES (@@hostname)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_1;
+
+Invoking unsafe @@hostname variable.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t0 VALUES (@@hostname);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+==== Testing SELECT...LIMIT unsafeness ====
+
+Invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 SELECT * FROM data_table LIMIT 1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe SELECT...LIMIT statement.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 SELECT * FROM data_table LIMIT 1; INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe SELECT...LIMIT statement.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 SELECT * FROM data_table LIMIT 1; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe SELECT...LIMIT statement.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+CREATE VIEW view_retval_1 AS SELECT * FROM data_table LIMIT 1;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT * FROM view_retval_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_1;
+
+Invoking function func_sidef_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_retval_1; INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking view view_retval_1 returning value from unsafe SELECT...LIMIT statement.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_retval_1";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PREPARE prep_2;
+DROP VIEW view_retval_1;
+
+Invoking prepared statement prep_1 invoking unsafe SELECT...LIMIT statement.
+PREPARE prep_1 FROM "INSERT INTO t0 SELECT * FROM data_table LIMIT 1";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+DROP PREPARE prep_1;
+
+Invoking unsafe SELECT...LIMIT statement.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t0 SELECT * FROM data_table LIMIT 1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM data_table LIMIT 1;
+
+==== Testing unsafeness of insert of two autoinc values ====
+
+Invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO double_autoinc_table VALUES (NULL); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe update of two autoinc columns.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe update of two autoinc columns.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO double_autoinc_table VALUES (NULL); INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe update of two autoinc columns.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe update of two autoinc columns.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO double_autoinc_table VALUES (NULL); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe update of two autoinc columns.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking prepared statement prep_1 invoking unsafe update of two autoinc columns.
+PREPARE prep_1 FROM "INSERT INTO double_autoinc_table VALUES (NULL)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+DROP PREPARE prep_1;
+
+Invoking unsafe update of two autoinc columns.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO double_autoinc_table VALUES (NULL);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly.
+
+==== Testing unsafeness of UDF's ====
+
+Invoking function func_retval_1 returning value from unsafe UDF.
+CREATE FUNCTION func_retval_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); RETURN myfunc_int(10); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 VALUES (func_retval_1());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_1();
+
+Invoking function func_retval_2 returning value from function func_retval_1 returning value from unsafe UDF.
+CREATE FUNCTION func_retval_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); RETURN func_retval_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 VALUES (func_retval_2());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT func_retval_2();
+DROP FUNCTION func_retval_2;
+
+Invoking function func_sidef_2 invoking function func_retval_1 returning value from unsafe UDF.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_retval_1 returning value from unsafe UDF.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 VALUES (func_retval_1()); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_retval_1 returning value from unsafe UDF.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 VALUES (func_retval_1()); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from function func_retval_1 returning value from unsafe UDF.
+CREATE VIEW view_retval_2 AS SELECT func_retval_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking function func_retval_1 returning value from unsafe UDF.
+PREPARE prep_2 FROM "INSERT INTO t1 VALUES (func_retval_1())";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_retval_1;
+
+Invoking function func_sidef_1 invoking unsafe UDF.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (myfunc_int(10)); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe UDF.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe UDF.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe UDF.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe UDF.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe UDF.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 VALUES (myfunc_int(10)); INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe UDF.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe UDF.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe UDF.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe UDF.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe UDF.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 VALUES (myfunc_int(10)); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe UDF.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe UDF.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe UDF.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe UDF.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking view view_sidef_1 invoking unsafe UDF.
+CREATE VIEW view_sidef_1 AS SELECT myfunc_int(10);
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT * FROM view_sidef_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+
+Invoking function func_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking view view_sidef_1 invoking unsafe UDF.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_sidef_1; INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking view view_sidef_1 invoking unsafe UDF.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking view view_sidef_1 invoking unsafe UDF.
+CREATE VIEW view_sidef_2 AS SELECT * FROM view_sidef_1;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking view view_sidef_1 invoking unsafe UDF.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_sidef_1";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_2;
+DROP VIEW view_sidef_1;
+
+Invoking prepared statement prep_1 invoking unsafe UDF.
+PREPARE prep_1 FROM "INSERT INTO t0 VALUES (myfunc_int(10))";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+DROP PREPARE prep_1;
+
+Invoking unsafe UDF.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t0 VALUES (myfunc_int(10));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a UDF which may not return the same value on the slave.
+
+==== Testing unsafeness of access to mysql.general_log ====
+
+Invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking unsafe use of mysql.general_log.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking unsafe use of mysql.general_log.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log; INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking unsafe use of mysql.general_log.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking unsafe use of mysql.general_log.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking unsafe use of mysql.general_log.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
+CREATE VIEW view_retval_1 AS SELECT COUNT(*) FROM mysql.general_log;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t1 SELECT * FROM view_retval_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_1;
+
+Invoking function func_sidef_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_retval_1; INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 1 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_retval_1; END;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP TRIGGER trig_2;
+
+Invoking view view_retval_2 returning value from view view_retval_1 returning value from unsafe use of mysql.general_log.
+CREATE VIEW view_retval_2 AS SELECT * FROM view_retval_1;
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t2 SELECT * FROM view_retval_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT * FROM view_retval_2;
+DROP VIEW view_retval_2;
+
+Invoking prepared statement prep_2 invoking view view_retval_1 returning value from unsafe use of mysql.general_log.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_retval_1";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PREPARE prep_2;
+DROP VIEW view_retval_1;
+
+Invoking prepared statement prep_1 invoking unsafe use of mysql.general_log.
+PREPARE prep_1 FROM "INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log";
+* binlog_format = STATEMENT: expect 1 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+DROP PREPARE prep_1;
+
+Invoking unsafe use of mysql.general_log.
+* binlog_format = STATEMENT: expect 1 warnings.
+INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
+* Invoke statement so that return value is discarded: expect no warning.
+SELECT COUNT(*) FROM mysql.general_log;
+
+==== Testing a statement that is unsafe several times ====
+
+Invoking function func_sidef_1 invoking statement that is unsafe several times.
+CREATE FUNCTION func_sidef_1() RETURNS VARCHAR(100) BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO ta0 VALUES (multi_unsafe_func()); RETURN 0; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t1 SELECT func_sidef_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT func_sidef_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT func_sidef_1(); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
+CREATE VIEW view_sidef_2 AS SELECT func_sidef_1();
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking function func_sidef_1 invoking statement that is unsafe several times.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT func_sidef_1()";
+* binlog_format = STATEMENT: expect 2 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP FUNCTION func_sidef_1;
+
+Invoking procedure proc_1 invoking statement that is unsafe several times.
+CREATE PROCEDURE proc_1() BEGIN INSERT INTO ta0 VALUES (multi_unsafe_func()); INSERT INTO ta1 VALUES (47); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+CALL proc_1();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking procedure proc_1 invoking statement that is unsafe several times.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); RETURN 0; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking procedure proc_1 invoking statement that is unsafe several times.
+CREATE PROCEDURE proc_2() BEGIN CALL proc_1(); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking procedure proc_1 invoking statement that is unsafe several times.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); CALL proc_1(); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking procedure proc_1 invoking statement that is unsafe several times.
+PREPARE prep_2 FROM "CALL proc_1()";
+* binlog_format = STATEMENT: expect 2 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP PROCEDURE proc_1;
+
+Invoking trigger trig_1 invoking statement that is unsafe several times.
+CREATE TRIGGER trig_1 BEFORE INSERT ON trigger_table_1 FOR EACH ROW BEGIN INSERT INTO ta1 VALUES (47); INSERT INTO ta0 VALUES (multi_unsafe_func()); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO trigger_table_1 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking trigger trig_1 invoking statement that is unsafe several times.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); RETURN 0; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking trigger trig_1 invoking statement that is unsafe several times.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO trigger_table_1 VALUES (1); INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking trigger trig_1 invoking statement that is unsafe several times.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO trigger_table_1 VALUES (1); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking prepared statement prep_2 invoking trigger trig_1 invoking statement that is unsafe several times.
+PREPARE prep_2 FROM "INSERT INTO trigger_table_1 VALUES (1)";
+* binlog_format = STATEMENT: expect 2 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP TRIGGER trig_1;
+
+Invoking view view_sidef_1 invoking statement that is unsafe several times.
+CREATE VIEW view_sidef_1 AS SELECT multi_unsafe_func();
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t1 SELECT * FROM view_sidef_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+
+Invoking function func_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
+CREATE FUNCTION func_sidef_2() RETURNS VARCHAR(100) BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; RETURN 0; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT func_sidef_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP FUNCTION func_sidef_2;
+
+Invoking procedure proc_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
+CREATE PROCEDURE proc_2() BEGIN INSERT INTO t1 SELECT * FROM view_sidef_1; INSERT INTO ta2 VALUES (47); END;
+* binlog_format = STATEMENT: expect 2 warnings.
+CALL proc_2();
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PROCEDURE proc_2;
+
+Invoking trigger trig_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
+CREATE TRIGGER trig_2 BEFORE INSERT ON trigger_table_2 FOR EACH ROW BEGIN INSERT INTO ta2 VALUES (47); INSERT INTO t1 SELECT * FROM view_sidef_1; END;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO trigger_table_2 VALUES (1);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER trig_2;
+
+Invoking view view_sidef_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
+CREATE VIEW view_sidef_2 AS SELECT * FROM view_sidef_1;
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO t2 SELECT * FROM view_sidef_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP VIEW view_sidef_2;
+
+Invoking prepared statement prep_2 invoking view view_sidef_1 invoking statement that is unsafe several times.
+PREPARE prep_2 FROM "INSERT INTO t1 SELECT * FROM view_sidef_1";
+* binlog_format = STATEMENT: expect 2 warnings.
+EXECUTE prep_2;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_2;
+DROP VIEW view_sidef_1;
+
+Invoking prepared statement prep_1 invoking statement that is unsafe several times.
+PREPARE prep_1 FROM "INSERT INTO ta0 VALUES (multi_unsafe_func())";
+* binlog_format = STATEMENT: expect 2 warnings.
+EXECUTE prep_1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP PREPARE prep_1;
+
+Invoking statement that is unsafe several times.
+* binlog_format = STATEMENT: expect 2 warnings.
+INSERT INTO ta0 VALUES (multi_unsafe_func());
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+* SQL_LOG_BIN = 0: expect nothing logged and only deprecation warnings.
+* binlog_format = MIXED: expect error since the engine is only statement capable and doesn't have row logging capability.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TRIGGER double_autoinc_trig;
+DROP TABLE t0, t1, t2, ta0, ta1, ta2,
+autoinc_table, double_autoinc_table,
+data_table,
+trigger_table_1, trigger_table_2, trigger_table_3;
+DROP FUNCTION myfunc_int;
+DROP FUNCTION multi_unsafe_func;
+==== Special system variables that should *not* be unsafe ====
+CREATE TABLE t1 (a VARCHAR(1000));
+CREATE TABLE autoinc_table (a INT PRIMARY KEY AUTO_INCREMENT);
+INSERT INTO t1 VALUES (@@session.auto_increment_increment);
+INSERT INTO t1 VALUES (@@session.auto_increment_offset);
+INSERT INTO t1 VALUES (@@session.character_set_client);
+INSERT INTO t1 VALUES (@@session.character_set_connection);
+INSERT INTO t1 VALUES (@@session.character_set_database);
+INSERT INTO t1 VALUES (@@session.character_set_server);
+INSERT INTO t1 VALUES (@@session.collation_connection);
+INSERT INTO t1 VALUES (@@session.collation_database);
+INSERT INTO t1 VALUES (@@session.collation_server);
+INSERT INTO t1 VALUES (@@session.foreign_key_checks);
+INSERT INTO t1 VALUES (@@session.identity);
+INSERT INTO t1 VALUES (@@session.last_insert_id);
+INSERT INTO t1 VALUES (@@session.lc_time_names);
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
+INSERT INTO t1 VALUES (@@session.timestamp);
+INSERT INTO t1 VALUES (@@session.time_zone);
+INSERT INTO t1 VALUES (@@session.unique_checks);
+SET @my_var= 4711;
+INSERT INTO t1 VALUES (@my_var);
+SET insert_id= 12;
+INSERT INTO autoinc_table VALUES (NULL);
+The following variables *should* give a warning, despite they are replicated.
+INSERT INTO t1 VALUES (@@session.sql_mode);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+INSERT INTO t1 VALUES (@@session.insert_id);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system variable that may have a different value on the slave.
+DROP TABLE t1, autoinc_table;
+SET GLOBAL debug= @old_debug;
+"End of tests"
