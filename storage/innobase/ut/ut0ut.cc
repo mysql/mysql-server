@@ -573,20 +573,20 @@ const char *ut_strerr(dberr_t num) {
           "of stored column");
     case DB_COMPUTE_VALUE_FAILED:
       return ("Compute generated column failed");
-
     case DB_INVALID_ENCRYPTION_META:
       return ("Invalid encryption meta-data information");
-
     case DB_ABORT_INCOMPLETE_CLONE:
       return ("Incomplete cloned data directory");
-
     case DB_SERVER_VERSION_LOW:
       return (
           "Cannot boot server with lower version than that built the "
           "tablespace");
-
     case DB_NO_SESSION_TEMP:
       return ("No session temporary tablespace allocated");
+    case DB_TOO_LONG_PATH:
+      return (
+          "Cannot create tablespace since the filepath is too long for this "
+          "OS");
 
     case DB_ERROR_UNSET:;
       /* Fall through. */

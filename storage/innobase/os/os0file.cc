@@ -3855,7 +3855,8 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
     if (err == ERROR_PATH_NOT_FOUND) {
       ib::error(ER_IB_MSG_787) << "The error means the system"
-                                  " cannot find the path specified.";
+                                  " cannot find the path specified."
+                                  " It might be too long.";
 
 #ifndef UNIV_HOTBACKUP
       if (srv_is_being_started) {
@@ -3900,6 +3901,8 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   if (err == ERROR_FILE_NOT_FOUND) {
     return (OS_FILE_NOT_FOUND);
+  } else if (err == ERROR_PATH_NOT_FOUND) {
+    return (OS_FILE_NAME_TOO_LONG);
   } else if (err == ERROR_DISK_FULL) {
     return (OS_FILE_DISK_FULL);
   } else if (err == ERROR_FILE_EXISTS) {

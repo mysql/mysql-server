@@ -11640,7 +11640,7 @@ ER_VIEW_CREATION_CTX_NOT_SET
   eng "View `%-.64s`.`%-.64s` has no creation context"
 
 ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
-  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
+  eng "Long database name and identifier for object resulted in a path length too long for table '%s'. Please check the path limit for your OS."
 
 ER_TABLE_UPGRADE_REQUIRED
   eng "Table upgrade required. Please do \"REPAIR TABLE `%-.64s`\" or dump/reload to fix it!"
@@ -15254,7 +15254,7 @@ ER_IB_MSG_300
 ER_IB_MSG_301
   eng "Cannot create file '%s'"
 
-ER_IB_MSG_302
+ER_IB_MSG_UNEXPECTED_FILE_EXISTS
   eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
 
 ER_IB_MSG_303
@@ -19097,6 +19097,9 @@ ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
 
 ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY
   eng "Unable to create a new binlog file: Table `mysql.gtid_executed` couldn't be opened. %s"
+
+ER_IB_MSG_TOO_LONG_PATH
+  eng "Cannot create tablespace '%s'. The filepath is too long for this OS."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.
