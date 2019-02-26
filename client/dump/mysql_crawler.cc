@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -114,6 +114,8 @@ void Mysql_crawler::enumerate_objects()
   m_dump_end_task->add_dependency(m_tables_definition_ready_dump_task);
   this->process_dump_task(m_tables_definition_ready_dump_task);
 
+  this->enumerate_users();
+
   std::vector<Database* >::iterator it;
   std::vector<Database_end_dump_task* >::iterator it_end;
   for (it= db_list.begin(),it_end= db_end_task_list.begin();
@@ -127,8 +129,6 @@ void Mysql_crawler::enumerate_objects()
   }
 
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&databases);
-
-  this->enumerate_users();
 
   this->process_dump_task(m_dump_end_task);
 

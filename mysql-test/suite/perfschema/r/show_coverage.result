@@ -102,14 +102,43 @@ SELECT variable_value FROM status_by_thread
 WHERE variable_name = "bytes_received" and thread_id = @thread_id INTO @bytes_after;
 
 # Expect bytes_before > bytes_after
-SELECT @bytes_before > @bytes_after;
-@bytes_before > @bytes_after
+SELECT @bytes_before > @bytes_after AS 'Expect 1';
+Expect 1
 1
 
 # Expect bytes_after is zero
-SELECT @bytes_after;
-@bytes_after
+SELECT @bytes_after AS 'Expect 0';
+Expect 0
 0
 
+# TEST 6
+#
+# Bug#28291258 FLUSH STATUS ADDS TWICE TO GLOBAL VALUES
+#
+
+# Default connection
+
+# First connection
+include/assert.inc [Global value requested from the first session must not change]
+
+# Generate a slow query
+
+SET long_query_time = 2;
+SELECT SLEEP(4);
+SLEEP(4)
+0
+SET long_query_time = @@global.long_query_time;
+
+include/assert.inc [Global value requested from the first session after SLEEP() must increase by 1]
+include/assert.inc [First session value must increase by 1]
+
+# Default connection
+include/assert.inc [Global value requested from the default session after DISCONNECT must remain the same]
+include/assert.inc [Default session value must remain zero]
+
+FLUSH STATUS;
+
+include/assert.inc [Global value requested from the default session after FLUSH must remain the same]
+include/assert.inc [Default session value after FLUSH must remain zero]
 # CLEANUP
 set @@global.show_compatibility_56 = @show_compatibility_56_save;

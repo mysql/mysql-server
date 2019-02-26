@@ -13,24 +13,19 @@
 # 0) Setup group of 2 members (M1 and M2).
 # 1) Simulate a higher version on M1.
 # 2) Try to join M2 to the group.
-# 3) M2 should be in super_read_only mode and in OFFLINE state (since it
-#    failed to join the group).
+# 3) M2 super_read_only mode shall be OFF and in OFFLINE state
+#    (since it failed to join the group).
 # 4) Change the exit_state_action to ABORT_SERVER. Try to join M2 to the group
 #    again.
-# 5) M2 should have abort()ed.
+# 5) M2 super_read_only mode shall be OFF and in OFFLINE state
+#    (since it failed to join the group).
 # 6) Restart M2 again without group_replication_start_on_boot enabled. The
 #    server should start normally and be able to join the group.
 # 7) Cleanup.
 #
 ################################################################################
-# By including have_debug.inc we make sure that we are using the debug version
-# of the server. This is needed because in the debug version (the one without
-# DBUG_OFF defined) the abort_plugin_process() function calls DBUG_SUICIDE()
-# which does not send a SIGABRT to itself but a SIGKILL instead (and in this way
-# MTR won't assume the process crashed).
 --source include/have_debug.inc
 --source include/big_test.inc
---source include/not_valgrind.inc
 --source ../inc/have_group_replication_plugin.inc
 
 --echo
@@ -40,18 +35,6 @@
 --echo
 --let $rpl_skip_group_replication_start = 1
 --source ../inc/group_replication.inc
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Error, maximum number of retries exceeded when waiting for the internal server session state to be operating");
-call mtr.add_suppression("Failed to establish an internal server connection to execute plugin operations");
-call mtr.add_suppression("Error when extracting information for group change. Operations and checks made to group joiners may be incomplete.");
-call mtr.add_suppression("Member version is incompatible with the group.");
-call mtr.add_suppression("Timeout on wait for view after joining group");
-call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
-call mtr.add_suppression("\\[GCS\\] read failed");
-call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
-SET SESSION sql_log_bin = 1;
 
 --echo
 --echo #########################################################################
@@ -73,7 +56,6 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --source include/rpl_connection.inc
 # Save all the context we'll need during the test
 --let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_lower_version.2.err
---let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 # Restart the server with group_replication_start_on_boot enabled
@@ -87,8 +69,8 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 
 --echo
 --echo #########################################################################
---echo # 3) M2 should be in super_read_only mode and in OFFLINE state (since it
---echo # failed to join the group).
+--echo # 3) M2 super_read_only mode shall be OFF and in OFFLINE state
+--echo #    (since it failed to join the group).
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
@@ -100,10 +82,9 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --let $group_replication_member_state = OFFLINE
 --let $group_replication_member_id = $member2_uuid
 --source ../inc/gr_wait_for_member_state.inc
-# Verify that it went to super_read_only mode
---let $assert_text= super_read_only should be enabled
---let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
---source include/assert.inc
+# Verify that super_read_only mode is reverted to its original value
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
 # Verify that the expected error occurred
 --let $assert_file = $error_file
 --let $assert_text = GR reported expected incompatibility on member version
@@ -119,7 +100,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --echo
 --echo #########################################################################
 --echo # 4) Change the exit_state_action to ABORT_SERVER. Try to join M2 to the
---echo # group again.
+--echo #    group again.
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
@@ -130,12 +111,11 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_exit_state_action=ABORT_SERVER
 --replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---source include/wait_until_disconnected.inc
 
 --echo
 --echo #########################################################################
---echo # 5) M2 should have abort()ed.
+--echo # 5) M2 super_read_only mode shall be OFF and in OFFLINE state
+--echo #    (since it failed to join the group).
 --echo #########################################################################
 --echo
 # Wait for server 1 to see that server 2 didn't join
@@ -143,24 +123,19 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --source include/rpl_connection.inc
 --let $group_replication_number_of_members = 1
 --source ../inc/gr_wait_for_number_of_members.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
-# Wait until server 2 is connected again, so we know it has abort()'ed
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/wait_until_connected_again.inc
-# Search for the expected errors in the error log file
---let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+
+# Verify that super_read_only mode is reverted to its original value
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
+
 --let $assert_file = $error_file
 --let $assert_text = GR reported expected incompatibility on member version
 --let $assert_select = Member version is incompatible with the group
 --let $assert_count = 2
---source include/assert_grep.inc
---let $assert_text = GR reported expected abort
---let $assert_select = The plugin encountered a critical error and will abort
---let $assert_count = 1
 --source include/assert_grep.inc
 
 --echo

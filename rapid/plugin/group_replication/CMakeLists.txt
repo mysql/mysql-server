@@ -224,7 +224,7 @@ MYSQL_ADD_PLUGIN(group_replication
                  LINK_LIBRARIES
                  ${LZ4_LIBRARY}
                  ${SSL_LIBRARIES}
-                 ${TIRPC_LIBRARY}
+                 ${TIRPC_LIBRARIES}
                  MODULE_ONLY MODULE_OUTPUT_NAME "group_replication")
 
 ### INSTALLATION ###

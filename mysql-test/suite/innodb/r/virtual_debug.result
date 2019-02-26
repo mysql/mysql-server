@@ -284,3 +284,28 @@ SELECT * FROM t1;
 a	d	b	c	vbcol
 200	300	1.3.1415926535	hello world	.3
 DROP TABLE t1;
+#
+# Bug#28825718 - ASSERTION FAILURE: TRX0REC.CC:NNN:N_IDX > 0 WHILE DOING REPLACE/INSERT
+#
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, c INT GENERATED ALWAYS AS(b+1) VIRTUAL) ENGINE=InnoDB;
+INSERT INTO t1(a, b) VALUES(1, 1);
+SET DEBUG_SYNC = 'row_log_apply_after SIGNAL s1 WAIT_FOR s2';
+SET lock_wait_timeout = 1;
+ALTER TABLE t1 ADD UNIQUE INDEX(c, b);
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+SET DEBUG_SYNC = 'row_ins_sec_index_enter SIGNAL s2 WAIT_FOR s3';
+INSERT INTO t1(a, b) VALUES(2, 2);
+/* con1 reap */ ALTER TABLE t1 ADD UNIQUE INDEX(c, b);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SET DEBUG_SYNC ='now SIGNAL s3';
+ALTER TABLE t1 ADD KEY(b);
+INSERT INTO t1(a, b) VALUES(3, 3);
+SELECT * FROM t1;
+a	b	c
+1	1	2
+2	2	3
+3	3	4
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

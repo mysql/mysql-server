@@ -12,7 +12,7 @@ call mtr.add_suppression("Plugin keyring_file reported: 'Could not create keyrin
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File 'MYSQL_test_invalid/dir/' not found .*");
-call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'File '/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] Plugin keyring_file reported: 'Error reading file '/' .*");
 
 # Installing keyring plugin.
 --replace_regex /\.dll/.so/

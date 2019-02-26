@@ -1,5 +1,2 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
-
-group_replication.gr_exit_state_action_on_join_wrong_gtid_assignment_block_size # Bug#28763561 2018-10-08 msundell Fails for mysql-5.7
-group_replication.gr_exit_state_action_on_join_wrong_hash_algorithm             # Bug#28763637 2018-10-08 msundell Fails in PB2

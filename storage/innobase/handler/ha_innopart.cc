@@ -3938,7 +3938,7 @@ ha_innopart::info_low(
 		ut_a(m_prebuilt->trx);
 		ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
 
-		err_index = trx_get_error_info(m_prebuilt->trx);
+		err_index = trx_get_error_index(m_prebuilt->trx);
 
 		if (err_index != NULL) {
 			errkey = m_part_share->get_mysql_key(m_last_part,

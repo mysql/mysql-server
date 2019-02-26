@@ -1,0 +1,78 @@
+# ==== Purpose ====
+#
+# Test verifies that forced sync master info doesn't happen on a
+# heartbeat/fakerotate event.
+#
+# ==== Implementation ====
+#
+# Generate some transactions on master so that they are replicated and applied
+# on slave. This will ensure that GITD_EXECUTED set is updated on slave.
+#
+# Stop and restart the slave. Receiver thread will invoke 'com_binlog_dump_gtid'
+# function call which provides existing GTID specific information on slave to
+# master.
+#
+# Master will skip all the GTID events that are present on slave and will
+# generate a HEARTBEAT event which contains the master_log_file and
+# master_log_pos at which the skipped events end.
+#
+# Upon receiving the HEARTBEAT event store the write requests that are made to
+# 'slave_master_info' table, in a variable. This value is used to verify the
+# write request to 'slave_master_info' after the HEARTBEAT event is processed.
+#
+# Apply the HEARTBEAT event and verify that no additional write request is
+# made during HEARTBEAT event processing.
+#
+# ==== References ====
+#
+# Bug#28815555: HEARTBEATS/FAKEROTATE CAUSE A FORCED SYNC_MASTER_INFO
+#
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+# Gtids are mandatory for the test.
+--source include/have_gtid.inc
+--source include/master-slave.inc
+
+--source include/rpl_connection_slave.inc
+# Enable performance schema monitoring for mysql schema
+--source include/stop_slave.inc
+UPDATE performance_schema.setup_objects SET ENABLED='yes', TIMED='yes' WHERE OBJECT_TYPE='TABLE' and OBJECT_SCHEMA='mysql';
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (f INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (10);
+INSERT INTO t1 VALUES (20);
+INSERT INTO t1 VALUES (30);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+SET GLOBAL debug="+d,reached_heart_beat_queue_event";
+START SLAVE;
+SET DEBUG_SYNC="now WAIT_FOR check_slave_master_info";
+let $sync_master_info_before= query_get_value(SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema='mysql' AND object_type='table' AND object_name='slave_master_info', count_star, 1);
+SET DEBUG_SYNC="now SIGNAL proceed_write_rotate";
+SET GLOBAL debug="-d,reached_heart_beat_queue_event";
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+let $sync_master_info_after= query_get_value(SELECT count_star FROM performance_schema.table_io_waits_summary_by_table WHERE object_schema='mysql' AND object_type='table' AND object_name='slave_master_info', count_star, 1);
+
+--let $assert_text= Assert that sync_master_info io_requests are the same
+--let $assert_cond= $sync_master_info_before = $sync_master_info_after
+--source include/assert.inc
+
+--let $diff_tables=master:t1, slave:t1
+--source include/diff_tables.inc
+
+# Clean up
+--source include/stop_slave.inc
+UPDATE performance_schema.setup_objects SET ENABLED='no', TIMED='no' WHERE OBJECT_TYPE='TABLE' and OBJECT_SCHEMA='mysql';
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+--source include/rpl_end.inc

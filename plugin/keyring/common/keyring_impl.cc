@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ boost::movelib::unique_ptr<IKeys_container> keys(NULL);
 volatile my_bool is_keys_container_initialized= FALSE;
 boost::movelib::unique_ptr<ILogger> logger(NULL);
 boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
+my_bool keyring_open_mode= FALSE; // 0 - Read|Write|Create; 1 - Read only
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=

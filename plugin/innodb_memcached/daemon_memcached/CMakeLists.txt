@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 # Common defines and includes
-INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
-		    ${CMAKE_SOURCE_DIR}/include
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 		    ${CMAKE_SOURCE_DIR}/sql
 		    ${CMAKE_SOURCE_DIR}/bld/include
 		    ${CMAKE_SOURCE_DIR}/regex
@@ -27,6 +26,7 @@ INCLUDE_DIRECTORIES(${LIBEVENT_INCLUDE_DIR}
 		    ${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached
 
 		)
+INCLUDE_DIRECTORIES(SYSTEM ${LIBEVENT_INCLUDE_DIRS})
 
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/daemon_memcached/utilities")
 
@@ -86,6 +86,6 @@ IF(ENABLE_MEMCACHED_SASL)
 ENDIF()
 
 MYSQL_ADD_PLUGIN(libmemcached ${MEMCACHED_SOURCES}
-                 LINK_LIBRARIES ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES}
+                 LINK_LIBRARIES ${LIBEVENT_LIBRARIES}
                  memcached_utilities ${SASL_LIBRARY}
 		 MODULE_ONLY MODULE_OUTPUT_NAME "libmemcached")

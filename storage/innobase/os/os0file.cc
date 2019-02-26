@@ -2543,10 +2543,24 @@ LinuxAIOHandler::collect()
 			will be done in the calling function. */
 			m_array->acquire();
 
-			slot->ret = events[i].res2;
+			/* events[i].res2 should always be ZERO */
+			ut_ad(events[i].res2 == 0);
 			slot->io_already_done = true;
-			slot->n_bytes = events[i].res;
 
+			/*Even though events[i].res is an unsigned number
+			in libaio, it is used to return a negative value
+			(negated errno value) to indicate error and a positive
+			value to indicate number of bytes read or written. */
+
+			if (events[i].res > slot->len) {
+				/* failure */
+				slot->n_bytes = 0;
+				slot->ret = events[i].res;
+			} else {
+				/* success */
+				slot->n_bytes = events[i].res;
+				slot->ret = 0;
+			}
 			m_array->release();
 		}
 

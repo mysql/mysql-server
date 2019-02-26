@@ -747,6 +747,12 @@ mksrv(char *srv, xcom_port port)
 		s->reply_handler = task_new(reply_handler_task, void_arg(s), "reply_handler_task", XCOM_THREAD_DEBUG);
 	}
 	reset_srv_buf(&s->out_buf);
+	/*
+	 Keep the server from being freed if the acceptor_learner_task calls
+	 srv_unref on the server before the {local_,}server_task and
+	 reply_handler_task begin.
+	*/
+	srv_ref(s);
 	return s;
 }
 
@@ -872,6 +878,9 @@ static void shut_srv(server *s)
 		task_terminate(s->sender);
 	if (s->reply_handler)
 		task_terminate(s->reply_handler);
+
+	// Allow the server to be freed. This unref pairs with the ref from mksrv.
+	srv_unref(s);
 }
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -10960,19 +10960,22 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
-
+    DBUG_EXECUTE_IF("rows_log_event_before_open_table",
+                    {
+                      const char action[] = "now SIGNAL before_open_table WAIT_FOR go_ahead_sql";
+                      DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(action)));
+                    };);
     if (open_and_lock_tables(thd, rli->tables_to_lock, 0))
     {
-      uint actual_error= thd->get_stmt_da()->mysql_errno();
-      if (thd->is_slave_error || thd->is_fatal_error)
+      if (thd->is_error())
       {
+        uint actual_error= thd->get_stmt_da()->mysql_errno();
         if (ignored_error_code(actual_error))
         {
           if (log_warnings > 1)
             rli->report(WARNING_LEVEL, actual_error,
                         "Error executing row event: '%s'",
-                        (actual_error ? thd->get_stmt_da()->message_text() :
-                         "unexpected success or fatal error"));
+                        thd->get_stmt_da()->message_text());
           thd->get_stmt_da()->reset_condition_info(thd);
           clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
@@ -10982,13 +10985,11 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         {
           rli->report(ERROR_LEVEL, actual_error,
                       "Error executing row event: '%s'",
-                      (actual_error ? thd->get_stmt_da()->message_text() :
-                       "unexpected success or fatal error"));
+                      thd->get_stmt_da()->message_text());
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-          DBUG_RETURN(actual_error);
         }
       }
+      DBUG_RETURN(1);
     }
 
     /*

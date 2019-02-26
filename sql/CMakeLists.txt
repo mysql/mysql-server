@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -618,21 +618,13 @@ ADD_CUSTOM_TARGET(
 )
 
 
-IF(WIN32 OR HAVE_DLOPEN AND NOT DISABLE_SHARED)
-  ADD_LIBRARY(udf_example MODULE udf_example.cc)
-  SET_TARGET_PROPERTIES(udf_example PROPERTIES PREFIX "")
-  # udf_example depends on strings 
+MYSQL_ADD_PLUGIN(udf_example udf_example.cc
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
+IF(NOT DISABLE_SHARED)
   IF(WIN32)
-    IF(MSVC)
-     SET_TARGET_PROPERTIES(udf_example
-       PROPERTIES LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
-    ENDIF()
-    TARGET_LINK_LIBRARIES(udf_example strings)
-  ELSE()
-    # udf_example is using safemutex exported by mysqld
-    TARGET_LINK_LIBRARIES(udf_example mysqld)
     SET_TARGET_PROPERTIES(udf_example
-      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+      PROPERTIES LINK_FLAGS
+      "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/udf_example.def")
   ENDIF()
 ENDIF()
 
@@ -649,11 +641,10 @@ IF(NOT DISABLE_SHARED)
   ENDIF()
 ENDIF()
 
-FOREACH(tool glibtoolize libtoolize aclocal autoconf autoheader automake gtar 
- tar git)
- STRING(TOUPPER ${tool}  TOOL)
- FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
- MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
+FOREACH(tool gtar tar git)
+  STRING(TOUPPER ${tool}  TOOL)
+  FIND_PROGRAM(${TOOL}_EXECUTABLE ${tool} DOC "path to the executable")
+  MARK_AS_ADVANCED(${TOOL}_EXECUTABLE)
 ENDFOREACH()
 
 CONFIGURE_FILE(
