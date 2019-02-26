@@ -1203,9 +1203,9 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   DBUG_TRACE;
-  if (init_read_record(&m_read_record_info, m_thd, m_table, NULL, false,
-                       /*ignore_not_found_rows=*/false))
-    return true;
+  m_iterator = init_table_iterator(m_thd, m_table, NULL, false,
+                                   /*ignore_not_found_rows=*/false);
+  if (m_iterator == nullptr) return true;
   m_table->use_all_columns();
   clean_user_cache();
 
@@ -1860,11 +1860,11 @@ bool Acl_table_user_reader::driver() {
   if (setup_table(is_old_db_layout)) return true;
   allow_all_hosts = 0;
   int read_rec_errcode;
-  while (!(read_rec_errcode = m_read_record_info->Read())) {
+  while (!(read_rec_errcode = m_iterator->Read())) {
     if (read_row(is_old_db_layout, super_users_with_empty_plugin)) return true;
   }
 
-  m_read_record_info.iterator.reset();
+  m_iterator.reset();
   if (read_rec_errcode > 0) return true;
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();

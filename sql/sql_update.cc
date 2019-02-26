@@ -73,7 +73,7 @@
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/records.h"  // READ_RECORD
+#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/select_lex_visitor.h"
 #include "sql/sorting_iterator.h"
@@ -97,6 +97,7 @@
 #include "sql/table.h"                     // TABLE
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
 #include "sql/temp_table_param.h"
+#include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "template_utils.h"
@@ -554,7 +555,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   ha_rows found_rows = 0;
 
   unique_ptr_destroy_only<Filesort> fsort;
-  READ_RECORD info;
+  unique_ptr_destroy_only<RowIterator> iterator;
 
   {  // Start of scope for Modification_plan
     ha_rows rows;
@@ -594,24 +595,21 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           NOTE: filesort will call table->prepare_for_position()
         */
         ha_rows examined_rows = 0;
-        setup_read_record(&info, thd, NULL, &qep_tab, false,
-                          /*ignore_not_found_rows=*/false, &examined_rows);
-
-        unique_ptr_destroy_only<RowIterator> iterator = move(info.iterator);
+        iterator = create_table_iterator(thd, NULL, &qep_tab, false,
+                                         /*ignore_not_found_rows=*/false,
+                                         &examined_rows);
 
         if (qep_tab.condition() != nullptr) {
-          iterator.reset(new (&info.sort_condition_holder) FilterIterator(
-              thd, move(iterator), qep_tab.condition()));
+          iterator = NewIterator<FilterIterator>(thd, move(iterator),
+                                                 qep_tab.condition());
         }
 
         // Force filesort to sort by position.
         fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
-        unique_ptr_destroy_only<RowIterator> sort(new (
-            &info.sort_holder) SortingIterator(thd, fsort.get(), move(iterator),
-                                               /*force_sort_position=*/true,
-                                               /*examined_rows=*/nullptr));
-        if (sort->Init()) return true;
-        info.iterator = move(sort);
+        iterator = NewIterator<SortingIterator>(
+            thd, fsort.get(), move(iterator), /*force_sort_position=*/true,
+            /*examined_rows=*/nullptr);
+        if (iterator->Init()) return true;
         thd->inc_examined_row_count(examined_rows);
 
         /*
@@ -660,15 +658,15 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         if (used_index == MAX_KEY || qep_tab.quick()) {
-          setup_read_record(&info, thd, NULL, &qep_tab, false,
-                            /*ignore_not_found_rows=*/false,
-                            /*examined_rows=*/nullptr);
+          iterator = create_table_iterator(thd, NULL, &qep_tab, false,
+                                           /*ignore_not_found_rows=*/false,
+                                           /*examined_rows=*/nullptr);
         } else {
-          setup_read_record_idx(&info, thd, table, used_index, reverse,
-                                &qep_tab);
+          iterator = create_table_iterator_idx(thd, table, used_index, reverse,
+                                               &qep_tab);
         }
 
-        if (info.iterator->Init()) {
+        if (iterator->Init()) {
           return true;
         }
 
@@ -685,7 +683,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           return true;
         }
 
-        while (!(error = info->Read()) && !thd->killed) {
+        while (!(error = iterator->Read()) && !thd->killed) {
           DBUG_ASSERT(!thd->is_error());
           thd->inc_examined_row_count(1);
 
@@ -723,7 +721,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         if (used_index < MAX_KEY && covering_keys_for_cond.is_set(used_index))
           table->set_keyread(false);
         table->file->ha_index_or_rnd_end();
-        info.iterator.reset();
+        iterator.reset();
 
         // Change reader to use tempfile
         if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
@@ -735,22 +733,21 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           return error > 0;
         }
 
-        info.iterator.reset(
-            new (&info.iterator_holder.sort_file_indirect)
-                SortFileIndirectIterator(thd, table, tempfile,
-                                         /*request_cache=*/false,
-                                         /*ignore_not_found_rows=*/false,
-                                         /*examined_rows=*/nullptr));
-        if (info.iterator->Init()) return true;
+        iterator = NewIterator<SortFileIndirectIterator>(
+            thd, table, tempfile,
+            /*request_cache=*/false,
+            /*ignore_not_found_rows=*/false,
+            /*examined_rows=*/nullptr);
+        if (iterator->Init()) return true;
 
         qep_tab.set_quick(NULL);
         qep_tab.set_condition(NULL);
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
-      if (init_read_record(&info, thd, NULL, &qep_tab, false,
-                           /*ignore_not_found_rows=*/false))
-        return true; /* purecov: inspected */
+      iterator = init_table_iterator(thd, nullptr, &qep_tab, false,
+                                     /*ignore_not_found_rows=*/false);
+      if (iterator == nullptr) return true; /* purecov: inspected */
     }
 
     table->file->try_semi_consistent_read(true);
@@ -793,7 +790,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     uint dup_key_found;
 
     while (true) {
-      error = info->Read();
+      error = iterator->Read();
       if (error || thd->killed) break;
       thd->inc_examined_row_count(1);
       bool skip_record;
@@ -1007,7 +1004,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
 
-  info.iterator.reset();
+  iterator.reset();
 
   /*
     error < 0 means really no error at all: we processed all rows until the

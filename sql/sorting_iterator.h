@@ -118,9 +118,13 @@ class SortingIterator final : public RowIterator {
 
   ha_rows *m_examined_rows;
 
-  // Similarly to iterator_holder in READ_RECORD, allows us to keep one of
-  // the different forms of result iterators without incurring a heap
-  // allocation.
+  // Holds one out of all RowIterator implementations we need so that it is
+  // possible to initialize a RowIterator without heap allocations.
+  // (m_result_iterator typically points to this union, and is responsible for
+  // running the right destructor.)
+  //
+  // TODO: If we need to add TimingIterator directly on this iterator,
+  // switch to allocating it on the MEM_ROOT.
   union IteratorHolder {
     IteratorHolder() {}
     ~IteratorHolder() {}

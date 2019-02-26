@@ -53,7 +53,7 @@
 #include "sql/opt_range.h"  // prune_partitions
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/query_options.h"
-#include "sql/records.h"  // READ_RECORD
+#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // update_non_unique_table_error
@@ -70,6 +70,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/table_trigger_dispatcher.h"  // Table_trigger_dispatcher
+#include "sql/timing_iterator.h"
 #include "sql/transaction_info.h"
 #include "sql/trigger_def.h"
 #include "sql/uniques.h"  // Unique
@@ -428,31 +429,31 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       (void)table->file->ha_extra(HA_EXTRA_QUICK);
 
     unique_ptr_destroy_only<Filesort> fsort;
-    READ_RECORD info;
+    unique_ptr_destroy_only<RowIterator> iterator;
     ha_rows examined_rows = 0;
     if (usable_index == MAX_KEY || qep_tab.quick())
-      setup_read_record(&info, thd, NULL, &qep_tab, false,
-                        /*ignore_not_found_rows=*/false, &examined_rows);
+      iterator = create_table_iterator(thd, NULL, &qep_tab, false,
+                                       /*ignore_not_found_rows=*/false,
+                                       &examined_rows);
     else
-      setup_read_record_idx(&info, thd, table, usable_index, reverse, &qep_tab);
+      iterator = create_table_iterator_idx(thd, table, usable_index, reverse,
+                                           &qep_tab);
 
     if (need_sort) {
       DBUG_ASSERT(usable_index == MAX_KEY);
 
-      unique_ptr_destroy_only<RowIterator> iterator = move(info.iterator);
-
       if (qep_tab.condition() != nullptr) {
-        iterator.reset(new (&info.sort_condition_holder) FilterIterator(
-            thd, move(iterator), qep_tab.condition()));
+        iterator = NewIterator<FilterIterator>(thd, move(iterator),
+                                               qep_tab.condition());
       }
 
       fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
-      unique_ptr_destroy_only<RowIterator> sort(new (
-          &info.sort_holder) SortingIterator(thd, fsort.get(), move(iterator),
-                                             /*force_sort_position=*/true,
-                                             /*rows_examined=*/nullptr));
+      unique_ptr_destroy_only<RowIterator> sort =
+          NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
+                                       /*force_sort_position=*/true,
+                                       /*rows_examined=*/nullptr);
       if (sort->Init()) return true;
-      info.iterator = move(sort);
+      iterator = move(sort);
       thd->inc_examined_row_count(examined_rows);
 
       /*
@@ -461,7 +462,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       */
       qep_tab.set_condition(NULL);
     } else {
-      if (info.iterator->Init()) return true;
+      if (iterator->Init()) return true;
     }
 
     if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
@@ -493,7 +494,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     // The loop that reads rows and delete those that qualify
 
-    while (!(error = info->Read()) && !thd->killed) {
+    while (!(error = iterator->Read()) && !thd->killed) {
       DBUG_ASSERT(!thd->is_error());
       thd->inc_examined_row_count(1);
 
@@ -1131,18 +1132,17 @@ int Query_result_delete::do_deletes(THD *thd) {
 int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
   myf error_flags = MYF(0); /**< Flag for fatal errors */
   int local_error = 0;
-  READ_RECORD info;
   ha_rows last_deleted = deleted_rows;
   DBUG_TRACE;
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling
   */
-  if (init_read_record(&info, thd, table, NULL, false,
-                       /*ignore_not_found_rows=*/true))
-    return 1;
+  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
+      thd, table, nullptr, false, /*ignore_not_found_rows=*/true);
+  if (iterator == nullptr) return 1;
   bool will_batch = !table->file->start_bulk_delete();
-  while (!(local_error = info->Read()) && !thd->killed) {
+  while (!(local_error = iterator->Read()) && !thd->killed) {
     if (table->triggers &&
         table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                           TRG_ACTION_BEFORE, false)) {

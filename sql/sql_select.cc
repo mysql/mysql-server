@@ -94,6 +94,7 @@
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
 #include "sql/temp_table_param.h"
+#include "sql/timing_iterator.h"
 #include "sql/window.h"  // ignore_gaf_const_opt
 #include "template_utils.h"
 #include "thr_lock.h"
@@ -3012,7 +3013,7 @@ void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
   destroy(filesort);
   filesort = NULL;
-  read_record.iterator.reset();
+  iterator.reset();
   if (quick_optim() != quick()) delete quick_optim();
 
   TABLE *const t = table();
@@ -4760,8 +4761,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);
 
-  unique_ptr_destroy_only<RowIterator> iterator =
-      move(tab->read_record.iterator);
+  unique_ptr_destroy_only<RowIterator> iterator = move(tab->iterator);
 
   if (tab->condition()) {
     vector<Item *> predicates_below_join;
@@ -4776,11 +4776,9 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
 
   // Wrap the chosen RowIterator in a SortingIterator, so that we get
   // sorted results out.
-  unique_ptr_destroy_only<RowIterator> sort(
-      new (&tab->read_record.sort_holder) SortingIterator(
-          tab->join()->thd, tab->filesort, move(iterator),
-          qep_tab->keep_current_rowid, &tab->join()->examined_rows));
-  tab->read_record.iterator = move(sort);
+  tab->iterator = NewIterator<SortingIterator>(
+      tab->join()->thd, tab->filesort, move(iterator),
+      qep_tab->keep_current_rowid, &tab->join()->examined_rows);
 
   return false;
 }

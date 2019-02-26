@@ -47,7 +47,7 @@
 #include "sql/opt_range.h"  // SQL_SELECT
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/protocol.h"
-#include "sql/records.h"  // init_read_record
+#include "sql/records.h"  // init_table_iterator
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // REPORT_ALL_ERRORS
 #include "sql/sql_bitmap.h"
@@ -215,14 +215,14 @@ static int search_topics(THD *thd, QEP_TAB *topics,
                          struct st_find_field *find_fields, List<String> *names,
                          String *name, String *description, String *example) {
   int count = 0;
-  READ_RECORD read_record_info;
   DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, topics, false,
-                       /*ignore_not_found_rows=*/false))
-    return 0;
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, topics, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read()) {
+  while (!iterator->Read()) {
     if (!topics->condition()->val_int())  // Doesn't match like
       continue;
     memorize_variant_topic(thd, count, find_fields, names, name, description,
@@ -254,14 +254,14 @@ static int search_topics(THD *thd, QEP_TAB *topics,
 static int search_keyword(THD *thd, QEP_TAB *keywords,
                           struct st_find_field *find_fields, int *key_id) {
   int count = 0;
-  READ_RECORD read_record_info;
   DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, keywords, false,
-                       /*ignore_not_found_rows=*/false))
-    return 0;
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, keywords, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read() && count < 2) {
+  while (!iterator->Read() && count < 2) {
     if (!keywords->condition()->val_int())  // Dosn't match like
       continue;
 
@@ -353,39 +353,33 @@ static int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   return count;
 }
 
-/*
-  Look for categories by mask
+/**
+  Look for categories by mask.
 
-  SYNOPSIS
-    search_categories()
-    thd			THD for init_read_record
-    categories		Table of categories
-    find_fields         Filled array of info for fields
-    select		Function to test for if matching help topic.
-                        Normally 'help_vategory.name like 'bit%'
-    names		List of found categories names (out)
-    res_id		Primary index of found category (only if
-                        found exactly one category)
+  @param thd          THD for init_table_iterator
+  @param categories   Table of categories
+  @param find_fields  Filled array of info for fields
+  @param names        List of found categories names (out)
+  @param res_id	      Primary index of found category
+                        (only if found exactly one category)
 
-  RETURN VALUES
-    #			Number of categories found
-*/
-
+  @return             Number of categories found
+ */
 static int search_categories(THD *thd, QEP_TAB *categories,
                              struct st_find_field *find_fields,
                              List<String> *names, int16 *res_id) {
   Field *pfname = find_fields[help_category_name].field;
   Field *pcat_id = find_fields[help_category_help_category_id].field;
   int count = 0;
-  READ_RECORD read_record_info;
 
   DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, categories, false,
-                       /*ignore_not_found_rows=*/false))
-    return 0;
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, categories, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return 0;
 
-  while (!read_record_info->Read()) {
+  while (!iterator->Read()) {
     if (categories->condition() && !categories->condition()->val_int())
       continue;
     String *lname = new (thd->mem_root) String;
@@ -410,13 +404,13 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
 static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
                                        List<String> *res) {
-  READ_RECORD read_record_info;
   DBUG_TRACE;
 
-  if (init_read_record(&read_record_info, thd, NULL, items, false,
-                       /*ignore_not_found_rows=*/false))
-    return;
-  while (!read_record_info->Read()) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, NULL, items, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return;
+  while (!iterator->Read()) {
     if (!items->condition()->val_int()) continue;
     String *name = new (thd->mem_root) String();
     get_field(thd->mem_root, pfname, name);

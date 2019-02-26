@@ -225,9 +225,8 @@ enum enum_alter_inplace_result {
 #define HA_CAN_GEOMETRY (1 << 4)
 /*
   Reading keys in random order is as fast as reading keys in sort order
-  (Used in records.cc to decide if we should use a record cache and by
-  filesort to decide if we should sort key + data or key + pointer-to-row.
-  For further explanation see intro to init_read_record.
+  (Used by filesort to decide if we should sort key + data or key +
+  pointer-to-row.)
 */
 #define HA_FAST_KEY_READ (1 << 5)
 /*
@@ -286,12 +285,8 @@ enum enum_alter_inplace_result {
 */
 #define HA_PRIMARY_KEY_REQUIRED_FOR_POSITION (1 << 16)
 #define HA_CAN_RTREEKEYS (1 << 17)
-/*
-  Seems to be an old MyISAM feature that is no longer used. No handler
-  has it defined but it is checked in init_read_record. Further investigation
-  needed.
-*/
-#define HA_NOT_DELETE_WITH_CACHE (1 << 18)
+/// Not in use.
+#define HA_UNUSED18
 /*
   The following is we need to a primary key to delete (and update) a row.
   If there is no primary key, all columns needs to be read on update and delete

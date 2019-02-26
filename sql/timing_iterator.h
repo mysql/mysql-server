@@ -1,6 +1,7 @@
-#ifndef SQL_RECORDS_H
-#define SQL_RECORDS_H
-/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+#ifndef SQL_TIMING_ITERATOR_H_
+#define SQL_TIMING_ITERATOR_H_
+
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,35 +23,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-#include <memory>
-#include <string>
-
 #include "my_alloc.h"
-#include "my_base.h"
-#include "sql/basic_row_iterators.h"
-#include "sql/composite_iterators.h"
-#include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"
-#include "sql/sorting_iterator.h"
+#include "sql/sql_class.h"
 
-class QEP_TAB;
-class THD;
-struct TABLE;
+// Allocates a new iterator on the given THD's MEM_ROOT. The MEM_ROOT must live
+// for at least as long as the iterator does.
 
-unique_ptr_destroy_only<RowIterator> create_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows, ha_rows *examined_rows);
+template <class RealIterator, class... Args>
+unique_ptr_destroy_only<RowIterator> NewIterator(THD *thd, Args &&... args) {
+  return unique_ptr_destroy_only<RowIterator>(
+      new (thd->mem_root) RealIterator(thd, std::forward<Args>(args)...));
+}
 
-/**
-  Calls create_table_iterator(), then calls Init() on the resulting iterator.
-  Returns nullptr on failure.
- */
-unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
-    bool ignore_not_found_rows);
-
-unique_ptr_destroy_only<RowIterator> create_table_iterator_idx(
-    THD *thd, TABLE *table, uint idx, bool reverse, QEP_TAB *qep_tab);
-
-#endif /* SQL_RECORDS_H */
+#endif  // SQL_TIMING_ITERATOR_H_

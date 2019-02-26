@@ -64,7 +64,7 @@
 #include "sql/handler.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"   // opt_allow_suspicious_udfs
-#include "sql/records.h"  // READ_RECORD
+#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
@@ -196,8 +196,8 @@ void udf_init_globals() {
 void udf_read_functions_table() {
   udf_func *tmp;
   TABLE_LIST tables;
-  READ_RECORD read_record_info;
   TABLE *table;
+  unique_ptr_destroy_only<RowIterator> iterator;
   int error;
   DBUG_TRACE;
   char db[] = "mysql"; /* A subject to casednstr, can't be constant */
@@ -233,10 +233,10 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, false,
-                       /*ignore_not_found_rows=*/false))
-    goto end;
-  while (!(error = read_record_info->Read())) {
+  iterator = init_table_iterator(new_thd, table, NULL, false,
+                                 /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) goto end;
+  while (!(error = iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
     name.str = get_field(&mem, table->field[0]);
@@ -298,7 +298,7 @@ void udf_read_functions_table() {
     }
   }
   if (error > 0) LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
-  read_record_info.iterator.reset();
+  iterator.reset();
   table->m_needs_reopen = true;  // Force close to free memory
 
 end:

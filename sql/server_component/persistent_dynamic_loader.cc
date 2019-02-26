@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -226,9 +226,10 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
-    READ_RECORD read_record_info;
-    if (init_read_record(&read_record_info, thd, component_table, NULL, false,
-                         /*ignore_not_found_rows=*/false)) {
+    unique_ptr_destroy_only<RowIterator> iterator =
+        init_table_iterator(thd, component_table, NULL, false,
+                            /*ignore_not_found_rows=*/false);
+    if (iterator == nullptr) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
       return false;
@@ -244,7 +245,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     std::map<uint64, std::vector<std::string>> component_groups;
 
     for (;;) {
-      res = read_record_info->Read();
+      res = iterator->Read();
       if (res != 0) {
         break;
       }
@@ -272,7 +273,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
       }
     }
 
-    read_record_info.iterator.reset();
+    iterator.reset();
 
     /* res is guaranteed to be != 0, -1 means end of records encountered, which
       is interpreted as a success. */

@@ -118,7 +118,7 @@
 #include "sql/partitioning/partition_handler.h"  // Partition_handler
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/records.h"  // READ_RECORD
+#include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_rli.h"  // rli_slave etc
@@ -152,6 +152,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
+#include "sql/timing_iterator.h"
 #include "sql/transaction.h"  // trans_commit_stmt
 #include "sql/transaction_info.h"
 #include "sql/trigger.h"
@@ -17105,9 +17106,9 @@ static int copy_data_between_tables(
   ORDER *order = select_lex->order_list.first;
 
   unique_ptr_destroy_only<Filesort> fsort;
-  READ_RECORD info;
-  setup_read_record(&info, thd, from, NULL, false,
-                    /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
+  unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
+      thd, from, NULL, false,
+      /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
 
   if (order && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
@@ -17137,18 +17138,16 @@ static int copy_data_between_tables(
                     all_fields, order))
       goto err;
     fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
-    unique_ptr_destroy_only<RowIterator> sort(
-        new (&info.sort_holder)
-            SortingIterator(thd, fsort.get(), move(info.iterator),
-                            /*force_sort_position=*/true,
-                            /*examined_rows=*/nullptr));
+    unique_ptr_destroy_only<RowIterator> sort = NewIterator<SortingIterator>(
+        thd, fsort.get(), move(iterator), /*force_sort_position=*/true,
+        /*examined_rows=*/nullptr);
     if (sort->Init()) {
       error = 1;
       goto err;
     }
-    info.iterator = move(sort);
+    iterator = move(sort);
   } else {
-    if (info.iterator->Init()) {
+    if (iterator->Init()) {
       error = 1;
       goto err;
     }
@@ -17159,7 +17158,7 @@ static int copy_data_between_tables(
 
   to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
-  while (!(error = info->Read())) {
+  while (!(error = iterator->Read())) {
     if (thd->killed) {
       thd->send_kill_message();
       error = 1;
@@ -17263,7 +17262,7 @@ static int copy_data_between_tables(
     }
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
-  info.iterator.reset();
+  iterator.reset();
   free_io_cache(from);
   destroy_array(copy, to->s->fields);
 

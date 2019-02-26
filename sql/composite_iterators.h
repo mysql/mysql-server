@@ -31,9 +31,8 @@
   to a single table or similar, but are the inner (non-leaf) nodes of the
   iterator execution tree. They consistently own their source iterator, although
   not its memory (since we never allocate row iterators on the heap--usually on
-  a MEM_ROOT or as static parts of READ_RECORD). This means that in the end,
-  you'll end up with a single root iterator which then owns everything else
-  recursively.
+  a MEM_ROOT>). This means that in the end, you'll end up with a single root
+  iterator which then owns everything else recursively.
 
   SortingIterator is also a composite iterator, but is defined in its own file.
  */

@@ -10250,10 +10250,10 @@ ER_ENGINE_COST_INVALID_CONST_CONSTANT_FOR_SE_AND_DEVICE
   eng "Invalid value for cost constant \"%s\" for \"%s\" storage engine and device type %d in mysql.engine_cost table: %.1f"
 
 ER_SERVER_COST_FAILED_TO_READ
-  eng "init_read_record returned error when reading from mysql.server_cost table."
+  eng "Error while reading from mysql.server_cost table."
 
 ER_ENGINE_COST_FAILED_TO_READ
-  eng "init_read_record returned error when reading from mysql.engine_cost table."
+  eng "Error while reading from mysql.engine_cost table."
 
 ER_FAILED_TO_OPEN_COST_CONSTANT_TABLES
   eng "Failed to open optimizer cost constant tables"

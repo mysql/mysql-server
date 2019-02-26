@@ -212,7 +212,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
-  READ_RECORD read_record_info;
+  unique_ptr_destroy_only<RowIterator> iterator;
   TABLE *roles_edges_table = tablelst[0].table;
   TABLE *default_role_table = tablelst[1].table;
 
@@ -224,8 +224,9 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    if (init_read_record(&read_record_info, thd, roles_edges_table, NULL, false,
-                         /*ignore_not_found_rows=*/false)) {
+    iterator = init_table_iterator(thd, roles_edges_table, NULL, false,
+                                   /*ignore_not_found_rows=*/false);
+    if (iterator == nullptr) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
       return true;
@@ -238,7 +239,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
     g_authid_to_vertex->clear();
     g_granted_roles->clear();
-    while (!(read_rec_errcode = read_record_info->Read())) {
+    while (!(read_rec_errcode = iterator->Read())) {
       char *from_host = get_field(
           &tmp_mem, roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]);
       char *from_user = get_field(
@@ -262,15 +263,14 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       }
       grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
     }
-    read_record_info.iterator.reset();
+    iterator.reset();
 
     default_role_table->use_all_columns();
 
-    bool ret =
-        init_read_record(&read_record_info, thd, default_role_table, NULL,
-                         false, /*ignore_not_found_records=*/false);
-    DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", ret = true;);
-    if (ret) {
+    iterator = init_table_iterator(thd, default_role_table, NULL, false,
+                                   /*ignore_not_found_records=*/false);
+    DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", iterator = nullptr;);
+    if (iterator == nullptr) {
       my_error(ER_TABLE_CORRUPT, MYF(0), default_role_table->s->db.str,
                default_role_table->s->table_name.str);
 
@@ -278,7 +278,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       return true;
     }
     g_default_roles->clear();
-    while (!(read_rec_errcode = read_record_info->Read())) {
+    while (!(read_rec_errcode = iterator->Read())) {
       char *host = get_field(
           &tmp_mem, default_role_table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]);
       char *user = get_field(

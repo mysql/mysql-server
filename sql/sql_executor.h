@@ -35,7 +35,7 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/item.h"
-#include "sql/records.h"    // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
@@ -372,7 +372,7 @@ int report_handler_error(TABLE *table, int error);
 int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
-void join_setup_read_record(QEP_TAB *tab);
+void join_setup_iterator(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
 int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
@@ -421,7 +421,6 @@ class QEP_TAB : public QEP_shared_owner {
         rematerialize(false),
         materialize_table(NULL),
         next_select(NULL),
-        read_record(),
         used_null_fields(false),
         used_uneven_bit_fields(false),
         keep_current_rowid(false),
@@ -603,7 +602,7 @@ class QEP_TAB : public QEP_shared_owner {
   Setup_func materialize_table;
   bool using_dynamic_range = false;
   Next_select_func next_select;
-  READ_RECORD read_record;
+  unique_ptr_destroy_only<RowIterator> iterator;
 
   // join-cache-related members
   bool used_null_fields;

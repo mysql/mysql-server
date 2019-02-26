@@ -35,7 +35,7 @@
 #include "sql/current_thd.h"  // current_thd
 #include "sql/field.h"        // Field
 #include "sql/mysqld.h"       // key_LOCK_cost_const
-#include "sql/records.h"      // READ_RECORD
+#include "sql/records.h"      // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
@@ -247,16 +247,15 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
     comment     VARCHAR(1024) DEFAULT NULL
   */
 
-  READ_RECORD read_record_info;
-
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
-                                    /*ignore_not_found_rows=*/false);
-  if (!ret) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, NULL, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator != nullptr) {
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info->Read()) {
+    while (!iterator->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.
@@ -313,16 +312,15 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
     comment     VARCHAR(1024) DEFAULT NULL,
   */
 
-  READ_RECORD read_record_info;
-
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
-                                    /*ignore_not_found_rows=*/false);
-  if (!ret) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, NULL, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator != nullptr) {
     table->use_all_columns();
 
     // Read one record
-    while (!read_record_info->Read()) {
+    while (!iterator->Read()) {
       /*
         Check if a non-default value has been configured for this cost
         constant.

@@ -1901,7 +1901,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   quick_selects.delete_elements();
   delete pk_quick_select;
   /* It's ok to call the next two even if they are already deinitialized */
-  read_record.iterator.reset();
+  read_record.reset();
   free_io_cache(head);
   free_root(&alloc, MYF(0));
 }
@@ -10512,10 +10512,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
-  read_record.iterator.reset();  // Clear out any previous iterator.
-  if (init_read_record(&read_record, thd, head, NULL, true,
-                       /*ignore_not_found_rows=*/false))
-    return 1;
+  read_record = init_table_iterator(thd, head, NULL, true,
+                                    /*ignore_not_found_rows=*/false);
+  if (read_record == nullptr) return 1;
   return result;
 }
 
@@ -10540,7 +10539,7 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
     // NOTE: destroying the RowIterator also clears
     // head->unique_result.io_cache if it is initialized, since it
     // owns the io_cache it is reading from.
-    read_record.iterator.reset();
+    read_record.reset();
 
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select) {

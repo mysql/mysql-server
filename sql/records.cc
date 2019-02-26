@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,18 +48,18 @@
 #include "sql/sql_optimizer.h"
 #include "sql/sql_sort.h"
 #include "sql/table.h"
+#include "sql/timing_iterator.h"
 
 using std::string;
 using std::vector;
 
 /**
-  Initialize READ_RECORD structure to perform full index scan in desired
+  Initialize a row iterator to perform full index scan in desired
   direction using the RowIterator interface
 
   This function has been added at late stage and is used only by
   UPDATE/DELETE. Other statements perform index scans using IndexScanIterator.
 
-  @param info         READ_RECORD structure to initialize.
   @param thd          Thread handle
   @param table        Table to be accessed
   @param idx          index to scan
@@ -70,30 +70,24 @@ using std::vector;
   @retval false  success
 */
 
-void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                           bool reverse, QEP_TAB *qep_tab) {
+unique_ptr_destroy_only<RowIterator> create_table_iterator_idx(
+    THD *thd, TABLE *table, uint idx, bool reverse, QEP_TAB *qep_tab) {
   empty_record(table);
-  new (info) READ_RECORD;
 
   ha_rows *examined_rows = nullptr;
   if (qep_tab != nullptr && qep_tab->join() != nullptr) {
     examined_rows = &qep_tab->join()->examined_rows;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator;
-
   if (reverse) {
-    iterator.reset(new (&info->iterator_holder.index_scan_reverse)
-                       IndexScanIterator<true>(thd, table, idx,
-                                               /*use_order=*/true, qep_tab,
-                                               examined_rows));
-  } else {
-    iterator.reset(new (&info->iterator_holder.index_scan)
-                       IndexScanIterator<false>(thd, table, idx,
+    return NewIterator<IndexScanIterator<true>>(thd, table, idx,
                                                 /*use_order=*/true, qep_tab,
-                                                examined_rows));
+                                                examined_rows);
+  } else {
+    return NewIterator<IndexScanIterator<false>>(thd, table, idx,
+                                                 /*use_order=*/true, qep_tab,
+                                                 examined_rows);
   }
-  info->iterator = std::move(iterator);
 }
 
 template <bool Reverse>
@@ -192,7 +186,6 @@ template class IndexScanIterator<false>;
   Which method to use is set-up in this call so that you can fetch rows
   through the resulting row iterator afterwards.
 
-  @param info     OUT read structure
   @param thd      Thread handle
   @param table    Table the data [originally] comes from; if NULL,
     'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
@@ -210,39 +203,34 @@ template class IndexScanIterator<false>;
     examined rows. If nullptr, will use qep_tab->join()->examined_rows
     if possible.
  */
-void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                       QEP_TAB *qep_tab, bool disable_rr_cache,
-                       bool ignore_not_found_rows, ha_rows *examined_rows) {
+unique_ptr_destroy_only<RowIterator> create_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows, ha_rows *examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
-
-  new (info) READ_RECORD;
 
   if (examined_rows == nullptr && qep_tab != nullptr &&
       qep_tab->join() != nullptr) {
     examined_rows = &qep_tab->join()->examined_rows;
   }
 
-  unique_ptr_destroy_only<RowIterator> iterator;
-
   QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : NULL;
   if (table->unique_result.io_cache &&
       my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
-    iterator.reset(
-        new (&info->iterator_holder.sort_file_indirect)
-            SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
-                                     !disable_rr_cache, ignore_not_found_rows,
-                                     examined_rows));
+    unique_ptr_destroy_only<RowIterator> iterator =
+        NewIterator<SortFileIndirectIterator>(
+            thd, table, table->unique_result.io_cache, !disable_rr_cache,
+            ignore_not_found_rows, examined_rows);
     table->unique_result.io_cache =
         nullptr;  // Now owned by SortFileIndirectIterator.
+    return iterator;
   } else if (quick) {
     DBUG_PRINT("info", ("using IndexRangeScanIterator"));
-    iterator.reset(
-        new (&info->iterator_holder.index_range_scan)
-            IndexRangeScanIterator(thd, table, quick, qep_tab, examined_rows));
+    return NewIterator<IndexRangeScanIterator>(thd, table, quick, qep_tab,
+                                               examined_rows);
   } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
@@ -250,32 +238,29 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     */
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
-    iterator.reset(
-        new (&info->iterator_holder.sort_buffer_indirect)
-            SortBufferIndirectIterator(thd, table, &table->unique_result,
-                                       ignore_not_found_rows, examined_rows));
+    return NewIterator<SortBufferIndirectIterator>(
+        thd, table, &table->unique_result, ignore_not_found_rows,
+        examined_rows);
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
-    iterator.reset(new (&info->iterator_holder.table_scan)
-                       TableScanIterator(thd, table, qep_tab, examined_rows));
+    return NewIterator<TableScanIterator>(thd, table, qep_tab, examined_rows);
   }
-  info->iterator = std::move(iterator);
 }
 
-bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache,
-                      bool ignore_not_found_rows) {
-  setup_read_record(info, thd, table, qep_tab, disable_rr_cache,
-                    ignore_not_found_rows, /*examined_rows=*/nullptr);
-  if (info->iterator->Init()) {
-    info->iterator.reset();
-    return true;
+unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool disable_rr_cache,
+    bool ignore_not_found_rows) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      create_table_iterator(thd, table, qep_tab, disable_rr_cache,
+                            ignore_not_found_rows, /*examined_rows=*/nullptr);
+  if (iterator->Init()) {
+    return nullptr;
   }
-  return false;
+  return iterator;
 }
 
 /**
-  The default implementation of unlock-row method of READ_RECORD,
+  The default implementation of unlock-row method of RowIterator,
   used in all access methods except EQRefIterator.
 */
 void TableRowIterator::UnlockRow() { m_table->file->unlock_row(); }

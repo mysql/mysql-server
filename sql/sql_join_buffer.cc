@@ -1863,11 +1863,11 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
   DBUG_ASSERT(!(qep_tab->dynamic_range() && qep_tab->quick()));
 
   /* Start retrieving all records of the joined table */
-  if (qep_tab->read_record.iterator->Init()) return NESTED_LOOP_ERROR;
-  if ((error = qep_tab->read_record->Read()))
+  if (qep_tab->iterator->Init()) return NESTED_LOOP_ERROR;
+  if ((error = qep_tab->iterator->Read()))
     return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
 
-  READ_RECORD *info = &qep_tab->read_record;
+  RowIterator *iterator = qep_tab->iterator.get();
   do {
     if (qep_tab->keep_current_rowid)
       qep_tab->table()->file->position(qep_tab->table()->record[0]);
@@ -1910,7 +1910,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
         }
       }
     }
-  } while (!(error = info->iterator->Read()));
+  } while (!(error = iterator->Read()));
 
   if (error > 0)  // Fatal error
     rc = NESTED_LOOP_ERROR;

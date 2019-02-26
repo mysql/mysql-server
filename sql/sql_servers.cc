@@ -221,12 +221,12 @@ static bool servers_load(THD *thd, TABLE *table) {
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  READ_RECORD read_record_info;
-  if (init_read_record(&read_record_info, thd, table, NULL, false,
-                       /*ignore_not_found_rows=*/false))
-    return true;
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, NULL, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) return true;
 
-  while (!(read_record_info->Read())) {
+  while (!(iterator->Read())) {
     if ((get_server_from_table_to_cache(table))) return true;
   }
 

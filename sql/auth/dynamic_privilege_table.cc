@@ -109,9 +109,10 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  READ_RECORD read_record_info;
-  if (init_read_record(&read_record_info, thd, table, NULL, false,
-                       /*ignore_not_found_rows=*/false)) {
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, NULL, false,
+                          /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
     return true;
@@ -131,7 +132,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
       return true;
     }
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
-    while (!error && !(read_rec_errcode = read_record_info->Read())) {
+    while (!error && !(read_rec_errcode = iterator->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
       if (host == 0) host = &percentile_character[0];

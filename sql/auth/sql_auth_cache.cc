@@ -64,7 +64,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
-#include "sql/records.h"         // READ_RECORD
+#include "sql/records.h"         // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
@@ -1611,7 +1611,7 @@ void clean_user_cache() {
 
 static bool acl_load(THD *thd, TABLE_LIST *tables) {
   TABLE *table;
-  READ_RECORD read_record_info;
+  unique_ptr_destroy_only<RowIterator> iterator;
   bool return_val = true;
   bool check_no_resolve = specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN + 1];
@@ -1642,13 +1642,13 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   /*
     Prepare reading from the mysql.db table
   */
-  if (init_read_record(&read_record_info, thd, table = tables[1].table, NULL,
-                       false, /*ignore_not_found_rows=*/false))
-    goto end;
+  iterator = init_table_iterator(thd, table = tables[1].table, NULL, false,
+                                 /*ignore_not_found_rows=*/false);
+  if (iterator == nullptr) goto end;
   table->use_all_columns();
   acl_dbs->clear();
   int read_rec_errcode;
-  while (!(read_rec_errcode = read_record_info->Read())) {
+  while (!(read_rec_errcode = iterator->Read())) {
     /* Reading record in mysql.db */
     ACL_DB db;
     db.host.update_hostname(
@@ -1688,7 +1688,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     acl_dbs->push_back(db);
   }  // END reading records from mysql.db tables
 
-  read_record_info.iterator.reset();
+  iterator.reset();
   if (read_rec_errcode > 0) goto end;
 
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
@@ -1698,11 +1698,11 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   acl_proxy_users->clear();
 
   if (tables[2].table) {
-    if (init_read_record(&read_record_info, thd, table = tables[2].table, NULL,
-                         false, /*ignore_not_found_rows=*/false))
-      goto end;
+    iterator = init_table_iterator(thd, table = tables[2].table, NULL, false,
+                                   /*ignore_not_found_rows=*/false);
+    if (iterator == nullptr) goto end;
     table->use_all_columns();
-    while (!(read_rec_errcode = read_record_info->Read())) {
+    while (!(read_rec_errcode = iterator->Read())) {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
       proxy.init(table, &global_acl_memory);
@@ -1712,7 +1712,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
       }
     }  // END reading records from the mysql.proxies_priv table
 
-    read_record_info.iterator.reset();
+    iterator.reset();
     if (read_rec_errcode > 0) goto end;
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
