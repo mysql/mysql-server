@@ -4469,8 +4469,7 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
  *
  */
 
-#define SUMA_BUF_SZ1 MAX_KEY_SIZE_IN_WORDS + MAX_TUPLE_SIZE_IN_WORDS
-#define SUMA_BUF_SZ MAX_ATTRIBUTES_IN_TABLE + SUMA_BUF_SZ1
+#define SUMA_BUF_SZ (MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS)
 
 #define NO_LOCK_VAL        0xffffffff
 #define TRIGGER_LOCK_BASE  0x00000000
