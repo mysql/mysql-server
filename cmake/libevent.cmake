@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,15 +14,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_LIBEVENT)
-  SET(LIBEVENT_LIBRARY  event)
-  SET(LIBEVENT_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/libevent)
+  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent library")
+  SET(LIBEVENT_LIBRARIES  event)
+  SET(LIBEVENT_INCLUDE_DIRS
+    "${CMAKE_SOURCE_DIR}/extra/libevent/include"
+    "${CMAKE_BINARY_DIR}/extra/libevent/include")
   SET(LIBEVENT_FOUND  TRUE)
-  SET(WITH_LIBEVENT "bundled" CACHE STRING "Use bundled libevent")
-  ADD_SUBDIRECTORY(libevent)
-  GET_TARGET_PROPERTY(src libevent SOURCES)
-  FOREACH(file ${src})
-    SET(LIBEVENT_SOURCES ${LIBEVENT_SOURCES} ${CMAKE_SOURCE_DIR}/libevent/${file})
-  ENDFOREACH()
+  ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+  ADD_SUBDIRECTORY(extra/libevent)
 ENDMACRO()
 
 # MYSQL_CHECK_LIBEVENT
@@ -32,7 +31,7 @@ ENDMACRO()
 # If this is set,we use bindled libevent
 # If this is not set,search for system libevent. 
 # if system libevent is not found, use bundled copy
-# LIBEVENT_LIBRARIES, LIBEVENT_INCLUDE_DIR and LIBEVENT_SOURCES
+# LIBEVENT_LIBRARIES, LIBEVENT_INCLUDE_DIRS
 # are set after this macro has run
 
 MACRO (MYSQL_CHECK_LIBEVENT)
@@ -47,37 +46,48 @@ MACRO (MYSQL_CHECK_LIBEVENT)
     SET(LIBEVENT_FIND_QUIETLY TRUE)
 
     IF (NOT LIBEVENT_INCLUDE_PATH)
-      set(LIBEVENT_INCLUDE_PATH /usr/local/include /opt/local/include)
+      SET(LIBEVENT_INCLUDE_PATH /usr/local/include /opt/local/include)
     ENDIF()
 
-    find_path(LIBEVENT_INCLUDE_DIR event.h PATHS ${LIBEVENT_INCLUDE_PATH})
+    FIND_PATH(LIBEVENT_INCLUDE_DIR event.h PATHS ${LIBEVENT_INCLUDE_PATH})
 
-    if (NOT LIBEVENT_INCLUDE_DIR)
+    IF (NOT LIBEVENT_INCLUDE_DIR)
         MESSAGE(SEND_ERROR "Cannot find appropriate event.h in /usr/local/include or /opt/local/include. Use bundled libevent")
-    endif() 
+    ENDIF()
 
     IF (NOT LIBEVENT_LIB_PATHS) 
-      set(LIBEVENT_LIB_PATHS /usr/local/lib /opt/local/lib)
+      SET(LIBEVENT_LIB_PATHS /usr/local/lib /opt/local/lib)
     ENDIF()
 
-    find_library(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
+    ## libevent.so is historical, use libevent_core.so if found.
+    FIND_LIBRARY(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
+    FIND_LIBRARY(LIBEVENT_EXTRA event_extra PATHS ${LIBEVENT_LIB_PATHS})
+    FIND_LIBRARY(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
-    if (NOT LIBEVENT_LIB)
+    IF (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
         MESSAGE(SEND_ERROR "Cannot find appropriate event lib in /usr/local/lib or /opt/local/lib. Use bundled libevent")
-    endif() 
+    ENDIF()
 
-    IF (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
-      set(LIBEVENT_FOUND TRUE)
-      set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+    IF ((LIBEVENT_LIB OR LIBEVENT_CORE) AND LIBEVENT_INCLUDE_DIR)
+      SET(LIBEVENT_FOUND TRUE)
+      IF (LIBEVENT_CORE)
+        SET(LIBEVENT_LIBS ${LIBEVENT_CORE} ${LIBEVENT_EXTRA})
+      ELSE()
+        SET(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      ENDIF()
     ELSE()
-      set(LIBEVENT_FOUND FALSE)
+      SET(LIBEVENT_FOUND FALSE)
     ENDIF()
 
     IF(LIBEVENT_FOUND)
-      SET(LIBEVENT_SOURCES "")
       SET(LIBEVENT_LIBRARIES ${LIBEVENT_LIBS})
       SET(LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIR})
-      SET(LIBEVENT_DEFINES "-DHAVE_LIBEVENT")
+      FIND_PATH(LIBEVENT2_INCLUDE_DIR event2 HINTS ${LIBEVENT_INCLUDE_PATH}/event)
+      IF (LIBEVENT2_INCLUDE_DIR)
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT2")
+      ELSE()
+        ADD_DEFINITIONS("-DHAVE_LIBEVENT1")
+      ENDIF()
     ELSE()
       IF(WITH_LIBEVENT STREQUAL "system")
         MESSAGE(SEND_ERROR "Cannot find appropriate system libraries for libevent. Use bundled libevent")
@@ -86,4 +96,6 @@ MACRO (MYSQL_CHECK_LIBEVENT)
     ENDIF()
 
   ENDIF()
+  MESSAGE(STATUS "LIBEVENT_INCLUDE_DIRS ${LIBEVENT_INCLUDE_DIRS}")
+  MESSAGE(STATUS "LIBEVENT_LIBRARIES ${LIBEVENT_LIBRARIES}")
 ENDMACRO()

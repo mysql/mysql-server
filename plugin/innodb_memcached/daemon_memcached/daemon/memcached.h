@@ -6,7 +6,16 @@
  * The main memcached header holding commonly used data
  * structures and function prototypes.
  */
+#ifdef HAVE_LIBEVENT2
+#include <event2/event.h>
+#include <event2/event_struct.h>
+#include <event2/event_compat.h>
+#elif HAVE_LIBEVENT1
 #include <event.h>
+#else
+#error "No libevent library found"
+#endif /* HAVE_LIBEVENT2 */
+
 #include <pthread.h>
 #include <config_static.h>
 
