@@ -4785,12 +4785,12 @@ Suma::check_switchover(Uint32 bucket, Uint64 gci)
   return !send;
 }
 
-static 
 Uint32 
-reformat(Signal* signal, LinearSectionPtr ptr[3],
-	 Uint32 * src_1, Uint32 sz_1,
-	 Uint32 * src_2, Uint32 sz_2)
+Suma::reformat(Signal* signal,
+               LinearSectionPtr ptr[3],
+               const LinearSectionPtr lsptr[3])
 {
+  jam();
   Uint32 noOfAttrs = 0, dataLen = 0;
   Uint32 * headers = signal->theData + 25;
   Uint32 * dst     = signal->theData + 25 + MAX_ATTRIBUTES_IN_TABLE;
@@ -4798,27 +4798,35 @@ reformat(Signal* signal, LinearSectionPtr ptr[3],
   ptr[0].p  = headers;
   ptr[1].p  = dst;
   
-  while(sz_1 > 0){
-    Uint32 tmp = * src_1 ++;
-    * headers ++ = tmp;
-    Uint32 len = AttributeHeader::getDataSize(tmp);
-    memcpy(dst, src_1, 4 * len);
-    dst += len;
-    src_1 += len;
+  for (Uint32 i = 0; i < 2; i++)
+  {
+    jam();
+    const Uint32 secnum = (i == 0 ? 0 : 2);
+    Uint32* p = lsptr[secnum].p;
+    Uint32 sz = lsptr[secnum].sz;
+    while (sz > 0)
+    {
+      jamDebug();
+      Uint32 tmp = * p++;
+      * headers ++ = tmp;
+      Uint32 len = AttributeHeader::getDataSize(tmp);
+      memcpy(dst, p, 4 * len);
+      dst += len;
+      p += len;
       
-    noOfAttrs++;
-    dataLen += len;
-    sz_1 -= (1 + len);
+      noOfAttrs++;
+      dataLen += len;
+      require(sz >= (1+len));
+      sz -= (1 + len);
+    }
   }
-  assert(sz_1 == 0);
   
   ptr[0].sz = noOfAttrs;
   ptr[1].sz = dataLen;
   
-  ptr[2].p = src_2;
-  ptr[2].sz = sz_2;
+  ptr[2] = lsptr[1];
   
-  return sz_2 > 0 ? 3 : 2;
+  return ptr[2].sz > 0 ? 3 : 2;
 }
 
 /**
@@ -4861,20 +4869,37 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
      */
     Uint32 trigId = ((FireTrigOrd*)ptr)->getTriggerId();
     ndbrequire( setTriggerBufferLock(trigId) );
-    
+
+    LinearSectionPtr lsptr[3];
+
     memcpy(signal->theData, ptr, 4 * siglen); // signal
     ptr += siglen;
+
     memcpy(f_buffer, ptr, 4*sec0len);
+    lsptr[0].sz = sec0len;
+    lsptr[0].p = f_buffer;
     ptr += sec0len;
+
     memcpy(b_buffer, ptr, 4*sec1len);
+    lsptr[1].sz = sec1len;
+    lsptr[1].p = b_buffer;
     ptr += sec1len;
+
     memcpy(f_buffer + sec0len, ptr, 4*sec2len);
+    lsptr[2].sz = sec2len;
+    lsptr[2].p = f_buffer + lsptr[0].sz;
     ptr += sec2len;
 
     f_trigBufferSize = sec0len + sec2len;
     b_trigBufferSize = sec1len;
 
-    execFIRE_TRIG_ORD(signal);
+    doFIRE_TRIG_ORD(signal, lsptr);
+
+    /* Reset bufferlock
+     * We will use the buffers until the end of
+     * signal processing, but not after
+     */
+    ndbrequire( clearBufferLock() );
 
     ndbrequire(ptr == save + msglen);
     ndbrequire(len >= msglen);
@@ -4934,6 +4959,83 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   CRASH_INSERTION(13016);
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
+  const Uint32 gci_hi    = trg->getGCI();
+  const Uint32 gci_lo    = trg->m_gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+
+  Ptr<Subscription> subPtr;
+  c_subscriptionPool.getPtr(subPtr, trigId & 0xFFFF);
+
+  ndbrequire(gci > m_last_complete_gci);
+
+  LinearSectionPtr lsptr[3];
+  if (signal->getNoOfSections() > 0)
+  {
+    jam();
+    ndbassert(isNdbMtLqh());
+    SectionHandle handle(this, signal);
+
+    ndbrequire( setTriggerBufferLock(trigId) );
+
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, 0); // Keys
+    Uint32 sz = ptr.sz;
+    copy(f_buffer, ptr);
+    lsptr[0].sz = ptr.sz;
+    lsptr[0].p = f_buffer;
+
+    handle.getSection(ptr, 2); // After values
+    copy(f_buffer + sz, ptr);
+    f_trigBufferSize = sz + ptr.sz;
+    lsptr[2].sz = ptr.sz;
+    lsptr[2].p = f_buffer + sz;
+
+    handle.getSection(ptr, 1); // Before values
+    copy(b_buffer, ptr);
+    b_trigBufferSize = ptr.sz;
+    lsptr[1].sz = ptr.sz;
+    lsptr[1].p = b_buffer;
+
+    releaseSections(handle);
+  }
+  else
+  {
+    jam();
+    /*
+     * If no sections, assume f_buffer and b_buffer already have been filled
+     * and trigger buffer is locked by preeding sequence of TRIG_ATTRINFO.
+     */
+    ndbrequire(f_trigBufferSize ==
+      trg->getNoOfPrimaryKeyWords() + trg->getNoOfAfterValueWords());
+    ndbrequire(b_trigBufferSize == trg->getNoOfBeforeValueWords());
+    lsptr[0].p = f_buffer;
+    lsptr[0].sz = trg->getNoOfPrimaryKeyWords();
+    lsptr[1].p = b_buffer;
+    lsptr[1].sz = trg->getNoOfBeforeValueWords();
+    lsptr[2].p = f_buffer + trg->getNoOfPrimaryKeyWords();
+    lsptr[2].sz = trg->getNoOfAfterValueWords();
+  }
+
+  jam();
+  ndbrequire( checkTriggerBufferLock(trigId) );
+
+  doFIRE_TRIG_ORD(signal, lsptr);
+
+  /* Reset bufferlock
+   * We will use the buffers until the end of
+   * signal processing, but not after
+   */
+  ndbrequire( clearBufferLock() );
+}
+
+void
+Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
+{
+  jamEntry();
+  DBUG_ENTER("Suma::doFIRE_TRIG_ORD");
+  
+  FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
+  const Uint32 trigId    = trg->getTriggerId();
   const Uint32 hashValue = trg->getHashValue();
   const Uint32 gci_hi    = trg->getGCI();
   const Uint32 gci_lo    = trg->m_gci_lo;
@@ -4948,38 +5050,6 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
   ndbrequire(gci > m_last_complete_gci);
 
-  if (signal->getNoOfSections())
-  {
-    jam();
-    ndbassert(isNdbMtLqh());
-    SectionHandle handle(this, signal);
-
-    ndbrequire( setTriggerBufferLock(trigId) );
-
-    SegmentedSectionPtr ptr;
-    handle.getSection(ptr, 0); // Keys
-    Uint32 sz = ptr.sz;
-    copy(f_buffer, ptr);
-
-    handle.getSection(ptr, 2); // After values
-    copy(f_buffer + sz, ptr);
-    f_trigBufferSize = sz + ptr.sz;
-
-    handle.getSection(ptr, 1); // Before values
-    copy(b_buffer, ptr);
-    b_trigBufferSize = ptr.sz;
-    releaseSections(handle);
-  }
-
-  jam();
-  ndbrequire( checkTriggerBufferLock(trigId) );
-  /**
-   * Reset bufferlock 
-   * We will use the buffers until the end of 
-   * signal processing, but not after
-   */
-  ndbrequire( clearBufferLock() );
-  
   Uint32 tableId = subPtr.p->m_tableId;
   Uint32 schemaVersion =
     c_tablePool.getPtr(subPtr.p->m_table_ptrI)->m_schemaVersion;
@@ -4991,13 +5061,12 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   {
     jam();
     m_max_sent_gci = (gci > m_max_sent_gci ? gci : m_max_sent_gci);
-    Uint32 sz = trg->getNoOfPrimaryKeyWords()+trg->getNoOfAfterValueWords();
-    ndbrequire(sz == f_trigBufferSize);
-    
+    ndbrequire(lsptr[0].sz == trg->getNoOfPrimaryKeyWords());
+    ndbrequire(lsptr[1].sz == trg->getNoOfBeforeValueWords());
+    ndbrequire(lsptr[2].sz == trg->getNoOfAfterValueWords());
+
     LinearSectionPtr ptr[3];
-    const Uint32 nptr= reformat(signal, ptr, 
-				f_buffer, f_trigBufferSize,
-                                b_buffer, b_trigBufferSize);
+    const Uint32 nptr= reformat(signal, ptr, lsptr);
     Uint32 ptrLen= 0;
     for(Uint32 i =0; i < nptr; i++)
       ptrLen+= ptr[i].sz;    
@@ -5036,13 +5105,16 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
       jam();
       dst1[0] = subPtr.i;
       dst1[1] = schemaVersion;
-      dst1[2] = (event << 16) | f_trigBufferSize;
+      dst1[2] = (event << 16) | lsptr[0].sz;
       dst1[3] = any_value;
       dst1[4] = transId1;
       dst1[5] = transId2;
       dst1 += buffer_header_sz;
-      memcpy(dst1, f_buffer, f_trigBufferSize << 2);
-      memcpy(dst2, b_buffer, b_trigBufferSize << 2);
+      memcpy(dst1, lsptr[0].p, lsptr[0].sz << 2);
+      dst1 += lsptr[0].sz;
+      memcpy(dst1, lsptr[2].p, lsptr[2].sz << 2);
+      ndbrequire(f_trigBufferSize == lsptr[0].sz + lsptr[2].sz);
+      memcpy(dst2, lsptr[1].p, lsptr[1].sz << 2);
     }
     else if (dst1 != nullptr)
     {
@@ -7410,15 +7482,21 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         }
       }
       
+      LinearSectionPtr ptr[3];
       LinearSectionPtr lsptr[3];
-      const Uint32 nptr= reformat(signal, lsptr,
-				  src, sz_1, 
-                                  src2, sz2);
+      lsptr[0].p = src;
+      lsptr[0].sz = sz_1;
+      lsptr[1].p = src2;
+      lsptr[1].sz = sz2;
+      lsptr[2].p = src + sz_1;
+      lsptr[2].sz = sz - buffer_header_sz - sz_1;
+      const Uint32 nptr = reformat(signal, ptr, lsptr);
+
       Uint32 ptrLen= 0;
       for(Uint32 i =0; i < nptr; i++)
       {
         jam();
-        ptrLen+= lsptr[i].sz;
+        ptrLen+= ptr[i].sz;
       }
 
       /**
@@ -7445,7 +7523,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         data->transId1       = transId1;
         data->transId2       = transId2;
 	
-        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, lsptr, nptr);
+        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
       }
     }
   }

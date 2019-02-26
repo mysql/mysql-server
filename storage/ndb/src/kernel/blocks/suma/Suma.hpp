@@ -94,6 +94,7 @@ public:
    * Trigger logging
    */
   void execTRIG_ATTRINFO(Signal* signal);
+  void doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3]);
   void execFIRE_TRIG_ORD(Signal* signal);
   void execFIRE_TRIG_ORD_L(Signal* signal);
   void execSUB_GCP_COMPLETE_REP(Signal* signal);
@@ -719,6 +720,9 @@ private:
   void out_of_buffer(Signal*);
   void out_of_buffer_release(Signal* signal, Uint32 buck);
 
+  Uint32 reformat(Signal* signal,
+                  LinearSectionPtr ptr[3],
+                  const LinearSectionPtr lsptr[3]);
   void start_resend(Signal*, Uint32 bucket);
   void resend_bucket(Signal*, Uint32 bucket, Uint64 gci,
 		     Uint32 page_pos, Uint64 last_gci);
