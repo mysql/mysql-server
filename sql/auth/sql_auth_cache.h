@@ -65,7 +65,7 @@ class Restrictions;
 /* Classes */
 
 class ACL_HOST_AND_IP {
-  char *hostname;
+  const char *hostname;
   size_t hostname_length;
   long ip, ip_mask;  // Used with masked ip:s
 
@@ -119,7 +119,7 @@ class ACL_HOST : public ACL_ACCESS {
 class Acl_credential {
  public:
   Acl_credential() {
-    m_auth_string = {(char *)"", 0};
+    m_auth_string = {const_cast<char *>(""), 0};
     memset(m_salt, 0, SCRAMBLE_LENGTH + 1);
     m_salt_len = 0;
   }
@@ -291,7 +291,9 @@ class GRANT_COLUMN {
 class GRANT_NAME {
  public:
   ACL_HOST_AND_IP host;
-  char *db, *user, *tname;
+  char *db;
+  const char *user;
+  char *tname;
   ulong privs;
   ulong sort;
   std::string hash_key;

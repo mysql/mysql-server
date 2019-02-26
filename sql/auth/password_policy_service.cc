@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
   Static name of the built in plugin used by mysql_password_policy_service_st
   for password validation.
 */
-LEX_CSTRING validate_password_plugin = {C_STRING_WITH_LEN("validate_password")};
+LEX_CSTRING validate_password_plugin = {STRING_WITH_LEN("validate_password")};
 
 /**
   Invoke the component/plugin to validate the input password.

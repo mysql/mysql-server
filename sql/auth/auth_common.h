@@ -698,8 +698,8 @@ bool reload_acl_caches(THD *thd);
 ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
               const char *db, bool db_is_pattern);
 bool is_acl_user(THD *thd, const char *host, const char *user);
-bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
-                 char *ip, const char *db);
+bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
+                 const char *host, const char *ip, const char *db);
 bool check_acl_tables_intact(THD *thd);
 bool check_acl_tables_intact(THD *thd, TABLE_LIST *tables);
 void notify_flush_event(THD *thd);
@@ -819,7 +819,8 @@ ulong get_global_acl_cache_size();
 #if defined(HAVE_OPENSSL) && !defined(HAVE_WOLFSSL)
 extern bool opt_auto_generate_certs;
 bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status,
-                             char **ssl_ca, char **ssl_key, char **ssl_cert);
+                             const char **ssl_ca, const char **ssl_key,
+                             const char **ssl_cert);
 #endif /* HAVE_OPENSSL && !HAVE_WOLFSSL */
 
 #define DEFAULT_SSL_CA_CERT "ca.pem"

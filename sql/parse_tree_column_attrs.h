@@ -68,7 +68,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
 
   virtual void apply_type_flags(ulong *) const {}
   virtual void apply_alter_info_flags(ulonglong *) const {}
-  virtual void apply_comment(LEX_STRING *) const {}
+  virtual void apply_comment(LEX_CSTRING *) const {}
   virtual void apply_default_value(Item **) const {}
   virtual void apply_gen_default_value(Value_generator **) {}
   virtual void apply_on_update_value(Item **) const {}
@@ -243,13 +243,13 @@ class PT_constraint_enforcement_attr : public PT_column_attr_base {
   @ingroup ptn_column_attrs
 */
 class PT_comment_column_attr : public PT_column_attr_base {
-  const LEX_STRING comment;
+  const LEX_CSTRING comment;
 
  public:
-  explicit PT_comment_column_attr(const LEX_STRING &comment)
+  explicit PT_comment_column_attr(const LEX_CSTRING &comment)
       : comment(comment) {}
 
-  virtual void apply_comment(LEX_STRING *to) const { *to = comment; }
+  virtual void apply_comment(LEX_CSTRING *to) const { *to = comment; }
 };
 
 /**
@@ -820,7 +820,7 @@ class PT_field_def_base : public Parse_tree_node {
   uint uint_geom_type;
   List<String> *interval_list;
   alter_info_flags_t alter_info_flags;
-  LEX_STRING comment;
+  LEX_CSTRING comment;
   Item *default_value;
   Item *on_update_value;
   Value_generator *gcol_info;
@@ -836,7 +836,7 @@ class PT_field_def_base : public Parse_tree_node {
   explicit PT_field_def_base(PT_type *type_node)
       : has_explicit_collation(false),
         alter_info_flags(0),
-        comment(EMPTY_STR),
+        comment(EMPTY_CSTR),
         default_value(NULL),
         on_update_value(NULL),
         gcol_info(NULL),

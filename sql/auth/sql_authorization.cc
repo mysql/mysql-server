@@ -4162,8 +4162,8 @@ bool check_grant_routine(THD *thd, ulong want_access, TABLE_LIST *procs,
                          bool is_proc, bool no_errors) {
   TABLE_LIST *table;
   Security_context *sctx = thd->security_context();
-  char *user = (char *)sctx->priv_user().str;
-  char *host = (char *)sctx->priv_host().str;
+  const char *user = sctx->priv_user().str;
+  const char *host = sctx->priv_host().str;
   const std::string db_name(procs->db, procs->db_length);
   bool has_roles = thd->security_context()->get_active_roles()->size() > 0;
   DBUG_ENTER("check_grant_routine");
@@ -5154,8 +5154,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
         lex_user.user.str = grant_proc->user;
         lex_user.user.length = strlen(grant_proc->user);
         lex_user.host.str =
-            (char *)(grant_proc->host.get_host() ? grant_proc->host.get_host()
-                                                 : "");
+            grant_proc->host.get_host() ? grant_proc->host.get_host() : "";
         lex_user.host.length = grant_proc->host.get_host()
                                    ? strlen(grant_proc->host.get_host())
                                    : 0;
@@ -5225,8 +5224,8 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
   new (&tables[0]) TABLE_LIST();
   user_list.empty();
 
-  tables->db = (char *)sp_db;
-  tables->table_name = tables->alias = (char *)sp_name;
+  tables->db = sp_db;
+  tables->table_name = tables->alias = sp_name;
 
   lex_string_strmake(thd->mem_root, &combo->user, combo->user.str,
                      strlen(combo->user.str));

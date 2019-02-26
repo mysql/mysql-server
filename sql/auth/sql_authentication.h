@@ -88,8 +88,8 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO {
   uint *server_status;
   Protocol_classic *protocol;
   ulong max_client_packet_length;
-  char *ip;
-  char *host;
+  const char *ip;
+  const char *host;
   Thd_charset_adapter *charset_adapter;
   LEX_CSTRING acl_user_plugin;
   int vio_is_encrypted;

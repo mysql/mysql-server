@@ -232,7 +232,8 @@ class String {
   const CHARSET_INFO *charset() const { return m_charset; }
   size_t length() const { return m_length; }
   size_t alloced_length() const { return m_alloced_length; }
-  char &operator[](size_t i) const { return m_ptr[i]; }
+  const char &operator[](size_t i) const { return m_ptr[i]; }
+  char &operator[](size_t i) { return m_ptr[i]; }
   void length(size_t len) { m_length = len; }
   bool is_empty() const { return (m_length == 0); }
   void mark_as_const() { m_alloced_length = 0; }

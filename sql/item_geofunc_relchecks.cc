@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -457,7 +457,7 @@ int Item_func_spatial_rel::multipoint_within_geometry_collection(
   int tres = 0;
   bool had_error = false;
 
-  Rtree_index &rtree = *((Rtree_index *)prtree);
+  const Rtree_index &rtree = *static_cast<const Rtree_index *>(prtree);
 
   typename BG_models<Coordsys>::Multipoint mpts(
       pmpts->get_data_ptr(), pmpts->get_data_size(), pmpts->get_flags(),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,8 +191,8 @@ static uint getrounds(const char *s) {
    @return The size of the salt identified
 */
 
-int extract_user_salt(char **salt_begin, char **salt_end) {
-  char *it = *salt_begin;
+int extract_user_salt(const char **salt_begin, const char **salt_end) {
+  const char *it = *salt_begin;
   int delimiter_count = 0;
   while (it != *salt_end) {
     if (*it == '$') {

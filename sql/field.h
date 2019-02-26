@@ -803,7 +803,7 @@ class Field : public Proto_field {
   TABLE *table;       // Pointer for table
   TABLE *orig_table;  // Pointer to original table
   const char **table_name, *field_name;
-  LEX_STRING comment;
+  LEX_CSTRING comment;
   /* Field is part of the following keys */
   Key_map key_start;          /* Keys that starts with this field */
   Key_map part_of_key;        ///< Keys that includes this field

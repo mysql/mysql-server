@@ -231,11 +231,10 @@ const char *ACL_HOST_AND_IP::calc_ip(const char *ip_arg, long *val, char end) {
   @param host_arg Value to be stored
  */
 void ACL_HOST_AND_IP::update_hostname(const char *host_arg) {
-  hostname = (char *)host_arg;  // This will not be modified!
+  hostname = host_arg;  // This will not be modified!
   hostname_length = hostname ? strlen(hostname) : 0;
-  if (!host_arg ||
-      (!(host_arg = (char *)calc_ip(host_arg, &ip, '/')) ||
-       !(host_arg = (char *)calc_ip(host_arg + 1, &ip_mask, '\0')))) {
+  if (!host_arg || (!(host_arg = calc_ip(host_arg, &ip, '/')) ||
+                    !(host_arg = calc_ip(host_arg + 1, &ip_mask, '\0')))) {
     ip = ip_mask = 0;  // Not a masked ip
   }
 }
@@ -743,7 +742,7 @@ GRANT_NAME::GRANT_NAME(TABLE *form, bool is_routine) {
   host.update_hostname(get_field(&memex, form->field[0]));
   db = get_field(&memex, form->field[1]);
   user = get_field(&memex, form->field[2]);
-  if (!user) user = (char *)"";
+  if (!user) user = "";
   sort = get_sort(3, host.get_host(), db, user);
   tname = get_field(&memex, form->field[3]);
   if (!db || !tname) {
@@ -1286,8 +1285,8 @@ void rebuild_check_host(void) {
     true   Error
 */
 
-bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
-                 char *ip, const char *db) {
+bool acl_getroot(THD *thd, Security_context *sctx, const char *user,
+                 const char *host, const char *ip, const char *db) {
   int res = 1;
   ACL_USER *acl_user = 0;
   DBUG_ENTER("acl_getroot");
@@ -1954,32 +1953,31 @@ bool acl_reload(THD *thd) {
     To avoid deadlocks we should obtain table locks before
     obtaining acl_cache->lock mutex.
   */
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("user"), "user", TL_READ,
-                           MDL_SHARED_READ_ONLY);
+  tables[0].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"),
+                           "user", TL_READ, MDL_SHARED_READ_ONLY);
   /*
     For a TABLE_LIST element that is inited with a lock type TL_READ
     the type MDL_SHARED_READ_ONLY of MDL is requested for.
     Acquiring strong MDL lock allows to avoid deadlock and timeout errors
     from SE level.
   */
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("db"),
+  tables[1].init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("db"),
                            "db", TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("proxies_priv"), "proxies_priv",
+  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("proxies_priv"), "proxies_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("global_grants"), "global_grants",
+  tables[3].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("global_grants"), "global_grants",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
-  tables[4].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("role_edges"), "role_edges",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+  tables[4].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("role_edges"), "role_edges", TL_READ,
+                           MDL_SHARED_READ_ONLY);
 
-  tables[5].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("default_roles"), "default_roles",
+  tables[5].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("default_roles"), "default_roles",
                            TL_READ, MDL_SHARED_READ_ONLY);
 
   tables[0].next_local = tables[0].next_global = tables + 1;
@@ -2428,15 +2426,15 @@ bool grant_reload(THD *thd) {
     Acquiring strong MDL lock allows to avoid deadlock and timeout errors
     from SE level.
   */
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("tables_priv"), "tables_priv",
+  tables[0].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("tables_priv"), "tables_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("columns_priv"), "columns_priv",
+  tables[1].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("columns_priv"), "columns_priv",
                            TL_READ, MDL_SHARED_READ_ONLY);
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("procs_priv"), "procs_priv",
-                           TL_READ, MDL_SHARED_READ_ONLY);
+  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("procs_priv"), "procs_priv", TL_READ,
+                           MDL_SHARED_READ_ONLY);
 
   tables[0].next_local = tables[0].next_global = tables + 1;
   tables[1].next_local = tables[1].next_global = tables + 2;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,9 +72,9 @@ extern Role_index_map *g_authid_to_vertex;
 TABLE *open_role_edges_table(THD *thd) {
   DBUG_ENTER("open_role_edges_table");
   TABLE_LIST tablelst;
-  tablelst.init_one_table(C_STRING_WITH_LEN("mysql"),
-                          C_STRING_WITH_LEN("role_edges"), "role_edges",
-                          TL_WRITE, MDL_SHARED_NO_READ_WRITE);
+  tablelst.init_one_table(STRING_WITH_LEN("mysql"),
+                          STRING_WITH_LEN("role_edges"), "role_edges", TL_WRITE,
+                          MDL_SHARED_NO_READ_WRITE);
   tablelst.next_local = tablelst.next_global = 0;
 
   if (open_and_lock_tables(thd, &tablelst, MYSQL_LOCK_IGNORE_TIMEOUT)) {
@@ -89,8 +89,8 @@ TABLE *open_role_edges_table(THD *thd) {
 TABLE *open_default_role_table(THD *thd) {
   DBUG_ENTER("open_role_edges_table");
   TABLE_LIST tablelst;
-  tablelst.init_one_table(C_STRING_WITH_LEN("mysql"),
-                          C_STRING_WITH_LEN("default_roles"), "default_roles",
+  tablelst.init_one_table(STRING_WITH_LEN("mysql"),
+                          STRING_WITH_LEN("default_roles"), "default_roles",
                           TL_WRITE, MDL_SHARED_NO_READ_WRITE);
   tablelst.next_local = tablelst.next_global = 0;
 

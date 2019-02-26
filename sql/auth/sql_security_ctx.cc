@@ -207,7 +207,7 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   assign_host(src_sctx.m_host.ptr(), src_sctx.m_host.length());
   assign_ip(src_sctx.m_ip.ptr(), src_sctx.m_ip.length());
   if (!strcmp(src_sctx.m_host_or_ip.ptr(), my_localhost))
-    set_host_or_ip_ptr((char *)my_localhost, strlen(my_localhost));
+    set_host_or_ip_ptr(my_localhost, strlen(my_localhost));
   else
     set_host_or_ip_ptr();
   assign_external_user(src_sctx.m_external_user.ptr(),

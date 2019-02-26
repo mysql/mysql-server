@@ -93,8 +93,8 @@ class Create_field {
     NULL for columns added.
   */
   const char *change;
-  const char *after;   // Put column after this one
-  LEX_STRING comment;  // Comment for field
+  const char *after;    // Put column after this one
+  LEX_CSTRING comment;  // Comment for field
 
   /**
      The declared default value, if any, otherwise NULL. Note that this member
@@ -208,7 +208,7 @@ class Create_field {
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,
-            Item *default_value, Item *on_update_value, LEX_STRING *comment,
+            Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
             const char *change, List<String> *interval_list,
             const CHARSET_INFO *cs, bool has_explicit_collation,
             uint uint_geom_type, Value_generator *gcol_info,

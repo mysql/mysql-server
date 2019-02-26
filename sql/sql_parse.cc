@@ -5319,7 +5319,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
 bool Alter_info::add_field(
     THD *thd, const LEX_STRING *field_name, enum_field_types type,
     const char *length, const char *decimals, uint type_modifier,
-    Item *default_value, Item *on_update_value, LEX_STRING *comment,
+    Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
     Value_generator *gcol_info, Value_generator *default_val_expr,

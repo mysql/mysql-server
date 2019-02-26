@@ -106,7 +106,7 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
     numeric_scale =
         param.is_numeric_scale_null() ? NOT_FIXED_DEC : param.numeric_scale();
 
-  return make_field(share, (uchar *)0, param.char_length(), (uchar *)"", 0,
+  return make_field(share, nullptr, param.char_length(), nullptr, 0,
                     dd_get_old_field_type(param.data_type()),
                     dd_get_mysql_charset(param.collation_id()), geom_type,
                     Field::NONE, interval, "", false, param.is_zerofill(),

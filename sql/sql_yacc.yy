@@ -133,7 +133,7 @@ int yylex(void *yylval, void *yythd);
     ulong val= *(H);                          \
     if (my_yyoverflow((B), (D), (F), &val))   \
     {                                         \
-      yyerror(NULL, YYTHD, NULL, (char*) (A));\
+      yyerror(NULL, YYTHD, NULL, (const char*) (A));\
       return 2;                               \
     }                                         \
     else                                      \
@@ -3310,7 +3310,7 @@ sp_fdparam:
             if (spvar->field_def.init(thd, "", field_type,
                                       $2->get_length(), $2->get_dec(),
                                       $2->get_type_flags(),
-                                      NULL, NULL, &NULL_STR, 0,
+                                      NULL, NULL, &NULL_CSTR, 0,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $3 != nullptr, $2->get_uint_geom_type(),
@@ -3371,7 +3371,7 @@ sp_pdparam:
             if (spvar->field_def.init(thd, "", field_type,
                                       $3->get_length(), $3->get_dec(),
                                       $3->get_type_flags(),
-                                      NULL, NULL, &NULL_STR, 0,
+                                      NULL, NULL, &NULL_CSTR, 0,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
                                       $4 != nullptr, $3->get_uint_geom_type(),
@@ -3501,7 +3501,7 @@ sp_decl:
               if (spvar->field_def.init(thd, "", var_type,
                                         $3->get_length(), $3->get_dec(),
                                         $3->get_type_flags(),
-                                        NULL, NULL, &NULL_STR, 0,
+                                        NULL, NULL, &NULL_CSTR, 0,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
                                         $4 != nullptr, $3->get_uint_geom_type(),
@@ -6703,7 +6703,7 @@ column_attribute:
           }
         | COMMENT_SYM TEXT_STRING_sys
           {
-            $$= NEW_PTN PT_comment_column_attr($2);
+            $$= NEW_PTN PT_comment_column_attr(to_lex_cstring($2));
           }
         | COLLATE_SYM collation_name
           {
@@ -16178,7 +16178,7 @@ sf_tail:
 
             if (sp->m_return_field_def.init(YYTHD, "", field_type,
                                             $9->get_length(), $9->get_dec(),
-                                            $9->get_type_flags(), NULL, NULL, &NULL_STR, 0,
+                                            $9->get_type_flags(), NULL, NULL, &NULL_CSTR, 0,
                                             $9->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
                                             $10 != nullptr, $9->get_uint_geom_type(),

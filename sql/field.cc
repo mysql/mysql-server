@@ -1637,7 +1637,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
 
 {
   flags = real_maybe_null() ? 0 : NOT_NULL_FLAG;
-  comment.str = (char *)"";
+  comment.str = "";
   comment.length = 0;
   field_index = 0;
 }
@@ -2271,12 +2271,12 @@ type_conversion_status Field_decimal::store(const char *from_arg, size_t len,
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp(buff, sizeof(buff), &my_charset_bin);
-  const uchar *from = (uchar *)from_arg;
+  const uchar *from = pointer_cast<const uchar *>(from_arg);
 
   /* Convert character set if the old one is multi uchar */
   if (cs->mbmaxlen > 1) {
     uint dummy_errors;
-    tmp.copy((char *)from, len, cs, &my_charset_bin, &dummy_errors);
+    tmp.copy(from_arg, len, cs, &my_charset_bin, &dummy_errors);
     from = (uchar *)tmp.ptr();
     len = tmp.length();
   }
@@ -2776,8 +2776,8 @@ Field_new_decimal::Field_new_decimal(uchar *ptr_arg, uint32 len_arg,
 Field_new_decimal::Field_new_decimal(uint32 len_arg, bool maybe_null_arg,
                                      const char *name, uint8 dec_arg,
                                      bool unsigned_arg)
-    : Field_num((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0, NONE,
-                name, dec_arg, 0, unsigned_arg) {
+    : Field_num(nullptr, len_arg, maybe_null_arg ? &dummy_null_buffer : nullptr,
+                0, NONE, name, dec_arg, false, unsigned_arg) {
   precision = my_decimal_length_to_precision(len_arg, dec_arg, unsigned_arg);
   set_if_smaller(precision, DECIMAL_MAX_PRECISION);
   DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
@@ -3183,7 +3183,7 @@ const uchar *Field_new_decimal::unpack(uchar *to, const uchar *from,
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal((uchar *)from, &dec_val, from_precision, from_decimal);
+    bin2decimal(from, &dec_val, from_precision, from_decimal);
     decimal2bin(&dec_val, to, precision, decimals());
   } else
     memcpy(to, from, len);  // Sizes are the same, just copy the data.
@@ -4145,7 +4145,7 @@ type_conversion_status Field_float::store(const char *from, size_t len,
   int conv_error;
   type_conversion_status err = TYPE_OK;
   const char *end;
-  double nr = my_strntod(cs, (char *)from, len, &end, &conv_error);
+  double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error || (!len || ((uint)(end - from) != len &&
                               table->in_use->check_for_truncated_fields))) {
     set_warning(Sql_condition::SL_WARNING,
@@ -4324,7 +4324,7 @@ type_conversion_status Field_double::store(const char *from, size_t len,
   int conv_error;
   type_conversion_status error = TYPE_OK;
   const char *end;
-  double nr = my_strntod(cs, (char *)from, len, &end, &conv_error);
+  double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error != 0 || len == 0 ||
       (((uint)(end - from) != len &&
         table->in_use->check_for_truncated_fields))) {
@@ -5089,9 +5089,9 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32, uchar *null_ptr_arg,
 
 Field_timestamp::Field_timestamp(bool maybe_null_arg,
                                  const char *field_name_arg)
-    : Field_temporal_with_date_and_time((uchar *)0,
-                                        maybe_null_arg ? (uchar *)"" : 0, 0,
-                                        NONE, field_name_arg, 0) {
+    : Field_temporal_with_date_and_time(
+          nullptr, maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+          field_name_arg, 0) {
   init_timestamp_flags();
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
   flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
@@ -5254,9 +5254,9 @@ Field_timestampf::Field_timestampf(uchar *ptr_arg, uchar *null_ptr_arg,
 
 Field_timestampf::Field_timestampf(bool maybe_null_arg,
                                    const char *field_name_arg, uint8 dec_arg)
-    : Field_temporal_with_date_and_timef((uchar *)0,
-                                         maybe_null_arg ? (uchar *)"" : 0, 0,
-                                         NONE, field_name_arg, dec_arg) {
+    : Field_temporal_with_date_and_timef(
+          nullptr, maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+          field_name_arg, dec_arg) {
   if (auto_flags & ON_UPDATE_NOW) flags |= ON_UPDATE_NOW_FLAG;
 }
 
@@ -6382,7 +6382,8 @@ struct Check_field_param {
 };
 
 static bool check_field_for_37426(const void *param_arg) {
-  Check_field_param *param = (Check_field_param *)param_arg;
+  const Check_field_param *param =
+      static_cast<const Check_field_param *>(param_arg);
   DBUG_ASSERT(param->field->real_type() == MYSQL_TYPE_STRING);
   DBUG_PRINT("debug",
              ("Field %s - type: %d, size: %d", param->field->field_name,
@@ -7027,7 +7028,7 @@ void Field_varstring::hash(ulong *nr, ulong *nr2) const {
 ****************************************************************************/
 
 Field_blob::Field_blob(uint32 packlength_arg)
-    : Field_longstr((uchar *)0, 0, (uchar *)"", 0, NONE, "temp",
+    : Field_longstr(nullptr, 0, &dummy_null_buffer, 0, NONE, "temp",
                     system_charset_info),
       packlength(packlength_arg),
       m_keep_old_value(false) {}
@@ -8573,7 +8574,7 @@ bool Field_enum::eq_def(const Field *field) const {
 
   if (!Field::eq_def(field)) return false;
 
-  values = ((Field_enum *)field)->typelib;
+  values = down_cast<const Field_enum *>(field)->typelib;
 
   /* Definition must be strictly equal. */
   if (typelib->count != values->count) return false;
@@ -8695,7 +8696,7 @@ const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
 */
 bool Field_num::eq_def(const Field *field) const {
   if (!Field::eq_def(field)) return 0;
-  Field_num *from_num = (Field_num *)field;
+  const Field_num *from_num = down_cast<const Field_num *>(field);
 
   if (unsigned_flag != from_num->unsigned_flag ||
       (zerofill && !from_num->zerofill && !zero_pack()) || dec != from_num->dec)
@@ -10124,8 +10125,9 @@ Field_varstring::Field_varstring(uchar *ptr_arg, uint32 len_arg,
 Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
                                  const char *field_name_arg, TABLE_SHARE *share,
                                  const CHARSET_INFO *cs)
-    : Field_longstr((uchar *)0, len_arg, maybe_null_arg ? (uchar *)"" : 0, 0,
-                    NONE, field_name_arg, cs),
+    : Field_longstr(nullptr, len_arg,
+                    maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                    field_name_arg, cs),
       length_bytes(len_arg < 256 ? 1 : 2) {
   share->varchar_fields++;
 }

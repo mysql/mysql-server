@@ -326,7 +326,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       }
 
       uint usable_parts = 0;
-      keyinfo->name = (char *)share->keynames.type_names[key];
+      keyinfo->name = share->keynames.type_names[key];
 
       /* Check that fulltext and spatial keys have correct algorithm set. */
       DBUG_ASSERT(!(share->key_info[key].flags & HA_FULLTEXT) ||

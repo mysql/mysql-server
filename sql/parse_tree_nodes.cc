@@ -2343,7 +2343,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 m_type->get_type_flags(),      // Type modifier
                 nullptr,                       // Default value
                 nullptr,                       // On update value
-                &EMPTY_STR,                    // Comment
+                &EMPTY_CSTR,                   // Comment
                 nullptr,                       // Change
                 m_type->get_interval_list(),   // Interval list
                 cs,                            // Charset & collation

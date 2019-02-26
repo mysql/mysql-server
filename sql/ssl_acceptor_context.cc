@@ -43,10 +43,12 @@
   to global instances we do the next best thing and make these static so that
   the visibility is confined to the current file
 */
-static char *opt_ssl_ca = NULL, *opt_ssl_capath = NULL, *opt_ssl_cert = NULL,
-            *opt_ssl_cipher = NULL, *opt_tls_ciphersuites = NULL,
-            *opt_ssl_key = NULL, *opt_ssl_crl = NULL, *opt_ssl_crlpath = NULL,
-            *opt_tls_version = NULL;
+static const char *opt_ssl_ca = nullptr;
+static const char *opt_ssl_key = nullptr;
+static const char *opt_ssl_cert = nullptr;
+static char *opt_ssl_capath = NULL, *opt_ssl_cipher = NULL,
+            *opt_tls_ciphersuites = NULL, *opt_ssl_crl = NULL,
+            *opt_ssl_crlpath = NULL, *opt_tls_version = NULL;
 
 static PolyLock_mutex lock_ssl_ctx(&LOCK_tls_ctx_options);
 

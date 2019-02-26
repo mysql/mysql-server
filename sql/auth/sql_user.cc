@@ -204,8 +204,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   DBUG_ENTER("mysql_show_create_user");
   if (are_both_users_same) {
     TABLE_LIST t1;
-    t1.init_one_table(C_STRING_WITH_LEN("mysql"), C_STRING_WITH_LEN("user"),
-                      "user", TL_READ);
+    t1.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"), "user",
+                      TL_READ);
     hide_password_hash =
         check_table_access(thd, SELECT_ACL, &t1, false, UINT_MAX, true);
   }
@@ -777,7 +777,8 @@ static bool validate_password_require_current(THD *thd, LEX_USER *Str,
         Current password is valid plain text password with len > 0.
         Erase that in memory. We don't need it any further
      */
-      memset((char *)(Str->current_auth.str), 0, Str->current_auth.length);
+      memset(const_cast<char *>(Str->current_auth.str), 0,
+             Str->current_auth.length);
     } else if (!is_privileged_user) {
       /*
         If the field value is set or field value is NULL and global sys
@@ -1169,7 +1170,7 @@ bool set_and_validate_user_attributes(
       password = const_cast<char *>("");
     /* erase in memory copy of plain text password */
     if (Str->auth.length > 0)
-      memset((char *)(Str->auth.str), 0, Str->auth.length);
+      memset(const_cast<char *>(Str->auth.str), 0, Str->auth.length);
     /* Use the authentication_string field as password */
     Str->auth.str = password;
     Str->auth.length = buflen;
@@ -1197,7 +1198,7 @@ bool set_and_validate_user_attributes(
     */
     DBUG_ASSERT(!is_role);
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
-    if (auth->validate_authentication_string((char *)Str->auth.str,
+    if (auth->validate_authentication_string(const_cast<char *>(Str->auth.str),
                                              (unsigned)Str->auth.length)) {
       my_error(ER_PASSWORD_FORMAT, MYF(0));
       plugin_unlock(0, plugin);

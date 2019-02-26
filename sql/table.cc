@@ -1163,7 +1163,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
   enum_field_types field_type;
   const CHARSET_INFO *charset = NULL;
   Field::geometry_type geom_type = Field::GEOM_GEOMETRY;
-  LEX_STRING comment;
+  LEX_CSTRING comment;
   Value_generator *gcol_info = nullptr;
   bool fld_stored_in_db = true;
   Field *reg_field;

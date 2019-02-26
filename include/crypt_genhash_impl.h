@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@
 
 #include "my_macros.h"
 
-int extract_user_salt(char **salt_begin, char **salt_end);
+int extract_user_salt(const char **salt_begin, const char **salt_end);
 char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
                        size_t plaintext_len, const char *switchsalt,
                        const char **params, unsigned int *num_rounds = NULL);
