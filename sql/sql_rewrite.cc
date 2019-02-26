@@ -233,7 +233,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
               cols.append(STRING_WITH_LEN(", "));
             else
               comma_inner= TRUE;
-            cols.append(column->column.ptr(),column->column.length());
+            append_identifier(thd, &cols, column->column.ptr(), column->column.length());
           }
         }
         cols.append(STRING_WITH_LEN(")"));

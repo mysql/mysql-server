@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3472,6 +3472,11 @@ retry_share:
         */
         table_list->set_view_query((LEX *) new(thd->mem_root) st_lex_local);
         if (!table_list->is_view())
+          DBUG_RETURN(true);
+
+        // Create empty list of view_tables.
+        table_list->view_tables = new (thd->mem_root) List<TABLE_LIST>;
+        if (table_list->view_tables == NULL)
           DBUG_RETURN(true);
 
         table_list->view_db.str= table_list->db;

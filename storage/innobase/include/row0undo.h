@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,16 @@ Created 1/8/1997 Heikki Tuuri
 #include "que0types.h"
 #include "row0types.h"
 
+
+/***************************************************************//**
+Converts an implict lock on the record to explict in case of partial
+rollback.*/
+void
+row_convert_impl_to_expl_if_needed(
+/*===============================*/
+	btr_cur_t* cursor,	/*!< in: cursor to record */
+	undo_node_t* node);	/*!< in: undo node */
+
 /********************************************************************//**
 Creates a row undo node to a query graph.
 @return own: undo node */
@@ -44,7 +54,8 @@ row_undo_node_create(
 /*=================*/
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
-	mem_heap_t*	heap);	/*!< in: memory heap where created */
+	mem_heap_t*	heap,	/*!< in: memory heap where created */
+	bool		partial_rollback); /*!< in: true if partial rollback */
 /***********************************************************//**
 Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
@@ -123,6 +134,7 @@ struct undo_node_t{
 	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage for
 				row; this must be emptied after undo is tried
 				on a row */
+	bool		partial;/*!< true if partial rollback */
 };
 
 

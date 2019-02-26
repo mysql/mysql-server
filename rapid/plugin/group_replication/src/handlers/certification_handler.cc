@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,20 +19,30 @@
 #include "plugin_log.h"
 
 using std::string;
-const int GTID_WAIT_TIMEOUT= 30; //30 seconds
-
+const int GTID_WAIT_TIMEOUT= 10; //10 seconds
+const int LOCAL_WAIT_TIMEOUT_ERROR= -1;
 
 Certification_handler::Certification_handler()
   :cert_module(NULL), applier_module_thd(NULL),
    group_sidno(0),
    transaction_context_packet(NULL),
-   transaction_context_pevent(NULL)
+   transaction_context_pevent(NULL),
+   m_view_change_event_on_wait(false)
 {}
 
 Certification_handler::~Certification_handler()
 {
   delete transaction_context_pevent;
   delete transaction_context_packet;
+
+  for (std::list<View_change_stored_info*>::iterator stored_view_info_it =
+           pending_view_change_events.begin();
+       stored_view_info_it != pending_view_change_events.end();
+       ++stored_view_info_it)
+  {
+    delete (*stored_view_info_it)->view_change_pevent;
+    delete *stored_view_info_it;
+  }
 }
 
 int
@@ -465,7 +475,6 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
 {
   DBUG_ENTER("Certification_handler::extract_certification_info");
   int error= 0;
-  Log_event *event= NULL;
 
   if (pevent->get_event_context() != SINGLE_VIEW_EVENT)
   {
@@ -488,6 +497,89 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
     On that case we need to queue it on the group applier wrapped
     on a transaction with a group generated GTID.
   */
+
+  /*
+    If there are pending view changes to apply, apply them first.
+    If we can't apply the old VCLEs probably we can't apply the new one
+  */
+  if (unlikely(m_view_change_event_on_wait))
+  {
+    error = log_delayed_view_change_events(cont);
+    m_view_change_event_on_wait = !pending_view_change_events.empty();
+  }
+
+  std::string local_gtid_certified_string;
+  rpl_gno view_change_event_gno = -1;
+  if (!error)
+  {
+    error= log_view_change_event_in_order(pevent,
+                                          local_gtid_certified_string,
+                                          &view_change_event_gno,
+                                          cont);
+  }
+
+  /*
+    If there are was a timeout applying this or an older view change,
+    just store the event for future application.
+    An packet is also added the the applier module queue to ensure the
+    eventual event application.
+  */
+  if (error)
+  {
+    if (LOCAL_WAIT_TIMEOUT_ERROR == error) {
+      error= store_view_event_for_delayed_logging(pevent,
+          local_gtid_certified_string, view_change_event_gno, cont);
+      log_message(MY_WARNING_LEVEL,
+                  "Unable to log the group change View log event in its exaction position in the log."
+                  " This will not however affect the group replication recovery process or the overall plugin process.");
+      if (error)
+        cont->signal(1, false);
+      else
+        cont->signal(0, cont->is_transaction_discarded());
+    }
+    else
+      cont->signal(1, false);
+  }
+
+  DBUG_RETURN(error);
+}
+
+int Certification_handler::log_delayed_view_change_events(Continuation *cont)
+{
+  DBUG_ENTER("Certification_handler::log_delayed_view_change_events");
+
+  int error= 0;
+
+
+  while (!pending_view_change_events.empty() && !error)
+  {
+    View_change_stored_info *stored_view_info= pending_view_change_events.front();
+    error= log_view_change_event_in_order(stored_view_info->view_change_pevent,
+                                          stored_view_info->local_gtid_certified,
+                                          &(stored_view_info->view_change_event_gno),
+                                          cont);
+    // if we timeout keep the event
+    if (LOCAL_WAIT_TIMEOUT_ERROR != error)
+    {
+      delete stored_view_info->view_change_pevent;
+      delete stored_view_info;
+      pending_view_change_events.pop_front();
+    }
+  }
+  DBUG_RETURN(error);
+}
+
+int Certification_handler::
+store_view_event_for_delayed_logging(Pipeline_event *pevent,
+                                     std::string& local_gtid_certified_string,
+                                     rpl_gno event_gno,
+                                     Continuation *cont)
+{
+  DBUG_ENTER("Certification_handler::store_view_event_for_delayed_logging");
+
+  int error= 0;
+
+  Log_event *event= NULL;
   error= pevent->get_LogEvent(&event);
   if (error || (event == NULL))
   {
@@ -495,55 +587,42 @@ Certification_handler::extract_certification_info(Pipeline_event *pevent,
     log_message(MY_ERROR_LEVEL,
                 "Failed to fetch View_change_log_event containing required"
                 " info for certification");
-    cont->signal(1, true);
     DBUG_RETURN(1);
-    /* purecov: end */
+      /* purecov: end */
   }
   View_change_log_event *vchange_event= static_cast<View_change_log_event*>(event);
+  std::string view_change_event_id(vchange_event->get_view_id());
 
-  std::map<std::string, std::string> cert_info;
-  cert_module->get_certification_info(&cert_info);
-  size_t event_size = 0;
-  vchange_event->set_certification_info(&cert_info, &event_size);
-
-  /*
-     If certification information is too big this event can't be transmitted
-     as it would cause failures on all group members.
-     To avoid this, we  now instead encode an error that will make the joiner
-     leave the group.
-  */
-  if (event_size > get_slave_max_allowed_packet()) {
-    cert_info.clear();
-    cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
-        "Certification information is too large for transmission.";
-    vchange_event->set_certification_info(&cert_info, &event_size);
+  // -1 means there was a second timeout on a VCLE that we already delayed
+  if (view_change_event_id != "-1")
+  {
+    m_view_change_event_on_wait = true;
+    View_change_stored_info *vcle_info=
+        new View_change_stored_info(pevent, local_gtid_certified_string, event_gno);
+    pending_view_change_events.push_back(vcle_info);
+    //Use the discard flag to let the applier know this was delayed
+    cont->set_transation_discarded(true);
   }
 
-  //Assure the last known local transaction was already executed
-  error= wait_for_local_transaction_execution();
-
-  /**
-    Create a transactional block for the View change log event
-    GTID
-    BEGIN
-    VCLE
-    COMMIT
-  */
-  if (!error)
-    error= inject_transactional_events(pevent,cont);
+  // Add a packet back to the applier queue so it is processed in a later stage.
+  std::string delayed_view_id("-1");
+  View_change_packet * view_change_packet= new View_change_packet(delayed_view_id);
+  applier_module->add_view_change_packet(view_change_packet);
 
   DBUG_RETURN(error);
 }
 
-int Certification_handler::wait_for_local_transaction_execution()
+int Certification_handler::wait_for_local_transaction_execution(std::string& local_gtid_certified_string)
 {
   DBUG_ENTER("Certification_handler::wait_for_local_transaction_execution");
   int error= 0;
 
-  std::string local_gtid_certified_string;
-  if (!cert_module->get_local_certified_gtid(local_gtid_certified_string))
+  if (local_gtid_certified_string.empty())
   {
-    DBUG_RETURN(0); //empty
+    if (!cert_module->get_local_certified_gtid(local_gtid_certified_string))
+    {
+      DBUG_RETURN(0); // set is empty, we don't need to wait
+    }
   }
 
   Sql_service_command_interface *sql_command_interface=
@@ -567,11 +646,12 @@ int Certification_handler::wait_for_local_transaction_execution()
                                                 GTID_WAIT_TIMEOUT)))
   {
     /* purecov: begin inspected */
-    if (error == 1) //timeout
+    if (error == -1) //timeout
     {
-      log_message(MY_ERROR_LEVEL,
+      log_message(MY_WARNING_LEVEL,
                   "Timeout when waiting for the server to execute local "
                   "transactions in order assure the group change proper logging");
+      error= LOCAL_WAIT_TIMEOUT_ERROR;
     }
     else
     {
@@ -586,6 +666,7 @@ int Certification_handler::wait_for_local_transaction_execution()
 }
 
 int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
+                                                       rpl_gno *event_gno,
                                                        Continuation *cont)
 {
   DBUG_ENTER("Certification_handler::inject_transactional_events");
@@ -615,8 +696,11 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   }
 
   //GTID event
-
-  Gtid gtid= {group_sidno, cert_module->generate_view_change_group_gno()};
+  if (*event_gno == -1)
+  {
+    *event_gno= cert_module->generate_view_change_group_gno();
+  }
+  Gtid gtid= {group_sidno, *event_gno};
   if (gtid.gno <= 0)
   {
     cont->signal(1, true);
@@ -685,6 +769,80 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   delete end_pipeline_event;
 
   DBUG_RETURN(0);
+}
+
+int Certification_handler::log_view_change_event_in_order(Pipeline_event *view_pevent,
+                                                          std::string &local_gtid_string,
+                                                          rpl_gno *event_gno,
+                                                          Continuation *cont) {
+  DBUG_ENTER("Certification_handler::log_view_change_event_in_order");
+
+  int error= 0;
+  bool first_log_attempt= (*event_gno == -1);
+
+  Log_event *event= NULL;
+  error= view_pevent->get_LogEvent(&event);
+  if (error || (event == NULL))
+  {
+    /* purecov: begin inspected */
+    log_message(MY_ERROR_LEVEL,
+                "Failed to fetch View_change_log_event containing required"
+                " info for certification");
+    DBUG_RETURN(1);
+      /* purecov: end */
+  }
+  View_change_log_event *vchange_event= static_cast<View_change_log_event*>(event);
+  std::string view_change_event_id(vchange_event->get_view_id());
+
+  /*
+    A -1 view id means this event was queued to make the applier pipeline retry the
+    logging of a view change log event that was not successful in the past.
+    The original event was however stored elsewhere so this event is ignored.
+  */
+  if (unlikely(view_change_event_id == "-1"))
+    DBUG_RETURN(0);
+
+  if (first_log_attempt)
+  {
+    std::map<std::string, std::string> cert_info;
+    cert_module->get_certification_info(&cert_info);
+    size_t event_size = 0;
+    vchange_event->set_certification_info(&cert_info, &event_size);
+
+    /*
+       If certification information is too big this event can't be transmitted
+       as it would cause failures on all group members.
+       To avoid this, we  now instead encode an error that will make the joiner
+       leave the group.
+    */
+    if (event_size > get_slave_max_allowed_packet()) {
+      cert_info.clear();
+      cert_info[Certifier::CERTIFICATION_INFO_ERROR_NAME] =
+          "Certification information is too large for transmission.";
+      vchange_event->set_certification_info(&cert_info, &event_size);
+    }
+  }
+
+  //Assure the last known local transaction was already executed
+  error= wait_for_local_transaction_execution(local_gtid_string);
+
+  if (!error) {
+    /**
+     Create a transactional block for the View change log event
+     GTID
+     BEGIN
+     VCLE
+     COMMIT
+    */
+    error= inject_transactional_events(view_pevent, event_gno, cont);
+  }
+  else if (LOCAL_WAIT_TIMEOUT_ERROR == error && first_log_attempt)
+  {
+     // Even if we can't log it, register the position
+    *event_gno= cert_module->generate_view_change_group_gno();
+  }
+
+  DBUG_RETURN(error);
 }
 
 bool Certification_handler::is_unique()

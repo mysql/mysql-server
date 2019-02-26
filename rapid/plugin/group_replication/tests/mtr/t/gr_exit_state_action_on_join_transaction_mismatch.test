@@ -13,24 +13,18 @@
 # 0) Setup group of 2 members (M1 and M2).
 # 1) Run a few transactions on M2.
 # 2) Restart M2 with start_on_boot enabled.
-# 3) M2 should go to super_read_only mode and to OFFLINE state (since it
-#    failed to join the group).
+# 3) M2 super_read_only mode shall be OFF and in OFFLINE state
+#    (since it failed to join the group).
 # 4) Restart M2 with start_on_boot enabled and exit_state_action set to
 #    ABORT_SERVER.
-# 5) M2 should have abort()'ed.
+# 5) M2 super_read_only mode shall be OFF and in OFFLINE state
+#    (since it failed to join the group).
 # 6) Restart M2 again without group_replication_start_on_boot enabled. The
 #    server should start normally and be able to join the group.
 # 7) Cleanup.
 #
 ################################################################################
-# By including have_debug.inc we make sure that we are using the debug version
-# of the server. This is needed because in the debug version (the one without
-# DBUG_OFF defined) the abort_plugin_process() function calls DBUG_SUICIDE()
-# which does not send a SIGABRT to itself but a SIGKILL instead (and in this way
-# MTR won't assume the process crashed).
---source include/have_debug.inc
 --source include/big_test.inc
---source include/not_valgrind.inc
 --source ../inc/have_group_replication_plugin.inc
 
 --echo
@@ -40,17 +34,6 @@
 --echo
 --let $rpl_skip_group_replication_start = 1
 --source ../inc/group_replication.inc
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Timeout on wait for view after joining group");
-call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed.*");
-call mtr.add_suppression("\\[GCS\\] read failed");
-call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
-call mtr.add_suppression("This member has more executed transactions than those present in the group. Local transactions*");
-call mtr.add_suppression("The member contains transactions not present in the group. The member will now exit the group");
-call mtr.add_suppression("The plugin encountered a critical error and will abort: Fatal error during execution of Group Replication");
-SET SESSION sql_log_bin = 1;
 
 --echo
 --echo #########################################################################
@@ -77,7 +60,6 @@ SET GTID_NEXT= "AUTOMATIC";
 --echo
 # Save all the context we'll need during the test
 --let $error_file = $MYSQLTEST_VARDIR/tmp/gr_exit_state_action_on_join_transaction_mismatch.2.err
---let $member2_uuid = `SELECT @@GLOBAL.server_uuid`
 --let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
 --let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
 # Restart the server with group_replication_start_on_boot enabled
@@ -91,7 +73,8 @@ SET GTID_NEXT= "AUTOMATIC";
 
 --echo
 --echo #########################################################################
---echo # 3) M2 should go to super_read_only mode.
+--echo # 3) M2 super_read_only mode shall be OFF and in OFFLINE state
+--echo #  (since it failed to join the group).
 --echo #########################################################################
 --echo
 --let $rpl_connection_name= server2
@@ -103,10 +86,9 @@ SET GTID_NEXT= "AUTOMATIC";
 --let $group_replication_member_state = OFFLINE
 --let $group_replication_member_id = $member2_uuid
 --source ../inc/gr_wait_for_member_state.inc
-# Verify that super_read_only mode reverted to its original state
---let $assert_text= super_read_only should be enabled
---let $assert_cond= [SELECT @@GLOBAL.super_read_only] = 1;
---source include/assert.inc
+# Verify that super_read_only mode is reverted to its original value
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
 # Verify that the expected error occurred
 --let $assert_file = $error_file
 --let $assert_text = GR reported expected transaction mismatch
@@ -133,12 +115,11 @@ SET GTID_NEXT= "AUTOMATIC";
 --let $restart_parameters=restart:--group_replication_local_address=$local_address_server2 --group_replication_group_seeds=$group_seeds_server2 --group-replication-group-name=$group_replication_group_name --group_replication_start_on_boot=1 --group_replication_exit_state_action=ABORT_SERVER
 --replace_result $local_address_server2 GROUP_REPLICATION_LOCAL_ADDRESS $group_seeds_server2 GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
 --source include/restart_mysqld.inc
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---source include/wait_until_disconnected.inc
 
 --echo
 --echo #########################################################################
---echo # 5) M2 should have abort()'ed.
+--echo # 5) M2 super_read_only mode shall be OFF and in OFFLINE state
+--echo #  (since it failed to join the group).
 --echo #########################################################################
 --echo
 # Wait for server 1 to see that server 2 didn't join
@@ -146,24 +127,19 @@ SET GTID_NEXT= "AUTOMATIC";
 --source include/rpl_connection.inc
 --let $group_replication_number_of_members = 1
 --source ../inc/gr_wait_for_number_of_members.inc
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
-# Wait until server 2 is connected again, so we know it has abort()'ed
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---source include/wait_until_connected_again.inc
-# Search for the expected errors in the error log file
---let $rpl_server_number= 2
---source include/rpl_reconnect.inc
+
+# Verify that super_read_only mode is reverted to its original value
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '0'
+--source include/wait_condition.inc
+
 --let $assert_file = $error_file
 --let $assert_text = GR reported expected transaction mismatch
 --let $assert_select = This member has more executed transactions than those present in the group
 --let $assert_count = 2
---source include/assert_grep.inc
---let $assert_text = GR reported expected abort
---let $assert_select = The plugin encountered a critical error and will abort
---let $assert_count = 1
 --source include/assert_grep.inc
 
 --echo
@@ -203,8 +179,9 @@ RESET MASTER;
 DROP TABLE t3;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-SET sql_log_bin = 0;
+--source include/stop_group_replication.inc
+SET SESSION sql_log_bin = 0;
 DROP TABLE t2;
-SET sql_log_bin = 1;
+SET SESSION sql_log_bin = 1;
 --source ../inc/group_replication_end.inc
 

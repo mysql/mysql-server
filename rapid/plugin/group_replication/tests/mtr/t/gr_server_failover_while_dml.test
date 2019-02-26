@@ -72,6 +72,14 @@ delimiter ;$$
 --source ../inc/kill_and_restart_mysqld.inc
 --echo # restarting
 
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+--error 2006,2013
+--reap
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
 # Needed as we are not using rpl_restart_server.inc
 --let $rpl_server_number= 1
 --source include/rpl_reconnect.inc

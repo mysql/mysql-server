@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -263,8 +263,8 @@ ACL_PROXY_USER::check_validity(bool check_no_resolve)
 {
   if (check_no_resolve && 
       (hostname_requires_resolving(host.get_host()) ||
-       hostname_requires_resolving(proxied_host.get_host())))
-  {
+       hostname_requires_resolving(proxied_host.get_host())) &&
+      strcmp(host.get_host(), "localhost") != 0) {
     sql_print_warning("'proxies_priv' entry '%s@%s %s@%s' "
                       "ignored in --skip-name-resolve mode.",
                       proxied_user ? proxied_user : "",
@@ -1535,8 +1535,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                       table->field[table_schema->host_idx()]));
     user.user= get_field(&global_acl_memory,
                          table->field[table_schema->user_idx()]);
-    if (check_no_resolve && hostname_requires_resolving(user.host.get_host()))
-    {
+  if (check_no_resolve && hostname_requires_resolving(user.host.get_host()) &&
+      strcmp(user.host.get_host(), "localhost") != 0) {
       sql_print_warning("'user' entry '%s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         user.user ? user.user : "",
@@ -1910,8 +1910,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
     db.user=get_field(&global_acl_memory, table->field[MYSQL_DB_FIELD_USER]);
-    if (check_no_resolve && hostname_requires_resolving(db.host.get_host()))
-    {
+    if (check_no_resolve && hostname_requires_resolving(db.host.get_host()) &&
+        strcmp(db.host.get_host(), "localhost") != 0) {
       sql_print_warning("'db' entry '%s %s@%s' "
                         "ignored in --skip-name-resolve mode.",
                         db.db,
@@ -2455,8 +2455,8 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
       if (check_no_resolve)
       {
-        if (hostname_requires_resolving(mem_check->host.get_host()))
-        {
+        if (hostname_requires_resolving(mem_check->host.get_host()) &&
+            strcmp(mem_check->host.get_host(), "localhost") != 0) {
           sql_print_warning("'tables_priv' entry '%s %s@%s' "
                             "ignored in --skip-name-resolve mode.",
                             mem_check->tname,

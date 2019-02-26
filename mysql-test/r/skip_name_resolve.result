@@ -50,10 +50,20 @@ End of 5.1 tests
 #
 CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
 # set some valid addresses
-UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+UPDATE mysql.user SET host='localhost1' WHERE user='b20438524';
 FLUSH PRIVILEGES;
 # cleanup
 DELETE FROM mysql.user WHERE user='b20438524';
 FLUSH PRIVILEGES;
 # must find the pattern
+#
+# Bug #23329861: WARNING ABOUT LOCALHOST WHEN USING SKIP-NAME-RESOLVE
+#
+CREATE USER b20438524@'%' IDENTIFIED BY 'pwd';
+# set some valid addresses
+UPDATE mysql.user SET host='localhost' WHERE user='b20438524';
+FLUSH PRIVILEGES;
+# must not find the pattern
+Pattern "'user' entry 'b20438524@localhost' ignored in --skip-name-resolve mode" not found
+DELETE FROM mysql.user WHERE user='b20438524';
 End of 5.7 tests

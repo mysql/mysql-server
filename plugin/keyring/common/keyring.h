@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@ extern boost::movelib::unique_ptr<IKeys_container> keys;
 extern volatile my_bool is_keys_container_initialized;
 extern boost::movelib::unique_ptr<ILogger> logger;
 extern boost::movelib::unique_ptr<char[]> keyring_file_data;
+extern my_bool keyring_open_mode;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);

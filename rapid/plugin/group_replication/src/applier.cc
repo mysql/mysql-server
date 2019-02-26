@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -285,7 +285,9 @@ Applier_module::apply_view_change_packet(View_change_packet *view_change_packet,
   Pipeline_event* pevent= new Pipeline_event(view_change_event, fde_evt, cache);
   pevent->mark_event(SINGLE_VIEW_EVENT);
   error= inject_event_into_pipeline(pevent, cont);
-  delete pevent;
+  //When discarded, the VCLE logging was delayed, so don't delete it
+  if (!cont->is_transaction_discarded())
+    delete pevent;
 
   return error;
 }

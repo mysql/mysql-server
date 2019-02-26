@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 IF(MSVC)
   SET(MYSQLX_PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4267 /wd4244")
 ENDIF()
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 # Standard PROTOBUF_GENERATE_CPP modified to generate both
 # protobuf and protobuf-lite C++ files.

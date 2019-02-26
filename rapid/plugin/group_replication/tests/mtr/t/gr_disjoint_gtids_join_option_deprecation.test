@@ -5,10 +5,12 @@
 # Test:
 # 0. The test requires one server.
 # 1. Validate that the group_replication_allow_local_disjoint_gtids_join
-#    option deprecation warning is thrown.
+#    option deprecation warning is thrown when SET command is used.
 # 2. Validate that the group_replication_allow_local_disjoint_gtids_join
+#    option deprecation warning is thrown when START GR is used.
+# 3. Validate that the group_replication_allow_local_disjoint_gtids_join
 #    option deprecation warning is logged on server start.
-# 3. Clean up.
+# 4. Clean up.
 ################################################################################
 --source include/big_test.inc
 --source ../inc/have_group_replication_plugin.inc
@@ -18,14 +20,31 @@
 --echo
 --echo ############################################################
 --echo # 1. Validate that the group_replication_allow_local_disjoint_gtids_join
---echo #    option deprecation warning is thrown.
---source ../inc/start_and_bootstrap_group_replication.inc
---source include/stop_group_replication.inc
+--echo #    option deprecation warning is thrown when SET command is used.
+SET GLOBAL group_replication_allow_local_disjoint_gtids_join= ON;
 
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disjoint_gtids_join_option_deprecation.1.err
+--let $assert_count = 1
+--let $assert_select = 'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+--let $assert_text = Found the expected deprecation log message.
+--source include/assert_grep.inc
 
 --echo
 --echo ############################################################
 --echo # 2. Validate that the group_replication_allow_local_disjoint_gtids_join
+--echo #    option deprecation warning is thrown when START GR is used.
+--source ../inc/start_and_bootstrap_group_replication.inc
+--source include/stop_group_replication.inc
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disjoint_gtids_join_option_deprecation.1.err
+--let $assert_count = 2
+--let $assert_select = 'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
+--let $assert_text = Found the expected deprecation log message.
+--source include/assert_grep.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Validate that the group_replication_allow_local_disjoint_gtids_join
 --echo #    option deprecation warning is logged on server start.
 --let $allow_rpl_inited=1
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
@@ -41,7 +60,7 @@
 --source ../inc/gr_wait_for_member_state.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disjoint_gtids_join_option_deprecation.1.err
---let $assert_count = 1
+--let $assert_count = 3
 --let $assert_select = 'group_replication_allow_local_disjoint_gtids_join' is deprecated and will be removed in a future release.
 --let $assert_text = Found the expected deprecation log message.
 --source include/assert_grep.inc
@@ -49,5 +68,5 @@
 
 --echo
 --echo ############################################################
---echo # 3. Clean up.
+--echo # 4. Clean up.
 --source ../inc/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -692,10 +692,6 @@ que_thr_stop(
 
 		trx->lock.wait_thr = thr;
 		thr->state = QUE_THR_LOCK_WAIT;
-
-	} else if (trx->duplicates && trx->error_state == DB_DUPLICATE_KEY) {
-
-		return(FALSE);
 
 	} else if (trx->error_state != DB_SUCCESS
 		   && trx->error_state != DB_LOCK_WAIT) {

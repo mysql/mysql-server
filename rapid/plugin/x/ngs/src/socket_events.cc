@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -169,7 +169,7 @@ void Socket_events::break_loop() {
   event_base_loopbreak(m_evbase);
 }
 
-void Socket_events::timeout_call(int sock, short which, void *arg) {
+void Socket_events::timeout_call(socket_type sock, short which, void *arg) {
   Timer_data *data = (Timer_data*)arg;
 
   if (!data->callback()) {
@@ -189,7 +189,7 @@ void Socket_events::timeout_call(int sock, short which, void *arg) {
   }
 }
 
-void Socket_events::socket_data_avaiable(int sock, short which, void *arg) {
+void Socket_events::socket_data_avaiable(socket_type sock, short which, void *arg) {
   Socket_data *data = (Socket_data*)arg;
   Operations_factory operations_factory;
   System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());
