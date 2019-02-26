@@ -129,3 +129,11 @@ INSTALL(TARGETS router_lib
   LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR}
   ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR}
   COMPONENT Router)
+
+MYSQL_ADD_EXECUTABLE(mysqlrouter_keyring
+  keyring_cli.cc
+  keyring_frontend.cc
+  )
+TARGET_LINK_LIBRARIES(mysqlrouter_keyring router_lib)
+ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
+  mysqlrouter_keyring)

@@ -23,11 +23,13 @@
 */
 
 #include "keyring/keyring_file.h"
-#include <string.h>
+
+#include <array>
 #include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <system_error>
+
 #include "common.h"
 #include "mysql/harness/filesystem.h"
 
@@ -37,7 +39,7 @@
 #include <sys/stat.h>
 #endif
 
-constexpr const char kKeyringFileSignature[] = {'M', 'R', 'K', 'R'};
+const std::array<char, 4> kKeyringFileSignature = {'M', 'R', 'K', 'R'};
 
 namespace mysql_harness {
 
@@ -102,7 +104,7 @@ void KeyringFile::save(const std::string &file_name,
 
   try {
     // write signature
-    file.write(kKeyringFileSignature, sizeof(kKeyringFileSignature));
+    file.write(kKeyringFileSignature.data(), kKeyringFileSignature.size());
     // write header
     uint32_t header_size = static_cast<uint32_t>(header_.size());
     file.write(reinterpret_cast<char *>(&header_size), sizeof(header_size));
@@ -148,8 +150,9 @@ void KeyringFile::load(const std::string &file_name, const std::string &key) {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (const std::exception &) {
-    throw std::runtime_error(std::string("Failed to load keyring file: ") +
-                             file_name + ": " + get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        std::string("Failed to open keyring file: ") + file_name);
   }
 
   file.seekg(0, file.end);
@@ -158,16 +161,17 @@ void KeyringFile::load(const std::string &file_name, const std::string &key) {
   // read and check signature
   file.seekg(0, file.beg);
   {
-    char sig[sizeof(kKeyringFileSignature)];
+    std::array<char, kKeyringFileSignature.size()> sig;
     try {
-      file.read(sig, sizeof(sig));
+      file.read(sig.data(), sig.size());
     } catch (const std::ios_base::failure &e) {
       throw std::runtime_error("Failure reading contents of keyring file " +
                                file_name);
     }
-    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+    if (kKeyringFileSignature != sig) {
       throw std::runtime_error("Invalid data found in keyring file " +
                                file_name);
+    }
   }
   // read header, if there's one
   {
@@ -206,20 +210,33 @@ std::string KeyringFile::read_header(const std::string &file_name) {
     file.open(file_name,
               std::ifstream::in | std::ifstream::binary | std::ifstream::ate);
   } catch (const std::exception &) {
-    throw std::runtime_error(std::string("Failed to open keyring file: ") +
-                             file_name + ": " + get_strerror(errno));
+    throw std::system_error(
+        errno, std::generic_category(),
+        std::string("Failed to open keyring file: ") + file_name);
   }
 
+  // assumes the file doesn't change while we read it
+
   std::size_t file_size = static_cast<std::size_t>(file.tellg());
+  if (file_size < kKeyringFileSignature.size() + 4) {
+    throw std::runtime_error("reading file-header of '" + file_name +
+                             "' failed: File is too small");
+  }
 
   file.seekg(0);
   // read and check signature
   {
-    char sig[sizeof(kKeyringFileSignature)];
-    file.read(sig, sizeof(sig));
-    if (strncmp(sig, kKeyringFileSignature, sizeof(kKeyringFileSignature)) != 0)
+    std::array<char, kKeyringFileSignature.size()> sig;
+    try {
+      file.read(sig.data(), sig.size());
+    } catch (const std::exception &e) {
+      throw std::runtime_error("reading file-header of '" + file_name +
+                               "' failed: " + e.what());
+    }
+    if (sig != kKeyringFileSignature) {
       throw std::runtime_error("Invalid data found in keyring file " +
                                file_name);
+    }
   }
   // read header, if there's one
   std::string header;
@@ -228,7 +245,7 @@ std::string KeyringFile::read_header(const std::string &file_name) {
     file.read(reinterpret_cast<char *>(&header_size), sizeof(header_size));
     if (header_size > 0) {
       if (header_size >
-          file_size - sizeof(kKeyringFileSignature) - sizeof(header_size)) {
+          file_size - kKeyringFileSignature.size() - sizeof(header_size)) {
         throw std::runtime_error("Invalid data found in keyring file " +
                                  file_name);
       }
