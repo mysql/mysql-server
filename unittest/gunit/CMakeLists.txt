@@ -284,6 +284,7 @@ SET(TESTS
   alignment
   bounds_checked_array
   bitmap
+  charset_bug28956360
   byteorder
   calloc
   cost_estimate
