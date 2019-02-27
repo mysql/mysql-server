@@ -716,12 +716,7 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
     long cnt = 0, doc = 0, id = 0, gen = 0;
     result.get(cnt).get(doc).get(id).get(gen);
     return doc == 1 && id == 1 && (cnt == gen + doc + id);
-  }
-#if defined(XPLUGIN_LOG_DEBUG) && !defined(XPLUGIN_DISABLE_LOG)
-  catch (const ngs::Error_code &e) {
-#else
-  catch (const ngs::Error_code &) {
-#endif
+  } catch (const ngs::Error_code &DEBUG_VAR(e)) {
     log_debug(
         "Unable to recognize '%s' as a collection; exception message: '%s'",
         std::string(schema.empty() ? name : schema + "." + name).c_str(),

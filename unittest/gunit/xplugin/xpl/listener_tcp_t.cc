@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,8 @@ class Listener_tcp_testsuite : public Test {
   }
 
   void expect_create_socket(addrinfo &ai, const std::string &interface,
-                            const int family, const int result = SOCKET_OK) {
+                            const int family,
+                            const int64_t result = SOCKET_OK) {
     make_sut(interface, PORT, PORT_TIMEOUT);
 
     EXPECT_CALL(*m_mock_system,
@@ -263,7 +264,7 @@ TEST_P(Listener_tcp_retry_testsuite,
   EXPECT_CALL(*m_mock_system, get_socket_errno())
       .Times(n)
       .WillRepeatedly(Return(SOCKET_EADDRINUSE));
-  EXPECT_CALL(*m_mock_system, sleep(Gt(0))).Times(n);
+  EXPECT_CALL(*m_mock_system, sleep(Gt(0u))).Times(n);
 
   EXPECT_CALL(*m_mock_system, freeaddrinfo(&ai));
 

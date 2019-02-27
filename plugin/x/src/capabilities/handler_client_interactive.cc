@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ ngs::Error_code Capability_client_interactive::set_impl(
     const ::Mysqlx::Datatypes::Any &any) {
   try {
     m_value = ngs::Getter_any::get_numeric_value<bool>(any);
-  } catch (const ngs::Error_code &error) {
+  } catch (ngs::Error_code &DEBUG_VAR(error)) {
     log_debug("Capability client interactive failed with error: %s",
               error.message.c_str());
     return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ bool Admin_command_arguments_list::check_scalar_arg(
                    m_current->scalar().type() ==
                        Mysqlx::Datatypes::Scalar::V_UINT &&
                    m_current->scalar().v_unsigned_int() <
-                       static_cast<int64_t>(
+                       static_cast<uint64_t>(
                            std::numeric_limits<int64_t>::max())) {
           return true;
         } else if (type == Mysqlx::Datatypes::Scalar::V_UINT &&
@@ -367,7 +367,7 @@ void Admin_command_arguments_object::get_scalar_value(const Any &value,
                                                       H *handler) {
   try {
     ngs::Getter_any::put_scalar_value_to_functor(value, *handler);
-  } catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &) {
     handler->set_error();
   }
 }
