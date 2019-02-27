@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -988,6 +988,10 @@ public:
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
+  /** Get partition row type
+  @param[in] Id of partition for which row type to be retrieved
+  @return Partition row type */
+  enum row_type get_partition_row_type(uint part_id);
   void release_auto_increment()
   {
     Partition_helper::ph_release_auto_increment();
