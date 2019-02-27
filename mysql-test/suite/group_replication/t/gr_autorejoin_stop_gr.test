@@ -42,6 +42,10 @@ call mtr.add_suppression("\\[GCS\\] The member has left the group but the new vi
 call mtr.add_suppression("\\[GCS\\] read failed");
 call mtr.add_suppression("Started auto-rejoin procedure attempt*");
 call mtr.add_suppression("Auto-rejoin procedure attempt*");
+--disable_query_log # No need for the result file to specify suppressions.
+call mtr.add_suppression("\\[GCS\\] There is no local IP address matching the one configured for the local node .*");
+call mtr.add_suppression("Unable to initialize the group communication engine");
+--enable_query_log
 SET sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
