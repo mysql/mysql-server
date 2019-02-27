@@ -53,7 +53,7 @@ class Cap_handles_expired_passwords : public Capability_handler {
   ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) override {
     try {
       m_value = ngs::Getter_any::get_numeric_value<bool>(any);
-    } catch (std::exception &DEBUG_VAR(error)) {
+    } catch (const ngs::Error_code &DEBUG_VAR(error)) {
       log_debug("Capability expired password failed with error: %s",
                 error.message.c_str());
       return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
