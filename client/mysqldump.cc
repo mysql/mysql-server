@@ -4779,7 +4779,7 @@ static int do_stop_slave_sql(MYSQL *mysql_con) {
 static int add_stop_slave(void) {
   if (opt_comments)
     fprintf(md_result_file,
-            "\n--\n-- stop slave statement to make a recovery dump)\n--\n\n");
+            "\n--\n-- stop slave statement to make a recovery dump\n--\n\n");
   fprintf(md_result_file, "STOP SLAVE;\n");
   return (0);
 }
@@ -4787,7 +4787,7 @@ static int add_stop_slave(void) {
 static int add_slave_statements(void) {
   if (opt_comments)
     fprintf(md_result_file,
-            "\n--\n-- start slave statement to make a recovery dump)\n--\n\n");
+            "\n--\n-- start slave statement to make a recovery dump\n--\n\n");
   fprintf(md_result_file, "START SLAVE;\n");
   return (0);
 }
