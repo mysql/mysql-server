@@ -594,3 +594,16 @@ SELECT a,b, FIRST_VALUE(b) OVER w AS first, LAST_VALUE (a) OVER w AS last
     FROM t WINDOW w AS (ORDER BY a  desc RANGE 3 PRECEDING);
 DROP TABLE t;
 
+--echo #
+--echo # Bug#29328529 AGGREGATE FUNCTION RESULT IS DEPENDENT BY WINDOW IS
+--echo #              DEFINED DIRECTLY OR AS NAMED
+--echo #
+WITH RECURSIVE cte AS (
+       SELECT 1 num
+       UNION ALL
+       SELECT num+1 FROM cte WHERE num < 5
+       )
+       SELECT num, COUNT(*) OVER (frame) cnt_named,
+                   COUNT(*) OVER (ORDER BY num DESC) cnt_direct
+       FROM cte
+       WINDOW frame AS (ORDER BY num DESC);

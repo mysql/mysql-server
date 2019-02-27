@@ -1215,6 +1215,18 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
     const PT_frame *f = w->frame();
     const PT_order_list *o = w->effective_order_by();
 
+    if (w->m_order_by == nullptr && o != nullptr &&
+        w->m_frame->m_originally_absent) {
+      /*
+        Since we had an empty frame specification, but inherit an ORDER BY (we
+        cannot inherit a frame specification), we need to adjust the a priori
+        border type now that we know what we inherit (not known before binding
+        above).
+      */
+      DBUG_ASSERT(w->m_frame->m_unit == WFU_RANGE);
+      w->m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
+    }
+
     if (first_exec && w->check_unique_name(windows)) return true;
 
     if (w->setup_ordering_cached_items(thd, select, o, false)) return true;
