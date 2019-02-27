@@ -256,6 +256,8 @@ SELECT JSON_SCHEMA_VALID('[]', '{}');
 
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_SCHEMA_VALID(CAST('test' AS JSON), '{}');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', '{');
 
 --echo # Test some various scenarios with cached JSON schema (first argument is const)
 CREATE TABLE t1 (col1 JSON);
@@ -270,6 +272,14 @@ SELECT JSON_SCHEMA_VALID(NULL, col1) FROM t1;
 
 --echo # We should get true, true, null, false, true
 SELECT JSON_SCHEMA_VALID('{"type":"object"}', col1) AS valid FROM t1;
+
+--echo # Both arguments should be JSON
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(JSON_DEPTH(col1), col1) FROM t1;
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID('{"type":"object"}', JSON_DEPTH(col1)) FROM t1;
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(123, col1) FROM t1;
 
 DROP TABLE t1;
 
@@ -288,6 +298,17 @@ SELECT JSON_SCHEMA_VALID(col1, '[]') AS valid FROM t1;
 
 DROP TABLE t1;
 
+CREATE TABLE t1(s VARCHAR(100), d VARCHAR(100));
+--echo # Invalid JSON document, non-const schema
+INSERT INTO t1 VALUES('{"type":"object"}', '{');
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(s, d) FROM t1;
+--echo # Invalid, non-const schema
+UPDATE t1 SET s = '{', d = '{}';
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_SCHEMA_VALID(s, d) FROM t1;
+DROP TABLE t1;
+
 --echo # Ensure that our item tree transformation doesn't get stuck forever when
 --echo # using prepared statements.
 PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALID(?, ''{}'') FROM DUAL';
@@ -302,3 +323,30 @@ EXECUTE stmt USING @json_schema;
 --echo #
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_SCHEMA_VALID(CAST('NULL' AS JSON), CAST('NULL' AS JSON));
+
+--echo # See that we don't accept non-JSON types like geometry, bool, ints etc.
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), 123);
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), POINT(1, 1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(JSON_OBJECT(), true);
+
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(123, JSON_OBJECT());
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(POINT(1, 1), JSON_OBJECT());
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT JSON_SCHEMA_VALID(true, JSON_OBJECT());
+
+--echo #
+--echo # Bug#29524331: WL#11999: ASSERTION FAILURE: `!ARGS[0]->CONST_ITEM()'
+--echo # Bug#29528888: WL#11999: SIG6 IN ITEM_FUNC_JSON_SCHEMA_VALID::VAL_BOOL()
+--echo #               AT ITEM_JSON_FUNC.CC
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY, j JSON);
+INSERT INTO t1 VALUES (1, '{"key": "foobar"}' );
+SELECT JSON_SCHEMA_VALID(j, j) FROM t1 WHERE pk = 1;
+SELECT JSON_SCHEMA_VALID(t2.j, t2.j)
+FROM t1, (SELECT * FROM t1 WHERE pk = 1) t2;
+DROP TABLE t1;

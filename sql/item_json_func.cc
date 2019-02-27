@@ -160,7 +160,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
   another field type in order to ensure that the item gets handled the
   same way as items of a different type.
 */
-static enum_field_types get_normalized_field_type(Item *arg) {
+static enum_field_types get_normalized_field_type(const Item *arg) {
   enum_field_types ft = arg->data_type();
   switch (ft) {
     case MYSQL_TYPE_TINY_BLOB:
@@ -215,6 +215,42 @@ bool get_json_string(Item *arg_item, String *value, String *utf8_res,
 }
 
 /**
+  A helper method that checks whether or not the given argument can be converted
+  to JSON. The function only checks the type of the given item, and doesn't do
+  any parsing or further checking of the item.
+
+  @param item The item to be checked
+
+  @retval true The item is possibly convertible to JSON
+  @retval false The item is not convertible to JSON
+*/
+static bool is_convertible_to_json(const Item *item) {
+  const enum_field_types field_type = get_normalized_field_type(item);
+  switch (field_type) {
+    case MYSQL_TYPE_NULL:
+    case MYSQL_TYPE_JSON:
+      return true;
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+      if (item->type() == Item::FIELD_ITEM) {
+        const Item_field *fi = down_cast<const Item_field *>(item);
+        const Field *field = fi->field;
+        if (field->flags & (ENUM_FLAG | SET_FLAG)) {
+          return false;
+        }
+      }
+      return true;
+    default:
+      return false;
+  }
+}
+
+/**
   Helper method for Item_func_json_* methods. Check if a JSON item or
   JSON text is valid and, for the latter, optionally construct a DOM
   tree (i.e. only if valid).
@@ -237,56 +273,39 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
                           const char *func_name, Json_dom_ptr *dom,
                           bool require_str_or_json, bool *valid) {
   Item *const arg_item = args[arg_idx];
+  const enum_field_types field_type = get_normalized_field_type(arg_item);
+  if (!is_convertible_to_json(arg_item)) {
+    if (require_str_or_json) {
+      *valid = false;
+      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
+      return true;
+    }
 
-  switch (get_normalized_field_type(arg_item)) {
-    case MYSQL_TYPE_NULL:
-      if (arg_item->update_null_value()) return true;
-      DBUG_ASSERT(arg_item->null_value);
+    *valid = false;
+    return false;
+  } else if (field_type == MYSQL_TYPE_NULL) {
+    if (arg_item->update_null_value()) return true;
+    DBUG_ASSERT(arg_item->null_value);
+    *valid = true;
+    return false;
+  } else if (field_type == MYSQL_TYPE_JSON) {
+    Json_wrapper w;
+    // Also sets the null_value flag
+    *valid = !arg_item->val_json(&w);
+    return !*valid;
+  } else {
+    bool parse_error = false;
+    String *const res = arg_item->val_str(value);
+
+    if (arg_item->null_value) {
       *valid = true;
       return false;
-    case MYSQL_TYPE_JSON: {
-      Json_wrapper w;
-      // Also sets the null_value flag
-      *valid = !arg_item->val_json(&w);
-      return !*valid;
     }
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_LONG_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_TINY_BLOB: {
-      String *const res = arg_item->val_str(value);
-      if (arg_item->type() == Item::FIELD_ITEM) {
-        Item_field *fi = down_cast<Item_field *>(arg_item);
-        Field *field = fi->field;
-        if (field->flags & (ENUM_FLAG | SET_FLAG)) {
-          *valid = false;
-          return false;
-        }
-      }
 
-      if (arg_item->null_value) {
-        *valid = true;
-        return false;
-      }
-
-      bool parse_error = false;
-      const bool failure = parse_json(*res, arg_idx, func_name, dom,
-                                      require_str_or_json, &parse_error);
-      *valid = !failure;
-      return parse_error;
-    }
-    default:
-      if (require_str_or_json) {
-        *valid = false;
-        my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), arg_idx + 1, func_name);
-        return true;
-      }
-
-      *valid = false;
-      return false;
+    const bool failure = parse_json(*res, arg_idx, func_name, dom,
+                                    require_str_or_json, &parse_error);
+    *valid = !failure;
+    return parse_error;
   }
 }
 
@@ -490,6 +509,11 @@ bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
   }
 
   if (args[0]->const_item()) {
+    if (!is_convertible_to_json(args[0])) {
+      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name());
+      return true;
+    }
+
     String schema_buffer;
     String *schema_string = args[0]->val_str(&schema_buffer);
     if (thd->is_error()) return true;
@@ -524,6 +548,11 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
 bool Item_func_json_schema_valid::val_bool() {
   DBUG_ASSERT(fixed);
 
+  if (!is_convertible_to_json(args[1])) {
+    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 2, func_name());
+    return true;
+  }
+
   String document_buffer;
   String *document_string = args[1]->val_str(&document_buffer);
   if (args[1]->null_value) {
@@ -541,7 +570,21 @@ bool Item_func_json_schema_valid::val_bool() {
       return error_bool();
     }
   } else {
-    DBUG_ASSERT(!args[0]->const_item());
+    // Fields that are a part of constant tables (i.e. primary key lookup) are
+    // not reported as constant items during fix fields. So while we won't set
+    // up the cached schema validator during fix_fields, the item will appear as
+    // const here, and thus failing the assertion if we don't take constant
+    // tables into account.
+    DBUG_ASSERT(!args[0]->const_item() ||
+                (args[0]->real_item()->type() == Item::FIELD_ITEM &&
+                 down_cast<const Item_field *>(args[0]->real_item())
+                     ->table_ref->table->const_table));
+
+    if (!is_convertible_to_json(args[0])) {
+      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name());
+      return true;
+    }
+
     String schema_buffer;
     String *schema_string = args[0]->val_str(&schema_buffer);
     if (args[0]->null_value) {
