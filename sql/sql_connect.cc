@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,9 +71,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/derror.h"     // ER_THD
-#include "sql/hostname.h"   // Host_errors
-#include "sql/item_func.h"  // mqh_used
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/derror.h"      // ER_THD
+#include "sql/hostname.h"    // Host_errors
+#include "sql/item_func.h"   // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
 #include "sql/protocol.h"
@@ -345,6 +346,7 @@ void free_max_user_conn(void) {
 
 void reset_mqh(THD *thd, LEX_USER *lu, bool get_them = 0) {
   mysql_mutex_lock(&LOCK_user_conn);
+  DEBUG_SYNC(thd, "in_reset_mqh_flush_privileges");
   if (lu)  // for GRANT
   {
     size_t temp_len = lu->user.length + lu->host.length + 2;

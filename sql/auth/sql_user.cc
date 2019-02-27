@@ -59,6 +59,7 @@
 #include "sql/auth/auth_common.h"
 #include "sql/auth/dynamic_privilege_table.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -2075,6 +2076,14 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   {
     if (!result) {
       LEX_USER *reset_user;
+      /*
+        reset_mqh() first acquires lock on user connection hash.
+        Then it may try and lock ACL caches. Other callers like
+        FLUSH PRIVILEGES may be contending for locks too. So,
+        we unlock ACL caches here.
+      */
+      acl_cache_lock.unlock();
+      DEBUG_SYNC(thd, "before_reset_mqh_in_create_user");
       for (LEX_USER *one_user : reset_users)
         if ((reset_user = get_current_user(thd, one_user))) {
           reset_mqh(thd, reset_user, 0);
@@ -2624,6 +2633,14 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
 
     if (!result) {
       LEX_USER *extra_user;
+      /*
+        reset_mqh() first acquires lock on user connection hash.
+        Then it may try and lock ACL caches. Other callers like
+        FLUSH PRIVILEGES may be contending for locks too. So,
+        we unlock ACL caches here.
+      */
+      acl_cache_lock.unlock();
+      DEBUG_SYNC(thd, "before_reset_mqh_in_alter_user");
       for (LEX_USER *one_user : reset_users) {
         if ((extra_user = get_current_user(thd, one_user))) {
           reset_mqh(thd, extra_user, 0);
