@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -321,6 +321,15 @@ public:
   */
   virtual uint alter_flags(uint flags) const
   { return 0; }
+
+  /**
+    Get partition row type from SE
+    @param       part_id    Id of partition for which row type to be retrieved
+    @return      Partition row type.
+  */
+  virtual enum row_type get_partition_row_type(uint part_id) {
+    return ROW_TYPE_NOT_USED;
+  }
 
 private:
   /**
