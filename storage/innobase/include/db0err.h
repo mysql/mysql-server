@@ -193,6 +193,9 @@ enum dberr_t {
   /* The following are API only error codes. */
   DB_DATA_MISMATCH = 2000, /*!< Column update or read failed
                            because the types mismatch */
+
+  /* Request the caller to cache records. */
+  DB_CACHE_RECORDS
 };
 
 #endif
