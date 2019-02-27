@@ -330,10 +330,6 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool operator==(const dd::sdi_key &a, const dd::sdi_key &b) {
-  return a.id == b.id && a.type == b.type;
-}
-
 namespace {
 /* purecov: begin inspected */
 template <typename PT>

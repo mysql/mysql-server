@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,5 +130,18 @@ template <typename To>
 inline To implicit_cast(To x) {
   return x;
 }
+
+/**
+   Utility to allow returning values from functions which can fail
+   (until we have std::optional).
+ */
+template <class VALUE_TYPE>
+struct ReturnValueOrError {
+  /** Value returned from function in the normal case. */
+  VALUE_TYPE value;
+
+  /** True if an error occured. */
+  bool error;
+};
 
 #endif  // TEMPLATE_UTILS_INCLUDED
