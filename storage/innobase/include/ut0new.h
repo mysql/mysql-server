@@ -397,6 +397,60 @@ static constexpr size_t n_auto = UT_ARR_SIZE(auto_event_names);
 extern PSI_memory_key auto_event_keys[n_auto];
 extern PSI_memory_info pfs_info_auto[n_auto];
 
+/** gcc 5 fails to evalutate costexprs at compile time. */
+#if defined(__GNUG__) && (__GNUG__ == 5)
+
+/** Compute whether a string begins with a given prefix, compile-time.
+@param[in]	a	first string, taken to be zero-terminated
+@param[in]	b	second string (prefix to search for)
+@param[in]	b_len	length in bytes of second string
+@param[in]	index	character index to start comparing at
+@return whether b is a prefix of a */
+constexpr bool ut_string_begins_with(const char *a, const char *b, size_t b_len,
+                                     size_t index = 0) {
+  return (index == b_len || (a[index] == b[index] &&
+                             ut_string_begins_with(a, b, b_len, index + 1)));
+}
+
+/** Find the length of the filename without its file extension.
+@param[in]	file	filename, with extension but without directory
+@param[in]	index	character index to start scanning for extension
+                        separator at
+@return length, in bytes */
+constexpr size_t ut_len_without_extension(const char *file, size_t index = 0) {
+  return ((file[index] == '\0' || file[index] == '.')
+              ? index
+              : ut_len_without_extension(file, index + 1));
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of the
+caller.
+@param[in]	file	portion of the filename - basename, with extension
+@param[in]	len	length of the filename to check for
+@param[in]	index	index of first PSI key to check
+@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
+constexpr PSI_memory_key ut_new_get_key_by_base_file(const char *file,
+                                                     size_t len,
+                                                     size_t index = 0) {
+  return ((index == n_auto)
+              ? PSI_NOT_INSTRUMENTED
+              : (ut_string_begins_with(auto_event_names[index], file, len)
+                     ? auto_event_keys[index]
+                     : ut_new_get_key_by_base_file(file, len, index + 1)));
+}
+
+/** Retrieve a memory key (registered with PFS), given the file name of
+the caller.
+@param[in]	file	portion of the filename - basename, with extension
+@return registered memory key or PSI_NOT_INSTRUMENTED if not found */
+constexpr PSI_memory_key ut_new_get_key_by_file(const char *file) {
+  return (ut_new_get_key_by_base_file(file, ut_len_without_extension(file)));
+}
+
+#define UT_NEW_THIS_FILE_PSI_KEY ut_new_get_key_by_file(MY_BASENAME)
+
+#else /* __GNUG__ == 5 */
+
 /** Compute whether a string begins with a given prefix, compile-time.
 @param[in]	a	first string, taken to be zero-terminated
 @param[in]	b	second string (prefix to search for)
@@ -460,6 +514,8 @@ struct force_constexpr {
   (UT_NEW_THIS_FILE_PSI_INDEX == -1 \
        ? PSI_NOT_INSTRUMENTED       \
        : auto_event_keys[UT_NEW_THIS_FILE_PSI_INDEX])
+
+#endif /* __GNUG__ == 5 */
 
 #endif /* UNIV_PFS_MEMORY */
 
