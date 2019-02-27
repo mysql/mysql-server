@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -338,7 +338,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_REQUESTED},
 
     {"buffer_flush_n_to_flush_by_age", "buffer",
-     "Number of pages target by LSN Age for flushing.", MONITOR_NONE,
+     "Number of pages targeted by LSN Age for flushing.", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_FLUSH_N_TO_FLUSH_BY_AGE},
 
     {"buffer_flush_adaptive_avg_time_slot", "buffer",
@@ -373,7 +373,7 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DEFAULT_START, MONITOR_FLUSH_AVG_TIME},
 
     {"buffer_flush_adaptive_avg_pass", "buffer",
-     "Numner of adaptive flushes passed during the recent Avg period.",
+     "Number of adaptive flushes passed during the recent Avg period.",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_FLUSH_ADAPTIVE_AVG_PASS},
 
     {"buffer_LRU_batch_flush_avg_pass", "buffer",
