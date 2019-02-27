@@ -1,0 +1,602 @@
+## Test of specific use of expressions in prepare statement
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/prep_stmt_expr.xpl
+-->quiet
+
+-->macro Insert  %NAME%  %VALUE%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%NAME%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->recvresult
+-->endmacro
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"data"}
+-->recvresult
+-->callmacro Insert	data	'{"_id":"101", "array":["abc","cde","efg"], "scalar":"abc"}'
+-->callmacro Insert	data	'{"_id":"102", "array":[123, 345, 567], "scalar":123}'
+-->callmacro Insert	data	'{"_id":"103", "array":[2.3, 3.4, 4.5], "scalar":2.3}'
+-->callmacro Insert	data	'{"_id":"104", "array":[true, false], "scalar":true}'
+-->callmacro Insert	data	'{"_id":"105", "array":[null], "scalar":null}'
+-->callmacro Insert	data	'{"_id":"106", "array":["cde", 345, 3.4, true, null], "scalar":"cde"}'
+
+
+-->title = 1. 'cont_in' operator (placholder_scalar in member_array)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 1
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "cont_in"
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "array"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 1.a cont_in operator against string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: 'cde'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 1.b cont_in operator against integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 345
+    }
+  }
+}
+-->recvresult
+
+-->echo 1.c cont_in operator against double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 3.4
+    }
+  }
+}
+-->recvresult
+
+-->echo 1.d cont_in operator against bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+}
+-->recvresult
+
+-->echo 1.e cont_in operator against null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 1
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 1
+}
+-->recvok
+
+###############################
+
+-->title = 2. 'cont_in' operator (member_scalar in placholder_scalar)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 2
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "cont_in"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "scalar"
+              }
+            }
+          }
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 2.a cont_in operator against string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: 'abc'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 2.b cont_in operator against integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 123
+    }
+  }
+}
+-->recvresult
+
+-->echo 2.c cont_in operator against double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 2.3
+    }
+  }
+}
+-->recvresult
+
+-->echo 2.d cont_in operator against bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+}
+-->recvresult
+
+-->echo 2.e cont_in operator against null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 2
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 2
+}
+-->recvok
+
+###############################
+
+-->title = 3. 'not_cont_in' operator (placholder_scalar in member_array)
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 3
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "not_cont_in"
+          param {
+            type: PLACEHOLDER
+            position: 0
+          }
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "array"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 3.a not_cont_in operator against string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: 'cde'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 3.b not_cont_in operator against integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 345
+    }
+  }
+}
+-->recvresult
+
+-->echo 3.c not_cont_in operator against double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 3.4
+    }
+  }
+}
+-->recvresult
+
+-->echo 3.d not_cont_in operator against bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+}
+-->recvresult
+
+-->echo 3.e not_cont_in operator against null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 3
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 3
+}
+-->recvok
+
+###############################
+
+-->title = 4. Simple comparison with placeholder
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 4
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "=="
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "scalar"
+              }
+            }
+          }
+          param {
+            type: OPERATOR operator {
+              name: "cast"
+              param {
+                type: PLACEHOLDER
+                position: 0
+              }
+              param {
+                type : LITERAL
+                  literal { type: V_OCTETS v_octets {value:"JSON"} }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+-->echo 4.a simple comparison with string
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: 'abc'
+      }
+    }
+  }
+}
+-->recvresult
+
+-->echo 4.b simple comparison with integer
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 123
+    }
+  }
+}
+-->recvresult
+
+-->echo 4.c simple comparison with double
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 2.3
+    }
+  }
+}
+-->recvresult
+
+-->echo 4.d simple comparison with bool
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: true
+    }
+  }
+}
+-->recvresult
+
+-->echo 4.e simple comparison with null
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 4
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 4
+}
+-->recvok
+
+###############################
+
+-->title = 5. 'cont_in' operator and '!=' on the same placeholder
+
+
+Mysqlx.Prepare.Prepare {
+  stmt_id: 5
+  stmt {
+    type: FIND
+    find {
+      collection {
+        name: "data"
+        schema: "xtest"
+      }
+      data_model: DOCUMENT
+      criteria {
+        type: OPERATOR
+        operator {
+          name: "&&"
+          param {
+            type: OPERATOR
+            operator {
+              name: "cont_in"
+              param {
+                type: PLACEHOLDER position: 0
+              }
+              param {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "array"
+                  }
+                }
+              }
+            }
+          }
+          param {
+            type: OPERATOR
+            operator {
+              name: "!="
+              param {
+                type: IDENT
+                identifier {
+                  document_path {
+                    type: MEMBER
+                    value: "scalar"
+                  }
+                }
+              }
+              param {
+                type: PLACEHOLDER position: 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+-->recvok
+
+Mysqlx.Prepare.Execute {
+  stmt_id: 5
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: 'cde'
+      }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Prepare.Deallocate {
+  stmt_id: 5
+}
+-->recvok
+
+
+
+EOF
+
+CREATE SCHEMA IF NOT EXISTS xtest;
+USE xtest;
+
+
+exec $MYSQLXTEST
+  -ux_root --password='' --schema=xtest
+  --file=$MYSQL_TMP_DIR/prep_stmt_expr.xpl 2>&1;
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

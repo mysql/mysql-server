@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,8 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code deallocate_prep_stmt(const uint32_t stmt_id,
                                        ngs::Resultset_interface *rset) override;
   ngs::Error_code execute_prep_stmt(const uint32_t stmt_id,
-                                    const bool has_cursor, PS_PARAM *parameters,
+                                    const bool has_cursor,
+                                    const PS_PARAM *parameters,
                                     const std::size_t parameters_count,
                                     ngs::Resultset_interface *rset) override;
 

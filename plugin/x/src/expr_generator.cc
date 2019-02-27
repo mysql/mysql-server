@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
+using Placeholder_type = Placeholder_info::Type;
 
 Expression_generator::Error::Error(int error_code, const std::string &message)
     : std::invalid_argument(message), m_error(error_code) {}
@@ -271,22 +272,16 @@ void Expression_generator::generate(
   }
 }
 
-void Expression_generator::generate_placeholder(
-    const Placeholder &arg,
-    void (Expression_generator::*generate_fun)(
-        const Mysqlx::Datatypes::Scalar &) const) const {
+void Expression_generator::generate(const Placeholder &arg) const {
   if (arg < static_cast<Placeholder>(m_args.size())) {
-    (this->*generate_fun)(m_args.Get(arg));
+    generate(m_args.Get(arg));
     return;
   }
   if (!is_prep_stmt_mode())
     throw Error(ER_X_EXPR_BAD_VALUE, "Invalid value of placeholder");
-  m_placeholder_ids->push_back(arg - static_cast<Placeholder>(m_args.size()));
+  m_placeholders->emplace_back(arg - static_cast<Placeholder>(m_args.size()),
+                               Placeholder_type::k_raw);
   m_qb->put("?");
-}
-
-void Expression_generator::generate(const Placeholder &arg) const {
-  generate_placeholder(arg, &Expression_generator::generate);
 }
 
 void Expression_generator::generate(const Mysqlx::Expr::Object &arg) const {
@@ -495,8 +490,16 @@ void Expression_generator::generate_cont_in_param(
       break;
 
     case Mysqlx::Expr::Expr::PLACEHOLDER:
-      generate_placeholder(arg.position(),
-                           &Expression_generator::generate_json_literal_param);
+      if (arg.position() < static_cast<Placeholder>(m_args.size())) {
+        generate_json_literal_param(m_args.Get(arg.position()));
+        break;
+      }
+      if (!is_prep_stmt_mode())
+        throw Error(ER_X_EXPR_BAD_VALUE, "Invalid value of placeholder");
+      m_placeholders->emplace_back(
+          arg.position() - static_cast<Placeholder>(m_args.size()),
+          Placeholder_type::k_json);
+      m_qb->put("CAST(? AS JSON)");
       break;
 
     default:
@@ -643,11 +646,22 @@ void Expression_generator::cast_expression(
     throw Error(ER_X_EXPR_BAD_NUM_ARGS,
                 "CAST expression requires exactly two parameters.");
 
+  std::string as_type =
+      get_valid_string(arg.param(1), Cast_type_validator("CAST type invalid."));
+
   m_qb->put("CAST(");
-  generate_unquote_param(arg.param(0));
+  if (is_prep_stmt_mode() && as_type == "JSON" &&
+      arg.param(0).type() == Mysqlx::Expr::Expr::PLACEHOLDER &&
+      arg.param(0).position() >= static_cast<Placeholder>(m_args.size())) {
+    m_placeholders->emplace_back(
+        arg.param(0).position() - static_cast<Placeholder>(m_args.size()),
+        Placeholder_type::k_json);
+    m_qb->put("?");
+  } else {
+    generate_unquote_param(arg.param(0));
+  }
   m_qb->put(" AS ");
-  m_qb->put(get_valid_string(arg.param(1),
-                             Cast_type_validator("CAST type invalid.")));
+  m_qb->put(as_type);
   m_qb->put(")");
 }
 
