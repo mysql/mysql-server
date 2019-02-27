@@ -7413,10 +7413,10 @@ bool Item_func_sp::fix_fields(THD *thd, Item **ref) {
     /*
       Try to set and restore the security context to see whether it's valid
     */
-    Security_context *save_secutiry_ctx;
-    res = m_sp->set_security_ctx(thd, &save_secutiry_ctx);
+    Security_context *save_security_ctx;
+    res = m_sp->set_security_ctx(thd, &save_security_ctx);
     if (!res)
-      m_sp->m_security_ctx.restore_security_context(thd, save_secutiry_ctx);
+      m_sp->m_security_ctx.restore_security_context(thd, save_security_ctx);
   }
 
   DBUG_RETURN(res);
