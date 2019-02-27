@@ -1,0 +1,36 @@
+CREATE TABLE abc(a int auto_increment PRIMARY KEY, b varchar(1024), c
+varchar(1024))ENGINE=INNODB;
+INSERT INTO abc (b,c) VALUES (repeat('b', 1024), repeat('c', 1024));
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+INSERT INTO abc (b,c) SELECT b,c FROM abc;
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	0
+ALTER TABLE abc add INDEX cc (c(800));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	15728640
+ALTER TABLE abc add INDEX bb (b(800));
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+SELECT DATA_LENGTH, INDEX_LENGTH from information_schema.TABLES WHERE
+TABLE_SCHEMA = 'test' AND TABLE_NAME = 'abc';
+DATA_LENGTH	INDEX_LENGTH
+#	31457280
+DROP TABLE abc;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2050,6 +2050,24 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	/** Determine if the table will be rebuilt.
 	@return whether the table will be rebuilt */
 	bool need_rebuild () const { return(old_table != new_table); }
+
+	/** Set shared data between the passed in handler context
+	and current context.
+	@param[in] inplace_alter_handler_ctx        handler context */
+	void set_shared_data(
+		const inplace_alter_handler_ctx *ctx)
+	{
+		ut_ad(ctx != NULL);
+		if (this->add_autoinc == ULINT_UNDEFINED) {
+			return;
+		}
+		const ha_innobase_inplace_ctx* ha_ctx =
+			static_cast<const ha_innobase_inplace_ctx*> (ctx);
+		/* In InnoDB table, if it's adding AUTOINC column,
+		the sequence value should be shared among contexts */
+		ut_ad(ha_ctx->add_autoinc != ULINT_UNDEFINED);
+		this->sequence = ha_ctx->sequence;
+	}
 
 private:
 	// Disable copying

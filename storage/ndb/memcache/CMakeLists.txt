@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ if(WITH_BUNDLED_MEMCACHED)
 
   if(WITH_BUNDLED_LIBEVENT)
     add_subdirectory(extra/libevent)
-    add_dependencies(memcached event)
+    add_dependencies(memcached ndb_event)
   endif()
 endif()
 ####################################################

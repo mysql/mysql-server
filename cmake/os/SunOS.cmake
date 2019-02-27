@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -47,6 +47,7 @@ ENDIF()
 
 # Enable 64 bit file offsets
 SET(_FILE_OFFSET_BITS 64)
+ADD_DEFINITIONS(-D_FILE_OFFSET_BITS=64)
 
 # Legacy option, without it  my_pthread is having problems
 ADD_DEFINITIONS(-DHAVE_RWLOCK_T)
