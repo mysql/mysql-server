@@ -217,9 +217,9 @@ class PT_partition_engine : public PT_partition_option {
   typedef PT_partition_option super;
 
  public:
-  const LEX_STRING name;
+  const LEX_CSTRING name;
 
-  explicit PT_partition_engine(const LEX_STRING &name) : name(name) {}
+  explicit PT_partition_engine(const LEX_CSTRING &name) : name(name) {}
 
   virtual bool contextualize(Partition_parse_context *pc) {
     if (super::contextualize(pc)) return true;

@@ -480,7 +480,7 @@ err:
   DBUG_RETURN(true);
 }
 
-const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
+const MYSQL_LEX_CSTRING *Sql_cmd_select::eligible_secondary_storage_engine()
     const {
   // Don't use secondary storage engines for statements that call stored
   // routines.
@@ -490,7 +490,7 @@ const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
   // storage engine. Only use the secondary tables if all the tables
   // have a secondary tables, and they are all in the same secondary
   // storage engine.
-  const LEX_STRING *secondary_engine = nullptr;
+  const LEX_CSTRING *secondary_engine = nullptr;
   for (const TABLE_LIST *tl = lex->query_tables; tl != nullptr;
        tl = tl->next_global) {
     // Schema tables are not available in secondary engines.
@@ -507,11 +507,11 @@ const MYSQL_LEX_STRING *Sql_cmd_select::eligible_secondary_storage_engine()
     }
 
     // Compare two engine names using the system collation.
-    auto equal = [](const LEX_STRING &s1, const LEX_STRING &s2) {
+    auto equal = [](const LEX_CSTRING &s1, const LEX_CSTRING &s2) {
       return system_charset_info->coll->strnncollsp(
-                 system_charset_info, pointer_cast<unsigned char *>(s1.str),
-                 s1.length, pointer_cast<unsigned char *>(s2.str),
-                 s2.length) == 0;
+                 system_charset_info,
+                 pointer_cast<const unsigned char *>(s1.str), s1.length,
+                 pointer_cast<const unsigned char *>(s2.str), s2.length) == 0;
     };
 
     if (secondary_engine == nullptr) {

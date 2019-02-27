@@ -433,7 +433,7 @@ Geometry *Geometry::construct(Geometry_buffer *buffer, const char *data,
 Geometry *Geometry::create_from_wkt(Geometry_buffer *buffer,
                                     Gis_read_stream *trs, String *wkb,
                                     bool init_stream, bool check_trailing) {
-  LEX_STRING name;
+  LEX_CSTRING name;
   Class_info *ci;
 
   if (trs->get_next_word(&name)) {
@@ -3408,7 +3408,7 @@ bool Gis_geometry_collection::init_from_wkt(Gis_read_stream *trs, String *wkb) {
   wkb->length(wkb->length() + 4);  // Reserve space for points
 
   if (trs->get_next_toc_type() == Gis_read_stream::word) {
-    LEX_STRING empty;
+    LEX_CSTRING empty;
     if (trs->get_next_word(&empty) || empty.length != 5 ||
         native_strncasecmp("EMPTY", empty.str, 5))
       return true;

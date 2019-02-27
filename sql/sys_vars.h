@@ -1469,14 +1469,13 @@ class Sys_var_plugin : public sys_var {
     /* NULLs can't be used as a default storage engine */
     if (!(res = var->value->val_str(&str))) return true;
 
-    const LEX_STRING pname = res->lex_string();
+    LEX_CSTRING pname_cstr = res->lex_cstring();
     plugin_ref plugin;
 
     // special code for storage engines (e.g. to handle historical aliases)
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-      plugin = ha_resolve_by_name(thd, &pname, false);
+      plugin = ha_resolve_by_name(thd, &pname_cstr, false);
     else {
-      LEX_CSTRING pname_cstr = {pname.str, pname.length};
       plugin = my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
     }
 
@@ -1511,7 +1510,7 @@ class Sys_var_plugin : public sys_var {
     var->save_result.plugin = my_plugin_lock(thd, &plugin);
   }
   void global_save_default(THD *thd, set_var *var) {
-    LEX_STRING pname;
+    LEX_CSTRING pname;
     char **default_value = reinterpret_cast<char **>(option.def_value);
     pname.str = *default_value;
     pname.length = strlen(pname.str);
@@ -1520,8 +1519,7 @@ class Sys_var_plugin : public sys_var {
     if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
       plugin = ha_resolve_by_name(thd, &pname, false);
     else {
-      LEX_CSTRING pname_cstr = {pname.str, pname.length};
-      plugin = my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
+      plugin = my_plugin_lock_by_name(thd, pname, plugin_type);
     }
     DBUG_ASSERT(plugin);
 

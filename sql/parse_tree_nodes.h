@@ -3124,13 +3124,13 @@ typedef PT_bool_create_table_option<HA_CREATE_USED_DELAY_KEY_WRITE,  // flag
 class PT_create_table_engine_option : public PT_create_table_option {
   typedef PT_create_table_option super;
 
-  const LEX_STRING engine;
+  const LEX_CSTRING engine;
 
  public:
   /**
     @param engine       Storage engine name.
   */
-  explicit PT_create_table_engine_option(const LEX_STRING &engine)
+  explicit PT_create_table_engine_option(const LEX_CSTRING &engine)
       : engine(engine) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override;
@@ -3148,13 +3148,13 @@ class PT_create_table_secondary_engine_option : public PT_create_table_option {
  public:
   explicit PT_create_table_secondary_engine_option() {}
   explicit PT_create_table_secondary_engine_option(
-      const LEX_STRING &secondary_engine)
+      const LEX_CSTRING &secondary_engine)
       : m_secondary_engine(secondary_engine) {}
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 
  private:
-  const LEX_STRING m_secondary_engine{nullptr, 0};
+  const LEX_CSTRING m_secondary_engine{nullptr, 0};
 };
 
 /**

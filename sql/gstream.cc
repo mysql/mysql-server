@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,9 @@ enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type() {
   return unknown;
 }
 
-bool Gis_read_stream::get_next_word(LEX_STRING *res) {
+bool Gis_read_stream::get_next_word(LEX_CSTRING *res) {
   skip_space();
-  res->str = (char *)m_cur;
+  res->str = m_cur;
   /* The following will also test for \0 */
   if ((m_cur >= m_limit) || !my_isvar_start(&my_charset_bin, *m_cur)) return 1;
 
@@ -81,8 +81,7 @@ bool Gis_read_stream::get_next_number(double *d) {
     return 1;
   }
 
-  *d = my_strntod(m_charset, (char *)m_cur, (uint)(m_limit - m_cur), &endptr,
-                  &err);
+  *d = my_strntod(m_charset, m_cur, (uint)(m_limit - m_cur), &endptr, &err);
   if (err) return 1;
   if (endptr) m_cur = endptr;
   return 0;

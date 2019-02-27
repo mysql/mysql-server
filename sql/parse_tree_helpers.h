@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -230,7 +230,7 @@ bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
                          Item *expr_item, LEX_STRING expr_query);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
-bool resolve_engine(THD *thd, const LEX_STRING &name, bool is_temp_table,
+bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
                     bool strict, handlerton **ret);
 bool apply_privileges(
     THD *thd, const Mem_root_array<class PT_role_or_privilege *> &privs);

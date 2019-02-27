@@ -1379,9 +1379,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
           // Heed the contract that strnxfrm needs an even number of bytes.
           --max_length;
         }
-        actual_length =
-            cs->coll->strnxfrm(cs, to, max_length, item->max_char_length(),
-                               (uchar *)from, src_length, 0);
+        actual_length = cs->coll->strnxfrm(
+            cs, to, max_length, item->max_char_length(),
+            pointer_cast<const uchar *>(from), src_length, 0);
         if (actual_length == max_length) {
           /*
             The sort key eithen fit perfectly, or overflowed; we can't
@@ -1391,8 +1391,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
         }
       } else {
         actual_length = cs->coll->strnxfrm(
-            cs, to, dst_length.value(), item->max_char_length(), (uchar *)from,
-            src_length, MY_STRXFRM_PAD_TO_MAXLEN);
+            cs, to, dst_length.value(), item->max_char_length(),
+            pointer_cast<const uchar *>(from), src_length,
+            MY_STRXFRM_PAD_TO_MAXLEN);
         DBUG_ASSERT(actual_length == dst_length.value());
       }
       DBUG_ASSERT(to + actual_length <= to_end);

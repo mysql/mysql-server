@@ -380,13 +380,15 @@ static inline bool is_ip_loopback(const struct sockaddr *ip) {
   switch (ip->sa_family) {
     case AF_INET: {
       /* Check for IPv4 127.0.0.1. */
-      struct in_addr *ip4 = &((struct sockaddr_in *)ip)->sin_addr;
+      const struct in_addr *ip4 =
+          &(pointer_cast<const struct sockaddr_in *>(ip))->sin_addr;
       return ntohl(ip4->s_addr) == INADDR_LOOPBACK;
     }
 
     case AF_INET6: {
       /* Check for IPv6 ::1. */
-      struct in6_addr *ip6 = &((struct sockaddr_in6 *)ip)->sin6_addr;
+      const struct in6_addr *ip6 =
+          &(pointer_cast<const struct sockaddr_in6 *>(ip))->sin6_addr;
       return IN6_IS_ADDR_LOOPBACK(ip6);
     }
 
@@ -460,7 +462,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
     DBUG_PRINT("info", ("Loopback address detected."));
 
     /* Do not count connect errors from localhost. */
-    *hostname = (char *)my_localhost;
+    *hostname = const_cast<char *>(my_localhost);
 
     DBUG_RETURN(0);
   }

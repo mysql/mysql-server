@@ -80,7 +80,7 @@ class Sql_cmd_select : public Sql_cmd_dml {
     return thd->lex->unit->accept(visitor);
   }
 
-  const MYSQL_LEX_STRING *eligible_secondary_storage_engine() const override;
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 
  protected:
   virtual bool precheck(THD *thd) override;

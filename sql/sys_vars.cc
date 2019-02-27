@@ -1478,17 +1478,17 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
   if (!opt_initialize && !opt_noacl) {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff, sizeof(buff), system_charset_info), *res;
-    LEX_STRING se_name;
+    LEX_CSTRING se_name;
 
     if (var->value) {
       res = var->value->val_str(&str);
-      lex_string_set(&se_name, res->ptr());
+      lex_cstring_set(&se_name, res->ptr());
     } else {
       // Use the default value defined by sys_var.
-      lex_string_set(&se_name,
-                     pointer_cast<char *>(
-                         down_cast<Sys_var_plugin *>(self)->global_value_ptr(
-                             thd, nullptr)));
+      lex_cstring_set(&se_name,
+                      pointer_cast<char *>(
+                          down_cast<Sys_var_plugin *>(self)->global_value_ptr(
+                              thd, nullptr)));
     }
 
     plugin_ref plugin;

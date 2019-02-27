@@ -4896,9 +4896,9 @@ err:
   DBUG_RETURN(1);
 }
 
-static bool initialize_storage_engine(char *se_name, const char *se_kind,
+static bool initialize_storage_engine(const char *se_name, const char *se_kind,
                                       plugin_ref *dest_plugin) {
-  LEX_STRING name = {se_name, strlen(se_name)};
+  LEX_CSTRING name = {se_name, strlen(se_name)};
   plugin_ref plugin;
   handlerton *hton;
   if ((plugin = ha_resolve_by_name(0, &name, false)))

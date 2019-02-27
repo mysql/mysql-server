@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -382,7 +382,7 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr) {
   @note **) If @c strict if false and engine is unknown, the function outputs
             a warning, sets @c ret to NULL and returns false (success).
 */
-bool resolve_engine(THD *thd, const LEX_STRING &name, bool is_temp_table,
+bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,
                     bool strict, handlerton **ret) {
   plugin_ref plugin = ha_resolve_by_name(thd, &name, is_temp_table);
   if (plugin) {

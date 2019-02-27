@@ -286,13 +286,13 @@ Mod_pair<T> get_mod_pair(dd::cache::Dictionary_client *dcp,
   return ret;
 }
 
-const char *real_engine_name(THD *thd, const LEX_STRING &alias) {
+const char *real_engine_name(THD *thd, const LEX_CSTRING &alias) {
   plugin_ref pr = ha_resolve_by_name(thd, &alias, false);
   handlerton *hton = (pr != nullptr ? plugin_data<handlerton *>(pr) : nullptr);
   return hton != nullptr ? ha_resolve_storage_engine_name(hton) : "";
 }
 
-bool get_stmt_hton(THD *thd, const LEX_STRING &engine, const char *object_name,
+bool get_stmt_hton(THD *thd, const LEX_CSTRING &engine, const char *object_name,
                    const char *statement, handlerton **htonp) {
   handlerton *hton = nullptr;
   if (engine.str != nullptr &&
@@ -325,7 +325,7 @@ bool get_stmt_hton(THD *thd, const LEX_STRING &engine, const char *object_name,
 }
 
 bool get_dd_hton(THD *thd, const dd::String_type &dd_engine,
-                 const LEX_STRING &stmt_engine, const char *tblspc,
+                 const LEX_CSTRING &stmt_engine, const char *tblspc,
                  const char *stmt, handlerton **htonp) {
   if (stmt_engine.str && dd_engine != real_engine_name(thd, stmt_engine)) {
     my_error(ER_TABLESPACE_ENGINE_MISMATCH, MYF(0), stmt_engine.str,

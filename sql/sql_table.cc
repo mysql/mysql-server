@@ -2534,7 +2534,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
       MDL_key::TABLE, db_name, table_name, MDL_EXCLUSIVE));
 
   // Nothing to unload if table has no secondary engine defined.
-  LEX_STRING secondary_engine;
+  LEX_CSTRING secondary_engine;
   if (!table_def.options().exists("secondary_engine") ||
       table_def.options().get("secondary_engine", &secondary_engine,
                               thd->mem_root))

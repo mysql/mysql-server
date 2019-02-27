@@ -5410,7 +5410,7 @@ ts_option_comment:
 ts_option_engine:
           opt_storage ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_alter_tablespace_option_engine($4);
+            $$= NEW_PTN PT_alter_tablespace_option_engine(to_lex_cstring($4));
           }
         ;
 
@@ -5864,7 +5864,7 @@ part_option:
           TABLESPACE_SYM opt_equal ident
           { $$= NEW_PTN PT_partition_tablespace($3.str); }
         | opt_storage ENGINE_SYM opt_equal ident_or_text
-          { $$= NEW_PTN PT_partition_engine($4); }
+          { $$= NEW_PTN PT_partition_engine(to_lex_cstring($4)); }
         | NODEGROUP_SYM opt_equal real_ulong_num
           { $$= NEW_PTN PT_partition_nodegroup($3); }
         | MAX_ROWS opt_equal real_ulonglong_num
@@ -5961,7 +5961,7 @@ opt_comma:
 create_table_option:
           ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_create_table_engine_option($3);
+            $$= NEW_PTN PT_create_table_engine_option(to_lex_cstring($3));
           }
         | SECONDARY_ENGINE_SYM opt_equal NULL_SYM
           {
@@ -5969,7 +5969,7 @@ create_table_option:
           }
         | SECONDARY_ENGINE_SYM opt_equal ident_or_text
           {
-            $$= NEW_PTN PT_create_table_secondary_engine_option($3);
+            $$= NEW_PTN PT_create_table_secondary_engine_option(to_lex_cstring($3));
           }
         | MAX_ROWS opt_equal ulonglong_num
           {
@@ -12548,7 +12548,7 @@ show_param:
           {
             const bool is_temp_table=
               Lex->create_info->options & HA_LEX_CREATE_TMP_TABLE;
-            if (resolve_engine(YYTHD, $2, is_temp_table, true,
+            if (resolve_engine(YYTHD, to_lex_cstring($2), is_temp_table, true,
                                &Lex->create_info->db_type))
               MYSQL_YYABORT;
           }

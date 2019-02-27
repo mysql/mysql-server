@@ -1628,7 +1628,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     buff_end = extra_segment_buff + n_length;
     if (next_chunk + 2 < buff_end) {
       uint str_db_type_length = uint2korr(next_chunk);
-      LEX_STRING name;
+      LEX_CSTRING name;
       name.str = (char *)next_chunk + 2;
       name.length = str_db_type_length;
 
@@ -1679,7 +1679,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       } else if (!tmp_plugin) {
         /* purecov: begin inspected */
         error = 8;
-        name.str[name.length] = 0;
+        const_cast<char *>(name.str)[name.length] = 0;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
         goto err;
         /* purecov: end */

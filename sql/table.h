@@ -704,7 +704,7 @@ struct TABLE_SHARE {
   LEX_STRING encrypt_type{nullptr, 0}; /* encryption algorithm */
 
   /** Secondary storage engine. */
-  LEX_STRING secondary_engine{nullptr, 0};
+  LEX_CSTRING secondary_engine{nullptr, 0};
 
   const CHARSET_INFO *table_charset{
       nullptr}; /* Default charset of string fields */

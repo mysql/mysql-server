@@ -255,16 +255,15 @@ ulong total_ha_2pc = 0;
 /* size of savepoint storage area (see ha_init) */
 ulong savepoint_alloc_size = 0;
 
-static const LEX_STRING sys_table_aliases[] = {
-    {C_STRING_WITH_LEN("INNOBASE")},
-    {C_STRING_WITH_LEN("INNODB")},
-    {C_STRING_WITH_LEN("NDB")},
-    {C_STRING_WITH_LEN("NDBCLUSTER")},
-    {C_STRING_WITH_LEN("HEAP")},
-    {C_STRING_WITH_LEN("MEMORY")},
-    {C_STRING_WITH_LEN("MERGE")},
-    {C_STRING_WITH_LEN("MRG_MYISAM")},
-    {NullS, 0}};
+static const LEX_CSTRING sys_table_aliases[] = {{STRING_WITH_LEN("INNOBASE")},
+                                                {STRING_WITH_LEN("INNODB")},
+                                                {STRING_WITH_LEN("NDB")},
+                                                {STRING_WITH_LEN("NDBCLUSTER")},
+                                                {STRING_WITH_LEN("HEAP")},
+                                                {STRING_WITH_LEN("MEMORY")},
+                                                {STRING_WITH_LEN("MERGE")},
+                                                {STRING_WITH_LEN("MRG_MYISAM")},
+                                                {NullS, 0}};
 
 const char *ha_row_type[] = {"",
                              "FIXED",
@@ -413,9 +412,9 @@ plugin_ref ha_resolve_by_name_raw(THD *thd, const LEX_CSTRING &name) {
   RETURN
     pointer to storage engine plugin handle
 */
-plugin_ref ha_resolve_by_name(THD *thd, const LEX_STRING *name,
+plugin_ref ha_resolve_by_name(THD *thd, const LEX_CSTRING *name,
                               bool is_temp_table) {
-  const LEX_STRING *table_alias;
+  const LEX_CSTRING *table_alias;
   plugin_ref plugin;
 
 redo:
@@ -464,7 +463,7 @@ void ha_set_normalized_disabled_se_str(const std::string &disabled_se) {
   boost::tokenizer<boost::char_separator<char>> tokens(disabled_se, sep);
   normalized_se_str.append(",");
   BOOST_FOREACH (std::string se_name, tokens) {
-    const LEX_STRING *table_alias;
+    const LEX_CSTRING *table_alias;
     boost::algorithm::to_upper(se_name);
     for (table_alias = sys_table_aliases; table_alias->str; table_alias += 2) {
       if (!native_strcasecmp(se_name.c_str(), table_alias->str) ||
@@ -2426,11 +2425,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     Ha_delete_table_error_handler ha_delete_table_error_handler;
 
     /* Fill up strucutures that print_error may need */
-    dummy_share.path.str = (char *)path;
+    dummy_share.path.str = const_cast<char *>(path);
     dummy_share.path.length = strlen(path);
-    dummy_share.db.str = (char *)db;
+    dummy_share.db.str = db;
     dummy_share.db.length = strlen(db);
-    dummy_share.table_name.str = (char *)alias;
+    dummy_share.table_name.str = alias;
     dummy_share.table_name.length = strlen(alias);
     dummy_table.alias = alias;
 
@@ -7344,7 +7343,7 @@ static bool exts_handlerton(THD *, plugin_ref plugin, void *arg) {
       while ((old_ext = it++)) {
         if (!strcmp(old_ext, *ext)) break;
       }
-      if (!old_ext) found_exts->push_back((char *)*ext);
+      if (!old_ext) found_exts->push_back(const_cast<char *>(*ext));
 
       it.rewind();
     }
@@ -8687,5 +8686,6 @@ static bool is_reserved_db_name_handlerton(THD *, plugin_ref plugin,
 */
 bool ha_check_reserved_db_name(const char *name) {
   return (plugin_foreach(NULL, is_reserved_db_name_handlerton,
-                         MYSQL_STORAGE_ENGINE_PLUGIN, (char *)name));
+                         MYSQL_STORAGE_ENGINE_PLUGIN,
+                         const_cast<char *>(name)));
 }
