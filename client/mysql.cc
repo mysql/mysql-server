@@ -1399,7 +1399,7 @@ int main(int argc, char *argv[]) {
       !mysql_get_option(&mysql, MYSQL_OPT_SSL_MODE, &ssl_mode)) {
     if (protocol == MYSQL_PROTOCOL_SOCKET && ssl_mode >= SSL_MODE_REQUIRED)
       put_info(
-          "You are enforcing ssl conection via unix socket. Please consider\n"
+          "You are enforcing ssl connection via unix socket. Please consider\n"
           "switching ssl off as it does not make connection via unix socket\n"
           "any more secure.",
           INFO_INFO);
