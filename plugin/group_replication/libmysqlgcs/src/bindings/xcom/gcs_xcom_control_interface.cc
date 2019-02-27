@@ -686,7 +686,7 @@ enum_gcs_error Gcs_xcom_control::do_leave() {
 
   assert(m_xcom_proxy->xcom_is_exit());
 
-  set_terminate_suspicion_thread(true);
+  m_suspicions_manager->wake_suspicions_processing_thread(true);
 
   m_suspicions_processing_thread.join(NULL);
   MYSQL_GCS_LOG_TRACE("The suspicions processing thread has joined.");

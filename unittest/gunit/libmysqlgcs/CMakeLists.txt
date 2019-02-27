@@ -86,6 +86,7 @@ SET(GCS_XCOM_TESTS
     xcom/gcs_xcom_xcom_transport
     xcom/gcs_xcom_communication_protocol_changer
     xcom/gcs_xcom_xcom_cache
+    xcom/gcs_xcom_control_interface
    )
 
 ###
