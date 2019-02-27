@@ -3673,7 +3673,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
         cleaning up), but it may contain subqueries that should be
         unlinked.
       */
-      if (*order->item != *select_item)
+      if ((*order->item)->real_item() != *select_item)
         (*order->item)
             ->walk(&Item::clean_up_after_removal, enum_walk::SUBQUERY_POSTFIX,
                    NULL);
