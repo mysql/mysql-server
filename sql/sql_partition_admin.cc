@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,10 +174,12 @@ static bool check_exchange_partition(TABLE *table, TABLE *part_table) {
   @param table      Non partitioned table.
   @param part_table Partitioned table.
   @param part_elem  Partition element to use for partition specific compare.
+  @param part_id    Id of specific partition
 */
 static bool compare_table_with_partition(THD *thd, TABLE *table,
                                          TABLE *part_table,
-                                         partition_element *part_elem) {
+                                         partition_element *part_elem,
+                                         uint part_id) {
   HA_CREATE_INFO table_create_info, part_create_info;
   Alter_info part_alter_info(thd->mem_root);
   Alter_table_ctx part_alter_ctx;  // Not used
@@ -222,7 +224,12 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
       table_create_info.auto_increment_value;
 
   /* Check compatible row_types and set create_info accordingly. */
-  if (part_table->s->real_row_type != table->s->real_row_type) {
+  Partition_handler *part_handler;
+  part_handler = part_table->file->get_partition_handler();
+  auto part_row_type =
+      part_handler->get_partition_row_type(part_table_def, part_id);
+
+  if (part_row_type != table->s->real_row_type) {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0), "ROW_FORMAT");
     DBUG_RETURN(true);
   }
@@ -384,7 +391,8 @@ bool Sql_cmd_alter_table_exchange_partition::exchange_partition(
     DBUG_RETURN(true);
   }
 
-  if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
+  if (compare_table_with_partition(thd, swap_table, part_table, part_elem,
+                                   swap_part_id))
     DBUG_RETURN(true);
 
   /* Table and partition has same structure/options */

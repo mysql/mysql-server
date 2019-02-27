@@ -205,6 +205,13 @@ public:
 
   void append_create_info(String *packet) override;
 
+  /* Get partition row type
+  @param[in] table   partition table
+  @param[in] part_id Id of partition for which row type to be retrieved
+  @return Partition row type. */
+  enum row_type get_partition_row_type(const dd::Table *table,
+                                       uint part_id) override;
+
  private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
                        uint *bufsz, uint *flags, Cost_estimate *);

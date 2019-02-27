@@ -16484,6 +16484,15 @@ static MYSQL_SYSVAR_ENUM(
   &distribution_typelib              /* typelib */
 );
 
+/* Get partition row type
+@param[in] table   partition_table
+@param[in] part_id Id of partition for which row type to be retrieved
+@return Partition row type. */
+enum row_type ha_ndbcluster::get_partition_row_type(
+    const dd::Table *table MY_ATTRIBUTE((unused)),
+    uint part_id MY_ATTRIBUTE((unused))) {
+  return table_share->real_row_type;
+}
 
 void ha_ndbcluster::set_auto_partitions(partition_info *part_info)
 {

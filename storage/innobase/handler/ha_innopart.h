@@ -516,6 +516,13 @@ class ha_innopart : public ha_innobase,
                           ulonglong nb_desired_values, ulonglong *first_value,
                           ulonglong *nb_reserved_values) override;
 
+  /* Get partition row type
+  @param[in] table   partition table
+  @param[in] part_id Id of partition for which row type to be retrieved
+  @return Partition row type. */
+  enum row_type get_partition_row_type(const dd::Table *table,
+                                       uint part_id) override;
+
   int cmp_ref(const uchar *ref1, const uchar *ref2) const override;
 
   int read_range_first(const key_range *start_key, const key_range *end_key,
