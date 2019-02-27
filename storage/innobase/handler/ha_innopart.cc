@@ -2949,7 +2949,7 @@ enum row_type ha_innopart::get_partition_row_type(const dd::Table *table,
   } else {
     return real_type;
   }
-};
+}
 
 int ha_innopart::truncate_impl(const char *name, TABLE *form,
                                dd::Table *table_def) {
