@@ -7076,7 +7076,7 @@ ER_OLD_TEMPORALS_UPGRADED
   eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
 
 ER_INNODB_FORCED_RECOVERY
-  eng "Operation not allowed when innodb_forced_recovery > 0."
+  eng "Operation not allowed when innodb_force_recovery > 0."
 
 ER_AES_INVALID_IV
   eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
