@@ -40,13 +40,6 @@ insert into t1 values
 --sorted_result
 select * from t1;
 
---echo # Check that data in fully replicated table t1 is present in
---echo # all 4 partitions i.e p0-p3 should have a 1 in the 'has_rows' column.
-SELECT PARTITION_NAME, TABLE_ROWS > 0
-FROM INFORMATION_SCHEMA.PARTITIONS
-WHERE TABLE_NAME = 't1';
-
-
 #
 # Check single row lookups, these should always be local reads
 #
