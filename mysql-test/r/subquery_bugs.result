@@ -646,3 +646,74 @@ EXECUTE prep_stmt ;
 f1
 Y
 DROP TABLE t1,t2;
+# Bug#28955216: Assertion 'keyparts > 0' failed
+set optimizer_switch='derived_merge=off';
+CREATE TABLE t1 (
+pk INTEGER,
+col_int_key INTEGER,
+col_datetime_gckey DATETIME,
+col_time_gckey TIME,
+col_varchar_key VARCHAR(15)
+);
+CREATE TABLE t2 (
+pk INTEGER,
+col_int_key INTEGER,
+col_varchar_key VARCHAR(15)
+);
+EXPLAIN SELECT alias1.col_time_gckey AS field1,
+alias1.col_datetime_gckey AS field2
+FROM t1 AS alias1,
+(SELECT DISTINCT sq1_alias2.*
+FROM t1 AS sq1_alias1, t1 AS sq1_alias2
+) AS alias2,
+(SELECT sq2_alias1.*
+FROM t1 AS sq2_alias1 RIGHT OUTER JOIN
+t1 AS sq2_alias2 INNER JOIN t2 AS sq2_alias3
+ON sq2_alias3.col_int_key = sq2_alias2.col_int_key
+ON sq2_alias3.col_varchar_key = sq2_alias2.col_varchar_key
+) AS alias3
+WHERE alias2.col_int_key = SOME
+(WITH qn AS
+(SELECT sq3_alias1.pk AS sq3_field1
+FROM t1 AS sq3_alias1
+WHERE sq3_alias1.col_int_key = alias3.pk
+)
+SELECT /*+ MERGE(qn) */ * FROM qn
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	<subquery4>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	<subquery4>.sq3_field1	2	100.00	NULL
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	5	<subquery4>.col_int_key	2	100.00	NULL
+4	MATERIALIZED	sq3_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	sq2_alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+3	DERIVED	sq2_alias3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+3	DERIVED	sq2_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	sq1_alias1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DERIVED	sq1_alias2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'alias3.pk' of SELECT #5 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#4`) */ `test`.`alias1`.`col_time_gckey` AS `field1`,`test`.`alias1`.`col_datetime_gckey` AS `field2` from `test`.`t1` `alias1` semi join (`test`.`t1` `sq3_alias1`) join (/* select#2 */ select distinct `test`.`sq1_alias2`.`pk` AS `pk`,`test`.`sq1_alias2`.`col_int_key` AS `col_int_key`,`test`.`sq1_alias2`.`col_datetime_gckey` AS `col_datetime_gckey`,`test`.`sq1_alias2`.`col_time_gckey` AS `col_time_gckey`,`test`.`sq1_alias2`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` `sq1_alias1` join `test`.`t1` `sq1_alias2`) `alias2` join (/* select#3 */ select `test`.`sq2_alias1`.`pk` AS `pk`,`test`.`sq2_alias1`.`col_int_key` AS `col_int_key`,`test`.`sq2_alias1`.`col_datetime_gckey` AS `col_datetime_gckey`,`test`.`sq2_alias1`.`col_time_gckey` AS `col_time_gckey`,`test`.`sq2_alias1`.`col_varchar_key` AS `col_varchar_key` from `test`.`t1` `sq2_alias2` join `test`.`t2` `sq2_alias3` left join `test`.`t1` `sq2_alias1` on((`test`.`sq2_alias3`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where (`test`.`sq2_alias3`.`col_int_key` = `test`.`sq2_alias2`.`col_int_key`)) `alias3` where ((`alias3`.`pk` = `<subquery4>`.`col_int_key`) and (`alias2`.`col_int_key` = `<subquery4>`.`sq3_field1`))
+SELECT alias1.col_time_gckey AS field1,
+alias1.col_datetime_gckey AS field2
+FROM t1 AS alias1,
+(SELECT DISTINCT sq1_alias2.*
+FROM t1 AS sq1_alias1, t1 AS sq1_alias2
+) AS alias2,
+(SELECT sq2_alias1.*
+FROM t1 AS sq2_alias1 RIGHT OUTER JOIN
+t1 AS sq2_alias2 INNER JOIN t2 AS sq2_alias3
+ON sq2_alias3.col_int_key = sq2_alias2.col_int_key
+ON sq2_alias3.col_varchar_key = sq2_alias2.col_varchar_key
+) AS alias3
+WHERE alias2.col_int_key = SOME
+(WITH qn AS
+(SELECT sq3_alias1.pk AS sq3_field1
+FROM t1 AS sq3_alias1
+WHERE sq3_alias1.col_int_key = alias3.pk
+)
+SELECT /*+ MERGE(qn) */ * FROM qn
+);
+field1	field2
+DROP TABLE t1, t2;
+set optimizer_switch=default;

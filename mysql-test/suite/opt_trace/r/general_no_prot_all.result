@@ -1428,8 +1428,19 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "(`t5`.`c` + 1) in (/* select#2 */ select (`t6`.`d` + 1) from `t6` where (`t6`.`d` is null))",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t6`.`d` is null) and ((`t5`.`c` + 1) = (`t6`.`d` + 1)))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "(`t5`.`c` + 1)",
+                    "inner": "(`t6`.`d` + 1)"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {
@@ -3697,8 +3708,19 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "`t2`.`c2` in (/* select#2 */ select `t2`.`c2` from `t2` where (`t2`.`c2` = 1))",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t2`.`c2` = 1) and (`t2`.`c2` = `t2`.`c2`))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "`t2`.`c2`",
+                    "inner": "`t2`.`c2`"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {
@@ -5255,8 +5277,27 @@ trace
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "(`t3`.`a`,`t3`.`a`,`t3`.`b`) in (/* select#2 */ select `t1`.`a`,`t2`.`a`,`t4`.`a` from `t1` join `t2` join `t4`)",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t3`.`a` = `t1`.`a`) and (`t3`.`a` = `t2`.`a`) and (`t3`.`b` = `t4`.`a`))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "`t3`.`a`",
+                    "inner": "`t1`.`a`"
+                  },
+                  {
+                    "outer": "`t3`.`a`",
+                    "inner": "`t2`.`a`"
+                  },
+                  {
+                    "outer": "`t3`.`b`",
+                    "inner": "`t4`.`a`"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {
@@ -8402,8 +8443,19 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "`t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = 'c'))",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t2`.`s` = 'c') and (`t6`.`d` = `f1`()))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "`t6`.`d`",
+                    "inner": "`f1`()"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {
@@ -9448,8 +9500,19 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "`t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0))",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "`t6`.`d`",
+                    "inner": "`f1`()"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {
@@ -11587,8 +11650,19 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "from": "IN (SELECT)",
               "to": "semijoin",
               "chosen": true,
-              "evaluating_constant_semijoin_conditions": [
-              ] /* evaluating_constant_semijoin_conditions */
+              "transformation_to_semi_join": {
+                "subquery_predicate": "`t6`.`d` in (/* select#2 */ select `f1`() from `t2` where (`t2`.`s` = arg@0))",
+                "embedded in": "WHERE",
+                "evaluating_constant_semijoin_conditions": [
+                ] /* evaluating_constant_semijoin_conditions */,
+                "semi-join condition": "((`t2`.`s` = arg@0) and (`t6`.`d` = `f1`()))",
+                "decorrelated_predicates": [
+                  {
+                    "outer": "`t6`.`d`",
+                    "inner": "`f1`()"
+                  }
+                ] /* decorrelated_predicates */
+              } /* transformation_to_semi_join */
             } /* transformation */
           },
           {

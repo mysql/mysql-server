@@ -2,6 +2,7 @@
 # Regression tests for bugs in subquery evaluation that need
 # a specific optimizer strategy selection
 #
+
 --echo # Bug#26436185 Assertion 'buf_is_inside_another(data_in_mysql_buf, ...)
 
 CREATE TABLE t1 (
@@ -531,3 +532,50 @@ PREPARE prep_stmt FROM "SELECT t2.f1 FROM (t2 LEFT JOIN t1
 EXECUTE prep_stmt ;
 
 DROP TABLE t1,t2;
+
+--echo # Bug#28955216: Assertion 'keyparts > 0' failed
+
+set optimizer_switch='derived_merge=off';
+
+CREATE TABLE t1 (
+ pk INTEGER,
+ col_int_key INTEGER,
+ col_datetime_gckey DATETIME,
+ col_time_gckey TIME,
+ col_varchar_key VARCHAR(15)
+);
+
+CREATE TABLE t2 (
+ pk INTEGER,
+ col_int_key INTEGER,
+ col_varchar_key VARCHAR(15)
+);
+
+let $query=
+SELECT alias1.col_time_gckey AS field1,
+       alias1.col_datetime_gckey AS field2
+FROM t1 AS alias1,
+     (SELECT DISTINCT sq1_alias2.*
+      FROM t1 AS sq1_alias1, t1 AS sq1_alias2
+     ) AS alias2,
+     (SELECT sq2_alias1.*
+      FROM t1 AS sq2_alias1 RIGHT OUTER JOIN
+             t1 AS sq2_alias2 INNER JOIN t2 AS sq2_alias3
+             ON sq2_alias3.col_int_key = sq2_alias2.col_int_key
+           ON sq2_alias3.col_varchar_key = sq2_alias2.col_varchar_key
+     ) AS alias3
+WHERE alias2.col_int_key = SOME
+       (WITH qn AS
+        (SELECT sq3_alias1.pk AS sq3_field1
+         FROM t1 AS sq3_alias1
+         WHERE sq3_alias1.col_int_key = alias3.pk
+        )
+        SELECT /*+ MERGE(qn) */ * FROM qn
+       );
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+set optimizer_switch=default;

@@ -2032,7 +2032,7 @@ void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
   @param outer_tables_map Map of tables from original outer query block
   @param[out] sj_cond   Semi-join condition to be constructed
 
-  @return True is error else false
+  @return false if success, true if error
 */
 bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                                SELECT_LEX *subq_select,
@@ -2156,7 +2156,7 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
 
   /*
     Predicates that have non-deterministic elements are not decorrelated,
-    see explanation for SELECT_LEX::decorrelate_where_cond().
+    see explanation for SELECT_LEX::decorrelate_condition().
   */
   if ((left_used_tables & RAND_TABLE_BIT) ||
       (right_used_tables & RAND_TABLE_BIT))
@@ -2186,15 +2186,18 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
 }
 
 /**
-  Decorrelate the WHERE clause of a subquery used in an IN or EXISTS predicate.
-  Correlated predicates are removed from the WHERE clause and added to the
+  Decorrelate the WHERE clause or a join condition of a subquery used in
+  an IN or EXISTS predicate.
+  Correlated predicates are removed from the condition and added to the
   supplied semi-join nest.
   The predicate must be either a simple equality, or an AND condition that
   contains one or more simple equalities, in order for decorrelation to be
   possible.
 
-  @param sj_nest  The semi-join nest of the outer query block, the correlated
-                  expressions are added to sj_inner_exprs and sj_outer_exprs.
+  @param sj_nest   The semi-join nest of the outer query block, the correlated
+                   expressions are added to sj_inner_exprs and sj_outer_exprs.
+  @param join_nest Nest containing join condition to be decorrelated
+                   =NULL: decorrelate the WHERE condition
 
   @returns false if success, true if error
 
@@ -2256,22 +2259,28 @@ static bool decorrelate_equality(TABLE_LIST *sj_nest, Item_func *func,
   such predicates will not be decorrelated.
 */
 
-bool SELECT_LEX::decorrelate_where_cond(TABLE_LIST *const sj_nest) {
-  Item *where = where_cond();
+bool SELECT_LEX::decorrelate_condition(TABLE_LIST *const sj_nest,
+                                       TABLE_LIST *join_nest) {
+  Item *base_cond =
+      join_nest == nullptr ? where_cond() : join_nest->join_cond();
   Item_cond *cond;
   Item_func *func;
 
-  DBUG_ASSERT(where != nullptr);
+  DBUG_ASSERT(base_cond != nullptr);
 
-  if (where->type() == Item::FUNC_ITEM &&
-      (func = down_cast<Item_func *>(where)) &&
+  if (base_cond->type() == Item::FUNC_ITEM &&
+      (func = down_cast<Item_func *>(base_cond)) &&
       func->functype() == Item_func::EQ_FUNC) {
     bool was_correlated;
     if (decorrelate_equality(sj_nest, func, &was_correlated)) return true;
-    if (was_correlated)  // The simple equality has been decorrelated
-      set_where_cond(nullptr);
-  } else if (where->type() == Item::COND_ITEM &&
-             (cond = down_cast<Item_cond *>(where)) &&
+    if (was_correlated) {  // The simple equality has been decorrelated
+      if (join_nest == nullptr)
+        set_where_cond(nullptr);
+      else  // Join conditions cannot be empty so install a TRUE value
+        join_nest->set_join_cond(new Item_int(1));
+    }
+  } else if (base_cond->type() == Item::COND_ITEM &&
+             (cond = down_cast<Item_cond *>(base_cond)) &&
              cond->functype() == Item_func::COND_AND_FUNC) {
     List<Item> *args = cond->argument_list();
     List_iterator<Item> li(*args);
@@ -2285,8 +2294,35 @@ bool SELECT_LEX::decorrelate_where_cond(TABLE_LIST *const sj_nest) {
         if (was_correlated) li.remove();
       }
     }
-    if (args->is_empty())  // All predicates have been decorrelated
-      set_where_cond(nullptr);
+    if (args->is_empty()) {  // All predicates have been decorrelated
+      if (join_nest == nullptr)
+        set_where_cond(nullptr);
+      else  // Join conditions cannot be empty so install a TRUE value
+        join_nest->set_join_cond(new Item_int(1));
+    }
+  }
+  return false;
+}
+
+/**
+  Decorrelate join conditions for a subquery
+
+  @param sj_nest   The semijoin nest that will contain decorrelated expressions
+  @param join_list List of table references that may contain join conditions
+
+  @returns false if success, true if error
+*/
+bool SELECT_LEX::decorrelate_join_conds(TABLE_LIST *sj_nest,
+                                        List<TABLE_LIST> *join_list) {
+  List_iterator<TABLE_LIST> li(*join_list);
+  TABLE_LIST *t;
+  while ((t = li++)) {
+    if (t->is_inner_table_of_outer_join()) continue;
+    if (t->nested_join != nullptr &&
+        decorrelate_join_conds(sj_nest, &t->nested_join->join_list))
+      return true;
+    if (t->join_cond() == nullptr) continue;
+    if (decorrelate_condition(sj_nest, t)) return true;
   }
   return false;
 }
@@ -2355,6 +2391,12 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS ||
               subq_pred->substype() == Item_subselect::EXISTS_SUBS);
+
+  Opt_trace_context *trace = &thd->opt_trace;
+  Opt_trace_object trace_object(trace, "transformation_to_semi_join");
+  if (unlikely(trace->is_started())) {
+    trace_object.add("subquery_predicate", subq_pred);
+  }
 
   bool outer_join = false;  // True if predicate is inner to an outer join
 
@@ -2480,6 +2522,9 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       emb_tbl_nest = wrap_nest;
     }
   }
+
+  if (unlikely(trace->is_started()))
+    trace_object.add_alnum("embedded in", emb_tbl_nest ? "JOIN" : "WHERE");
 
   TABLE_LIST *const sj_nest = TABLE_LIST::new_nested_join(
       thd->mem_root, "(sj-nest)", emb_tbl_nest, emb_join_list, this);
@@ -2619,7 +2664,17 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
   }
 
-  if (subq_select->where_cond() && subq_select->decorrelate_where_cond(sj_nest))
+  /*
+    The WHERE clause and the join conditions may contain equalities that may
+    be leveraged by semi-join strategies (e.g to set up key lookups in
+    semi-join materialization), decorrelate them (ie. add respective fields
+    and expressions to sj_inner_exprs and sj_outer_exprs).
+  */
+  if (subq_select->where_cond() &&
+      subq_select->decorrelate_condition(sj_nest, nullptr))
+    DBUG_RETURN(true);
+
+  if (decorrelate_join_conds(sj_nest, &subq_select->top_join_list))
     DBUG_RETURN(true);
 
   // Unlink the subquery's query expression:
@@ -2660,6 +2715,19 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   // Attach semi-join condition to semi-join nest
   sj_nest->set_sj_cond(sj_cond);
+
+  if (unlikely(trace->is_started())) {
+    trace_object.add("semi-join condition", sj_cond);
+    Opt_trace_array trace_dep(trace, "decorrelated_predicates");
+    List_iterator<Item> ii(nested_join->sj_inner_exprs);
+    List_iterator<Item> oi(nested_join->sj_outer_exprs);
+    Item *inner, *outer;
+    while (outer = oi++, inner = ii++) {
+      Opt_trace_object trace_predicate(trace);
+      trace_predicate.add("outer", outer);
+      trace_predicate.add("inner", inner);
+    }
+  }
 
   /*
     sj_depends_on contains the set of outer tables referred in the

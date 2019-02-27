@@ -1794,7 +1794,8 @@ class SELECT_LEX {
   bool build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
                      SELECT_LEX *subq_select, table_map outer_tables_map,
                      Item **sj_cond);
-  bool decorrelate_where_cond(TABLE_LIST *sj_nest);
+  bool decorrelate_condition(TABLE_LIST *sj_nest, TABLE_LIST *join_nest);
+  bool decorrelate_join_conds(TABLE_LIST *sj_nest, List<TABLE_LIST> *join_list);
 
  private:
   bool convert_subquery_to_semijoin(THD *thd, Item_exists_subselect *subq_pred);
