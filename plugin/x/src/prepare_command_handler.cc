@@ -353,7 +353,7 @@ ngs::Error_code Prepare_command_handler::prepare_parameters(
   for (const auto &arg : args) {
     try {
       ngs::Getter_any::put_scalar_value_to_functor(arg, handler);
-    } catch (const ngs::Error_code &e) {
+    } catch (const ngs::Error_code &) {
       return ngs::Error(ER_X_PREPARED_EXECUTE_ARGUMENT_NOT_SUPPORTED,
                         "Argument at index '%i' and of type '%s' is not "
                         "supported for binding to prepared statement",
