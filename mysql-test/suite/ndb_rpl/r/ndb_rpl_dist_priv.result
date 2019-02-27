@@ -178,7 +178,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTI
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE UPDATE ON t1 FROM 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON `test`.`t1` TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (`a`) ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 'newuser'@'localhost'
 select distinct User,Authentication_string from mysql.user order by User;
 User	Authentication_string
@@ -238,7 +238,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTI
 master-bin.000001	#	Query	#	#	use `test`; FLUSH PRIVILEGES
 master-bin.000001	#	Query	#	#	use `test`; REVOKE UPDATE ON t1 FROM 'newuser'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (a) ON `test`.`t1` TO 'user'@'localhost'
+master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT (`a`) ON `test`.`t1` TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 'newuser'@'localhost'
 ROLLBACK;
 === making backup of new users ===
