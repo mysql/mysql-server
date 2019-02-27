@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,15 +48,7 @@
 
 #include <ndb_global.h>
 
-/**
- * This is a casual hack to do static memory allocation
- * (needed by NDB)
- */
-#include <zutil.h>
 #include <zlib.h>
-#include <inftrees.h>
-#include <inflate.h>
-#include <deflate.h>
 
 #include <util/ndbzio.h>
 
@@ -131,20 +123,66 @@ static void putLong(ndbzio_stream *s, uLong x);
 static uLong getLong(ndbzio_stream *s);
 static void read_header(ndbzio_stream *s, unsigned char *buffer);
 
+static voidpf probe_alloc(void* opaque, uInt items, uInt size)
+{
+  uInt *state_size = static_cast<uInt*>(opaque);
+  assert(state_size != NULL);
+  assert(size > 0);
+  *state_size = *state_size + (items * size);
+  voidpf temp = malloc(items * size);
+  assert(temp != NULL);
+  return temp;
+}
+
+static void probe_free(void* /* opaque */, voidpf address)
+{
+  free(address);
+}
+
 size_t ndbz_inflate_mem_size()
 {
-  return sizeof(struct inflate_state)            /* state */
-    + ((1U << MAX_WBITS)*sizeof(unsigned char)); /* window */
+  z_stream stream;
+  uInt inflate_state_size = 0;
+  stream.next_in = Z_NULL;
+  stream.avail_in = 0;
+  stream.opaque = &inflate_state_size;
+  stream.zalloc = probe_alloc;
+  stream.zfree = probe_free;
+  int err = inflateInit2(&stream, -MAX_WBITS);
+  if (err != Z_OK)
+    return SIZE_T_MAX;
+  err = inflateEnd(&stream);
+  if (err != Z_OK)
+    return SIZE_T_MAX;
+  return inflate_state_size;
 }
+
 
 size_t ndbz_deflate_mem_size()
 {
-  return sizeof(deflate_state)
-    + ((1U << MAX_WBITS)*(2*sizeof(Byte)))      /* window = wsize,2*|Byte| */
-    + ((1U << MAX_WBITS)*sizeof(Pos))           /* prev   = wsize,|Pos| */
-    + ((1U << (AZ_MEMLEVEL+7))*sizeof(Pos))     /* head   = hashsize,|Pos| */
-    + ((1U << (AZ_MEMLEVEL+6))*(sizeof(ush)+2));/* overlay= lit_bufsize,|ush|+2
-						*/
+  z_stream stream;
+  uInt deflate_state_size = 0;
+  stream.next_in = Z_NULL;
+  stream.avail_in = 0;
+  Bytef out_buff[2];
+  stream.next_out = out_buff;
+  stream.avail_out = 2;
+  stream.opaque = &deflate_state_size;
+  stream.zalloc = probe_alloc;
+  stream.zfree = probe_free;
+  int err = deflateInit2(&stream, Z_DEFAULT_COMPRESSION,
+    Z_DEFLATED, -MAX_WBITS, AZ_MEMLEVEL, Z_DEFAULT_STRATEGY);
+  if (err != Z_OK)
+  {
+    return SIZE_T_MAX;
+  }
+  deflate(&stream, Z_FINISH);
+  err = deflateEnd(&stream);
+  if (err != Z_OK)
+  {
+    return SIZE_T_MAX;
+  }
+  return deflate_state_size;
 }
 
 voidpf ndbz_alloc(voidpf opaque, uInt items, uInt size)

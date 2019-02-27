@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,13 @@ int PosixAsyncFile::init()
   nzf.outbuf= nzf.inbuf + read_size;
 
   /* Preallocate inflate/deflate buffers for ndbzio */
-  nz_mempool.size = nz_mempool.mfree =
-    ndbz_inflate_mem_size() + ndbz_deflate_mem_size();
+  const size_t inflate_size = ndbz_inflate_mem_size();
+  if (inflate_size == SIZE_T_MAX)
+    return -1;
+  const size_t deflate_size = ndbz_deflate_mem_size();
+  if (deflate_size == SIZE_T_MAX)
+    return -1;
+  nz_mempool.size = nz_mempool.mfree = inflate_size + deflate_size;
 
   ndbout_c("NDBFS/AsyncFile: Allocating %u for In/Deflate buffer",
            (unsigned int)nz_mempool.size);
