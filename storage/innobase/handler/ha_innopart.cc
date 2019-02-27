@@ -2913,6 +2913,44 @@ int ha_innopart::extra(enum ha_extra_function operation) {
   return (ha_innobase::extra(operation));
 }
 
+/* Get partition row type
+@param[in] table   partition_table
+@param[in] part_id Id of partition for which row type to be retrieved
+@return Partition row type. */
+enum row_type ha_innopart::get_partition_row_type(const dd::Table *table,
+                                                  uint part_id) {
+  dd::Table::enum_row_format format;
+  row_type real_type = ROW_TYPE_NOT_USED;
+
+  auto dd_table = table->leaf_partitions().at(part_id);
+  const dd::Properties &part_p = dd_table->se_private_data();
+  if (part_p.exists(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT])) {
+    part_p.get(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT],
+               reinterpret_cast<uint32 *>(&format));
+    switch (format) {
+      case dd::Table::RF_REDUNDANT:
+        real_type = ROW_TYPE_REDUNDANT;
+        break;
+      case dd::Table::RF_COMPACT:
+        real_type = ROW_TYPE_COMPACT;
+        break;
+      case dd::Table::RF_COMPRESSED:
+        real_type = ROW_TYPE_COMPRESSED;
+        break;
+      case dd::Table::RF_DYNAMIC:
+        real_type = ROW_TYPE_DYNAMIC;
+        break;
+      default:
+        ut_a(0);
+    }
+  }
+  if (real_type == ROW_TYPE_NOT_USED) {
+    return table_share->real_row_type;
+  } else {
+    return real_type;
+  }
+};
+
 int ha_innopart::truncate_impl(const char *name, TABLE *form,
                                dd::Table *table_def) {
   DBUG_ENTER("ha_innopart::truncate_impl");
