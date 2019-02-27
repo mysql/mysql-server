@@ -553,7 +553,7 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
     }
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_srict_mode", ut_ad(index->type == ind_type););
+  DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(index->type == ind_type););
 
   if (index->type != ind_type) {
     ib::error(ER_IB_MSG_252) << "Index name: " << index->name
