@@ -8926,59 +8926,78 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
     switch (error) {
       case 0: {
         entry = m_hash.get(table, &m_cols);
-        store_record(table, record[1]);
-
         /**
-           If there are collisions we need to be sure that this is
-           indeed the record we want.  Loop through all records for
-           the given key and explicitly compare them against the
-           record we got from the storage engine.
-         */
-        while (entry) {
-          m_curr_row = entry->positions->bi_start;
-          m_curr_row_end = entry->positions->bi_ends;
+          The do..while loop takes care of the scenario of same row being
+          updated more than once within a single Update_rows_log_event by
+          performing the hash lookup for the updated_row(by taking the AI stored
+          in table->record[0] after the ha_update_row()) when table has no
+          primary key.
 
-          prepare_record(table, &m_cols, false);
-          if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/)))
-            goto close_table;
-
-          if (record_compare(table, &m_cols))
-            m_hash.next(&entry);
-          else
-            break;  // we found a match
-        }
-
-        /**
-           We found the entry we needed, just apply the changes.
-         */
-        if (entry) {
-          // just to be safe, copy the record from the SE to table->record[0]
-          restore_record(table, record[1]);
+          This can happen when update is called from a stored function.
+          Ex:
+            CREATE FUNCTION f1 () RETURNS INT BEGIN
+            UPDATE t1 SET a = 2 WHERE a = 1;
+            UPDATE t1 SET a = 3 WHERE a = 2;
+            RETURN 0;
+            END
+        */
+        do {
+          store_record(table, record[1]);
 
           /**
-             At this point, both table->record[0] and
-             table->record[1] have the SE row that matched the one
-             in the hash table.
+             If there are collisions we need to be sure that this is
+             indeed the record we want.  Loop through all records for
+             the given key and explicitly compare them against the
+             record we got from the storage engine.
+           */
+          while (entry) {
+            m_curr_row = entry->positions->bi_start;
+            m_curr_row_end = entry->positions->bi_ends;
 
-             Thence if this is a DELETE we wouldn't need to mess
-             around with positions anymore, but since this can be an
-             update, we need to provide positions so that AI is
-             unpacked correctly to table->record[0] in UPDATE
-             implementation of do_exec_row().
-          */
-          m_curr_row = entry->positions->bi_start;
-          m_curr_row_end = entry->positions->bi_ends;
-
-          /* we don't need this entry anymore, just delete it */
-          if ((error = m_hash.del(entry))) goto err;
-
-          if ((error = do_apply_row(rli))) {
-            if (handle_idempotent_and_ignored_errors(rli, &error))
+            prepare_record(table, &m_cols, false);
+            if ((error = unpack_current_row(rli, &m_cols, false /*is not AI*/)))
               goto close_table;
 
-            do_post_row_operations(rli, error);
+            if (record_compare(table, &m_cols))
+              m_hash.next(&entry);
+            else
+              break;  // we found a match
           }
-        }
+
+          /**
+             We found the entry we needed, just apply the changes.
+           */
+          if (entry) {
+            // just to be safe, copy the record from the SE to table->record[0]
+            restore_record(table, record[1]);
+
+            /**
+               At this point, both table->record[0] and
+               table->record[1] have the SE row that matched the one
+               in the hash table.
+
+               Thence if this is a DELETE we wouldn't need to mess
+               around with positions anymore, but since this can be an
+               update, we need to provide positions so that AI is
+               unpacked correctly to table->record[0] in UPDATE
+              implementation of do_exec_row().
+            */
+            m_curr_row = entry->positions->bi_start;
+            m_curr_row_end = entry->positions->bi_ends;
+
+            /* we don't need this entry anymore, just delete it */
+            if ((error = m_hash.del(entry))) goto err;
+
+            if ((error = do_apply_row(rli))) {
+              if (handle_idempotent_and_ignored_errors(rli, &error))
+                goto close_table;
+
+              do_post_row_operations(rli, error);
+            }
+          }
+        } while (this->get_type_code() == binary_log::UPDATE_ROWS_EVENT &&
+                 table->s->primary_key >= MAX_KEY &&
+                 (entry = m_hash.get(table, &m_cols)));
       } break;
 
       case HA_ERR_RECORD_DELETED:
