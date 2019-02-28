@@ -382,7 +382,7 @@ struct LEX_MASTER_INFO {
   LEX_MASTER_INFO() : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED) {
     initialize();
   }
-  char *host, *user, *password, *log_file_name, *bind_addr;
+  char *host, *user, *password, *log_file_name, *bind_addr, *network_namespace;
   uint port, connect_retry;
   float heartbeat_period;
   int sql_delay;

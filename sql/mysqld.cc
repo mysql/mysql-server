@@ -2438,8 +2438,8 @@ static void set_root(const char *path) {
 
   @return true in case the address value is a wildcard value, else false.
 */
-static bool check_address_is_wildcard(const char *address_value,
-                                      size_t address_length) {
+bool check_address_is_wildcard(const char *address_value,
+                               size_t address_length) {
   return
       // Wildcard is not allowed in case a comma separated list of
       // addresses is specified
@@ -2456,15 +2456,132 @@ static bool check_address_is_wildcard(const char *address_value,
 }
 
 /**
-  Check acceptable value of parameter bind_address
+  Take a string representing host or ip address followed by
+  optional delimiter '/' and namespace name and put address part
+  and namespace part into corresponding output parameters.
+
+  @param begin_address_value  start of a string containing an address value
+  @param end_address_value  pointer to an end of string containing
+                            an address value. Has the value nullptr in case
+                            address value not continue
+  @param [out] address_value  address value extracted from address string
+  @param [out] network_namespace  network namespace extracted from
+                                  the address string value if any
+
+  @return false on success, true on address format error
+*/
+static bool parse_address_string(const char *begin_address_value,
+                                 const char *end_address_value,
+                                 std::string *address_value,
+                                 std::string *network_namespace) {
+  const char *namespace_separator = strchr(begin_address_value, '/');
+
+  if (namespace_separator != nullptr) {
+    if (begin_address_value == namespace_separator)
+      /*
+        Parse error: there is no character before '/',
+        that is missed address value
+      */
+      return true;
+
+    if (namespace_separator < end_address_value) {
+      if (end_address_value - namespace_separator == 1)
+        /*
+          Parse error: there is no character immediately after '/',
+          that is missed namespace name.
+        */
+        return true;
+
+      /*
+        Found namespace delimiter. Extract namespace and address values
+      */
+      *address_value = std::string(begin_address_value, namespace_separator);
+      *network_namespace =
+          std::string(namespace_separator + 1, end_address_value);
+    } else if (end_address_value != nullptr)
+      /*
+        This branch corresponds to the case when namespace separator is located
+        after the last character of the address subvalue being processed.
+        For example, if the following string '192.168.1.1,172.1.1.1/red'
+        passed into the function create_bind_address_info_from_string(),
+        then during handling of the address 192.168.1.1 search of '/'
+        will return a position after the end of the sub string 192.168.1.1
+        (in the next sub string 172.1.1.1/red) that should be ignored.
+      */
+      *address_value = std::string(begin_address_value, end_address_value);
+    else {
+      /*
+        This branch corresponds to the case when namespace separator is located
+        at the last part of address values. For example,
+        this branch is executed during handling of the following value
+        192.168.1.1,::1,::1/greeen for the option --bind-address.
+      */
+      *address_value = std::string(begin_address_value, namespace_separator);
+      *network_namespace = std::string(namespace_separator + 1);
+    }
+  } else {
+    /*
+      Regular address without network namespace found.
+    */
+    *address_value = end_address_value != nullptr
+                         ? std::string(begin_address_value, end_address_value)
+                         : std::string(begin_address_value);
+  }
+
+  return false;
+}
+
+/**
+  Parse a value of address sub string with checking of address string format,
+  extract address part and namespace part of the address value, and store
+  their values into the argument valid_bind_addresses.
+
+  @return false on success, true on address format error
+*/
+static bool create_bind_address_info_from_string(
+    const char *begin_address_value, const char *end_address_value,
+    std::list<Bind_address_info> *valid_bind_addresses) {
+  Bind_address_info bind_address_info;
+  std::string address_value, network_namespace;
+
+  if (parse_address_string(begin_address_value, end_address_value,
+                           &address_value, &network_namespace))
+    return true;
+
+  if (network_namespace.empty())
+    bind_address_info = Bind_address_info(address_value);
+  else {
+    /*
+      Wildcard value is not allowed in case network namespace specified
+      for address value in the option bind-address.
+    */
+    if (check_address_is_wildcard(address_value.c_str(),
+                                  address_value.length())) {
+      LogErr(ERROR_LEVEL,
+             ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS);
+      return true;
+    }
+
+    bind_address_info = Bind_address_info(address_value, network_namespace);
+  }
+
+  valid_bind_addresses->emplace_back(bind_address_info);
+
+  return false;
+}
+
+/**
+  Check acceptable value(s) of parameter bind-address
 
   @param      bind_address          Value of the parameter bind-address
-  @param[out] valid_bind_addresses  List of addresses to listen
+  @param[out] valid_bind_addresses  List of addresses to listen and their
+                                    corresponding network namespaces if set.
 
   @return false on success, true on failure
 */
 static bool check_bind_address_has_valid_value(
-    const char *bind_address, std::list<std::string> *valid_bind_addresses) {
+    const char *bind_address,
+    std::list<Bind_address_info> *valid_bind_addresses) {
   if (strlen(bind_address) == 0)
     // Empty value for bind_address is an error
     return true;
@@ -2478,12 +2595,23 @@ static bool check_bind_address_has_valid_value(
     return true;
 
   while (comma_separator != nullptr) {
+    Bind_address_info bind_address_info;
+    std::string address_value, network_namespace;
+    /*
+      Wildcard value is not allowed in case multi-addresses value specified
+      for the option bind-address.
+    */
     if (check_address_is_wildcard(begin_of_value,
-                                  comma_separator - begin_of_value))
+                                  comma_separator - begin_of_value)) {
+      LogErr(ERROR_LEVEL, ER_WILDCARD_NOT_ALLOWED_FOR_MULTIADDRESS_BIND);
+
+      return true;
+    }
+
+    if (create_bind_address_info_from_string(begin_of_value, comma_separator,
+                                             valid_bind_addresses))
       return true;
 
-    valid_bind_addresses->emplace_back(
-        std::string(begin_of_value, comma_separator));
     begin_of_value = comma_separator + 1;
     comma_separator = strchr(begin_of_value, ',');
     if (comma_separator == begin_of_value)
@@ -2491,12 +2619,53 @@ static bool check_bind_address_has_valid_value(
       return true;
   }
 
+  /*
+    Wildcard value is not allowed in case multi-addresses value specified
+    for the option bind-address.
+  */
   if (multiple_bind_addresses &&
       (check_address_is_wildcard(begin_of_value, strlen(begin_of_value)) ||
        strlen(begin_of_value) == 0))
     return true;
 
-  valid_bind_addresses->emplace_back(begin_of_value);
+  if (create_bind_address_info_from_string(begin_of_value, comma_separator,
+                                           valid_bind_addresses))
+    return true;
+
+  return false;
+}
+
+/**
+  Check acceptable value(s) of the parameter admin-address
+
+  @param      admin_bind_addr_str   Value of the parameter admin-address
+  @param[out] admin_address_info    List of addresses to listen and their
+                                    corresponding network namespaces if set.
+
+  @return false on success, true on failure
+*/
+static bool check_admin_address_has_valid_value(
+    const char *admin_bind_addr_str, Bind_address_info *admin_address_info) {
+  std::string address_value, network_namespace;
+
+  if (parse_address_string(admin_bind_addr_str, nullptr, &address_value,
+                           &network_namespace))
+    return true;
+
+  if (check_address_is_wildcard(address_value.c_str(),
+                                address_value.length())) {
+    if (!network_namespace.empty())
+      LogErr(ERROR_LEVEL,
+             ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS);
+
+    return true;
+  }
+
+  if (network_namespace.empty())
+    *admin_address_info = Bind_address_info(address_value);
+  else
+    *admin_address_info = Bind_address_info(address_value, network_namespace);
+
   return false;
 }
 
@@ -2511,18 +2680,21 @@ static bool network_init(void) {
   std::string const unix_sock_name("");
 #endif
 
-  std::list<std::string> bind_addresses;
+  std::list<Bind_address_info> bind_addresses_info;
+
   if (!opt_disable_networking || unix_sock_name != "") {
     if (my_bind_addr_str != nullptr &&
-        check_bind_address_has_valid_value(my_bind_addr_str, &bind_addresses)) {
+        check_bind_address_has_valid_value(my_bind_addr_str,
+                                           &bind_addresses_info)) {
       LogErr(ERROR_LEVEL, ER_INVALID_VALUE_OF_BIND_ADDRESSES, my_bind_addr_str);
       return true;
     }
 
+    Bind_address_info admin_address_info;
     if (!opt_disable_networking) {
       if (my_admin_bind_addr_str != nullptr &&
-          check_address_is_wildcard(my_admin_bind_addr_str,
-                                    strlen(my_admin_bind_addr_str))) {
+          check_admin_address_has_valid_value(my_admin_bind_addr_str,
+                                              &admin_address_info)) {
         LogErr(ERROR_LEVEL, ER_INVALID_ADMIN_ADDRESS, my_admin_bind_addr_str);
         return true;
       }
@@ -2537,12 +2709,11 @@ static bool network_init(void) {
       */
       if (mysqld_admin_port == 0) mysqld_admin_port = MYSQL_ADMIN_PORT;
     }
-    Mysqld_socket_listener *mysqld_socket_listener =
-        new (std::nothrow) Mysqld_socket_listener(
-            bind_addresses, mysqld_port,
-            (opt_disable_networking ? nullptr : my_admin_bind_addr_str),
-            mysqld_admin_port, listen_admin_interface_in_separate_thread,
-            back_log, mysqld_port_timeout, unix_sock_name);
+    Mysqld_socket_listener *mysqld_socket_listener = new (std::nothrow)
+        Mysqld_socket_listener(bind_addresses_info, mysqld_port,
+                               admin_address_info, mysqld_admin_port,
+                               listen_admin_interface_in_separate_thread,
+                               back_log, mysqld_port_timeout, unix_sock_name);
     if (mysqld_socket_listener == NULL) return true;
 
     mysqld_socket_acceptor = new (std::nothrow)

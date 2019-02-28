@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -96,8 +96,8 @@ class Listener_tcp_testsuite : public Test {
                 const uint32 port_timeout = PORT_TIMEOUT) {
     m_resulting_bind_address = interface;
     sut = std::make_shared<Listener_tcp>(
-        m_mock_factory, std::ref(m_resulting_bind_address), port, port_timeout,
-        std::ref(m_mock_socket_events), BACKLOG);
+        m_mock_factory, std::ref(m_resulting_bind_address), "", port,
+        port_timeout, std::ref(m_mock_socket_events), BACKLOG);
   }
 
   void expect_create_socket(addrinfo &ai, const std::string &interface,

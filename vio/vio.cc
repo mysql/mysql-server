@@ -233,6 +233,10 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
   vio->localhost = flags & VIO_LOCALHOST;
   vio->type = type;
 
+#ifdef HAVE_SETNS
+  vio->network_namespace[0] = '\0';
+#endif
+
 #ifdef _WIN32
   if (type == VIO_TYPE_NAMEDPIPE) {
     vio->viodelete = vio_delete;

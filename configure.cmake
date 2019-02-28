@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -375,6 +375,19 @@ ENDIF()
 CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
 CHECK_FUNCTION_EXISTS (timer_settime HAVE_TIMER_SETTIME)
 CHECK_FUNCTION_EXISTS (kqueue HAVE_KQUEUE)
+
+# Check whether the setns() API function supported by a target platform
+CHECK_C_SOURCE_RUNS("
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <sched.h>
+int main()
+{
+  (void)setns(0, 0);
+  return 0;
+}" HAVE_SETNS)
+
 CHECK_SYMBOL_EXISTS(EVFILT_TIMER "sys/types.h;sys/event.h;sys/time.h" HAVE_EVFILT_TIMER)
 IF(HAVE_KQUEUE AND HAVE_EVFILT_TIMER)
   SET(HAVE_KQUEUE_TIMERS 1 CACHE INTERNAL "Have kqueue timer-related filter")

@@ -1,0 +1,36 @@
+# restart: --skip-name-resolve --bind-address=127.0.0.1,10.0.2.1/red
+CREATE USER root@127.0.0.1;
+CREATE USER root@10.0.2.1;
+CREATE USER root@10.0.1.1;
+# Check that client can establish connection to the address 127.0.0.1 from the default network namespace
+USER()
+root@127.0.0.1
+# Check that client can establish connection to the address 10.0.2.1 from the network namespace 'red'
+USER()
+root@10.0.2.1
+# Check that client can't establish connection to the address 10.0.2.1 from a non-existing network namespace 'green'
+ERROR: Network namespace error: No such file or directory
+# Simulate case where the mysql client doesn't have the cap_sys_admin_capability
+ERROR: Network namespace error: Operation not permitted
+# Check that connections to the host from clients outside the network namespace error out since
+# they are visible only through the gateway through which the network namespace connects to the
+# outer root network namespace.
+# restart: --skip-name-resolve --bind-address=127.0.0.1,10.0.2.1/red,10.0.1.1/blue
+# Check that client can establish connection to the address 10.0.2.1 from the network namespace 'red'
+USER()
+root@10.0.2.1
+# Check that client can establish connection to the address 10.0.1.1 from the network namespace 'blue'
+USER()
+root@10.0.1.1
+# restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=ADMIN_PORT
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@10.0.2.1;
+USER()
+root@10.0.2.1
+# restart: --skip-name-resolve --bind-address=127.0.0.1 --admin-address=10.0.2.1/red --admin-port=ADMIN_PORT --create-admin-listener-thread=true
+USER()
+root@10.0.2.1
+REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@10.0.2.1;
+# restart:
+DROP USER root@127.0.0.1;
+DROP USER root@10.0.2.1;
+DROP USER root@10.0.1.1;

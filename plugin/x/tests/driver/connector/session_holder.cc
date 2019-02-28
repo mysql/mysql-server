@@ -168,6 +168,8 @@ void Session_holder::setup_ssl() {
   m_session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Session_connect_timeout,
       m_options.session_connect_timeout);
+  m_session->set_mysql_option(xcl::XSession::Mysqlx_option::Network_namespace,
+                              m_options.network_namespace);
 }
 
 void Session_holder::setup_msg_callbacks() {

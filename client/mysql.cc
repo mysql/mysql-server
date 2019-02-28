@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,6 +88,8 @@
 #include <new>
 
 #include "sql_common.h"
+
+#include "sql/net_ns.h"
 
 using std::max;
 using std::min;
@@ -187,6 +189,9 @@ static STATUS status;
 static ulong select_limit, max_join_size, opt_connect_timeout = 0;
 static char mysql_charsets_dir[FN_REFLEN + 1];
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
+#ifdef HAVE_SETNS
+static char *opt_network_namespace = 0;
+#endif
 static const char *xmlmeta[] = {
     "&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;",
     /* Turn \0 into a space. Why not &#0;? That's not valid XML or HTML. */
@@ -1528,14 +1533,27 @@ static void kill_query(const char *reason) {
   kill_mysql = mysql_init(kill_mysql);
   init_connection_options(kill_mysql);
 
+#ifdef HAVE_SETNS
+  if (opt_network_namespace && set_network_namespace(opt_network_namespace)) {
+    goto err;
+  }
+#endif
+
   if (!mysql_real_connect(kill_mysql, current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port, 0)) {
+#ifdef HAVE_SETNS
+    if (opt_network_namespace) (void)restore_original_network_namespace();
+#endif
     tee_fprintf(stdout,
                 "%s -- Sorry, cannot connect to the server to kill "
                 "query, giving up ...\n",
                 reason);
     goto err;
   }
+
+#ifdef HAVE_SETNS
+  if (opt_network_namespace && restore_original_network_namespace()) goto err;
+#endif
 
   interrupted_query = true;
 
@@ -1552,7 +1570,11 @@ static void kill_query(const char *reason) {
   tee_fprintf(stdout, "%s -- query aborted\n", reason);
 
 err:
+#ifdef HAVE_SETNS
+  if (opt_network_namespace) (void)release_network_namespace_resources();
+#endif
   mysql_close(kill_mysql);
+
   return;
 }
 
@@ -1821,6 +1843,12 @@ static struct my_option my_long_options[] = {
      "test purpose, so it is just built when DEBUG is on.",
      &opt_build_completion_hash, &opt_build_completion_hash, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+#ifdef HAVE_SETNS
+    {"network-namespace", 0,
+     "Network namespace to use for connection via tcp with a server.",
+     &opt_network_namespace, &opt_network_namespace, 0, GET_STR, REQUIRED_ARG,
+     0, 0, 0, 0, 0, 0},
 #endif
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
@@ -4364,6 +4392,9 @@ static int sql_real_connect(char *host, char *database, char *user,
                             char *password, uint silent) {
   if (connected) {
     connected = 0;
+#ifdef HAVE_SETNS
+    if (opt_network_namespace) (void)release_network_namespace_resources();
+#endif
     mysql_close(&mysql);
   }
 
@@ -4392,9 +4423,25 @@ static int sql_real_connect(char *host, char *database, char *user,
   }
 #endif
 
+#ifdef HAVE_SETNS
+  if (opt_network_namespace && set_network_namespace(opt_network_namespace)) {
+    if (!silent) {
+      char msgbuf[PATH_MAX];
+      snprintf(msgbuf, sizeof(msgbuf), "Network namespace error: %s",
+               strerror(errno));
+      put_info(msgbuf, INFO_ERROR);
+    }
+
+    return ignore_errors ? -1 : 1;  // Abort
+  }
+#endif
+
   if (!mysql_real_connect(&mysql, host, user, password, database,
                           opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS)) {
+#ifdef HAVE_SETNS
+    if (opt_network_namespace) (void)restore_original_network_namespace();
+#endif
     if (mysql_errno(&mysql) == ER_MUST_CHANGE_PASSWORD_LOGIN) {
       tee_fprintf(stdout,
                   "Please use --connect-expired-password option or "
@@ -4409,6 +4456,19 @@ static int sql_real_connect(char *host, char *database, char *user,
     }
     return -1;  // Retryable
   }
+
+#ifdef HAVE_SETNS
+  if (opt_network_namespace && restore_original_network_namespace()) {
+    if (!silent) {
+      char msgbuf[PATH_MAX];
+      snprintf(msgbuf, sizeof(msgbuf), "Network namespace error: %s",
+               strerror(errno));
+      put_info(msgbuf, INFO_ERROR);
+    }
+
+    return ignore_errors ? -1 : 1;  // Abort
+  }
+#endif
 
 #ifdef _WIN32
   /* Convert --execute buffer from UTF8MB4 to connection character set */
