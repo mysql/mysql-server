@@ -2006,10 +2006,8 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
       Field_blob *field_blob= (Field_blob *)field;
 
       // Get length and pointer to data
-      // TODO: Find out why blob_len adjusts for row_offset whereas blob_ptr
-      // doesn't. Should possibly pass row_offset to get_blob_data() too.
       const uint32 blob_len= field_blob->get_length(row_offset);
-      const uchar *blob_ptr= field_blob->get_blob_data();
+      const uchar *blob_ptr= field_blob->get_blob_data(row_offset);
 
       // Looks like NULL ptr signals length 0 blob
       if (blob_ptr == NULL) {
