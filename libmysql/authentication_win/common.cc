@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,7 +504,7 @@ const char* get_last_error_message(Error_message_buf buf)
   buf[0]= '\0';
   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
 		NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)buf, sizeof(buf), NULL );
+		(LPTSTR)buf, sizeof(Error_message_buf), NULL);
 
   return buf;
 }
