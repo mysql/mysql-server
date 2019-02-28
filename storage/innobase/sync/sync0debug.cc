@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1206,7 +1206,7 @@ LatchMetaData latch_meta;
 
 /** Load the latch meta data. */
 static void sync_latch_meta_init() UNIV_NOTHROW {
-  latch_meta.resize(LATCH_ID_MAX);
+  latch_meta.resize(LATCH_ID_MAX + 1);
 
   /* The latches should be ordered on latch_id_t. So that we can
   index directly into the vector to update and fetch meta-data. */
@@ -1479,6 +1479,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(CLONE_SNAPSHOT, SYNC_NO_ORDER_CHECK,
                   clone_snapshot_mutex_key);
+
+  LATCH_ADD_MUTEX(TEST_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
   latch_id_t id = LATCH_ID_NONE;
 
