@@ -290,13 +290,7 @@ bool finalize_upgrade(THD *thd) {
       file_ext.assign(file.c_str() + file.size() - 4);
 
       // Get the name without the file extension.
-      // Even though the stats backup tables were dropped earlier, the
-      // tablespace files on the disk still exists. This is because the InnoDB
-      // post DDL hook is skipped on a bootstrap thread. We must manually delete
-      // these files.
-      if (check_file_extension(file_ext) ||
-          file.compare("innodb_table_stats_backup57.ibd") == 0 ||
-          file.compare("innodb_index_stats_backup57.ibd") == 0) {
+      if (check_file_extension(file_ext)) {
         if (fn_format(from_path, file.c_str(), dir_path, "",
                       MYF(MY_UNPACK_FILENAME | MY_SAFE_PATH)) == NULL)
           continue;
