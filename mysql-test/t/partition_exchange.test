@@ -1024,7 +1024,7 @@ ALTER TABLE t1 ADD PARTITION (PARTITION p2 VALUES LESS THAN ('2000-01-01'));
 
 INSERT INTO t1 VALUES ('3','1999-10-13 05:28:46'), ('4', '1996-09-26 20:00:00');
 
---replace_result #p# #p# #sp# #sp#
+--replace_result #p# #P# #sp# #SP#
 SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
@@ -1061,7 +1061,7 @@ SUBPARTITION sp5));
 INSERT INTO t1(b,a) VALUES('first',40),('second',91),('third',140),
 ('forth',191);
 
---replace_result #p# #p# #sp# #sp#
+--replace_result #p# #P# #sp# #SP#
 SELECT NAME,ROW_FORMAT  FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE NAME LIKE '%t1%' ORDER BY TABLE_ID;
 
