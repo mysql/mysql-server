@@ -442,6 +442,7 @@ static const SYMBOL symbols[] = {
     {SYM("NDBCLUSTER", NDBCLUSTER_SYM)},
     {SYM("NCHAR", NCHAR_SYM)},
     {SYM("NESTED", NESTED_SYM)},
+    {SYM("NETWORK_NAMESPACE", NETWORK_NAMESPACE_SYM)},
     {SYM("NEVER", NEVER_SYM)},
     {SYM("NEW", NEW_SYM)},
     {SYM("NEXT", NEXT_SYM)},

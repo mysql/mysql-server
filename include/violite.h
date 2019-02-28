@@ -37,6 +37,8 @@
 #endif
 #include <sys/types.h>
 
+#include <string>
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "mysql/components/services/my_io_bits.h"
@@ -368,6 +370,12 @@ struct Vio {
   std::atomic_flag kevent_wakeup_flag = ATOMIC_FLAG_INIT;
 #endif
 
+#ifdef HAVE_SETNS
+  /**
+    Socket network namespace.
+  */
+  char network_namespace[256];
+#endif
   /*
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.

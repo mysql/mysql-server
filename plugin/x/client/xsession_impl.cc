@@ -416,6 +416,9 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
     case Mysqlx_option::Ssl_crl_path:
       m_context->m_ssl_config.m_crl_path = value;
       break;
+    case Mysqlx_option::Network_namespace:
+      m_context->m_connection_config.m_network_namespace = value;
+      break;
 
     case Mysqlx_option::Authentication_method:
       return details::translate_texts_into_auth_types({value},

@@ -799,16 +799,32 @@ static Sys_var_charptr Sys_my_bind_addr(
     " where address can be an IPv4 address, IPv6 address,"
     " host name or one of the wildcard values *, ::, 0.0.0.0."
     " In case more than one address is specified in a"
-    " comma-separated list, wildcard values are not allowed.",
+    " comma-separated list, wildcard values are not allowed."
+    " Every address can have optional network namespace separated"
+    " by the delimiter / from the address value. E.g., the following value"
+    " 192.168.1.1/red,172.16.1.1/green,193.168.1.1 specifies three IP"
+    " addresses to listen for incoming TCP connections two of that have"
+    " to be placed in corresponding namespaces: the address 192.168.1.1"
+    " must be placed into the namespace red and the address 172.16.1.1"
+    " must be placed into the namespace green. Using of network namespace"
+    " requires its support from underlying Operating System. Attempt to specify"
+    " a network namespace for a platform that doesn't support it results in"
+    " error during socket creation.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
     IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
 static Sys_var_charptr Sys_admin_addr(
     "admin_address",
-    "IP address to bind to for service connection. Address can be an IPv4 "
-    "address,"
-    " IPv6 address, or host name. Wildcard values *, ::, 0.0.0.0"
-    " are not allowed.",
+    "IP address to bind to for service connection. Address can be an IPv4"
+    " address, IPv6 address, or host name. Wildcard values *, ::, 0.0.0.0"
+    " are not allowed. Address value can have following optional network"
+    " namespace separated by the delimiter / from the address value."
+    " E.g., the following value 192.168.1.1/red specifies IP addresses to"
+    " listen for incoming TCP connections that have to be placed into"
+    " the namespace 'red'. Using of network namespace requires its support"
+    " from underlying Operating System. Attempt to specify a network namespace"
+    " for a platform that doesn't support it results in error during socket"
+    " creation.",
     READ_ONLY NON_PERSIST GLOBAL_VAR(my_admin_bind_addr_str),
     CMD_LINE(REQUIRED_ARG), IN_FS_CHARSET, DEFAULT(0));
 

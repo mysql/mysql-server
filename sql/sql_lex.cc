@@ -4671,6 +4671,7 @@ bool LEX::set_wild(LEX_STRING w) {
 
 void LEX_MASTER_INFO::initialize() {
   host = user = password = log_file_name = bind_addr = NULL;
+  network_namespace = nullptr;
   port = connect_retry = 0;
   heartbeat_period = 0;
   sql_delay = 0;

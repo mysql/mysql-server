@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,3 +98,13 @@ int mysql_plugin_registry_release(SERVICE_TYPE(registry) *) { return 0; }
 thread_local THD *current_thd = nullptr;
 
 THD *thd_get_current_thd() { return current_thd; }
+
+bool check_address_is_wildcard(const char *, size_t) { return false; }
+
+#ifdef HAVE_SETNS
+bool set_network_namespace(const std::string &) { return false; }
+
+bool restore_original_network_namespace() { return false; }
+
+void release_network_namespace_resources() {}
+#endif

@@ -87,8 +87,11 @@ enum {
   /* line for get_master_public_key */
   LINE_FOR_GET_PUBLIC_KEY = 27,
 
+  /* line for network_namespace */
+  LINE_FOR_NETWORK_NAMESPACE = 28,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO = LINE_FOR_GET_PUBLIC_KEY
+  LINES_IN_MASTER_INFO = LINE_FOR_NETWORK_NAMESPACE
 
 };
 
@@ -123,7 +126,8 @@ const char *info_mi_fields[] = {"number_of_lines",
                                 "channel_name",
                                 "tls_version",
                                 "public_key_path",
-                                "get_public_key"};
+                                "get_public_key",
+                                "network_namespace"};
 
 const uint info_mi_table_pk_field_indexes[] = {
     LINE_FOR_CHANNEL - 1,
@@ -174,6 +178,7 @@ Master_info::Master_info(
   host[0] = 0;
   user[0] = 0;
   bind_addr[0] = 0;
+  network_namespace[0] = 0;
   password[0] = 0;
   start_password[0] = 0;
   ssl_ca[0] = 0;
@@ -564,6 +569,11 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     if (from->get_info(&temp_get_public_key, 0)) DBUG_RETURN(true);
   }
 
+  if (lines >= LINE_FOR_NETWORK_NAMESPACE) {
+    if (from->get_info(network_namespace, sizeof(network_namespace), (char *)0))
+      DBUG_RETURN(true);
+  }
+
   ssl = (bool)temp_ssl;
   ssl_verify_server_cert = (bool)temp_ssl_verify_server_cert;
   master_log_pos = (my_off_t)temp_master_log_pos;
@@ -608,7 +618,8 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info(retry_count) || to->set_info(ssl_crl) ||
       to->set_info(ssl_crlpath) || to->set_info((int)auto_position) ||
       to->set_info(channel) || to->set_info(tls_version) ||
-      to->set_info(public_key_path) || to->set_info(get_public_key))
+      to->set_info(public_key_path) || to->set_info(get_public_key) ||
+      to->set_info(network_namespace))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);

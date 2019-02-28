@@ -1,0 +1,25 @@
+# restart: --skip-name-resolve --bind-address=::1/red,::ffff:10.0.1.1/blue
+CREATE USER root@'::1';
+CREATE USER root@'10.0.1.1';
+# Check that client can establish connection to the address ::1 from the network namespace 'red'
+USER()
+root@::1
+# Check that client can establish connection to the address ::ffff:10.0.1.1 from the network namespace 'blue'
+USER()
+root@10.0.1.1
+# restart: --skip-name-resolve --admin-address=::1/red --admin-port=ADMIN_PORT
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'::1';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'10.0.1.1';
+USER()
+root@::1
+# restart: --skip-name-resolve --admin-address=::ffff:10.0.1.1/blue --admin-port=ADMIN_PORT --create-admin-listener-thread=true
+USER()
+root@10.0.1.1
+# restart: --skip-name-resolve --admin-address=::1/red --admin-port=ADMIN_PORT --create-admin-listener-thread=true
+USER()
+root@::1
+REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'::1';
+REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'10.0.1.1';
+# restart:
+DROP USER root@'::1';
+DROP USER root@'10.0.1.1';

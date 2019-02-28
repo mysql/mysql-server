@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ using ::testing::StrEq;
 const uint32 k_backlog = 10;
 const std::string k_unix_file = "unix test";
 const std::string k_host = "host test";
+const std::string k_net_ns = "";
 const uint16 k_port = 11;
 const uint32 k_open_timeout = 12;
 
@@ -47,7 +48,7 @@ TEST(Socket_acceptors_task_suite, prepare_without_any_interface) {
   EXPECT_CALL(
       mock_factory,
       create_tcp_socket_listener_ptr(
-          StrEq(k_host), k_port, k_open_timeout,
+          StrEq(k_host), StrEq(k_net_ns), k_port, k_open_timeout,
           Ref(*(Socket_events_interface *)mock_event.get()), k_backlog));
 
 #if defined(HAVE_SYS_UN_H)
@@ -58,8 +59,8 @@ TEST(Socket_acceptors_task_suite, prepare_without_any_interface) {
           k_backlog));
 #endif
 
-  Socket_acceptors_task sut(mock_factory, k_host, k_port, k_open_timeout,
-                            k_unix_file, k_backlog, mock_event);
+  Socket_acceptors_task sut(mock_factory, k_host, k_net_ns, k_port,
+                            k_open_timeout, k_unix_file, k_backlog, mock_event);
 
   Server_task_interface::Task_context context;
   ASSERT_FALSE(sut.prepare(&context));

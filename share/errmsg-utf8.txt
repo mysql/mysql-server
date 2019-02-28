@@ -19095,6 +19095,23 @@ ER_CANNOT_GRANT_ROLES_TO_ANONYMOUS_USER
 ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY
   eng "Unable to create a new binlog file: Table `mysql.gtid_executed` couldn't be opened. %s"
 
+ER_NETWORK_NAMESPACES_NOT_SUPPORTED
+  eng "Network Namespaces is not supported on this platform"
+
+ER_UNKNOWN_NETWORK_NAMESPACE
+  eng "Unknown network namespace '%s'"
+
+ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS
+  eng "Network namespace not allowed for wildcard interface address"
+
+ER_SETNS_FAILED
+  eng "setns() failed with error '%s'"
+
+ER_WILDCARD_NOT_ALLOWED_FOR_MULTIADDRESS_BIND
+  eng "Wildcard address value not allowed for multivalued bind address"
+
+ER_NETWORK_NAMESPACE_FILE_PATH_TOO_LONG
+  eng "The path to a special network namespace file is too long. (got %u > max %u)"
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

@@ -160,6 +160,7 @@ def	mysql	slave_master_info	Channel_name	24	NULL	NO	char	64	192	NULL	NULL	NULL	u
 def	mysql	slave_master_info	Tls_version	25	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Tls version		NULL
 def	mysql	slave_master_info	Public_key_path	26	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The file containing public key of master server.		NULL
 def	mysql	slave_master_info	Get_public_key	27	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	Preference to get public key from master.		NULL
+def	mysql	slave_master_info	Network_namespace	28	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	Network namespace used for communication with the master server.		NULL
 def	mysql	slave_relay_log_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	Number of lines in the file or rows in the table. Used to version table definitions.		NULL
 def	mysql	slave_relay_log_info	Relay_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the current relay log file.		NULL
 def	mysql	slave_relay_log_info	Relay_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	The relay log position of the last executed event.		NULL
@@ -492,6 +493,7 @@ NULL	mysql	slave_master_info	Enabled_auto_position	tinyint	NULL	NULL	NULL	NULL	t
 1.0000	mysql	slave_master_info	Tls_version	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	Public_key_path	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Get_public_key	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
+1.0000	mysql	slave_master_info	Network_namespace	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_relay_log_info	Relay_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_relay_log_info	Relay_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

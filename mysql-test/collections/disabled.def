@@ -78,3 +78,5 @@ rpl.rpl_multi_source_corrupt_repository   : Bug#28765425 Disabled until the bug 
 
 # sysschema suite tests
 sysschema.v_wait_classes_global_by_avg_latency : BUG#21550054 Test fails too often.
+
+# x plugin suite tests

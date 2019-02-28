@@ -106,11 +106,11 @@ include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed to flush master info.'
 include/stop_slave_sql.inc
 START SLAVE SQL_THREAD;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 27, found 26. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 28, found 27. The table is probably corrupted
 RESET SLAVE ALL;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 27, found 26. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 28, found 27. The table is probably corrupted
 CHANGE MASTER TO MASTER_HOST= 'MASTER_HOST', MASTER_USER= 'MASTER_USER', MASTER_PORT= MASTER_PORT, MASTER_LOG_FILE= 'MASTER_LOG_FILE', MASTER_LOG_POS= MASTER_LOG_POS;
-ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 27, found 26. The table is probably corrupted
+ERROR HY000: Column count of mysql.slave_master_info is wrong. Expected 28, found 27. The table is probably corrupted
 ALTER TABLE mysql.slave_master_info ADD COLUMN Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.' AFTER Ssl_crlpath;
 UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 RESET SLAVE ALL;
@@ -168,6 +168,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Tls_version` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
   `Public_key_path` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
   `Get_public_key` tinyint(1) NOT NULL COMMENT 'Preference to get public key from master.',
+  `Network_namespace` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;

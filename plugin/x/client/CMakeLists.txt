@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ SET(CLIENT_SRC
  "${CMAKE_CURRENT_SOURCE_DIR}/xsession_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xconnection_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xrow.cc"
+ "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
 )
 
 INCLUDE_DIRECTORIES(

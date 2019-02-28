@@ -97,7 +97,14 @@
   performance_schema.keyring_keys
 
   Version published is now 80015.
+
+  80017:
+
+  performance_schema tables changed in MySQL 8.0.17
+  - replication_connection_configuration, added column NETWORK_NAMESPACE
+
+  Version published is now 80017.
 */
-static const uint PFS_DD_VERSION = 80015;
+static const uint PFS_DD_VERSION = 80017;
 
 #endif /* PFS_DD_VERSION_H */

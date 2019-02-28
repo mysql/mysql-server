@@ -346,12 +346,14 @@ static MYSQL_SYSVAR_STR(socket, xpl::Plugin_system_variables::socket,
                         "X Plugin's unix socket for local connection.", NULL,
                         NULL, NULL);
 
-static MYSQL_SYSVAR_STR(bind_address,
-                        xpl::Plugin_system_variables::bind_address,
-                        PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG |
-                            PLUGIN_VAR_MEMALLOC,
-                        "Address to which X Plugin should bind the TCP socket.",
-                        NULL, NULL, "*");
+static MYSQL_SYSVAR_STR(
+    bind_address, xpl::Plugin_system_variables::bind_address,
+    PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Address to which X Plugin should bind the TCP socket optionally "
+    "followed by a network namespace delimited with /. "
+    "E.g., the string value 127.0.0.1/red specifies to listen on "
+    "IP address 127.0.0.1 from the network namespace 'red'.",
+    NULL, NULL, "*");
 
 static MYSQL_SYSVAR_UINT(
     port_open_timeout, xpl::Plugin_system_variables::port_open_timeout,

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 
 # ==== Purpose ====
@@ -86,6 +86,7 @@ if ($tmp) {
   --echo Master_TLS_Version	
   --echo Master_public_key_path	
   --echo Get_master_public_key	0
+  --echo Network_Namespace	
 }
 
 if (!$tmp) {

@@ -62,6 +62,9 @@
 #include "plugin/x/src/xpl_session.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
+extern bool check_address_is_wildcard(const char *address_value,
+                                      size_t address_length);
+
 namespace xpl {
 
 std::atomic<bool> g_cache_plugin_started{false};
@@ -296,6 +299,36 @@ bool Server::is_exiting() {
   return mysqld::is_terminating() || Server::exiting;
 }
 
+static bool parse_bind_address_value(const char *begin_address_value,
+                                     std::string *address_value,
+                                     std::string *network_namespace) {
+  const char *namespace_separator = strchr(begin_address_value, '/');
+
+  if (namespace_separator != nullptr) {
+    if (begin_address_value == namespace_separator)
+      /*
+        Parse error: there is no character before '/',
+        that is missed address value
+      */
+      return true;
+
+    if (*(namespace_separator + 1) == 0)
+      /*
+        Parse error: there is no character immediately after '/',
+        that is missed namespace name.
+      */
+      return true;
+
+    /*
+      Found namespace delimiter. Extract namespace and address values
+    */
+    *address_value = std::string(begin_address_value, namespace_separator);
+    *network_namespace = std::string(namespace_separator + 1);
+  } else
+    *address_value = begin_address_value;
+  return false;
+}
+
 int Server::main(MYSQL_PLUGIN p) {
   plugin_handle = p;
 
@@ -317,8 +350,25 @@ int Server::main(MYSQL_PLUGIN p) {
     auto config(ngs::allocate_shared<ngs::Protocol_config>());
     auto events(ngs::allocate_shared<ngs::Socket_events>());
     auto timeout_callback(ngs::allocate_shared<ngs::Timeout_callback>(events));
+
+    std::string address_value, network_namespace;
+    if (parse_bind_address_value(Plugin_system_variables::bind_address,
+                                 &address_value, &network_namespace)) {
+      log_error(ER_XPLUGIN_STARTUP_FAILED,
+                "Invalid value for command line option mysqlx-bind-address");
+
+      return 1;
+    }
+
+    if (!network_namespace.empty() &&
+        check_address_is_wildcard(address_value.c_str(),
+                                  address_value.length())) {
+      log_error(ER_NETWORK_NAMESPACE_NOT_ALLOWED_FOR_WILDCARD_ADDRESS);
+      return 1;
+    }
+
     auto acceptors(ngs::allocate_shared<ngs::Socket_acceptors_task>(
-        std::ref(listener_factory), Plugin_system_variables::bind_address,
+        std::ref(listener_factory), address_value, network_namespace,
         Plugin_system_variables::port,
         Plugin_system_variables::port_open_timeout,
         Plugin_system_variables::socket, listen_backlog, events));

@@ -110,6 +110,9 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"              // ER
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
+#ifdef HAVE_SETNS
+#include "sql/net_ns.h"
+#endif
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -3211,6 +3214,8 @@ static void show_slave_status_metadata(List<Item> &field_list,
       new Item_empty_string("Master_public_key_path", FN_REFLEN));
   field_list.push_back(new Item_return_int("Get_master_public_key",
                                            sizeof(ulong), MYSQL_TYPE_LONG));
+  field_list.push_back(
+      new Item_empty_string("Network_Namespace", NAME_LEN + 1));
 }
 
 /**
@@ -3492,6 +3497,8 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   protocol->store(mi->public_key_path, &my_charset_bin);
   // Get_master_public_key
   protocol->store(mi->get_public_key ? 1 : 0);
+
+  protocol->store(mi->network_namespace_str(), &my_charset_bin);
 
   rpl_filter->unlock();
   mysql_mutex_unlock(&mi->rli->err_lock);
@@ -5088,6 +5095,7 @@ extern "C" void *handle_slave_io(void *arg) {
   uint retry_count;
   bool suppress_warnings;
   int ret;
+  bool successfully_connected;
 #ifndef DBUG_OFF
   uint retry_count_reg = 0, retry_count_dump = 0, retry_count_event = 0;
 #endif
@@ -5158,8 +5166,30 @@ extern "C" void *handle_slave_io(void *arg) {
   }
 
   THD_STAGE_INFO(thd, stage_connecting_to_master);
+
+  if (mi->is_set_network_namespace()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(mi->network_namespace)) goto err;
+#else
+    // Network namespace not supported by the platform. Report error.
+    LogErr(ERROR_LEVEL, ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+    goto err;
+#endif
+    // Save default value of network namespace
+    // Set network namespace before sockets be created
+  }
+  successfully_connected = !safe_connect(thd, mysql, mi);
   // we can get killed during safe_connect
-  if (!safe_connect(thd, mysql, mi)) {
+#ifdef HAVE_SETNS
+  if (mi->is_set_network_namespace()) {
+    // Restore original network namespace used to be before connection has been
+    // created
+    successfully_connected =
+        restore_original_network_namespace() | successfully_connected;
+  }
+#endif
+
+  if (successfully_connected) {
     LogErr(SYSTEM_LEVEL, ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED,
            mi->get_for_channel_str(), mi->get_user(), mi->host, mi->port,
            mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff));
@@ -8896,8 +8926,8 @@ static bool have_change_master_receive_option(const LEX_MASTER_INFO *lex_mi) {
   /* Check if *at least one* receive option is given on change master command*/
   if (lex_mi->host || lex_mi->user || lex_mi->password ||
       lex_mi->log_file_name || lex_mi->pos || lex_mi->bind_addr ||
-      lex_mi->port || lex_mi->connect_retry || lex_mi->server_id ||
-      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->network_namespace || lex_mi->port || lex_mi->connect_retry ||
+      lex_mi->server_id || lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
       lex_mi->retry_count_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
@@ -9038,6 +9068,10 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
   if (lex_mi->host) strmake(mi->host, lex_mi->host, sizeof(mi->host) - 1);
   if (lex_mi->bind_addr)
     strmake(mi->bind_addr, lex_mi->bind_addr, sizeof(mi->bind_addr) - 1);
+
+  if (lex_mi->network_namespace)
+    strmake(mi->network_namespace, lex_mi->network_namespace,
+            sizeof(mi->network_namespace) - 1);
   /*
     Setting channel's port number explicitly to '0' should be allowed.
     Eg: 'group_replication_recovery' channel (*after recovery is done*)

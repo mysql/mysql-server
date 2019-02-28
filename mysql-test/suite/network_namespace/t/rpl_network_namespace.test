@@ -1,0 +1,173 @@
+#####################################################################
+#                                                                   #
+# The aim of this test is to check support for usage of network     #
+# namespaces introduced by WL#12720 in a replication connection.    #
+# It includes verifying that replication works on using the         #
+# NETWORK_NAMESPACE clause added to the CHANGE MASTER command       #
+# and that details about the network namespace used for the         #
+# replication is reflected through SHOW SLAVE STATUS and below      #
+# tables -                                                          #
+# - performance_schema.replication_connection_configuration         #
+# - mysql.slave_master_info                                         #
+#                                                                   #
+# The test requires following conditions to be met in order for     #
+# it to run :-                                                      #
+# 1. mysqld has been granted the capability to switch network       #
+#    namespaces.                                                    #
+# 2. Two network namespaces are created with specific IP addresses  #
+#    and are accessible i.e.,                                       #
+#    - a namespace named 'red' containing the IP '10.0.2.1'         #
+#    - a namespace named 'blue' containing the IP '10.0.2.1'        #
+#                                                                   #
+# Creation Date: 2019-02-20                                         #
+# Author: Srikanth B R                                              #
+#                                                                   #
+#####################################################################
+
+# Network namespaces is a feature of Linux.
+# So, ignore this test on any platform except Linux.
+--source include/linux.inc
+
+--source ../include/have_network_namespaces.inc
+--source include/not_group_replication_plugin.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+call mtr.add_suppression("Hostname .* does not resolve to");
+call mtr.add_suppression("IP address .* could not be resolved");
+
+--echo # Add a bind address in the 'red' network namespace to master
+--let $rpl_server_number=1
+--let $rpl_server_parameters= --bind-address=127.0.0.1,10.0.2.1/red
+--source include/rpl_restart_server.inc
+
+--echo # Add a bind address in the 'blue' network namespace to the slave
+--let $rpl_server_parameters= --bind-address=127.0.0.1,10.0.1.1/blue
+--let $rpl_server_number=2
+--source include/rpl_restart_server.inc
+
+--connection slave
+--source include/start_slave.inc
+
+--connection master
+
+--echo # Create tables and users.
+
+CREATE TABLE t1(a int primary key, b varchar(10));
+CREATE USER root@10.0.2.1;
+GRANT ALL ON *.* TO root@10.0.2.1;
+CREATE USER root@10.0.1.1;
+GRANT ALL ON *.* TO root@10.0.1.1;
+
+--echo #Insert via connection to the address 127.0.0.1 from the default network namespace
+INSERT INTO t1 VALUES (1, 'abc');
+
+--echo #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
+--replace_result $MASTER_MYPORT MASTER_PORT
+--exec $EXE_MYSQL --no-defaults -u root  --port $MASTER_MYPORT --host 10.0.2.1 --network-namespace=red test -e "INSERT INTO t1 VALUES (2, 'cdf');"
+
+SHOW CREATE TABLE t1;
+
+--echo [ connection slave ]
+--source include/sync_slave_sql_with_master.inc
+
+SHOW CREATE TABLE t1;
+
+--echo # Check network namspace of currently connected master
+SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
+SELECT Network_namespace FROM mysql.slave_master_info;
+--let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace
+
+--echo # Check slave connection on the 'blue' namespace
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--exec $EXE_MYSQL --no-defaults -u root  --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
+
+--echo # Stop slave and run change master to listen to the master on socket
+--echo # created in the 'red' namespace
+--source include/stop_slave.inc
+
+--echo [ connection master ]
+--connection master
+# Some more DML's on the master
+--echo #Insert via connection to the address 127.0.0.1 from the default network namespace
+--let $MASTER_LOG_POS= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+INSERT INTO t1 VALUES (3, 'ghi');
+
+--echo #Insert via connection to the address 10.0.2.1 from the 'red' network namespace
+--exec $EXE_MYSQL --no-defaults -u root  --port $MASTER_MYPORT --host 10.0.2.1 --network-namespace=red test -e "INSERT INTO t1 VALUES (4, 'jkl');"
+
+--echo [ connection slave ]
+--connection slave
+--echo # Change master to listen to the master on IP '10.0.2.1' in the 'red' namespace
+--replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $chm= CHANGE MASTER TO MASTER_HOST='10.0.2.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE='red'
+if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
+{
+ --let $chm= $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+}
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+--source include/start_slave.inc
+
+# Now sync slave with master
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Check network namspace of currently connected master
+SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
+SELECT Network_namespace FROM mysql.slave_master_info;
+--let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace 
+
+--echo # Check slave connection on the 'blue' namespace
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "SELECT * FROM t1"
+
+--echo # Check that the table is replicated properly
+--let $diff_tables = master:t1, slave:t1
+--source include/diff_tables.inc
+
+--source include/stop_slave.inc
+
+--echo [ connection master ]
+--connection master
+--let $MASTER_LOG_POS= query_get_value(SHOW MASTER STATUS, Position, 1)
+
+--echo [ connection slave ]
+--connection slave
+--echo # Change master to original connection
+--replace_result $MASTER_MYPORT MASTER_PORT $MASTER_LOG_POS MASTER_LOG_POS
+--let $chm= CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, NETWORK_NAMESPACE=''
+if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
+{
+ --let $chm= $chm, MASTER_LOG_POS=$MASTER_LOG_POS
+}
+--exec $EXE_MYSQL --no-defaults -u root --port $SLAVE_MYPORT --host 10.0.1.1 --network-namespace=blue test -e "$chm"
+
+--source include/start_slave.inc
+
+# Now sync slave with master
+--connection master
+INSERT INTO t1 VALUES (5, 'mno');
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Check network namspace of currently connected master
+SELECT network_namespace AS master_network_namespace FROM performance_schema.replication_connection_configuration;
+SELECT Network_namespace FROM mysql.slave_master_info;
+--let $slave_status_namespace= query_get_value(SHOW SLAVE STATUS,Network_Namespace, 1)
+--echo Namespace from 'SHOW SLAVE STATUS' : $slave_status_namespace
+
+--echo # Check that the table is replicated properly
+--let $diff_tables = master:t1, slave:t1
+--source include/diff_tables.inc
+
+--echo # Cleanup
+
+connection master;
+DROP USER root@10.0.2.1;
+DROP USER root@10.0.1.1;
+DROP TABLE t1;
+
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_end.inc

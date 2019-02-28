@@ -1,0 +1,80 @@
+#####################################################################
+#                                                                   #
+# The aim of this test is verify that network namespaces work with  #
+# IPv6 addresses as well as IPv4 mapped IPv6 addresses.             #
+#                                                                   #
+# The test requires following conditions to be met in order for     #
+# it to run :-                                                      #
+# 1. mysqld has been granted the capability to switch network       #
+#    namespaces.                                                    #
+# 2. A network namespace named 'red' having localhost interface     #
+#    with IPv6 i.e., '::1'                                          #
+# 3. Another network namespace named 'blue' with a network          #
+#    interface having an IPv4 address '10.0.1.1'.                   #
+#                                                                   #
+# Creation Date: 2019-02-20                                         #
+# Author: Srikanth B R                                              #
+#                                                                   #
+#####################################################################
+
+# Network namespaces is a feature of Linux.
+# So, ignore this test on any platform except Linux.
+--source include/linux.inc
+--source include/have_ipv6.inc
+--source include/have_ipv4_mapped.inc
+
+--source ../include/have_network_namespaces.inc
+
+--let $restart_parameters = restart: --skip-name-resolve --bind-address=::1/red,::ffff:10.0.1.1/blue
+--source include/restart_mysqld.inc
+
+CREATE USER root@'::1';
+CREATE USER root@'10.0.1.1';
+
+--let $MYSQL_PORT= `SELECT @@port`
+
+--echo # Check that client can establish connection to the address ::1 from the network namespace 'red'
+--exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host ::1 --network-namespace=red -e "SELECT USER()"
+
+--echo # Check that client can establish connection to the address ::ffff:10.0.1.1 from the network namespace 'blue'
+--exec $EXE_MYSQL --no-defaults -u root  --port $MYSQL_PORT --host ::ffff:10.0.1.1 --network-namespace=blue -e "SELECT USER()"
+
+--exec # Use network namespaces with an IPv6 admin address and admin port
+
+# Calculate value for admin port
+--let $PORT_OFFSET = 1
+--expr $ADMIN_PORT = $MASTER_MYPORT + $PORT_OFFSET
+
+# Restart with an IPv6 address from the 'red' namespace
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$ADMIN_PORT
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'::1';
+GRANT SERVICE_CONNECTION_ADMIN ON *.* TO root@'10.0.1.1';
+
+--exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+
+# Restart with an IPv4 mapped IPv6 address
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::ffff:10.0.1.1/blue --admin-port=$ADMIN_PORT --create-admin-listener-thread=true
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
+--exec $EXE_MYSQL --no-defaults -u root --host ::ffff:10.0.1.1 --port $ADMIN_PORT --network-namespace=blue -e "SELECT USER()"
+
+# Restart with an IPv6 admin address in the 'red' namespace with a dedicated listener thread for admin connections
+--let $restart_parameters=restart: --skip-name-resolve --admin-address=::1/red --admin-port=$ADMIN_PORT --create-admin-listener-thread=true
+--replace_result $ADMIN_PORT ADMIN_PORT
+--source include/restart_mysqld.inc
+
+--exec $EXE_MYSQL --no-defaults -u root --host ::1 --port $ADMIN_PORT --network-namespace=red -e "SELECT USER()"
+
+REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'::1';
+REVOKE SERVICE_CONNECTION_ADMIN ON *.* FROM root@'10.0.1.1';
+
+--let $restart_parameters=restart:
+--source include/restart_mysqld.inc
+
+--connection default
+DROP USER root@'::1';
+DROP USER root@'10.0.1.1';

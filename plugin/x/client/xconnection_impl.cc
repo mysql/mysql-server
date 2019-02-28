@@ -48,6 +48,7 @@
 #include "plugin/x/client/xconnection_config.h"
 #include "plugin/x/client/xssl_config.h"
 #include "plugin/x/generated/mysqlx_error.h"
+#include "sql/net_ns.h"
 
 #ifndef WIN32
 #include <netdb.h>
@@ -316,6 +317,18 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
     return XError(CR_UNKNOWN_HOST, "No such host is known '" + host + "'");
 
   XError error;
+  const auto &ns = m_context->m_connection_config.m_network_namespace;
+  if (!ns.empty()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(ns)) {
+      return XError(CR_SOCKET_CREATE_ERROR,
+                    "Failed to set active network namespace " + ns);
+    }
+#else
+    return XError(CR_SOCKET_CREATE_ERROR,
+                  "Network namespace not supported by the platform");
+#endif
+  }
   for (const auto *t_res = resolved_addr_list_ptr.get(); t_res;
        t_res = t_res->ai_next) {
     error = connect(reinterpret_cast<sockaddr *>(t_res->ai_addr),
@@ -323,6 +336,19 @@ XError Connection_impl::connect(const std::string &host, const uint16_t port,
 
     if (!error) break;
   }
+
+#ifdef HAVE_SETNS
+  if (!ns.empty() && restore_original_network_namespace() && !error) {
+    /*
+      Report about error during restoring network namespace only
+      in case an error not happened on connecting to a server.
+      In other words, error got during establishing a connection
+      has higher priority.
+    */
+    return XError(CR_SOCKET_CREATE_ERROR,
+                  "Fails to restore original network namespace " + ns);
+  }
+#endif
 
   if (error) {
     std::string error_description = error.what();

@@ -73,6 +73,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "  TLS_VERSION VARCHAR(255) not null,\n"
     "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
     "  GET_PUBLIC_KEY ENUM('YES', 'NO') not null,\n"
+    "  NETWORK_NAMESPACE VARCHAR(64) not null,\n"
     "  PRIMARY KEY (channel_name) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -296,6 +297,10 @@ int table_replication_connection_configuration::make_row(Master_info *mi) {
 
   m_row.get_public_key = mi->get_public_key ? PS_RPL_YES : PS_RPL_NO;
 
+  temp_store = (char *)mi->network_namespace_str();
+  m_row.network_namespace_length = strlen(temp_store);
+  memcpy(m_row.network_namespace, temp_store, m_row.network_namespace_length);
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -383,6 +388,10 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
           break;
         case 20: /** get_master_public_key */
           set_field_enum(f, m_row.get_public_key);
+          break;
+        case 21: /** network_namespace */
+          set_field_varchar_utf8(f, m_row.network_namespace,
+                                 m_row.network_namespace_length);
           break;
         default:
           DBUG_ASSERT(false);

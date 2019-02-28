@@ -1,0 +1,23 @@
+call mtr.add_suppression("Hostname .* does not resolve to");
+call mtr.add_suppression("IP address .* could not be resolved");
+# restart: --mysqlx-bind-address=10.0.2.1/red
+CREATE USER 'x_root' @'10.0.2.1' IDENTIFIED WITH 'mysql_native_password';
+GRANT ALL ON *.*TO 'x_root' @'10.0.2.1' WITH GRANT OPTION;
+# Check that X-protocol client can establish connection to the address 10.0.2.1 from the network namespace 'red'
+RUN SELECT USER()
+USER()
+x_root@red.local
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# Non existing namespace
+in main, line 0:ERROR: Failed to set active network namespace green (code 2001)
+not ok
+# Simulate case where cap_sys_nice is not granted to mysqlxtest
+in main, line 0:ERROR: Failed to set active network namespace red (code 2001)
+not ok
+REVOKE ALL ON *.* FROM 'x_root' @'10.0.2.1';
+DROP USER 'x_root' @'10.0.2.1';
+# restart
