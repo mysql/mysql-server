@@ -419,7 +419,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`str` AS `str` from `test`.`t1` where (`test`.`t1`.`str` is null)
 explain format=tree select * from t1 where str is null;
 EXPLAIN
--> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)
+-> Index lookup on t1 using str (str=NULL), with index condition: (t1.str is null)  (cost=0.25 rows=1)
 
 drop table t1;
 CREATE TABLE t1 (
@@ -1905,13 +1905,13 @@ EXPLAIN
 -> Filter: <if>(found_match(t3..t4), (<cache>(('-448724992' is null)) or (t4.pk < t3.col_int)), true)
     -> Nested loop left join
         -> Rows fetched before execution
-        -> Nested loop left join
-            -> Filter: (t2.col_int = '6')
-                -> Table scan on t2
-            -> Nested loop inner join
-                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)
-                    -> Table scan on t3
-                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)
+        -> Nested loop left join  (cost=1.00 rows=0)
+            -> Filter: (t2.col_int = '6')  (cost=0.50 rows=1)
+                -> Table scan on t2  (cost=0.50 rows=1)
+            -> Nested loop inner join  (cost=0.25 rows=0)
+                -> Filter: (t3.col_varchar_10 = t2.col_varchar_10)  (cost=0.00 rows=0)
+                    -> Table scan on t3  (cost=0.00 rows=0)
+                -> Single-row index lookup on t4 using PRIMARY (pk=t3.col_int)  (cost=0.25 rows=1)
 
 DROP TABLE t1,t2,t3,t4;
 

@@ -586,7 +586,7 @@ ON table3 .`i1`  = table2 .o1
 EXPLAIN
 -> Index lookup on table3 using <auto_key0> (i1='m', i2='m')
     -> Materialize
-        -> Table scan on cc
+        -> Table scan on cc  (cost=0.50 rows=2)
 
 SET @@optimizer_switch=@optimizer_switch_saved;
 DROP TABLE cc;

@@ -136,6 +136,13 @@ class RowIterator {
 
   virtual std::vector<Child> children() const { return std::vector<Child>(); }
 
+  // Returns a short string (used for EXPLAIN FORMAT=tree) with user-readable
+  // information for this iterator. When implementing these, try to avoid
+  // internal jargon (e.g. “eq_ref”); prefer things that read like normal,
+  // technical English (e.g. “single-row index lookup”).
+  //
+  // Callers should use FullDebugString() below, which adds costs
+  // (see set_estimated_cost() etc.) if present.
   virtual std::vector<std::string> DebugString() const = 0;
 
   // If this is the root iterator of a join, points back to the join object.
@@ -176,12 +183,33 @@ class RowIterator {
    */
   virtual void EndPSIBatchModeIfStarted() {}
 
+  // The information below is used for EXPLAIN only. We store it on the
+  // iterators, because it corresponds naturally 1:1 to the them.
+  // However, RowIterator is an execution structure, and as such, estimated
+  // costs don't really belong here. When we go to an optimizer that plans
+  // natively using iterators, we should have a class setup where
+  // each execution iterator has a corresponding planning structure
+  // (e.g. TableScanIterator vs. PlannedTableScan), and the costs should move
+  // to the planning structures.
+
+  void set_estimated_cost(double estimated_cost) {
+    m_estimated_cost = estimated_cost;
+  }
+  double estimated_cost() const { return m_estimated_cost; }
+
+  void set_expected_rows(double expected_rows) {
+    m_expected_rows = expected_rows;
+  }
+  double expected_rows() const { return m_expected_rows; }
+
  protected:
   THD *thd() const { return m_thd; }
 
  private:
   THD *const m_thd;
   JOIN *m_join = nullptr;
+  double m_estimated_cost = -1.0;
+  double m_expected_rows = -1.0;
 };
 
 class TableRowIterator : public RowIterator {
@@ -203,5 +231,9 @@ class TableRowIterator : public RowIterator {
 
   friend class AlternativeIterator;
 };
+
+// Return iterator.DebugString(), but with cost information appended
+// in textual form, if available.
+std::vector<std::string> FullDebugString(THD *thd, const RowIterator &iterator);
 
 #endif  // SQL_ROW_ITERATOR_H_

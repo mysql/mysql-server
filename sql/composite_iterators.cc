@@ -48,6 +48,7 @@
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
+#include "sql/timing_iterator.h"
 
 class Opt_trace_context;
 template <class T>
@@ -893,7 +894,7 @@ vector<string> MaterializeIterator::DebugString() const {
   vector<string> ret;
   RowIterator *sub_iterator = m_table_iterator.get();
   for (;;) {
-    for (string str : sub_iterator->DebugString()) {
+    for (string str : FullDebugString(thd(), *sub_iterator)) {
       if (sub_iterator->children().size() > 1) {
         // This can happen if e.g. a filter has subqueries in it.
         // TODO: Consider having a RowIterator::parent(), so that we can
@@ -1251,7 +1252,7 @@ int TemptableAggregateIterator::Read() {
 }
 
 vector<string> TemptableAggregateIterator::DebugString() const {
-  vector<string> ret = m_table_iterator->DebugString();
+  vector<string> ret = FullDebugString(thd(), *m_table_iterator);
   ret.push_back("Aggregate using temporary table");
   return ret;
 }

@@ -7462,7 +7462,7 @@ EXPLAIN
     -> Filter: (b.pk is null)
         -> Nested loop left join
             -> Rows fetched before execution
-            -> Sort: a.c
+            -> Sort: a.c  (cost=0.25 rows=1)
                 -> Filter: ('s' = b.c)
                     -> Table scan on b
 

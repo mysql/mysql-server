@@ -3993,14 +3993,14 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <i
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Filter: <in_optimizer>(t3.a,<exists>(select #2))
-    -> Table scan on t3
+-> Filter: <in_optimizer>(t3.a,<exists>(select #2))  (cost=0.54 rows=100)
+    -> Table scan on t3  (cost=0.54 rows=100)
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
-            -> Nested loop inner join
-                -> Filter: ((t1.kp1 < 20) and (t1.c is not null))
-                    -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))
-                -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)
+            -> Nested loop inner join  (cost=0.60 rows=1)
+                -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=0.25 rows=1)
+                    -> Index lookup on t1 using kp1 (kp1=<cache>(t3.a))  (cost=0.25 rows=1)
+                -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -12474,17 +12474,17 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Sort: t4.col_int_key
+-> Sort: t4.col_int_key  (cost=0.25 rows=6)
     -> Filter: <in_optimizer>(t4.col_int_key,<exists>(select #2))
         -> Table scan on t4
         -> Select #2 (subquery in condition; dependent)
             -> Limit: 1 row(s)
-                -> Filter: (t3.col_int is null)
-                    -> Nested loop left join
-                        -> Index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))
-                        -> Nested loop inner join
-                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)
-                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)
+                -> Filter: (t3.col_int is null)  (cost=0.57 rows=0)
+                    -> Nested loop left join  (cost=0.57 rows=0)
+                        -> Index lookup on t1 using col_int_key (col_int_key=<cache>(t4.col_int_key))  (cost=0.25 rows=1)
+                        -> Nested loop inner join  (cost=0.64 rows=0)
+                            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.25 rows=1)
+                            -> Index lookup on t3 using col_int_key (col_int_key=t2.col_int)  (cost=1.00 rows=1)
 
 SELECT *
 FROM t4
@@ -12805,7 +12805,7 @@ CREATE TABLE t2 ( pk INTEGER );
 INSERT INTO t2 VALUES (1), (2);
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 EXPLAIN
--> Table scan on t1
+-> Table scan on t1  (cost=0.25 rows=3)
 
 SELECT * FROM t1 WHERE EXISTS ( SELECT alias1.f2 FROM t2 LEFT JOIN t1 ON 1 LEFT JOIN t1 AS alias1 ON 1 );
 f1	f2

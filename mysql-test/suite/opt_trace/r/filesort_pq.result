@@ -6195,7 +6195,7 @@ EXPLAIN
         -> Table scan on v1
             -> Materialize
                 -> Limit: 100 row(s)
-                    -> Sort: t1.f1, t1.f0, limit input to 100 row(s) per chunk
+                    -> Sort: t1.f1, t1.f0, limit input to 100 row(s) per chunk  (cost=1.11 rows=500)
                         -> Table scan on t1
 
 CREATE VIEW v2 as SELECT * FROM t1 ORDER BY f2, f0 LIMIT 100;

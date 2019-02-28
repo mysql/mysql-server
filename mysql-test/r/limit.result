@@ -1,5 +1,8 @@
 CREATE TABLE t1(a INTEGER);
 INSERT INTO t1 VALUES(11),(12),(13),(14),(15),(16),(17),(18),(19);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 CREATE TABLE t2(a INTEGER);
 INSERT INTO t2 VALUES(21),(22),(23),(24),(25),(26),(27);
 SELECT * FROM t1 LIMIT 6;
@@ -20,7 +23,7 @@ a
 EXPLAIN FORMAT=TREE SELECT * FROM t1 LIMIT 5 OFFSET 1;
 EXPLAIN
 -> Limit/Offset: 5/1 row(s)
-    -> Table scan on t1
+    -> Table scan on t1  (cost=0.25 rows=9)
 
 (SELECT * FROM t1 LIMIT 7) ORDER BY a DESC LIMIT 4;
 a
@@ -618,10 +621,10 @@ EXPLAIN FORMAT=tree SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t
 EXPLAIN
 -> Limit/Offset: 2/5 row(s)
     -> Group aggregate: json_objectagg(NULL,'')
-        -> Nested loop inner join
-            -> Sort: t1.pk
+        -> Nested loop inner join  (cost=1.15 rows=4)
+            -> Sort: t1.pk  (cost=0.25 rows=2)
                 -> Table scan on t1
-            -> Table scan on t2
+            -> Table scan on t2  (cost=0.25 rows=2)
 
 SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 5;
 ERROR 22032: JSON documents may not contain NULL member names.

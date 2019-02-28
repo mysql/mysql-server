@@ -509,6 +509,8 @@ CREATE TABLE t2 (
   f2 varchar(1)
 );
 
+ANALYZE TABLE t1, t2;
+
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 

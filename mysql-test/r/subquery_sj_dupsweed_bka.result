@@ -4004,14 +4004,14 @@ Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` semi joi
 explain format=tree select * from t3 where a in
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 EXPLAIN
--> Nested loop inner join
-    -> Filter: ((t3.a < 20) and (t3.a is not null))
-        -> Table scan on t3
-    -> Limit: 1 row(s)
-        -> Nested loop inner join
-            -> Filter: (t1.c is not null)
-                -> Index lookup on t1 using kp1 (kp1=t3.a)
-            -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)
+-> Nested loop inner join  (cost=35.54 rows=100)
+    -> Filter: ((t3.a < 20) and (t3.a is not null))  (cost=0.54 rows=100)
+        -> Table scan on t3  (cost=0.54 rows=100)
+    -> Limit: 1 row(s)  (cost=25.35 rows=1)
+        -> Nested loop inner join  (cost=25.35 rows=1)
+            -> Filter: (t1.c is not null)  (cost=0.25 rows=1)
+                -> Index lookup on t1 using kp1 (kp1=t3.a)  (cost=0.25 rows=1)
+            -> Single-row index lookup on t4 using PRIMARY (pk=t1.c)  (cost=0.25 rows=1)
 
 select * from t3 where a in 
 (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
@@ -12472,18 +12472,18 @@ WHERE t3.col_int IS NULL
 ORDER BY col_int_key
 ;
 EXPLAIN
--> Nested loop inner join
-    -> Sort: t4.col_int_key
+-> Nested loop inner join  (cost=1.93 rows=2)
+    -> Sort: t4.col_int_key  (cost=0.25 rows=6)
         -> Filter: (t4.col_int_key is not null)
             -> Table scan on t4
-    -> Limit: 1 row(s)
-        -> Filter: (t3.col_int is null)
-            -> Nested loop left join
-                -> Index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)
-                -> Nested loop inner join
-                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)
-                    -> Filter: (t3.col_int_key = t2.col_int)
-                        -> Table scan on t3
+    -> Limit: 1 row(s)  (cost=2.03 rows=0)
+        -> Filter: (t3.col_int is null)  (cost=2.03 rows=0)
+            -> Nested loop left join  (cost=2.03 rows=0)
+                -> Index lookup on t1 using col_int_key (col_int_key=t4.col_int_key)  (cost=0.25 rows=1)
+                -> Nested loop inner join  (cost=0.90 rows=0)
+                    -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)  (cost=0.25 rows=1)
+                    -> Filter: (t3.col_int_key = t2.col_int)  (cost=0.37 rows=1)
+                        -> Table scan on t3  (cost=0.37 rows=4)
 
 SELECT *
 FROM t4

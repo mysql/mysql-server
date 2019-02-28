@@ -92,6 +92,7 @@
 #include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql/table_function.h"  // Table_function
+#include "sql/timing_iterator.h"
 #include "sql_string.h"
 #include "template_utils.h"
 
@@ -1994,6 +1995,21 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
   return ret;
 }
 
+vector<string> FullDebugString(THD *, const RowIterator &iterator) {
+  // The THD object will be used in the next patch.
+  vector<string> ret = iterator.DebugString();
+  if (iterator.expected_rows() >= 0.0) {
+    // NOTE: We cannot use %.0f, since MSVC and GCC round 0.5 in different
+    // directions, so tests would not be reproducible between platforms.
+    // Round off using llrint() instead.
+    char str[256];
+    snprintf(str, sizeof(str), "  (cost=%.2f rows=%lld)",
+             iterator.estimated_cost(), llrint(iterator.expected_rows()));
+    ret.back() += str;
+  }
+  return ret;
+}
+
 std::string PrintQueryPlan(int level, RowIterator *iterator) {
   string ret;
 
@@ -2004,7 +2020,7 @@ std::string PrintQueryPlan(int level, RowIterator *iterator) {
 
   int top_level = level;
 
-  for (const string &str : iterator->DebugString()) {
+  for (const string &str : FullDebugString(current_thd, *iterator)) {
     ret.append(level * 4, ' ');
     ret += "-> ";
     ret += str;

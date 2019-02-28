@@ -2539,17 +2539,17 @@ explain format=tree SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
 XOR TRUE;
 EXPLAIN
--> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor true)
-    -> Index scan on t3 using k1
+-> Filter: (<in_optimizer>(t3.c1,<exists>(select #2)) xor true)  (cost=0.25 rows=2)
+    -> Index scan on t3 using k1  (cost=0.25 rows=2)
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)
-            -> Nested loop inner join
-                -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)
-                    -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL
+            -> Nested loop inner join  (cost=0.60 rows=1)
+                -> Filter: <if>(outer_field_is_not_null, (<cache>(t3.c1) = t1.c2_key), true)  (cost=0.25 rows=1)
+                    -> Alternative plans for IN subquery: Index lookup unless c2_key IS NULL  (cost=0.25 rows=1)
                         -> Index lookup on t1 using col_int_key (c2_key=<cache>(t3.c1))
                         -> Table scan on t1
-                -> Filter: (t2.pk < t1.c1)
-                    -> Index range scan on t2 (re-planned for each iteration)
+                -> Filter: (t2.pk < t1.c1)  (cost=0.25 rows=1)
+                    -> Index range scan on t2 (re-planned for each iteration)  (cost=0.25 rows=1)
 
 explain SELECT t3.c1 FROM t3
 WHERE t3.c1 = SOME (SELECT t1.c2_key FROM t2 JOIN t1 ON t2.pk < t1.c1)
