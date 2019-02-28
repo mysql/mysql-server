@@ -722,7 +722,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where false
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
 NULL
@@ -731,7 +731,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a1`) AS `min(a1)` from `test`.`t1` where false
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
@@ -793,13 +793,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN SELECT 1 FROM t1 WHERE 1 IN (SELECT 1 FROM t1 WHERE a > 3 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where false
 DROP TABLE t1;
 #
 # BUG#49630: Segfault in select_describe() with double 
@@ -879,7 +879,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'j'
-Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where 0 having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
+Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` join `test`.`t1` where false having <in_optimizer>('m',<exists>(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`v` = <cache>(convert(<cache>('m') using latin1)))))
 
 #
 # 2) Test that subquery materialization is setup for query with
@@ -905,7 +905,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` where (`test`.`t2`.`pk` > 10) having 1
+Note	1003	/* select#1 */ select min(`test`.`t2`.`pk`) AS `MIN(t2.pk)` from `test`.`t2` where (`test`.`t2`.`pk` > 10) having true
 
 #
 # 3) Test that subquery materialization is setup for query with
@@ -931,7 +931,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(pk)` from `test`.`t1` where (`test`.`t1`.`pk` = NULL) having 1
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `MIN(pk)` from `test`.`t1` where (`test`.`t1`.`pk` = NULL) having true
 
 #
 # 4) Test that subquery materialization is setup for query with
@@ -956,7 +956,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having 1
+Note	1003	/* select#1 */ select min(NULL) AS `MIN(a)` from `test`.`empty1` having true
 
 #
 # 5) Test that subquery materialization is setup for query with
@@ -984,7 +984,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,<exists>(/* select#2 */ select 1 from dual where (('1' > 10) and (<cache>(`test`.`t1`.`pk`) = 1)))) having 1
+Note	1003	/* select#1 */ select min(`test`.`t1`.`pk`) AS `min(t1.pk)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`pk`,<exists>(/* select#2 */ select 1 from dual where (('1' > 10) and (<cache>(`test`.`t1`.`pk`) = 1)))) having true
 #
 # Cleanup for BUG#46680
 #
@@ -1383,7 +1383,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or <cache>((`test`.`t3`.`a` is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
 select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 a	a	(t2.a,t2.a) in (select a,a from t2 as t3)
@@ -1473,7 +1473,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `t3` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` `t3` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true))) AS `t2.a in (select * from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
 select t1.a, t2.a, t2.a in (select * from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 a	a	t2.a in (select * from t2 as t3)
@@ -1488,7 +1488,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` `t3` where (<if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t3`.`a`) or (`test`.`t3`.`a` is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true)))) AS `(t2.a,t2.a) in (select a,a from t2 as t3)` from `test`.`t1` left join `test`.`t2` on(((`test`.`t1`.`a` + `test`.`t2`.`a`) = 1000)) where true
 select t1.a, t2.a, (t2.a,t2.a) in (select a,a from t2 as t3)
 from t1 left join t2 on t1.a+t2.a=1000;
 a	a	(t2.a,t2.a) in (select a,a from t2 as t3)
@@ -1874,7 +1874,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	DEPENDENT SUBQUERY	t1	NULL	system	col_int_key	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_nokey` AS `x` from `test`.`t2` `outr` where 0 having (`x` = '2000-09-09') order by `test`.`outr`.`col_time_key`
+Note	1003	/* select#1 */ select `test`.`outr`.`col_datetime_nokey` AS `x` from `test`.`t2` `outr` where false having (`x` = '2000-09-09') order by `test`.`outr`.`col_time_key`
 SELECT col_datetime_nokey AS x
 FROM t2 AS outr
 WHERE col_int_key IN (
@@ -2050,7 +2050,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1),<exists>(/* select#3 */ select 1,2 having 0)) AS `(SELECT 1, 1) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,1),<exists>(/* select#3 */ select 1,2 having false)) AS `(SELECT 1, 1) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 1) IN (SELECT 1, 2);
 (SELECT 1, 1) IN (SELECT 1, 2)
 0
@@ -2090,7 +2090,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,1),<exists>(/* select#3 */ select 1,2 having 0)) AS `(SELECT NULL, 1) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select NULL,1),<exists>(/* select#3 */ select 1,2 having false)) AS `(SELECT NULL, 1) IN (SELECT 1, 2)`
 SELECT (SELECT NULL, 1) IN (SELECT 1, 2);
 (SELECT NULL, 1) IN (SELECT 1, 2)
 0
@@ -2100,7 +2100,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 2,NULL),<exists>(/* select#3 */ select 1,2 having 0)) AS `(SELECT 2, NULL) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 2,NULL),<exists>(/* select#3 */ select 1,2 having false)) AS `(SELECT 2, NULL) IN (SELECT 1, 2)`
 SELECT (SELECT 2, NULL) IN (SELECT 1, 2);
 (SELECT 2, NULL) IN (SELECT 1, 2)
 0
@@ -2159,7 +2159,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where 0 union /* select#3 */ select 1,2 from DUAL  where 0),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
 (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
 NULL
@@ -2210,7 +2210,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where 0 union all /* select#3 */ select 1,2 from DUAL  where 0),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from DUAL  where false union all /* select#3 */ select 1,2 from DUAL  where false),<exists>(/* select#4 */ select 1,2 having (<if>(outer_field_is_not_null, ((<cache>(<cache>(`1`)) = 1) or (1 is null)), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(`2`)) = 2) or (2 is null)), true) and <if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)`
 SELECT (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2);
 (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
 NULL

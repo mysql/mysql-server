@@ -362,7 +362,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '6' AS `f1`,'7' AS `gc` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '6' AS `f1`,'7' AS `gc` from `test`.`t1` where true
 SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
 f1	gc
 4	5
@@ -841,7 +841,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where 1 order by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true order by `col_int_gc_key`,`field2`
 SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
 FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
 GROUP BY field1, field2;
@@ -854,7 +854,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	table2	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where 1 group by `col_int_gc_key`,`field2`
+Note	1003	/* select#1 */ select ('7' + 1) AS `field1`,'7' AS `field2` from dual where true group by `col_int_gc_key`,`field2`
 DROP TABLE t1;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
@@ -948,14 +948,14 @@ EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` and `test`.`t`.`a`))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`b`) and (0 <> `test`.`t`.`a`)))
 SELECT a, b FROM t WHERE 1 = (b AND a);
 a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` or `test`.`t`.`a`))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`b`) or (0 <> `test`.`t`.`a`)))
 Warnings:
 SELECT a, b FROM t WHERE 1 = (b OR a);
 a	b
@@ -1114,7 +1114,7 @@ EXPLAIN SELECT * FROM t1 WHERE (a2 AND a2) = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2` from dual where ((NULL and NULL) = 0)
+Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2` from dual where (((0 <> NULL) and (0 <> NULL)) = 0)
 SELECT * FROM t1 WHERE (a2 AND a2) = 0;
 a1	a2
 # Used to get assertion or wrong results.
@@ -1123,7 +1123,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2`,'1' AS `b` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select '0' AS `a1`,NULL AS `a2`,'1' AS `b` from `test`.`t2` where true
 SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 a1	a2	b
 0	NULL	1

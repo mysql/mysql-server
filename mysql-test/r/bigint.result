@@ -566,7 +566,7 @@ SET sql_mode = default;
 #
 DO TRIM(-9223372036854775808) XOR '.D-';
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '.D-'
+Warning	1292	Truncated incorrect DOUBLE value: '.D-'
 DO OCT(-9223372036854775808);
 #
 # Bug#27451113 UBSAN: ITEM_FUNC_MOD::INT_OP

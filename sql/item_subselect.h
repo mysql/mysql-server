@@ -403,6 +403,7 @@ class Item_exists_subselect : public Item_subselect {
     return RES_OK;
   }
   subs_type substype() const override { return EXISTS_SUBS; }
+  bool is_bool_func() const override { return true; }
   void reset() override { value = 0; }
 
   enum Item_result result_type() const override { return INT_RESULT; }

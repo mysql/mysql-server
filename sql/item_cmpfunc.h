@@ -65,6 +65,9 @@ class SELECT_LEX;
 class THD;
 struct MY_BITMAP;
 
+Item *make_condition(Parse_context *pc, Item *item);
+Item *negate_condition(Parse_context *pc, Item *cond);
+
 typedef int (Arg_comparator::*arg_cmp_func)();
 
 class Arg_comparator {
@@ -205,6 +208,59 @@ class Item_bool_func : public Item_int_func {
     should thus be deleted if we switch to materialization.
   */
   bool m_created_by_in2exists;
+};
+
+/**
+  A predicate that is "always true" or "always false". To be used as a
+  standalone condition or as part of conditions, together with other condition
+  and predicate objects.
+  Mostly used when generating conditions internally.
+*/
+class Item_func_bool_const : public Item_bool_func {
+ public:
+  Item_func_bool_const() : Item_bool_func() {
+    max_length = 1;
+    used_tables_cache = 0;
+    not_null_tables_cache = 0;
+    fixed = true;
+  }
+  explicit Item_func_bool_const(const POS &pos) : Item_bool_func(pos) {
+    max_length = 1;
+    used_tables_cache = 0;
+    not_null_tables_cache = 0;
+    fixed = true;
+  }
+  bool fix_fields(THD *, Item **) override { return false; }
+  bool basic_const_item() const override { return true; }
+  void cleanup() override {}
+};
+
+/// A predicate that is "always true".
+
+class Item_func_true : public Item_func_bool_const {
+ public:
+  Item_func_true() : Item_func_bool_const() {}
+  explicit Item_func_true(const POS &pos) : Item_func_bool_const(pos) {}
+  const char *func_name() const override { return "true"; }
+  bool val_bool() override { return true; }
+  longlong val_int() override { return 1; }
+  void print(const THD *, String *str, enum_query_type) const override {
+    str->append("true");
+  }
+};
+
+/// A predicate that is "always false".
+
+class Item_func_false : public Item_func_bool_const {
+ public:
+  Item_func_false() : Item_func_bool_const() {}
+  explicit Item_func_false(const POS &pos) : Item_func_bool_const(pos) {}
+  const char *func_name() const override { return "false"; }
+  bool val_bool() override { return false; }
+  longlong val_int() override { return 0; }
+  void print(const THD *, String *str, enum_query_type) const override {
+    str->append("false");
+  }
 };
 
 /**
@@ -516,6 +572,8 @@ class Item_func_comparison : public Item_bool_func2 {
   Item_cond instead. See WL#5800.
 */
 class Item_func_xor final : public Item_bool_func2 {
+  typedef Item_bool_func2 super;
+
  public:
   Item_func_xor(Item *i1, Item *i2) : Item_bool_func2(i1, i2) {}
   Item_func_xor(const POS &pos, Item *i1, Item *i2)
@@ -523,6 +581,7 @@ class Item_func_xor final : public Item_bool_func2 {
 
   enum Functype functype() const override { return XOR_FUNC; }
   const char *func_name() const override { return "xor"; }
+  bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
   void top_level_item() override {}
   Item *neg_transformer(THD *thd) override;
@@ -551,6 +610,38 @@ class Item_func_not : public Item_bool_func {
                              double rows_in_table) override;
 };
 
+/**
+  Wrapper class when MATCH function is used in WHERE clause.
+  The MATCH clause can be used as a function returning a floating point value
+  in the SELECT list or in the WHERE clause. However, it may also be used as
+  a boolean function in the WHERE clause, where it has different semantics than
+  when used together with a comparison operator. With a comparison operator,
+  the match operation is performed with ranking. To preserve this behavior,
+  the Item_func_match object is wrapped inside an object of class
+  Item_func_match_predicate, which effectively transforms the function into
+  a predicate. The overridden functions implemented in this class generally
+  forward all evaluation to the underlying object.
+*/
+class Item_func_match_predicate : public Item_bool_func {
+ public:
+  Item_func_match_predicate(Item *a) : Item_bool_func(a) {}
+
+  longlong val_int() override { return args[0]->val_int(); }
+  enum Functype functype() const override { return MATCH_FUNC; }
+  const char *func_name() const override { return "match"; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    args[0]->print(thd, str, query_type);
+  }
+
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
+};
 class Item_maxmin_subselect;
 class JOIN;
 
@@ -2001,7 +2092,7 @@ class Item_cond : public Item_bool_func {
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void traverse_cond(Cond_traverser, void *arg, traverse_order order) override;
-  void neg_arguments(THD *thd);
+  bool negate_arguments(THD *thd);
   bool subst_argument_checker(uchar **) override { return true; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;

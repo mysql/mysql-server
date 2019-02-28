@@ -64,7 +64,7 @@ explain select * from t1 where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` where true
 explain select * from t1 ignore key (str) where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
@@ -74,7 +74,7 @@ explain select * from t1 use key (str,str) where str="foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	str	str	41	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` USE INDEX (`str`) USE INDEX (`str`) where 1
+Note	1003	/* select#1 */ select '3' AS `id`,'foo' AS `str` from `test`.`t1` USE INDEX (`str`) USE INDEX (`str`) where true
 explain select * from t1 use key (str,str,foo) where str="foo";
 ERROR 42000: Key 'foo' doesn't exist in table 't1'
 explain select * from t1 ignore key (str,str,foo) where str="foo";
@@ -128,12 +128,12 @@ explain select * from v1 where f2=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `f1`,'1' AS `f2` from dual where true
 explain select * from t1 where 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` where false
 explain select * from t1 where 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -143,7 +143,7 @@ explain select * from t1 having 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` having 0
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`f2` AS `f2` from `test`.`t1` having false
 explain select * from t1 having 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -444,7 +444,7 @@ explain select * from t1 where f1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `f1` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `f1` from dual where true
 explain select * from t1 join t2 on f1=f2 where f1=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -464,7 +464,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and `test`.`t`.`a`)), NULL)
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and (0 <> `test`.`t`.`a`))), NULL)
 DROP TABLE t1, t2;
 #
 # Bug #48573: difference of index selection between rpm binary and
@@ -495,7 +495,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where 1
+Note	1003	/* select#1 */ select 1 AS `1` from dual where true
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
  WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a
@@ -507,14 +507,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where 1
+Note	1003	/* select#1 */ select 1 AS `1` from dual where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where 1
+Note	1003	/* select#1 */ select 1 AS `1` from dual where true
 DEALLOCATE PREPARE stmt;
 PREPARE stmt FROM
 'EXPLAIN SELECT 1 FROM t1
@@ -527,14 +527,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where 1
+Note	1003	/* select#1 */ select 1 AS `1` from dual where true
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	a	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	fulltext	f1	f1	0	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from dual where 1
+Note	1003	/* select#1 */ select 1 AS `1` from dual where true
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
@@ -602,7 +602,7 @@ EXPLAIN SELECT * FROM t1 WHERE url='1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	1	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `url` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `url` from `test`.`t1` where true
 
 # Test that index can't be used for lookup due to type conversion
 # (comparing char and int)
@@ -680,7 +680,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	a1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(0) where 1)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select (@`a`) from `test`.`t1` where 1 having <is_not_null_test>(<cache>((@`a`))))))
+Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(false) where true)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select (@`a`) from `test`.`t1` where true having <is_not_null_test>(<cache>((@`a`))))))
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
 #
@@ -733,13 +733,13 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 1 FOR UPDATE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where true
 START TRANSACTION;
 EXPLAIN SELECT * FROM t1 WHERE c1 = 1 FOR UPDATE;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `c1` from `test`.`t1` where true
 DROP TABLE t1;
 # End of test for Bug#18899860
 # 
@@ -755,7 +755,7 @@ EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2`) where 0
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2`) where false
 
 # Test delete from single-table with subquery and empty outer query block
 DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
@@ -763,6 +763,6 @@ EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
 Warnings:
-Note	1003	delete from `test`.`t1` where 0
+Note	1003	delete from `test`.`t1` where false
 DROP TABLE t1, t2;
 # End of test for Bug#23209903

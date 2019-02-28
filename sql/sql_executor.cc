@@ -7707,12 +7707,13 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
       } else
         item_field = item;
     } else if ((field = item->get_tmp_table_field())) {
-      if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
-        item_field = ((Item_sum *)item)->result_item(field);
-      else
-        item_field = (Item *)new Item_field(field);
-      if (!item_field) DBUG_RETURN(true);  // Fatal error
-
+      if (item->type() == Item::SUM_FUNC_ITEM && field->table->group) {
+        item_field = down_cast<Item_sum *>(item)->result_item(field);
+        DBUG_ASSERT(item_field != nullptr);
+      } else {
+        item_field = new (thd->mem_root) Item_field(field);
+        if (item_field == nullptr) DBUG_RETURN(true);
+      }
       if (item->real_item()->type() != Item::FIELD_ITEM) field->orig_table = 0;
       item_field->item_name = item->item_name;
       if (item->type() == Item::REF_ITEM) {

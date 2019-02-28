@@ -225,7 +225,7 @@ explain select 1 from t1 where id =2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 explain select 1 from t1 where id =2 or id=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where; Using index
@@ -235,7 +235,7 @@ explain select name from t1 where id =2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'b' AS `name` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 'b' AS `name` from `test`.`t1` where true
 ALTER TABLE t1 DROP PRIMARY KEY, ADD INDEX (id);
 explain select 1 from t1 where id =2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -252,7 +252,7 @@ EXPLAIN SELECT numeropost FROM t1 WHERE numreponse='1';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	numreponse	numreponse	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `numeropost` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `numeropost` from `test`.`t1` where true
 FLUSH TABLES;
 SELECT numeropost FROM t1 WHERE numreponse='1';
 numeropost
@@ -627,7 +627,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where 0
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where false
 SELECT 1 as RES FROM t1 AS t1_outer WHERE 
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 RES

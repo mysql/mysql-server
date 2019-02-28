@@ -9,7 +9,7 @@ explain select * from t1 where not(not(a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	90.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (0 <> `test`.`t1`.`a`)
 select * from t1 where not(not(a));
 a
 1
@@ -361,14 +361,14 @@ explain select * from t1 where not(NULL or a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
 select * from t1 where not(NULL or a);
 a
 explain select * from t1 where not(NULL and a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	10.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	a	a	5	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (not(`test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 0)
 select * from t1 where not(NULL and a);
 a
 0
@@ -535,13 +535,13 @@ EXPLAIN SELECT * FROM t1 WHERE NOT ((NOT a) XOR (a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	18.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` xor `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((0 <> `test`.`t1`.`a`) xor (0 <> `test`.`t1`.`a`))
 # Should be simplified to "...WHERE (a XOR a)
 EXPLAIN SELECT * FROM t1 WHERE NOT (a XOR (NOT a));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	21	18.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` xor `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((0 = `test`.`t1`.`a`) xor (0 = `test`.`t1`.`a`))
 # End XOR
 delete from t1 where a > 3;
 select a, not(not(a)) from t1;
@@ -558,5 +558,5 @@ explain select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "1"), not 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	5	80.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(`test`.`t1`.`a` <> 0) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or `test`.`t1`.`a`) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like '1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where `test`.`t1`.`a` having `test`.`t1`.`a`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(0 <> `test`.`t1`.`a`) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or (0 <> `test`.`t1`.`a`)) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like '1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where (0 <> `test`.`t1`.`a`) having (0 <> `test`.`t1`.`a`)
 drop table t1;

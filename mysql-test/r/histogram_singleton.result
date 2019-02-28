@@ -926,12 +926,12 @@ EXPLAIN SELECT * FROM tbl_decimal WHERE col1 > 100000000000000000000000000000000
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where false
 EXPLAIN SELECT * FROM tbl_decimal WHERE 100000000000000000000000000000000000 < col1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where 0
+Note	1003	/* select#1 */ select `test`.`tbl_decimal`.`col1` AS `col1` from `test`.`tbl_decimal` where false
 # Expect "10.0" in column "filtered" (we never estimate 0%)
 EXPLAIN SELECT * FROM tbl_decimal WHERE col1 < -99999999999999999999999999999999999.999999999999999999999999999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

@@ -309,8 +309,8 @@ bool Window::setup_range_expressions(THD *thd) {
           exactly one oe-1 LT (for the one ORDER BY expession allowed for such
           queries).
         */
-        cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
-        inv_cmp = reinterpret_cast<Item_func *>(new Item_int(0, 1));
+        cmp = new Item_func_false();
+        inv_cmp = new Item_func_false();
 
         // Build OR tree from bottom up, so left most expression ends up on top
         for (int i = o->value.elements - 1; i >= 0; i--) {

@@ -6826,17 +6826,21 @@ err:
 bool Item_func_match::eq(const Item *item, bool binary_cmp) const {
   /* We ignore FT_SORTED flag when checking for equality since result is
      equvialent regardless of sorting */
-  if (item->type() != FUNC_ITEM || ((Item_func *)item)->functype() != FT_FUNC ||
-      (flags | FT_SORTED) != (((Item_func_match *)item)->flags | FT_SORTED))
-    return 0;
+  DBUG_ASSERT(item->type() != FUNC_ITEM ||
+              down_cast<const Item_func *>(item)->functype() != MATCH_FUNC);
+  if (item->type() != FUNC_ITEM ||
+      down_cast<const Item_func *>(item)->functype() != FT_FUNC ||
+      (flags | FT_SORTED) !=
+          (down_cast<const Item_func_match *>(item)->flags | FT_SORTED))
+    return false;
 
-  Item_func_match *ifm = (Item_func_match *)item;
+  const Item_func_match *ifm = down_cast<const Item_func_match *>(item);
 
   if (key == ifm->key && table_ref == ifm->table_ref &&
       key_item()->eq(ifm->key_item(), binary_cmp))
-    return 1;
+    return true;
 
-  return 0;
+  return false;
 }
 
 double Item_func_match::val_real() {

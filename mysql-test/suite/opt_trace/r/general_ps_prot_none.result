@@ -1285,7 +1285,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* subselect_execution */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where 0 union /* select#3 */ select 2 from `t6` where 0))",
+            "condition_on_constant_tables": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where false union /* select#3 */ select 2 from `t6` where false))",
             "condition_value": false
           }
         ] /* steps */,
@@ -1311,7 +1311,7 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select length(@trace);
 length(@trace)
-12713
+12721
 set @max_mem_size=13807;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
@@ -1334,7 +1334,7 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-12713	1	1
+12721	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
@@ -5823,7 +5823,7 @@ trace
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having 0"
+            "expanded_query": "/* select#1 */ select `t1`.`a` AS `a`,avg(`t2`.`c`) AS `moyenne` from `t1` join `t2` where (`t2`.`c` > -(1)) group by `t1`.`a` having false"
           }
         ] /* steps */
       } /* join_preparation */
@@ -5855,11 +5855,11 @@ trace
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "0",
+              "original_condition": "false",
               "steps": [
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "0"
+                  "resulting_condition": "false"
                 },
                 {
                   "transformation": "trivial_condition_removal",

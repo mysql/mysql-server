@@ -58,7 +58,7 @@ explain select * from t3 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where true
 # select_type=SIMPLE, type=range
 select * from t3 where c>=-1;
 a	b	c
@@ -613,7 +613,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	subquery2_t3	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	subquery2_t1	NULL	index	NULL	col_date_key	4	NULL	#	#	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`subquery2_t2`.`col_int_key` AS `subquery2_field1` from `test`.`c` `subquery2_t2` left join `test`.`cc` `subquery2_t3` on((`test`.`subquery2_t3`.`col_int_nokey` = `test`.`subquery2_t2`.`col_int_key`)) left join `test`.`c` `subquery2_t1` on((`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`)) where 1 order by `subquery2_field1`
+Note	1003	/* select#1 */ select `test`.`subquery2_t2`.`col_int_key` AS `subquery2_field1` from `test`.`c` `subquery2_t2` left join `test`.`cc` `subquery2_t3` on((`test`.`subquery2_t3`.`col_int_nokey` = `test`.`subquery2_t2`.`col_int_key`)) left join `test`.`c` `subquery2_t1` on((`test`.`subquery2_t3`.`col_varchar_key` = `test`.`subquery2_t2`.`col_varchar_key`)) where true order by `subquery2_field1`
 SELECT subquery2_t2.col_int_key AS subquery2_field1
 FROM (c AS subquery2_t1 RIGHT JOIN
 (c AS subquery2_t2 LEFT JOIN cc AS subquery2_t3 ON
@@ -1127,7 +1127,7 @@ EXPLAIN SELECT * FROM t1 FORCE INDEX(b) WHERE b=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	b	b	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `id`,'3' AS `b` from `test`.`t1` FORCE INDEX (`b`) where 1
+Note	1003	/* select#1 */ select '2' AS `id`,'3' AS `b` from `test`.`t1` FORCE INDEX (`b`) where true
 EXPLAIN SELECT * FROM t1 AS t2 STRAIGHT_JOIN t1 FORCE INDEX(b) WHERE t1.b=t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	b	NULL	NULL	NULL	2	100.00	NULL

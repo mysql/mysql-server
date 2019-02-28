@@ -393,7 +393,7 @@ EXPLAIN DELETE   FROM t1 WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	delete from `test`.`t1` where 0
+Note	1003	delete from `test`.`t1` where false
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -419,7 +419,7 @@ EXPLAIN DELETE   FROM t1 USING t1 WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	delete `test`.`t1` from `test`.`t1` where 0
+Note	1003	delete `test`.`t1` from `test`.`t1` where false
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -555,7 +555,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`) order by `test`.`t1`.`a` limit 1
+Note	1003	delete from `test`.`t1` where (0 <> (@a:=`test`.`t1`.`a`)) order by `test`.`t1`.`a` limit 1
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1816,7 +1816,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	update `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c1`)) set `test`.`t2`.`c2` = 10 where 1
+Note	1003	update `test`.`t1` left join `test`.`t2` on(multiple equal(`test`.`t1`.`c1`, `test`.`t2`.`c1`)) set `test`.`t2`.`c2` = 10 where true
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -1907,7 +1907,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	delete from `test`.`t1` where (@a:=`test`.`t1`.`a`)
+Note	1003	delete from `test`.`t1` where (0 <> (@a:=`test`.`t1`.`a`))
 DROP TABLE t1;
 #56
 CREATE TABLE t1 (a INT);
@@ -2311,7 +2311,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where 1 group by `test`.`t1`.`id`
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where true group by `test`.`t1`.`id`
 DROP TABLE t1,t2;
 #74
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;

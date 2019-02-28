@@ -4737,6 +4737,62 @@ Item_cond::Item_cond(THD *thd, Item_cond *item)
 }
 
 /**
+  Ensure that all expressions involved in conditions are boolean functions.
+  Specifically, change <non-bool-expr> to (0 <> <non-bool-expr>)
+
+  @param pc    Parse context, including memroot for Item construction
+  @param item  Any expression, if not a boolean expression, convert it
+
+  @returns = NULL  Error
+           <> NULL A boolean expression, possibly constructed as described above
+
+  @note Due to the special conditions of a MATCH expression (it is both a
+        function returning a floating point value and it may be used
+        standalone in the WHERE clause), it is wrapped inside a special
+        Item_func_match_predicate, instead of forming a non-equality.
+*/
+Item *make_condition(Parse_context *pc, Item *item) {
+  DBUG_ASSERT(!item->is_bool_func());
+
+  Item *predicate;
+  if (item->type() != Item::FUNC_ITEM ||
+      down_cast<Item_func *>(item)->functype() != Item_func::FT_FUNC) {
+    Item *const item_zero = new (pc->mem_root) Item_int(0);
+    if (item_zero == nullptr) return nullptr;
+    predicate = new (pc->mem_root) Item_func_ne(item_zero, item);
+  } else {
+    predicate = new (pc->mem_root) Item_func_match_predicate(item);
+  }
+  return predicate;
+}
+
+/**
+  Negate given expression, which is possibly an incomplete predicate
+
+  @param pc   current parse context
+  @param expr expression to be negated
+
+  @returns the negated expression, or NULL if error
+*/
+
+Item *negate_condition(Parse_context *pc, Item *expr) {
+  // Ensure that all incomplete predicates are made complete:
+  if (!expr->is_bool_func()) expr = make_condition(pc, expr);
+  Item_func *func;
+  if (expr->type() == Item::FUNC_ITEM &&
+      (func = down_cast<Item_func *>(expr)) &&
+      func->functype() == Item_func::NOT_FUNC) {
+    // Condition is NOT (NOT <simple_condition>)
+    DBUG_ASSERT(func->arguments()[0]->is_bool_func());
+    return func->arguments()[0];
+  }
+
+  Item *negated = expr->neg_transformer(pc->thd);
+  if (negated != nullptr) return negated;
+  return new (pc->mem_root) Item_func_not(expr);
+}
+
+/**
   Contextualization for Item_cond functional items
 
   Item_cond successors use Item_cond::list instead of Item_func::args
@@ -4753,6 +4809,10 @@ bool Item_cond::itemize(Parse_context *pc, Item **res) {
   Item *item;
   while ((item = li++)) {
     if (item->itemize(pc, &item)) return true;
+    if (!item->is_bool_func()) {
+      item = make_condition(pc, item);
+      if (item == nullptr) return true;
+    }
     li.replace(item);
   }
   return false;
@@ -4969,15 +5029,15 @@ bool Item_cond::remove_const_conds(THD *thd, Item *item, Item **new_item) {
   if (cond_value) {
     if (!and_condition || (argument_list()->elements == 1)) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
-      *new_item = new Item_int(1LL, 1);
-      if (*new_item == NULL) return true;
+      *new_item = new Item_func_true();
+      if (*new_item == nullptr) return true;
     }
     return false;
   } else {
     if (and_condition || (argument_list()->elements == 1)) {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
-      *new_item = new Item_int(0LL, 1);
-      if (*new_item == NULL) return true;
+      *new_item = new Item_func_false();
+      if (*new_item == nullptr) return true;
     }
     return false;
   }
@@ -5174,17 +5234,18 @@ void Item_cond::print(const THD *thd, String *str,
   str->append(')');
 }
 
-void Item_cond::neg_arguments(THD *thd) {
+bool Item_cond::negate_arguments(THD *thd) {
   List_iterator<Item> li(list);
   Item *item;
   while ((item = li++)) /* Apply not transformation to the arguments */
   {
     Item *new_item = item->neg_transformer(thd);
     if (!new_item) {
-      if (!(new_item = new Item_func_not(item))) return;  // Fatal OEM error
+      if (!(new_item = new Item_func_not(item))) return true;
     }
-    (void)li.replace(new_item);
+    li.replace(new_item);
   }
+  return false;
 }
 
 float Item_cond_and::get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -5658,6 +5719,21 @@ bool Item_func_like::eval_escape_clause(THD *thd) {
   return false;
 }
 
+bool Item_func_xor::itemize(Parse_context *pc, Item **res) {
+  if (skip_itemize(res)) return false;
+  if (super::itemize(pc, res)) return true;
+
+  if (!args[0]->is_bool_func()) {
+    args[0] = make_condition(pc, args[0]);
+    if (args[0] == nullptr) return true;
+  }
+  if (!args[1]->is_bool_func()) {
+    args[1] = make_condition(pc, args[1]);
+    if (args[1] == nullptr) return true;
+  }
+
+  return false;
+}
 float Item_func_xor::get_filtering_effect(THD *thd, table_map filter_for_table,
                                           table_map read_tables,
                                           const MY_BITMAP *fields_to_ignore,
@@ -5734,7 +5810,7 @@ longlong Item_func_xor::val_int() {
     NULL if we cannot apply NOT transformation (see Item::neg_transformer()).
 */
 
-Item *Item_func_not::neg_transformer(THD *) /* NOT(x)  ->  x */
+Item *Item_func_not::neg_transformer(THD *)  // NOT(x)  ->  x
 {
   return args[0];
 }
@@ -5757,10 +5833,10 @@ Item *Item_func_xor::neg_transformer(THD *thd) {
   Item *neg_operand;
   Item_func_xor *new_item;
   if ((neg_operand = args[0]->neg_transformer(thd)))
-    // args[0] has neg_tranformer
+    // args[0] has neg_transformer
     new_item = new (thd->mem_root) Item_func_xor(neg_operand, args[1]);
   else if ((neg_operand = args[1]->neg_transformer(thd)))
-    // args[1] has neg_tranformer
+    // args[1] has neg_transformer
     new_item = new (thd->mem_root) Item_func_xor(args[0], neg_operand);
   else {
     neg_operand = new (thd->mem_root) Item_func_not(args[0]);
@@ -5785,26 +5861,26 @@ Item *Item_func_isnotnull::neg_transformer(THD *) {
   return item;
 }
 
-Item *Item_cond_and::neg_transformer(THD *thd) /* NOT(a AND b AND ...)  -> */
-                                               /* NOT a OR NOT b OR ... */
+Item *Item_cond_and::neg_transformer(THD *thd)  // NOT(a AND b AND ...) ->
+                                                // NOT a OR NOT b OR ...
 {
-  neg_arguments(thd);
+  if (negate_arguments(thd)) return nullptr;
   Item *item = new Item_cond_or(list);
   return item;
 }
 
-Item *Item_cond_or::neg_transformer(THD *thd) /* NOT(a OR b OR ...)  -> */
-                                              /* NOT a AND NOT b AND ... */
+Item *Item_cond_or::neg_transformer(THD *thd)  // NOT(a OR b OR ...) ->
+                                               // NOT a AND NOT b AND ...
 {
-  neg_arguments(thd);
+  if (negate_arguments(thd)) return nullptr;
   Item *item = new Item_cond_and(list);
   return item;
 }
 
 Item *Item_func_nop_all::neg_transformer(THD *) {
-  /* "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...) */
+  // "NOT (e $cmp$ ANY (SELECT ...)) -> e $rev_cmp$" ALL (SELECT ...)
   Item_func_not_all *new_item = new Item_func_not_all(args[0]);
-  Item_allany_subselect *allany = (Item_allany_subselect *)args[0];
+  Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
   allany->func = allany->func_creator(false);
   allany->all = !allany->all;
   allany->upper_item = new_item;
@@ -5812,9 +5888,9 @@ Item *Item_func_nop_all::neg_transformer(THD *) {
 }
 
 Item *Item_func_not_all::neg_transformer(THD *) {
-  /* "NOT (e $cmp$ ALL (SELECT ...)) -> e $rev_cmp$" ANY (SELECT ...) */
+  // "NOT (e $cmp$ ALL (SELECT ...)) -> e $rev_cmp$" ANY (SELECT ...)
   Item_func_nop_all *new_item = new Item_func_nop_all(args[0]);
-  Item_allany_subselect *allany = (Item_allany_subselect *)args[0];
+  Item_allany_subselect *allany = down_cast<Item_allany_subselect *>(args[0]);
   allany->all = !allany->all;
   allany->func = allany->func_creator(true);
   allany->upper_item = new_item;

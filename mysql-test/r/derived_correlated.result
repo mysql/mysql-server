@@ -19,7 +19,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from `test`.`t1` `t2` where 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from `test`.`t1` `t2` where true))
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
@@ -36,7 +36,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where true
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select 42) dt1))dt3)dt4);
@@ -1486,7 +1486,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where true
 flush status;
 SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
 JOIN LATERAL (SELECT t12a) dt;
@@ -1539,7 +1539,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 6	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (/* select#2 */ select count(0) from (/* select#3 */ select `dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))) `dt3`) `dt4`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (0 <> (/* select#2 */ select count(0) from (/* select#3 */ select `dt3`.`a` AS `a`,`dt3`.`b` AS `b` from (/* select#4 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t2` where (2 = (/* select#5 */ select 2 from (/* select#6 */ select `test`.`t1`.`a` AS `a`) `dt1`))) `dt3`) `dt4`))
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select t1.a) dt1))dt3)dt4);
@@ -1558,7 +1558,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	<derived6>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 6	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where true
 select * from t1 where
 (select count(*) from (select * from (select * from t1 t2
 where 2=(select 2 from (select 42) dt1))dt3)dt4);
@@ -1840,7 +1840,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where 1 having 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))))))
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 a	b
@@ -3057,7 +3057,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t12.t12a' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where 1
+Note	1003	/* select#1 */ select `test`.`t11`.`t11a` AS `t11a`,`test`.`t11`.`t11b` AS `t11b`,`test`.`t12`.`t12a` AS `t12a`,`test`.`t12`.`t12b` AS `t12b`,`dt`.`t12a` AS `t12a` from `test`.`t11` left join `test`.`t12` FORCE INDEX (`idx`) on((`test`.`t12`.`t12b` = `test`.`t11`.`t11b`)) join lateral (/* select#2 */ select `test`.`t12`.`t12a` AS `t12a`) `dt` where true
 flush status;
 SELECT * FROM t11 LEFT JOIN t12 force index (idx) ON t12.t12b = t11.t11b
 JOIN LATERAL (SELECT t12a) dt;

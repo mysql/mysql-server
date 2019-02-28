@@ -1959,7 +1959,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
-  `b` int(11) GENERATED ALWAYS AS ((`a` xor 5)) VIRTUAL
+  `b` int(11) GENERATED ALWAYS AS (((0 <> `a`) xor (0 <> 5))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values (0,default);
 insert into t1 values (1,default);

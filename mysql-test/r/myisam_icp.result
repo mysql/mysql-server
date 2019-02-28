@@ -562,7 +562,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where 0 order by `test`.`t1`.`c2`
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where false order by `test`.`t1`.`c2`
 SELECT t1.c1
 FROM t1
 WHERE t1.pk < 317 AND 2 IN (SELECT COUNT(t2.c1)
@@ -600,7 +600,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.c1' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `i1` from dual where 1
+Note	1003	/* select#1 */ select '2' AS `i1` from dual where true
 SELECT i1
 FROM t1
 WHERE EXISTS (SELECT t2.c1
@@ -716,7 +716,7 @@ Warnings:
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_int' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1a`.`t1_int` AS `t1_int`,`test`.`t1a`.`t1_time` AS `t1_time` from `test`.`t1` `t1a` where 0
+Note	1003	/* select#1 */ select `test`.`t1a`.`t1_int` AS `t1_int`,`test`.`t1a`.`t1_time` AS `t1_time` from `test`.`t1` `t1a` where false
 
 DROP TABLE t1,t2;
 #
@@ -895,7 +895,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`i1` AS `i1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`c1` > NULL) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c1`) or (`test`.`t1`.`c1` is null)), true) and ('8' >= `test`.`t1`.`i1`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`c1`), true))) xor `test`.`t3`.`i1`)
+Note	1003	/* select#1 */ select `test`.`t3`.`i1` AS `i1` from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`c1`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`c1` > NULL) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t3`.`c1`) = `test`.`t1`.`c1`) or (`test`.`t1`.`c1` is null)), true) and ('8' >= `test`.`t1`.`i1`)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`c1`), true))) xor (0 <> `test`.`t3`.`i1`))
 SELECT i1
 FROM t3
 WHERE c1 IN
@@ -929,7 +929,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '23' AS `pk` from dual where 0
+Note	1003	/* select#1 */ select '23' AS `pk` from dual where false
 SELECT a1.pk 
 FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM t1 LIMIT 1) 
@@ -945,7 +945,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DERIVED	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '23' AS `pk` from dual where 0
+Note	1003	/* select#1 */ select '23' AS `pk` from dual where false
 SELECT a1.pk 
 FROM v1 AS a1 JOIN (SELECT * FROM v1 LIMIT 1) AS a2 ON a2.b = a1.b
 WHERE a1.a = (SELECT pk FROM v1 LIMIT 1) 
@@ -973,7 +973,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	alias1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	alias2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias2`.`i1` AS `i1` from `test`.`t1` `alias1` straight_join `test`.`t1` `alias2` where ((`test`.`alias2`.`pk` = 1) and `test`.`alias2`.`pk` and (`test`.`alias2`.`pk` <= `test`.`alias1`.`c1`))
+Note	1003	/* select#1 */ select `test`.`alias2`.`i1` AS `i1` from `test`.`t1` `alias1` straight_join `test`.`t1` `alias2` where ((`test`.`alias2`.`pk` = 1) and (`test`.`alias2`.`pk` <= `test`.`alias1`.`c1`))
 SELECT alias2.i1
 FROM t1 AS alias1 STRAIGHT_JOIN t1 AS alias2
 ON alias2.pk AND alias2.pk <= alias1.c1
@@ -1005,7 +1005,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	index	NULL	k1	9	NULL	3	100.00	Using index
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`d1` AS `d1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`pk` = 4) and (`test`.`t2`.`pk` <> `test`.`t1`.`d1`) and `test`.`t2`.`i1`)
+Note	1003	/* select#1 */ select `test`.`t1`.`d1` AS `d1`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t2` where ((`test`.`t2`.`pk` = 4) and (`test`.`t2`.`pk` <> `test`.`t1`.`d1`) and (0 <> `test`.`t2`.`i1`))
 SELECT t1.d1, t2.pk, t2.i1
 FROM t1 STRAIGHT_JOIN t2 ON t2.i1
 WHERE t2.pk <> t1.d1 AND t2.pk = 4;
@@ -1040,7 +1040,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	range	col_int_key	col_int_key	5	NULL	6	33.33	Using index condition; Using where
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_int_key` AS `field1` from `test`.`t2` USE INDEX (`col_int_key`) straight_join `test`.`t1` where ((`test`.`t2`.`pk` < 7) and (`test`.`t2`.`col_int_key` <> 7) and `test`.`t2`.`col_int_key`) group by `field1`
+Note	1003	/* select#1 */ select `test`.`t2`.`col_int_key` AS `field1` from `test`.`t2` USE INDEX (`col_int_key`) straight_join `test`.`t1` where ((`test`.`t2`.`pk` < 7) and (`test`.`t2`.`col_int_key` <> 7) and (0 <> `test`.`t2`.`col_int_key`)) group by `field1`
 SELECT t2.col_int_key AS field1
 FROM t2 USE INDEX(col_int_key) STRAIGHT_JOIN t1 ON t2.col_int_key
 WHERE t2.pk < 7 AND t2.col_int_key <> 7

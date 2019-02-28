@@ -45,6 +45,7 @@
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
 #include "sql/item.h"
+#include "sql/item_cmpfunc.h"  // make_condition
 #include "sql/item_func.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"
@@ -725,6 +726,10 @@ class PT_joined_table_on : public PT_joined_table {
     sel->parsing_place = CTX_ON;
 
     if (super::contextualize(pc) || on->itemize(pc, &on)) return true;
+    if (!on->is_bool_func()) {
+      on = make_condition(pc, on);
+      if (on == nullptr) return true;
+    }
     DBUG_ASSERT(sel == pc->select);
 
     add_join_on(this->tr2, on);

@@ -596,7 +596,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where 1)
+Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true) union (/* select#2 */ select '1' AS `a`,'10' AS `b` from `test`.`t2` where true)
 (select * from t1 where a=5) union (select * from t2 where a=1);
 a	b
 1	10
@@ -619,14 +619,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	UNION	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	#	100.00	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 0) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
+Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where false) union (/* select#2 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`))
 explain (select * from t1 where a=1) union (select * from t1 where b=1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	const	PRIMARY	PRIMARY	4	const	#	#	NULL
 2	UNION	t1	NULL	ref	b	b	5	const	#	#	Using index
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where 1) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
+Note	1003	(/* select#1 */ select '1' AS `a`,'1' AS `b` from `test`.`t1` where true) union (/* select#2 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`b` = 1))
 drop table t1,t2;
 create table `groups` (id int not null auto_increment, primary key (id) ,user_name text );
 create table users (id int not null auto_increment, primary key (id) ,group_name text );

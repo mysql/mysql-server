@@ -161,12 +161,12 @@ EXPLAIN SELECT a FROM t1 GROUP BY a HAVING 1 != 1 AND a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having false
 EXPLAIN SELECT 0 AS x, a FROM t1 GROUP BY x,a HAVING x=1 AND a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING
 Warnings:
-Note	1003	/* select#1 */ select 0 AS `x`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `x`,`test`.`t1`.`a` having 0
+Note	1003	/* select#1 */ select 0 AS `x`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `x`,`test`.`t1`.`a` having false
 DROP table t1;
 CREATE TABLE t1 (a int PRIMARY KEY);
 CREATE TABLE t2 (b int PRIMARY KEY, a int);
@@ -475,7 +475,7 @@ HAVING (table2.f2 = 8 AND table1.f1 >= 6);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having false
 EXPLAIN
 SELECT table1.f1, table2.f2
 FROM t1 AS table1
@@ -486,7 +486,7 @@ HAVING (table2.f2 = 8);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having 0
+Note	1003	/* select#1 */ select `test`.`table1`.`f1` AS `f1`,'7' AS `f2` from `test`.`t1` `table1` join `test`.`t1` `table2` where ((`test`.`table1`.`f3` = '9')) group by `test`.`table1`.`f1`,'7' having false
 DROP TABLE t1;
 #
 # Bug#52336 Segfault / crash in 5.1 copy_fields (param=0x9872980) at sql_select.cc:15355
@@ -532,7 +532,7 @@ ORDER BY t1.f2;
 MAX(t2.f2)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
 DROP TABLE t1,t2;
 End of 5.0 tests
 #
@@ -892,7 +892,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1` from `test`.`t1` where false
 SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
 c1
 INSERT INTO t1 VALUES(1);

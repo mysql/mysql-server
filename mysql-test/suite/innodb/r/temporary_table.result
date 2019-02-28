@@ -48,7 +48,7 @@ explain select * from t1 where i = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	pri_index	pri_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '100' AS `i`,'1.1' AS `f`,'pune' AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '100' AS `i`,'1.1' AS `f`,'pune' AS `c` from `test`.`t1` where true
 select * from t1 where i = 100;
 i	f	c
 100	1.1	pune
@@ -149,7 +149,7 @@ explain select * from t1 where i = 100;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	pri_index	pri_index	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '100' AS `i`,'1.1' AS `f`,'pune' AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '100' AS `i`,'1.1' AS `f`,'pune' AS `c` from `test`.`t1` where true
 select * from t1 where i = 100;
 i	f	c
 100	1.1	pune

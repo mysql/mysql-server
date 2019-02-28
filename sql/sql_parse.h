@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,6 @@ void add_join_on(TABLE_LIST *b, Item *expr);
 bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,
                                       TABLE_LIST *right_op);
 void init_sql_command_flags(void);
-Item *negate_expression(Parse_context *pc, Item *expr);
 const CHARSET_INFO *get_bin_collation(const CHARSET_INFO *cs);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level);

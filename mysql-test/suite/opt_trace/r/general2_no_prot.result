@@ -715,7 +715,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having 1 order by `test`.`t1`.`f2`
+Note	1003	/* select#1 */ select `test`.`t1`.`f2` AS `f2` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`f2` = `test`.`t3`.`f2`) having true order by `test`.`t1`.`f2`
 SELECT t1.f2 FROM t1
 STRAIGHT_JOIN (t2 JOIN t3 ON t3.f2  = t2.f2  ) ON t3 .f2  = t2 .f2
 HAVING ('v', 'i') NOT IN (SELECT f2, MIN(f2) FROM t1)
@@ -2684,12 +2684,12 @@ table3.col_varchar_10_utf8_key	{
             ] /* considered_execution_plans */
           },
           {
-            "condition_on_constant_tables": "1",
+            "condition_on_constant_tables": "true",
             "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "1",
+              "original_condition": "true",
               "attached_conditions_computation": [
                 {
                   "table": "`t2` `table3`",
@@ -4830,12 +4830,12 @@ link_alias_148._field_156	{
             ] /* considered_execution_plans */
           },
           {
-            "condition_on_constant_tables": "1",
+            "condition_on_constant_tables": "true",
             "condition_value": true
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "1",
+              "original_condition": "true",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
@@ -5052,7 +5052,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from (`t1` `alias1` straight_join `t2` `alias2` on((`alias2`.`pk` = `alias1`.`col_int_key`))) where `alias1`.`pk` group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
+            "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from (`t1` `alias1` straight_join `t2` `alias2` on((`alias2`.`pk` = `alias1`.`col_int_key`))) where (0 <> `alias1`.`pk`) group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
           },
           {
             "transformations_to_nested_joins": {
@@ -5060,7 +5060,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from `t1` `alias1` straight_join `t2` `alias2` where (`alias1`.`pk` and (`alias2`.`pk` = `alias1`.`col_int_key`)) group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
+              "expanded_query": "/* select#1 */ select sum(`alias2`.`col_varchar_nokey`) AS `SUM(alias2.col_varchar_nokey)`,`alias2`.`pk` AS `field2` from `t1` `alias1` straight_join `t2` `alias2` where ((0 <> `alias1`.`pk`) and (`alias2`.`pk` = `alias1`.`col_int_key`)) group by `field2` order by `alias1`.`col_int_key`,`alias2`.`pk`"
             } /* transformations_to_nested_joins */
           },
           {
@@ -5084,19 +5084,19 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(`alias1`.`pk` and (`alias2`.`pk` = `alias1`.`col_int_key`))",
+              "original_condition": "((0 <> `alias1`.`pk`) and (`alias2`.`pk` = `alias1`.`col_int_key`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "(`alias1`.`pk` and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
+                  "resulting_condition": "((0 <> `alias1`.`pk`) and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "(`alias1`.`pk` and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
+                  "resulting_condition": "((0 <> `alias1`.`pk`) and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "(`alias1`.`pk` and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
+                  "resulting_condition": "((0 <> `alias1`.`pk`) and multiple equal(`alias2`.`pk`, `alias1`.`col_int_key`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5242,13 +5242,13 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`alias2`.`pk` = `alias1`.`col_int_key`) and `alias1`.`pk`)",
+              "original_condition": "((`alias2`.`pk` = `alias1`.`col_int_key`) and (0 <> `alias1`.`pk`))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1` `alias1`",
-                  "attached": "(`alias1`.`pk` and (`alias1`.`col_int_key` is not null))"
+                  "attached": "((0 <> `alias1`.`pk`) and (`alias1`.`col_int_key` is not null))"
                 },
                 {
                   "table": "`t2` `alias2`",
@@ -5289,8 +5289,8 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
             "finalizing_table_conditions": [
               {
                 "table": "`t1` `alias1`",
-                "original_table_condition": "(`alias1`.`pk` and (`alias1`.`col_int_key` is not null))",
-                "final_table_condition   ": "(`alias1`.`pk` and (`alias1`.`col_int_key` is not null))"
+                "original_table_condition": "((0 <> `alias1`.`pk`) and (`alias1`.`col_int_key` is not null))",
+                "final_table_condition   ": "((0 <> `alias1`.`pk`) and (`alias1`.`col_int_key` is not null))"
               },
               {
                 "table": "`t2` `alias2`",

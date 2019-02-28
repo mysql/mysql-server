@@ -695,7 +695,7 @@ AND file_code = '0000000115' LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY,files	PRIMARY	131	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where 1 limit 1
+Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where true limit 1
 DROP TABLE t2, t1;
 create table t1 (x int, y int, index xy(x, y));
 create table t2 (x int, y int, index xy(x, y));
@@ -2321,7 +2321,7 @@ t2 WHERE b SOUNDS LIKE e AND d = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`e` AS `e`,`test`.`t1`.`a` AS `a` from `test`.`t2` left join `test`.`t1` on(1) where ((soundex(`test`.`t2`.`b`) = soundex(`test`.`t2`.`e`)) and multiple equal(1, `test`.`t2`.`d`))
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`e` AS `e`,`test`.`t1`.`a` AS `a` from `test`.`t2` left join `test`.`t1` on(true) where ((soundex(`test`.`t2`.`b`) = soundex(`test`.`t2`.`e`)) and multiple equal(1, `test`.`t2`.`d`))
 DROP TABLE t2, t1;
 #
 # Bug#46339 - crash on REPAIR TABLE merge table USE_FRM

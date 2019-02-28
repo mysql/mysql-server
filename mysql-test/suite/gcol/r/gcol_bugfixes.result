@@ -413,7 +413,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where 0
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where false
 SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
 1
 EXPLAIN SELECT (SELECT MAX(c) FROM v);
@@ -535,7 +535,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
-  `c` char(2) GENERATED ALWAYS AS ((`a` or `b`)) VIRTUAL
+  `c` char(2) GENERATED ALWAYS AS (((0 <> `a`) or (0 <> `b`))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;

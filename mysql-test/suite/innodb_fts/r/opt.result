@@ -1443,7 +1443,7 @@ EXPLAIN SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ("data*" IN B
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	FTS_DOC_ID_INDEX	8	NULL	15	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('data*' in boolean mode)) * 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where (0 <> ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('data*' in boolean mode)) * 100))
 SELECT FTS_DOC_ID, MATCH(title, text) AGAINST ("data*" IN BOOLEAN MODE) * 100
 FROM t1 WHERE MATCH(title, text) AGAINST ("data*" IN BOOLEAN MODE) * 100;
 FTS_DOC_ID	MATCH(title, text) AGAINST ("data*" IN BOOLEAN MODE) * 100
@@ -1466,7 +1466,7 @@ EXPLAIN SELECT DOC_ID FROM t2 WHERE MATCH(title, text) AGAINST ('+database' IN B
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	15	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`doc_id` AS `DOC_ID` from `test`.`t2` where ((match `test`.`t2`.`title`,`test`.`t2`.`text` against ('+database' in boolean mode)) * 100)
+Note	1003	/* select#1 */ select `test`.`t2`.`doc_id` AS `DOC_ID` from `test`.`t2` where (0 <> ((match `test`.`t2`.`title`,`test`.`t2`.`text` against ('+database' in boolean mode)) * 100))
 SELECT DOC_ID FROM t2 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
 DOC_ID
 1
@@ -1479,7 +1479,7 @@ EXPLAIN SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	FTS_DOC_ID_INDEX	8	NULL	15	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) * 100)
+Note	1003	/* select#1 */ select `test`.`t1`.`FTS_DOC_ID` AS `FTS_DOC_ID` from `test`.`t1` where (0 <> ((match `test`.`t1`.`title`,`test`.`t1`.`text` against ('+database' in boolean mode)) * 100))
 SELECT FTS_DOC_ID FROM t1 WHERE MATCH(title, text) AGAINST ('+database' IN BOOLEAN MODE) * 100;
 FTS_DOC_ID
 1

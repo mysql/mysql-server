@@ -1747,7 +1747,7 @@ t1	CREATE TABLE `t1` (
   `mlnstr` multilinestring DEFAULT NULL,
   `poly` polygon DEFAULT NULL,
   `mpoly` multipolygon DEFAULT NULL,
-  CONSTRAINT `t1_chk_1` CHECK ((st_equals(`pt`,st_geomfromtext(_utf8mb4'POINT(10 20)')) = TRUE)),
+  CONSTRAINT `t1_chk_1` CHECK ((st_equals(`pt`,st_geomfromtext(_utf8mb4'POINT(10 20)')) = true)),
   CONSTRAINT `t1_chk_2` CHECK (st_equals(`lnstr`,st_geomfromtext(_utf8mb4'LINESTRING(0 0,5 5,6 6)'))),
   CONSTRAINT `t1_chk_3` CHECK (st_equals(`mlnstr`,st_geomfromtext(_utf8mb4'MULTILINESTRING((0 0,2 3,4 5),\n                                                                  (6 6,8 8,9 9,10 10))'))),
   CONSTRAINT `t1_chk_4` CHECK (st_equals(`poly`,st_geomfromtext(_utf8mb4'POLYGON((0 0,6 7,8 8,3 9,0 0),\n                                                     (3 6,4 6,4 7,3 6))'))),
@@ -1839,7 +1839,7 @@ DROP TABLE t1;
 # and Operators
 #-----------------------------------------------------------------------
 CREATE TABLE t1(c1 INT, CHECK ( c1 IN ( SELECT COALESCE(NULL, 1, 1))));
-ERROR HY000: An expression of non-boolean type specified to a check constraint 't1_chk_1'.
+ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
 CREATE TABLE t1(c1 INT, CHECK ( c1 < ( SELECT COALESCE(NULL, 1, 1))));
 ERROR HY000: An expression of a check constraint 't1_chk_1' contains disallowed function.
 CREATE TABLE t1(c1 INT , CHECK ( c1 <=> NULL ));

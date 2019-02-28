@@ -182,7 +182,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and sum(`test`.`t1`.`k`))) = 'XXX') AS `(SELECT 'X' FROM t2
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and (0 <> sum(`test`.`t1`.`k`)))) = 'XXX') AS `(SELECT 'X' FROM t2
 WHERE t2.k = CONCAT(t1.k, 'X')
 AND SUM(t1.k)) = 'XXX'` from `test`.`t1`
 SELECT (SELECT 'X' FROM t2
@@ -290,7 +290,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and sum(`test`.`t1`.`k`))) = 'XXX') AS `(SELECT 'X' FROM t2
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and (0 <> sum(`test`.`t1`.`k`)))) = 'XXX') AS `(SELECT 'X' FROM t2
 WHERE t2.k = CONCAT(t1.k, 'X')
 AND SUM(t1.k)) = 'XXX'` from `test`.`t1`
 SELECT (SELECT 'X' FROM t2
@@ -487,7 +487,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	MATERIALIZED	alias2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 2	MATERIALIZED	alias1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`cv` AS `cv` from `test`.`t1` semi join (`test`.`t1` `alias2` left join `test`.`t1` `alias1` on((`test`.`alias1`.`cv` = `test`.`alias2`.`cv`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`cv` AS `cv` from `test`.`t1` semi join (`test`.`t1` `alias2` left join `test`.`t1` `alias1` on((`test`.`alias1`.`cv` = `test`.`alias2`.`cv`))) where true
 SELECT cv
 FROM t1
 WHERE EXISTS (SELECT alias1.cv AS field1

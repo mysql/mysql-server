@@ -39,7 +39,7 @@ explain select * from t2 where c=-1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	system	c	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from dual where true
 # select_type=SIMPLE, type=ALL
 select * from t1 where b=-1;
 a	b	c
@@ -58,7 +58,7 @@ explain select * from t3 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'-1' AS `b`,'-1' AS `c` from `test`.`t3` where true
 # select_type=SIMPLE, type=range
 select * from t3 where c>=-1;
 a	b	c

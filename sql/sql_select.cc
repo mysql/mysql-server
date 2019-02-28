@@ -1961,7 +1961,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
   /* Calculate the length of the used key. */
   if (ftkey) {
-    Item_func_match *ifm = (Item_func_match *)keyuse->val;
+    Item_func_match *ifm = down_cast<Item_func_match *>(keyuse->val);
 
     length = 0;
     keyparts = 1;
@@ -1999,7 +1999,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     if (keyuse->used_tables) DBUG_RETURN(true);  // not supported yet. SerG
 
     j->set_type(JT_FT);
-    j->set_ft_func((Item_func_match *)keyuse->val);
+    j->set_ft_func(down_cast<Item_func_match *>(keyuse->val));
     memset(j->ref().key_copy, 0, sizeof(j->ref().key_copy[0]) * keyparts);
   } else {
     // Set up TABLE_REF based on chosen Key_use-s.

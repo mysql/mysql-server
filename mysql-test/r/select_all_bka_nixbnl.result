@@ -655,7 +655,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	fld1	fld1	4	const	1	100.00	NULL
 1	SIMPLE	t3	NULL	const	PRIMARY,period	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select 'breaking' AS `fld3`,'1001' AS `period` from `test`.`t2` join `test`.`t3` where true
 select fld3,period from t2,t1 where companynr*10 = 37*10;
 fld3	period
 breaking	9410
@@ -1405,12 +1405,12 @@ explain select companynr,companyname from t2 left join t4 using (companynr) wher
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on(multiple equal(`test`.`t2`.`companynr`, `test`.`t4`.`companynr`)) where 0
+Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on(multiple equal(`test`.`t2`.`companynr`, `test`.`t4`.`companynr`)) where false
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on(multiple equal(`test`.`t4`.`companynr`, `test`.`t2`.`companynr`)) where 0
+Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on(multiple equal(`test`.`t4`.`companynr`, `test`.`t2`.`companynr`)) where false
 delete from t2 where fld1=999999;
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -2014,12 +2014,12 @@ explain select fld3 from t2 where 1>2 or 2>3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 0
+Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where false
 explain select fld3 from t2 where fld1=fld1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1199	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where 1
+Note	1003	/* select#1 */ select `test`.`t2`.`fld3` AS `fld3` from `test`.`t2` where true
 select companynr,fld1 from t2 HAVING fld1=250501 or fld1=250502;
 companynr	fld1
 34	250501
@@ -2468,7 +2468,7 @@ EXPLAIN SELECT i FROM t1 WHERE i=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `i` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `i` from `test`.`t1` where true
 DROP TABLE t1;
 CREATE TABLE t1 ( a BLOB, INDEX (a(20)) );
 CREATE TABLE t2 ( a BLOB, INDEX (a(20)) );
@@ -2479,13 +2479,13 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` USE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 EXPLAIN SELECT * FROM t1 LEFT JOIN t2 FORCE INDEX (a) ON t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	a	a	23	test.t1.a	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` left join `test`.`t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 DROP TABLE t1, t2;
 CREATE TABLE t1 ( city char(30) ) charset utf8mb4;
 INSERT INTO t1 VALUES ('London');
@@ -3475,7 +3475,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where true
 SELECT t2.key_a,foo 
 FROM t1 INNER JOIN t2 ON t2.key_a = t1.key_a
 INNER JOIN t3 ON t1.key_a = t3.key_a
@@ -3491,7 +3491,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 1	SIMPLE	t3	NULL	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where 1
+Note	1003	/* select#1 */ select '2' AS `key_a`,'xx' AS `foo` from `test`.`t1` join `test`.`t2` join `test`.`t3` where true
 DROP TABLE t1,t2,t3;
 create  table t1 (f1 int);
 insert into t1 values(1),(2);
@@ -3736,7 +3736,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	t2	NULL	const	b	b	82	const	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select '3' AS `a` from `test`.`t1` left join `test`.`t2` on(multiple equal('c', 'c')) where 1
+Note	1003	/* select#1 */ select '3' AS `a` from `test`.`t1` left join `test`.`t2` on(multiple equal('c', 'c')) where true
 DROP TABLE t1,t2;
 CREATE TABLE t1(id int PRIMARY KEY, b int, e int);
 CREATE TABLE t2(i int, a int, INDEX si(i), INDEX ai(a));
@@ -4041,7 +4041,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 aa	aa	2
@@ -4123,7 +4123,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ref	name	name	6	test.t1.name	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`name` AS `name`,`test`.`t2`.`name` AS `name`,`test`.`t2`.`n` AS `n` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`name` = `test`.`t1`.`name`)) where true
 SELECT * FROM t1 LEFT JOIN t2 ON t1.name=t2.name;
 name	name	n
 aa	aa	2
@@ -4578,7 +4578,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
 1
 1
@@ -4590,7 +4590,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Range checked for each record (index map: 0x1)
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` left join `test`.`t1` `t2` FORCE INDEX (`a`) on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true
 SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
 1
 1
@@ -4639,7 +4639,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4650,7 +4650,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('2001-01-01');
@@ -4661,7 +4661,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4672,7 +4672,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL) charset utf8mb4;
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4682,7 +4682,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 0
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where false
 SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
 a	b
 2001-01-01 00:00:00	2001-01-01
@@ -4690,7 +4690,7 @@ EXPLAIN SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from dual where true
 DROP TABLE t1;
 CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
 INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
@@ -4709,7 +4709,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	z	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where 1
+Note	1003	/* select#1 */ select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from dual where true
 DROP TABLE t1;
 #
 # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
@@ -4836,7 +4836,7 @@ EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where true
 SELECT * FROM t1 WHERE (a=a AND a=a) OR b > 2;
 a	b
 1	1
@@ -4846,17 +4846,17 @@ EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND c=c) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND a=a AND b=b) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 EXPLAIN SELECT * FROM t1 WHERE (a=a AND b=b AND a=a) OR b > 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select NULL AS `a`,NULL AS `b`,NULL AS `c` from `test`.`t1` where true
 DROP TABLE t1;
 #
 # Bug#45266: Uninitialized variable lead to an empty result.
@@ -4977,7 +4977,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where 1
+Note	1003	/* select#1 */ select '2' AS `b`,`test`.`t1`.`a` AS `a` from <constant table> left join `test`.`t1` on((`test`.`t1`.`a` = <cache>(('2' + 1)))) where true
 EXPLAIN SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
@@ -5163,7 +5163,7 @@ HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	cc	NULL	range	int_key	int_key	4	NULL	10	90.00	Using index condition; Using where; Using MRR; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where (`test`.`cc`.`int_nokey` and (`test`.`cc`.`int_key` <= 4)) having `g1` order by `test`.`cc`.`varchar_key` limit 6
+Note	1003	/* select#1 */ select `test`.`cc`.`varchar_nokey` AS `g1` from `test`.`cc` where ((0 <> `test`.`cc`.`int_nokey`) and (`test`.`cc`.`int_key` <= 4)) having (0 <> `g1`) order by `test`.`cc`.`varchar_key` limit 6
 SELECT `varchar_nokey` g1  FROM cc  WHERE `int_nokey` AND `int_key`  <= 4
 HAVING g1  ORDER  BY `varchar_key` LIMIT  6   ;
 g1

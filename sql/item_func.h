@@ -126,6 +126,7 @@ class Item_func : public Item_result_field {
     GE_FUNC,
     GT_FUNC,
     FT_FUNC,
+    MATCH_FUNC,
     LIKE_FUNC,
     ISNULL_FUNC,
     ISNOTNULL_FUNC,
@@ -3256,7 +3257,7 @@ class Item_func_match final : public Item_real_func {
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
   /**
-     Master item means that if idendical items are present in the
+     Master item means that if identical items are present in the
      statement, they use the same FT handler. FT handler is initialized
      only for master item and slave items just use it. FT hints initialized
      for master only, slave items HINTS are not accessed.

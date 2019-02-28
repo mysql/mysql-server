@@ -42,7 +42,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`v` AS `v` from `test`.`t1` where (@vv1:=(((@`vv1`) + 1) and (`test`.`t1`.`i` = (@`vv1`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i`,`test`.`t1`.`v` AS `v` from `test`.`t1` where (0 <> (@vv1:=((0 <> ((@`vv1`) + 1)) and (`test`.`t1`.`i` = (@`vv1`)))))
 explain select @vv1:=i from t1 where i=@vv1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	NULL	i	4	NULL	3	33.33	Using where; Using index
@@ -748,7 +748,7 @@ EXPLAIN
 }
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@`var1`) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) left join `test`.`t3` on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a`,(@var1:=((@`var1`) + 0)) AS `var` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) left join `test`.`t3` on(((`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < (@`var1`)))) where true
 SELECT t1.a, t2.a, t3.a, (@var1:= @var1+0) AS var
 FROM t1
 LEFT JOIN t2 ON t1.a=t2.a AND t2.a < @var1
@@ -813,7 +813,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (@x:=(@`x`)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = (@`x`)) and (0 <> (@x:=(@`x`))))
 explain SELECT a FROM t1 WHERE a = @x INTO @x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where

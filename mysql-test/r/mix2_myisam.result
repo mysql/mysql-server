@@ -710,7 +710,7 @@ explain select * from t1 where a > 0 and a < 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	PRIMARY	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,'1' AS `e`,'1' AS `f`,'1' AS `g`,'1' AS `h`,'1' AS `i`,'1' AS `j`,'1' AS `k`,'1' AS `l`,'1' AS `m`,'1' AS `n`,'1' AS `o`,'1' AS `p`,'1' AS `q`,'1' AS `r`,'1' AS `s`,'1' AS `t`,'1' AS `u`,'1' AS `v`,'1' AS `w`,'1' AS `x`,'1' AS `y`,'1' AS `z`,'1' AS `a1`,'1' AS `a2`,'1' AS `a3`,'1' AS `a4`,'1' AS `a5`,'1' AS `a6`,'1' AS `a7`,'1' AS `a8`,'1' AS `a9`,'1' AS `b1`,'1' AS `b2`,'1' AS `b3`,'1' AS `b4`,'1' AS `b5`,'1' AS `b6` from dual where 1
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b`,'1' AS `c`,'1' AS `d`,'1' AS `e`,'1' AS `f`,'1' AS `g`,'1' AS `h`,'1' AS `i`,'1' AS `j`,'1' AS `k`,'1' AS `l`,'1' AS `m`,'1' AS `n`,'1' AS `o`,'1' AS `p`,'1' AS `q`,'1' AS `r`,'1' AS `s`,'1' AS `t`,'1' AS `u`,'1' AS `v`,'1' AS `w`,'1' AS `x`,'1' AS `y`,'1' AS `z`,'1' AS `a1`,'1' AS `a2`,'1' AS `a3`,'1' AS `a4`,'1' AS `a5`,'1' AS `a6`,'1' AS `a7`,'1' AS `a8`,'1' AS `a9`,'1' AS `b1`,'1' AS `b2`,'1' AS `b3`,'1' AS `b4`,'1' AS `b5`,'1' AS `b6` from dual where true
 drop table t1;
 create table t1 (id int NOT NULL,id2 int NOT NULL,id3 int NOT NULL,dummy1 char(30),primary key (id,id2),index index_id3 (id3)) engine=MyISAM;
 insert into t1 values (0,0,0,'ABCDEFGHIJ'),(2,2,2,'BCDEFGHIJK'),(1,1,1,'CDEFGHIJKL');
@@ -1465,7 +1465,7 @@ explain select count(*) from t1 where x > -16;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` where true
 select count(*) from t1 where x > -16;
 count(*)
 2

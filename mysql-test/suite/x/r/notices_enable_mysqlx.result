@@ -1260,7 +1260,7 @@ RUN SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 JOIN t1 a ON (MATCH(t1.f1) 
 1
 0 rows affected
 Warnings generated:
-WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'test'
 Got expected warning: 1292 
 RUN PREPARE stmt FROM 'SELECT 1 FROM t1 WHERE 1 > ALL((SELECT 1 FROM t1 RIGHT OUTER JOIN t1 a ON (MATCH(t1.f1) against ("")) WHERE t1.f1 GROUP BY t1.f1)) xor f1'
 
@@ -1271,14 +1271,14 @@ RUN EXECUTE stmt
 1
 0 rows affected
 Warnings generated:
-WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'test'
 Got expected warning: 1292 
 RUN EXECUTE stmt
 1
 1
 0 rows affected
 Warnings generated:
-WARNING | 1292 | Truncated incorrect INTEGER value: 'test'
+WARNING | 1292 | Truncated incorrect DOUBLE value: 'test'
 Got expected warning: 1292 
 RUN DEALLOCATE PREPARE stmt
 

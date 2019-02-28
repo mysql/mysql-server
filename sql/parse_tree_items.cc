@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
       subselect = expr3->invalidate_and_restore_select_lex();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
-      if (!equal) result = negate_expression(pc, result);
+      if (!equal) result = negate_condition(pc, result);
 
       DBUG_RETURN(result);
     }

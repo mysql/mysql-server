@@ -913,7 +913,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 t1o RIGHT JOIN t1 ON t1o.id=t1.id
 LEFT JOIN JSON_TABLE(t1.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1.jc=jt.id;
@@ -926,7 +926,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1o	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	jt	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Table function: json_table; Using temporary; Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1o`.`id` AS `id`,`test`.`t1o`.`jc` AS `jc`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join `test`.`t1` `t1o` on((`test`.`t1o`.`id` = `test`.`t1`.`id`)) left join json_table(`test`.`t1`.`jc`, '$' columns (id for ordinality)) `jt` on((`test`.`t1`.`jc` = `jt`.`id`)) where true
 SELECT * FROM t1 AS t1o RIGHT JOIN
 (t1 AS t1i JOIN JSON_TABLE(t1o.jc, '$' COLUMNS
 (id FOR ORDINALITY)) as jt ON t1i.jc=jt.id)
@@ -974,7 +974,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	jt	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.id	2	100.00	Table function: json_table; Using temporary; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`jc` AS `jc`,`jt`.`id` AS `id` from `test`.`t1` left join json_table(`test`.`t1`.`jc`, '$' columns (id int path '$')) `jt` on((`jt`.`id` = `test`.`t1`.`id`)) where true
 SELECT * FROM t1 
 LEFT JOIN
 JSON_TABLE(t1.jc, '$' COLUMNS (id FOR ORDINALITY)) as jt ON t1.jc=jt.id

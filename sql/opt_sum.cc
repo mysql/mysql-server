@@ -382,6 +382,10 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
         continue;
       }
       Item_sum *item_sum = down_cast<Item_sum *>(item);
+      enum Item_func::Functype func_type =
+          conds != nullptr && conds->type() == Item::FUNC_ITEM
+              ? down_cast<Item_func *>(conds)->functype()
+              : Item_func::UNKNOWN_FUNC;
       switch (item_sum->sum_func()) {
         case Item_sum::COUNT_FUNC: {
           Item_sum_count *item_count = down_cast<Item_sum_count *>(item_sum);
@@ -421,14 +425,18 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                   still only be done once.
           */
           else if (tables->next_leaf == NULL &&  // 1
-                   conds != nullptr && conds->type() == Item::FUNC_ITEM &&
-                   down_cast<Item_func *>(conds)->functype() ==
-                       Item_func::FT_FUNC &&  // 2
+                   (func_type == Item_func::FT_FUNC ||
+                    func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
                     HA_CAN_FULLTEXT_EXT) &&              // 3
                    !item_count->get_arg(0)->maybe_null)  // 4
           {
-            Item_func_match *fts_item = down_cast<Item_func_match *>(conds);
+            Item_func_match *fts_item =
+                func_type == Item_func::FT_FUNC
+                    ? down_cast<Item_func_match *>(conds)
+                    : down_cast<Item_func_match *>(
+                          down_cast<Item_func_match_predicate *>(conds)
+                              ->arguments()[0]);
             fts_item->get_master()->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR,
                                               false);
             if (fts_item->init_search(thd)) break;

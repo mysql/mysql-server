@@ -48,7 +48,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
 2	SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,`test`.`t2`.`p` in ( <materialize> (/* select#2 */ select (`test`.`t1`.`p` + 0) from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t2`.`p` in <temporary table> on <auto_key> where ((`test`.`t2`.`p` = `materialized-subquery`.`p+0`)))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,`test`.`t2`.`p` in ( <materialize> (/* select#2 */ select (`test`.`t1`.`p` + 0) from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`p` in <temporary table> on <auto_key> where ((`test`.`t2`.`p` = `materialized-subquery`.`p+0`)))))))
 select * from t2 where p NOT IN (select p+0 from t1) order by p;
 p	u	o
 4	4	4

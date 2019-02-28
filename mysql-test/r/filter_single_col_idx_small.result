@@ -728,7 +728,7 @@ EXPLAIN SELECT * FROM t1 WHERE day_of_week;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	85.71	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where `test`.`t1`.`day_of_week`
+Note	1003	/* select#1 */ select `test`.`t1`.`day_of_week` AS `day_of_week`,`test`.`t1`.`bit1` AS `bit1`,`test`.`t1`.`bit3` AS `bit3` from `test`.`t1` where (0 <> `test`.`t1`.`day_of_week`)
 EXPLAIN SELECT * FROM t1 WHERE day_of_week =  1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	128	14.29	Using where

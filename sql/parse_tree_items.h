@@ -54,7 +54,6 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_parse.h"  // negate_expression
 #include "sql/system_variables.h"
 #include "sql_string.h"
 
@@ -76,19 +75,23 @@ class PTI_table_wild : public Parse_tree_item {
   virtual bool itemize(Parse_context *pc, Item **item);
 };
 
-class PTI_negate_expression : public Parse_tree_item {
+class PTI_negate_condition : public Parse_tree_item {
   typedef Parse_tree_item super;
 
   Item *expr;
 
  public:
-  PTI_negate_expression(const POS &pos, Item *expr_arg)
+  PTI_negate_condition(const POS &pos, Item *expr_arg)
       : super(pos), expr(expr_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
 
-    *res = negate_expression(pc, expr);
+    if (!expr->is_bool_func()) {
+      expr = make_condition(pc, expr);
+      if (expr == nullptr) return true;
+    }
+    *res = negate_condition(pc, expr);
     return *res == NULL;
   }
 };
@@ -818,6 +821,10 @@ class PTI_context : public Parse_tree_item {
 
     if (expr->itemize(pc, &expr)) return true;
 
+    if (!expr->is_bool_func()) {
+      expr = make_condition(pc, expr);
+      if (expr == nullptr) return true;
+    }
     // Ensure we're resetting parsing place of the right select
     DBUG_ASSERT(pc->select->parsing_place == Context);
     pc->select->parsing_place = CTX_NONE;

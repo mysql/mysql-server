@@ -79,7 +79,7 @@ explain select event_date,type,event_id from t1 WHERE type = 100601 and event_da
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where 0 order by `test`.`t1`.`event_date`
+Note	1003	/* select#1 */ select `test`.`t1`.`event_date` AS `event_date`,`test`.`t1`.`type` AS `type`,`test`.`t1`.`event_id` AS `event_id` from `test`.`t1` where false order by `test`.`t1`.`event_date`
 select event_date,type,event_id from t1 WHERE event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND (type=100600 OR type=100100) or event_date >= "1999-07-01" AND event_date <= "1999-07-15" AND type=100099;
 event_date	type	event_id
 1999-07-10	100100	24
@@ -776,7 +776,7 @@ explain select * from t1 where a < -1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where false
 select * from t1 where a < -1;
 a
 drop table t1;
@@ -2113,7 +2113,7 @@ SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where true
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 10;
 pk	i4
 1	10
@@ -2122,7 +2122,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	i4_uq	i4_uq	5	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select '1' AS `pk`,'10' AS `i4` from `test`.`t1` where true
 SELECT * FROM t1 WHERE 10 BETWEEN i4 AND i4;
 pk	i4
 1	10
@@ -2168,7 +2168,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where false
 SELECT * FROM t1 WHERE 10 BETWEEN 11 AND 11;
 pk	i4
 EXPLAIN
@@ -2176,7 +2176,7 @@ SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i4` AS `i4` from `test`.`t1` where false
 SELECT * FROM t1 WHERE 10 BETWEEN 100 AND 0;
 pk	i4
 EXPLAIN

@@ -3276,7 +3276,7 @@ void SELECT_LEX::print_where_cond(const THD *thd, String *str,
     if (cur_where)
       cur_where->print(thd, str, query_type);
     else
-      str->append(cond_value != Item::COND_FALSE ? "1" : "0");
+      str->append(cond_value != Item::COND_FALSE ? "true" : "false");
   }
 }
 
@@ -3307,7 +3307,7 @@ void SELECT_LEX::print_having(const THD *thd, String *str,
     if (cur_having)
       cur_having->print(thd, str, query_type);
     else
-      str->append(having_value != Item::COND_FALSE ? "1" : "0");
+      str->append(having_value != Item::COND_FALSE ? "true" : "false");
   }
 }
 

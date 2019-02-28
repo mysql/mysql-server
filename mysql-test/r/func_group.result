@@ -545,7 +545,7 @@ select max(a3) from t1 where a2 is null and a2 = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select max(`test`.`t1`.`a3`) AS `max(a3)` from `test`.`t1` where false
 select max(a3) from t1 where a2 is null and a2 = 2;
 max(a3)
 NULL
@@ -653,7 +653,7 @@ select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select min(`test`.`t1`.`a3`) AS `min(a3)` from `test`.`t1` where false
 select min(a3) from t1 where a2 = 2 and a3 >= 'SEA' and a3 = 'MIN';
 min(a3)
 NULL

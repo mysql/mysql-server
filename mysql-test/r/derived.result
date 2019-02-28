@@ -601,7 +601,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	tablea	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	tableb	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tableb`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where 1) `from_subquery`
+Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tableb`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where true) `from_subquery`
 EXPLAIN SELECT * FROM ( 
 SELECT DISTINCT tablea.col_datetime_key 
 FROM t1 tablea LEFT JOIN t1 tableb ON tablea.pk < tableb.col_int_key
@@ -611,7 +611,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	tablea	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	tableb	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Distinct; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tablea`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where 1) `from_subquery`
+Note	1003	/* select#1 */ select `from_subquery`.`col_datetime_key` AS `col_datetime_key` from (/* select#2 */ select distinct `test`.`tablea`.`col_datetime_key` AS `col_datetime_key` from `test`.`t1` `tablea` left join `test`.`t1` `tableb` on((`test`.`tablea`.`pk` < `test`.`tableb`.`col_int_key`)) where true) `from_subquery`
 DROP TABLE t1;
 #
 # Bug#58730 Assertion failed: table->key_read == 0 in close_thread_table,
@@ -2687,7 +2687,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 4	DEPENDENT SUBQUERY	t3	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((1 xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`col_date_key` AS `x` from `test`.`t1` left join (`test`.`t2`) on((`test`.`t2`.`col_varchar_nokey` = `test`.`t1`.`col_varchar_key`)) where (<in_optimizer>((`test`.`t2`.`col_int_key`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from dual where ((true xor ('b' > 'p')) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '10') or ('10' is null)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>('10'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('10'), true)))) xor ((`test`.`t2`.`col_int_nokey` < 2) or (`test`.`t2`.`col_int_key` is not null))) order by `test`.`t2`.`col_int_key`,`test`.`t2`.`pk`
 SELECT outr.col_date_key AS x
 FROM (SELECT * FROM t1) AS outr2 LEFT JOIN (SELECT * FROM t2) AS outr
 ON outr2.col_varchar_key = outr.col_varchar_nokey
@@ -2756,7 +2756,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 5	SUBQUERY	t1	NULL	ref	col_varchar_key	col_varchar_key	6	test.t3.col_varchar_nokey	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where ((not(<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where 1 ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`))))))) or (`test`.`t1`.`pk` = 96))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where ((not(<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`))))))) or (`test`.`t1`.`pk` = 96))
 SELECT table1.pk
 FROM (SELECT * FROM t1) AS table1
 LEFT JOIN
@@ -2843,7 +2843,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	DEPENDENT SUBQUERY	t4	NULL	system	PRIMARY,col_int_key	NULL	NULL	NULL	1	100.00	NULL
 4	DEPENDENT SUBQUERY	t3	NULL	index	NULL	col_varchar_key	10	NULL	20	90.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or 0) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or ('7' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or ('8' is null)), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
+Note	1003	/* select#1 */ select `test`.`t2`.`pk` AS `x` from `test`.`t2` where (((<in_optimizer>((`test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key`),<exists>(/* select#4 */ select 1,1 from `test`.`t3` where ((('7' <> '10') or false) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_nokey`) = '7') or ('7' is null)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`col_int_key`) = '8') or ('8' is null)), true) and (`test`.`t3`.`col_varchar_key` <> 'b')) having (<if>(outer_field_is_not_null, <is_not_null_test>('7'), true) and <if>(outer_field_is_not_null, <is_not_null_test>('8'), true)))) and (`test`.`t2`.`pk` < 7)) xor (`test`.`t2`.`col_varchar_nokey` <> 'i')) and ('00:00:00' >= `test`.`t2`.`col_date_nokey`)) order by `test`.`t2`.`col_varchar_key`,`test`.`t2`.`pk`
 SELECT outr.pk AS x
 FROM (SELECT * FROM t1) AS outr2
 LEFT JOIN (SELECT * FROM t2) AS outr
@@ -2956,7 +2956,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	NULL	index	NULL	PRIMARY	4	NULL	3	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where 1 ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>(sha(`test`.`t1`.`pk`),sha(`test`.`t1`.`pk`) in ( <materialize> (/* select#2 */ select `` from (/* select#3 */ select '' AS `` from `test`.`t2`) `a` where true ), <primary_index_lookup>(sha(`test`.`t1`.`pk`) in <temporary table> on <auto_key> where ((sha(`test`.`t1`.`pk`) = ``))))) AS `SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)` from `test`.`t1`
 SELECT SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a) FROM t1;
 SHA(pk) IN (SELECT * FROM (SELECT '' FROM t2) a)
 0
@@ -3477,7 +3477,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DERIVED	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
 2	DERIVED	t	NULL	ref	c2	c2	5	const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where 1 group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
+Note	1003	/* select#1 */ select `p`.`a` AS `a`,`test`.`q`.`id` AS `id`,`test`.`q`.`c1` AS `c1`,`test`.`q`.`c2` AS `c2` from (/* select#2 */ select `test`.`t`.`c1` AS `a` from `test`.`t` left join (`test`.`t`) on(((`test`.`t`.`c1` = 10) and (`test`.`t`.`c2` = 10) and (10 > 3))) where true group by `test`.`t`.`c1`) `p` join `test`.`t` `q` where (`test`.`q`.`id` between 1 and 10)
 EXPLAIN SELECT * FROM (SELECT v1.a
 FROM v1 LEFT OUTER JOIN v2 ON v1.a = v2.b
 WHERE v1.a = 3
@@ -3796,7 +3796,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where true
 SELECT t1_inv_date
 FROM t1 LEFT JOIN
 (SELECT curr.t2_end_date As end_date,
@@ -3831,7 +3831,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Backward index scan; Using index
 Warnings:
 Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select /*+ MERGE(`periods`@`select#1`) */ `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (`test`.`t2` `curr`) on((((/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) < `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= 's:1'))) where 1
+Note	1003	/* select#1 */ select /*+ MERGE(`periods`@`select#1`) */ `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (`test`.`t2` `curr`) on((((/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) < `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= `test`.`t1`.`t1_inv_date`) and (`test`.`curr`.`t2_end_date` >= 's:1'))) where true
 SELECT /*+ MERGE(periods) */ t1_inv_date
 FROM t1 LEFT JOIN
 (SELECT curr.t2_end_date As end_date,
@@ -3864,7 +3864,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	2	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t1`.`a` <= `test`.`t3`.`c`))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t1`.`a` <= `test`.`t3`.`c`))) where true
 SELECT * FROM t1 LEFT JOIN (
 SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
 ) AS sq ON a <= sq.c;

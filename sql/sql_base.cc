@@ -8508,7 +8508,7 @@ static bool store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
     /* Add a true condition to outer joins that have no common columns. */
     if (table_ref_2->outer_join && !table_ref_2->join_cond())
-      table_ref_2->set_join_cond(new Item_int((longlong)1, 1));
+      table_ref_2->set_join_cond(new Item_func_true());
 
     /* Change this table reference to become a leaf for name resolution. */
     if (left_neighbor) {

@@ -266,6 +266,7 @@ bool SELECT_LEX::prepare(THD *thd) {
 
   // Setup the HAVING clause
   if (m_having_cond) {
+    DBUG_ASSERT(m_having_cond->is_bool_func());
     thd->where = "having clause";
     having_fix_field = true;
     resolve_place = RESOLVE_HAVING;
@@ -680,16 +681,16 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
 
   if (cond_value) {
     if (remove_cond)
-      *cond = NULL;
+      *cond = nullptr;
     else {
       Prepared_stmt_arena_holder ps_arena_holder(thd);
-      *cond = new (thd->mem_root) Item_int(1LL, 1);
-      if (*cond == NULL) return true;
+      *cond = new (thd->mem_root) Item_func_true();
+      if (*cond == nullptr) return true;
     }
   } else if ((*cond)->type() != Item::INT_ITEM) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
-    *cond = new (thd->mem_root) Item_int(0LL, 1);
-    if (*cond == NULL) return true;
+    *cond = new (thd->mem_root) Item_func_false();
+    if (*cond == nullptr) return true;
   }
   if (ret_cond_value) *ret_cond_value = cond_value;
   return false;
@@ -1356,6 +1357,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
   DBUG_PRINT("info", ("thd->mark_used_columns: %d", thd->mark_used_columns));
 
   if (m_where_cond) {
+    DBUG_ASSERT(m_where_cond->is_bool_func());
     resolve_place = SELECT_LEX::RESOLVE_CONDITION;
     thd->where = "where clause";
     if ((!m_where_cond->fixed &&
@@ -1412,6 +1414,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
     Item *join_cond = tr->join_cond();
     bool remove_cond = false;
     if (join_cond) {
+      DBUG_ASSERT(join_cond->is_bool_func());
       resolve_place = SELECT_LEX::RESOLVE_JOIN_NEST;
       resolve_nest = tr;
       thd->where = "on clause";
@@ -2102,7 +2105,7 @@ bool SELECT_LEX::build_sj_cond(THD *thd, NESTED_JOIN *nested_join,
         */
         nested_join->sj_inner_exprs.empty();
         nested_join->sj_outer_exprs.empty();
-        Item *new_item = new Item_int(0LL, 1);
+        Item *new_item = new Item_func_false();
         if (new_item == nullptr) return true;
         (*sj_cond) = new_item;
         break;
@@ -2571,7 +2574,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   // Note that subquery's tables are already in the next_global chain
 
   // Remove the original subquery predicate from the WHERE/ON
-  // The subqueries were replaced for Item_int(1) earlier
+  // The subqueries were replaced with TRUE value earlier
   // @todo also reset the 'with_subselect' there.
 
   // Walk through child's tables and adjust table map
@@ -3236,7 +3239,9 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       - When subquery is converted to semi-join: truth value true.
       - When subquery WHERE cond is false: truth value false.
     */
-    Item *truth_item = new Item_int(cond_value ? 1LL : 0LL);
+    Item *truth_item =
+        cond_value ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
+                   : down_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) DBUG_RETURN(true);
     Item **tree = ((*subq)->embedding_join_nest == NULL)
                       ? &m_where_cond

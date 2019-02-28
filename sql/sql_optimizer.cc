@@ -448,7 +448,7 @@ int JOIN::optimize() {
   }
   if (!where_cond && select_lex->outer_join) {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
-    where_cond = new Item_int((longlong)1, 1);  // Always true
+    where_cond = new Item_func_true();  // Always true
   }
 
   error = 0;
@@ -552,7 +552,7 @@ int JOIN::optimize() {
       DBUG_RETURN(1);
     }
     if (select_lex->having_value == Item::COND_FALSE) {
-      having_cond = new Item_int((longlong)0, 1);
+      having_cond = new Item_func_false();
       zero_result_cause =
           "Impossible HAVING noticed after reading const tables";
       goto setup_subq_exit;
@@ -1391,8 +1391,8 @@ void JOIN::test_skip_sort() {
 static Item_func_match *test_if_ft_index_order(ORDER *order) {
   if (order && order->next == NULL && order->direction == ORDER_DESC &&
       (*order->item)->type() == Item::FUNC_ITEM &&
-      ((Item_func *)(*order->item))->functype() == Item_func::FT_FUNC)
-    return static_cast<Item_func_match *>(*order->item)->get_master();
+      down_cast<Item_func *>(*order->item)->functype() == Item_func::FT_FUNC)
+    return down_cast<Item_func_match *>(*order->item)->get_master();
 
   return NULL;
 }
@@ -3632,6 +3632,7 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
 static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
                            List<Item> *eq_list, bool *equality) {
   *equality = false;
+  DBUG_ASSERT(item->is_bool_func());
   Item_func *item_func;
   if (item->type() == Item::FUNC_ITEM &&
       (item_func = down_cast<Item_func *>(item))->functype() ==
@@ -3727,7 +3728,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
   cond_equal.upper_levels = inherited;
-
+  DBUG_ASSERT(cond->is_bool_func());
   if (check_stack_overrun(thd, STACK_MIN_SIZE, NULL))
     return true;  // Fatal error flag is set!
 
@@ -3766,7 +3767,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       */
       if (!args->elements && !cond_equal.current_level.elements &&
           !eq_list.elements) {
-        *retcond = new Item_int((longlong)1, 1);
+        *retcond = new Item_func_true();
         return *retcond == NULL;
       }
 
@@ -3824,7 +3825,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
     if (equality) {
       int n = cond_equal.current_level.elements + eq_list.elements;
       if (n == 0) {
-        *retcond = new Item_int((longlong)1, 1);
+        *retcond = new Item_func_true();
         return *retcond == NULL;
       } else if (n == 1) {
         if ((item_equal = cond_equal.current_level.pop())) {
@@ -4097,7 +4098,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
   List<Item> eq_list;
   Item *eq_item = NULL;
   if (((Item *)item_equal)->const_item() && !item_equal->val_int())
-    return new Item_int((longlong)0, 1);
+    return new Item_func_false();
   Item *const item_const = item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   if (!item_const) {
@@ -4190,18 +4191,18 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
       Item::cond_result res;
       if (fold_condition(thd, eq_item, &eq_item, &res)) return nullptr;
       if (res == Item::COND_FALSE) {
-        eq_item = new (thd->mem_root) Item_int(0, 1);
+        eq_item = new (thd->mem_root) Item_func_false();
         if (eq_item == nullptr) return nullptr;
         return eq_item;  // entire AND is false
       } else if (res == Item::COND_TRUE) {
-        eq_item = new (thd->mem_root) Item_int(1, 1);
+        eq_item = new (thd->mem_root) Item_func_true();
         if (eq_item == nullptr) return nullptr;
       }
     }
   }  // ... while ((item_field= it++))
 
   if (!cond && !eq_list.head()) {
-    if (!eq_item) return new Item_int((longlong)1, 1);
+    if (!eq_item) return new Item_func_true();
     return eq_item;
   }
 
@@ -4252,8 +4253,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
 Item *substitute_for_best_equal_field(THD *thd, Item *cond,
                                       COND_EQUAL *cond_equal,
                                       JOIN_TAB **table_join_idx) {
-  Item_equal *item_equal;
-
+  DBUG_ASSERT(cond->is_bool_func());
   if (cond->type() == Item::COND_ITEM) {
     List<Item> *cond_list = ((Item_cond *)cond)->argument_list();
 
@@ -4267,6 +4267,7 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
       auto cmp = [table_join_idx](Item_field *f1, Item_field *f2) {
         return compare_fields_by_table_order(f1, f2, table_join_idx);
       };
+      Item_equal *item_equal;
       while ((item_equal = it++)) {
         item_equal->sort(cmp);
       }
@@ -4287,32 +4288,34 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
 
     if (and_level) {
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      Item_equal *item_equal;
       while ((item_equal = it++)) {
         cond = eliminate_item_equal(thd, cond, cond_equal->upper_levels,
                                     item_equal);
         if (cond == NULL) return NULL;
         // This occurs when eliminate_item_equal() founds that cond is
-        // always false and substitutes it with Item_int 0.
+        // always false and substitutes it with a false value.
         // Due to this, value of item_equal will be 0, so just return it.
         if (cond->type() != Item::COND_ITEM) break;
       }
     }
     if (cond->type() == Item::COND_ITEM &&
         !((Item_cond *)cond)->argument_list()->elements)
-      cond = new Item_int((int32)cond->val_bool());
-
+      cond = cond->val_bool() ? down_cast<Item *>(new Item_func_true())
+                              : down_cast<Item *>(new Item_func_false());
   } else if (cond->type() == Item::FUNC_ITEM &&
              (down_cast<Item_func *>(cond))->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
-    item_equal = (Item_equal *)cond;
+    Item_equal *item_equal = down_cast<Item_equal *>(cond);
     item_equal->sort([table_join_idx](Item_field *f1, Item_field *f2) {
       return compare_fields_by_table_order(f1, f2, table_join_idx);
     });
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal = cond_equal->upper_levels;
     return eliminate_item_equal(thd, 0, cond_equal, item_equal);
-  } else
+  } else {
     cond->transform(&Item::replace_equal_field, 0);
+  }
   return cond;
 }
 
@@ -4333,6 +4336,7 @@ Item *substitute_for_best_equal_field(THD *thd, Item *cond,
 static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
                                      Item *and_father, Item *cond, Item *field,
                                      Item *value) {
+  DBUG_ASSERT(cond->real_item()->is_bool_func());
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *const item_cond = down_cast<Item_cond *>(cond);
     bool and_level = item_cond->functype() == Item_func::COND_AND_FUNC;
@@ -4417,6 +4421,7 @@ static bool change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
 */
 static bool propagate_cond_constants(THD *thd, I_List<COND_CMP> *save_list,
                                      Item *and_father, Item *cond) {
+  DBUG_ASSERT(cond->real_item()->is_bool_func());
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *const item_cond = down_cast<Item_cond *>(cond);
     bool and_level = item_cond->functype() == Item_func::COND_AND_FUNC;
@@ -6580,6 +6585,7 @@ static void add_key_field(Key_field **key_fields, uint and_level,
                           Item_func *cond, Item_field *item_field, bool eq_func,
                           Item **value, uint num_values,
                           table_map usable_tables, SARGABLE_PARAM **sargables) {
+  DBUG_ASSERT(cond->is_bool_func());
   DBUG_ASSERT(eq_func || sargables);
 
   Field *const field = item_field->field;
@@ -6793,6 +6799,8 @@ static void add_key_equal_fields(Key_field **key_fields, uint and_level,
                                  SARGABLE_PARAM **sargables) {
   DBUG_ENTER("add_key_equal_fields");
 
+  DBUG_ASSERT(cond->is_bool_func());
+
   add_key_field(key_fields, and_level, cond, field_item, eq_func, val,
                 num_values, usable_tables, sargables);
   Item_equal *item_equal = field_item->item_equal;
@@ -6909,11 +6917,14 @@ static void add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
                            Item *cond, table_map usable_tables,
                            SARGABLE_PARAM **sargables) {
   DBUG_ENTER("add_key_fields");
+
+  DBUG_ASSERT(cond->is_bool_func());
+
   if (cond->type() == Item_func::COND_ITEM) {
     List_iterator_fast<Item> li(*((Item_cond *)cond)->argument_list());
     Key_field *org_key_fields = *key_fields;
 
-    if (((Item_cond *)cond)->functype() == Item_func::COND_AND_FUNC) {
+    if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
       while ((item = li++))
         add_key_fields(join, key_fields, and_level, item, usable_tables,
@@ -6942,27 +6953,25 @@ static void add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
     are wrapped into Item_func_trig_cond. We process the wrapped condition
     but need to set cond_guard for Key_use elements generated from it.
   */
-  {
-    if (cond->type() == Item::FUNC_ITEM &&
-        ((Item_func *)cond)->functype() == Item_func::TRIG_COND_FUNC) {
-      Item *cond_arg = ((Item_func *)cond)->arguments()[0];
-      if (!join->group_list && !join->order && join->unit->item &&
-          join->unit->item->substype() == Item_subselect::IN_SUBS &&
-          !join->unit->is_union()) {
-        Key_field *save = *key_fields;
-        add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
-                       sargables);
-        // Indicate that this ref access candidate is for subquery lookup:
-        for (; save != *key_fields; save++)
-          save->cond_guard = ((Item_func_trig_cond *)cond)->get_trig_var();
-      }
-      DBUG_VOID_RETURN;
+  if (cond->type() == Item::FUNC_ITEM &&
+      down_cast<Item_func *>(cond)->functype() == Item_func::TRIG_COND_FUNC) {
+    Item *const cond_arg = down_cast<Item_func *>(cond)->arguments()[0];
+    if (!join->group_list && !join->order && join->unit->item &&
+        join->unit->item->substype() == Item_subselect::IN_SUBS &&
+        !join->unit->is_union()) {
+      Key_field *save = *key_fields;
+      add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
+                     sargables);
+      // Indicate that this ref access candidate is for subquery lookup:
+      for (; save != *key_fields; save++)
+        save->cond_guard = ((Item_func_trig_cond *)cond)->get_trig_var();
     }
+    DBUG_VOID_RETURN;
   }
 
   /* If item is of type 'field op field/constant' add it to key_fields */
   if (cond->type() != Item::FUNC_ITEM) DBUG_VOID_RETURN;
-  Item_func *cond_func = (Item_func *)cond;
+  Item_func *const cond_func = down_cast<Item_func *>(cond);
   switch (cond_func->select_optimize()) {
     case Item_func::OPTIMIZE_NONE:
       break;
@@ -7020,7 +7029,7 @@ static void add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
         }
       }  // if ( ... Item_func::BETWEEN)
 
-      // The predicate is IN or !=
+      // The predicate is IN or <>
       else if (is_local_field(cond_func->key_item()) &&
                !(cond_func->used_tables() & OUTER_REF_TABLE_BIT)) {
         values = cond_func->arguments() + 1;
@@ -7261,35 +7270,43 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
 
   if (!cond) return false;
 
+  DBUG_ASSERT(cond->is_bool_func());
+
   if (cond->type() == Item::FUNC_ITEM) {
-    Item_func *func = (Item_func *)cond;
+    Item_func *func = down_cast<Item_func *>(cond);
     Item_func::Functype functype = func->functype();
+    if (functype == Item_func::MATCH_FUNC) {
+      func = down_cast<Item_func *>(func->arguments()[0]);
+      functype = func->functype();
+    }
     enum ft_operation op_type = FT_OP_NO;
     double op_value = 0.0;
     if (functype == Item_func::FT_FUNC) {
-      cond_func = ((Item_func_match *)cond)->get_master();
+      cond_func = down_cast<Item_func_match *>(func)->get_master();
       cond_func->set_hints_op(op_type, op_value);
     } else if (func->arg_count == 2) {
-      Item *arg0 = (func->arguments()[0]), *arg1 = (func->arguments()[1]);
+      Item *arg0 = func->arguments()[0];
+      Item *arg1 = func->arguments()[1];
       if (arg1->const_item() && arg0->type() == Item::FUNC_ITEM &&
-          ((Item_func *)arg0)->functype() == Item_func::FT_FUNC &&
+          down_cast<Item_func *>(arg0)->functype() == Item_func::FT_FUNC &&
           ((functype == Item_func::GE_FUNC &&
             (op_value = arg1->val_real()) > 0) ||
            (functype == Item_func::GT_FUNC &&
             (op_value = arg1->val_real()) >= 0))) {
-        cond_func = ((Item_func_match *)arg0)->get_master();
+        cond_func = down_cast<Item_func_match *>(arg0)->get_master();
         if (functype == Item_func::GE_FUNC)
           op_type = FT_OP_GE;
         else if (functype == Item_func::GT_FUNC)
           op_type = FT_OP_GT;
         cond_func->set_hints_op(op_type, op_value);
       } else if (arg0->const_item() && arg1->type() == Item::FUNC_ITEM &&
-                 ((Item_func *)arg1)->functype() == Item_func::FT_FUNC &&
+                 down_cast<Item_func *>(arg1)->functype() ==
+                     Item_func::FT_FUNC &&
                  ((functype == Item_func::LE_FUNC &&
                    (op_value = arg0->val_real()) > 0) ||
                   (functype == Item_func::LT_FUNC &&
                    (op_value = arg0->val_real()) >= 0))) {
-        cond_func = ((Item_func_match *)arg1)->get_master();
+        cond_func = down_cast<Item_func_match *>(arg1)->get_master();
         if (functype == Item_func::LE_FUNC)
           op_type = FT_OP_GE;
         else if (functype == Item_func::LT_FUNC)
@@ -7298,9 +7315,9 @@ static bool add_ft_keys(Key_use_array *keyuse_array, JOIN_TAB *stat, Item *cond,
       }
     }
   } else if (cond->type() == Item::COND_ITEM) {
-    List_iterator_fast<Item> li(*((Item_cond *)cond)->argument_list());
+    List_iterator_fast<Item> li(*down_cast<Item_cond *>(cond)->argument_list());
 
-    if (((Item_cond *)cond)->functype() == Item_func::COND_AND_FUNC) {
+    if (down_cast<Item_cond *>(cond)->functype() == Item_func::COND_AND_FUNC) {
       Item *item;
       while ((item = li++)) {
         if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
@@ -7693,6 +7710,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 JOIN_TAB *join_tab, uint tables, Item *cond,
                                 table_map normal_tables, SELECT_LEX *select_lex,
                                 SARGABLE_PARAM **sargables) {
+  DBUG_ASSERT(cond == nullptr || cond->is_bool_func());
   uint and_level, i, found_eq_constant;
   Key_field *key_fields, *end, *field;
   size_t sz;
@@ -8009,7 +8027,7 @@ void JOIN::make_outerjoin_info() {
 static Item *add_found_match_trig_cond(JOIN *join, plan_idx idx, Item *cond,
                                        plan_idx root_idx) {
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
-  DBUG_ASSERT(cond);
+  DBUG_ASSERT(cond->is_bool_func());
 
   for (; idx != root_idx; idx = join->best_ref[idx]->first_upper()) {
     if (!(cond = new Item_func_trig_cond(cond, NULL, join, idx,
@@ -8357,6 +8375,7 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
         - for the execution phase, all possible execution methods must test
         ref->null_rejecting.
       */
+      DBUG_ASSERT(cond->type() == Item::FUNC_ITEM);
       if (func->used_tables() & null_extended) {
         /*
           Refering null-extended tables voids the test_if_ref() logic,
@@ -8672,6 +8691,10 @@ void JOIN::finalize_derived_keys() {
 Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
                           table_map used_table, bool exclude_expensive_cond) {
   /*
+    May encounter an Item_cache_int as "condition" here, so cannot
+    assert that it satisfies is_bool_func().
+  */
+  /*
     Ignore this condition if
      1. We are extracting conditions for a specific table, and
      2. that table is not referenced by the condition, but not if
@@ -8753,6 +8776,7 @@ Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
 */
 
 static bool make_join_select(JOIN *join, Item *cond) {
+  DBUG_ASSERT(cond == nullptr || cond->is_bool_func());
   THD *thd = join->thd;
   Opt_trace_context *const trace = &thd->opt_trace;
   DBUG_ENTER("make_join_select");
@@ -8852,8 +8876,8 @@ static bool make_join_select(JOIN *join, Item *cond) {
           in the ON part of an OUTER JOIN. In this case we want the code
           below to check if we should use 'quick' instead.
         */
-        DBUG_PRINT("info", ("Item_int"));
-        tmp = new Item_int((longlong)1, 1);  // Always true
+        DBUG_PRINT("info", ("Item_func_true"));
+        tmp = new Item_func_true();  // Always true
       }
       if (tmp || !cond || tab->type() == JT_REF ||
           tab->type() == JT_REF_OR_NULL || tab->type() == JT_EQ_REF ||
@@ -9576,6 +9600,7 @@ static bool fold_condition_exec(THD *thd, Item *cond, Item **retcond,
 */
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value) {
+  DBUG_ASSERT(cond->real_item()->is_bool_func());
   if (cond->type() == Item::COND_ITEM) {
     Item_cond *const item_cond = down_cast<Item_cond *>(cond);
     const bool and_level = item_cond->functype() == Item_func::COND_AND_FUNC;
@@ -9681,7 +9706,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       if (((field->type() == MYSQL_TYPE_DATE) ||
            (field->type() == MYSQL_TYPE_DATETIME)) &&
           (field->flags & NOT_NULL_FLAG)) {
-        Item *item0 = new (thd->mem_root) Item_int((longlong)0, 1);
+        Item *item0 = new (thd->mem_root) Item_func_false();
         if (item0 == NULL) return true;
         Item *eq_cond = new (thd->mem_root) Item_func_eq(args[0], item0);
         if (eq_cond == NULL) return true;
@@ -10011,7 +10036,7 @@ bool JOIN::optimize_fts_query() {
 
     Item_func_match *ifm;
     Item_func_match *ft_func =
-        static_cast<Item_func_match *>(tab->position()->key->val);
+        down_cast<Item_func_match *>(tab->position()->key->val);
     List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
 
     while ((ifm = li++)) {

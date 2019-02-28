@@ -2369,7 +2369,7 @@ void Item_in_subselect::print(const THD *thd, String *str,
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
   bool result = 0;
 
-  if (exec_method == EXEC_SEMI_JOIN) return !((*ref) = new Item_int(1));
+  if (exec_method == EXEC_SEMI_JOIN) return !((*ref) = new Item_func_true());
 
   if ((thd_arg->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
       left_expr && !left_expr->fixed) {

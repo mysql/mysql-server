@@ -6358,7 +6358,7 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect INTEGER value: \\\'test\\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'test\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
@@ -6407,7 +6407,7 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect INTEGER value: \\\'test\\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'test\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {
@@ -6441,7 +6441,7 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Notice.Frame {
   type: 1
   scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect INTEGER value: \\\'test\\\'\"\n }"
+  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1292\nmsg: \"Truncated incorrect DOUBLE value: \\\'test\\\'\"\n }"
 }
 
 Mysqlx.Notice.Frame {

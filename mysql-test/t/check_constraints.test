@@ -1319,7 +1319,7 @@ DROP TABLE t1;
 --echo # Test case to verify check constraint with Comparison Functions
 --echo # and Operators
 --echo #-----------------------------------------------------------------------
---error ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
+--error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1(c1 INT, CHECK ( c1 IN ( SELECT COALESCE(NULL, 1, 1))));
 --error ER_CHECK_CONSTRAINT_FUNCTION_IS_NOT_ALLOWED
 CREATE TABLE t1(c1 INT, CHECK ( c1 < ( SELECT COALESCE(NULL, 1, 1))));

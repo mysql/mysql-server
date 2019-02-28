@@ -2788,7 +2788,7 @@ select * from t1 where ushort <= 999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where true
 select * from t1 where ushort <= 999999;
 ushort	date_field
 65535	1901-01-01
@@ -2800,7 +2800,7 @@ select * from t1 where ushort < 999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where true
 select * from t1 where ushort < 999999;
 ushort	date_field
 65535	1901-01-01
@@ -2812,7 +2812,7 @@ select * from t1 where ushort >= 999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where false
 select * from t1 where ushort >= 999999;
 ushort	date_field
 explain
@@ -2820,7 +2820,7 @@ select * from t1 where ushort = 999999;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where 0
+Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where false
 select * from t1 where ushort = 999999;
 ushort	date_field
 # Similar for other data types. Range for Date is '1000-01-01' to '9999-12-31'.

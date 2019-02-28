@@ -5366,15 +5366,21 @@ bool Alter_info::add_field(
       no need fix_fields()
 
       We allow only CURRENT_TIMESTAMP as function default for the TIMESTAMP or
-      DATETIME types.
+      DATETIME types. In addition, TRUE and FALSE are allowed for bool types.
     */
-    if (default_value->type() == Item::FUNC_ITEM &&
-        (static_cast<Item_func *>(default_value)->functype() !=
-             Item_func::NOW_FUNC ||
-         (!real_type_with_now_as_default(type)) ||
-         default_value->decimals != datetime_precision)) {
-      my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
-      DBUG_RETURN(1);
+    if (default_value->type() == Item::FUNC_ITEM) {
+      Item_func *func = down_cast<Item_func *>(default_value);
+      if (func->basic_const_item()) {
+        DBUG_ASSERT(dynamic_cast<Item_func_true *>(func) ||
+                    dynamic_cast<Item_func_false *>(func));
+        default_value = new Item_int(func->val_int());
+        if (default_value == nullptr) DBUG_RETURN(true);
+      } else if (func->functype() != Item_func::NOW_FUNC ||
+                 !real_type_with_now_as_default(type) ||
+                 default_value->decimals != datetime_precision) {
+        my_error(ER_INVALID_DEFAULT, MYF(0), field_name->str);
+        DBUG_RETURN(true);
+      }
     } else if (default_value->type() == Item::NULL_ITEM) {
       default_value = 0;
       if ((type_modifier & (NOT_NULL_FLAG | AUTO_INCREMENT_FLAG)) ==
@@ -6593,36 +6599,6 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
     */
     create_table->set_lock({TL_READ, THR_DEFAULT});
   }
-}
-
-/**
-  negate given expression.
-
-  @param pc   current parse context
-  @param expr expression for negation
-
-  @return
-    negated expression
-*/
-
-Item *negate_expression(Parse_context *pc, Item *expr) {
-  Item *negated;
-  if (expr->type() == Item::FUNC_ITEM &&
-      ((Item_func *)expr)->functype() == Item_func::NOT_FUNC) {
-    /* it is NOT(NOT( ... )) */
-    Item *arg = ((Item_func *)expr)->arguments()[0];
-    enum_parsing_context place = pc->select->parsing_place;
-    if (arg->is_bool_func() || place == CTX_WHERE || place == CTX_HAVING)
-      return arg;
-    /*
-      if it is not boolean function then we have to emulate value of
-      not(not(a)), it will be a != 0
-    */
-    return new Item_func_ne(arg, new Item_int_0());
-  }
-
-  if ((negated = expr->neg_transformer(pc->thd)) != 0) return negated;
-  return new Item_func_not(expr);
 }
 
 /**

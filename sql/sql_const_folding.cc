@@ -1078,7 +1078,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
         *retcond = nullptr;
         return false;
       }
-      i = new (thd->mem_root) Item_int(1, 1);
+      i = new (thd->mem_root) Item_func_true();
     }
   } else {
     if (is_top_level && !manifest_result) {
@@ -1090,7 +1090,7 @@ static bool fold_or_simplify(THD *thd, Item *ref_or_field,
     if (ref_or_field->maybe_null) {
       i = new (thd->mem_root) Item_func_ne(ref_or_field, ref_or_field);
     } else {
-      i = new (thd->mem_root) Item_int(0, 1);
+      i = new (thd->mem_root) Item_func_false();
     }
   }
 
@@ -1262,7 +1262,7 @@ bool fold_condition(THD *thd, Item *cond, Item **retcond,
 
       /* The test can be elided. If top level, drop the condition */
       if (manifest_result) {
-        const auto i = new (thd->mem_root) Item_int(1);
+        const auto i = new (thd->mem_root) Item_func_true();
         if (i == nullptr) return true;
         thd->change_item_tree(retcond, i);
       } else {

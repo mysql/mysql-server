@@ -9271,7 +9271,7 @@ expr:
           }
         | NOT_SYM expr %prec NOT_SYM
           {
-            $$= NEW_PTN PTI_negate_expression(@$, $2);
+            $$= NEW_PTN PTI_negate_condition(@$, $2);
           }
         | bool_pri IS TRUE_SYM %prec IS
           {
@@ -9337,7 +9337,7 @@ predicate:
         | bit_expr not IN_SYM table_subquery
           {
             Item *item= NEW_PTN Item_in_subselect(@$, $1, $4);
-            $$= NEW_PTN PTI_negate_expression(@$, item);
+            $$= NEW_PTN PTI_negate_condition(@$, item);
           }
         | bit_expr IN_SYM '(' expr ')'
           {
@@ -9402,7 +9402,7 @@ predicate:
             args->push_back($1);
             args->push_back($4);
             Item *item= NEW_PTN Item_func_regexp_like(@$, args);
-            $$= NEW_PTN PTI_negate_expression(@$, item);
+            $$= NEW_PTN PTI_negate_condition(@$, item);
           }
         | bit_expr
         ;
@@ -9535,7 +9535,7 @@ simple_expr:
           }
         | not2 simple_expr %prec NEG
           {
-            $$= NEW_PTN PTI_negate_expression(@$, $2);
+            $$= NEW_PTN PTI_negate_condition(@$, $2);
           }
         | row_subquery
           {
@@ -13575,11 +13575,11 @@ literal:
           }
         | FALSE_SYM
           {
-            $$= NEW_PTN Item_int(@$, NAME_STRING("FALSE"), 0, 1);
+            $$= NEW_PTN Item_func_false(@$);
           }
         | TRUE_SYM
           {
-            $$= NEW_PTN Item_int(@$, NAME_STRING("TRUE"), 1, 1);
+            $$= NEW_PTN Item_func_true(@$);
           }
         | HEX_NUM
           {

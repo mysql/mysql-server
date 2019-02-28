@@ -743,7 +743,7 @@ EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` and `test`.`t`.`b`) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) = 1)
 SELECT a, b FROM t WHERE (a AND b) = 1;
 a	b
 1	1
@@ -751,7 +751,7 @@ EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`a` and `test`.`t`.`b`))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)))
 SELECT a, b FROM t WHERE 1 = (a AND b);
 a	b
 1	1
@@ -759,7 +759,7 @@ EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` and `test`.`t`.`b`) in (1,2,3))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) in (1,2,3))
 SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 a	b
 1	1
@@ -767,7 +767,7 @@ EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` or `test`.`t`.`b`) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) or (0 <> `test`.`t`.`b`)) = 1)
 SELECT a, b FROM t WHERE (a OR b) = 1;
 a	b
 0	1
@@ -777,7 +777,7 @@ EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` or `test`.`t`.`b`) between 1 and 10)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) or (0 <> `test`.`t`.`b`)) between 1 and 10)
 SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
 a	b
 0	1
@@ -787,7 +787,7 @@ EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where ((`test`.`t`.`a` xor `test`.`t`.`b`) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) xor (0 <> `test`.`t`.`b`)) = 1)
 SELECT a, b FROM t WHERE (a XOR b) = 1;
 a	b
 0	1
@@ -796,7 +796,7 @@ EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((not(`test`.`t`.`a`)) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((0 = `test`.`t`.`a`) = 1)
 SELECT a FROM t WHERE (NOT a) = 1;
 a
 0
@@ -805,7 +805,7 @@ EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((case when (`test`.`t`.`a` and `test`.`t`.`b`) then `test`.`t`.`a` else `test`.`t`.`b` end) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((case when ((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) then `test`.`t`.`a` else `test`.`t`.`b` end) = 1)
 SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 a
 0
@@ -814,14 +814,14 @@ EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` and `test`.`t`.`a`))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`b`) and (0 <> `test`.`t`.`a`)))
 SELECT a, b FROM t WHERE 1 = (b AND a);
 a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` or `test`.`t`.`a`))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`b`) or (0 <> `test`.`t`.`a`)))
 Warnings:
 SELECT a, b FROM t WHERE 1 = (b OR a);
 a	b
@@ -982,17 +982,17 @@ EXPLAIN SELECT * FROM t1 WHERE (a2 AND a2) = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a2` and `test`.`t1`.`a2`) = 0)
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (((0 <> `test`.`t1`.`a2`) and (0 <> `test`.`t1`.`a2`)) = 0)
 SELECT * FROM t1 WHERE (a2 AND a2) = 0;
 a1	a2
 # Used to get assertion or wrong results.
 EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using pushed condition (0 <> `test`.`t2`.`b`); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t1` straight_join `test`.`t2` where (((`test`.`t2`.`b` and `test`.`t2`.`b`) = 1) and `test`.`t2`.`b`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t1` straight_join `test`.`t2` where ((((0 <> `test`.`t2`.`b`) and (0 <> `test`.`t2`.`b`)) = 1) and (0 <> `test`.`t2`.`b`))
 SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 a1	a2	b
 0	NULL	1

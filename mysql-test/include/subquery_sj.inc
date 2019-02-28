@@ -222,7 +222,7 @@ while ($i)
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
-           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i <> 0);
          eval EXPLAIN $query;
          --sorted_result
          eval $query;

@@ -826,7 +826,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 3	DERIVED	t1	NULL	range	PRIMARY	PRIMARY	4	NULL	1	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` where 0
+Note	1003	/* select#1 */ select `test`.`t2`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` where false
 DROP TABLE t1,t2,h1;
 DROP VIEW v1;
 CREATE TABLE t1 (

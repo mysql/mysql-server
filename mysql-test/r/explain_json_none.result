@@ -1007,7 +1007,7 @@ EXPLAIN SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN FORMAT= JSON SELECT 1 FROM (SELECT 1 AS x FROM t1) tt WHERE x;
 EXPLAIN
 {
@@ -1017,7 +1017,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DROP TABLE t1;
 # complex subqueries
 CREATE TABLE t1 (a INT, b INT);
@@ -1036,7 +1036,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 EXPLAIN FORMAT=JSON SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
 EXPLAIN
 {
@@ -1061,7 +1061,7 @@ EXPLAIN
         "a",
         "b"
       ] /* used_columns */,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -1086,7 +1086,7 @@ EXPLAIN
               "used_columns": [
                 "c"
               ] /* used_columns */,
-              "attached_condition": "(<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
+              "attached_condition": "(<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
               "attached_subqueries": [
                 {
                   "dependent": true,
@@ -1111,7 +1111,7 @@ EXPLAIN
                       "used_columns": [
                         "e"
                       ] /* used_columns */,
-                      "attached_condition": "(`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true))"
+                      "attached_condition": "((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true))"
                     } /* table */
                   } /* query_block */
                 },
@@ -1151,7 +1151,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #4 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where ((0 <> `test`.`t1`.`b`) and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or (`test`.`t3`.`e` is null)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 DROP TABLE t1, t2, t3, t4;
 # semi-join materialization (if enabled)
 CREATE TABLE t1 (a INT);
@@ -2190,7 +2190,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
 Warnings:
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 EXPLAIN FORMAT=JSON SELECT 1 FROM t1 WHERE (SELECT (SELECT 1 FROM t1 GROUP BY f1));
 EXPLAIN
 {
@@ -2248,7 +2248,7 @@ EXPLAIN
 }
 Warnings:
 Note	1249	Select 2 was reduced during optimization
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 1
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where true
 DROP TABLE t1;
 #
 CREATE TABLE t1 (i INT);
@@ -2523,7 +2523,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where 1 group by `test`.`t1`.`a` order by `test`.`t1`.`b`
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,group_concat(`test`.`t2`.`b` separator ',') AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where true group by `test`.`t1`.`a` order by `test`.`t1`.`b`
 DROP TABLE t1;
 DROP TABLE t2;
 #
