@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,8 @@ static const char *handler_error_messages[] = {
     "Do not wait for lock",
     "No more room in disk",
     "No session temporary tablespace available",
-    "Invalid table name"};
+    "Invalid table name",
+    "Path is too long for the OS"};
 
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);

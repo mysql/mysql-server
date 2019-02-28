@@ -37,160 +37,153 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum dberr_t {
   DB_ERROR_UNSET = 0,
-  DB_SUCCESS_LOCKED_REC = 9, /*!< like DB_SUCCESS, but a new
-                             explicit record lock was created */
+  /** like DB_SUCCESS, but a new explicit record lock was created */
+  DB_SUCCESS_LOCKED_REC = 9,
   DB_SUCCESS = 10,
 
   /* The following are error codes */
+
   DB_ERROR,
   DB_INTERRUPTED,
   DB_OUT_OF_MEMORY,
-  DB_OUT_OF_FILE_SPACE, /*!< the tablespace could not be
-                        auto-extending */
+  /** The tablespace could not be auto-extending */
+  DB_OUT_OF_FILE_SPACE,
   DB_OUT_OF_DISK_SPACE,
   DB_LOCK_WAIT,
   DB_DEADLOCK,
   DB_ROLLBACK,
   DB_DUPLICATE_KEY,
-  DB_MISSING_HISTORY, /*!< required history data has been
-                      deleted due to lack of space in
-                      rollback segment */
-  DB_SKIP_LOCKED,     /*!< skip lock */
-  DB_LOCK_NOWAIT,     /*!< don't wait lock */
-  DB_NO_SESSION_TEMP, /*!< no session temporary tablespace
-                      could be allocated */
-
+  /** required history data has been deleted due to lack of space in
+  rollback segment */
+  DB_MISSING_HISTORY,
+  /** skip lock */
+  DB_SKIP_LOCKED,
+  /** don't wait lock */
+  DB_LOCK_NOWAIT,
+  /** no session temporary tablespace could be allocated */
+  DB_NO_SESSION_TEMP,
   DB_CLUSTER_NOT_FOUND = 30,
   DB_TABLE_NOT_FOUND,
-  DB_MUST_GET_MORE_FILE_SPACE, /*!< the database has to be stopped
-                               and restarted with more file space */
+  /** the database has to be stopped and restarted with more file space */
+  DB_MUST_GET_MORE_FILE_SPACE,
   DB_TABLE_IS_BEING_USED,
-  DB_TOO_BIG_RECORD,           /*!< a record in an index would not fit
-                               on a compressed page, or it would
-                               become bigger than 1/2 free space in
-                               an uncompressed page frame */
-  DB_LOCK_WAIT_TIMEOUT,        /*!< lock wait lasted too long */
-  DB_NO_REFERENCED_ROW,        /*!< referenced key value not found
-                               for a foreign key in an insert or
-                               update of a row */
-  DB_ROW_IS_REFERENCED,        /*!< cannot delete or update a row
-                               because it contains a key value
-                               which is referenced */
-  DB_CANNOT_ADD_CONSTRAINT,    /*!< adding a foreign key constraint
-                               to a table failed */
-  DB_CORRUPTION,               /*!< data structure corruption
-                               noticed */
-  DB_CANNOT_DROP_CONSTRAINT,   /*!< dropping a foreign key constraint
-                               from a table failed */
-  DB_NO_SAVEPOINT,             /*!< no savepoint exists with the given
-                               name */
-  DB_TABLESPACE_EXISTS,        /*!< cannot create a new tablespace
-                               because a file of the same name or
-                               tablespace ID already exists */
-  DB_TABLESPACE_DELETED,       /*!< tablespace was deleted or is
-                               being dropped right now */
-  DB_TABLESPACE_NOT_FOUND,     /*!< Attempt to delete a tablespace
-                               instance that was not found in the
-                               tablespace hash table */
-  DB_LOCK_TABLE_FULL,          /*!< lock structs have exhausted the
-                               buffer pool (for big transactions,
-                               InnoDB stores the lock structs in the
-                               buffer pool) */
-  DB_FOREIGN_DUPLICATE_KEY,    /*!< foreign key constraints
-                               activated by the operation would
-                               lead to a duplicate key in some
-                               table */
-  DB_TOO_MANY_CONCURRENT_TRXS, /*!< when InnoDB runs out of the
-                               preconfigured undo slots, this can
-                               only happen when there are too many
-                               concurrent transactions */
-  DB_UNSUPPORTED,              /*!< when InnoDB sees any artefact or
-                               a feature that it can't recoginize or
-                               work with e.g., FT indexes created by
-                               a later version of the engine. */
-
-  DB_INVALID_NULL, /*!< a NOT NULL column was found to
-                   be NULL during table rebuild */
-
-  DB_STATS_DO_NOT_EXIST,         /*!< an operation that requires the
-                                 persistent storage, used for recording
-                                 table and index statistics, was
-                                 requested but this storage does not
-                                 exist itself or the stats for a given
-                                 table do not exist */
-  DB_FOREIGN_EXCEED_MAX_CASCADE, /*!< Foreign key constraint related
-                                 cascading delete/update exceeds
-                                 maximum allowed depth */
-  DB_CHILD_NO_INDEX,             /*!< the child (foreign) table does
-                                 not have an index that contains the
-                                 foreign keys as its prefix columns */
-  DB_PARENT_NO_INDEX,            /*!< the parent table does not
-                                 have an index that contains the
-                                 foreign keys as its prefix columns */
-  DB_TOO_BIG_INDEX_COL,          /*!< index column size exceeds
-                                 maximum limit */
-  DB_INDEX_CORRUPT,              /*!< we have corrupted index */
-  DB_UNDO_RECORD_TOO_BIG,        /*!< the undo log record is too big */
-  DB_READ_ONLY,                  /*!< Update operation attempted in
-                                 a read-only transaction */
-  DB_FTS_INVALID_DOCID,          /* FTS Doc ID cannot be zero */
-  DB_TABLE_IN_FK_CHECK,          /* table is being used in foreign
-                                 key check */
-  DB_ONLINE_LOG_TOO_BIG,         /*!< Modification log grew too big
-                                 during online index creation */
-
-  DB_IDENTIFIER_TOO_LONG,           /*!< Identifier name too long */
-  DB_FTS_EXCEED_RESULT_CACHE_LIMIT, /*!< FTS query memory
-                            exceeds result cache limit */
-  DB_TEMP_FILE_WRITE_FAIL,          /*!< Temp file write failure */
-  DB_CANT_CREATE_GEOMETRY_OBJECT,   /*!< Cannot create specified Geometry
-                                    data object */
-  DB_CANNOT_OPEN_FILE,              /*!< Cannot open a file */
-  DB_FTS_TOO_MANY_WORDS_IN_PHRASE,  /*!< Too many words in a phrase */
-  DB_SERVER_VERSION_LOW, /* Server version is lower than tablespace version */
-
-  DB_IO_ERROR = 100, /*!< Generic IO error */
-
-  DB_IO_DECOMPRESS_FAIL, /*!< Failure to decompress a page
-                         after reading it from disk */
-
-  DB_IO_NO_PUNCH_HOLE, /*!< Punch hole not supported by
-                       InnoDB */
-
-  DB_IO_NO_PUNCH_HOLE_FS, /*!< The file system doesn't support
-                          punch hole */
-
-  DB_IO_NO_PUNCH_HOLE_TABLESPACE, /*!< The tablespace doesn't support
-                                  punch hole */
-
-  DB_IO_DECRYPT_FAIL, /*!< Failure to decrypt a page
-                      after reading it from disk */
-
-  DB_IO_NO_ENCRYPT_TABLESPACE, /*!< The tablespace doesn't support
-                               encrypt */
-
-  DB_IO_PARTIAL_FAILED, /*!< Partial IO request failed */
-
-  DB_FORCED_ABORT, /*!< Transaction was forced to rollback
-                   by a higher priority transaction */
-
-  DB_TABLE_CORRUPT, /*!< Table/clustered index is
-                    corrupted */
-
-  DB_WRONG_FILE_NAME, /*!< Invalid Filename */
-
-  DB_COMPUTE_VALUE_FAILED, /*!< Compute generated value failed */
-  DB_NO_FK_ON_S_BASE_COL,  /*!< Cannot add foreign constrain
-                           placed on the base column of
-                           stored column */
-
-  DB_INVALID_ENCRYPTION_META, /*!< Invalid encrytion metadata in
-                              page 0. */
-
+  /** a record in an index would not fit on a compressed page, or it would
+  become bigger than 1/2 free space in an uncompressed page frame */
+  DB_TOO_BIG_RECORD,
+  /** lock wait lasted too long */
+  DB_LOCK_WAIT_TIMEOUT,
+  /** referenced key value not found for a foreign key in an insert or
+  update of a row */
+  DB_NO_REFERENCED_ROW,
+  /** cannot delete or update a row because it contains a key value which
+  is referenced */
+  DB_ROW_IS_REFERENCED,
+  /** adding a foreign key constraint to a table failed */
+  DB_CANNOT_ADD_CONSTRAINT,
+  /** data structure corruption noticed */
+  DB_CORRUPTION,
+  /** dropping a foreign key constraint from a table failed */
+  DB_CANNOT_DROP_CONSTRAINT,
+  /** no savepoint exists with the given name */
+  DB_NO_SAVEPOINT,
+  /** cannot create a new tablespace because a file of the same name or
+  tablespace ID already exists */
+  DB_TABLESPACE_EXISTS,
+  /** tablespace was deleted or is being dropped right now */
+  DB_TABLESPACE_DELETED,
+  /** Attempt to delete a tablespace instance that was not found in the
+  tablespace hash table */
+  DB_TABLESPACE_NOT_FOUND,
+  /** lock structs have exhausted the buffer pool (for big transactions,
+  InnoDB stores the lock structs in the buffer pool) */
+  DB_LOCK_TABLE_FULL,
+  /** foreign key constraints activated by the operation would lead to a
+  duplicate key in some table */
+  DB_FOREIGN_DUPLICATE_KEY,
+  /** when InnoDB runs out of the preconfigured undo slots, this can only
+  happen when there are too many concurrent transactions */
+  DB_TOO_MANY_CONCURRENT_TRXS,
+  /** when InnoDB sees any artefact or a feature that it can't recoginize
+  or work with e.g., FT indexes created by a later version of the engine. */
+  DB_UNSUPPORTED,
+  /** a NOT NULL column was found to be NULL during table rebuild */
+  DB_INVALID_NULL,
+  /** an operation that requires the persistent storage, used for recording
+  table and index statistics, was requested but this storage does not exist
+  itself or the stats for a given table do not exist */
+  DB_STATS_DO_NOT_EXIST,
+  /** Foreign key constraint related cascading delete/update exceeds maximum
+  allowed depth */
+  DB_FOREIGN_EXCEED_MAX_CASCADE,
+  /** the child (foreign) table does not have an index that contains the
+  foreign keys as its prefix columns */
+  DB_CHILD_NO_INDEX,
+  /** the parent table does not have an index that contains the foreign keys
+  as its prefix columns */
+  DB_PARENT_NO_INDEX,
+  /** index column size exceeds maximum limit */
+  DB_TOO_BIG_INDEX_COL,
+  /** we have corrupted index */
+  DB_INDEX_CORRUPT,
+  /** the undo log record is too big */
+  DB_UNDO_RECORD_TOO_BIG,
+  /** Update operation attempted in a read-only transaction */
+  DB_READ_ONLY,
+  /** FTS Doc ID cannot be zero */
+  DB_FTS_INVALID_DOCID,
+  /** table is being used in foreign key check */
+  DB_TABLE_IN_FK_CHECK,
+  /** Modification log grew too big during online index creation */
+  DB_ONLINE_LOG_TOO_BIG,
+  /** Identifier name too long */
+  DB_IDENTIFIER_TOO_LONG,
+  /** FTS query memory exceeds result cache limit */
+  DB_FTS_EXCEED_RESULT_CACHE_LIMIT,
+  /** Temp file write failure */
+  DB_TEMP_FILE_WRITE_FAIL,
+  /** Cannot create specified Geometry data object */
+  DB_CANT_CREATE_GEOMETRY_OBJECT,
+  /** Cannot open a file */
+  DB_CANNOT_OPEN_FILE,
+  /** Too many words in a phrase */
+  DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
+  /** Server version is lower than tablespace version */
+  DB_SERVER_VERSION_LOW,
+  /** The path is too long for the OS */
+  DB_TOO_LONG_PATH,
+  /** Generic IO error */
+  DB_IO_ERROR = 100,
+  /** Failure to decompress a page after reading it from disk */
+  DB_IO_DECOMPRESS_FAIL,
+  /** Punch hole not supported by InnoDB */
+  DB_IO_NO_PUNCH_HOLE,
+  /** The file system doesn't support punch hole */
+  DB_IO_NO_PUNCH_HOLE_FS,
+  /** The tablespace doesn't support punch hole */
+  DB_IO_NO_PUNCH_HOLE_TABLESPACE,
+  /** Failure to decrypt a page after reading it from disk */
+  DB_IO_DECRYPT_FAIL,
+  /** The tablespace doesn't support encrypt */
+  DB_IO_NO_ENCRYPT_TABLESPACE,
+  /** Partial IO request failed */
+  DB_IO_PARTIAL_FAILED,
+  /** Transaction was forced to rollback by a higher priority transaction */
+  DB_FORCED_ABORT,
+  /** Table/clustered index is corrupted */
+  DB_TABLE_CORRUPT,
+  /** Invalid Filename */
+  DB_WRONG_FILE_NAME,
+  /** Compute generated value failed */
+  DB_COMPUTE_VALUE_FAILED,
+  /** Cannot add foreign constrain placed on the base column of stored column */
+  DB_NO_FK_ON_S_BASE_COL,
+  /** Invalid encrytion metadata in page 0. */
+  DB_INVALID_ENCRYPTION_META,
   /** Incomplete cloned directory */
   DB_ABORT_INCOMPLETE_CLONE,
 
   /* The following are partial failure codes */
+
   DB_FAIL = 1000,
   DB_OVERFLOW,
   DB_UNDERFLOW,
@@ -199,14 +192,14 @@ enum dberr_t {
   DB_RECORD_NOT_FOUND = 1500,
   DB_END_OF_BLOCK,
   DB_END_OF_INDEX,
-  DB_NOT_FOUND, /*!< Generic error code for "Not found"
-                type of errors */
+  /** Generic error code for "Not found" type of errors */
+  DB_NOT_FOUND,
 
   /* The following are API only error codes. */
-  DB_DATA_MISMATCH = 2000, /*!< Column update or read failed
-                           because the types mismatch */
 
-  /* Request the caller to cache records. */
+  /** Column update or read failed because the types mismatch */
+  DB_DATA_MISMATCH = 2000,
+  /** Request the caller to cache records. */
   DB_CACHE_RECORDS
 };
 

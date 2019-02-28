@@ -804,124 +804,181 @@ is the global server default. */
   Do not add error numbers before HA_ERR_FIRST.
   If necessary to add lower numbers, change HA_ERR_FIRST accordingly.
 */
-#define HA_ERR_FIRST 120 /* Copy of first error nr.*/
-
-#define HA_ERR_KEY_NOT_FOUND 120       /* Didn't find key on read or update */
-#define HA_ERR_FOUND_DUPP_KEY 121      /* Dupplicate key on write */
-#define HA_ERR_INTERNAL_ERROR 122      /* Internal error */
-#define HA_ERR_RECORD_CHANGED 123      /* Uppdate with is recoverable */
-#define HA_ERR_WRONG_INDEX 124         /* Wrong index given to function */
-#define HA_ERR_CRASHED 126             /* Indexfile is crashed */
-#define HA_ERR_WRONG_IN_RECORD 127     /* Record-file is crashed */
-#define HA_ERR_OUT_OF_MEM 128          /* Record-file is crashed */
-#define HA_ERR_NOT_A_TABLE 130         /* not a MYI file - no signature */
-#define HA_ERR_WRONG_COMMAND 131       /* Command not supported */
-#define HA_ERR_OLD_FILE 132            /* old databasfile */
-#define HA_ERR_NO_ACTIVE_RECORD 133    /* No record read in update() */
-#define HA_ERR_RECORD_DELETED 134      /* A record is not there */
-#define HA_ERR_RECORD_FILE_FULL 135    /* No more room in file */
-#define HA_ERR_INDEX_FILE_FULL 136     /* No more room in file */
-#define HA_ERR_END_OF_FILE 137         /* end in next/prev/first/last */
-#define HA_ERR_UNSUPPORTED 138         /* unsupported extension used */
-#define HA_ERR_TOO_BIG_ROW 139         /* Too big row */
-#define HA_WRONG_CREATE_OPTION 140     /* Wrong create option */
-#define HA_ERR_FOUND_DUPP_UNIQUE 141   /* Dupplicate unique on write */
-#define HA_ERR_UNKNOWN_CHARSET 142     /* Can't open charset */
-#define HA_ERR_WRONG_MRG_TABLE_DEF 143 /* conflicting tables in MERGE */
-#define HA_ERR_CRASHED_ON_REPAIR 144   /* Last (automatic?) repair failed */
-#define HA_ERR_CRASHED_ON_USAGE 145    /* Table must be repaired */
+/** Copy of first error nr.*/
+#define HA_ERR_FIRST 120
+/** Didn't find key on read or update */
+#define HA_ERR_KEY_NOT_FOUND 120
+/** Dupplicate key on write */
+#define HA_ERR_FOUND_DUPP_KEY 121
+/** Internal error */
+#define HA_ERR_INTERNAL_ERROR 122
+/** Uppdate with is recoverable */
+#define HA_ERR_RECORD_CHANGED 123
+/** Wrong index given to function */
+#define HA_ERR_WRONG_INDEX 124
+/** Indexfile is crashed */
+#define HA_ERR_CRASHED 126
+/** Record-file is crashed */
+#define HA_ERR_WRONG_IN_RECORD 127
+/** Record-file is crashed */
+#define HA_ERR_OUT_OF_MEM 128
+/** not a MYI file - no signature */
+#define HA_ERR_NOT_A_TABLE 130
+/** Command not supported */
+#define HA_ERR_WRONG_COMMAND 131
+/** old database file */
+#define HA_ERR_OLD_FILE 132
+/** No record read in update() */
+#define HA_ERR_NO_ACTIVE_RECORD 133
+/** A record is not there */
+#define HA_ERR_RECORD_DELETED 134
+/** No more room in file */
+#define HA_ERR_RECORD_FILE_FULL 135
+/** No more room in file */
+#define HA_ERR_INDEX_FILE_FULL 136
+/** end in next/prev/first/last */
+#define HA_ERR_END_OF_FILE 137
+/** unsupported extension used */
+#define HA_ERR_UNSUPPORTED 138
+/** Too big row */
+#define HA_ERR_TOO_BIG_ROW 139
+/** Wrong create option */
+#define HA_WRONG_CREATE_OPTION 140
+/** Dupplicate unique on write */
+#define HA_ERR_FOUND_DUPP_UNIQUE 141
+/** Can't open charset */
+#define HA_ERR_UNKNOWN_CHARSET 142
+/** conflicting tables in MERGE */
+#define HA_ERR_WRONG_MRG_TABLE_DEF 143
+/** Last (automatic?) repair failed */
+#define HA_ERR_CRASHED_ON_REPAIR 144
+/** Table must be repaired */
+#define HA_ERR_CRASHED_ON_USAGE 145
 #define HA_ERR_LOCK_WAIT_TIMEOUT 146
 #define HA_ERR_LOCK_TABLE_FULL 147
-#define HA_ERR_READ_ONLY_TRANSACTION 148 /* Updates not allowed */
+/** Updates not allowed */
+#define HA_ERR_READ_ONLY_TRANSACTION 148
 #define HA_ERR_LOCK_DEADLOCK 149
-#define HA_ERR_CANNOT_ADD_FOREIGN 150    /* Cannot add a foreign key constr. */
-#define HA_ERR_NO_REFERENCED_ROW 151     /* Cannot add a child row */
-#define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
-#define HA_ERR_NO_SAVEPOINT 153          /* No savepoint with that name */
-#define HA_ERR_NON_UNIQUE_BLOCK_SIZE 154 /* Non unique key block size */
-#define HA_ERR_NO_SUCH_TABLE 155 /* The table does not exist in engine */
-#define HA_ERR_TABLE_EXIST 156   /* The table existed in storage engine */
-#define HA_ERR_NO_CONNECTION 157 /* Could not connect to storage engine */
-/* NULLs are not supported in spatial index */
+/** Cannot add a foreign key constr. */
+#define HA_ERR_CANNOT_ADD_FOREIGN 150
+/** Cannot add a child row */
+#define HA_ERR_NO_REFERENCED_ROW 151
+/** Cannot delete a parent row */
+#define HA_ERR_ROW_IS_REFERENCED 152
+/** No savepoint with that name */
+#define HA_ERR_NO_SAVEPOINT 153
+/** Non unique key block size */
+#define HA_ERR_NON_UNIQUE_BLOCK_SIZE 154
+/** The table does not exist in engine */
+#define HA_ERR_NO_SUCH_TABLE 155
+/** The table existed in storage engine */
+#define HA_ERR_TABLE_EXIST 156
+/** Could not connect to storage engine */
+#define HA_ERR_NO_CONNECTION 157
+/** NULLs are not supported in spatial index */
 #define HA_ERR_NULL_IN_SPATIAL 158
-#define HA_ERR_TABLE_DEF_CHANGED 159 /* The table changed in storage engine */
-/* There's no partition in table for given value */
+/** The table changed in storage engine */
+#define HA_ERR_TABLE_DEF_CHANGED 159
+/** There's no partition in table for given value */
 #define HA_ERR_NO_PARTITION_FOUND 160
-#define HA_ERR_RBR_LOGGING_FAILED 161 /* Row-based binlogging of row failed */
-#define HA_ERR_DROP_INDEX_FK 162      /* Index needed in foreign key constr */
-/*
-  Upholding foreign key constraints would lead to a duplicate key error
-  in some other table.
-*/
+/** Row-based binlogging of row failed */
+#define HA_ERR_RBR_LOGGING_FAILED 161
+/** Index needed in foreign key constraint */
+#define HA_ERR_DROP_INDEX_FK 162
+/** Upholding foreign key constraints would lead to a duplicate key error
+in some other table. */
 #define HA_ERR_FOREIGN_DUPLICATE_KEY 163
-/* The table changed in storage engine */
+/** The table changed in storage engine */
 #define HA_ERR_TABLE_NEEDS_UPGRADE 164
-#define HA_ERR_TABLE_READONLY 165 /* The table is not writable */
-
-#define HA_ERR_AUTOINC_READ_FAILED 166 /* Failed to get next autoinc value */
-#define HA_ERR_AUTOINC_ERANGE 167      /* Failed to set row autoinc value */
-#define HA_ERR_GENERIC 168             /* Generic error */
-/* row not actually updated: new values same as the old values */
+/** The table is not writable */
+#define HA_ERR_TABLE_READONLY 165
+/** Failed to get next autoinc value */
+#define HA_ERR_AUTOINC_READ_FAILED 166
+/** Failed to set row autoinc value */
+#define HA_ERR_AUTOINC_ERANGE 167
+/** Generic error */
+#define HA_ERR_GENERIC 168
+/** row not actually updated: new values same as the old values */
 #define HA_ERR_RECORD_IS_THE_SAME 169
-/* It is not possible to log this statement */
-#define HA_ERR_LOGGING_IMPOSSIBLE       \
-  170 /* It is not possible to log this \
-         statement */
-#define HA_ERR_CORRUPT_EVENT                                     \
-  171                       /* The event was corrupt, leading to \
-                               illegal data being read */
-#define HA_ERR_NEW_FILE 172 /* New file format */
-#define HA_ERR_ROWS_EVENT_APPLY                                       \
-  173                             /* The event could not be processed \
-                                     no other hanlder error happened */
-#define HA_ERR_INITIALIZATION 174 /* Error during initialization */
-#define HA_ERR_FILE_TOO_SHORT 175 /* File too short */
-#define HA_ERR_WRONG_CRC 176      /* Wrong CRC on page */
-#define HA_ERR_TOO_MANY_CONCURRENT_TRXS \
-  177 /*Too many active concurrent transactions */
-/* There's no explicitly listed partition in table for the given value */
+/** It is not possible to log this statement */
+#define HA_ERR_LOGGING_IMPOSSIBLE 170
+/** The event was corrupt, leading to illegal data being read */
+#define HA_ERR_CORRUPT_EVENT 171
+/** New file format */
+#define HA_ERR_NEW_FILE 172
+/** The event could not be processed no other hanlder error happened */
+#define HA_ERR_ROWS_EVENT_APPLY 173
+/** Error during initialization */
+#define HA_ERR_INITIALIZATION 174
+/** File too short */
+#define HA_ERR_FILE_TOO_SHORT 175
+/** Wrong CRC on page */
+#define HA_ERR_WRONG_CRC 176
+/** Too many active concurrent transactions */
+#define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177
+/** There's no explicitly listed partition in table for the given value */
 #define HA_ERR_NOT_IN_LOCK_PARTITIONS 178
-#define HA_ERR_INDEX_COL_TOO_LONG 179 /* Index column length exceeds limit */
-#define HA_ERR_INDEX_CORRUPT 180      /* InnoDB index corrupted */
-#define HA_ERR_UNDO_REC_TOO_BIG 181   /* Undo log record too big */
-#define HA_FTS_INVALID_DOCID 182      /* Invalid InnoDB Doc ID */
-#define HA_ERR_TABLE_IN_FK_CHECK               \
-  183 /* Table being used in foreign key check \
-       */
-#define HA_ERR_TABLESPACE_EXISTS \
-  184 /* The tablespace existed in storage engine */
-#define HA_ERR_TOO_MANY_FIELDS 185        /* Table has too many columns */
-#define HA_ERR_ROW_IN_WRONG_PARTITION 186 /* Row in wrong partition */
-#define HA_ERR_INNODB_READ_ONLY 187       /* InnoDB is in read only mode. */
-#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT \
-  188 /* FTS query exceeds result cache limit */
-#define HA_ERR_TEMP_FILE_WRITE_FAILURE 189 /* Temporary file write failure */
-#define HA_ERR_INNODB_FORCED_RECOVERY     \
-  190 /* Innodb is in force recovery mode \
-       */
-#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE                         \
-  191                                 /* Too many words in a phrase \
-                                       */
-#define HA_ERR_FK_DEPTH_EXCEEDED 192  /* FK cascade depth exceeded */
-#define HA_MISSING_CREATE_OPTION 193  /* Option Missing during Create */
-#define HA_ERR_SE_OUT_OF_MEMORY 194   /* Out of memory in storage engine */
-#define HA_ERR_TABLE_CORRUPT 195      /* Table/Clustered index is corrupted. */
-#define HA_ERR_QUERY_INTERRUPTED 196  /* The query was interrupted */
-#define HA_ERR_TABLESPACE_MISSING 197 /* Missing Tablespace */
-#define HA_ERR_TABLESPACE_IS_NOT_EMPTY 198 /* Tablespace is not empty */
-#define HA_ERR_WRONG_FILE_NAME 199         /* Invalid Filename */
-#define HA_ERR_NOT_ALLOWED_COMMAND 200     /* Operation is not allowed */
-#define HA_ERR_COMPUTE_FAILED 201 /* Compute generated column value failed */
-/*
-  Table's row format has changed in the storage engine.
-  Information in the data-dictionary needs to be updated.
-*/
+/** Index column length exceeds limit */
+#define HA_ERR_INDEX_COL_TOO_LONG 179
+/** InnoDB index corrupted */
+#define HA_ERR_INDEX_CORRUPT 180
+/** Undo log record too big */
+#define HA_ERR_UNDO_REC_TOO_BIG 181
+/** Invalid InnoDB Doc ID */
+#define HA_FTS_INVALID_DOCID 182
+/** Table being used in foreign key check */
+#define HA_ERR_TABLE_IN_FK_CHECK 183
+/** The tablespace existed in storage engine */
+#define HA_ERR_TABLESPACE_EXISTS 184
+/** Table has too many columns */
+#define HA_ERR_TOO_MANY_FIELDS 185
+/** Row in wrong partition */
+#define HA_ERR_ROW_IN_WRONG_PARTITION 186
+/** InnoDB is in read only mode. */
+#define HA_ERR_INNODB_READ_ONLY 187
+/** FTS query exceeds result cache limit */
+#define HA_ERR_FTS_EXCEED_RESULT_CACHE_LIMIT 188
+/** Temporary file write failure */
+#define HA_ERR_TEMP_FILE_WRITE_FAILURE 189
+/** Innodb is in force recovery mode */
+#define HA_ERR_INNODB_FORCED_RECOVERY 190
+/** Too many words in a phrase */
+#define HA_ERR_FTS_TOO_MANY_WORDS_IN_PHRASE 191
+/** FK cascade depth exceeded */
+#define HA_ERR_FK_DEPTH_EXCEEDED 192
+/** Option Missing during Create */
+#define HA_MISSING_CREATE_OPTION 193
+/** Out of memory in storage engine */
+#define HA_ERR_SE_OUT_OF_MEMORY 194
+/** Table/Clustered index is corrupted. */
+#define HA_ERR_TABLE_CORRUPT 195
+/** The query was interrupted */
+#define HA_ERR_QUERY_INTERRUPTED 196
+/** Missing Tablespace */
+#define HA_ERR_TABLESPACE_MISSING 197
+/** Tablespace is not empty */
+#define HA_ERR_TABLESPACE_IS_NOT_EMPTY 198
+/** Invalid Filename */
+#define HA_ERR_WRONG_FILE_NAME 199
+/** Operation is not allowed */
+#define HA_ERR_NOT_ALLOWED_COMMAND 200
+/** Compute generated column value failed */
+#define HA_ERR_COMPUTE_FAILED 201
+/** Table's row format has changed in the storage engine.
+Information in the data-dictionary needs to be updated. */
 #define HA_ERR_ROW_FORMAT_CHANGED 202
-#define HA_ERR_NO_WAIT_LOCK 203     /* Don't wait for record lock */
-#define HA_ERR_DISK_FULL_NOWAIT 204 /* No more room in disk */
-#define HA_ERR_NO_SESSION_TEMP 205  /* No session temporary space available */
-#define HA_ERR_WRONG_TABLE_NAME 206 /* Wrong or Invalid table name */
-#define HA_ERR_LAST 206             /* Copy of last error nr */
+/** Don't wait for record lock */
+#define HA_ERR_NO_WAIT_LOCK 203
+/** No more room in disk */
+#define HA_ERR_DISK_FULL_NOWAIT 204
+/** No session temporary space available */
+#define HA_ERR_NO_SESSION_TEMP 205
+/** Wrong or Invalid table name */
+#define HA_ERR_WRONG_TABLE_NAME 206
+/** Path is too long for the OS */
+#define HA_ERR_TOO_LONG_PATH 207
+/** Copy of last error number */
+#define HA_ERR_LAST 207
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

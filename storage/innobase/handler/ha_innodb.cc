@@ -2017,6 +2017,8 @@ int convert_error_code_to_mysql(dberr_t error, uint32_t flags, THD *thd) {
       return (HA_ERR_TABLESPACE_MISSING);
     case DB_IDENTIFIER_TOO_LONG:
       return (HA_ERR_INTERNAL_ERROR);
+    case DB_TOO_LONG_PATH:
+      return (HA_ERR_TOO_LONG_PATH);
     case DB_TABLE_CORRUPT:
       return (HA_ERR_TABLE_CORRUPT);
     case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
