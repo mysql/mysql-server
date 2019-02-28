@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -675,6 +675,24 @@ bool Session_sysvars_tracker::store(THD *thd, String &buf) {
       /* System variable's name (length-encoded string). */
       store_lenenc_string(buf, node->m_sysvar_name.str,
                           node->m_sysvar_name.length);
+
+      DBUG_EXECUTE_IF(
+          "store_100_chars_charset_set_client_name",
+          if (!strncmp(node->m_sysvar_name.str, "character_set_client",
+                       node->m_sysvar_name.length)) {
+            value =
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789"
+                "0123456789";
+            val_length = 100;
+          });
 
       /* System variable's value (length-encoded string). */
       store_lenenc_string(buf, value, val_length);
