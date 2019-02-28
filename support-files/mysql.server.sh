@@ -70,7 +70,7 @@ then
     datadir=@localstatedir@
   fi
   sbindir=@sbindir@
-  libexecdir=@libexecdir@
+  libexecdir=@sbindir@
 else
   bindir="$basedir/bin"
   if test -z "$datadir"
@@ -243,7 +243,7 @@ parse_server_arguments `$print_defaults $extra_args mysqld server mysql_server m
 #
 if test -z "$mysqld_pid_file_path"
 then
-  mysqld_pid_file_path=$datadir/`@HOSTNAME@`.pid
+  mysqld_pid_file_path=$datadir/`hostname`.pid
 else
   case "$mysqld_pid_file_path" in
     /* ) ;;

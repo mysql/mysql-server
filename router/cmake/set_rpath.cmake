@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,6 @@ ENDIF()
 
 IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")
   SET(ROUTER_INSTALL_DOCDIR "${INSTALL_DOCDIR}")
-ENDIF()
-IF("${ROUTER_INSTALL_SHAREDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_SHAREDIR "${INSTALL_SHAREDIR}")
 ENDIF()
 
 # if are _pure_ STANDALONE we can write into data/ as it is all ours
@@ -130,5 +127,4 @@ SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 #MESSAGE(STATUS "- libdir: ${ROUTER_INSTALL_LIBDIR}")
 #MESSAGE(STATUS "- plugindir: ${ROUTER_INSTALL_PLUGINDIR}")
 #MESSAGE(STATUS "- datadir: ${ROUTER_INSTALL_DATADIR}")
-#MESSAGE(STATUS "- sharedir: ${ROUTER_INSTALL_SHAREDIR}")
 #MESSAGE(STATUS "- rpath: ${CMAKE_INSTALL_RPATH}")
