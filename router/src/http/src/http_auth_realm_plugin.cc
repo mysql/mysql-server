@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ static void init(PluginFuncEnv *env) {
       if (known_backends.find(config.backend) == known_backends.end()) {
         throw std::invalid_argument(
             "unknown authentication backend for [http_auth_realm] '" +
-            section->key + "': " + config.method +
+            section->key + "': " + config.backend +
             ", known backend(s): " + mysql_harness::join(known_backends, ","));
       }
 
