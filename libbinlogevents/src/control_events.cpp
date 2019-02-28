@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -596,7 +596,8 @@ View_change_event::View_change_event(char *raw_view_id)
       view_id(),
       seq_number(0),
       certification_info() {
-  memcpy(view_id, raw_view_id, strlen(raw_view_id));
+  strncpy(view_id, raw_view_id, sizeof(view_id) - 1);
+  view_id[sizeof(view_id) - 1] = 0;
 }
 
 View_change_event::View_change_event(const char *buffer,
