@@ -19116,6 +19116,9 @@ ER_NETWORK_NAMESPACE_FILE_PATH_TOO_LONG
 ER_IB_MSG_TOO_LONG_PATH
   eng "Cannot create tablespace '%s'. The filepath is too long for this OS."
 
+ER_IB_RECV_FIRST_REC_GROUP_INVALID
+  eng "The last block of redo had corrupted first_rec_group and became fixed (%u -> %u)."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

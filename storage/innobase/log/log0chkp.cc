@@ -573,8 +573,13 @@ void log_create_first_checkpoint(log_t &log, lsn_t lsn) {
   log_block_set_flush_bit(block, true);
   log_block_set_data_len(block, LOG_BLOCK_HDR_SIZE);
   log_block_set_checkpoint_no(block, 0);
-  log_block_set_first_rec_group(block, 0);
+  log_block_set_first_rec_group(block, lsn % OS_FILE_LOG_BLOCK_SIZE);
   log_block_store_checksum(block);
+
+  std::memcpy(log.buf + block_lsn % log.buf_size, block,
+              OS_FILE_LOG_BLOCK_SIZE);
+
+  ut_d(log.first_block_is_correct_for_lsn = lsn);
 
   block_page_no =
       static_cast<page_no_t>(block_offset / univ_page_size.physical());

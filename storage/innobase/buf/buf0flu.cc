@@ -1141,6 +1141,13 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
     }
   }
 
+  DBUG_EXECUTE_IF("log_first_rec_group_test", {
+    recv_no_ibuf_operations = false;
+    const lsn_t end_lsn = mtr_commit_mlog_test(*log_sys);
+    log_write_up_to(*log_sys, end_lsn, true);
+    DBUG_SUICIDE();
+  });
+
   switch (buf_page_get_state(bpage)) {
     case BUF_BLOCK_POOL_WATCH:
     case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */

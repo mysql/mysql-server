@@ -501,6 +501,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log.state = log_state_t::OK;
   log.n_log_ios_old = log.n_log_ios;
   log.last_printout_time = time(nullptr);
+  ut_d(log.first_block_is_correct_for_lsn = 0);
 
   ut_a(file_size <= std::numeric_limits<uint64_t>::max() / n_files);
   log.file_size = file_size;
@@ -620,7 +621,11 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
 
   log_block_set_data_len(block, start_lsn - block_lsn);
 
-  log_block_set_first_rec_group(block, start_lsn % OS_FILE_LOG_BLOCK_SIZE);
+  const auto first_rec_group = log_block_get_first_rec_group(block);
+
+  ut_ad(log.first_block_is_correct_for_lsn == start_lsn);
+  ut_ad(first_rec_group >= LOG_BLOCK_HDR_SIZE);
+  ut_a(first_rec_group <= start_lsn - block_lsn);
 
   /* Do not reorder writes above, below this line. For x86 this
   protects only from unlikely compile-time reordering. */

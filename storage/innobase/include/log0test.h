@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,12 @@ class Log_test {
 
   void purge(lsn_t max_dirty_page_age);
 
-  byte *create_mlog_rec(byte *rec, Key key, Value value);
+  static byte *create_mlog_rec(byte *rec, Key key, Value value, size_t payload);
+
+  static byte *create_mlog_rec(byte *rec, Key key, Value value);
+
+  static byte *parse_mlog_rec(byte *begin, byte *end, Key &key, Value &value,
+                              lsn_t &start_lsn, lsn_t &end_lsn);
 
   byte *parse_mlog_rec(byte *begin, byte *end);
 

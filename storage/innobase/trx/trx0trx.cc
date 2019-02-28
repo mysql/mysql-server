@@ -2021,7 +2021,15 @@ void trx_commit_low(
     number and a bigger commit lsn than T1. */
 
     /*--------------*/
+
+    DBUG_EXECUTE_IF("trx_commit_to_the_end_of_log_block", {
+      const size_t space_left = mtr->get_expected_log_size();
+      mtr_commit_mlog_test_filling_block(*log_sys, space_left);
+    });
+
     mtr_commit(mtr);
+
+    DBUG_PRINT("trx_commit", ("commit lsn at " LSN_PF, mtr->commit_lsn()));
 
     DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
                     if (trx_is_rseg_updated(trx)) {

@@ -2171,8 +2171,6 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
   if (create_new_db) {
     ut_a(buf_are_flush_lists_empty_validate());
 
-    /* TODO: Was there any reason for which we were skipping
-    here the log block which starts at LOG_START_LSN in 5.7 ? */
     flushed_lsn = LOG_START_LSN;
 
     err = create_log_files(logfilename, dirnamelen, flushed_lsn, logfile0,

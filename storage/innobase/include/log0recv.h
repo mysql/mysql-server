@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -517,6 +517,17 @@ struct recv_sys_t {
 
   /** The log records have been parsed up to this lsn */
   lsn_t recovered_lsn;
+
+  /** The previous value of recovered_lsn - before we parsed the last mtr.
+  It is equal to recovered_lsn before we parsed any mtr. This is used to
+  find moments in which recovered_lsn moves to the next block in which case
+  we should update the last_block_first_rec_group (described below). */
+  lsn_t previous_recovered_lsn;
+
+  /** Tracks what should be the proper value of first_rec_group field in the
+  header of the block to which recovered_lsn belongs. It might be also zero,
+  in which case it means we do not know. */
+  uint32_t last_block_first_rec_group;
 
   /** Set when finding a corrupt log block or record, or there
   is a log parsing buffer overflow */

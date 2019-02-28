@@ -43,7 +43,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 #include "arch0arch.h"
 #include "log0log.h"
-#include "log0recv.h"  /* recv_recovery_is_on() */
+#include "log0recv.h" /* recv_recovery_is_on() */
+#include "log0test.h"
 #include "srv0start.h" /* SRV_SHUTDOWN_FLUSH_PHASE */
 
 /**************************************************/ /**

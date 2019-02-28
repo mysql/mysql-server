@@ -1624,12 +1624,29 @@ static void log_files_write_buffer(log_t &log, byte *buffer, size_t buffer_size,
     We write completed blocks from the log buffer. Note,
     that possibly we do not write all completed blocks,
     because of write-ahead strategy (described earlier). */
+    DBUG_PRINT("ib_log",
+               ("write from log buffer start_lsn=" LSN_PF " write_lsn=" LSN_PF
+                " -> " LSN_PF,
+                start_lsn, log.write_lsn.load(), start_lsn + lsn_advance));
 
     write_buf = buffer;
 
     LOG_SYNC_POINT("log_writer_before_write_from_log_buffer");
 
   } else {
+    DBUG_PRINT("ib_log",
+               ("incomplete write start_lsn=" LSN_PF " write_lsn=" LSN_PF
+                " -> " LSN_PF,
+                start_lsn, log.write_lsn.load(), start_lsn + lsn_advance));
+
+#ifdef UNIV_DEBUG
+    if (start_lsn == log.write_lsn.load()) {
+      LOG_SYNC_POINT("log_writer_before_write_new_incomplete_block");
+    }
+      /* Else: we are doing yet another incomplete block write within the
+      same block as the one in which we did the previous write. */
+#endif /* UNIV_DEBUG */
+
     write_buf = log.write_ahead_buf;
 
     /* We write all the data directly from the write-ahead buffer,

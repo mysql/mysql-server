@@ -356,6 +356,9 @@ constexpr uint32_t MLOG_TEST_MAX_REC_LEN = 100;
 /** Maximum number of MLOG_TEST records in single group of log records. */
 constexpr uint32_t MLOG_TEST_GROUP_MAX_REC_N = 100;
 
+/** Bytes consumed by MLOG_TEST record with an empty payload. */
+constexpr uint32_t MLOG_TEST_REC_OVERHEAD = 37;
+
 /** Redo log system (singleton). */
 extern log_t *log_sys;
 
@@ -967,11 +970,14 @@ Hence the proper order of calls looks like this:
 bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id);
 
 /** Starts the initialized redo log system using a provided
-checkpoint_lsn and current lsn.
-@param[in,out]	log		redo log
-@param[in]	checkpoint_no	checkpoint no (sequential number)
-@param[in]	checkpoint_lsn	checkpoint lsn
-@param[in]	start_lsn	current lsn to start at */
+checkpoint_lsn and current lsn. Block for current_lsn must
+be properly initialized in the log buffer prior to calling
+this function. Therefore a proper value of first_rec_group
+must be set for that block before log_start is called.
+@param[in,out]  log             redo log
+@param[in]      checkpoint_no	  checkpoint no (sequential number)
+@param[in]      checkpoint_lsn  checkpoint lsn
+@param[in]      start_lsn       current lsn to start at */
 void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
                lsn_t start_lsn);
 
