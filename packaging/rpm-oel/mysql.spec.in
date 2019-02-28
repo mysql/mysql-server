@@ -245,6 +245,7 @@ Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-connector-c-config
+Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
