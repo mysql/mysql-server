@@ -324,6 +324,7 @@ DROP VIEW v2;
 --echo
 --echo
 --echo ******************** SHOW BINLOG EVENTS ********************
+--let $mask_grant_as_events=1
 --source include/show_binlog_events.inc
 sync_slave_with_master;
 # as we're using UUID we don't SELECT but use "diff" like in rpl_row_UUID
