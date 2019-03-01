@@ -1147,4 +1147,19 @@ ndbd_backup_file_fragid(Uint32 x)
   return (x >= NDBD_FRAGID_VERSION) && !ndbd_drop6(x);
 }
 
+/**
+ * Fragmented SUB_TABLE_DATA signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_SUB_TABLE_DATA NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_sub_table_data(Uint32 x)
+{
+  return x >= NDBD_FRAG_SUB_TABLE_DATA;
+}
+
 #endif
