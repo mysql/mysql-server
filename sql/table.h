@@ -2897,7 +2897,7 @@ struct TABLE_LIST {
     return view != NULL ? view_name.str : table_name;
   }
   int fetch_number_of_rows();
-  bool update_derived_keys(Field *, Item **, uint);
+  bool update_derived_keys(THD *, Field *, Item **, uint, bool *);
   bool generate_keys();
 
   /// Setup a derived table to use materialization

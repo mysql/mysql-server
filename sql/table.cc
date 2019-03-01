@@ -6764,10 +6764,12 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   @brief
   Update derived table's list of possible keys
 
+  @param thd        session context
   @param field      derived table's field to take part in a key
-  @param values     array of values that a part of equality predicate with the
-                    field above
+  @param values     array of values. Each value combined with "field"
+                    forms an equality predicate.
   @param num_values number of elements in the array values
+  @param[out] allocated true if key was allocated, false if unsupported
 
   @details
   This function creates/extends a list of possible keys for this derived
@@ -6777,19 +6779,24 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
   part_of_key bitmaps are updated accordingly.
   @see add_derived_key
 
-  @return true  new possible key can't be allocated.
-  @return false list of possible keys successfully updated.
+  @returns false if success, true if error
 */
 
-bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
-                                     uint num_values) {
+bool TABLE_LIST::update_derived_keys(THD *thd, Field *field, Item **values,
+                                     uint num_values, bool *allocated) {
+  *allocated = false;
   /*
     Don't bother with keys for CREATE VIEW, BLOB fields and fields with
     zero length.
   */
-  if (field->table->in_use->lex->is_ps_or_view_context_analysis() ||
-      field->flags & BLOB_FLAG || field->field_length == 0)
+  if (thd->lex->is_ps_or_view_context_analysis() || field->flags & BLOB_FLAG ||
+      field->field_length == 0)
     return false;
+
+  const Sql_cmd *const cmd = thd->lex->m_sql_cmd;
+
+  // Secondary storage engines do not support use of indexes on derived tables
+  if (cmd != nullptr && cmd->using_secondary_storage_engine()) return false;
 
   /* Allow all keys to be used. */
   if (derived_key_list.elements == 0) table->keys_in_use_for_query.set_all();
@@ -6804,6 +6811,8 @@ bool TABLE_LIST::update_derived_keys(Field *field, Item **values,
   }
   /* Extend key which includes all referenced fields. */
   if (add_derived_key(derived_key_list, field, (table_map)0)) return true;
+  *allocated = true;
+
   return false;
 }
 

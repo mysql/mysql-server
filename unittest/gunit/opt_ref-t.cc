@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,8 +125,8 @@ class OptRefTest : public ::testing::Test {
 
   void call_add_key_fields(Item *cond) {
     uint and_level = 0;
-    add_key_fields(NULL /* join */, &t1_key_fields, &and_level, cond, ~0ULL,
-                   NULL);
+    (void)add_key_fields(NULL, NULL /* join */, &t1_key_fields, &and_level,
+                         cond, ~0ULL, NULL);
   }
 
  private:
