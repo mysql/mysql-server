@@ -196,7 +196,8 @@ class Channel_info_tcpip_socket : public Channel_info {
 
 #ifdef HAVE_SETNS
     strncpy(vio->network_namespace, m_network_namespace.c_str(),
-            sizeof(vio->network_namespace));
+            sizeof(vio->network_namespace) - 1);
+    vio->network_namespace[sizeof(vio->network_namespace) - 1] = '\0';
 #endif
 
     return vio;
