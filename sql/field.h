@@ -1288,7 +1288,7 @@ class Field : public Proto_field {
     @return    true if the full table's row is NULL or the Field has value NULL
                false if neither table's row nor the Field has value NULL
   */
-  bool is_null(my_ptrdiff_t row_offset = 0) const;
+  bool is_null(ptrdiff_t row_offset = 0) const;
 
   /**
     Check whether the Field has value NULL (temporary or actual).
@@ -1296,7 +1296,7 @@ class Field : public Proto_field {
     @return   true if the Field has value NULL (temporary or actual)
               false if the Field has value NOT NULL.
   */
-  bool is_real_null(my_ptrdiff_t row_offset = 0) const {
+  bool is_real_null(ptrdiff_t row_offset = 0) const {
     if (real_maybe_null()) return (m_null_ptr[row_offset] & null_bit);
 
     if (is_tmp_nullable()) return m_is_tmp_null;
@@ -1317,9 +1317,9 @@ class Field : public Proto_field {
     return is_tmp_nullable() ? m_is_tmp_null : false;
   }
 
-  void set_null(my_ptrdiff_t row_offset = 0);
+  void set_null(ptrdiff_t row_offset = 0);
 
-  void set_notnull(my_ptrdiff_t row_offset = 0);
+  void set_notnull(ptrdiff_t row_offset = 0);
 
   // Cannot be const as it calls set_warning
   type_conversion_status check_constraints(int mysql_errno);
@@ -1445,7 +1445,7 @@ class Field : public Proto_field {
 
   void move_field(uchar *ptr_arg) { ptr = ptr_arg; }
 
-  virtual void move_field_offset(my_ptrdiff_t ptr_diff) {
+  virtual void move_field_offset(ptrdiff_t ptr_diff) {
     ptr += ptr_diff;
     if (real_maybe_null()) m_null_ptr += ptr_diff;
   }
@@ -1569,7 +1569,7 @@ class Field : public Proto_field {
 
   uint offset(uchar *record) const { return (uint)(ptr - record); }
 
-  void copy_data(my_ptrdiff_t src_record_offset);
+  void copy_data(ptrdiff_t src_record_offset);
 
   uint fill_cache_field(CACHE_FIELD *copy);
 
@@ -3879,7 +3879,7 @@ class Field_blob : public Field_longstr {
     memcpy(ptr, length, packlength);
     memcpy(ptr + packlength, &data, sizeof(char *));
   }
-  void set_ptr_offset(my_ptrdiff_t ptr_diff, uint32 length, const uchar *data) {
+  void set_ptr_offset(ptrdiff_t ptr_diff, uint32 length, const uchar *data) {
     uchar *ptr_ofs = ptr + ptr_diff;
     store_length(ptr_ofs, packlength, length);
     memcpy(ptr_ofs + packlength, &data, sizeof(char *));
@@ -4445,7 +4445,7 @@ class Field_bit : public Field {
             bit_ofs == ((Field_bit *)field)->bit_ofs);
   }
   uint is_equal(const Create_field *new_field) const final override;
-  void move_field_offset(my_ptrdiff_t ptr_diff) final override {
+  void move_field_offset(ptrdiff_t ptr_diff) final override {
     Field::move_field_offset(ptr_diff);
     if (bit_ptr != nullptr) bit_ptr += ptr_diff;
   }

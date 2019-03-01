@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -696,7 +696,7 @@ void
 ha_ndbinfo::unpack_record(uchar *dst_row)
 {
   DBUG_ENTER("ha_ndbinfo::unpack_record");
-  my_ptrdiff_t dst_offset = dst_row - table->record[0];
+  ptrdiff_t dst_offset = dst_row - table->record[0];
 
   for (uint i = 0; i < table->s->fields; i++)
   {

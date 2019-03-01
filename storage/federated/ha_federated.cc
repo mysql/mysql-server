@@ -924,8 +924,8 @@ uint ha_federated::convert_row_to_internal_format(uchar *record, MYSQL_ROW row,
       index variable to move us through the row at the
       same iterative step as the field
     */
-    my_ptrdiff_t old_ptr;
-    old_ptr = (my_ptrdiff_t)(record - table->record[0]);
+    ptrdiff_t old_ptr;
+    old_ptr = (ptrdiff_t)(record - table->record[0]);
     (*field)->move_field_offset(old_ptr);
     if (!*row) {
       (*field)->set_null();

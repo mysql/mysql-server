@@ -7128,10 +7128,10 @@ static int read_line(char *buf, int size) {
         } else if ((c == '{' &&
                     (!charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"while", 5, (uchar *)buf,
-                         std::min<my_ptrdiff_t>(5, p - buf), 0) ||
+                         std::min<ptrdiff_t>(5, p - buf), 0) ||
                      !charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"if", 2, (uchar *)buf,
-                         std::min<my_ptrdiff_t>(2, p - buf), 0)))) {
+                         std::min<ptrdiff_t>(2, p - buf), 0)))) {
           /* Only if and while commands can be terminated by { */
           *p++ = c;
           *p = 0;

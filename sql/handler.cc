@@ -4906,7 +4906,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen) {
   int error;
   DBUG_ENTER("index_next_same");
   if (!(error = index_next(buf))) {
-    my_ptrdiff_t ptrdiff = buf - table->record[0];
+    ptrdiff_t ptrdiff = buf - table->record[0];
     uchar *save_record_0 = NULL;
     KEY *key_info = NULL;
     KEY_PART_INFO *key_part = NULL;
@@ -7252,7 +7252,7 @@ int handler::compare_key_icp(const key_range *range) const {
 */
 static inline void move_key_field_offsets(const key_range *range,
                                           const KEY_PART_INFO *key_part,
-                                          my_ptrdiff_t diff) {
+                                          ptrdiff_t diff) {
   for (size_t len = 0; len < range->length;
        len += key_part->store_length, ++key_part)
     key_part->field->move_field_offset(diff);
@@ -7280,7 +7280,7 @@ int handler::compare_key_in_buffer(const uchar *buf) const {
   DBUG_ASSERT(range_scan_direction == RANGE_SCAN_ASC);
 
   // Make the fields in the key point into the buffer instead of record[0].
-  const my_ptrdiff_t diff = buf - table->record[0];
+  const ptrdiff_t diff = buf - table->record[0];
   if (diff != 0) move_key_field_offsets(end_range, range_key_part, diff);
 
   // Compare the key in buf against end_range.

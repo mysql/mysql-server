@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,12 +118,6 @@ typedef unsigned long my_off_t;
 #ifndef SIZE_T_MAX
 #define SIZE_T_MAX (~((size_t)0))
 #endif
-
-/*
-  Max size that must be added to a so that we know Size to make
-  adressable obj.
-*/
-typedef ptrdiff_t my_ptrdiff_t;
 
 typedef int myf; /* Type of MyFlags in my_funcs */
 

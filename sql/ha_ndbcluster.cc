@@ -1843,7 +1843,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
       DBUG_ASSERT(len == len64);
       if (ha->m_blob_destination_record)
       {
-        my_ptrdiff_t ptrdiff=
+        ptrdiff_t ptrdiff=
           ha->m_blob_destination_record - ha->table->record[0];
         field_blob->move_field_offset(ptrdiff);
 
@@ -1867,7 +1867,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
     else if (ha->m_blob_destination_record)
     {
       /* Have to set length even in this case. */
-      my_ptrdiff_t ptrdiff=
+      ptrdiff_t ptrdiff=
         ha->m_blob_destination_record - ha->table->record[0];
       const uchar *buf= ha->m_blobs_buffer + offset;
       field_blob->move_field_offset(ptrdiff);
@@ -1965,7 +1965,7 @@ ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
 
 int
 ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
-                               my_ptrdiff_t row_offset, const MY_BITMAP *bitmap,
+                               ptrdiff_t row_offset, const MY_BITMAP *bitmap,
                                uint *set_count, bool batch)
 {
   uint field_no;
@@ -2131,7 +2131,7 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
         /* We expect Ndb to have a native default for this
          * column
          */
-        my_ptrdiff_t src_offset= table_share->default_values - 
+        ptrdiff_t src_offset= table_share->default_values - 
           field->table->record[0];
 
         /* Move field by offset to refer to default value */
@@ -6988,8 +6988,8 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 {
   DBUG_ASSERT(src_row != nullptr);
 
-  my_ptrdiff_t dst_offset= dst_row - table->record[0];
-  my_ptrdiff_t src_offset= src_row - table->record[0];
+  ptrdiff_t dst_offset= dst_row - table->record[0];
+  ptrdiff_t src_offset= src_row - table->record[0];
 
   /* Initialize the NULL bitmap. */
   memset(dst_row, 0xff, table->s->null_bytes);
@@ -7107,7 +7107,7 @@ static void get_default_value(void *def_val, Field *field)
   DBUG_ASSERT(field != NULL);
   DBUG_ASSERT(field->stored_in_db);
 
-  my_ptrdiff_t src_offset= field->table->default_values_offset();
+  ptrdiff_t src_offset= field->table->default_values_offset();
 
   {
     if (bitmap_is_set(field->table->read_set, field->field_index))
@@ -9235,7 +9235,7 @@ create_ndb_column(THD *thd,
       {
         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
         {
-          my_ptrdiff_t src_offset= field->table->default_values_offset();
+          ptrdiff_t src_offset= field->table->default_values_offset();
           if ((! field->is_real_null(src_offset)) ||
               ((field->flags & NOT_NULL_FLAG)))
           {
@@ -16998,7 +16998,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
                              (uint) field->column_format()));
          if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
          {
-           my_ptrdiff_t src_offset= field->table->s->default_values 
+           ptrdiff_t src_offset= field->table->s->default_values 
              - field->table->record[0];
            if (/*
                  Check that column doesn't have non NULL specified

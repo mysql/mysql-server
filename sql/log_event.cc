@@ -9964,7 +9964,7 @@ bool Rows_log_event::write_data_body(Basic_ostream *ostream) {
      bytes.
   */
   uchar sbuf[sizeof(m_width) + 1];
-  my_ptrdiff_t const data_size = m_rows_cur - m_rows_buf;
+  ptrdiff_t const data_size = m_rows_cur - m_rows_buf;
   bool res = false;
   uchar *const sbuf_end = net_store_length(sbuf, (size_t)m_width);
   DBUG_ASSERT(static_cast<size_t>(sbuf_end - sbuf) <= sizeof(sbuf));

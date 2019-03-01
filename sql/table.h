@@ -1680,8 +1680,8 @@ struct TABLE {
 
   bool check_read_removal(uint index);
 
-  my_ptrdiff_t default_values_offset() const {
-    return (my_ptrdiff_t)(s->default_values - record[0]);
+  ptrdiff_t default_values_offset() const {
+    return (ptrdiff_t)(s->default_values - record[0]);
   }
 
   /// Return true if table is instantiated, and false otherwise.

@@ -347,8 +347,8 @@ bool Table_trigger_dispatcher::prepare_record1_accessors() {
 
     if (!(*old_fld)) return true;
 
-    (*old_fld)->move_field_offset((my_ptrdiff_t)(m_subject_table->record[1] -
-                                                 m_subject_table->record[0]));
+    (*old_fld)->move_field_offset(
+        (ptrdiff_t)(m_subject_table->record[1] - m_subject_table->record[0]));
   }
 
   *old_fld = 0;

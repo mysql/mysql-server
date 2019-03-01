@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -460,7 +460,7 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
   bool writeset_hashes_added = false;
 
   if (table->key_info && (table->s->primary_key < MAX_KEY)) {
-    my_ptrdiff_t ptrdiff = record - table->record[0];
+    ptrdiff_t ptrdiff = record - table->record[0];
     std::string pke_schema_table;
     pke_schema_table.reserve(NAME_LEN * 3);
     pke_schema_table.append(HASH_STRING_SEPARATOR);

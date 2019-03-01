@@ -2809,7 +2809,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   uchar *record, *bitmaps;
   Field **field_ptr;
   Field *fts_doc_id_field = NULL;
-  my_ptrdiff_t move_offset;
+  ptrdiff_t move_offset;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter", ("name: '%s.%s'  form: %p", share->db.str,
                        share->table_name.str, outparam));
@@ -6992,7 +6992,7 @@ bool is_simple_order(ORDER *order) {
 
 void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
   Field **fields = table->field;
-  my_ptrdiff_t ptrdiff = new_rec - old_rec;
+  ptrdiff_t ptrdiff = new_rec - old_rec;
   for (uint i = 0; i < table->s->fields; i++)
     fields[i]->move_field_offset(ptrdiff);
 }
@@ -7562,7 +7562,7 @@ const char *Binary_diff::new_data(Field *field) const {
 }
 
 const char *Binary_diff::old_data(Field *field) const {
-  my_ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
+  ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
   field->move_field_offset(ptrdiff);
   const char *data = new_data(field);
   field->move_field_offset(-ptrdiff);

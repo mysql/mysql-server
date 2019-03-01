@@ -222,7 +222,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
     } else if (key_part->key_part_flag & HA_VAR_LENGTH_PART) {
       Field *field = key_part->field;
       my_bitmap_map *old_map;
-      my_ptrdiff_t ptrdiff = to_record - field->table->record[0];
+      ptrdiff_t ptrdiff = to_record - field->table->record[0];
       field->move_field_offset(ptrdiff);
       key_length -= HA_KEY_BLOB_LENGTH;
       length = min<uint>(key_length, key_part->length);
@@ -585,7 +585,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   uint key_parts, key_part_num;
   KEY_PART_INFO *key_part = key_info->key_part;
   uchar *rec0 = key_part->field->ptr - key_part->offset;
-  my_ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
+  ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
   DBUG_ENTER("key_rec_cmp");

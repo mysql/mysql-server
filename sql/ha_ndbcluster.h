@@ -573,7 +573,7 @@ public:
 
   int get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
-  int set_blob_values(const NdbOperation *ndb_op, my_ptrdiff_t row_offset,
+  int set_blob_values(const NdbOperation *ndb_op, ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count, bool batch);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
   void release_blobs_buffer();

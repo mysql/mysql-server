@@ -285,7 +285,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   // Number of columns in table (counting even those that will not be written)
   uint table_column_count = table->pack_row_tmp_set.n_bits;
 
-  my_ptrdiff_t const rec_offset = record - table->record[0];
+  ptrdiff_t const rec_offset = record - table->record[0];
 
   // This is a moving cursor that points to the byte where the next
   // field will be written.

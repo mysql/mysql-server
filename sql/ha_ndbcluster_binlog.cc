@@ -296,7 +296,7 @@ Ndb_binlog_client::create_event_data(NDB_SHARE *share,
 static int
 get_ndb_blobs_value(TABLE* table, NdbValue* value_array,
                     uchar*& buffer, uint& buffer_size,
-                    my_ptrdiff_t ptrdiff)
+                    ptrdiff_t ptrdiff)
 {
   DBUG_ENTER("get_ndb_blobs_value");
 
@@ -6617,7 +6617,7 @@ static void ndb_unpack_record(TABLE *table, NdbValue *value,
                               MY_BITMAP *defined, uchar *buf)
 {
   Field **p_field= table->field, *field= *p_field;
-  my_ptrdiff_t row_offset= (my_ptrdiff_t) (buf - table->record[0]);
+  ptrdiff_t row_offset= (ptrdiff_t) (buf - table->record[0]);
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
   DBUG_ENTER("ndb_unpack_record");
 
@@ -7182,7 +7182,7 @@ handle_data_event(NdbEventOperation *pOp,
       (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
-        my_ptrdiff_t ptrdiff= 0;
+        ptrdiff_t ptrdiff= 0;
         ret = get_ndb_blobs_value(table, event_data->ndb_value[0],
                                   blobs_buffer[0],
                                   blobs_buffer_size[0],
@@ -7227,7 +7227,7 @@ handle_data_event(NdbEventOperation *pOp,
       (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
-        my_ptrdiff_t ptrdiff= table->record[n] - table->record[0];
+        ptrdiff_t ptrdiff= table->record[n] - table->record[0];
         ret = get_ndb_blobs_value(table, event_data->ndb_value[n],
                                   blobs_buffer[n],
                                   blobs_buffer_size[n],
@@ -7257,7 +7257,7 @@ handle_data_event(NdbEventOperation *pOp,
       (void) ret; // Bug27150740 HANDLE_DATA_EVENT NEED ERROR HANDLING
       if (event_data->have_blobs)
       {
-        my_ptrdiff_t ptrdiff= 0;
+        ptrdiff_t ptrdiff= 0;
         ret = get_ndb_blobs_value(table, event_data->ndb_value[0],
                                   blobs_buffer[0],
                                   blobs_buffer_size[0],
@@ -7289,7 +7289,7 @@ handle_data_event(NdbEventOperation *pOp,
         */
         if (event_data->have_blobs)
         {
-          my_ptrdiff_t ptrdiff= table->record[1] - table->record[0];
+          ptrdiff_t ptrdiff= table->record[1] - table->record[0];
           ret = get_ndb_blobs_value(table, event_data->ndb_value[1],
                                     blobs_buffer[1],
                                     blobs_buffer_size[1],

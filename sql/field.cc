@@ -1694,7 +1694,7 @@ type_conversion_status Field::check_constraints(int mysql_errno) {
   @param row_offset    This is the offset between the row being updated
                        and table->record[0]
 */
-void Field::set_null(my_ptrdiff_t row_offset) {
+void Field::set_null(ptrdiff_t row_offset) {
   if (real_maybe_null()) {
     DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] |= null_bit;
@@ -1709,7 +1709,7 @@ void Field::set_null(my_ptrdiff_t row_offset) {
   @param row_offset    This is the offset between the row being updated
                        and table->record[0]
 */
-void Field::set_notnull(my_ptrdiff_t row_offset) {
+void Field::set_notnull(ptrdiff_t row_offset) {
   if (real_maybe_null()) {
     DBUG_ASSERT(m_null_ptr != &dummy_null_buffer);
     m_null_ptr[row_offset] &= (uchar)~null_bit;
@@ -1739,7 +1739,7 @@ size_t Field::do_last_null_byte() const {
   return real_maybe_null() ? null_offset() + 1 : (size_t)LAST_NULL_BYTE_UNDEF;
 }
 
-void Field::copy_data(my_ptrdiff_t src_record_offset) {
+void Field::copy_data(ptrdiff_t src_record_offset) {
   memcpy(ptr, ptr + src_record_offset, pack_length());
 
   if (real_maybe_null()) {
@@ -8962,8 +8962,8 @@ my_decimal *Field_bit::val_decimal(my_decimal *deciaml_value) const {
     (not the table->record[0] necessarily)
 */
 int Field_bit::cmp_max(const uchar *a, const uchar *b, uint) const {
-  my_ptrdiff_t a_diff = a - ptr;
-  my_ptrdiff_t b_diff = b - ptr;
+  ptrdiff_t a_diff = a - ptr;
+  ptrdiff_t b_diff = b - ptr;
   if (bit_len) {
     int flag;
     uchar bits_a = get_rec_bits(bit_ptr + a_diff, bit_ofs, bit_len);
@@ -9202,7 +9202,7 @@ const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
 
 void Field_bit::set_default() {
   if (bit_len > 0) {
-    my_ptrdiff_t offset = table->default_values_offset();
+    ptrdiff_t offset = table->default_values_offset();
     uchar bits = get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
     set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
   }
@@ -9889,7 +9889,7 @@ void Field::set_default() {
     copy_data(table->default_values_offset());
 }
 
-bool Field::is_null(my_ptrdiff_t row_offset) const {
+bool Field::is_null(ptrdiff_t row_offset) const {
   /*
     if the field is NULLable, it returns NULLity based
     on m_null_ptr[row_offset] value. Otherwise it returns

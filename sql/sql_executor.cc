@@ -4924,7 +4924,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
-static bool cmp_field_value(Field *field, my_ptrdiff_t diff) {
+static bool cmp_field_value(Field *field, ptrdiff_t diff) {
   DBUG_ASSERT(field);
   /*
     Records are different when:
@@ -4981,7 +4981,7 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff) {
 
 static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
   DBUG_ENTER("group_rec_cmp");
-  my_ptrdiff_t diff = rec1 - rec0;
+  ptrdiff_t diff = rec1 - rec0;
 
   for (ORDER *grp = group; grp; grp = grp->next) {
     Field *field = grp->field_in_tmp_table;
@@ -5000,7 +5000,7 @@ static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
 
 static bool table_rec_cmp(TABLE *table) {
   DBUG_ENTER("table_rec_cmp");
-  my_ptrdiff_t diff = table->record[1] - table->record[0];
+  ptrdiff_t diff = table->record[1] - table->record[0];
   Field **fields = table->visible_field_ptr();
 
   for (uint i = 0; i < table->visible_field_count(); i++) {

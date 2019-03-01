@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -556,7 +556,7 @@ static void fill_quick_table(uint16 *table, uint bits, uint max_bits,
   */
   value |= (max_bits - bits) << 8 | IS_CHAR;
 
-  for (end = table + ((my_ptrdiff_t)1 << bits); table < end; table++) {
+  for (end = table + ((ptrdiff_t)1 << bits); table < end; table++) {
     *table = (uint16)value;
   }
   DBUG_VOID_RETURN;

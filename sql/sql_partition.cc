@@ -5221,7 +5221,7 @@ err:
 
 static void set_field_ptr(Field **ptr, const uchar *new_buf,
                           const uchar *old_buf) {
-  my_ptrdiff_t diff = (new_buf - old_buf);
+  ptrdiff_t diff = (new_buf - old_buf);
   DBUG_ENTER("set_field_ptr");
 
   do {

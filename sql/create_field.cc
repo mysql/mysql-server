@@ -139,7 +139,7 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
       StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
 
       /* Get the value from default_values */
-      my_ptrdiff_t diff = orig_field->table->default_values_offset();
+      ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values
       if (!orig_field->is_real_null()) {
         StringBuffer<MAX_FIELD_WIDTH> tmp(charset);

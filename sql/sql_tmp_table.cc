@@ -1400,7 +1400,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
         point into record[0] if previous step is REF_SLICE_ORDERED_GROUP_BY and
         we are creating a tmp table to materialize the query's result.
       */
-      my_ptrdiff_t diff = orig_field->table->default_values_offset();
+      ptrdiff_t diff = orig_field->table->default_values_offset();
       Field *f_in_record0 = orig_field->table->field[orig_field->field_index];
       f_in_record0->move_field_offset(diff);  // Points now at default_values
       if (f_in_record0->is_real_null())

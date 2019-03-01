@@ -7998,8 +7998,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference) {
     Field *def_field = field_arg->field->clone();
     if (!def_field) return true;
 
-    def_field->move_field_offset((my_ptrdiff_t)(
-        def_field->table->insert_values - def_field->table->record[0]));
+    def_field->move_field_offset((ptrdiff_t)(def_field->table->insert_values -
+                                             def_field->table->record[0]));
     /*
       Put the original and cloned Field_blob objects in
       'insert_update_values_map' map. This will be used to make a
