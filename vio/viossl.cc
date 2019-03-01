@@ -497,9 +497,6 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     SSL_clear(ssl);
     SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
     SSL_set_fd(ssl, sd);
-#if !defined(HAVE_WOLFSSL) && OPENSSL_VERSION_NUMBER > 0x00908000L
-    SSL_clear_options(ssl, SSL_OP_LEGACY_SERVER_CONNECT);
-#endif
 #if !defined(HAVE_WOLFSSL) && defined(SSL_OP_NO_COMPRESSION)
     SSL_set_options(ssl, SSL_OP_NO_COMPRESSION); /* OpenSSL >= 1.0 only */
 #elif !defined(HAVE_WOLFSSL) && \
