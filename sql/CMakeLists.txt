@@ -381,6 +381,7 @@ SET(SQL_SHARED_SOURCES
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
+  net_ns.cc
   opt_costconstantcache.cc
   opt_costconstants.cc
   opt_costmodel.cc

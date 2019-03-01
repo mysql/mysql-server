@@ -38,6 +38,10 @@
 #include "plugin/x/src/xpl_log.h"
 #include "plugin/x/src/xpl_performance_schema.h"
 
+#ifdef HAVE_SETNS
+#include "sql/net_ns.h"
+#endif
+
 namespace xpl {
 
 const char *BIND_ALL_ADDRESSES = "*";
@@ -248,14 +252,16 @@ class Tcp_creator {
 };
 
 Listener_tcp::Listener_tcp(Factory_ptr operations_factory,
-                           std::string &bind_address, const uint16 port,
-                           const uint32 port_open_timeout,
+                           std::string &bind_address,
+                           const std::string &network_namespace,
+                           const uint16 port, const uint32 port_open_timeout,
                            ngs::Socket_events_interface &event,
                            const uint32 backlog)
     : m_operations_factory(operations_factory),
       m_state(ngs::State_listener_initializing, KEY_mutex_x_listener_tcp_sync,
               KEY_cond_x_listener_tcp_sync),
       m_bind_address(bind_address),
+      m_network_namespace(network_namespace),
       m_port(port),
       m_port_open_timeout(port_open_timeout),
       m_backlog(backlog),
@@ -336,7 +342,14 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
 
   log_debug("TCP Sockets address is '%s' and port is %i",
             m_bind_address.c_str(), (int)m_port);
-
+  if (!m_network_namespace.empty()) {
+#ifdef HAVE_SETNS
+    if (set_network_namespace(m_network_namespace)) return nullptr;
+#else
+    log_error(ER_NETWORK_NAMESPACES_NOT_SUPPORTED);
+    return nullptr;
+#endif
+  }
   std::shared_ptr<addrinfo> ai =
       creator.resolve_bind_address(m_bind_address, m_port, m_last_error);
 
@@ -364,6 +377,10 @@ ngs::Socket_interface::Shared_ptr Listener_tcp::create_socket() {
 
     waited += time_to_wait;
   }
+#ifdef HAVE_SETNS
+  if (!m_network_namespace.empty() && restore_original_network_namespace())
+    return nullptr;
+#endif
 
   return result_socket;
 }

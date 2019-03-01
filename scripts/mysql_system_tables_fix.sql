@@ -702,6 +702,8 @@ ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8 COLLAT
 # The Get_public_key field at slave_master_info should be added after the slave_master_info field
 ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.';
 
+ALTER TABLE slave_master_info ADD Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Network namespace used for communication with the master server.';
+
 # If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
 # slave_master_info table.
 ALTER TABLE slave_master_info
@@ -710,6 +712,11 @@ ALTER TABLE slave_master_info
 ALTER TABLE slave_master_info
   MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
   AFTER Public_key_path;
+
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Network_namespace TEXT CHARACTER SET utf8 COLLATE utf8_bin
+  COMMENT 'Network namespace used for communication with the master server.'
+  AFTER Get_public_key;
 
 #
 # Drop legacy NDB distributed privileges function & procedures

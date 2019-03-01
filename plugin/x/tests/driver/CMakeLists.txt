@@ -30,6 +30,7 @@ FILE(GLOB XTEST_SRC
   "${CMAKE_CURRENT_SOURCE_DIR}/parsers/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/*.cc"
   "${CMAKE_CURRENT_SOURCE_DIR}/processor/commands/*.cc"
+  "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
 )
 
 INCLUDE_DIRECTORIES(

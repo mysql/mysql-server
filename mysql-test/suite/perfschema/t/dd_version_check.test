@@ -62,8 +62,8 @@ create table test.pfs_published_schema
 # Keeping track of all signatures published in GA ...
 
 insert into test.pfs_published_schema
- values("MySQL 8.0.15",
-        "d51c2101e2764864918626f5a3f2a8b39765529a1ac2231fe61e7b5bca7c33c8");
+ values("MySQL 8.0.17",
+        "9e5f3aef493a512aab08ba6bec4126155d446fdc89ff4fde1b7f80a363b59e78");
 
 create table test.pfs_check_table
   (id int(11) NOT NULL AUTO_INCREMENT,

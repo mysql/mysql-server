@@ -77,6 +77,7 @@
 #include "sql/item_func.h"   // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
+#include "sql/net_ns.h"  // set_network_namespace
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -542,9 +543,30 @@ static int check_connection(THD *thd) {
       char *host;
       LEX_CSTRING main_sctx_host;
 
+#ifdef HAVE_SETNS
+      /*
+        Check whether namespace is specified for a socket being handled.
+        If it is specified then set the namespace as active before resolving
+        ip address to host name. Restore original network namespace after
+        address resolution finished.
+      */
+
+      std::string network_namespace(net->vio->network_namespace);
+      if (!network_namespace.empty() &&
+          set_network_namespace(network_namespace)) {
+        return 1;
+      }
+#endif
       rc = ip_to_hostname(&net->vio->remote, main_sctx_ip.str, &host,
                           &connect_errors);
-
+#ifdef HAVE_SETNS
+      if (!network_namespace.empty() && restore_original_network_namespace()) {
+        if (host && host != my_localhost) {
+          my_free(host);
+        }
+        return 1;
+      }
+#endif
       thd->m_main_security_ctx.assign_host(host, host ? strlen(host) : 0);
       main_sctx_host = thd->m_main_security_ctx.host();
       if (host && host != my_localhost) {

@@ -1231,6 +1231,7 @@ void warn_about_deprecated_national(THD *thd)
 %token<lexer.keyword> OLD_SYM                       /* SQL-2003-R */
 %token<lexer.keyword> ENFORCED_SYM                  /* SQL-2015-N */
 %token<lexer.keyword> OJ_SYM                        /* ODBC */
+%token<lexer.keyword> NETWORK_NAMESPACE_SYM         /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -2458,6 +2459,10 @@ master_def:
           MASTER_HOST_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.host = $3.str;
+          }
+        | NETWORK_NAMESPACE_SYM EQ TEXT_STRING_sys_nonewline
+          {
+            Lex->mi.network_namespace = $3.str;
           }
         | MASTER_BIND_SYM EQ TEXT_STRING_sys_nonewline
           {
@@ -14218,6 +14223,7 @@ ident_keywords_unambiguous:
         | MASTER_DELAY_SYM
         | MASTER_HEARTBEAT_PERIOD_SYM
         | MASTER_HOST_SYM
+        | NETWORK_NAMESPACE_SYM
         | MASTER_LOG_FILE_SYM
         | MASTER_LOG_POS_SYM
         | MASTER_PASSWORD_SYM

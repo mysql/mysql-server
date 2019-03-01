@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -250,7 +250,14 @@ class XSession {
       Default: 10
       Option type: INT
     */
-    Datetime_length_discriminator
+    Datetime_length_discriminator,
+    /** Network namespace (if any) which should be used at connection
+      establishment.
+
+      Default:
+      Option type: STRING
+    */
+    Network_namespace
   };
 
  public:

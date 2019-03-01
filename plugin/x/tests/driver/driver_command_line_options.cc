@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -189,6 +189,9 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_connection_options.allowed_tls = value;
     } else if (check_arg_with_value(argv, i, "--host", "-h", value)) {
       m_connection_options.host = value;
+    } else if (check_arg_with_value(argv, i, "--network-namespace", NULL,
+                                    value)) {
+      m_connection_options.network_namespace = value;
     } else if (check_arg_with_value(argv, i, "--user", "-u", value)) {
       m_connection_options.user = value;
     } else if (check_arg_with_value(argv, i, "--uri", NULL, value)) {

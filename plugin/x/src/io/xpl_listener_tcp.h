@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,8 @@ class Listener_tcp : public ngs::Listener_interface {
   typedef ngs::Operations_factory_interface::Shared_ptr Factory_ptr;
 
   Listener_tcp(Factory_ptr operations_factory, std::string &bind_address,
-               const uint16 port, const uint32 port_open_timeout,
+               const std::string &network_namespace, const uint16 port,
+               const uint32 port_open_timeout,
                ngs::Socket_events_interface &event, const uint32 backlog);
   ~Listener_tcp() override;
 
@@ -60,7 +61,8 @@ class Listener_tcp : public ngs::Listener_interface {
 
   Factory_ptr m_operations_factory;
   Sync_variable_state m_state;
-  std::string &m_bind_address;
+  std::string m_bind_address;
+  std::string m_network_namespace;
   const unsigned short m_port;
   const uint32 m_port_open_timeout;
   const uint32 m_backlog;

@@ -38,13 +38,15 @@ namespace ngs {
 
 Socket_acceptors_task::Socket_acceptors_task(
     Listener_factory_interface &listener_factory,
-    const std::string &tcp_bind_address, const uint16 tcp_port,
-    const uint32 tcp_port_open_timeout, const std::string &unix_socket_file,
-    const uint32 backlog, const std::shared_ptr<Socket_events_interface> &event)
+    const std::string &tcp_bind_address, const std::string &network_namespace,
+    const uint16 tcp_port, const uint32 tcp_port_open_timeout,
+    const std::string &unix_socket_file, const uint32 backlog,
+    const std::shared_ptr<Socket_events_interface> &event)
     : m_event(event),
       m_bind_address(tcp_bind_address),
       m_tcp_socket(listener_factory.create_tcp_socket_listener(
-          m_bind_address, tcp_port, tcp_port_open_timeout, *m_event, backlog)),
+          m_bind_address, network_namespace, tcp_port, tcp_port_open_timeout,
+          *m_event, backlog)),
 #if defined(HAVE_SYS_UN_H)
       m_unix_socket(listener_factory.create_unix_socket_listener(
           unix_socket_file, *m_event, backlog)),

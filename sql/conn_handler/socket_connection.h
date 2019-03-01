@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,16 +59,42 @@ struct Socket_lt_type {
   }
 };
 
+// Enum denoting type of socket whether unix socket or tcp socket.
+enum class Socket_type { UNIX_SOCKET, TCP_SOCKET };
+// Listen socket attributes.
+struct Socket_attr {
+  explicit Socket_attr(Socket_type socket_type) : m_socket_type(socket_type) {}
+  Socket_attr(Socket_type socket_type, const std::string &network_namespace)
+      : m_socket_type(socket_type), m_network_namespace(network_namespace) {}
+  Socket_type m_socket_type;
+  std::string m_network_namespace;
+};
+
 /**
   Typedef representing socket map type which hold the sockets and a
   corresponding bool which is true if it is unix socket and false for tcp
   socket.
 */
-typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type> socket_map_t;
+typedef std::map<MYSQL_SOCKET, Socket_attr, Socket_lt_type> socket_map_t;
 
 // iterator type for socket map type.
-typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::const_iterator
+typedef std::map<MYSQL_SOCKET, Socket_attr, Socket_lt_type>::const_iterator
     socket_map_const_iterator_t;
+
+/**
+  Plain structure to collect together a host name/ip address and
+  a corresponding network namespace if set and pass these information
+  to different functions as a single unit.
+*/
+struct Bind_address_info {
+  std::string address, network_namespace;
+  Bind_address_info() = default;
+
+  explicit Bind_address_info(const std::string &addr) : address(addr) {}
+
+  Bind_address_info(const std::string &addr, const std::string &nspace)
+      : address(addr), network_namespace(nspace) {}
+};
 
 /**
   This class represents the Mysqld_socket_listener which prepare the
@@ -79,10 +105,17 @@ typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::const_iterator
   defaul pathname.
 */
 class Mysqld_socket_listener {
-  std::list<std::string> m_bind_addresses;  // addresses to listen to
-  const char
-      *m_admin_bind_address;  // address to listen to a admin connection request
-  uint m_tcp_port;            // TCP port to bind to
+  /*
+    Addresses to listen to and network namespace for
+    every address if set.
+  */
+  std::list<Bind_address_info> m_bind_addresses;
+  /*
+    Address to listen to an admin connection request
+    and network namespace if set.
+  */
+  Bind_address_info m_admin_bind_address;
+  uint m_tcp_port;        // TCP port to bind to
   uint m_admin_tcp_port;  // TCP port to bind to for support admin connection
   bool m_use_separate_thread_for_admin;  // use a separate thread for listening
                                          // to admin interface
@@ -130,8 +163,9 @@ class Mysqld_socket_listener {
     @param   port_timeout    portname.
     @param   unix_sockname   pathname for unix socket to bind to
   */
-  Mysqld_socket_listener(const std::list<std::string> &bind_addresses,
-                         uint tcp_port, const char *admin_bind_addr,
+  Mysqld_socket_listener(const std::list<Bind_address_info> &bind_addresses,
+                         uint tcp_port,
+                         const Bind_address_info &admin_bind_addr,
                          uint admin_tcp_port,
                          bool use_separate_thread_for_admin, uint backlog,
                          uint port_timeout, std::string unix_sockname);

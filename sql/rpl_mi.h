@@ -316,6 +316,18 @@ class Master_info : public Rpl_info, public Gtid_mode_copy {
   char master_uuid[UUID_LENGTH + 1];
   char bind_addr[HOSTNAME_LENGTH + 1];
 
+  /*
+    Name of a network namespace where a socket for connection to a master
+    should be created.
+  */
+  char network_namespace[NAME_LEN];
+
+  bool is_set_network_namespace() const { return network_namespace[0] != 0; }
+
+  const char *network_namespace_str() const {
+    return is_set_network_namespace() ? network_namespace : "";
+  }
+
   int mi_init_info();
   void end_info();
   int flush_info(bool force = false);

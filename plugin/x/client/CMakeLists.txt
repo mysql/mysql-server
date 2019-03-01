@@ -33,6 +33,7 @@ SET(CLIENT_SRC
  "${CMAKE_CURRENT_SOURCE_DIR}/xsession_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xconnection_impl.cc"
  "${CMAKE_CURRENT_SOURCE_DIR}/xrow.cc"
+ "${CMAKE_SOURCE_DIR}/sql/net_ns.cc"
 )
 
 INCLUDE_DIRECTORIES(

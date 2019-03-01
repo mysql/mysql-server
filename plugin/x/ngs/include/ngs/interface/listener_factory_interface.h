@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,9 @@ class Listener_factory_interface {
       const std::string &unix_socket_path, Socket_events_interface &event,
       const uint32 backlog) = 0;
   virtual Listener_interface_ptr create_tcp_socket_listener(
-      std::string &bind_address, const unsigned short port,
-      const uint32 port_open_timeout, Socket_events_interface &event,
-      const uint32 backlog) = 0;
+      std::string &bind_address, const std::string &network_namespace,
+      const unsigned short port, const uint32 port_open_timeout,
+      Socket_events_interface &event, const uint32 backlog) = 0;
 };
 
 }  // namespace ngs

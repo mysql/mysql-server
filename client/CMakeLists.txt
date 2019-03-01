@@ -29,7 +29,7 @@ ADD_SUBDIRECTORY(base)
 ## Subdirectory for mysqlpump code.
 ADD_SUBDIRECTORY(dump)
 
-MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc)
+MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc ../sql-common/sql_string.cc pattern_matcher.cc ${CMAKE_SOURCE_DIR}/sql/net_ns.cc)
 TARGET_LINK_LIBRARIES(mysql mysqlclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql ${EDITLINE_LIBRARY})
