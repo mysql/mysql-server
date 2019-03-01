@@ -715,7 +715,6 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
   char *db;
 
   CHARSET_INFO *saved_cs;
-  char charset_name[64];
   bool is_charset;
 
   STATE_INFO *info = NULL;
@@ -838,15 +837,21 @@ void read_ok_ex(MYSQL *mysql, ulong length) {
               ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
               if (is_charset == 1) {
+                char charset_name[MY_CS_NAME_SIZE * 8];  // MY_CS_BUFFER_SIZE
+                size_t length =
+                    std::min(data->length, sizeof(charset_name) - 1);
                 saved_cs = mysql->charset;
 
-                memcpy(charset_name, data->str, data->length);
-                charset_name[data->length] = 0;
+                memcpy(charset_name, data->str, length);
+                charset_name[length] = 0;
 
                 if (!(mysql->charset = get_charset_by_csname(
                           charset_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
-                  /* Ideally, the control should never reach her. */
-                  DBUG_ASSERT(0);
+                  DBUG_PRINT(
+                      "warning",
+                      ("session tracker supplied %s is not a valid charset."
+                       " Keeping the old one.",
+                       charset_name));
                   mysql->charset = saved_cs;
                 }
               }
