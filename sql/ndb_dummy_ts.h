@@ -75,7 +75,7 @@ namespace ndb_dummy_ts {
     @retval		true		failure
   */
   static
-  bool sdi_get_keys(const dd::Tablespace&, sdi_vector_t&)
+  bool sdi_get_keys(const dd::Tablespace&, dd::sdi_vector_t&)
   {
     DBUG_ASSERT(false); // Never called
     return false; // Success
@@ -92,7 +92,7 @@ namespace ndb_dummy_ts {
     @retval		true		failure
   */
   static
-  bool sdi_get(const dd::Tablespace&, const sdi_key_t*,
+  bool sdi_get(const dd::Tablespace&, const dd::sdi_key_t*,
                void*, uint64*)
   {
     DBUG_ASSERT(false); // Never called
@@ -113,7 +113,7 @@ namespace ndb_dummy_ts {
   */
   static
   bool sdi_set(handlerton *, const dd::Tablespace&, const dd::Table*,
-               const sdi_key_t*, const void*, uint64)
+               const dd::sdi_key_t*, const void*, uint64)
   {
     return false; // Success
   }
@@ -130,7 +130,7 @@ namespace ndb_dummy_ts {
   */
   static
   bool sdi_delete(const dd::Tablespace&, const dd::Table*,
-                  const sdi_key_t*)
+                  const dd::sdi_key_t*)
   {
     return false; // Success
   }
