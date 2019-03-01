@@ -150,28 +150,6 @@ SET GLOBAL innodb_file_per_table=default;
 SET NAMES UTF8;
 CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
 
-
---echo #
---echo # Bug#29020745: INNODB TABLESPACES WITH SUBPARTITIONS DO NOT
---echo # CONTAIN TABLE SDI OBJECT
---echo #
-
-CREATE TABLE t18_ (a INT NOT NULL, b INT)
-    PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b) (
-        PARTITION p1 VALUES LESS THAN (200) (
-            SUBPARTITION p11,
-            SUBPARTITION p12,
-            SUBPARTITION p13),
-        PARTITION p2 VALUES LESS THAN (600) (
-            SUBPARTITION p21,
-            SUBPARTITION p22,
-            SUBPARTITION p23),
-        PARTITION p3 VALUES LESS THAN (1800) (
-            SUBPARTITION p31,
-            SUBPARTITION p32,
-            SUBPARTITION p33));
-
-
 #--let $table_id=`select HEX(se_private_id) from mysql.tables where name = 't14'`
 #--echo "table_id is $table_id"
 #--let $count = `select count(*) from mysql.tablespace_files where file_name like './test/fts_%$table_id%'`
@@ -332,24 +310,6 @@ if ($MTR_RECORD == 0) {
 --source ../include/ibd2sdi_replace.inc
 if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t18.json $JSON_FILE_PATH
-}
-
---echo # Check SDI from t18_#p#p1#sp#p11.ibd
---echo # Should have both tablespace and table SDIs
---let JSON_FILE_PATH = $DEST_DIR/t18_#p#p1#sp#p11.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t18_#P#p1#SP#p11.ibd -d $JSON_FILE_PATH 2>&1
---source ../include/ibd2sdi_replace.inc
-if ($MTR_RECORD == 0) {
---diff_files $SRC_DIR/t18_#p#p1#sp#p11.json $JSON_FILE_PATH
-}
-
---echo # Check SDI from t18_#p#p1#sp#p12.ibd
---echo # Should only have tablespace SDI
---let JSON_FILE_PATH = $DEST_DIR/t18_#p#p1#sp#p12.json
---exec $IBD2SDI $MYSQLD_DATADIR/test/t18_#P#p1#SP#p12.ibd -d $JSON_FILE_PATH 2>&1
---source ../include/ibd2sdi_replace.inc
-if ($MTR_RECORD == 0) {
---diff_files $SRC_DIR/t18_#p#p1#sp#p12.json $JSON_FILE_PATH
 }
 
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $LOG_FILE_SIZE LOG_FILE_SIZE

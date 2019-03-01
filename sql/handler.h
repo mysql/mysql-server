@@ -107,27 +107,12 @@ namespace dd {
 enum class enum_column_types;
 class Table;
 class Tablespace;
+struct sdi_key;
+struct sdi_vector;
+
+typedef sdi_key sdi_key_t;
+typedef sdi_vector sdi_vector_t;
 }  // namespace dd
-
-/** Id for identifying Table SDIs */
-constexpr const uint32 SDI_TYPE_TABLE = 1;
-
-/** Id for identifying Tablespace SDIs */
-constexpr const uint32 SDI_TYPE_TABLESPACE = 2;
-
-/** Key to identify a dictionary object */
-struct sdi_key_t {
-  /** Type of Object, For ex: column, index, etc */
-  uint32 type;
-
-  /** Object id which should be unique in tablespsace */
-  uint64 id;
-};
-
-using sdi_container = std::vector<sdi_key_t>;
-struct sdi_vector_t {
-  sdi_container m_vec;
-};
 
 typedef bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                    uint key_length, ulonglong *engine_data);
@@ -1506,7 +1491,7 @@ typedef bool (*sdi_drop_t)(dd::Tablespace *tablespace);
   @retval         true        failure
 */
 typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
-                               sdi_vector_t &vector);
+                               dd::sdi_vector_t &vector);
 
 /**
   Retrieve SDI for a given SDI key.
@@ -1534,7 +1519,8 @@ typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
   @retval         true        failure
 */
 typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
-                          const sdi_key_t *sdi_key, void *sdi, uint64 *sdi_len);
+                          const dd::sdi_key_t *sdi_key, void *sdi,
+                          uint64 *sdi_len);
 
 /**
   Insert/Update SDI for a given SDI key.
@@ -1548,7 +1534,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
                           by SE
 */
 typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
-                          const dd::Table *table, const sdi_key_t *sdi_key,
+                          const dd::Table *table, const dd::sdi_key_t *sdi_key,
                           const void *sdi, uint64 sdi_len);
 
 /**
@@ -1560,7 +1546,8 @@ typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
                           by SE
 */
 typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
-                             const dd::Table *table, const sdi_key_t *sdi_key);
+                             const dd::Table *table,
+                             const dd::sdi_key_t *sdi_key);
 
 /**
   Check if the DDSE is started in a way that leaves thd DD being read only.

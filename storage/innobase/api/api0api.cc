@@ -2793,13 +2793,13 @@ static ib_err_t ib_cursor_open_table_using_id(
 @param[in,out]	sdi_key		SDI Key
 @return search tuple */
 static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
-                                           const sdi_key_t *sdi_key) {
-  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == SDI_TYPE_LEN);
-  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == SDI_KEY_LEN);
+                                           const dd::sdi_key_t *sdi_key) {
+  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == dd::SDI_TYPE_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == dd::SDI_KEY_LEN);
 
   ib_tpl_t key_tpl = ib_clust_search_tuple_create(ib_crsr);
-  ib_col_set_value(key_tpl, 0, &sdi_key->type, SDI_TYPE_LEN, false);
-  ib_col_set_value(key_tpl, 1, &sdi_key->id, SDI_KEY_LEN, false);
+  ib_col_set_value(key_tpl, 0, &sdi_key->type, dd::SDI_TYPE_LEN, false);
+  ib_col_set_value(key_tpl, 1, &sdi_key->id, dd::SDI_KEY_LEN, false);
 
   return (key_tpl);
 }
@@ -2812,15 +2812,15 @@ static ib_tpl_t ib_sdi_create_search_tuple(ib_crsr_t ib_crsr,
 @param[in]	sdi		compressed SDI data
 @return insert tuple */
 static ib_tpl_t ib_sdi_create_insert_tuple(ib_crsr_t ib_crsr,
-                                           const sdi_key_t *sdi_key,
+                                           const dd::sdi_key_t *sdi_key,
                                            uint32_t uncomp_len,
                                            uint32_t comp_len, const void *sdi) {
-  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == SDI_TYPE_LEN);
-  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == SDI_KEY_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(0)->fixed_len == dd::SDI_TYPE_LEN);
+  ut_ad(ib_crsr->prebuilt->index->get_field(1)->fixed_len == dd::SDI_KEY_LEN);
 
   ib_tpl_t tuple = ib_clust_read_tuple_create(ib_crsr);
-  ib_col_set_value(tuple, 0, &sdi_key->type, SDI_TYPE_LEN, false);
-  ib_col_set_value(tuple, 1, &sdi_key->id, SDI_KEY_LEN, false);
+  ib_col_set_value(tuple, 0, &sdi_key->type, dd::SDI_TYPE_LEN, false);
+  ib_col_set_value(tuple, 1, &sdi_key->id, dd::SDI_KEY_LEN, false);
   ib_col_set_value(tuple, 2, &uncomp_len, 4, false);
   ib_col_set_value(tuple, 3, &comp_len, 4, false);
   ib_col_set_value(tuple, 4, sdi, static_cast<ib_ulint_t>(comp_len), false);
@@ -3001,7 +3001,7 @@ dberr_t ib_sdi_get_keys(uint32_t tablespace_id, ib_sdi_vector_t *ib_sdi_vector,
       break;
     }
 
-    sdi_key_t ts;
+    dd::sdi_key_t ts;
 
     ib_tuple_read_u32(tuple, 0, &ts.type);
     ib_tuple_read_u64(tuple, 1, reinterpret_cast<uint64_t *>(&ts.id));
@@ -3292,7 +3292,8 @@ static ib_err_t parse_string_to_number(const char *num_str,
 @param[in]	key_str		Memached key
 @param[in,out]	sk		SDI key
 @return DB_SUCCESS if SDI key extraction is successful, else error */
-static ib_err_t parse_mem_key_to_sdi_key(const char *key_str, sdi_key_t *sk) {
+static ib_err_t parse_mem_key_to_sdi_key(const char *key_str,
+                                         dd::sdi_key_t *sk) {
   /* 25 is sufficient here, the prefix will be
   sdi_number:number:number */
   char key[25];
@@ -3335,7 +3336,7 @@ ib_err_t ib_memc_sdi_get(ib_crsr_t crsr, const char *key_str, void *sdi,
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_err_t err;
   ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
+  dd::sdi_key_t sdi_key;
   ut_ad(trx != NULL);
 
   sk.sdi_key = &sdi_key;
@@ -3377,7 +3378,7 @@ ib_err_t ib_memc_sdi_delete(ib_crsr_t crsr, const char *key_str) {
   uint32_t tablespace_id = crsr->prebuilt->table->space;
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
+  dd::sdi_key_t sdi_key;
   ib_err_t err;
   ut_ad(trx != NULL);
 
@@ -3406,7 +3407,7 @@ ib_err_t ib_memc_sdi_set(ib_crsr_t crsr, const char *key_str, const void *sdi,
   uint32_t tablespace_id = crsr->prebuilt->table->space;
   ib_trx_t trx = crsr->prebuilt->trx;
   ib_sdi_key_t sk;
-  sdi_key_t sdi_key;
+  dd::sdi_key_t sdi_key;
   ib_err_t err;
   ut_ad(trx != NULL);
 
@@ -3461,7 +3462,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
     /* Pattern matched exactly with "sdi_list_" */
   }
 
-  sdi_vector sdi_vector;
+  dd::sdi_vector sdi_vector;
   ib_sdi_vector ib_vector;
   ib_vector.sdi_vector = &sdi_vector;
 
@@ -3470,7 +3471,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
   char *ptr = static_cast<char *>(sdi);
   uint64_t cur_len = 0;
   uint64_t bytes_printed;
-  for (sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
+  for (dd::sdi_container::iterator it = ib_vector.sdi_vector->m_vec.begin();
        it != ib_vector.sdi_vector->m_vec.end(); it++) {
     bytes_printed =
         snprintf(ptr, list_buf_len - cur_len, "%llu:%u|", it->id, it->type);

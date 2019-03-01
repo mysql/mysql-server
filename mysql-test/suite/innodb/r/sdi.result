@@ -90,24 +90,6 @@ SET NAMES UTF8;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
-#
-# Bug#29020745: INNODB TABLESPACES WITH SUBPARTITIONS DO NOT
-# CONTAIN TABLE SDI OBJECT
-#
-CREATE TABLE t18_ (a INT NOT NULL, b INT)
-PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b) (
-PARTITION p1 VALUES LESS THAN (200) (
-SUBPARTITION p11,
-SUBPARTITION p12,
-SUBPARTITION p13),
-PARTITION p2 VALUES LESS THAN (600) (
-SUBPARTITION p21,
-SUBPARTITION p22,
-SUBPARTITION p23),
-PARTITION p3 VALUES LESS THAN (1800) (
-SUBPARTITION p31,
-SUBPARTITION p32,
-SUBPARTITION p33));
 # Check SDI from mysql.ibd
 # Check SDI from t1.ibd
 # Check SDI from t2.ibd
@@ -125,10 +107,6 @@ SUBPARTITION p33));
 # Check SDI from t15.ibd
 # Check SDI from system tablespace(has 16,17)
 # Check SDI from t18.ibd
-# Check SDI from t18_#p#p1#sp#p11.ibd
-# Should have both tablespace and table SDIs
-# Check SDI from t18_#p#p1#sp#p12.ibd
-# Should only have tablespace SDI
 # restart: --datadir=MYSQLD_DATADIR --innodb_log_file_size=LOG_FILE_SIZE --innodb_log_files_in_group=2
 # ALTER TABLE t1, ADD COLUMN. Verify SDI shows the newly added column
 ALTER TABLE t1 ADD COLUMN b INT;

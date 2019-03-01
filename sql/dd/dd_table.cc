@@ -55,7 +55,6 @@
 #include "sql/dd/dd_version.h"  // DD_VERSION
 #include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
-#include "sql/dd/tablespace_id_owner_visitor.h"  // visit_tablespace_id_owners
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/check_constraint.h"     // dd::Check_constraint
 #include "sql/dd/types/column.h"               // dd::Column
@@ -2700,6 +2699,25 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
   return false;
 }
 
+// Helper function which copies all tablespace ids referenced by
+// table to an (output) iterator
+template <typename IT>
+static void copy_tablespace_ids(const Table &t, IT it) {
+  *it = t.tablespace_id();
+  ++it;
+  for (const dd::Index *ix : t.indexes()) {
+    *it = ix->tablespace_id();
+    ++it;
+  }
+
+  for (const dd::Partition *part : t.partitions()) {
+    for (const dd::Partition_index *part_ix : part->indexes()) {
+      *it = part_ix->tablespace_id();
+      ++it;
+    }
+  }
+}
+
 /**
    Predicate to determine if a table resides in an encrypted
    tablespace.  First checks if the option "encrypt_type" is set on
@@ -2717,10 +2735,7 @@ bool is_general_tablespace_and_encrypted(const KEY k, THD *thd,
 Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t,
                                        bool *is_general_tablespace) {
   std::vector<Object_id> tspids;
-  visit_tablespace_id_owners(t, [&](const auto &tsh) {
-    tspids.push_back(tsh.tablespace_id());
-    return false;
-  });
+  copy_tablespace_ids(t, std::back_inserter(tspids));
 
   // There are no tablespaces used.
   if (tspids.size() == 0) {

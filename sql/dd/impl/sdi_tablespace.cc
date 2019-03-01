@@ -22,26 +22,25 @@
 
 #include <algorithm>
 
-#include "my_dbug.h"                             // DBUG_PRINT
-#include "my_inttypes.h"                         // uint32
-#include "sql/dd/cache/dictionary_client.h"      // dd::Dictionary_client
-#include "sql/dd/collection.h"                   // dd::Collection
-#include "sql/dd/dd_tablespace.h"                // dd::get_tablespace_name
-#include "sql/dd/impl/sdi.h"                     // dd::serialize
-#include "sql/dd/impl/sdi_utils.h"               // sdi_utils::checked_return
-#include "sql/dd/properties.h"                   // dd::Properties
-#include "sql/dd/string_type.h"                  // dd::String_type
-#include "sql/dd/tablespace_id_owner_visitor.h"  // dd::visit_tablespace_id_owner
-#include "sql/dd/types/index.h"                  // dd::Index
-#include "sql/dd/types/partition.h"              // dd::Partition
-#include "sql/dd/types/partition_index.h"        // dd::Partition_index
-#include "sql/dd/types/schema.h"                 // dd::Schema
-#include "sql/dd/types/table.h"                  // dd::Table
-#include "sql/dd/types/tablespace.h"             // dd::Tablespace
-#include "sql/handler.h"                         // sdi_set
-#include "sql/mdl.h"                             // MDL_key::TABLESPACE
-#include "sql/sql_class.h"                       // THD
-#include "template_utils.h"                      // ReturnValueOrError
+#include "my_dbug.h"                         // DBUG_PRINT
+#include "my_inttypes.h"                     // uint32
+#include "sql/dd/cache/dictionary_client.h"  // dd::Dictionary_client
+#include "sql/dd/collection.h"               // dd::Collection
+#include "sql/dd/dd_tablespace.h"            // dd::get_tablespace_name
+#include "sql/dd/impl/sdi.h"                 // dd::serialize
+#include "sql/dd/impl/sdi_utils.h"           // sdi_utils::checked_return
+#include "sql/dd/properties.h"               // dd::Properties
+#include "sql/dd/string_type.h"              // dd::String_type
+#include "sql/dd/types/index.h"              // dd::Index
+#include "sql/dd/types/partition.h"          // dd::Partition
+#include "sql/dd/types/partition_index.h"    // dd::Partition_index
+#include "sql/dd/types/schema.h"             // dd::Schema
+#include "sql/dd/types/table.h"              // dd::Table
+#include "sql/dd/types/tablespace.h"         // dd::Tablespace
+#include "sql/handler.h"                     // sdi_set
+#include "sql/mdl.h"                         // MDL_key::TABLESPACE
+#include "sql/sql_class.h"                   // THD
+
 /**
   @file
   @ingroup sdi
@@ -56,75 +55,110 @@ namespace {
 
 using DC = dd::cache::Dictionary_client;
 
-#ifndef DBUG_OFF
-const char *ge_type(const dd::Table &) { return "TABLE"; }
+// Workaround since we don't get generic lambdas until C++14
+struct Apply_to_tsid {
+  template <typename T, typename CLOSURE_TYPE>
+  bool operator()(const T &t, CLOSURE_TYPE &&clos) {
+    return clos(t.tablespace_id());
+  }
+};
 
-const char *ge_type(const dd::Index &) { return "INDEX"; }
+template <typename FTOR_TYPE, typename CLOSURE_TYPE>
+bool apply_to_table_graph(const dd::Table &table, FTOR_TYPE &&ftor,
+                          CLOSURE_TYPE &&clos) {
+  if (ftor(table, std::forward<CLOSURE_TYPE>(clos))) {
+    return true;
+  }
 
-const char *ge_type(const dd::Partition &) { return "PARTITION"; }
-
-const char *ge_type(const dd::Partition_index &) { return "PARTITION_INDEX"; }
-#endif /* DBUG_OFF */
-
-/**
-   Traverses Table object with sub objects. Returns when the first
-   valid (not INVALID_OBJECT_ID) tablespace id is found.
- */
-dd::Object_id fetch_first_tablespace_id(const dd::Table &t) {
-  DBUG_PRINT("ddsdi", ("fetch_first_tablespace_id(%s)", t.name().c_str()));
-  dd::Object_id tspid = dd::INVALID_OBJECT_ID;
-  visit_tablespace_id_owners(t, [&](auto &ge) {
-    dd::Object_id tid = ge.tablespace_id();
-    DBUG_PRINT("ddsdi", ("Checking %s '%s'", ge_type(ge), ge.name().c_str()));
-    if (tid != dd::INVALID_OBJECT_ID) {
-      DBUG_PRINT("ddsdi", ("Found id:%llu, source:%s", tid, ge_type(ge)));
-      tspid = tid;
-      return true;  // Returning true to terminate visitation
+  for (auto &ix : table.indexes()) {
+    if (ftor(*ix, std::forward<CLOSURE_TYPE>(clos))) {
+      return true;
     }
+  }
+
+  if (table.partitions().empty()) {
     return false;
+  }
+  const dd::Partition *part = table.partitions().front();
+
+  if (ftor(*part, std::forward<CLOSURE_TYPE>(clos))) {
+    return true;
+  }
+
+  for (auto &part_ix : part->indexes()) {
+    if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template <class CLOSURE_TYPE>
+bool apply_to_tablespaces(THD *thd, const dd::Table &table,
+                          CLOSURE_TYPE &&clos) {
+  DC::Auto_releaser tblspcrel(thd->dd_client());
+  std::vector<dd::Object_id> tsids;
+  return apply_to_table_graph(table, Apply_to_tsid{}, [&](dd::Object_id tsid) {
+    if (tsid == dd::INVALID_OBJECT_ID) {
+      return false;
+    }
+    if (std::find(tsids.begin(), tsids.end(), tsid) != tsids.end()) {
+      // already saved sdi in this tablespace
+      return false;
+    }
+    tsids.push_back(tsid);
+
+    // The tablespace object may not have MDL
+    // Need to use acquire_uncached_uncommitted to get name for MDL
+    dd::Tablespace *tblspc_ = nullptr;
+    if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_)) {
+      return true;
+    }
+    if (tblspc_ == nullptr) {
+      // When dropping a table in an implicit tablespace, the
+      // refrenced tablespace may already have been removed. This
+      // is ok since this means that the sdis in the tablespace
+      // have been removed also. Note that since tsids is only used
+      // to check for duplicates, it makes sense to leave tsid
+      // there and return false so that we can proceed.
+      return false;
+    }
+
+    if (mdl_lock(thd, MDL_key::TABLESPACE, "", tblspc_->name(),
+                 MDL_INTENTION_EXCLUSIVE)) {
+      return true;
+    }
+
+    // Re-acquire after getting lock to make sure it is still there...
+    const dd::Tablespace *tblspc = nullptr;
+    if (thd->dd_client()->acquire(tsid, &tblspc)) {
+      return true;
+    }
+    DBUG_ASSERT(tblspc != nullptr);
+
+    return clos(*tblspc);
   });
-  return tspid;
 }
 
-/**
-   Traverses Table object with sub objects. Returns when the
-   Tablespace object corresponding to the first valid (not
-   INVALID_OBJECT_ID) tablespace id is found.
- */
-ReturnValueOrError<const dd::Tablespace *> fetch_first_tablespace(
-    THD *thd, const dd::Table &t) {
-  dd::Object_id tsid = fetch_first_tablespace_id(t);
-  if (tsid == dd::INVALID_OBJECT_ID) {
-    return {nullptr, false};
-  }
-  // The tablespace object may not have MDL
-  // Need to use acquire_uncached_uncommitted to get name for MDL
-  dd::Tablespace *tblspc_ = nullptr;
-  if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_)) {
-    return {nullptr, true};
-  }
-  if (tblspc_ == nullptr) {
-    // When dropping a table in an implicit tablespace, the
-    // refrenced tablespace may already have been removed. This
-    // is ok since this means that the sdis in the tablespace
-    // have been removed also. Note that since tsids is only used
-    // to check for duplicates, it makes sense to leave tsid
-    // there and return false so that we can proceed.
-    return {nullptr, false};
-  }
+// The follwing enum and utility functions are only needed in
+// this translation unit. But maybe it would be better to move them
+// together with the sdi_key_t definition in tablespace.h?
 
-  if (mdl_lock(thd, MDL_key::TABLESPACE, "", tblspc_->name(),
-               MDL_INTENTION_EXCLUSIVE)) {
-    return {nullptr, true};
-  }
+enum struct Sdi_type : uint32 {
+  SCHEMA,
+  TABLE,
+  TABLESPACE,
+};
 
-  // Re-acquire after getting lock to make sure it is still there...
-  const dd::Tablespace *tblspc = nullptr;
-  if (thd->dd_client()->acquire(tsid, &tblspc)) {
-    return {nullptr, true};
-  }
-  return {tblspc, false};
+dd::sdi_key_t get_sdi_key(const dd::Table &table) {
+  return dd::sdi_key_t{static_cast<uint32>(Sdi_type::TABLE), table.id()};
 }
+
+dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace) {
+  return dd::sdi_key_t{static_cast<uint32>(Sdi_type::TABLESPACE),
+                       tablespace.id()};
+}
+
 }  // namespace
 
 namespace dd {
@@ -132,32 +166,28 @@ namespace sdi_tablespace {
 bool store_tbl_sdi(THD *thd, handlerton *hton, const dd::Sdi_type &sdi,
                    const dd::Table &table,
                    const dd::Schema &schema MY_ATTRIBUTE((unused))) {
-  auto res = fetch_first_tablespace(thd, table);
-  if (res.error) {
-    return true;
-  }
-  if (res.value == nullptr) {
+  const dd::sdi_key_t key = get_sdi_key(table);
+
+  auto store_sdi = [&](const dd::Tablespace &tblspc) -> bool {
+    DBUG_PRINT("ddsdi", ("store_sdi_with_schema[](Schema" ENTITY_FMT
+                         ", Table" ENTITY_FMT ")",
+                         ENTITY_VAL(schema), ENTITY_VAL(table)));
+    if (hton->sdi_set(hton, tblspc, &table, &key, sdi.c_str(), sdi.size())) {
+      return checked_return(true);
+    }
+
     return false;
-  }
-  DBUG_PRINT("ddsdi", ("store_sdi_with_schema[](Schema" ENTITY_FMT
-                       ", Table" ENTITY_FMT ")",
-                       ENTITY_VAL(schema), ENTITY_VAL(table)));
-  sdi_key_t key = {SDI_TYPE_TABLE, table.id()};
-  if (hton->sdi_set(hton, *res.value, &table, &key, sdi.c_str(),
-                    sdi.length())) {
-    return checked_return(true);
-  }
-  DBUG_PRINT("ddsdi", ("Successful return from hton->sdi_set() with "
-                       "sdi=\n%s\nStored in Tablespace (" ENTITY_FMT ")",
-                       sdi.c_str(), ENTITY_VAL(*res.value)));
-  return false;
+  };
+
+  return apply_to_tablespaces(thd, table, store_sdi);
 }
 
 bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
                    const Tablespace &tblspc) {
+  dd::sdi_key_t key = get_sdi_key(tblspc);
+
   DBUG_PRINT("ddsdi", ("store_tsp_sdi(" ENTITY_FMT ")", ENTITY_VAL(tblspc)));
-  sdi_key_t key = {SDI_TYPE_TABLESPACE, tblspc.id()};
-  if (hton->sdi_set(hton, tblspc, nullptr, &key, sdi.c_str(), sdi.length())) {
+  if (hton->sdi_set(hton, tblspc, nullptr, &key, sdi.c_str(), sdi.size())) {
     return checked_return(true);
   }
   return false;
@@ -169,19 +199,13 @@ bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
              ("store_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
               ENTITY_VAL(schema), ENTITY_VAL(table)));
 
-  auto res = fetch_first_tablespace(thd, table);
-  if (res.error) {
-    return true;
-  }
-  if (res.value == nullptr) {
+  sdi_key_t sdi_key = get_sdi_key(table);
+  return apply_to_tablespaces(thd, table, [&](const dd::Tablespace &tblspc) {
+    if (hton.sdi_delete(tblspc, &table, &sdi_key)) {
+      return checked_return(true);
+    }
     return false;
-  }
-
-  sdi_key_t key = {SDI_TYPE_TABLE, table.id()};
-  if (hton.sdi_delete(*res.value, &table, &key)) {
-    return checked_return(true);
-  }
-  return false;
+  });
 }
 }  // namespace sdi_tablespace
 }  // namespace dd
