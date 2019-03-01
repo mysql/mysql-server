@@ -3461,7 +3461,7 @@ ib_err_t ib_memc_sdi_get_keys(ib_crsr_t crsr, const char *key_str, void *sdi,
     /* Pattern matched exactly with "sdi_list_" */
   }
 
-  sdi_vector_t sdi_vector;
+  sdi_vector sdi_vector;
   ib_sdi_vector ib_vector;
   ib_vector.sdi_vector = &sdi_vector;
 
