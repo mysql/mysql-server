@@ -11,6 +11,7 @@ MYSQL_TMP_DIR/bootstrap.log
 # Copy pre 5.0 decimal files to test dir
 # Starting the DB server will fail since the data dir contains
 # tables with non native partitioning.
+Pattern "Unknown storage engine 'partition'" found
 Pattern "Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!" found
 Pattern "Error in creating TABLE_SHARE from p4_hash.frm file." found
 Pattern "Error in fixing SE data for test_mismatch.t1_col_name" found

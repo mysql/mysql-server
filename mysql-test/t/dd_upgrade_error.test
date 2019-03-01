@@ -34,10 +34,12 @@ let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 --exec $MYSQLD --no-defaults $extra_args --innodb_dedicated_server=OFF --secure-file-priv="" --log-error=$MYSQLD_LOG --datadir=$MYSQLD_DATADIR1
 
 let SEARCH_FILE= $MYSQLD_LOG;
+--let SEARCH_PATTERN=  Unknown storage engine 'partition'
+--source include/search_pattern.inc
+
 --let SEARCH_PATTERN= Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!
 --source include/search_pattern.inc
 
-let SEARCH_FILE= $MYSQLD_LOG;
 --let SEARCH_PATTERN= Error in creating TABLE_SHARE from p4_hash.frm file.
 --source include/search_pattern.inc
 

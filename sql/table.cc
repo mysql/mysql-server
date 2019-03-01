@@ -1650,12 +1650,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
         share->db_plugin = my_plugin_lock(NULL, &tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)", str_db_type_length,
                             next_chunk + 2, ha_legacy_type(share->db_type())));
-      } else if (!tmp_plugin && str_db_type_length == 9 &&
-                 !strncmp((char *)next_chunk + 2, "partition", 9)) {
-        error = 8;
-        my_error(ER_FEATURE_NOT_AVAILABLE, MYF(0), "partitioning",
-                 "--skip-partition", "-DWITH_PARTITION_STORAGE_ENGINE=1");
-        goto err;
       } else if (!tmp_plugin && name.length == 18 &&
                  !strncmp(name.str, "PERFORMANCE_SCHEMA", name.length)) {
         /*
