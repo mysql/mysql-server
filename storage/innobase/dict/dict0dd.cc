@@ -2980,11 +2980,11 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   return (m_table);
 }
 
-/** Parse the tablespace name from filename charset to table name charset
-@param[in]      space_name      tablespace name
+/** Parse the tablespace file name from filename charset to table name charset
+@param[in]      file_name      tablespace file name
 @param[in,out]	tablespace_name	tablespace name which is in table name
                                 charset. */
-void dd_filename_to_spacename(const char *space_name,
+void dd_filename_to_spacename(const char *file_name,
                               std::string *tablespace_name) {
   char db_buf[NAME_LEN + 1];
   char tbl_buf[NAME_LEN + 1];
@@ -2995,10 +2995,10 @@ void dd_filename_to_spacename(const char *space_name,
 
   db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
 
-  dd_parse_tbl_name(space_name, db_buf, tbl_buf, part_buf, sub_buf, &is_tmp);
+  dd_parse_tbl_name(file_name, db_buf, tbl_buf, part_buf, sub_buf, &is_tmp);
 
   if (db_buf[0] == '\0') {
-    filename_to_tablename((char *)space_name, orig_tablespace, (NAME_LEN + 1));
+    filename_to_tablename((char *)file_name, orig_tablespace, (NAME_LEN + 1));
     tablespace_name->append(orig_tablespace);
 
     return;
