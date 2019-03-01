@@ -195,11 +195,8 @@ class Channel_info_tcpip_socket : public Channel_info {
 #endif
 
 #ifdef HAVE_SETNS
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-truncation"
     strncpy(vio->network_namespace, m_network_namespace.c_str(),
             sizeof(vio->network_namespace));
-#pragma GCC diagnostic pop
 #endif
 
     return vio;
