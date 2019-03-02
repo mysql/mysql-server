@@ -1684,6 +1684,15 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
             goto err;
           }
         }
+        /*
+          If we convert INSERT operation internally to an UPDATE.
+          An INSERT operation may update table->vfield for BLOB fields,
+          So here we recalculate data for generated columns.
+        */
+        if (table->vfield) {
+          update_generated_write_fields(table->write_set, table);
+        }
+
         key_copy((uchar *)key, table->record[0], table->key_info + key_nr, 0);
         if ((error = (table->file->ha_index_read_idx_map(
                  table->record[1], key_nr, (uchar *)key, HA_WHOLE_KEY,
