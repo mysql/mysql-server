@@ -174,6 +174,17 @@ extern struct mysql_parser_service_st {
 
 
   /**
+    Returns the MYSQL_ITEM type as integer
+
+    @param item The item to get the type of.
+
+    @return The type as integer
+
+  */
+  int (*mysql_item_type)(MYSQL_ITEM item);
+
+
+  /**
     Frees a string buffer allocated by the server.
 
     @param The string whose buffer will be freed.
@@ -244,6 +255,9 @@ extern struct mysql_parser_service_st {
 #define mysql_parser_item_string(item) \
   mysql_parser_service->mysql_item_string(item)
 
+#define mysql_parser_item_type(item) \
+  mysql_parser_service->mysql_item_type(item)
+
 #define mysql_parser_free_string(string) \
   mysql_parser_service->mysql_free_string(string)
 
@@ -273,6 +287,7 @@ int mysql_parser_extract_prepared_params(MYSQL_THD thd, int *positions);
 int mysql_parser_visit_tree(MYSQL_THD thd, parse_node_visit_function processor,
                             unsigned char* arg);
 MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
+int mysql_parser_item_type(MYSQL_ITEM item);
 void mysql_parser_free_string(MYSQL_LEX_STRING string);
 MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd);
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(MYSQL_THD thd);

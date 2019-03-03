@@ -393,6 +393,7 @@ extern struct mysql_parser_service_st {
   int (*mysql_visit_tree)(void* thd, parse_node_visit_function processor,
                           unsigned char* arg);
   MYSQL_LEX_STRING (*mysql_item_string)(MYSQL_ITEM item);
+  int (*mysql_item_type)(MYSQL_ITEM item);
   void (*mysql_free_string)(MYSQL_LEX_STRING string);
   MYSQL_LEX_STRING (*mysql_get_query)(void* thd);
   MYSQL_LEX_STRING (*mysql_get_normalized_query)(void* thd);
@@ -416,6 +417,7 @@ int mysql_parser_extract_prepared_params(void* thd, int *positions);
 int mysql_parser_visit_tree(void* thd, parse_node_visit_function processor,
                             unsigned char* arg);
 MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item);
+int mysql_parser_item_type(MYSQL_ITEM item);
 void mysql_parser_free_string(MYSQL_LEX_STRING string);
 MYSQL_LEX_STRING mysql_parser_get_query(void* thd);
 MYSQL_LEX_STRING mysql_parser_get_normalized_query(void* thd);
@@ -494,13 +496,13 @@ extern struct mysql_keyring_service_st
   int (*my_key_store_func)(const char *, const char *, const char *,
                            const void *, size_t);
   int (*my_key_fetch_func)(const char *, char **, const char *, void **,
-                               size_t *);
+                           size_t *);
   int (*my_key_remove_func)(const char *, const char *);
   int (*my_key_generate_func)(const char *, const char *, const char *,
-                                  size_t);
+                              size_t);
 } *mysql_keyring_service;
 int my_key_store(const char *, const char *, const char *, const void *, size_t);
 int my_key_fetch(const char *, char **, const char *, void **,
-                     size_t *);
+                 size_t *);
 int my_key_remove(const char *, const char *);
 int my_key_generate(const char *, const char *, const char *, size_t);

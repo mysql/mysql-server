@@ -363,6 +363,11 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item)
   return res;
 }
 
+extern "C"
+int mysql_parser_item_type(MYSQL_ITEM item)
+{
+  return item->type();
+}
 
 extern "C"
 void mysql_parser_free_string(MYSQL_LEX_STRING string)
