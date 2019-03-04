@@ -362,9 +362,6 @@ sub main {
 
   command_line_setup();
 
-  # Append secondary engiene test suite to list of default suites.
-  add_secondary_engine_suite() if $secondary_engine_support;
-
   # Create build thread id directory
   create_unique_id_dir();
 
@@ -376,6 +373,12 @@ sub main {
 
   # --help will not reach here, so now it's safe to assume we have binaries
   My::SafeProcess::find_bin($bindir);
+
+  $secondary_engine_support = ($secondary_engine_support and
+                find_secondary_engine($bindir)) ? 1 : 0 ;
+
+  # Append secondary engine test suite to list of default suites if found.
+  add_secondary_engine_suite() if $secondary_engine_support;
 
   if ($opt_gcov) {
     gcov_prepare($basedir);
