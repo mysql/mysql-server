@@ -1786,7 +1786,7 @@ static void print_xml_tag(FILE *xml_file, const char *sbeg,
       <stag_atr="sval" xsi:nil="true"/>
   NOTE
     sval MUST be a NULL terminated string.
-    sval string will be qouted before output.
+    sval string will be quoted before output.
 */
 
 static void print_xml_null_tag(FILE *xml_file, const char *sbeg,
@@ -1852,7 +1852,7 @@ static void print_xml_cdata(FILE *xml_file, const char *str, ulong len) {
     Print tag with many attribute to the xml_file. Format is:
       \t\t<row_name Atr1="Val1" Atr2="Val2"... />
   NOTE
-    All atributes and values will be quoted before output.
+    All attributes and values will be quoted before output.
 */
 
 static void print_xml_row(FILE *xml_file, const char *row_name,
@@ -2336,7 +2336,7 @@ static uint dump_routines_for_db(char *db) {
                           text);
             if (freemem) my_free((void *)text);
 
-            maybe_die(EX_MYSQLERR, "%s has insufficent privileges to %s!",
+            maybe_die(EX_MYSQLERR, "%s has insufficient privileges to %s!",
                       current_user, query_buff);
           } else if (strlen(row[2])) {
             if (opt_xml) {
@@ -2488,7 +2488,7 @@ static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
 }
 
 /*
-  get_table_structure -- retrievs database structure, prints out corresponding
+  get_table_structure -- retrieves database structure, prints out corresponding
   CREATE statement and fills out insert_pat if the table is the type we will
   be dumping.
 
@@ -3466,7 +3466,7 @@ static void dump_table(char *table, char *db) {
   if (strcmp(table_type, "VIEW") == 0) DBUG_VOID_RETURN;
 
   /*
-    We don't dump data fo`r replication metadata tables.
+    We don't dump data for replication metadata tables.
   */
   if (replication_metadata_tables(db, table)) DBUG_VOID_RETURN;
 
@@ -3836,7 +3836,7 @@ static void dump_table(char *table, char *db) {
       }
     }
 
-    /* XML - close table tag and supress regular output */
+    /* XML - close table tag and suppress regular output */
     if (opt_xml)
       fputs("\t</table_data>\n", md_result_file);
     else if (extended_insert && row_break)
@@ -4228,7 +4228,7 @@ static int dump_databases(char **db_names) {
 } /* dump_databases */
 
 /*
-View Specific database initalization.
+View Specific database initialization.
 
 SYNOPSIS
   init_dumping_views
@@ -4243,7 +4243,7 @@ int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused))) {
 } /* init_dumping_views */
 
 /*
-Table Specific database initalization.
+Table Specific database initialization.
 
 SYNOPSIS
   init_dumping_tables
@@ -4616,7 +4616,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
         free_root(&root, MYF(0));
       }
       maybe_die(EX_ILLEGAL_TABLE, "Couldn't find table: \"%s\"", *table_names);
-      /* We shall countinue here, if --force was given */
+      /* We shall continue here, if --force was given */
     }
   }
   end = pos;
@@ -4634,7 +4634,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
         free_root(&root, MYF(0));
       }
       DB_error(mysql, "when doing LOCK TABLES");
-      /* We shall countinue here, if --force was given */
+      /* We shall continue here, if --force was given */
     }
   }
   dynstr_free(&lock_tables_query);
@@ -4643,7 +4643,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables) {
       if (!opt_force) free_root(&root, MYF(0));
       DB_error(mysql, "when doing refresh");
     }
-    /* We shall countinue here, if --force was given */
+    /* We shall continue here, if --force was given */
     else
       verbose_msg("-- dump_selected_tables : logs flushed successfully!\n");
   }
@@ -5224,7 +5224,7 @@ static void set_session_binlog(bool flag) {
 
   @param[in]  mysql_con     connection to the server
 
-  @retval     false         succesfully printed GTID_PURGED sets
+  @retval     false         successfully printed GTID_PURGED sets
                              in the dump file.
   @retval     true          failed.
 
@@ -5696,9 +5696,9 @@ int main(int argc, char **argv) {
      Ensure dumped data flushed.
      First we will flush the file stream data to kernel buffers with fflush().
      Second we will flush the kernel buffers data to physical disk file with
-     my_sync(), this will make sure the data succeessfully dumped to disk file.
+     my_sync(), this will make sure the data successfully dumped to disk file.
      fsync() fails with EINVAL if stdout is not redirected to any file, hence
-     MY_IGNORE_BADFD is passed to ingnore that error.
+     MY_IGNORE_BADFD is passed to ignore that error.
   */
   if (md_result_file &&
       (fflush(md_result_file) || my_sync(md_result_fd, MYF(MY_IGNORE_BADFD)))) {
@@ -5713,7 +5713,7 @@ int main(int argc, char **argv) {
   my_free(shared_memory_base_name);
 #endif
   /*
-    No reason to explicitely COMMIT the transaction, neither to explicitely
+    No reason to explicitly COMMIT the transaction, neither to explicitly
     UNLOCK TABLES: these will be automatically be done by the server when we
     disconnect now. Saves some code here, some network trips, adds nothing to
     server.
