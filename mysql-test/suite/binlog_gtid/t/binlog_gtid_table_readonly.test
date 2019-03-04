@@ -79,8 +79,6 @@
 --let $initial_error_action = `SELECT @@binlog_error_action`
 --let $pattern_to_match = $MYSQLTEST_VARDIR/mysqld.1/data/*binlog*.0*
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: binlog_gtid.binlog_gtid_table_readonly
---let $assert_count = 1
 
 --echo #
 --echo # TC1. Table `mysql.gtid_executed` read-only & rotate not triggered by `max_binlog_size`
@@ -111,6 +109,7 @@ FLUSH BINARY LOGS;
 
 # 4) Assert that an error was logged to the server log.
 --let $assert_select = Unable to create a new binlog file
+--let $assert_match = (.*)$assert_select(.*)
 --let $assert_text = ER_BINLOG_UNABLE_TO_ROTATE_GTID_TABLE_READONLY found in server log
 --source include/assert_grep.inc
 
@@ -142,6 +141,7 @@ FLUSH BINARY LOGS;
 
 # 5) Assert that an error was logged to the server log.
 --let $assert_select = Turning logging off for the whole duration of the MySQL server process
+--let $assert_match = (.*)$assert_select(.*)
 --let $assert_text = ER_BINLOG_CANT_OPEN_FOR_LOGGING found in server log
 --source include/assert_grep.inc
 
@@ -192,6 +192,7 @@ FLUSH BINARY LOGS;
 
 # 5) Assert that an error was logged to the server log.
 --let $assert_select = Table 'mysql.gtid_executed' cannot be opened., while rotating the binlog. Aborting the server
+--let $assert_match = (.*)$assert_select(.*)
 --let $assert_text = ER_BINLOG_LOGGING_IMPOSSIBLE found in server log
 --source include/assert_grep.inc
 
