@@ -5115,6 +5115,7 @@ Suma::doFIRE_TRIG_ORD(Signal* signal, LinearSectionPtr lsptr[3])
       memcpy(dst1, lsptr[2].p, lsptr[2].sz << 2);
       ndbrequire(f_trigBufferSize == lsptr[0].sz + lsptr[2].sz);
       memcpy(dst2, lsptr[1].p, lsptr[1].sz << 2);
+      ndbrequire(b_trigBufferSize == lsptr[1].sz);
     }
     else if (dst1 != nullptr)
     {
