@@ -49,7 +49,6 @@ TABLESPACE_NAME	this_sixty_four_byte_name_is_not_too_long_______________________
 # A 64 character tablename can cause a partitioned table
 # to have a path that is too long.
 #
-USE test;
 CREATE TABLE TH6EDXFX5D1U5BLB3I50LN5DFO415JIRP9XKUC0H9O2IONKQL3IOMFYW4ZVOCFPP (a INT NOT NULL, b INT)
 PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b)
 (PARTITION O8W7066AGXADOMYWHT89TWMBJOMTFDMDC74WJ7IUPKD75LVU1ENOV1J008SJBKKF VALUES LESS THAN (200)
@@ -68,4 +67,5 @@ ERROR HY000: Long database name and identifier for object resulted in a path len
 #
 # Cleanup
 #
+USE test;
 DROP DATABASE `this_sixty_four_byte_name_is_not_too_long_______________________`;

@@ -3854,9 +3854,9 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
         << "Operating system error number " << err << " in a file operation.";
 
     if (err == ERROR_PATH_NOT_FOUND) {
-      ib::error(ER_IB_MSG_787) << "The error means the system"
-                                  " cannot find the path specified."
-                                  " It might be too long.";
+      ib::error(ER_IB_MSG_787) << "The error means the system cannot find"
+                                  " the path specified. It might be too long"
+                                  " or it might not exist.";
 
 #ifndef UNIV_HOTBACKUP
       if (srv_is_being_started) {

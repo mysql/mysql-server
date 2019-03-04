@@ -73,7 +73,6 @@ SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name 
 --echo # to have a path that is too long.
 --echo #
 
-USE test;
 --error ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
 CREATE TABLE TH6EDXFX5D1U5BLB3I50LN5DFO415JIRP9XKUC0H9O2IONKQL3IOMFYW4ZVOCFPP (a INT NOT NULL, b INT)
   PARTITION BY RANGE (a) PARTITIONS 3 SUBPARTITION BY KEY (b)
@@ -94,11 +93,12 @@ CREATE TABLE TH6EDXFX5D1U5BLB3I50LN5DFO415JIRP9XKUC0H9O2IONKQL3IOMFYW4ZVOCFPP (a
 --echo # Cleanup
 --echo #
 
+USE test;
 --eval DROP DATABASE `$long_name`
 
 --disable_query_log
 call mtr.add_suppression("\\[ERROR\\] .* Operating system error number 3 in a file operation");
-call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified. It might be too long");
+call mtr.add_suppression("\\[ERROR\\] .* The error means the system cannot find the path specified. It might be too long or it might not exist");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot create file '.*ibd'");
 call mtr.add_suppression("\\[ERROR\\] .* Cannot create tablespace '.*ibd'. The filepath is too long for this OS");
 --enable_query_log
