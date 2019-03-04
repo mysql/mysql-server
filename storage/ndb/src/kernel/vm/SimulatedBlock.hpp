@@ -905,7 +905,8 @@ protected:
   /* If send size is > FRAGMENT_WORD_SIZE, fragments of this size
    * will be sent by the sendFragmentedSignal variants
    */
-  STATIC_CONST( FRAGMENT_WORD_SIZE = 240 );
+  static constexpr Uint32 FRAGMENT_WORD_SIZE = 240;
+  static constexpr Uint32 BATCH_FRAGMENT_WORD_SIZE = 240 * 8;
 
   void sendFragmentedSignal(BlockReference ref, 
 			    GlobalSignalNumber gsn, 
