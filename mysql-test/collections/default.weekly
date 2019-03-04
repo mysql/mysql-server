@@ -35,6 +35,7 @@ perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-t
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 # interactive_utilities,engines, memcached
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=audit_null-big  --vardir=var-audit_null-big --suite=audit_null --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=funcs1-big  --vardir=var-funcs1-big --suite=funcs_1 --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60     --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test    --comment=stress --vardir=var-stress  --suite=stress --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test    --comment=jp --vardir=var-jp --suite=jp --no-skip
