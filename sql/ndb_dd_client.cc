@@ -782,6 +782,32 @@ Ndb_dd_client::get_table(const char *schema_name, const char *table_name,
 
 
 bool
+Ndb_dd_client::set_tablespace_id_in_table(const char *schema_name,
+                                          const char *table_name,
+                                          dd::Object_id tablespace_id)
+{
+  dd::Table *table_def = nullptr;
+  if (m_client->acquire_for_modification(schema_name, table_name, &table_def))
+  {
+    return false;
+  }
+  if (table_def == nullptr)
+  {
+    DBUG_ASSERT(false);
+    return false;
+  }
+
+  ndb_dd_table_set_tablespace_id(table_def, tablespace_id);
+
+  if (m_client->update(table_def))
+  {
+    return false;
+  }
+  return true;
+}
+
+
+bool
 Ndb_dd_client::fetch_schema_names(std::vector<std::string>* names)
 {
   DBUG_ENTER("Ndb_dd_client::fetch_schema_names");

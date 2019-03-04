@@ -4547,7 +4547,8 @@ class Ndb_schema_event_handler {
 
 
   bool
-  ndb_create_tablespace_from_engine(const char* tablespace_name,
+  ndb_create_tablespace_from_engine(Ndb_dd_client &dd_client,
+                                    const char* tablespace_name,
                                     uint32 id,
                                     uint32 version)
   {
@@ -4567,7 +4568,6 @@ class Ndb_schema_event_handler {
       DBUG_RETURN(false);
     }
 
-    Ndb_dd_client dd_client(m_thd);
     if (!dd_client.mdl_lock_tablespace_exclusive(tablespace_name))
     {
       ndb_log_error("MDL lock could not be acquired for tablespace '%s'",
@@ -4585,7 +4585,6 @@ class Ndb_schema_event_handler {
       DBUG_RETURN(false);
     }
 
-    dd_client.commit();
     DBUG_RETURN(true);
   }
 
@@ -4604,15 +4603,93 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (!ndb_create_tablespace_from_engine(schema->name,
-                                           schema->id,
+    Ndb_dd_client dd_client(m_thd);
+    if (!ndb_create_tablespace_from_engine(dd_client, schema->name, schema->id,
                                            schema->version))
     {
       ndb_log_error("Distribution of CREATE TABLESPACE '%s' failed",
                     schema->name);
     }
+    dd_client.commit();
 
     DBUG_VOID_RETURN;
+  }
+
+
+  bool get_tablespace_table_refs(const char *name,
+                                 std::vector<dd::Tablespace_table_ref>
+                                   &table_refs) const
+  {
+    Ndb_dd_client dd_client(m_thd);
+    if (!dd_client.mdl_lock_tablespace(name,
+                                       true /* intention_exclusive */))
+    {
+      ndb_log_error("MDL lock could not be acquired on tablespace '%s'", name);
+      return false;
+    }
+
+    const dd::Tablespace *existing = nullptr;
+    if (!dd_client.get_tablespace(name, &existing))
+    {
+      return false;
+    }
+
+    if (existing == nullptr)
+    {
+      // Tablespace doesn't exist, no need to update tables after the ALTER
+      return true;
+    }
+
+    if (!ndb_dd_disk_data_get_table_refs(m_thd, *existing, table_refs))
+    {
+      ndb_log_error("Failed to get table refs in tablespace '%s'", name);
+      return false;
+    }
+    return true;
+  }
+
+
+  bool
+  update_tablespace_id_in_tables(Ndb_dd_client &dd_client,
+                                 const char *tablespace_name,
+                                 const std::vector<dd::Tablespace_table_ref>
+                                   &table_refs) const
+  {
+    if (!dd_client.mdl_lock_tablespace(tablespace_name,
+                                       true /* intention_exclusive */))
+    {
+      ndb_log_error("MDL lock could not be acquired on tablespace '%s'",
+                    tablespace_name);
+      return false;
+    }
+
+    dd::Object_id tablespace_id;
+    if (!dd_client.lookup_tablespace_id(tablespace_name, &tablespace_id))
+    {
+      ndb_log_error("Failed to retrieve object id of tablespace '%s'",
+                    tablespace_name);
+      return false;
+    }
+
+    for (auto &table_ref : table_refs)
+    {
+      const char *schema_name = table_ref.m_schema_name.c_str();
+      const char *table_name = table_ref.m_name.c_str();
+      if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
+      {
+        ndb_log_error("MDL lock could not be acquired on table '%s'",
+                      table_name);
+        return false;
+      }
+
+      if (!dd_client.set_tablespace_id_in_table(schema_name, table_name,
+                                                tablespace_id))
+      {
+        ndb_log_error("Could not set tablespace id in table '%s'", table_name);
+        return false;
+      }
+    }
+    return true;
   }
 
 
@@ -4630,14 +4707,39 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    if (!ndb_create_tablespace_from_engine(schema->name,
-                                           schema->id,
+    // Get information about tables in the tablespace being ALTERed. This is
+    // required for after the ALTER as the tablespace id of the every table
+    // should be updated
+    std::vector<dd::Tablespace_table_ref> table_refs;
+    if (!get_tablespace_table_refs(schema->name, table_refs))
+    {
+      ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
+                    schema->name);
+      DBUG_VOID_RETURN;
+    }
+
+    Ndb_dd_client dd_client(m_thd);
+    if (!ndb_create_tablespace_from_engine(dd_client, schema->name, schema->id,
                                            schema->version))
     {
       ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
                     schema->name);
+      DBUG_VOID_RETURN;
     }
 
+    if (!table_refs.empty())
+    {
+      // Update tables in the tablespace with the new tablespace id
+      if (!update_tablespace_id_in_tables(dd_client, schema->name, table_refs))
+      {
+        ndb_log_error("Failed to update tables in tablespace '%s' with the "
+                      "new tablespace id", schema->name);
+        ndb_log_error("Distribution of ALTER TABLESPACE '%s' failed",
+                      schema->name);
+        DBUG_VOID_RETURN;
+      }
+    }
+    dd_client.commit();
     DBUG_VOID_RETURN;
   }
 

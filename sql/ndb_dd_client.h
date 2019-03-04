@@ -142,6 +142,9 @@ public:
                      bool force_overwrite);
   bool get_table(const char* schema_name, const char* table_name,
                  const dd::Table **table_def);
+  bool set_tablespace_id_in_table(const char *schema_name,
+                                  const char *table_name,
+                                  dd::Object_id tablespace_id);
 
   bool fetch_schema_names(std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,

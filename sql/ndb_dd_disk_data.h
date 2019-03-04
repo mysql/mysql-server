@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,10 @@
 
 namespace dd {
   class Tablespace;
+  struct Tablespace_table_ref;
 }
+
+class THD;
 
 /*
   Functions operating on disk data i.e. logfile
@@ -90,5 +93,12 @@ void ndb_dd_disk_data_add_file(dd::Tablespace* object_def,
 */
 void ndb_dd_disk_data_get_file_names(const dd::Tablespace* object_def,
                                      std::vector<std::string>& file_names);
+
+/*
+  Fetch information about tables in a tablespace
+*/
+bool ndb_dd_disk_data_get_table_refs(THD *thd, const dd::Tablespace &object_def,
+                                     std::vector<dd::Tablespace_table_ref>
+                                       &table_refs);
 
 #endif
