@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ class Mem_compare_uchar_int
  public:
   // SUPPRESS_UBSAN: only executed on intel, misaligned read works OK.
   bool operator()(const uchar *s1, const uchar *s2) SUPPRESS_UBSAN {
-    return *(int *)s1 < *(int *)s2;
+    return *pointer_cast<const int *>(s1) < *pointer_cast<const int *>(s2);
   }
 };
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,8 @@ const uchar *skip_trailing_orig(const uchar *ptr, size_t len) {
     if (end_words > ptr) {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+        while (end > start_words &&
+               (pointer_cast<const unsigned *>(end))[-1] == SPACE_INT)
           end -= SIZEOF_INT;
     }
   }
@@ -86,7 +87,8 @@ const uchar *skip_trailing_4byte(const uchar *ptr, size_t len) {
     {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+        while (end > start_words &&
+               (pointer_cast<const unsigned *>(end))[-1] == SPACE_INT)
           end -= SIZEOF_INT;
     }
   }
@@ -108,8 +110,8 @@ const uchar *skip_trailing_8byte(const uchar *ptr, size_t len) {
     {
       while (end > end_words && end[-1] == 0x20) end--;
       if (end[-1] == 0x20 && start_words < end_words)
-        while (end > start_words &&
-               ((ulonglong *)end)[-1] == 0x2020202020202020ULL)
+        while (end > start_words && (pointer_cast<const ulonglong *>(
+                                        end))[-1] == 0x2020202020202020ULL)
           end -= 8;
     }
   }

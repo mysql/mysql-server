@@ -489,23 +489,22 @@ bool Slave_worker::read_info(Rpl_info_handler *from) {
   if (from->prepare_info_for_read()) DBUG_RETURN(true);
 
   if (from->get_info(&temp_internal_id, 0) ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
-                     (char *)"") ||
+      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), "") ||
       from->get_info(&temp_group_relay_log_pos, 0UL) ||
       from->get_info(group_master_log_name, sizeof(group_master_log_name),
-                     (char *)"") ||
+                     "") ||
       from->get_info(&temp_group_master_log_pos, 0UL) ||
       from->get_info(checkpoint_relay_log_name,
-                     sizeof(checkpoint_relay_log_name), (char *)"") ||
+                     sizeof(checkpoint_relay_log_name), "") ||
       from->get_info(&temp_checkpoint_relay_log_pos, 0UL) ||
       from->get_info(checkpoint_master_log_name,
-                     sizeof(checkpoint_master_log_name), (char *)"") ||
+                     sizeof(checkpoint_master_log_name), "") ||
       from->get_info(&temp_checkpoint_master_log_pos, 0UL) ||
       from->get_info(&temp_checkpoint_seqno, 0UL) ||
       from->get_info(&nbytes, 0UL) ||
       from->get_info(buffer, (size_t)nbytes, (uchar *)0) ||
       /* default is empty string */
-      from->get_info(channel, sizeof(channel), (char *)""))
+      from->get_info(channel, sizeof(channel), ""))
     DBUG_RETURN(true);
 
   DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));

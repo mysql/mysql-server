@@ -1861,8 +1861,8 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       if (!ptr) return my_b_printf(file, "NULL");
       uint bin_size = my_decimal_get_binary_size(precision, decimals);
       my_decimal dec;
-      binary2my_decimal(E_DEC_FATAL_ERROR, (uchar *)ptr, &dec, precision,
-                        decimals);
+      binary2my_decimal(E_DEC_FATAL_ERROR, pointer_cast<const uchar *>(ptr),
+                        &dec, precision, decimals);
       int len = DECIMAL_MAX_STR_LENGTH;
       char buff[DECIMAL_MAX_STR_LENGTH + 1];
       decimal2string(&dec, buff, &len, 0, 0, 0);
@@ -2181,7 +2181,8 @@ size_t Rows_log_event::print_verbose_one_row(
 
     my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
     if (!is_null) {
-      size_t fsize = td->calc_field_size((uint)i, (uchar *)value);
+      size_t fsize =
+          td->calc_field_size((uint)i, pointer_cast<const uchar *>(value));
       if (fsize > (size_t)(m_rows_end - value)) {
         my_b_printf(file,
                     "***Corrupted replication event was detected: "
@@ -4279,7 +4280,7 @@ void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   DBUG_EXECUTE_IF("simulate_file_write_error",
                   { head->write_pos = head->write_end - 500; });
   print_query_header(head, print_event_info);
-  my_b_write(head, (uchar *)query, q_len);
+  my_b_write(head, pointer_cast<const uchar *>(query), q_len);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* !MYSQL_SERVER */
@@ -5355,7 +5356,9 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   if (print_event_info->short_form) return;
   print_header(head, print_event_info, false);
   my_b_printf(head, "\tRotate to ");
-  if (new_log_ident) my_b_write(head, (uchar *)new_log_ident, (uint)ident_len);
+  if (new_log_ident)
+    my_b_write(head, pointer_cast<const uchar *>(new_log_ident),
+               (uint)ident_len);
   my_b_printf(head, "  pos: %s\n", llstr(pos, buf));
 }
 #endif /* !MYSQL_SERVER */
@@ -7104,17 +7107,18 @@ void Execute_load_query_log_event::print(FILE *,
   });
 
   if (local_fname) {
-    my_b_write(head, (uchar *)query, fn_pos_start);
+    my_b_write(head, pointer_cast<const uchar *>(query), fn_pos_start);
     my_b_printf(head, " LOCAL INFILE ");
     pretty_print_str(head, local_fname, strlen(local_fname));
 
     if (dup_handling == binary_log::LOAD_DUP_REPLACE)
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");
-    my_b_write(head, (uchar *)query + fn_pos_end, q_len - fn_pos_end);
+    my_b_write(head, pointer_cast<const uchar *>(query) + fn_pos_end,
+               q_len - fn_pos_end);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   } else {
-    my_b_write(head, (uchar *)query, q_len);
+    my_b_write(head, pointer_cast<const uchar *>(query), q_len);
     my_b_printf(head, "\n%s\n", print_event_info->delimiter);
   }
 

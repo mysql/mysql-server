@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -431,7 +431,8 @@ static void readjust_validate_password_length() {
 */
 static void dictionary_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
                               const void *save) {
-  *(const char **)var_ptr = *(const char **)save;
+  *static_cast<const char **>(var_ptr) =
+      *static_cast<const char **>(const_cast<void *>(save));
   read_dictionary_file();
 }
 
@@ -445,7 +446,8 @@ static void dictionary_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
 static void length_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
                           const void *save) {
   /* check if there is an actual change */
-  if (*((int *)var_ptr) == *((int *)save)) return;
+  if (*(static_cast<int *>(var_ptr)) == *(static_cast<const int *>(save)))
+    return;
 
   /*
     set new value for system variable.
@@ -454,7 +456,7 @@ static void length_update(MYSQL_THD, SYS_VAR *, void *var_ptr,
     to the location at which corresponding static variable is
     declared in this file.
   */
-  *((int *)var_ptr) = *((int *)save);
+  *(static_cast<int *>(var_ptr)) = *(static_cast<const int *>(save));
 
   readjust_validate_password_length();
 }

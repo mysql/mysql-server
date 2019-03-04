@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,7 +300,7 @@ static bool validate_password_exists() {
 static int install_password_validation_component() {
   int reply;
   int component_set = 0;
-  char *strength = NULL;
+  const char *strength = NULL;
   bool option_read = false;
   reply= get_response((const char *) "\nVALIDATE PASSWORD COMPONENT can be "
                                      "used to test passwords\nand improve "
@@ -325,15 +325,15 @@ static int install_password_validation_component() {
    "Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: ",'2');
         switch (reply) {
           case (int)'0':
-            strength = (char *)"LOW";
+            strength = "LOW";
             option_read = true;
             break;
           case (int)'1':
-            strength = (char *)"MEDIUM";
+            strength = "MEDIUM";
             option_read = true;
             break;
           case (int)'2':
-            strength = (char *)"STRONG";
+            strength = "STRONG";
             option_read = true;
             break;
           default:
@@ -355,7 +355,8 @@ static int install_password_validation_component() {
       end += mysql_real_escape_string_quote(&mysql, end, strength,
                                             (ulong)strength_length, '\'');
       *end++ = '\'';
-      if (!execute_query((const char **)&query, (unsigned int)(end - query)))
+      const char *query_const = query;
+      if (!execute_query(&query_const, (unsigned int)(end - query)))
         DBUG_PRINT("info", ("query success!"));
       my_free(query);
     } else
@@ -389,7 +390,8 @@ static void estimate_password_strength(char *password_string) {
                                         (ulong)password_length, '\'');
   *end++ = '\'';
   *end++ = ')';
-  if (!execute_query((const char **)&query, (unsigned int)(end - query))) {
+  const char *query_const = query;
+  if (!execute_query(&query_const, (unsigned int)(end - query))) {
     MYSQL_RES *result = mysql_store_result(&mysql);
     MYSQL_ROW row = mysql_fetch_row(result);
     printf("\nEstimated strength of the password: %s \n", row[0]);
@@ -524,7 +526,8 @@ static void set_opt_user_password(int component_set) {
       my_free(password2);
       password1 = NULL;
       password2 = NULL;
-      if (!execute_query((const char **)&query, (unsigned int)(end - query))) {
+      const char *query_const = query;
+      if (!execute_query(&query_const, (unsigned int)(end - query))) {
         my_free(query);
         break;
       } else
@@ -649,7 +652,8 @@ static void drop_users(MYSQL_RES *result) {
     end += mysql_real_escape_string_quote(&mysql, end, host_tmp,
                                           (ulong)host_length, '\'');
     *end++ = '\'';
-    if (!execute_query((const char **)&query, (unsigned int)(end - query)))
+    const char *query_const = query;
+    if (!execute_query(&query_const, (unsigned int)(end - query)))
       DBUG_PRINT("info", ("query success!"));
     my_free(query);
   }

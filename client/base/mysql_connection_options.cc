@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,8 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
 void Mysql_connection_options::create_options() {
   this->create_new_option(&this->m_bind_addr, "bind-address",
                           "IP address to bind to.");
-  this->create_new_option((char **)&charsets_dir, "character-sets-dir",
+  this->create_new_option(const_cast<char **>(&charsets_dir),
+                          "character-sets-dir",
                           "Directory for character set files.");
   this->create_new_option(&this->m_compress, "compress",
                           "Use compression in server/client protocol.")

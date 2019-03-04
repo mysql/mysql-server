@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ void Password_option::password_callback(char *argument) {
   if (argument == ::disabled_my_option) {
     // This prevents ::disabled_my_option being overriden later in this
     // function.
-    argument = (char *)"";
+    argument = const_cast<char *>("");
   }
 
   if (argument != NULL) {

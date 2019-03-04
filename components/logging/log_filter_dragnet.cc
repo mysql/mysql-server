@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -113,7 +113,7 @@ static SHOW_VAR show_var_filter_rules_decompile[] = {
 #include <mysql/components/services/log_builtins_filter.h>
 
 /*
-  C_STRING_WITH_LEN
+  STRING_WITH_LEN
 */
 #include <m_string.h>
 
@@ -194,68 +194,68 @@ typedef enum enum_log_filter_syntax {
 static const log_filter_xlate_key log_filter_xlate_keys[] = {
     // keywords. order matters: we want to dump "else if" as "elseif" etc.
     {LOG_FILTER_WORD_IF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("IF")},
+     STRING_WITH_LEN("IF")},
     {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("ELSEIF")},
+     STRING_WITH_LEN("ELSEIF")},
     {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("ELSE IF")},
+     STRING_WITH_LEN("ELSE IF")},
     {LOG_FILTER_WORD_ELSEIF, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("ELSIF")}, /* PL/SQL style */
+     STRING_WITH_LEN("ELSIF")}, /* PL/SQL style */
     {LOG_FILTER_WORD_ELSE, LOG_FILTER_XLATE_FLOW | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("ELSE")},
+     STRING_WITH_LEN("ELSE")},
 
-    {LOG_FILTER_WORD_THEN, LOG_FILTER_XLATE_FLOW, C_STRING_WITH_LEN("THEN")},
+    {LOG_FILTER_WORD_THEN, LOG_FILTER_XLATE_FLOW, STRING_WITH_LEN("THEN")},
 
     // conditions
 
     // absence required
     {LOG_FILTER_COND_ABSENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("NOT EXISTS")},
+     STRING_WITH_LEN("NOT EXISTS")},
     {LOG_FILTER_COND_ABSENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("NOT")},
+     STRING_WITH_LEN("NOT")},
 
     // presence required
     {LOG_FILTER_COND_PRESENT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_PREFIX,
-     C_STRING_WITH_LEN("EXISTS")},
+     STRING_WITH_LEN("EXISTS")},
 
     {LOG_FILTER_COND_EQ, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("==")},
+     STRING_WITH_LEN("==")},
 
     {LOG_FILTER_COND_NE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("!=")},
+     STRING_WITH_LEN("!=")},
     {LOG_FILTER_COND_NE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("<>")},
+     STRING_WITH_LEN("<>")},
 
     {LOG_FILTER_COND_LT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("<")},
+     STRING_WITH_LEN("<")},
 
     {LOG_FILTER_COND_LE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("<=")},
+     STRING_WITH_LEN("<=")},
     {LOG_FILTER_COND_LE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("=<")},
+     STRING_WITH_LEN("=<")},
 
     {LOG_FILTER_COND_GE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN(">=")},
+     STRING_WITH_LEN(">=")},
     {LOG_FILTER_COND_GE, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN("=>")},
+     STRING_WITH_LEN("=>")},
 
     {LOG_FILTER_COND_GT, LOG_FILTER_XLATE_COND | LOG_FILTER_XLATE_REF,
-     C_STRING_WITH_LEN(">")},
+     STRING_WITH_LEN(">")},
 
     // verbs/actions
 
-    {LOG_FILTER_DROP, LOG_FILTER_XLATE_VERB, C_STRING_WITH_LEN("drop")},
+    {LOG_FILTER_DROP, LOG_FILTER_XLATE_VERB, STRING_WITH_LEN("drop")},
     {LOG_FILTER_THROTTLE, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXVAL,
-     C_STRING_WITH_LEN("throttle")},
+     STRING_WITH_LEN("throttle")},
     {LOG_FILTER_ITEM_SET,
      LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME | LOG_FILTER_XLATE_AUXVAL,
-     C_STRING_WITH_LEN("set")},
+     STRING_WITH_LEN("set")},
     {LOG_FILTER_ITEM_DEL, LOG_FILTER_XLATE_VERB | LOG_FILTER_XLATE_AUXNAME,
-     C_STRING_WITH_LEN("unset")},
-    {LOG_FILTER_RETURN, LOG_FILTER_XLATE_VERB, C_STRING_WITH_LEN("return")},
+     STRING_WITH_LEN("unset")},
+    {LOG_FILTER_RETURN, LOG_FILTER_XLATE_VERB, STRING_WITH_LEN("return")},
 
-    {LOG_FILTER_CHAIN_AND, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("AND")},
-    {LOG_FILTER_CHAIN_OR, LOG_FILTER_XLATE_CHAIN, C_STRING_WITH_LEN("OR")}};
+    {LOG_FILTER_CHAIN_AND, LOG_FILTER_XLATE_CHAIN, STRING_WITH_LEN("AND")},
+    {LOG_FILTER_CHAIN_OR, LOG_FILTER_XLATE_CHAIN, STRING_WITH_LEN("OR")}};
 
 /**
   result codes used in dumping/decompiling rules
@@ -1510,7 +1510,7 @@ static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                                     SYS_VAR *self MY_ATTRIBUTE((unused)),
                                     void *var_ptr, const void *save) {
   const char *state = nullptr;
-  const char *new_val = *((const char **)save);
+  const char *new_val = *(static_cast<const char **>(const_cast<void *>(save)));
 
   if ((log_filter_dragnet_set(log_filter_dragnet_rules, new_val, &state) ==
        0) &&
@@ -1671,7 +1671,7 @@ mysql_service_status_t log_filter_init() {
   inited = true;
   var_value = new char[LOG_FILTER_DUMP_BUFF_SIZE];
 
-  values_filter_rules.def_val = (char *)LOG_FILTER_DEFAULT_RULES;
+  values_filter_rules.def_val = const_cast<char *>(LOG_FILTER_DEFAULT_RULES);
 
   log_bi = mysql_service_log_builtins;
   log_bs = mysql_service_log_builtins_string;

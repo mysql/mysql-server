@@ -1925,8 +1925,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
     overwritten by the second row later.
   */
   if (from->prepare_info_for_read() ||
-      from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
-                     (char *)""))
+      from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
     DBUG_RETURN(true);
 
   lines = strtoul(group_relay_log_name, &first_non_digit, 10);
@@ -1934,15 +1933,13 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
   if (group_relay_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY) {
     /* Seems to be new format => read group relay log name */
-    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name),
-                       (char *)""))
+    if (from->get_info(group_relay_log_name, sizeof(group_relay_log_name), ""))
       DBUG_RETURN(true);
   } else
     DBUG_PRINT("info", ("relay_log_info file is in old format."));
 
   if (from->get_info(&temp_group_relay_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
-      from->get_info(group_master_log_name, sizeof(group_relay_log_name),
-                     (char *)"") ||
+      from->get_info(group_master_log_name, sizeof(group_relay_log_name), "") ||
       from->get_info(&temp_group_master_log_pos, 0UL))
     DBUG_RETURN(true);
 
@@ -1960,7 +1957,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from) {
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_CHANNEL) {
     /* the default value is empty string"" */
-    if (from->get_info(channel, sizeof(channel), (char *)"")) DBUG_RETURN(true);
+    if (from->get_info(channel, sizeof(channel), "")) DBUG_RETURN(true);
   }
 
   group_relay_log_pos = temp_group_relay_log_pos;

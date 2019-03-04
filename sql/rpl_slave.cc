@@ -1486,13 +1486,14 @@ void add_slave_skip_errors(const char *arg) {
 
   for (; my_isspace(system_charset_info, *arg); ++arg) /* empty */
     ;
-  if (!my_strnncoll(system_charset_info, (uchar *)arg, SIZE_SKIP_ALL, SKIP_ALL,
-                    SIZE_SKIP_ALL)) {
+  if (!my_strnncoll(system_charset_info, pointer_cast<const uchar *>(arg),
+                    SIZE_SKIP_ALL, SKIP_ALL, SIZE_SKIP_ALL)) {
     bitmap_set_all(&slave_error_mask);
     DBUG_VOID_RETURN;
   }
-  if (!my_strnncoll(system_charset_info, (uchar *)arg, SIZE_SKIP_DDL_ERRORS,
-                    SKIP_DDL_ERRORS, SIZE_SKIP_DDL_ERRORS)) {
+  if (!my_strnncoll(system_charset_info, pointer_cast<const uchar *>(arg),
+                    SIZE_SKIP_DDL_ERRORS, SKIP_DDL_ERRORS,
+                    SIZE_SKIP_DDL_ERRORS)) {
     // DDL errors to be skipped for relaxed 'exist' handling
     const uint ddl_errors[] = {
         // error codes with create/add <schema object>
@@ -2169,8 +2170,9 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
 
 bool net_request_file(NET *net, const char *fname) {
   DBUG_ENTER("net_request_file");
-  DBUG_RETURN(net_write_command(net, 251, (uchar *)fname, strlen(fname),
-                                (uchar *)"", 0));
+  DBUG_RETURN(net_write_command(net, 251, pointer_cast<const uchar *>(fname),
+                                strlen(fname), pointer_cast<const uchar *>(""),
+                                0));
 }
 
 /*
@@ -5918,7 +5920,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
   /*
     Save relay log position to compare with worker's position.
   */
-  LOG_POS_COORD cp = {(char *)rli->get_group_master_log_name(),
+  LOG_POS_COORD cp = {const_cast<char *>(rli->get_group_master_log_name()),
                       rli->get_group_master_log_pos()};
 
   /*
@@ -6055,8 +6057,9 @@ bool mts_recovery_groups(Relay_log_info *rli) {
         } else if ((ev->ends_group() || !flag_group_seen_begin) &&
                    !is_gtid_event(ev)) {
           int ret = 0;
-          LOG_POS_COORD ev_coord = {(char *)rli->get_group_master_log_name(),
-                                    ev->common_header->log_pos};
+          LOG_POS_COORD ev_coord = {
+              const_cast<char *>(rli->get_group_master_log_name()),
+              ev->common_header->log_pos};
           flag_group_seen_begin = false;
           recovery_group_cnt++;
 
@@ -7147,7 +7150,8 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
           ? mi->checksum_alg_before_fd
           : mi->rli->relay_log.relay_log_checksum_alg;
 
-  char *save_buf = nullptr;  // needed for checksumming the fake Rotate event
+  const char *save_buf =
+      nullptr;  // needed for checksumming the fake Rotate event
   char rot_buf[LOG_EVENT_HEADER_LEN + Binary_log_event::ROTATE_HEADER_LEN +
                FN_REFLEN];
   Gtid gtid = {0, 0};
@@ -7192,7 +7196,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   DBUG_EXECUTE_IF(
       "corrupt_queue_event",
       if (event_type != binary_log::FORMAT_DESCRIPTION_EVENT) {
-        char *debug_event_buf_c = (char *)buf;
+        char *debug_event_buf_c = const_cast<char *>(buf);
         int debug_cor_pos = rand() % (event_len - BINLOG_CHECKSUM_LEN);
         debug_event_buf_c[debug_cor_pos] = ~debug_event_buf_c[debug_cor_pos];
         DBUG_PRINT("info",
@@ -7205,8 +7209,9 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   binary_log_debug::debug_checksum_test =
       DBUG_EVALUATE_IF("gr_simulate_checksum_test_failure", true,
                        binary_log_debug::debug_checksum_test);
-  if (Log_event_footer::event_checksum_test((uchar *)buf, event_len,
-                                            checksum_alg)) {
+  if (Log_event_footer::event_checksum_test(
+          const_cast<uchar *>(pointer_cast<const uchar *>(buf)), event_len,
+          checksum_alg)) {
     mi->report(ERROR_LEVEL, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE, "%s",
                ER_THD(current_thd, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE));
     goto err;
@@ -7233,7 +7238,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   DBUG_EXECUTE_IF(
       "simulate_unknown_ignorable_log_event_with_xid",
       if (event_type == binary_log::XID_EVENT) {
-        uchar *ev_buf = (uchar *)buf;
+        uchar *ev_buf = const_cast<uchar *>(pointer_cast<const uchar *>(buf));
         /* Overwrite the log event type with an unknown type. */
         ev_buf[EVENT_TYPE_OFFSET] = binary_log::ENUM_END_EVENT + 1;
         /* Set LOG_EVENT_IGNORABLE_F for the log event. */
@@ -7348,7 +7353,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         /* the first one */
         DBUG_ASSERT(mi->checksum_alg_before_fd !=
                     binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-        save_buf = (char *)buf;
+        save_buf = buf;
         buf = rot_buf;
       } else
           /*
@@ -7370,7 +7375,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         /* the first one */
         DBUG_ASSERT(mi->checksum_alg_before_fd !=
                     binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
-        save_buf = (char *)buf;
+        save_buf = buf;
         buf = rot_buf;
       }
       /*

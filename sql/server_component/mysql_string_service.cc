@@ -251,7 +251,7 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
     int ret = str->charpos(index);
     if (ret < 0) return true;
     const char *ptr = (str->ptr() + ret);
-    if ((*mb_wc)(str->charset(), out_char, (uchar *)ptr,
+    if ((*mb_wc)(str->charset(), out_char, pointer_cast<const uchar *>(ptr),
                  (const uchar *)(str->ptr() + str->length())) <= 0)
       return true;
 
@@ -385,8 +385,9 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
     const char *end = str->ptr() + str->length();
     *out_char = 0;
     if (iterator->iterator_ptr >= end) return true;
-    char_len = (cs->cset->ctype(cs, out_char, (uchar *)iterator->iterator_ptr,
-                                (uchar *)end));
+    char_len = (cs->cset->ctype(
+        cs, out_char, pointer_cast<const uchar *>(iterator->iterator_ptr),
+        pointer_cast<const uchar *>(end)));
     iterator->ctype = *out_char;
     tmp_len = (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
     if (iterator->iterator_ptr + tmp_len > end)

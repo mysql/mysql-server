@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,8 @@ static bool debug_info_flag = 0, debug_check_flag = 0;
 static uint opt_use_threads = 0, opt_local_file = 0, my_end_arg = 0;
 static char *opt_password = 0, *current_user = 0, *current_host = 0,
             *current_db = 0, *fields_terminated = 0, *lines_terminated = 0,
-            *enclosed = 0, *opt_enclosed = 0, *escaped = 0, *opt_columns = 0,
-            *default_charset = (char *)MYSQL_AUTODETECT_CHARSET_NAME;
+            *enclosed = 0, *opt_enclosed = 0, *escaped = 0, *opt_columns = 0;
+static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = 0;
 static uint opt_mysql_port = 0, opt_protocol = 0;
@@ -238,7 +238,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
     case 'p':
       if (argument == disabled_my_option)
-        argument = (char *)""; /* Don't require password */
+        argument = const_cast<char *>(""); /* Don't require password */
       if (argument) {
         char *start = argument;
         my_free(opt_password);

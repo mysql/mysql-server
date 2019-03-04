@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -630,8 +630,8 @@ TEST_F(GcsNodesTest, TestGcsNodesConstructor) {
                 &blob_2.data.data_len);
 
   node_address node_addrs[2] = {
-      {(char *)"127.0.0.1:12345", blob_1, {x_1_0, x_1_2}},
-      {(char *)"127.0.0.1:12343", blob_2, {x_1_0, x_1_2}}};
+      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}}};
 
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);

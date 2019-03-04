@@ -30,6 +30,7 @@
 #include "gcs_xcom_communication_interface.h"
 #include "gcs_xcom_statistics_interface.h"
 #include "mysql/gcs/gcs_message.h"
+#include "template_utils.h"
 
 namespace gcs_xcom_communication_unittest {
 
@@ -272,11 +273,11 @@ TEST_F(XComCommunicationTest, SendMessageTest) {
 
   Gcs_message message(member_id, group_id, message_data);
 
-  message.get_message_data().append_to_header((uchar *)test_header.c_str(),
-                                              test_header.length());
+  message.get_message_data().append_to_header(
+      pointer_cast<const uchar *>(test_header.c_str()), test_header.length());
 
-  message.get_message_data().append_to_payload((uchar *)test_payload.c_str(),
-                                               test_payload.length());
+  message.get_message_data().append_to_payload(
+      pointer_cast<const uchar *>(test_payload.c_str()), test_payload.length());
 
   enum_gcs_error message_result = xcom_comm_if->send_message(message);
   ASSERT_EQ(GCS_OK, message_result);
@@ -296,11 +297,11 @@ TEST_F(XComCommunicationTest, ReceiveMessageTest) {
   Gcs_group_identifier group_id("group");
   Gcs_message_data message_data(test_header.length(), test_payload.length());
 
-  message_data.append_to_header((uchar *)test_header.c_str(),
-                                test_header.length());
+  message_data.append_to_header(
+      pointer_cast<const uchar *>(test_header.c_str()), test_header.length());
 
-  message_data.append_to_payload((uchar *)test_payload.c_str(),
-                                 test_payload.length());
+  message_data.append_to_payload(
+      pointer_cast<const uchar *>(test_payload.c_str()), test_payload.length());
 
   bool error;
   std::vector<Gcs_packet> packets_out;
@@ -362,11 +363,11 @@ TEST_F(XComCommunicationTest, BufferMessageTest) {
   int listener_ref = xcom_comm_if->add_event_listener(ev_listener);
   Gcs_message_data message_data(test_header.length(), test_payload.length());
 
-  message_data.append_to_header((uchar *)test_header.c_str(),
-                                test_header.length());
+  message_data.append_to_header(
+      pointer_cast<const uchar *>(test_header.c_str()), test_header.length());
 
-  message_data.append_to_payload((uchar *)test_payload.c_str(),
-                                 test_payload.length());
+  message_data.append_to_payload(
+      pointer_cast<const uchar *>(test_payload.c_str()), test_payload.length());
 
   bool error;
   std::vector<Gcs_packet> packets_out;

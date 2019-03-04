@@ -597,7 +597,8 @@ bool Rpl_info_table::do_set_info(const int pos, const char *value) {
 
 bool Rpl_info_table::do_set_info(const int pos, const uchar *value,
                                  const size_t size) {
-  return (field_values->value[pos].copy((char *)value, size, &my_charset_bin));
+  return (field_values->value[pos].copy(pointer_cast<const char *>(value), size,
+                                        &my_charset_bin));
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const ulong value) {

@@ -201,7 +201,7 @@ HttpsClientConnection::HttpsClientConnection(IOContext &io_ctx,
   SSL *ssl = SSL_new(tls_ctx.get());
 
   // enable SNI
-  SSL_set_tlsext_host_name(ssl, address.c_str());
+  SSL_set_tlsext_host_name(ssl, const_cast<char *>(address.c_str()));
 
   // ownership moved to evhttp_connection_base_bufferevent_new
   bufferevent *bev = bufferevent_openssl_socket_new(

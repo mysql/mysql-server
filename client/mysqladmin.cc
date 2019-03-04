@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,9 @@
 #define SHUTDOWN_DEF_TIMEOUT 3600 /* Wait for shutdown */
 #define MAX_TRUNC_LENGTH 3
 
-char *host = NULL, *user = 0, *opt_password = 0,
-     *default_charset = (char *)MYSQL_AUTODETECT_CHARSET_NAME;
+const char *host = nullptr;
+char *user = 0, *opt_password = 0;
+const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 char truncated_var_names[MAX_MYSQL_VAR][MAX_TRUNC_LENGTH];
 char ex_var_names[MAX_MYSQL_VAR][FN_REFLEN];
 ulonglong last_values[MAX_MYSQL_VAR];
@@ -301,7 +302,7 @@ bool get_one_option(int optid,
       break;
     case 'p':
       if (argument == disabled_my_option)
-        argument = (char *)"";  // Don't require password
+        argument = const_cast<char *>("");  // Don't require password
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -567,7 +568,7 @@ static bool sql_connect(MYSQL *mysql, uint wait) {
     {
       if (!option_silent)  // print diagnostics
       {
-        if (!host) host = (char *)LOCAL_HOST;
+        if (!host) host = LOCAL_HOST;
         my_printf_error(0, "connect to server at '%s' failed\nerror: '%s'",
                         error_flags, host, mysql_error(mysql));
         if (mysql_errno(mysql) == CR_CONNECTION_ERROR) {
@@ -740,9 +741,9 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           printf("TCP port\t\t%d\n", mysql->port);
         status = mysql_stat(mysql);
         {
-          char *pos, buff[40];
+          char buff[40];
           ulong sec;
-          pos = (char *)strchr(status, ' ');
+          char *pos = strchr(const_cast<char *>(status), ' ');
           *pos++ = 0;
           printf("%s\t\t\t", status); /* print label */
           if ((status = str2int(pos, 10, 0, LONG_MAX, (long *)&sec))) {

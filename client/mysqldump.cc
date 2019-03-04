@@ -192,7 +192,7 @@ static void dynstr_realloc_checked(DYNAMIC_STRING *str, size_t additional_size);
 */
 static const char *mysql_universal_client_charset =
     MYSQL_UNIVERSAL_CLIENT_CHARSET;
-static char *default_charset;
+static const char *default_charset;
 static CHARSET_INFO *charset_info = &my_charset_latin1;
 const char *default_dbug_option = "d:t:o,/tmp/mysqldump.trace";
 /* have we seen any VIEWs during table scanning? */
@@ -757,7 +757,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
   switch (optid) {
     case 'p':
       if (argument == disabled_my_option)
-        argument = (char *)""; /* Don't require password */
+        argument = const_cast<char *>(""); /* Don't require password */
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -865,7 +865,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
         been reset yet by --default-character-set=xxx.
       */
       if (default_charset == mysql_universal_client_charset)
-        default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME;
+        default_charset = MYSQL_DEFAULT_CHARSET_NAME;
       break;
     }
     case (int)OPT_ENABLE_CLEARTEXT_PLUGIN:
@@ -1301,7 +1301,7 @@ static char *cover_definer_clause(const char *stmt_str, size_t stmt_length,
                                   const char *keyword_str,
                                   size_t keyword_length) {
   char *definer_begin =
-      my_case_str(stmt_str, stmt_length, C_STRING_WITH_LEN(" DEFINER"));
+      my_case_str(stmt_str, stmt_length, STRING_WITH_LEN(" DEFINER"));
   char *definer_end = NULL;
 
   char *query_str = NULL;
@@ -1321,11 +1321,11 @@ static char *cover_definer_clause(const char *stmt_str, size_t stmt_length,
   query_str = alloc_query_str(stmt_length + 23);
 
   query_ptr = my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
-  query_ptr = my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
   query_ptr =
       my_stpncpy(query_ptr, definer_version_str, definer_version_length);
   query_ptr = my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
-  query_ptr = my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr = my_stpncpy(query_ptr, STRING_WITH_LEN("*/ /*!"));
   query_ptr = my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr = strxmov(query_ptr, definer_end, NullS);
 
@@ -2183,8 +2183,8 @@ static uint dump_events_for_db(char *db) {
           switch_time_zone(sql_file, delimiter, row[2]);
 
           query_str = cover_definer_clause(
-              row[3], strlen(row[3]), C_STRING_WITH_LEN("50117"),
-              C_STRING_WITH_LEN("50106"), C_STRING_WITH_LEN(" EVENT"));
+              row[3], strlen(row[3]), STRING_WITH_LEN("50117"),
+              STRING_WITH_LEN("50106"), STRING_WITH_LEN(" EVENT"));
 
           fprintf(sql_file, "/*!50106 %s */ %s\n",
                   (const char *)(query_str != NULL ? query_str : row[3]),
@@ -2503,7 +2503,7 @@ static inline bool is_innodb_stats_tables_included(int argc, char **argv) {
     number of fields in table, 0 if error
 */
 
-static uint get_table_structure(char *table, char *db, char *table_type,
+static uint get_table_structure(const char *table, char *db, char *table_type,
                                 char *ignore_flag, bool real_columns[]) {
   bool init = 0, write_data, complete_insert, skip_ddl;
   my_ulonglong num_fields;
@@ -3135,8 +3135,8 @@ static int dump_trigger(FILE *sql_file, MYSQL_RES *show_create_trigger_rs,
     }
 
     query_str = cover_definer_clause(
-        row[2], strlen(row[2]), C_STRING_WITH_LEN("50017"),
-        C_STRING_WITH_LEN("50003"), C_STRING_WITH_LEN(" TRIGGER"));
+        row[2], strlen(row[2]), STRING_WITH_LEN("50017"),
+        STRING_WITH_LEN("50003"), STRING_WITH_LEN(" TRIGGER"));
     if (switch_db_collation(sql_file, db_name, ";", db_cl_name, row[5],
                             &db_cl_altered))
       DBUG_RETURN(true);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -140,11 +140,12 @@ native_cond_t sleep_threshold;
 char **primary_keys;
 unsigned long long primary_keys_number_of;
 
-static char *host = NULL, *opt_password = NULL, *user = NULL,
-            *user_supplied_query = NULL, *user_supplied_pre_statements = NULL,
+static char *host = NULL, *opt_password = NULL, *user_supplied_query = NULL,
+            *user_supplied_pre_statements = NULL,
             *user_supplied_post_statements = NULL, *default_engine = NULL,
             *pre_system = NULL, *post_system = NULL,
             *opt_mysql_unix_port = NULL;
+static const char *user = nullptr;
 static char *opt_plugin_dir = 0, *opt_default_auth = 0;
 static uint opt_enable_cleartext_plugin = 0;
 static bool using_opt_enable_cleartext_plugin = 0;
@@ -177,7 +178,7 @@ static unsigned int num_int_cols_index = 0;
 static unsigned int num_char_cols_index = 0;
 static unsigned int iterations;
 static uint my_end_arg = 0;
-static char *default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME;
+static const char *default_charset = MYSQL_DEFAULT_CHARSET_NAME;
 static ulonglong actual_queries = 0;
 static ulonglong auto_actual_queries;
 static ulonglong auto_generate_sql_unique_write_number;
@@ -709,7 +710,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case 'p':
       if (argument == disabled_my_option)
-        argument = (char *)""; /* Don't require password */
+        argument = const_cast<char *>(""); /* Don't require password */
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -734,7 +735,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       debug_check_flag = 1;
       break;
     case OPT_SLAP_CSV:
-      if (!argument) argument = (char *)"-"; /* use stdout */
+      if (!argument) argument = const_cast<char *>("-"); /* use stdout */
       opt_csv_str = argument;
       break;
 #include "sslopt-case.h"
@@ -1082,7 +1083,7 @@ static int get_options(int *argc, char ***argv) {
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag) my_end_arg = MY_CHECK_ERROR;
 
-  if (!user) user = (char *)"root";
+  if (!user) user = "root";
 
   /*
     If something is created and --no-drop is not specified, we drop the
@@ -1782,8 +1783,8 @@ end:
 }
 
 int parse_option(const char *origin, option_string **stmt, char delm) {
-  char *retstr;
-  char *ptr = (char *)origin;
+  const char *retstr;
+  const char *ptr = origin;
   option_string **sptr = stmt;
   option_string *tmp;
   size_t length = strlen(origin);
@@ -1810,7 +1811,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     strncpy(buffer, ptr, (size_t)(retstr - ptr));
     buffer[retstr - ptr] = 0;
     if ((buffer_ptr = strchr(buffer, ':'))) {
-      char *option_ptr;
+      const char *option_ptr;
 
       tmp->length = (size_t)(buffer_ptr - buffer);
       tmp->string =
@@ -1834,7 +1835,7 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
   }
 
   if (ptr != origin + length) {
-    char *origin_ptr;
+    const char *origin_ptr;
 
     /*
       Return an error if the length of the any of the comma seprated value
@@ -1843,13 +1844,13 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
     if (strlen(ptr) > HUGE_STRING_LENGTH) return -1;
 
     if ((origin_ptr = strchr(ptr, ':'))) {
-      char *option_ptr;
+      const char *option_ptr;
 
       tmp->length = (size_t)(origin_ptr - ptr);
       tmp->string =
           my_strndup(PSI_NOT_INSTRUMENTED, origin, tmp->length, MYF(MY_FAE));
 
-      option_ptr = (char *)ptr + 1 + tmp->length;
+      option_ptr = ptr + 1 + tmp->length;
 
       /* Move past the : and the first string */
       tmp->option_length = strlen(option_ptr);
@@ -1868,8 +1869,8 @@ int parse_option(const char *origin, option_string **stmt, char delm) {
 }
 
 uint parse_delimiter(const char *script, statement **stmt, char delm) {
-  char *retstr;
-  char *ptr = (char *)script;
+  const char *retstr;
+  const char *ptr = script;
   statement **sptr = stmt;
   statement *tmp;
   size_t length = strlen(script);
@@ -1903,8 +1904,8 @@ uint parse_delimiter(const char *script, statement **stmt, char delm) {
 
 uint parse_comma(const char *string, uint **range) {
   uint count = 1, x; /* We know that there is always one */
-  char *retstr;
-  char *ptr = (char *)string;
+  const char *retstr;
+  const char *ptr = string;
   uint *nptr;
 
   for (; *ptr; ptr++)
@@ -1915,7 +1916,7 @@ uint parse_comma(const char *string, uint **range) {
       (uint *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(uint) * (count + 1),
                         MYF(MY_ZEROFILL | MY_FAE | MY_WME));
 
-  ptr = (char *)string;
+  ptr = string;
   x = 0;
   while ((retstr = strchr(ptr, ','))) {
     nptr[x++] = atoi(ptr);

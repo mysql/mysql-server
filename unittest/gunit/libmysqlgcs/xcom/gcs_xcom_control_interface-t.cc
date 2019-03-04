@@ -32,6 +32,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
+#include "template_utils.h"
 
 using std::string;
 
@@ -1015,8 +1016,8 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
                 &blob_2.data.data_len);
 
   node_address node_addrs[2] = {
-      {(char *)"127.0.0.1:12345", blob_1, {x_1_0, x_1_2}},
-      {(char *)"127.0.0.1:12346", blob_2, {x_1_0, x_1_2}}};
+      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12346"), blob_2, {x_1_0, x_1_2}}};
 
   // Common unit test data
   Gcs_xcom_view_identifier *view_id = new Gcs_xcom_view_identifier(999999, 27);
@@ -1127,13 +1128,13 @@ TEST_F(XComControlTest, ViewChangedJoiningTest) {
   ASSERT_TRUE(current_view != NULL);
 
   const Gcs_xcom_view_identifier &current_view_id =
-      (Gcs_xcom_view_identifier &)current_view->get_view_id();
+      down_cast<const Gcs_xcom_view_identifier &>(current_view->get_view_id());
   ASSERT_TRUE((&current_view_id) != NULL);
   ASSERT_EQ(typeid(Gcs_xcom_view_identifier).name(),
             typeid(current_view_id).name());
 
   Gcs_xcom_view_identifier *xcom_view_id =
-      (Gcs_xcom_view_identifier *)&current_view_id;
+      const_cast<Gcs_xcom_view_identifier *>(&current_view_id);
 
   ASSERT_EQ(view_id->get_fixed_part(), xcom_view_id->get_fixed_part());
   ASSERT_EQ(view_id->get_monotonic_part() + 1,
@@ -1197,9 +1198,9 @@ TEST_F(XComControlTest, FailedNodeRemovalTest) {
                 &blob_3.data.data_len);
 
   node_address node_addrs[3] = {
-      {(char *)"127.0.0.1:12345", blob_1, {x_1_0, x_1_2}},
-      {(char *)"127.0.0.1:12343", blob_2, {x_1_0, x_1_2}},
-      {(char *)"127.0.0.1:12341", blob_3, {x_1_0, x_1_2}}};
+      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12341"), blob_3, {x_1_0, x_1_2}}};
 
   site_def *site_config = new_site_def();
   init_site_def(3, node_addrs, site_config);
@@ -1320,8 +1321,8 @@ TEST_F(XComControlTest, FailedNodeGlobalViewTest) {
                 &blob_2.data.data_len);
 
   node_address node_addrs[2] = {
-      {(char *)"127.0.0.1:12345", blob_1, {x_1_0, x_1_2}},
-      {(char *)"127.0.0.1:12343", blob_2, {x_1_0, x_1_2}}};
+      {const_cast<char *>("127.0.0.1:12345"), blob_1, {x_1_0, x_1_2}},
+      {const_cast<char *>("127.0.0.1:12343"), blob_2, {x_1_0, x_1_2}}};
 
   site_def *site_config = new_site_def();
   init_site_def(2, node_addrs, site_config);
@@ -2164,7 +2165,7 @@ TEST_F(XComControlTest, LocalViewAfterExpel) {
               &blob.data.data_len);
 
   node_address node_addrs[1] = {
-      {(char *)member_id_2.c_str(), blob, {x_1_0, x_1_2}}};
+      {const_cast<char *>(member_id_2.c_str()), blob, {x_1_0, x_1_2}}};
 
   site_def *site_config = new_site_def();
   init_site_def(1, node_addrs, site_config);

@@ -218,7 +218,7 @@ void Mts_submode_database::detach_temp_tables(THD *thd,
   Rpl_filter *rpl_filter = rli->rpl_filter;
   for (TABLE *table = thd->temporary_tables; table;) {
     int i;
-    char *db_name = nullptr;
+    const char *db_name = nullptr;
 
     // find which entry to go
     for (i = 0; i < parts; i++) {
@@ -230,7 +230,7 @@ void Mts_submode_database::detach_temp_tables(THD *thd,
         const char *db_filtered =
             rpl_filter->get_rewrite_db(db_name, &dummy_len);
         // db_name != db_filtered means that db_name is rewritten.
-        if (strcmp(db_name, db_filtered)) db_name = (char *)db_filtered;
+        if (strcmp(db_name, db_filtered)) db_name = db_filtered;
       }
       if (strcmp(table->s->db.str, db_name) < 0)
         continue;

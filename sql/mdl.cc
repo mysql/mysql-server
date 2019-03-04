@@ -1044,7 +1044,7 @@ class MDL_lock {
 static MDL_map mdl_locks;
 
 static const uchar *mdl_locks_key(const uchar *record, size_t *length) {
-  MDL_lock *lock = (MDL_lock *)record;
+  const MDL_lock *lock = pointer_cast<const MDL_lock *>(record);
   *length = lock->key.length();
   return lock->key.ptr();
 }

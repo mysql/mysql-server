@@ -31,6 +31,7 @@
 #include <mysql/components/services/psi_thread_bits.h>
 #include <mysql/mysql_lex_string.h>
 #include <stddef.h>
+#include <type_traits>
 
 #include "m_ctype.h"
 
@@ -319,12 +320,15 @@ bool check_valid_path(const char *, size_t) {
 
 namespace registry_unittest {
 
+using service_type_t = std::remove_const_t<SERVICE_TYPE(registry)>;
+
 class registry : public ::testing::Test {
  protected:
   virtual void SetUp() { ASSERT_FALSE(mysql_services_bootstrap(&reg)); }
 
   virtual void TearDown() {
-    ASSERT_FALSE(reg->release((my_h_service)reg));
+    ASSERT_FALSE(reg->release(
+        reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg))));
     shutdown_dynamic_loader();
     ASSERT_FALSE(mysql_services_shutdown());
   }
@@ -340,7 +344,8 @@ TEST_F(registry, basic_operations) {
   ASSERT_TRUE(hreg != NULL);
   ASSERT_FALSE(reg->acquire("registry.mysql_server", &hreg2));
   ASSERT_TRUE(hreg == hreg2);
-  ASSERT_TRUE(hreg == (my_h_service)reg);
+  ASSERT_TRUE(hreg == reinterpret_cast<my_h_service>(
+                          const_cast<service_type_t *>(reg)));
   ASSERT_FALSE(reg->release(hreg));
   ASSERT_FALSE(reg->release(hreg2));
   ASSERT_TRUE(reg->release(my_h_service{}));
@@ -545,9 +550,12 @@ TEST_F(registry, acquire_related) {
 
   /* Bad service implementation pointer */
   ASSERT_TRUE(reg->acquire_related("bad_name", my_h_service{}, NULL));
-  ASSERT_TRUE(reg->acquire_related("bad_name", (my_h_service)reg, NULL));
-  ASSERT_TRUE(
-      reg->acquire_related("bad_name.with_component", (my_h_service)reg, NULL));
+  ASSERT_TRUE(reg->acquire_related(
+      "bad_name",
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
+  ASSERT_TRUE(reg->acquire_related(
+      "bad_name.with_component",
+      reinterpret_cast<my_h_service>(const_cast<service_type_t *>(reg)), NULL));
 
   {
     my_service<SERVICE_TYPE(registry)> scheme_file_service(

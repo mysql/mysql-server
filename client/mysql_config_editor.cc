@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -385,7 +385,7 @@ static int do_handle_options(int argc, char *argv[]) {
 
   /* Prepare a list of supported commands to be used by my_handle_options(). */
   for (i = 0; (command_data[i].name != NULL) && (i < MAX_COMMAND_LIMIT); i++)
-    command_list[i] = (char *)command_data[i].name;
+    command_list[i] = command_data[i].name;
   command_list[i] = NULL;
 
   if ((rc = my_handle_options(&argc, &argv, my_program_long_options,

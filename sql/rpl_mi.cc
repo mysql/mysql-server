@@ -459,7 +459,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   */
 
   if (from->prepare_info_for_read() ||
-      from->get_info(master_log_name, sizeof(master_log_name), (char *)""))
+      from->get_info(master_log_name, sizeof(master_log_name), ""))
     DBUG_RETURN(true);
 
   lines = strtoul(master_log_name, &first_non_digit, 10);
@@ -467,14 +467,14 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   if (master_log_name[0] != '\0' && *first_non_digit == '\0' &&
       lines >= LINES_IN_MASTER_INFO_WITH_SSL) {
     /* Seems to be new format => read master log name */
-    if (from->get_info(master_log_name, sizeof(master_log_name), (char *)""))
+    if (from->get_info(master_log_name, sizeof(master_log_name), ""))
       DBUG_RETURN(true);
   } else
     lines = 7;
 
   if (from->get_info(&temp_master_log_pos, (ulong)BIN_LOG_HEADER_SIZE) ||
       from->get_info(host, sizeof(host), (char *)0) ||
-      from->get_info(user, sizeof(user), (char *)"test") ||
+      from->get_info(user, sizeof(user), "test") ||
       from->get_info(password, sizeof(password), (char *)0) ||
       from->get_info((int *)&port, (int)MYSQL_PORT) ||
       from->get_info((int *)&connect_retry, (int)DEFAULT_CONNECT_RETRY))
@@ -516,8 +516,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     Starting from 5.5 master_bind might be in the file
   */
   if (lines >= LINE_FOR_MASTER_BIND) {
-    if (from->get_info(bind_addr, sizeof(bind_addr), (char *)""))
-      DBUG_RETURN(true);
+    if (from->get_info(bind_addr, sizeof(bind_addr), "")) DBUG_RETURN(true);
   }
 
   /*

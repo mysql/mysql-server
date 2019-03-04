@@ -194,7 +194,8 @@ bool Until_before_gtids::check_at_start_slave() {
 
 bool Until_before_gtids::check_before_dispatching_event(const Log_event *ev) {
   if (ev->get_type_code() == binary_log::GTID_LOG_EVENT) {
-    Gtid_log_event *gev = (Gtid_log_event *)ev;
+    Gtid_log_event *gev =
+        const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
     global_sid_lock->rdlock();
     if (m_gtids.contains_gtid(gev->get_sidno(false), gev->get_gno())) {
       char *buffer;

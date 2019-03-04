@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -741,8 +741,9 @@ void qs_append(uint i, String *str) {
 */
 
 int sortcmp(const String *s, const String *t, const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s->ptr(), s->length(),
-                               (uchar *)t->ptr(), t->length());
+  return cs->coll->strnncollsp(
+      cs, pointer_cast<const uchar *>(s->ptr()), s->length(),
+      pointer_cast<const uchar *>(t->ptr()), t->length());
 }
 
 /*
@@ -964,7 +965,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
 
     for (; nchars; nchars--) {
       const char *from_prev = from;
-      if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, from_end)) > 0)
+      if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                             from_end)) > 0)
         from += cnvres;
       else if (cnvres == MY_CS_ILSEQ) {
         if (!*well_formed_error_pos) *well_formed_error_pos = from;
@@ -1203,7 +1205,7 @@ bool validate_string(const CHARSET_INFO *cs, const char *str, size_t length,
 
   while (from < from_end) {
     my_wc_t wc;
-    int cnvres = (*mb_wc)(cs, &wc, (uchar *)from, from_end);
+    int cnvres = (*mb_wc)(cs, &wc, pointer_cast<const uchar *>(from), from_end);
     if (cnvres <= 0) {
       *valid_length = from - reinterpret_cast<const uchar *>(str);
       return true;

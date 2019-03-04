@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <type_traits>
 
 #include "my_inttypes.h"
 
@@ -234,12 +235,18 @@ class Rpl_info_handler {
     @param[in] default_value Returns a default value
                              if the field is empty.
 
+    TypeHandler is either char* or uchar*, while
+    default_value is const char* or const uchar*.
+    Some type trait magic is required to make
+    char* / uchar* into const char* / uchar*.
+
     @retval false No error
     @retval true Failure
   */
   template <class TypeHandler>
-  bool get_info(TypeHandler value, const size_t size,
-                TypeHandler const default_value) {
+  bool get_info(
+      TypeHandler value, const size_t size,
+      std::add_const_t<std::remove_pointer_t<TypeHandler>> *default_value) {
     if (cursor >= ninfo || prv_error) return true;
 
     if (!(prv_error = do_get_info(cursor, value, size, default_value)))
