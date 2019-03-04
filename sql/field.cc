@@ -6857,7 +6857,7 @@ void Field_varstring::sql_type(String &res) const {
   res.length(length);
 }
 
-uint32 Field_varstring::data_length(uint row_offset) const {
+uint32 Field_varstring::data_length(ptrdiff_t row_offset) const {
   return length_bytes == 1 ? (uint32) * (ptr + row_offset)
                            : uint2korr(ptr + row_offset);
 }
@@ -8984,7 +8984,7 @@ int Field_bit::key_cmp(const uchar *str, uint length) const {
   return memcmp(ptr, str, length);
 }
 
-int Field_bit::cmp_offset(uint row_offset) const {
+int Field_bit::cmp_offset(ptrdiff_t row_offset) const {
   if (bit_len) {
     int flag;
     uchar bits_a = get_rec_bits(bit_ptr, bit_ofs, bit_len);
@@ -10137,7 +10137,7 @@ void Field_blob::store_length(uchar *i_ptr, uint i_packlength,
   store_blob_length(i_ptr, i_packlength, i_number, table->s->db_low_byte_first);
 }
 
-uint32 Field_blob::get_length(uint row_offset) const {
+uint32 Field_blob::get_length(ptrdiff_t row_offset) const {
   return get_length(ptr + row_offset, this->packlength,
                     table->s->db_low_byte_first);
 }

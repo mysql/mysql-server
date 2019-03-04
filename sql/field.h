@@ -1134,7 +1134,8 @@ class Field : public Proto_field {
     Useful only for variable length datatypes where it's overloaded.
     By default assume the length is constant.
   */
-  virtual uint32 data_length(uint row_offset MY_ATTRIBUTE((unused)) = 0) const {
+  virtual uint32 data_length(
+      ptrdiff_t row_offset MY_ATTRIBUTE((unused)) = 0) const {
     return pack_length();
   }
   virtual uint32 sort_length() const { return pack_length(); }
@@ -1243,10 +1244,10 @@ class Field : public Proto_field {
                          uint32 max_length MY_ATTRIBUTE((unused)) = ~0L) const {
     return memcmp(a, b, pack_length());
   }
-  virtual int cmp_offset(uint row_offset) const {
+  virtual int cmp_offset(ptrdiff_t row_offset) const {
     return cmp(ptr, ptr + row_offset);
   }
-  virtual int cmp_binary_offset(uint row_offset) const {
+  virtual int cmp_binary_offset(ptrdiff_t row_offset) const {
     return cmp_binary(ptr, ptr + row_offset);
   }
   virtual int key_cmp(const uchar *a, const uchar *b) const {
@@ -1494,7 +1495,7 @@ class Field : public Proto_field {
   virtual void set_key_image(const uchar *buff, size_t length) {
     set_image(buff, length, &my_charset_bin);
   }
-  inline longlong val_int_offset(uint row_offset) {
+  longlong val_int_offset(ptrdiff_t row_offset) {
     ptr += row_offset;
     longlong tmp = val_int();
     ptr -= row_offset;
@@ -3672,7 +3673,7 @@ class Field_varstring : public Field_longstr {
   int key_cmp(const uchar *, const uchar *) const final override;
   int key_cmp(const uchar *str, uint length) const final override;
 
-  uint32 data_length(uint row_offset = 0) const final override;
+  uint32 data_length(ptrdiff_t row_offset = 0) const final override;
   enum_field_types real_type() const final override {
     return MYSQL_TYPE_VARCHAR;
   }
@@ -3847,10 +3848,10 @@ class Field_blob : public Field_longstr {
   inline void store_length(uint32 number) {
     store_length(ptr, packlength, number);
   }
-  uint32 data_length(uint row_offset = 0) const final override {
+  uint32 data_length(ptrdiff_t row_offset = 0) const final override {
     return get_length(row_offset);
   }
-  uint32 get_length(uint row_offset = 0) const;
+  uint32 get_length(ptrdiff_t row_offset = 0) const;
   uint32 get_length(const uchar *ptr, uint packlength,
                     bool low_byte_first) const;
   uint32 get_length(const uchar *ptr_arg) const;
@@ -3859,7 +3860,7 @@ class Field_blob : public Field_longstr {
     return get_blob_data(ptr + packlength);
   }
   /** Get a non-const pointer to the BLOB data of this field. */
-  uchar *get_blob_data(uint row_offset = 0) {
+  uchar *get_blob_data(ptrdiff_t row_offset = 0) {
     return get_blob_data(ptr + packlength + row_offset);
   }
 
@@ -4389,7 +4390,7 @@ class Field_bit : public Field {
     else
       return -Field_bit::key_cmp(a, cmp_len);
   }
-  int cmp_binary_offset(uint row_offset) const final override {
+  int cmp_binary_offset(ptrdiff_t row_offset) const final override {
     return cmp_offset(row_offset);
   }
   int cmp_max(const uchar *a, const uchar *b,
@@ -4398,7 +4399,7 @@ class Field_bit : public Field {
     return cmp_binary(a, b);
   }
   int key_cmp(const uchar *str, uint length) const final override;
-  int cmp_offset(uint row_offset) const final override;
+  int cmp_offset(ptrdiff_t row_offset) const final override;
   void get_image(uchar *buff, size_t length,
                  const CHARSET_INFO *) const final override {
     get_key_image(buff, length, itRAW);
