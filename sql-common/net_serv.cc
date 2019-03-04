@@ -42,6 +42,7 @@
 #include <sys/types.h>
 #include <algorithm>
 
+#include <mysql/components/services/log_builtins.h>
 #include "my_byteorder.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -1231,6 +1232,14 @@ static bool net_read_raw_loop(NET *net, size_t count) {
 
 #ifdef MYSQL_SERVER
     my_error(net->last_errno, MYF(0));
+    /* First packet always wait for net_wait_timeout */
+    if (net->pkt_nr == 0 && vio_was_timeout(net->vio)) {
+      net->last_errno = ER_NET_WAIT_ERROR;
+      /* Socket should be closed after trying to write/send error. */
+      char ebuff[512];
+      my_message(net->last_errno, ebuff, MYF(0));
+      LogErr(INFORMATION_LEVEL, net->last_errno);
+    }
 #endif
   }
 

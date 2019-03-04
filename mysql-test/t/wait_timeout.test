@@ -11,6 +11,7 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+SET @@global.log_error_verbosity= 3;
 
 #
 # Bug#8731 wait_timeout does not work on Mac OS X
@@ -195,3 +196,10 @@ connection default;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+#
+# Bug #28940167 WAIT_TIMEOUT ERROR NOT CLEAR AND NOT SENT TO CLIENT BEFORE CLOSING CONNECTION
+#
+--echo # must find the pattern
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let SEARCH_PATTERN=The wait_timeout period was exceeded, the idle time since last command was too long.
+source include/search_pattern.inc;

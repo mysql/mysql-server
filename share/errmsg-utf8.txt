@@ -19130,6 +19130,10 @@ ER_PERSIST_OPTION_USER_TRUNCATED
 
 ER_PERSIST_OPTION_HOST_TRUNCATED
   eng "Truncated a host name for %s that was too long while reading the persisted variables file"
+
+ER_NET_WAIT_ERROR
+  eng "The wait_timeout period was exceeded, the idle time since last command was too long."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

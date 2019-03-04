@@ -1,3 +1,4 @@
+SET @@global.log_error_verbosity= 3;
 SET @@global.wait_timeout= 2;
 disconnect default;
 connection wait_con;
@@ -54,3 +55,5 @@ SET @@SESSION.wait_timeout = 2;
 # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
 SELECT 1;
 Got one of the listed errors
+# must find the pattern
+Pattern "The wait_timeout period was exceeded, the idle time since last command was too long." found
