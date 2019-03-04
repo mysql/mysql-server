@@ -29,6 +29,7 @@
 #include <NdbAutoPtr.hpp>
 #include <NdbOut.hpp>
 #include "atrt.hpp"
+#include "test_execution_resources.hpp"
 
 #include <util/File.hpp>
 #include <FileLogHandler.hpp>
@@ -95,34 +96,12 @@ const char *g_dummy;
 char *g_env_path = 0;
 const char *g_mysqld_host = 0;
 
-const char *g_ndb_mgmd_bin_path = 0;
-const char *g_ndbd_bin_path = 0;
-const char *g_ndbmtd_bin_path = 0;
-const char *g_mysqld_bin_path = 0;
-const char *g_mysql_install_db_bin_path = 0;
-const char *g_libmysqlclient_so_path = 0;
-
-static struct {
-  bool is_required;
-  const char *exe;
-  const char **var;
-} g_binaries[] = {{true, "ndb_mgmd", &g_ndb_mgmd_bin_path},
-                  {true, "ndbd", &g_ndbd_bin_path},
-                  {false, "ndbmtd", &g_ndbmtd_bin_path},
-                  {true, "mysqld", &g_mysqld_bin_path},
-                  {false, "mysql_install_db", &g_mysql_install_db_bin_path},
-#if defined(__MACH__)
-                  {true, "libmysqlclient.dylib", &g_libmysqlclient_so_path},
-#else
-                  {true, "libmysqlclient.so", &g_libmysqlclient_so_path},
-#endif
-                  {true, 0, 0}};
+TestExecutionResources g_resources;
 
 static BaseString get_atrt_path(const char *arg);
 
 const char *g_search_path[] = {"bin", "libexec",   "sbin", "scripts",
                                "lib", "lib/mysql", 0};
-static bool find_binaries();
 static bool find_scripts(const char *path);
 static bool find_config_ini_files();
 
@@ -233,10 +212,22 @@ int main(int argc, char **argv) {
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
 
-  if (!find_binaries()) {
-    g_logger.critical("Failed to find required binaries for execution");
-    return_code = ATRT_FAILURE;
-    goto end;
+  {
+    std::vector<std::string> error;
+    std::vector<std::string> info;
+    if (!g_resources.loadPaths(g_prefix0, g_prefix1, &error, &info)) {
+      g_logger.critical("Failed to find required binaries for execution");
+
+      for (auto msg : error) {
+        g_logger.critical("%s", msg.c_str());
+        return_code = ATRT_FAILURE;
+        goto end;
+      }
+    }
+
+    for (auto msg : info) {
+      g_logger.info("%s", msg.c_str());
+    }
   }
 
   {
@@ -403,8 +394,8 @@ int main(int argc, char **argv) {
     do {
       testruns++;
       /**
-      * Do we need to restart ndb
-      */
+       * Do we need to restart ndb
+       */
       if (restart || test_case.m_force_cluster_restart) {
         if (test_case.m_force_cluster_restart) {
           g_logger.info(
@@ -663,8 +654,8 @@ bool parse_args(int argc, char **argv, MEM_ROOT *alloc) {
   bool fail_after_help = false;
   char buf[2048];
 
-  if (argc >= 2 && (strcmp(argv[1], "--version") == 0 ||
-     strcmp(argv[1], "-V") == 0)) {
+  if (argc >= 2 &&
+      (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-V") == 0)) {
     ndbout << getAtrtVersion().c_str() << endl;
     exit(0);
   }
@@ -1801,25 +1792,6 @@ bool reset_config(atrt_config &config) {
     }
   }
   return changed;
-}
-
-static bool find_binaries() {
-  g_logger.info("Locating binaries...");
-  bool ok = true;
-  for (int i = 0; g_binaries[i].exe != 0; i++) {
-    const char *p = find_bin_path(g_binaries[i].exe);
-    if (p == 0) {
-      if (g_binaries[i].is_required) {
-        g_logger.critical("Failed to locate '%s'", g_binaries[i].exe);
-        ok = false;
-      } else {
-        g_logger.info("Failed to locate '%s'...ok", g_binaries[i].exe);
-      }
-    } else {
-      *g_binaries[i].var = p;
-    }
-  }
-  return ok;
 }
 
 bool find_scripts(const char *atrt_path) {
