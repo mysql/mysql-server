@@ -212,6 +212,10 @@ int main(int argc, char **argv) {
 
   g_logger.info("Starting ATRT version : %s", getAtrtVersion().c_str());
 
+  if (g_mt != 0) {
+    g_resources.setRequired(g_resources.NDBMTD);
+  }
+
   {
     std::vector<std::string> error;
     std::vector<std::string> info;

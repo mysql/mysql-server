@@ -563,14 +563,13 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
       proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
 
-      BaseString ndbmtd_bin_path =
-          g_resources.getExecutableFullPath(g_resources.NDBMTD).c_str();
-      if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0) ||
-          ndbmtd_bin_path == "") {
+      if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0)) {
         BaseString ndbd_bin_path =
             g_resources.getExecutableFullPath(g_resources.NDBD).c_str();
         proc.m_proc.m_path.assign(ndbd_bin_path);
       } else {
+        BaseString ndbmtd_bin_path =
+            g_resources.getExecutableFullPath(g_resources.NDBMTD).c_str();
         proc.m_proc.m_path.assign(ndbmtd_bin_path);
       }
 
