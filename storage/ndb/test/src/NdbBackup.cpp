@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
 #include <NdbSleep.h>
 #include <random.h>
 #include <NdbTick.h>
+#include <util/File.hpp>
+
+#define AUTOTEST_MYSQL_PATH_ENV "MYSQL_BASE_DIR"
+#define MTR_MYSQL_PATH_ENV "MYSQL_BINDIR"
 
 #define CHECK(b, m) { int _xx = b; if (!(_xx)) { \
   ndbout << "ERR: "<< m \
@@ -226,6 +230,30 @@ NdbBackup::getBackupDataDirForNode(int _node_id){
 
 }
 
+BaseString
+NdbBackup::getNdbRestoreBinaryPath(){
+
+  const char* mysql_install_path;
+  if ((mysql_install_path = getenv(AUTOTEST_MYSQL_PATH_ENV)) != NULL) {
+  } else if ((mysql_install_path = getenv(MTR_MYSQL_PATH_ENV)) != NULL) {
+  } else {
+    g_err << "Either MYSQL_BASE_DIR or MYSQL_BINDIR environment variables"
+          << "must be defined as search path for ndb_restore binary" << endl;
+    return "";
+  }
+
+  BaseString ndb_restore_bin_path;
+  ndb_restore_bin_path.assfmt("%s/bin/ndb_restore", mysql_install_path);
+  if (!File_class::exists(ndb_restore_bin_path.c_str()))
+  {
+    g_err << "Failed to find ndb_restore in either $MYSQL_BASE_DIR "
+          << "or $MYSQL_BINDIR paths" << endl;
+    return "";
+  }
+
+  return ndb_restore_bin_path;
+}
+
 int  
 NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
@@ -237,6 +265,11 @@ NdbBackup::execRestore(bool _restore_data,
   const char* path = getBackupDataDirForNode(_node_id);
   if (path == NULL)
     return -1;  
+
+  BaseString ndb_restore_bin_path = getNdbRestoreBinaryPath();
+  if (ndb_restore_bin_path == ""){
+    return -1;
+  }
 
   ndbout << "getHostName "<< _node_id <<endl;
   const char *host;
@@ -259,12 +292,13 @@ NdbBackup::execRestore(bool _restore_data,
 
   if(res == 0 && !_restore_meta && !_restore_data)
   {
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d", 
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
@@ -282,12 +316,13 @@ NdbBackup::execRestore(bool _restore_data,
   {
     /** don't restore DD objects */
     
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -m -d .", 
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -m -d .",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
@@ -304,12 +339,13 @@ NdbBackup::execRestore(bool _restore_data,
   if (res == 0 && _restore_data)
   {
 
-    tmp.assfmt("%sndb_restore -c \"%s:%d\" -n %d -b %d -r .", 
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -r .",
 #if 1
                "",
 #else
                "valgrind --leak-check=yes -v "
 #endif
+               ndb_restore_bin_path.c_str(),
                ndb_mgm_get_connected_host(handle),
                ndb_mgm_get_connected_port(handle),
                _node_id, 
