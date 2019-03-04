@@ -3,10 +3,7 @@
 --source include/linux.inc
 --source ../include/have_network_namespaces.inc
 
-call mtr.add_suppression("Hostname .* does not resolve to");
-call mtr.add_suppression("IP address .* could not be resolved");
-
---let $restart_parameters = restart: --mysqlx-bind-address=10.0.2.1/red
+--let $restart_parameters = restart: --skip-name-resolve --mysqlx-bind-address=10.0.2.1/red
 --source include/restart_mysqld.inc
 
 --source include/xplugin_wait_for_interfaces.inc
