@@ -4946,6 +4946,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   if(m_active_buckets.get(bucket) || 
      (m_switchover_buckets.get(bucket) && (check_switchover(bucket, gci))))
   {
+    jam();
     m_max_sent_gci = (gci > m_max_sent_gci ? gci : m_max_sent_gci);
     Uint32 sz = trg->getNoOfPrimaryKeyWords()+trg->getNoOfAfterValueWords();
     ndbrequire(sz == f_trigBufferSize);
@@ -4985,20 +4986,60 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   }
   else 
   {
-    const uint buffer_header_sz = 6;
-    Uint32* dst;
-    Uint32 sz = f_trigBufferSize + b_trigBufferSize + buffer_header_sz;
-    if((dst = get_buffer_ptr(signal, bucket, gci, sz)))
+    jam();
+    constexpr uint buffer_header_sz = 6;
+    Uint32* dst1;
+    Uint32* dst2;
+    Uint32 sz1 = f_trigBufferSize + buffer_header_sz;
+    Uint32 sz2 = b_trigBufferSize;
+    Page_pos save_pos= c_buckets[bucket].m_buffer_head;
+
+    static_assert(1 + Buffer_page::GCI_SZ32 + buffer_header_sz + SUMA_BUF_SZ
+                    <= Buffer_page::DATA_WORDS, "");
+    if (likely((dst1 = get_buffer_ptr(signal, bucket, gci, sz1)) &&
+              (dst2 = get_buffer_ptr(signal, bucket, gci, sz2))))
     {
-      * dst++ = subPtr.i;
-      * dst++ = schemaVersion;
-      * dst++ = (event << 16) | f_trigBufferSize;
-      * dst++ = any_value;
-      * dst++ = transId1;
-      * dst++ = transId2;
-      memcpy(dst, f_buffer, f_trigBufferSize << 2);
-      dst += f_trigBufferSize;
-      memcpy(dst, b_buffer, b_trigBufferSize << 2);
+      jam();
+      dst1[0] = subPtr.i;
+      dst1[1] = schemaVersion;
+      dst1[2] = (event << 16) | f_trigBufferSize;
+      dst1[3] = any_value;
+      dst1[4] = transId1;
+      dst1[5] = transId2;
+      dst1 += buffer_header_sz;
+      memcpy(dst1, f_buffer, f_trigBufferSize << 2);
+      memcpy(dst2, b_buffer, b_trigBufferSize << 2);
+    }
+    else if (dst1 != nullptr)
+    {
+      jam();
+      // Revert first buffer allocation
+      Page_pos curr_pos= c_buckets[bucket].m_buffer_head;
+      Uint32 first_page_id = save_pos.m_page_id;
+
+      Uint32 page_id;
+      if (first_page_id == RNIL)
+      {
+        jam();
+        page_id = c_buckets[bucket].m_buffer_tail;
+        c_buckets[bucket].m_buffer_tail = RNIL;
+      }
+      else
+      {
+        jam();
+        Buffer_page* first_page = c_page_pool.getPtr(first_page_id);
+        page_id = first_page->m_next_page;
+        first_page->m_next_page = RNIL;
+      }
+      while (page_id != RNIL)
+      {
+        jam();
+        Buffer_page* page = c_page_pool.getPtr(page_id);
+        Uint32 next = page->m_next_page;
+        free_page(page_id, page);
+        page_id = next;
+      }
+      c_buckets[bucket].m_buffer_head = save_pos;
     }
   }
   
@@ -6756,14 +6797,17 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
   
   if(likely(same_gci && pos.m_page_pos <= Buffer_page::DATA_WORDS))
   {
+    jam();
     pos.m_max_gci = max;
     bucket->m_buffer_head = pos;
-    * ptr++ = (0x8000 << 16) | sz; // Same gci
+    *ptr = Buffer_page::SAME_GCI_FLAG | sz;
+    ptr++;
     return ptr;
   }
   else if(pos.m_page_pos + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS)
   {
 loop:
+    jam();
     pos.m_max_gci = max;
     pos.m_page_pos += Buffer_page::GCI_SZ32;
     bucket->m_buffer_head = pos;
@@ -6774,14 +6818,17 @@ loop:
   }
   else
   {
+    jam();
     /**
      * new page
      * 1) save header on last page
      * 2) seize new page
      */
+    static_assert(1 + 6 + SUMA_BUF_SZ + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS, "");
     Uint32 next;
     if(unlikely((next= seize_page()) == RNIL))
     {
+      jam();
       /**
        * Out of buffer
        */
@@ -6791,6 +6838,7 @@ loop:
 
     if(likely(pos.m_page_id != RNIL))
     {
+      jam();
       page->m_max_gci_hi = (Uint32)(pos.m_max_gci >> 32);
       page->m_max_gci_lo = (Uint32)(pos.m_max_gci & 0xFFFFFFFF);
       page->m_words_used = pos.m_page_pos - sz;
@@ -6799,6 +6847,7 @@ loop:
     }
     else
     {
+      jam();
       bucket->m_buffer_tail = next;
     }
     
@@ -7126,6 +7175,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   Uint32 *ptr = page->m_data + pos;
   Uint32 *end = page->m_data + page->m_words_used;
   bool delay = false;
+  Uint32 next_pos = 0; // Part read of next page
 
   ndbrequire(tail != RNIL);
 
@@ -7158,37 +7208,58 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   printf("\n");
 #endif
 
-  while(ptr < end)
+  /* Due to use of goto an extra scope is needed to keep declaration of
+   * variables near their use.
+   */
   {
-    Uint32 *src = ptr;
-    Uint32 tmp = * src++;
-    Uint32 sz = tmp & 0xFFFF;
-
-    ptr += sz;
-
-    if(! (tmp & (0x8000 << 16)))
+    Uint32 *src = nullptr;
+    Uint32 sz;
+    while (ptr < end)
     {
-      ndbrequire(sz >= Buffer_page::GCI_SZ32);
-      sz -= Buffer_page::GCI_SZ32;
-      Uint32 last_gci_hi = * src++;
-      Uint32 last_gci_lo = * src++;
-      last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
+      jam();
+      src = ptr;
+      Uint32 tmp = *src;
+      src++;
+
+      sz = tmp & Buffer_page::SIZE_MASK;
+      ptr += sz;
+
+      ndbrequire(sz > 0);
+      sz--; // remove *len* part of sz
+
+      if ((tmp & Buffer_page::SAME_GCI_FLAG) == 0)
+      {
+        jam();
+        ndbrequire(sz >= Buffer_page::GCI_SZ32);
+        sz -= Buffer_page::GCI_SZ32;
+        Uint32 last_gci_hi = *src;
+        src++;
+        Uint32 last_gci_lo = *src;
+        src++;
+        last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
+      }
+      else
+      {
+        jam();
+        ndbrequire(ptr - sz > page->m_data);
+      }
+
+      if (last_gci >= min_gci)
+      {
+        jam();
+        break;
+      }
     }
-    else
-    {
-      ndbrequire(ptr - sz > page->m_data);
-    }
 
-    if(last_gci < min_gci)
+    if (unlikely(src == nullptr))
     {
-      continue;
+      jam();
+      // no valid data found on tail page
+      ndbrequire(ptr == end);
     }
-
-    ndbrequire(sz);
-    sz --; // remove *len* part of sz
-    
-    if(sz == 0)
+    else if(sz == 0)
     {
+      jam();
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
       Uint32 siglen = SubGcpCompleteRep::SignalLength;
 
@@ -7217,6 +7288,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       c_subscriber_nodes.getText(buf);
       if (g_cnt)
       {      
+        jam();
         ndbout_c("resending GCI: %u/%u rows: %d -> %s", 
                  Uint32(last_gci >> 32), Uint32(last_gci), g_cnt, buf);
       }
@@ -7227,25 +7299,79 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     } 
     else
     {
+      jam();
       const uint buffer_header_sz = 6;
       g_cnt++;
-      Uint32 subPtrI = * src++ ;
-      Uint32 schemaVersion = * src++;
-      Uint32 event = * src >> 16;
-      Uint32 sz_1 = (* src ++) & 0xFFFF;
-      Uint32 any_value = * src++;
-      Uint32 transId1 = * src++;
-      Uint32 transId2 = * src++;
+      Uint32 subPtrI = src[0];
+      Uint32 schemaVersion = src[1];
+      Uint32 event = src[2] >> 16;
+      Uint32 sz_1 = (src[2]) & 0xFFFF;
+      Uint32 any_value = src[3];
+      Uint32 transId1 = src[4];
+      Uint32 transId2 = src[5];
+      src += buffer_header_sz;
 
       ndbassert(sz - buffer_header_sz >= sz_1);
+      Uint32* src2;
+      Uint32 sz2;
+      {
+        Uint32* ptr2;
+        if (ptr != end)
+        {
+          jam();
+          ptr2 = ptr;
+        }
+        else
+        {
+          jam();
+          // Second half of data on next page.
+          Buffer_page* page= c_page_pool.getPtr(next_page);
+          ndbrequire(page->m_words_used > 0);
+          ptr2 = page->m_data;
+        }
+        src2 = ptr2;
+        Uint32 tmp2 = *src2;
+        src2++;
+        sz2 = tmp2 & Buffer_page::SIZE_MASK;
+        ndbrequire(sz2 > 0);
+        sz2--;
+        if (ptr2 != ptr)
+        {
+          jam();
+          // First block on a page always must have gci.
+          ndbrequire((tmp2 & Buffer_page::SAME_GCI_FLAG) == 0);
+          next_pos = sz2 + 1;
+        }
+        else
+        {
+          jam();
+          ptr = src2 + sz2;
+        }
+
+        if ((tmp2 & Buffer_page::SAME_GCI_FLAG) == 0)
+        {
+          jam();
+          ndbrequire(sz2 >= Buffer_page::GCI_SZ32);
+          sz2 -= Buffer_page::GCI_SZ32;
+          Uint32 last_gci_hi = *src2;
+          src2++;
+          Uint32 last_gci_lo = *src2;
+          src2++;
+          // Second block must have same gci as previous.
+          ndbrequire(last_gci == (last_gci_lo | (Uint64(last_gci_hi) << 32)));
+        }
+      }
       
-      LinearSectionPtr ptr[3];
-      const Uint32 nptr= reformat(signal, ptr, 
+      LinearSectionPtr lsptr[3];
+      const Uint32 nptr= reformat(signal, lsptr,
 				  src, sz_1, 
-				  src + sz_1, sz - buffer_header_sz - sz_1);
+                                  src2, sz2);
       Uint32 ptrLen= 0;
       for(Uint32 i =0; i < nptr; i++)
-        ptrLen+= ptr[i].sz;
+      {
+        jam();
+        ptrLen+= lsptr[i].sz;
+      }
 
       /**
        * Signal to subscriber(s)
@@ -7258,6 +7384,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       if (table_version_major(tabPtr.p->m_schemaVersion) ==
           table_version_major(schemaVersion))
       {
+        jam();
 	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
 	data->gci_hi         = (Uint32)(last_gci >> 32);
 	data->gci_lo         = (Uint32)(last_gci & 0xFFFFFFFF);
@@ -7276,35 +7403,42 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
           SubscriberPtr subbPtr;
           for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
           {
+            jam();
             data->senderData = subbPtr.p->m_senderData;
             sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                       SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
+                       SubTableData::SignalLengthWithTransId, JBB, lsptr, nptr);
           }
         }
       }
     }
-    
-    break;
   }
-  
-  if(ptr == end && (tail != bucket->m_buffer_head.m_page_id))
+
+  if (next_pos > 0 || (ptr == end && tail != bucket->m_buffer_head.m_page_id))
   {
+    jam();
     /**
      * release...
      */
+    ndbassert(tail != bucket->m_buffer_head.m_page_id);
     free_page(tail, page);
     tail = bucket->m_buffer_tail = next_page;
-    pos = 0;
-    last_gci = 0;
+    pos = next_pos;
+    if (pos == 0)
+    {
+      jam();
+      last_gci = 0;
+    }
   }
   else
   {
+    jam();
     pos = Uint32(ptr - page->m_data);
   }
   
 next:
   if(tail == RNIL)
   {
+    jam();
     bucket->m_state &= ~(Uint32)Bucket::BUCKET_RESEND;
     ndbassert(! (bucket->m_state & Bucket::BUCKET_TAKEOVER));
     ndbout_c("resend done...");
@@ -7319,9 +7453,15 @@ next:
   signal->theData[5] = (Uint32)(min_gci & 0xFFFFFFFF);
   signal->theData[6] = (Uint32)(last_gci & 0xFFFFFFFF);
   if(!delay)
+  {
+    jam();
     sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 7, JBB);
+  }
   else
+  {
+    jam();
     sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 7);
+  }
 }
 
 void

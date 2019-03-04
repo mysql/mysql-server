@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -676,8 +676,10 @@ private:
   
   struct Buffer_page 
   {
-    STATIC_CONST( DATA_WORDS = 8192 - 10);
-    STATIC_CONST( GCI_SZ32 = 2 );
+    static constexpr Uint32 DATA_WORDS = 8192 - 10;
+    static constexpr Uint32 GCI_SZ32 = 2;
+    static constexpr Uint32 SAME_GCI_FLAG = 0x80000000;
+    static constexpr Uint32 SIZE_MASK = 0x0000FFFF;
 
     Uint32 _tupdata1;
     Uint32 _tupdata2;
