@@ -752,6 +752,7 @@ The documentation is based on the source files such as:
 #include "sql/dd/performance_schema/init.h"  // performance_schema::init
 #include "sql/dd/upgrade/upgrade.h"          // dd::upgrade::in_progress
 #include "sql/srv_session.h"
+#include "sql/sql_backup_lock.h"
 
 using std::max;
 using std::min;
@@ -8271,6 +8272,16 @@ static int show_slave_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   return 0;
 }
 
+static int show_is_instance_backup_locked(THD *thd, SHOW_VAR *var, char *buf) {
+  var->type = SHOW_INT;
+  var->value = buf;
+  Is_instance_backup_locked_result *value = 
+                    reinterpret_cast<Is_instance_backup_locked_result *>(buf);
+  *value = static_cast<Is_instance_backup_locked_result>
+            (is_instance_backup_locked(thd));
+  return 0;
+}
+
 /*
   Variables shown by SHOW STATUS in alphabetical order
 */
@@ -8426,6 +8437,8 @@ SHOW_VAR status_vars[] = {
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Not_flushed_delayed_rows", (char *)&delayed_rows_in_use,
      SHOW_LONG_NOFLUSH, SHOW_SCOPE_GLOBAL},
+    {"Ongoing_instance_backup_lock", (char *)&show_is_instance_backup_locked,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Open_files", (char *)&my_file_opened, SHOW_LONG_NOFLUSH,
      SHOW_SCOPE_GLOBAL},
     {"Open_streams", (char *)&my_stream_opened, SHOW_LONG_NOFLUSH,

@@ -1,0 +1,7 @@
+SHOW GLOBAL STATUS LIKE 'Ongoing_instance_backup_lock';
+Variable_name	Value
+Ongoing_instance_backup_lock	0
+LOCK INSTANCE FOR BACKUP;
+SHOW GLOBAL STATUS LIKE 'Ongoing_instance_backup_lock';
+Variable_name	Value
+Ongoing_instance_backup_lock	1

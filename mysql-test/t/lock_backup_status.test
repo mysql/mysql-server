@@ -1,0 +1,10 @@
+--connect (con1, localhost, root,,)
+
+--connection default
+SHOW GLOBAL STATUS LIKE 'Ongoing_instance_backup_lock';
+
+--connection con1
+LOCK INSTANCE FOR BACKUP;
+
+--connection default
+SHOW GLOBAL STATUS LIKE 'Ongoing_instance_backup_lock';
