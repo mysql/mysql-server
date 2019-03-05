@@ -219,8 +219,10 @@ class NDB_SCHEMA_OBJECT {
      @brief Check if all participants have completed and notify waiter. This is
      the last step in the normal path when participants reply. Requires that all
      participants has completed.
+
+     @return true if coordinator has completed
    */
-  void check_coordinator_completed() const;
+  bool check_coordinator_completed() const;
 
   /**
      @brief Check if any client should wakeup after subscribers have changed.

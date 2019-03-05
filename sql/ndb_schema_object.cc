@@ -332,14 +332,16 @@ bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
   return true;
 }
 
-void NDB_SCHEMA_OBJECT::check_coordinator_completed() const {
+bool NDB_SCHEMA_OBJECT::check_coordinator_completed() const {
   std::unique_lock<std::mutex> lock_participants(state.m_lock);
   // Don't set completed unless all participants have replied
-  if (state.m_participants.size() != count_completed_participants()) return;
+  if (state.m_participants.size() != count_completed_participants())
+    return false;
 
   state.m_coordinator_completed = true;
   // Signal the Client
   state.m_cond.notify_one();
+  return true;
 }
 
 bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {
