@@ -4778,14 +4778,6 @@ Item *make_condition(Parse_context *pc, Item *item) {
 Item *negate_condition(Parse_context *pc, Item *expr) {
   // Ensure that all incomplete predicates are made complete:
   if (!expr->is_bool_func()) expr = make_condition(pc, expr);
-  Item_func *func;
-  if (expr->type() == Item::FUNC_ITEM &&
-      (func = down_cast<Item_func *>(expr)) &&
-      func->functype() == Item_func::NOT_FUNC) {
-    // Condition is NOT (NOT <simple_condition>)
-    DBUG_ASSERT(func->arguments()[0]->is_bool_func());
-    return func->arguments()[0];
-  }
 
   Item *negated = expr->neg_transformer(pc->thd);
   if (negated != nullptr) return negated;

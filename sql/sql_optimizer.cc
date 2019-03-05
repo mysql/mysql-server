@@ -9744,7 +9744,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       if (((field->type() == MYSQL_TYPE_DATE) ||
            (field->type() == MYSQL_TYPE_DATETIME)) &&
           (field->flags & NOT_NULL_FLAG)) {
-        Item *item0 = new (thd->mem_root) Item_func_false();
+        Item *item0 = new (thd->mem_root) Item_int(0);
         if (item0 == NULL) return true;
         Item *eq_cond = new (thd->mem_root) Item_func_eq(args[0], item0);
         if (eq_cond == NULL) return true;
