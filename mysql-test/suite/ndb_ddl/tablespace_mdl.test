@@ -1,18 +1,24 @@
 --source include/have_ndb.inc
 
-# Test parallel CREATE TABLE queries with the metadata check detection feature
-# running alongside
+#
+# Test MDL on tablespaces. Locks on tablespaces are taken in the following
+# cases:
+#
+# 1. Tablespace DDL - X lock
+# 2. Disk data table DDL - IX lock
+# 3. Metadata change detection - SHARED lock
+#
 
-SET @old_ndb_metadata_check_interval = @@global.ndb_metadata_check_interval;
-# Reduce the metadata check interval to 5 seconds
-SET GLOBAL ndb_metadata_check_interval = 5;
+#
+# Testcase 1: Parallel disk data table DDL queries using the same tablespace
+#
 
 # Create logfile group
 CREATE LOGFILE GROUP lg1
   ADD UNDOFILE 'lg1_undofile.dat'
   INITIAL_SIZE 1M
   UNDO_BUFFER_SIZE = 1M
-  ENGINE=NDB;
+  ENGINE NDB;
 
 # Create tablespace using the logfile group
 CREATE TABLESPACE ts1
@@ -21,50 +27,44 @@ CREATE TABLESPACE ts1
   INITIAL_SIZE 16M
   ENGINE NDB;
 
-# To increase the number of times the MDL lock is acquired for tablespace
-# ts1, we run CREATE + DROP TABLE queries in parallel across 2 connections.
-# In addition to this the ndb_metadata_check_interval has been set to a low
-# value which means that the detection (which acquires locks of its own)
-# will run at some point along with the queries
-
-# Procedure p1 communicates through the `progress` table
-CREATE TABLE progress(
-  stop_flag int
+# Procedure p1 communicates through the `procedure_control` table
+CREATE TABLE procedure_control(
+  stop_flag INT
 ) ENGINE NDB;
 
-delimiter %;
-create procedure p1()
-begin
-  declare done int default 0;
-  repeat
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  REPEAT
     CREATE TABLE t1 (
-      a int PRIMARY KEY,
-      b varchar(255)
+      a INT PRIMARY KEY,
+      b VARCHAR(255)
     )
     ENGINE NDB TABLESPACE ts1 STORAGE DISK;
     DROP TABLE t1;
-    SELECT stop_flag INTO done FROM progress;
-  until done end repeat;
-end%
-delimiter ;%
+    SELECT stop_flag INTO done FROM procedure_control;
+  UNTIL done END REPEAT;
+END//
+DELIMITER ;//
 
-INSERT INTO progress value(0);
+INSERT INTO procedure_control VALUE(0);
 
+# Run CREATE + DROP TABLE queries in parallel across 2 connections
 --echo Start background load of CREATE + DROP TABLE t1 which uses tablespace ts1
---send call p1()
+--send CALL p1()
 
 # Create another connection
 --connect (con2,127.0.0.1,root,,test,$MASTER_MYPORT,)
 --connection con2
-
 --echo Start CREATE + DROP TABLE t2 which uses tablespace ts1
 --disable_query_log
 --let $count = 1
-while ($count <= 100)
+while ($count <= 30)
 {
   CREATE TABLE t2 (
-    a int PRIMARY KEY,
-    b varchar(255)
+    a INT PRIMARY KEY,
+    b VARCHAR(255)
   )
   ENGINE NDB TABLESPACE ts1 STORAGE DISK;
   DROP TABLE t2;
@@ -73,17 +73,163 @@ while ($count <= 100)
 --enable_query_log
 
 # Signal procedure to stop background queries
-update progress set stop_flag=1;
+UPDATE procedure_control SET stop_flag=1;
 
 --connection default
-
 --echo Wait for background load to complete
 --reap
 
 # Cleanup
-SET GLOBAL ndb_metadata_check_interval = @old_ndb_metadata_check_interval;
 DROP PROCEDURE p1;
-DROP TABLE progress;
+DROP TABLE procedure_control;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+#
+# Testcase 2: Parallel tablespace and disk data table DDL queries
+#
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+# Create tablespace using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+# Procedure p1 communicates through 'procedure_control' table
+CREATE TABLE procedure_control(
+  stop_flag INT
+) ENGINE NDB;
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  REPEAT
+    ALTER TABLESPACE ts1
+      ADD DATAFILE 'ts1_datafile2.dat';
+    ALTER TABLESPACE ts1
+      DROP DATAFILE 'ts1_datafile2.dat';
+    SELECT stop_flag INTO done FROM procedure_control;
+  UNTIL done END REPEAT;
+END//
+DELIMITER ;//
+
+INSERT INTO procedure_control VALUE(0);
+
+# Run CREATE + DROP TABLE and ALTER TABLESPACE queries in parallel
+--echo Start background load of ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+--send CALL p1()
+
+--connection con2
+--echo Start CREATE + DROP TABLE t1 which uses tablespace ts1
+--disable_query_log
+--let $count = 1
+while ($count <= 30)
+{
+  CREATE TABLE t1 (
+    a INT PRIMARY KEY,
+    b VARCHAR(255)
+  )
+  ENGINE NDB TABLESPACE ts1 STORAGE DISK;
+  DROP TABLE t1;
+  --inc $count
+}
+--enable_query_log
+
+# Signal procedure to stop background queries
+UPDATE procedure_control SET stop_flag=1;
+
+--connection default
+--echo Wait for background load to complete
+--reap
+
+# Cleanup
+DROP PROCEDURE p1;
+DROP TABLE procedure_control;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+#
+# Testcase 3: Parallel tablespace DDL queries
+#
+
+# Create logfile group
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+# Create tablespace using the logfile group
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 16M
+  ENGINE NDB;
+
+# Procedure p1 communicates through 'procedure_control' table
+CREATE TABLE procedure_control(
+  stop_flag INT
+) ENGINE NDB;
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE done INT DEFAULT 0;
+  REPEAT
+    ALTER TABLESPACE ts1
+      ADD DATAFILE 'ts1_datafile2.dat';
+    ALTER TABLESPACE ts1
+      DROP DATAFILE 'ts1_datafile2.dat';
+    SELECT stop_flag INTO done FROM procedure_control;
+  UNTIL done END REPEAT;
+END//
+DELIMITER ;//
+
+INSERT INTO procedure_control VALUE(0);
+
+# Run ALTER TABLESPACE queries in parallel
+--echo Start background load of ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+--send CALL p1()
+
+--connection con2
+--echo Start ALTER TABLESPACE ts1 ADD/DROP DATAFILE
+--disable_query_log
+--let $count = 1
+while ($count <= 30)
+{
+  ALTER TABLESPACE ts1
+    ADD DATAFILE 'ts1_datafile3.dat';
+  ALTER TABLESPACE ts1
+    DROP DATAFILE 'ts1_datafile3.dat';
+  --inc $count
+}
+--enable_query_log
+
+# Signal procedure to stop background queries
+UPDATE procedure_control SET stop_flag=1;
+
+--connection default
+--echo Wait for background load to complete
+--reap
+
+# Cleanup
+DROP PROCEDURE p1;
+DROP TABLE procedure_control;
 ALTER TABLESPACE ts1
   DROP DATAFILE 'ts1_datafile.dat';
 DROP TABLESPACE ts1;
