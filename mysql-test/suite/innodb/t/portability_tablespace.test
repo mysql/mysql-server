@@ -26,8 +26,9 @@ LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
 let $MYSQLD_OLD_DATADIR = `select @@datadir`;
 
 # Create new datadir folders
---mkdir $MYSQL_TMP_DIR/undo_directory
---mkdir $MYSQL_TMP_DIR/undo_directory/test
+--mkdir $MYSQL_TMP_DIR/undo_directory1
+--mkdir $MYSQL_TMP_DIR/undo_directory2
+--mkdir $MYSQL_TMP_DIR/undo_directory2/test
 --mkdir $MYSQL_TMP_DIR/data_home_dir
 --mkdir $MYSQL_TMP_DIR/new_datadir
 --mkdir $MYSQL_TMP_DIR/new_datadir/data
@@ -91,12 +92,15 @@ SHOW CREATE TABLE tab2;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE tab3;
 
-# Create new undo tablespaces 
+# Create new undo tablespaces
 CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 CREATE UNDO TABLESPACE undo_004 ADD DATAFILE 'undo_004.ibu';
 
-# Check from metadata info
-SELECT  file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE FILE_TYPE LIKE '%undo%';
+# Show the metadata info.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
 
 --echo ## Stop DB server
 --let $shutdown_server_timeout = 300
@@ -109,7 +113,10 @@ SELECT  file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQL_TMP_DIR/data_home_dir ib_logfile*
 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
---copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQL_TMP_DIR/undo_directory undo*
+--copy_file $MYSQLD_OLD_DATADIR/undo_001  $MYSQL_TMP_DIR/undo_directory1/undo_001
+--copy_file $MYSQLD_OLD_DATADIR/undo_002  $MYSQL_TMP_DIR/undo_directory1/undo_002
+--copy_file $MYSQLD_OLD_DATADIR/undo_003.ibu  $MYSQL_TMP_DIR/undo_directory1/undo_003.ibu
+--copy_file $MYSQLD_OLD_DATADIR/undo_004.ibu  $MYSQL_TMP_DIR/undo_directory2/undo_004.ibu
 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR/test/  $MYSQLD_NEW_DATADIR/test/ *
 --copy_files_wildcard $MYSQLD_OLD_DATADIR/sys/  $MYSQLD_NEW_DATADIR/sys/ *
@@ -118,7 +125,7 @@ SELECT  file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR/mtr/  $MYSQLD_NEW_DATADIR/mtr/ *
 
 --echo # Copy absolute path *.ibd files into new location
---copy_files_wildcard $MYSQL_TMP_DIR/db_directory1/test/ $MYSQL_TMP_DIR/undo_directory/test tab3*.ibd
+--copy_files_wildcard $MYSQL_TMP_DIR/db_directory1/test/ $MYSQL_TMP_DIR/undo_directory2/test tab3*.ibd
 
 --echo # Remove the old datadir files and *.ibd files
 --remove_files_wildcard $MYSQL_TMP_DIR/db_directory1/test/ *.ibd
@@ -136,16 +143,15 @@ SELECT  file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE 
 --remove_files_wildcard $MYSQLD_OLD_DATADIR/mtr/ *
 
 --echo # Start with --innodb-directories along with other initDB options
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR 
-let $innodb_dirs='$MYSQL_TMP_DIR/undo_directory';
---let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$innodb_dirs
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory1 --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$MYSQL_TMP_DIR
 --source include/start_mysqld_no_echo.inc
 
 --echo # Check new datadir
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
 SELECT @@datadir;
 
---replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@innodb_undo_directory;
 
 --replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
@@ -154,8 +160,14 @@ SELECT @@innodb_data_home_dir;
 --replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
 SELECT @@innodb_log_group_home_dir;
 
---replace_result $MYSQL_TMP_DIR db_directory2
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE tab3;
+
+# Check if the metadata info is correct.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
 
 --echo # Stop DB server
 --let $shutdown_server_timeout = 300
@@ -163,14 +175,14 @@ SHOW CREATE TABLE tab3;
 
 --echo # Start with new --datadir only
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir
+--let $restart_parameters=restart: --datadir=$MYSQLD_NEW_DATADIR --innodb_undo_directory=$MYSQL_TMP_DIR/undo_directory1 --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home_dir --innodb-directories=$MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 --echo # Check with new --datadir
 --replace_result $MYSQLD_NEW_DATADIR NEW_DATADIR
 SELECT @@datadir;
 
---replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@innodb_undo_directory;
 
 --replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
@@ -184,8 +196,14 @@ SHOW CREATE TABLE tab1;
 
 SHOW CREATE TABLE tab2;
 
---replace_result $MYSQL_TMP_DIR undo_directory
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE tab3;
+
+# Check if the metadata info is correct.
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
 
 ALTER UNDO TABLESPACE innodb_undo_001 SET INACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET INACTIVE;
@@ -242,8 +260,8 @@ SHOW CREATE TABLE tab4;
 INSERT INTO tab4 VALUES(1, 'VISH');
 
 --echo # Creating general tablespace in known DIR location
---replace_result $MYSQL_TMP_DIR UNDO_DIRECTORY
-eval CREATE TABLESPACE ts3 ADD DATAFILE '$MYSQL_TMP_DIR/undo_directory/ts3.ibd' Engine=InnoDB;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts3 ADD DATAFILE '$MYSQL_TMP_DIR/undo_directory1/ts3.ibd' Engine=InnoDB;
 
 CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
 
@@ -261,16 +279,17 @@ DROP TABLESPACE ts1;
 --source include/shutdown_mysqld.inc
 
 --echo # Copy back --datadir and *.ibd files into old location
---copy_files_wildcard $MYSQL_TMP_DIR/undo_directory/test $MYSQL_TMP_DIR/db_directory1/test *.ibd
---copy_files_wildcard $MYSQL_TMP_DIR/undo_directory  $MYSQL_TMP_DIR/db_directory1/test ts3.ibd
---copy_files_wildcard $MYSQL_TMP_DIR/undo_directory  $MYSQLD_OLD_DATADIR undo*
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory2/test $MYSQL_TMP_DIR/db_directory1/test *.ibd
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory1  $MYSQL_TMP_DIR/db_directory1/test ts3.ibd
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory1  $MYSQLD_OLD_DATADIR undo*
+--copy_files_wildcard $MYSQL_TMP_DIR/undo_directory2  $MYSQLD_OLD_DATADIR undo*
 --copy_files_wildcard $MYSQL_TMP_DIR/data_home_dir  $MYSQL_TMP_DIR/db_directory1/test ts2.ibd
 
 --copy_file $MYSQLD_NEW_DATADIR/auto.cnf $MYSQLD_OLD_DATADIR/auto.cnf
 --copy_file $MYSQL_TMP_DIR/data_home_dir/ib_buffer_pool $MYSQLD_OLD_DATADIR/ib_buffer_pool
 --copy_file $MYSQL_TMP_DIR/data_home_dir/ibdata1 $MYSQLD_OLD_DATADIR/ibdata1
 --copy_files_wildcard $MYSQL_TMP_DIR/data_home_dir $MYSQLD_OLD_DATADIR/ ib_log*
---copy_files_wildcard $MYSQLD_NEW_DATADIR $MYSQLD_OLD_DATADIR  *.ibd
+--copy_files_wildcard $MYSQLD_NEW_DATADIR $MYSQLD_OLD_DATADIR *.ibd
 
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/sys/ $MYSQLD_OLD_DATADIR/sys/ *
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/performance_schema/ $MYSQLD_OLD_DATADIR/performance_schema/ *
@@ -278,20 +297,24 @@ DROP TABLESPACE ts1;
 --copy_files_wildcard $MYSQLD_NEW_DATADIR/mtr/ $MYSQLD_OLD_DATADIR/mtr/  *
 
 --echo # Cleanup the new DATA DIRECTORY *.ibd files
---force-rmdir $MYSQL_TMP_DIR/undo_directory
+--force-rmdir $MYSQL_TMP_DIR/undo_directory1
+--force-rmdir $MYSQL_TMP_DIR/undo_directory2
 --force-rmdir $MYSQL_TMP_DIR/data_home_dir
 --force-rmdir $MYSQL_TMP_DIR/new_datadir
 
 --echo # Test by providing the relative path
 --echo # Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
-let $innodb_dirs='$MYSQL_TMP_DIR/db_directory1';
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR $MYSQL_TMP_DIR MYSQL_TMP_DIR
---let $restart_parameters= restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$innodb_dirs
+--let $restart_parameters= restart: --datadir=$MYSQLD_OLD_DATADIR --innodb-directories=$MYSQL_TMP_DIR
 --source include/start_mysqld.inc
 
 --echo # Check --datadir started with old
 --replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
 SELECT @@datadir;
+
+# Check if the metadata info is correct.
+SELECT file_name,file_type,tablespace_name FROM INFORMATION_SCHEMA.FILES WHERE file_type LIKE '%undo%';
+SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%undo_0%' ORDER BY path;
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE tab3;

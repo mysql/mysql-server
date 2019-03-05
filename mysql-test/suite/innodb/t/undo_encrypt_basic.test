@@ -1,10 +1,8 @@
-# WL#9289 InnoDB transparent tablespace data encryption for undo log
+--echo # WL#9289 InnoDB transparent tablespace data encryption for undo log
 # This test case will test basic undo encryption support features.
 
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
-#--source include/have_debug.inc
-
 
 --disable_query_log
 call mtr.add_suppression("\\[Warning\\] .* Ignoring tablespace .* because it could not be opened");
@@ -45,7 +43,7 @@ EOF
 --echo # Stop the MTR default DB server
 --source include/shutdown_mysqld.inc
 
-# Test1: bootstrap with 2 undo tablespaces and with keyring.
+--echo # Test1: bootstrap with 2 undo tablespaces and with keyring.
 let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --innodb_log_file_size=$LOG_FILE_SIZE --innodb_page_size=$START_PAGE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLD_DATADIR --init-file=$BOOTSTRAP_SQL --secure-file-priv="" --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo1 $KEYRING_PLUGIN_OPT </dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap2.log 2>&1;
 
 --echo # Run the bootstrap command with keyring
@@ -56,7 +54,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-i
 --let $restart_parameters="restart: --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR"
 --source include/start_mysqld_no_echo.inc
 
-#Enable undo log encryption, should report error in server log, since keyring is not loaded.
+--echo # Enable undo log encryption, should report error in server log, since keyring is not loaded.
 SET GLOBAL innodb_undo_log_encrypt = ON;
 
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
@@ -68,7 +66,7 @@ CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld_no_echo.inc
 
-#Enable undo log encryption, shouldn't report error in server log.
+--echo # Enable undo log encryption, shouldn't report error in server log.
 SET GLOBAL innodb_undo_log_encrypt = ON;
 
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION='Y' ENGINE = InnoDB;
@@ -135,7 +133,7 @@ INSERT INTO t1 VALUES(8, "iiiii");
 SET GLOBAL innodb_undo_log_encrypt = ON;
 INSERT INTO t1 VALUES(9, "jjjjj");
 
-# Restart to confirm the encryption info can be retrieved properly.
+--echo # Kill and restart to confirm the encryption info can be retrieved properly.
 --source include/kill_mysqld.inc
 --exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring_log1 $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo1 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE --innodb_undo_log_encrypt=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
@@ -158,7 +156,7 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 
---echo # Start the DB server with undo log encryption disabled and keyring plugin loaded. It should success.
+--echo # Start the DB server with undo log encryption disabled and keyring plugin loaded. It should succeed.
 --let $restart_parameters="restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" $KEYRING_PLUGIN_OPT --keyring_file_data=$MYSQL_TMP_DIR/my_key_undo1 --innodb_data_home_dir=$MYSQLD_HOME_DATA_DIR --innodb_undo_directory=$MYSQLD_UNDO_DATADIR --datadir=$MYSQLD_DATADIR --innodb_page_size=$START_PAGE_SIZE --innodb_log_file_size=$LOG_FILE_SIZE"
 --replace_result $MYSQL_TMP_DIR TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PATH $MYSQLD_HOME_DATA_DIR HOME_DIR $MYSQLD_UNDO_DATADIR UNDO_DIR $MYSQLD_DATADIR DATADIR $START_PAGE_SIZE PAGE_SIZE $LOG_FILE_SIZE LOG_FILE_SIZE
 --replace_regex /\.dll/.so/
@@ -166,7 +164,7 @@ INSERT INTO t1 VALUES(9, "jjjjj");
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
-#Test key rotation.
+# Test key rotation.
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -190,17 +188,17 @@ FLUSH ENGINE LOGS;
 
 SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
-# Cleanup
+--echo # Cleanup
 --remove_file $MYSQL_TMP_DIR/my_key_undo1
 DROP TABLE t1;
 
-# restart the server with MTR default
+--echo # restart the server with MTR default
 --let $restart_parameters=
 --source include/restart_mysqld.inc
 
 --remove_file $BOOTSTRAP_SQL
 
-# Remove residue files
+--echo # Remove residue files
 --force-rmdir $MYSQL_TMP_DIR/datadir
 --force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir

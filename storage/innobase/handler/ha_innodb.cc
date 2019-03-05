@@ -3276,19 +3276,25 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
     /* If IBD tablespaces exist in mem correctly, we can continue. */
     if (fil_space_exists_in_mem(space_id, space_name, false, true, heap, 0)) {
-      if (!apply_dd_undo_state(space_id, dd_tablespace)) {
-        ib::warn(ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE, prefix.c_str(),
-                 space_name);
+      if (fsp_is_undo_tablespace(space_id)) {
+        /* Undo tablespaces are always opened first.  But in case they have
+        been moved and he DD needs to be updated, we fall thru to the location
+        check below. First though, update the DD tablespace state. */
+        if (!apply_dd_undo_state(space_id, dd_tablespace)) {
+          ib::warn(ER_IB_MSG_FAIL_TO_SAVE_SPACE_STATE, prefix.c_str(),
+                   space_name);
+        }
+      } else {
+        continue;
       }
+    }
+
+    /* Check the file paths of IBD and Undo datafiles below. */
+    if (!fsp_is_ibd_tablespace(space_id) && !fsp_is_undo_tablespace(space_id)) {
       continue;
     }
 
-    /* Non-IBD datafiles are tracked and opened separately. */
-    if (!fsp_is_ibd_tablespace(space_id)) {
-      continue;
-    }
-
-    /* Check if any IBD files are moved, deleted or missing. */
+    /* Check if any IBD or Undo files are moved, deleted or missing. */
     std::string new_path;
 
     /* Just in case this dictionary was ported between
@@ -3352,6 +3358,12 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
       case Fil_state::RENAMED:
         break;
+    }
+
+    /* Undo spaces are already open, but if this is an IBD space,
+    it is not yet open at this point. */
+    if (fsp_is_undo_tablespace(space_id)) {
+      continue;
     }
 
     /* It's safe to pass space_name in tablename charset because
@@ -16413,9 +16425,8 @@ static bool innobase_get_tablespace_statistics(
       file = &f;
 
       ib::info(ER_IB_MSG_570)
-          << "Tablespace '" << tablespace_name << "'"
-          << " DD filename '" << name << "' doesn't"
-          << " match the InnoDB filename '" << f.name << "'";
+          << "Tablespace '" << tablespace_name << "' DD filename '" << name
+          << "' doesn't match the InnoDB filename '" << f.name << "'";
     }
   }
 
