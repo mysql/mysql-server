@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,5 @@
 #cmakedefine HAVE_LE16TOH @HAVE_LE16TOH@
 #cmakedefine HAVE_STRNDUP @HAVE_STRNDUP@
 #cmakedefine HAVE_ENDIAN_CONVERSION_MACROS @HAVE_ENDIAN_CONVERSION_MACROS@
-#cmakedefine SIZEOF_LONG_LONG   @SIZEOF_LONG_LONG@
-#cmakedefine HAVE_LONG_LONG 1
-#cmakedefine SIZEOF_LONG @SIZEOF_LONG@
-#cmakedefine HAVE_LONG 1
-#cmakedefine SIZEOF_INT @SIZEOF_INT@
-#cmakedefine HAVE_INT 1
 
 #endif
