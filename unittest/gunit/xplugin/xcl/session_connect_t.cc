@@ -325,7 +325,8 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_expired)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_expired.get())))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol,
               execute_authenticate(expected_user, expected_pass,
@@ -348,7 +349,8 @@ TEST_P(Xcl_session_impl_tests_challenge_response_connect_param,
       .WillRepeatedly(Return(false));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_expired)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_expired.get())))
       .WillOnce(Return(XError{expected_error_code, ""}));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);
@@ -407,7 +409,8 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_set_tls)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_set_tls.get())))
       .WillOnce(Return(XError{expected_error_code, ""}));
 
   auto error = (this->*GetParam().m_open)(expected_error_code_success);
@@ -425,7 +428,8 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_set_tls)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_set_tls.get())))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(m_mock_connection, activate_tls())
       .WillOnce(Return(XError{expected_error_code, ""}));
@@ -445,7 +449,8 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param, connect_plain_tls) {
       .WillRepeatedly(Return(true));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_set_tls)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_set_tls.get())))
       .WillOnce(Return(XError{}));
   EXPECT_CALL(m_mock_connection, activate_tls()).WillOnce(Return(XError{}));
   EXPECT_CALL(*m_mock_protocol,
@@ -468,7 +473,8 @@ TEST_P(Xcl_session_impl_tests_plain_connect_param,
       .WillRepeatedly(Return(true));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  EXPECT_CALL(*m_mock_protocol, execute_set_capability(Cmp_msg(m_cap_expired)))
+  EXPECT_CALL(*m_mock_protocol,
+              execute_set_capability(Cmp_msg(m_cap_expired.get())))
       .WillOnce(Return(XError{expected_error_code}));
 
   m_sut->set_capability(XSession::Capability_can_handle_expired_password, true);

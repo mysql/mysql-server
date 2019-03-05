@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -65,7 +65,7 @@ class Xcl_protocol_impl_tests_notices : public Xcl_protocol_impl_tests {
   void expect_recv_message_handler(
       const Message_from_str<Message_type> &message,
       const Handler_result should_consumed = Handler_result::Continue) {
-    const Message_type &m = message;
+    const Message_type &m = message.get();
     expect_recv_message_handler(m, should_consumed);
   }
 
@@ -94,17 +94,17 @@ TEST_F(Xcl_protocol_impl_tests_notices, recv_notice_when_no_handler_installed) {
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices, recv_notice_handler) {
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
   expect_notice_handler_empty_payload(
       &m_mock_notice_handlers[0],
       Notice_type::Frame_Type_SESSION_VARIABLE_CHANGED);
@@ -114,7 +114,7 @@ TEST_F(Xcl_protocol_impl_tests_notices, recv_notice_handler) {
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices,
@@ -123,8 +123,8 @@ TEST_F(Xcl_protocol_impl_tests_notices,
   XError out_error;
   InSequence sequence;
 
-  expect_read_message(m_msg_notice1);
-  expect_recv_message_handler(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
+  expect_recv_message_handler(m_msg_notice1.get());
   expect_notice_handler_empty_payload(
       &m_mock_notice_handlers[0],
       Notice_type::Frame_Type_SESSION_VARIABLE_CHANGED);
@@ -136,7 +136,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices,
@@ -146,8 +146,8 @@ TEST_F(Xcl_protocol_impl_tests_notices,
   ::Mysqlx::Ok msg_ok;
   InSequence sequence;
 
-  expect_read_message(m_msg_notice1);
-  expect_recv_message_handler(m_msg_notice1, Handler_result::Consumed);
+  expect_read_message(m_msg_notice1.get());
+  expect_recv_message_handler(m_msg_notice1.get(), Handler_result::Consumed);
   expect_read_message_without_payload(msg_ok);
   expect_recv_message_handler(msg_ok);
 
@@ -182,7 +182,7 @@ TEST_F(Xcl_protocol_impl_tests_notices, recv_multiple_notice_handlers) {
   XError out_error;
   InSequence sequence;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
   expect_notice_handler_empty_payload(
       &m_mock_notice_handlers[1],
       Notice_type::Frame_Type_SESSION_VARIABLE_CHANGED);
@@ -197,7 +197,7 @@ TEST_F(Xcl_protocol_impl_tests_notices, recv_multiple_notice_handlers) {
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices,
@@ -205,7 +205,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
   XProtocol::Server_message_type_id out_id;
   XError out_error;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
 
   // The handlers are held in "stack" container,
   // thus after calling "pop" should leave
@@ -222,7 +222,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice1.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices,
@@ -231,7 +231,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
   XError out_error;
   InSequence sequence;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
   // First handler returns true, and consumes the notice.
   // Because of that second handler isn't called
   // for this notice, and `recv_single_message` must receive
@@ -241,7 +241,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
       Notice_type::Frame_Type_SESSION_VARIABLE_CHANGED,
       Handler_result::Consumed);
 
-  expect_read_message(m_msg_notice2);
+  expect_read_message(m_msg_notice2.get());
   expect_notice_handler(&m_mock_notice_handlers[1],
                         Notice_type::Frame_Type_SESSION_STATE_CHANGED,
                         m_notice2_payload);
@@ -256,7 +256,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice2));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice2.get()));
 }
 
 TEST_F(Xcl_protocol_impl_tests_notices,
@@ -265,7 +265,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
   XError out_error;
   InSequence sequence;
 
-  expect_read_message(m_msg_notice1);
+  expect_read_message(m_msg_notice1.get());
   // Second handler returns true, and consumes the notice.
   // Because of that second handler isn't called
   // for this notice, and `recv_single_message` must receive
@@ -278,7 +278,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
       Notice_type::Frame_Type_SESSION_VARIABLE_CHANGED,
       Handler_result::Consumed);
 
-  expect_read_message(m_msg_notice2);
+  expect_read_message(m_msg_notice2.get());
   expect_notice_handler(&m_mock_notice_handlers[1],
                         Notice_type::Frame_Type_SESSION_STATE_CHANGED,
                         m_notice2_payload);
@@ -293,7 +293,7 @@ TEST_F(Xcl_protocol_impl_tests_notices,
 
   auto message = m_sut->recv_single_message(&out_id, &out_error);
 
-  EXPECT_THAT(*message, Cmp_msg(m_msg_notice2));
+  EXPECT_THAT(*message, Cmp_msg(m_msg_notice2.get()));
 }
 
 }  // namespace test

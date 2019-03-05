@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,12 +37,16 @@ namespace xcl {
 namespace test {
 
 template <typename Message_type>
-class Message_from_str : public Message_type {
+class Message_from_str {
+  Message_type m_protobuf_message;
+
  public:
   explicit Message_from_str(const std::string &text_message) {
-    EXPECT_TRUE(
-        ::google::protobuf::TextFormat::ParseFromString(text_message, this));
+    EXPECT_TRUE(::google::protobuf::TextFormat::ParseFromString(
+        text_message, &m_protobuf_message));
   }
+  Message_type &get() { return m_protobuf_message; }
+  const Message_type &get() const { return m_protobuf_message; }
 };
 
 template <typename M>
