@@ -2540,6 +2540,12 @@ static bool parse_address_string(const char *begin_address_value,
       */
       *address_value = std::string(begin_address_value, namespace_separator);
       *network_namespace = std::string(namespace_separator + 1);
+      if (*(namespace_separator + 1) == 0)
+        /*
+          Parse error: there is no character immediately
+          after '/' - a namespace name missed.
+        */
+        return true;
     }
   } else {
     /*
