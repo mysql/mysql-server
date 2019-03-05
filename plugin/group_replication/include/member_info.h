@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -189,8 +189,8 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] psi_mutex_key_arg                      mutex key
     @param[in] default_table_encryption_arg           default_table_encryption
    */
-  Group_member_info(char *hostname_arg, uint port_arg, char *uuid_arg,
-                    int write_set_extraction_algorithm,
+  Group_member_info(const char *hostname_arg, uint port_arg,
+                    const char *uuid_arg, int write_set_extraction_algorithm,
                     const std::string &gcs_member_id_arg,
                     Group_member_info::Group_member_status status_arg,
                     Member_version &member_version_arg,

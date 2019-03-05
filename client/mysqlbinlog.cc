@@ -549,7 +549,8 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   */
   file_names[file_id] = rec;
 
-  if (my_write(file, (uchar *)block, block_len, MYF(MY_WME | MY_NABP))) {
+  if (my_write(file, pointer_cast<const uchar *>(block), block_len,
+               MYF(MY_WME | MY_NABP))) {
     error("Failed writing to file.");
     retval = ERROR_STOP;
   }
@@ -686,7 +687,8 @@ static bool shall_skip_gtids(const Log_event *ev) {
   switch (ev->get_type_code()) {
     case binary_log::GTID_LOG_EVENT:
     case binary_log::ANONYMOUS_GTID_LOG_EVENT: {
-      Gtid_log_event *gtid = (Gtid_log_event *)ev;
+      Gtid_log_event *gtid =
+          const_cast<Gtid_log_event *>(down_cast<const Gtid_log_event *>(ev));
       if (opt_include_gtids_str != nullptr) {
         filtered = filtered || !gtid_set_included->contains_gtid(
                                    gtid->get_sidno(true), gtid->get_gno());
@@ -724,7 +726,8 @@ static bool shall_skip_gtids(const Log_event *ev) {
       break;
     case binary_log::QUERY_EVENT:
       filtered = filter_based_on_gtids;
-      if (((Query_log_event *)ev)->ends_group()) filter_based_on_gtids = false;
+      if (down_cast<const Query_log_event *>(ev)->ends_group())
+        filter_based_on_gtids = false;
       break;
 
     /*
@@ -1733,8 +1736,13 @@ extern "C" bool get_one_option(int optid, const struct my_option *opt,
       break;
     }
     case 'p':
-      if (argument == disabled_my_option)
-        argument = (char *)"";  // Don't require password
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         my_free(pass);
         char *start = argument;

@@ -1,7 +1,7 @@
 #ifndef SECONDARY_ENGINE_INCLUDED
 #define SECONDARY_ENGINE_INCLUDED
 
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ class Secondary_engine {
   ///
   /// @param statement Original statement
   /// @param errors    Count of expected errors
-  void match_statement(char *statement, std::size_t errors);
+  void match_statement(const char *statement, std::size_t errors);
 
   /// Report secondary engine execution count value.
   ///

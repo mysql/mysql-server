@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,13 +32,13 @@
 #include "my_sys.h"
 
 typedef struct _entry {
-  char *str;
+  const char *str;
   struct _entry *pNext;
 } entry;
 
 typedef struct bucket {
   uint h; /* Used for numeric indexing */
-  char *arKey;
+  const char *arKey;
   uint nKeyLength;
   uint count;
   entry *pData;
@@ -54,14 +54,14 @@ typedef struct hashtable {
 } HashTable;
 
 extern int completion_hash_init(HashTable *ht, uint nSize);
-extern int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength,
-                                  char *str);
+extern int completion_hash_update(HashTable *ht, const char *arKey,
+                                  uint nKeyLength, const char *str);
 extern int hash_exists(HashTable *ht, char *arKey);
 extern Bucket *find_all_matches(HashTable *ht, const char *str, uint length,
                                 uint *res_length);
 extern Bucket *find_longest_match(HashTable *ht, char *str, uint length,
                                   uint *res_length);
-extern void add_word(HashTable *ht, char *str);
+extern void add_word(HashTable *ht, const char *str);
 extern void completion_hash_clean(HashTable *ht);
 extern int completion_hash_exists(HashTable *ht, char *arKey, uint nKeyLength);
 extern void completion_hash_free(HashTable *ht);

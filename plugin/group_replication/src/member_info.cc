@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ using std::string;
 using std::vector;
 
 Group_member_info::Group_member_info(
-    char *hostname_arg, uint port_arg, char *uuid_arg,
+    const char *hostname_arg, uint port_arg, const char *uuid_arg,
     int write_set_extraction_algorithm_arg,
     const std::string &gcs_member_id_arg,
     Group_member_info::Group_member_status status_arg,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "client/dump/compression_zlib_writer.h"
+#include "template_utils.h"
 
 #include <functional>
 
@@ -51,7 +52,8 @@ void Compression_zlib_writer::process_buffer(bool flush_stream) {
 void Compression_zlib_writer::append(const std::string &data_to_append) {
   my_boost::mutex::scoped_lock lock(m_zlib_mutex);
   m_compression_context.avail_in = data_to_append.size();
-  m_compression_context.next_in = (Bytef *)data_to_append.c_str();
+  m_compression_context.next_in =
+      pointer_cast<Bytef *>(const_cast<char *>(data_to_append.data()));
   this->process_buffer(false);
 }
 

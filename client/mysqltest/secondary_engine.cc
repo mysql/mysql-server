@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -352,7 +352,8 @@ bool Secondary_engine::run_secondary_unload_statement(MYSQL *mysql,
 ///
 /// @param statement Original statement
 /// @param errors    Count of expected errors
-void Secondary_engine::match_statement(char *statement, std::size_t errors) {
+void Secondary_engine::match_statement(const char *statement,
+                                       std::size_t errors) {
   if (m_stmt_type != UNKNOWN_STMT) m_stmt_type = UNKNOWN_STMT;
 
   // Check the statement type

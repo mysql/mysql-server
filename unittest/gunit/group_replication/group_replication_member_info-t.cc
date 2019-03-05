@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,11 +61,10 @@ class ClusterMemberInfoTest : public ::testing::Test {
 
     Member_version local_member_plugin_version(plugin_version);
     local_node = new Group_member_info(
-        (char *)hostname.c_str(), port, (char *)uuid.c_str(),
-        write_set_algorithm, gcs_member_id->get_member_id(), status,
-        local_member_plugin_version, gtid_assignment_block_size,
-        Group_member_info::MEMBER_ROLE_PRIMARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight,
+        hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
+        gcs_member_id->get_member_id(), status, local_member_plugin_version,
+        gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
+        in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
     local_node->update_gtid_sets(executed_gtid, retrieved_gtid);
   }
@@ -133,11 +132,10 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
 
     Member_version local_member_plugin_version(plugin_version);
     local_node = new Group_member_info(
-        (char *)hostname.c_str(), port, (char *)uuid.c_str(),
-        write_set_algorithm, gcs_member_id->get_member_id(), status,
-        local_member_plugin_version, gtid_assignment_block_size,
-        Group_member_info::MEMBER_ROLE_SECONDARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight,
+        hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
+        gcs_member_id->get_member_id(), status, local_member_plugin_version,
+        gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_SECONDARY,
+        in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
         lower_case_table_names, default_table_encryption, PSI_NOT_INSTRUMENTED);
 
     cluster_member_mgr =
@@ -177,7 +175,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
 
   Member_version local_member_plugin_version(plugin_version);
   Group_member_info *new_member = new Group_member_info(
-      (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
+      hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
@@ -322,7 +320,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
 
   Member_version local_member_plugin_version(plugin_version);
   Group_member_info *new_member = new Group_member_info(
-      (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
+      hostname.c_str(), port, uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
       in_primary_mode, has_enforces_update_everywhere_checks, member_weight,

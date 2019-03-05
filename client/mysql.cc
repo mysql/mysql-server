@@ -172,11 +172,14 @@ static char *opt_bind_addr = NULL;
 static int connect_flag = CLIENT_INTERACTIVE;
 static bool opt_binary_mode = false;
 static bool opt_connect_expired_password = false;
-static char *current_host, *current_db,
-    *current_user = 0, *opt_password = 0, *current_prompt = 0,
-    *delimiter_str = 0,
-    *default_charset = (char *)MYSQL_AUTODETECT_CHARSET_NAME,
-    *opt_init_command = 0;
+static char *current_host;
+static char *current_db;
+static char *current_user = nullptr;
+static char *opt_password = nullptr;
+static char *current_prompt = nullptr;
+static char *delimiter_str = nullptr;
+static char *opt_init_command = nullptr;
+static const char *default_charset = MYSQL_AUTODETECT_CHARSET_NAME;
 static char *histfile;
 static char *histfile_tmp;
 static char *opt_histignore = NULL;
@@ -1172,8 +1175,9 @@ inline bool is_delimiter_command(char *name, ulong len) {
     only name(first DELIMITER_NAME_LEN bytes) is checked.
   */
   return (len >= DELIMITER_NAME_LEN &&
-          !my_strnncoll(charset_info, (uchar *)name, DELIMITER_NAME_LEN,
-                        (uchar *)DELIMITER_NAME, DELIMITER_NAME_LEN));
+          !my_strnncoll(
+              charset_info, pointer_cast<uchar *>(name), DELIMITER_NAME_LEN,
+              pointer_cast<const uchar *>(DELIMITER_NAME), DELIMITER_NAME_LEN));
 }
 
 /**
@@ -1355,7 +1359,7 @@ int main(int argc, char *argv[]) {
 
 #ifdef HAVE_READLINE
     if (!quick) {
-      initialize_readline((char *)my_progname);
+      initialize_readline(const_cast<char *>(my_progname));
 
       /* read-history from file, default ~/.mysql_history*/
       if (getenv("MYSQL_HISTFILE"))
@@ -1949,8 +1953,13 @@ bool get_one_option(int optid,
         one_database = skip_updates = 1;
       break;
     case 'p':
-      if (argument == disabled_my_option)
-        argument = (char *)"";  // Don't require password
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -2132,16 +2141,16 @@ static int read_and_execute(bool interactive) {
       line_number++;
       if (!glob_buffer.length()) status.query_start_line = line_number;
     } else {
-      char *prompt =
-          (char *)(ml_comment ? "   /*> "
-                              : glob_buffer.is_empty()
-                                    ? construct_prompt()
-                                    : !in_string ? "    -> "
-                                                 : in_string == '\''
-                                                       ? "    '> "
-                                                       : (in_string == '`'
-                                                              ? "    `> "
-                                                              : "    \"> "));
+      const char *prompt =
+          (ml_comment
+               ? "   /*> "
+               : glob_buffer.is_empty()
+                     ? construct_prompt()
+                     : !in_string
+                           ? "    -> "
+                           : in_string == '\''
+                                 ? "    '> "
+                                 : (in_string == '`' ? "    `> " : "    \"> "));
       if (opt_outfile && glob_buffer.is_empty()) fflush(OUTFILE);
 
 #if defined(_WIN32)
@@ -2324,7 +2333,7 @@ static COMMANDS *find_command(char *name) {
     */
     for (uint i = 0; commands[i].func; i++) {
       if (!my_strnncoll(&my_charset_latin1, (uchar *)name, len,
-                        (uchar *)commands[i].name, len) &&
+                        pointer_cast<const uchar *>(commands[i].name), len) &&
           (commands[i].name[len] == '\0') &&
           (!end || commands[i].takes_params)) {
         index = i;
@@ -2651,8 +2660,7 @@ static char **new_mysql_completion(const char *text,
 #if defined(USE_NEW_EDITLINE_INTERFACE)
     return rl_completion_matches(text, new_command_generator);
 #else
-    return completion_matches((char *)text,
-                              (CPFunction *)new_command_generator);
+    return completion_matches(text, new_command_generator);
 #endif
   else
     return (char **)0;
@@ -2747,7 +2755,7 @@ static void build_completion_hash(bool rehash, bool write_info) {
 
   /* hash this file's known subset of SQL commands */
   while (cmd->name) {
-    add_word(&ht, (char *)cmd->name);
+    add_word(&ht, cmd->name);
     cmd++;
   }
 
@@ -3148,7 +3156,7 @@ static int com_charset(String *buffer MY_ATTRIBUTE((unused)), char *line) {
   if (new_cs) {
     charset_info = new_cs;
     mysql_set_character_set(&mysql, charset_info->csname);
-    default_charset = (char *)charset_info->csname;
+    default_charset = charset_info->csname;
     put_info("Charset changed", INFO_INFO);
   } else
     put_info("Charset is not found", INFO_INFO);
@@ -3494,7 +3502,8 @@ static void print_as_hex(FILE *output_file, const char *str, ulong len,
   const char *ptr = str, *end = ptr + len;
   ulong i;
   fprintf(output_file, "0x");
-  for (; ptr < end; ptr++) fprintf(output_file, "%02X", *((uchar *)ptr));
+  for (; ptr < end; ptr++)
+    fprintf(output_file, "%02X", *(pointer_cast<const uchar *>(ptr)));
   for (i = 2 * len + 2; i < total_bytes_to_send; i++)
     tee_putc((int)' ', output_file);
 }
@@ -4615,7 +4624,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
   MYSQL_RES *result = NULL;
 
   if (mysql_real_query_for_lazy(
-          C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
+          STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
     return 0;
 
   tee_puts("--------------", stdout);
@@ -4656,7 +4665,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     tee_fprintf(stdout, "Insert id:\t\t%s\n", llstr(id, buff));
 
   /* "limit 1" is protection against SQL_SELECT_LIMIT=0 */
-  if (mysql_real_query_for_lazy(C_STRING_WITH_LEN(
+  if (mysql_real_query_for_lazy(STRING_WITH_LEN(
           "select @@character_set_client, @@character_set_connection, "
           "@@character_set_server, @@character_set_database limit 1"))) {
     if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR) return 0;

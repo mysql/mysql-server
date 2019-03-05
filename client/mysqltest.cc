@@ -324,7 +324,7 @@ static struct st_test_file file_stack[16];
 static struct st_test_file *cur_file;
 static struct st_test_file *file_stack_end;
 
-static char *default_charset = (char *)MYSQL_DEFAULT_CHARSET_NAME;
+static const char *default_charset = MYSQL_DEFAULT_CHARSET_NAME;
 static CHARSET_INFO *charset_info =
     &my_charset_utf8mb4_0900_ai_ci; /* Default charset */
 
@@ -439,7 +439,7 @@ static std::regex opt_trace_re(opt_trace_re_str,
 static std::regex explain_re(explain_re_str, std::regex_constants::nosubs |
                                                  std::regex_constants::icase);
 
-static int search_protocol_re(std::regex *re, char *str);
+static int search_protocol_re(std::regex *re, const char *str);
 
 /* To retrieve a filename from a filepath */
 const char *get_filename_from_path(const char *path) {
@@ -1292,12 +1292,11 @@ struct command_arg {
   const char *description; /* Description of the argument */
 };
 
-static void check_command_args(struct st_command *command,
-                               const char *arguments,
+static void check_command_args(struct st_command *command, char *arguments,
                                const struct command_arg *args, int num_args,
                                const char delimiter_arg) {
   int i;
-  const char *ptr = arguments;
+  char *ptr = arguments;
   const char *start;
   DBUG_ENTER("check_command_args");
   DBUG_PRINT("enter", ("num_args: %d", num_args));
@@ -1331,7 +1330,7 @@ static void check_command_args(struct st_command *command,
         /* This will do nothing if arg was not closed by quotes */
         while (*ptr && *ptr != delimiter_arg) ptr++;
 
-        command->last_argument = (char *)ptr;
+        command->last_argument = ptr;
 
         /* Step past the delimiter */
         if (*ptr && *ptr == delimiter_arg) ptr++;
@@ -2581,8 +2580,8 @@ void revert_properties() {
 */
 
 static void var_query_set(VAR *var, const char *query, const char **query_end) {
-  char *end = (char *)((query_end && *query_end) ? *query_end
-                                                 : query + std::strlen(query));
+  const char *end =
+      (query_end && *query_end) ? *query_end : query + std::strlen(query);
   MYSQL_RES *res = NULL;
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
@@ -2679,7 +2678,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
     }
     end = result.str + result.length - 1;
     /* Evaluation should not recurse via backtick */
-    eval_expr(var, result.str, (const char **)&end, false, false);
+    eval_expr(var, result.str, &end, false, false);
     dynstr_free(&result);
   } else
     eval_expr(var, "", 0);
@@ -2961,10 +2960,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
     if (std::strncmp(p, get_value_str, len) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
-      command.query = (char *)p;
+      command.query = const_cast<char *>(p);
       command.first_word_len = len;
       command.first_argument = command.query + len;
-      command.end = (char *)*p_end;
+      command.end = const_cast<char *>(*p_end);
       var_set_query_get_value(&command, v);
       DBUG_VOID_RETURN;
     }
@@ -2974,10 +2973,10 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
     if (std::strncmp(p, get_value_str1, len1) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
-      command.query = (char *)p;
+      command.query = const_cast<char *>(p);
       command.first_word_len = len;
       command.first_argument = command.query + len;
-      command.end = (char *)*p_end;
+      command.end = const_cast<char *>(*p_end);
       var_set_convert_error(&command, v);
       DBUG_VOID_RETURN;
     }
@@ -3220,7 +3219,7 @@ static void replace_crlf_with_lf(char *buf) {
 static void do_exec(struct st_command *command, bool run_in_background) {
   DBUG_ENTER("do_exec");
 
-  char *cmd = command->first_argument;
+  const char *cmd = command->first_argument;
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
   // Skip leading space
@@ -3426,7 +3425,7 @@ static int do_modify_var(struct st_command *command, enum enum_operator op) {
       break;
   }
   v->int_dirty = true;
-  command->last_argument = (char *)++p;
+  command->last_argument = const_cast<char *>(++p);
   return 0;
 }
 
@@ -4609,7 +4608,8 @@ static struct st_connection *find_connection_by_name(const char *name) {
 */
 
 static void do_send_quit(struct st_command *command) {
-  char *p = command->first_argument, *name;
+  char *p = command->first_argument;
+  const char *name;
   struct st_connection *con;
 
   DBUG_ENTER("do_send_quit");
@@ -5108,7 +5108,7 @@ static void check_variable_name(const char *var_name, const char *var_name_end,
   is_operator()
   op - character pointer to mathematical expression
 */
-static bool is_operator(char *op) {
+static bool is_operator(const char *op) {
   if (*op == '+')
     return true;
   else if (*op == '-')
@@ -5183,14 +5183,14 @@ static bool is_operator(char *op) {
 static void do_expr(struct st_command *command) {
   DBUG_ENTER("do_expr");
 
-  char *p = command->first_argument;
+  const char *p = command->first_argument;
   if (!*p) die("Missing arguments to expr command.");
 
   // Find <var_name>
-  char *var_name = p;
+  const char *var_name = p;
   while (*p && (*p != '=') && !my_isspace(charset_info, *p)) p++;
-  char *var_name_end = p;
-  check_variable_name(var_name, var_name_end, 1);
+  const char *var_name_end = p;
+  check_variable_name(var_name, var_name_end, true);
 
   // Skip spaces between <var_name> and '='
   while (my_isspace(charset_info, *p)) p++;
@@ -5204,10 +5204,10 @@ static void do_expr(struct st_command *command) {
   const char *expr = p;
 
   // First operand in the expression
-  char *operand_name = p;
+  const char *operand_name = p;
   while (*p && !is_operator(p) && !my_isspace(charset_info, *p)) p++;
   const char *operand_name_end = p;
-  check_variable_name(operand_name, operand_name_end, 0);
+  check_variable_name(operand_name, operand_name_end, false);
   VAR *v1 = var_get(operand_name, &operand_name_end, 0, 0);
 
   double operand1;
@@ -5221,7 +5221,7 @@ static void do_expr(struct st_command *command) {
   while (*p && my_isspace(charset_info, *p)) p++;
 
   // Extract the operator
-  char *operator_start = p;
+  const char *operator_start = p;
   while (*p && (*p != '$') &&
          !(my_isspace(charset_info, *p) || my_isvar(charset_info, *p)))
     p++;
@@ -5238,7 +5238,7 @@ static void do_expr(struct st_command *command) {
   operand_name = p;
   while (*p && !my_isspace(charset_info, *p)) p++;
   operand_name_end = p;
-  check_variable_name(operand_name, operand_name_end, 0);
+  check_variable_name(operand_name, operand_name_end, false);
   VAR *v2 = var_get(operand_name, &operand_name_end, 0, 0);
 
   double operand2;
@@ -5340,8 +5340,8 @@ static void do_expr(struct st_command *command) {
 */
 
 static void do_let(struct st_command *command) {
-  char *p = command->first_argument;
-  char *var_name, *var_name_end;
+  const char *p = command->first_argument;
+  const char *var_name, *var_name_end;
   DYNAMIC_STRING let_rhs_expr;
   DBUG_ENTER("do_let");
 
@@ -6114,10 +6114,11 @@ static void do_error(struct st_command *command) {
   If string is a '$variable', return the value of the variable.
 */
 
-static char *get_string(char **to_ptr, char **from_ptr,
+static char *get_string(char **to_ptr, const char **from_ptr,
                         struct st_command *command) {
   char c, sep;
-  char *to = *to_ptr, *from = *from_ptr, *start = to;
+  char *to = *to_ptr, *start = to;
+  const char *from = *from_ptr;
   DBUG_ENTER("get_string");
 
   /* Find separator */
@@ -6168,7 +6169,7 @@ static char *get_string(char **to_ptr, char **from_ptr,
   if (*start == '$') {
     const char *end = to;
     VAR *var = var_get(start, &end, 0, 1);
-    if (var && to == (char *)end + 1) {
+    if (var && to == end + 1) {
       DBUG_PRINT("info", ("var: '%s' -> '%s'", start, var->str_val));
       DBUG_RETURN(var->str_val); /* return found variable value */
     }
@@ -6823,8 +6824,9 @@ static enum block_op find_operand(const char *start) {
 */
 
 static void do_block(enum block_cmd cmd, struct st_command *command) {
-  char *p = command->first_argument;
-  const char *expr_start, *expr_end;
+  const char *p = command->first_argument;
+  const char *expr_start;
+  const char *expr_end;
   VAR v;
   const char *cmd_name = (cmd == cmd_while ? "while" : "if");
   bool not_expr = false;
@@ -6862,7 +6864,7 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
   /* Find ending ')' */
   expr_end = strrchr(expr_start, ')');
   if (!expr_end) die("missing ')' in %s", cmd_name);
-  p = (char *)expr_end + 1;
+  p = expr_end + 1;
 
   while (*p && my_isspace(charset_info, *p)) p++;
   if (*p && *p != '{') die("Missing '{' after %s. Found \"%s\"", cmd_name, p);
@@ -7679,8 +7681,13 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     }
     case 'p':
-      if (argument == disabled_my_option)
-        argument = (char *)"";  // Don't require password
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         my_free(opt_pass);
         opt_pass = my_strdup(PSI_NOT_INSTRUMENTED, argument, MYF(MY_FAE));
@@ -8116,7 +8123,7 @@ static void append_metadata(DYNAMIC_STRING *ds, MYSQL_FIELD *field,
     dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_uint(ds, field->max_length);
     dynstr_append_mem(ds, "\t", 1);
-    dynstr_append_mem(ds, (char *)(IS_NOT_NULL(field->flags) ? "N" : "Y"), 1);
+    dynstr_append_mem(ds, (IS_NOT_NULL(field->flags) ? "N" : "Y"), 1);
     dynstr_append_mem(ds, "\t", 1);
     replace_dynstr_append_uint(ds, field->flags);
     dynstr_append_mem(ds, "\t", 1);
@@ -8336,9 +8343,9 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
 /// @param ds_warnings Buffer to store the warnings generated while
 ///                    executing the query.
 static void run_query_normal(struct st_connection *cn,
-                             struct st_command *command, int flags, char *query,
-                             size_t query_len, DYNAMIC_STRING *ds,
-                             DYNAMIC_STRING *ds_warnings) {
+                             struct st_command *command, int flags,
+                             const char *query, size_t query_len,
+                             DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings) {
   int error = 0;
   std::uint32_t counter = 0;
   MYSQL *mysql = &cn->mysql;
@@ -8472,8 +8479,8 @@ end:
 /// @param ds_warnings Buffer to store the warnings generated while
 ///                    executing the query.
 static void run_query_stmt(MYSQL *mysql, struct st_command *command,
-                           char *query, size_t query_len, DYNAMIC_STRING *ds,
-                           DYNAMIC_STRING *ds_warnings) {
+                           const char *query, size_t query_len,
+                           DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_warnings) {
   // Init a new stmt if it's not already one created for this connection.
   MYSQL_STMT *stmt;
   if (!(stmt = cur_con->stmt)) {
@@ -8717,7 +8724,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
   DYNAMIC_STRING ds_sorted;
   DYNAMIC_STRING ds_warnings;
   DYNAMIC_STRING eval_query;
-  char *query;
+  const char *query;
   size_t query_len;
   bool view_created = 0, sp_created = 0;
   bool complete_query =
@@ -8793,7 +8800,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
         Yes, it was possible to create this query as a view
       */
       view_created = 1;
-      query = (char *)"SELECT * FROM mysqltest_tmp_v";
+      query = "SELECT * FROM mysqltest_tmp_v";
       query_len = std::strlen(query);
 
       /*
@@ -8835,7 +8842,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     } else {
       sp_created = 1;
 
-      query = (char *)"CALL mysqltest_tmp_sp()";
+      query = "CALL mysqltest_tmp_sp()";
       query_len = std::strlen(query);
     }
     dynstr_free(&query_str);
@@ -8967,10 +8974,10 @@ static void run_explain(struct st_connection *cn, struct st_command *command,
   @retval 1 If the pattern is found.
   @retval 0 If the pattern is not found.
 */
-static int search_protocol_re(std::regex *re, char *str) {
+static int search_protocol_re(std::regex *re, const char *str) {
   while (my_isspace(charset_info, *str)) str++;
   if (str[0] == '/' && str[1] == '*') {
-    char *comm_end = strstr(str, "*/");
+    const char *comm_end = strstr(str, "*/");
     if (!comm_end) die("Statement is unterminated comment");
     str = comm_end + 2;
   }
@@ -10143,7 +10150,7 @@ ulonglong timer_now(void) { return my_micro_time() / 1000; }
 */
 
 void do_get_replace_column(struct st_command *command) {
-  char *from = command->first_argument;
+  const char *from = command->first_argument;
   char *buff, *start;
   DBUG_ENTER("get_replace_columns");
 
@@ -10333,7 +10340,8 @@ struct POINTER_ARRAY {  /* when using array-strings */
   uint array_allocs{0}, max_count{0}, length{0}, max_length{0};
 };
 
-REPLACE *init_replace(char **from, char **to, uint count, char *word_end_chars);
+REPLACE *init_replace(const char **from, const char **to, uint count,
+                      const char *word_end_chars);
 int insert_pointer_name(POINTER_ARRAY *pa, char *name);
 void free_pointer_array(POINTER_ARRAY *pa);
 
@@ -10347,7 +10355,7 @@ void free_pointer_array(POINTER_ARRAY *pa);
 
 void do_get_replace(struct st_command *command) {
   uint i;
-  char *from = command->first_argument;
+  const char *from = command->first_argument;
   char *buff, *start;
   char word_end_chars[256], *pos;
   POINTER_ARRAY to_array, from_array;
@@ -10374,10 +10382,9 @@ void do_get_replace(struct st_command *command) {
   for (i = 1, pos = word_end_chars; i < 256; i++)
     if (my_isspace(charset_info, i)) *pos++ = i;
   *pos = 0; /* End pointer */
-  if (!(glob_replace =
-            init_replace((char **)from_array.typelib.type_names,
-                         (char **)to_array.typelib.type_names,
-                         (uint)from_array.typelib.count, word_end_chars)))
+  if (!(glob_replace = init_replace(
+            from_array.typelib.type_names, to_array.typelib.type_names,
+            (uint)from_array.typelib.count, word_end_chars)))
     die("Can't initialize replace from '%s'", command->query);
   free_pointer_array(&from_array);
   free_pointer_array(&to_array);
@@ -10400,7 +10407,7 @@ struct REPLACE {
 
 struct REPLACE_STRING {
   int found;
-  char *replace_string;
+  const char *replace_string;
   uint to_offset;
   int from_offset;
 };
@@ -10485,10 +10492,11 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
                 for substitution.
   @retval st_replace_regex structure with pairs of substitutions.
 */
-static struct st_replace_regex *init_replace_regex(char *expr) {
+static struct st_replace_regex *init_replace_regex(const char *expr) {
   struct st_replace_regex *res;
-  char *buf, *expr_end;
-  char *p;
+  char *buf;
+  const char *expr_end;
+  const char *p;
   char *buf_p;
   size_t expr_len = std::strlen(expr);
   char last_c = 0;
@@ -10668,7 +10676,7 @@ int multi_reg_replace(struct st_replace_regex *r, char *val, size_t *len) {
 
 */
 void do_get_replace_regex(struct st_command *command) {
-  char *expr = command->first_argument;
+  const char *expr = command->first_argument;
   free_replace_regex();
   /* Allow variable for the *entire* list of replacements */
   if (*expr == '$') {
@@ -10739,12 +10747,12 @@ int cmp_bits(REP_SET *set1, REP_SET *set2);
 int get_next_bit(REP_SET *set, uint lastpos);
 int find_set(REP_SETS *sets, REP_SET *find);
 int find_found(FOUND_SET *found_set, uint table_offset, int found_offset);
-uint start_at_word(char *pos);
-uint end_of_word(char *pos);
+uint start_at_word(const char *pos);
+uint end_of_word(const char *pos);
 
 static uint found_sets = 0;
 
-static uint replace_len(char *str) {
+static uint replace_len(const char *str) {
   uint len = 0;
   while (*str) {
     str++;
@@ -10755,8 +10763,8 @@ static uint replace_len(char *str) {
 
 /* Init a replace structure for further calls */
 
-REPLACE *init_replace(char **from, char **to, uint count,
-                      char *word_end_chars) {
+REPLACE *init_replace(const char **from, const char **to, uint count,
+                      const char *word_end_chars) {
   static const int SPACE_CHAR = 256;
   static const int END_OF_LINE = 258;
 
@@ -10764,7 +10772,8 @@ REPLACE *init_replace(char **from, char **to, uint count,
       bit_nr;
   int used_sets, chr, default_state;
   char used_chars[LAST_CHAR_CODE], is_word_end[256];
-  char *pos, *to_pos, **to_array;
+  const char *pos, **to_array;
+  char *to_pos;
   REP_SETS sets;
   REP_SET *set, *start_states, *word_states, *new_set;
   FOLLOWS *follow, *follow_ptr;
@@ -10946,7 +10955,7 @@ REPLACE *init_replace(char **from, char **to, uint count,
                                     sizeof(char *) * count + result_len,
                                 MYF(MY_WME | MY_ZEROFILL)))) {
     rep_str = (REPLACE_STRING *)(replace + sets.count);
-    to_array = (char **)(rep_str + found_sets + 1);
+    to_array = pointer_cast<const char **>(rep_str + found_sets + 1);
     to_pos = (char *)(to_array + count);
     for (i = 0; i < count; i++) {
       to_array[i] = to_pos;
@@ -11129,13 +11138,13 @@ int find_found(FOUND_SET *found_set, uint table_offset, int found_offset) {
 
 /* Return 1 if regexp starts with \b or ends with \b*/
 
-uint start_at_word(char *pos) {
+uint start_at_word(const char *pos) {
   return (((!memcmp(pos, "\\b", 2) && pos[2]) || !memcmp(pos, "\\^", 2)) ? 1
                                                                          : 0);
 }
 
-uint end_of_word(char *pos) {
-  char *end = strend(pos);
+uint end_of_word(const char *pos) {
+  const char *end = strend(pos);
   return ((end > pos + 2 && !memcmp(end - 2, "\\b", 2)) ||
           (end >= pos + 2 && !memcmp(end - 2, "\\$", 2)))
              ? 1
@@ -11237,13 +11246,13 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
 
   if (display_result_lower) {
     /* Convert to lower case, and do this first */
-    my_casedn_str(charset_info, (char *)val);
+    my_casedn_str(charset_info, const_cast<char *>(val));
   }
 
   if (glob_replace_regex) {
     size_t orig_len = len;
     // Regex replace
-    if (!multi_reg_replace(glob_replace_regex, (char *)val, &len)) {
+    if (!multi_reg_replace(glob_replace_regex, const_cast<char *>(val), &len)) {
       val = glob_replace_regex->buf;
     } else {
       len = orig_len;

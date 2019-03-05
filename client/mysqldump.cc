@@ -570,7 +570,8 @@ static int init_dumping_tables(char *);
 static int init_dumping(char *, int init_func(char *));
 static int dump_databases(char **);
 static int dump_all_databases();
-static char *quote_name(const char *name, char *buff, bool force);
+static char *quote_name(char *name, char *buff, bool force);
+static const char *quote_name(const char *name, char *buff, bool force);
 char check_if_ignore_table(const char *table_name, char *table_type);
 bool is_infoschema_db(const char *db);
 static char *primary_key_fields(const char *table_name);
@@ -756,8 +757,13 @@ static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
     case 'p':
-      if (argument == disabled_my_option)
-        argument = const_cast<char *>(""); /* Don't require password */
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         char *start = argument;
         my_free(opt_password);
@@ -1094,7 +1100,7 @@ static int fetch_db_collation(const char *db_name, char *db_cl_name,
   MYSQL_RES *db_cl_res;
   MYSQL_ROW db_cl_row;
   char quoted_database_buf[NAME_LEN * 2 + 3];
-  char *qdatabase = quote_name(db_name, quoted_database_buf, 1);
+  const char *qdatabase = quote_name(db_name, quoted_database_buf, 1);
 
   snprintf(query, sizeof(query), "use %s", qdatabase);
 
@@ -1125,14 +1131,14 @@ static int fetch_db_collation(const char *db_name, char *db_cl_name,
   return err_status ? 1 : 0;
 }
 
-static char *my_case_str(const char *str, size_t str_len, const char *token,
+static char *my_case_str(char *str, size_t str_len, const char *token,
                          size_t token_len) {
   my_match_t match;
 
   uint status = my_charset_latin1.coll->strstr(&my_charset_latin1, str, str_len,
                                                token, token_len, &match, 1);
 
-  return status ? (char *)str + match.end : NULL;
+  return status ? str + match.end : NULL;
 }
 
 static int switch_db_collation(FILE *sql_file, const char *db_name,
@@ -1142,7 +1148,7 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
                                int *db_cl_altered) {
   if (strcmp(current_db_cl_name, required_db_cl_name) != 0) {
     char quoted_db_buf[NAME_LEN * 2 + 3];
-    char *quoted_db_name = quote_name(db_name, quoted_db_buf, false);
+    const char *quoted_db_name = quote_name(db_name, quoted_db_buf, false);
 
     CHARSET_INFO *db_cl = get_charset_by_name(required_db_cl_name, MYF(0));
 
@@ -1165,7 +1171,7 @@ static int switch_db_collation(FILE *sql_file, const char *db_name,
 static int restore_db_collation(FILE *sql_file, const char *db_name,
                                 const char *delimiter, const char *db_cl_name) {
   char quoted_db_buf[NAME_LEN * 2 + 3];
-  char *quoted_db_name = quote_name(db_name, quoted_db_buf, false);
+  const char *quoted_db_name = quote_name(db_name, quoted_db_buf, false);
 
   CHARSET_INFO *db_cl = get_charset_by_name(db_cl_name, MYF(0));
 
@@ -1293,7 +1299,7 @@ static int switch_character_set_results(MYSQL *mysql, const char *cs_name) {
   @return pointer to the new allocated query string.
 */
 
-static char *cover_definer_clause(const char *stmt_str, size_t stmt_length,
+static char *cover_definer_clause(char *stmt_str, size_t stmt_length,
                                   const char *definer_version_str,
                                   size_t definer_version_length,
                                   const char *stmt_version_str,
@@ -1611,12 +1617,11 @@ static bool test_if_special_chars(const char *str) {
   buff                 quoted string
 
 */
-static char *quote_name(const char *name, char *buff, bool force) {
+static char *quote_name(char *name, char *buff, bool force) {
   char *to = buff;
   char qtype = ansi_quotes_mode ? '"' : '`';
 
-  if (!force && !opt_quoted && !test_if_special_chars(name))
-    return (char *)name;
+  if (!force && !opt_quoted && !test_if_special_chars(name)) return name;
   *to++ = qtype;
   while (*name) {
     if (*name == qtype) *to++ = qtype;
@@ -1626,6 +1631,10 @@ static char *quote_name(const char *name, char *buff, bool force) {
   to[1] = 0;
   return buff;
 } /* quote_name */
+
+static const char *quote_name(const char *name, char *buff, bool force) {
+  return quote_name(const_cast<char *>(name), buff, force);
+}
 
 /*
   Quote a table name so it can be used in "SHOW TABLES LIKE <tabname>"
@@ -2239,7 +2248,8 @@ static uint dump_events_for_db(char *db) {
 static void print_blob_as_hex(FILE *output_file, const char *str, ulong len) {
   /* sakaik got the idea to to provide blob's in hex notation. */
   const char *ptr = str, *end = ptr + len;
-  for (; ptr < end; ptr++) fprintf(output_file, "%02X", *((uchar *)ptr));
+  for (; ptr < end; ptr++)
+    fprintf(output_file, "%02X", static_cast<uchar>(*ptr));
   check_io(output_file);
 }
 
@@ -2507,7 +2517,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
                                 char *ignore_flag, bool real_columns[]) {
   bool init = 0, write_data, complete_insert, skip_ddl;
   my_ulonglong num_fields;
-  char *result_table, *opt_quoted_table;
+  const char *result_table, *opt_quoted_table;
   const char *insert_option;
   char name_buff[NAME_LEN + 3], table_buff[NAME_LEN * 2 + 3];
   char table_buff2[NAME_LEN * 2 + 3], query_buff[QUERY_LENGTH];
@@ -3044,7 +3054,8 @@ static void dump_trigger_old(FILE *sql_file, MYSQL_RES *show_triggers_rs,
                              MYSQL_ROW *show_trigger_row,
                              const char *table_name) {
   char quoted_table_name_buf[NAME_LEN * 2 + 3];
-  char *quoted_table_name = quote_name(table_name, quoted_table_name_buf, 1);
+  const char *quoted_table_name =
+      quote_name(table_name, quoted_table_name_buf, 1);
 
   char name_buff[NAME_LEN * 4 + 3];
   const char *xml_msg =
@@ -4454,15 +4465,15 @@ static int dump_all_tables_in_db(char *database) {
     char table_type[NAME_LEN];
     char ignore_flag;
     if (general_log_table_exists) {
-      if (!get_table_structure((char *)"general_log", database, table_type,
+      if (!get_table_structure("general_log", database, table_type,
                                &ignore_flag, real_columns))
         verbose_msg(
             "-- Warning: get_table_structure() failed with some internal "
             "error for 'general_log' table\n");
     }
     if (slow_log_table_exists) {
-      if (!get_table_structure((char *)"slow_log", database, table_type,
-                               &ignore_flag, real_columns))
+      if (!get_table_structure("slow_log", database, table_type, &ignore_flag,
+                               real_columns))
         verbose_msg(
             "-- Warning: get_table_structure() failed with some internal "
             "error for 'slow_log' table\n");
@@ -5573,7 +5584,7 @@ int main(int argc, char **argv) {
   int exit_code, md_result_fd = 0;
   MY_INIT("mysqldump");
 
-  default_charset = (char *)mysql_universal_client_charset;
+  default_charset = mysql_universal_client_charset;
 
   exit_code = get_options(&argc, &argv);
   if (exit_code) {

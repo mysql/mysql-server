@@ -308,8 +308,13 @@ static bool get_one_option(int optid, const struct my_option *opt,
       opt_verbose++;
       break;
     case 'p':
-      if (argument == disabled_my_option)
-        argument = const_cast<char *>(""); /* Don't require password */
+      if (argument == disabled_my_option) {
+        // Don't require password
+        static char empty_password[] = {'\0'};
+        DBUG_ASSERT(empty_password[0] ==
+                    '\0');  // Check that it has not been overwritten
+        argument = empty_password;
+      }
       if (argument) {
         char *start = argument;
         my_free(opt_password);

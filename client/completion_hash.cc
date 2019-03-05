@@ -60,8 +60,8 @@ int completion_hash_init(HashTable *ht, uint nSize) {
   return SUCCESS;
 }
 
-int completion_hash_update(HashTable *ht, char *arKey, uint nKeyLength,
-                           char *str) {
+int completion_hash_update(HashTable *ht, const char *arKey, uint nKeyLength,
+                           const char *str) {
   uint h, nIndex;
 
   Bucket *p;
@@ -164,7 +164,7 @@ Bucket *find_all_matches(HashTable *ht, const char *str, uint length,
 Bucket *find_longest_match(HashTable *ht, char *str, uint length,
                            uint *res_length) {
   Bucket *b, *return_b;
-  char *s;
+  const char *s;
   uint count;
   uint lm;
 
@@ -201,8 +201,8 @@ void completion_hash_free(HashTable *ht) {
   my_free(ht->arBuckets);
 }
 
-void add_word(HashTable *ht, char *str) {
+void add_word(HashTable *ht, const char *str) {
   int i;
-  char *pos = str;
+  const char *pos = str;
   for (i = 1; *pos; i++, pos++) completion_hash_update(ht, str, i, str);
 }
