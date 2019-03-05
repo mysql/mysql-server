@@ -1282,6 +1282,8 @@ int main(int argc, char *argv[]) {
   }
   my_getopt_use_args_separator = false;
 
+  get_current_os_user();
+  get_current_os_sudouser();
   if (get_options(argc, (char **)argv)) {
     my_end(0);
     return EXIT_FAILURE;
@@ -1938,8 +1940,6 @@ bool get_one_option(int optid,
         put_info(strerror(errno), INFO_ERROR, errno);
         return 1;
       }
-      get_current_os_user();
-      get_current_os_sudouser();
       opt_syslog = 1;
       break;
     case 'o':
@@ -4566,6 +4566,12 @@ static bool init_connection_options(MYSQL *mysql) {
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
+  if (current_os_user)
+    mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "os_user",
+                   current_os_user);
+  if (current_os_sudouser)
+    mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "os_sudouser",
+                   current_os_sudouser);
 
   mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
