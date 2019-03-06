@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -47,13 +47,13 @@ Session::Session(ngs::Client_interface *client,
       m_document_id_aggregator(&client->server().get_document_id_generator()) {}
 
 Session::~Session() {
+  m_sql.deinit();
+
   if (m_was_authenticated)
     --Global_status_variables::instance().m_sessions_count;
 
   if (m_failed_auth_count > 0 && !m_was_authenticated)
     ++Global_status_variables::instance().m_rejected_sessions_count;
-
-  m_sql.deinit();
 }
 
 // handle a message while in Ready state

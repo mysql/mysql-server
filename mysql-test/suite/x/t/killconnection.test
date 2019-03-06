@@ -2,7 +2,6 @@
 ##
 --source include/restart_mysqld.inc
 
---sleep 2
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unhandled message of type 12'");
@@ -30,8 +29,6 @@ EOF
 set @current := connection_id();
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 kill %MYSQLTEST_CONNECTION_ID%;
-select sleep(1);
-select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
 -->expecterror ER_QUERY_INTERRUPTED
 -->sql
@@ -70,7 +67,6 @@ select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->expecterror ER_NO_SUCH_THREAD
 -->sql
 kill 5126;
-select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
 EOF
 
@@ -84,24 +80,48 @@ let $MYSQLTEST_CONNID_1=`select connection_id()`;
 --replace_regex /localhost:[0-9]*/localhost/ /kill [0-9]+/kill $CONNECTION_ID/ /thread [0-9]+/thread $CONNECTION_ID/
 --exec $MYSQLXTEST -u killsession --password='killsession' --file=$MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_1 2>&1
 
+--connection default
+let $wait_for_status_variable =
+ 'Mysqlx_sessions_closed',
+ 'Mysqlx_sessions';
+let $wait_for_status_value = 2, 0;
+source ../include/wait_for_status_variables.inc;
 ###try killing sessionid which doesn't exists when mysqlxplugin installed using mysqlx protocol
 ###show processlist returns 0 rows effected even more rows are returned Bug#21392187
 --replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killinvalid.tmp 2>&1
 
+--connection default
+let $wait_for_status_variable =
+ 'Mysqlx_sessions_closed',
+ 'Mysqlx_sessions';
+let $wait_for_status_value = 3, 0;
+source ../include/wait_for_status_variables.inc;
 --connect(con1,localhost,x_root,,)
 let $MYSQLTEST_CONNID_2=`select connection_id()`;
 ###try killing both mysqlx and mysql session ids using mysqlx protocol (expect error from getting killed)
 --replace_regex /localhost:[0-9]*/localhost/ /kill [0-9]+/kill CONNECTION_ID/ /Execute/Query/
 --exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_2 2>&1
 
+--connection default
+let $wait_for_status_variable =
+ 'Mysqlx_sessions_fatal_error',
+ 'Mysqlx_sessions';
+let $wait_for_status_value = 1, 0;
+source ../include/wait_for_status_variables.inc;
+select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
+
 ###kill mysqlx protocol session using mysqlx protocol when mysqlxplugin installed (expect error again)
 --replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
 --exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.tmp 2>&1
 
-##todo: ensure that after client disconnection last session was destroyed
---sleep 1
 --connection default
+let $wait_for_status_variable =
+ 'Mysqlx_sessions_fatal_error',
+ 'Mysqlx_sessions';
+let $wait_for_status_value = 2, 0;
+source ../include/wait_for_status_variables.inc;
+select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 ##expect Mysqlx_sessions_fatal_error incremented when killing its own session
 show status like 'Mysqlx_sessions%';
 
