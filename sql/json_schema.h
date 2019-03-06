@@ -58,10 +58,65 @@
 
 #include <rapidjson/schema.h>
 #include <cstddef>
+#include <string>
 
 #include "my_alloc.h"
 
 struct MEM_ROOT;
+
+/**
+  Json_schema_validation_report contains a more detailed report about a failed
+  JSON Schema validation. It's mainly used by the function
+  JSON_SCHEMA_VALIDATION_REPORT to print out a more detailed report to the user.
+*/
+class Json_schema_validation_report {
+ public:
+  /// @returns a human readable reason why the validation failed
+  std::string human_readable_reason() const;
+
+  /**
+    @returns a JSON pointer in URI format, pointing to where in the JSON
+             Schema the validation failed
+  */
+  const std::string &schema_location() const { return m_schema_location; }
+
+  /**
+    @returns a string describing the name of the JSON Schema keyword that
+             failed validation
+  */
+  const std::string &schema_failed_keyword() const {
+    return m_schema_failed_keyword;
+  }
+
+  /**
+    @returns a JSON pointer in URI format, pointing to where in the JSON
+             document the validation failed
+  */
+  const std::string &document_location() const { return m_document_location; }
+
+  /**
+    Populates the object with validation information.
+
+    @param schema_location a JSON pointer in URI format, pointing to where in
+           the JSON Schema the validation failed
+    @param schema_failed_keyword a string describing the name of the JSON Schema
+           keyword that failed validation
+    @param document_location a JSON pointer in URI format, pointing to where in
+           the JSON document the validation failed
+  */
+  void set_error_report(std::string &&schema_location,
+                        const char *schema_failed_keyword,
+                        std::string &&document_location) {
+    m_schema_location = std::move(schema_location);
+    m_schema_failed_keyword = schema_failed_keyword;
+    m_document_location = std::move(document_location);
+  }
+
+ private:
+  std::string m_schema_location;
+  std::string m_schema_failed_keyword;
+  std::string m_document_location;
+};
 
 /**
   Json_schema_validator is an object that contains a JSON Schema that can
@@ -86,13 +141,17 @@ class Json_schema_validator {
     @param function_name The function name of the caller (to be used in error
                          reporting)
     @param[out] is_valid The result of the validation
+    @param[out] report A structure containing a detailed report from the
+                       validation. Is only populated if is_valid is set to
+                       "false" Can be nullptr if a detailed report isn't needed.
 
     @retval true on error (my_error has been called)
     @retval false on success (validation result can be found in the output
             parameter is_valid)
   */
   bool is_valid_json_schema(const char *document_str, size_t document_length,
-                            const char *function_name, bool *is_valid) const;
+                            const char *function_name, bool *is_valid,
+                            Json_schema_validation_report *report) const;
 
  private:
   /**
@@ -133,6 +192,9 @@ class Json_schema_validator {
   @param[out] is_valid A variable containing the result of the validation. If
                        true, the JSON document is valid according to the given
                        JSON Schema.
+  @param[out] report A structure containing a detailed report from the
+                     validation. Is only populated if is_valid is set to
+                     "false". Can be nullptr if a detailed report isn't needed.
 
   @retval true if anything went wrong (like parsing the JSON inputs). my_error
                has been called with an appopriate error message.
@@ -142,7 +204,8 @@ class Json_schema_validator {
 bool is_valid_json_schema(const char *document_str, size_t document_length,
                           const char *json_schema_str,
                           size_t json_schema_length, const char *function_name,
-                          bool *is_valid);
+                          bool *is_valid,
+                          Json_schema_validation_report *report);
 
 /**
   Create a Json_schema_validator, allocated on a given MEM_ROOT
@@ -155,8 +218,9 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
 
   @retval nullptr on error (my_error has been called)
 */
-unique_ptr_destroy_only<Json_schema_validator> create_json_schema_validator(
-    MEM_ROOT *mem_root, const char *json_schema_str, size_t json_schema_length,
-    const char *function_name);
+unique_ptr_destroy_only<const Json_schema_validator>
+create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,
+                             size_t json_schema_length,
+                             const char *function_name);
 
 #endif

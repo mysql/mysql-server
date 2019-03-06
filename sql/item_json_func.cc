@@ -503,37 +503,42 @@ longlong Item_func_json_valid::val_int() {
   }
 }
 
-bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
-  if (Item_bool_func::fix_fields(thd, ref)) {
-    return true;
-  }
-
-  if (args[0]->const_item()) {
-    if (!is_convertible_to_json(args[0])) {
-      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name());
+static bool evaluate_constant_json_schema(
+    THD *thd, Item *json_schema,
+    unique_ptr_destroy_only<const Json_schema_validator>
+        *cached_schema_validator,
+    Item **ref) {
+  const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
+  if (json_schema->const_item()) {
+    if (!is_convertible_to_json(json_schema)) {
+      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name);
       return true;
     }
 
     String schema_buffer;
-    String *schema_string = args[0]->val_str(&schema_buffer);
+    String *schema_string = json_schema->val_str(&schema_buffer);
     if (thd->is_error()) return true;
-    if (args[0]->null_value) {
-      DBUG_ASSERT(maybe_null);
-      Item *null_item = new (thd->mem_root) Item_null(item_name);
+    if (json_schema->null_value) {
+      Item *null_item = new (thd->mem_root) Item_null((*ref)->item_name);
       if (null_item == nullptr) return true;
       thd->change_item_tree(ref, null_item);
     } else {
-      m_cached_schema_validator =
+      *cached_schema_validator =
           create_json_schema_validator(thd->mem_root, schema_string->ptr(),
-                                       schema_string->length(), func_name());
+                                       schema_string->length(), func_name);
 
-      if (m_cached_schema_validator == nullptr) {
+      if (*cached_schema_validator == nullptr) {
         return true;
       }
     }
   }
-
   return false;
+}
+
+bool Item_func_json_schema_valid::fix_fields(THD *thd, Item **ref) {
+  return Item_bool_func::fix_fields(thd, ref) ||
+         evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
+                                       ref);
 }
 
 void Item_func_json_schema_valid::cleanup() {
@@ -545,29 +550,28 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
                                                          Item *a, Item *b)
     : Item_bool_func(pos, a, b) {}
 
-bool Item_func_json_schema_valid::val_bool() {
-  DBUG_ASSERT(fixed);
-
-  if (!is_convertible_to_json(args[1])) {
-    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 2, func_name());
+static bool do_json_schema_validation(
+    Item *json_schema, Item *json_document, const char *func_name,
+    const Json_schema_validator *cached_schema_validator, bool *null_value,
+    bool *validation_result, Json_schema_validation_report *validation_report) {
+  if (!is_convertible_to_json(json_document)) {
+    my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 2, func_name);
     return true;
   }
 
   String document_buffer;
-  String *document_string = args[1]->val_str(&document_buffer);
-  if (args[1]->null_value) {
-    DBUG_ASSERT(maybe_null);
-    null_value = true;
+  String *document_string = json_document->val_str(&document_buffer);
+  if (json_document->null_value) {
+    *null_value = true;
     return false;
   }
 
-  bool validation_result = false;
-  if (m_cached_schema_validator != nullptr) {
-    DBUG_ASSERT(args[0]->const_item());
-    if (m_cached_schema_validator->is_valid_json_schema(
-            document_string->ptr(), document_string->length(), func_name(),
-            &validation_result)) {
-      return error_bool();
+  if (cached_schema_validator != nullptr) {
+    DBUG_ASSERT(json_schema->const_item());
+    if (cached_schema_validator->is_valid_json_schema(
+            document_string->ptr(), document_string->length(), func_name,
+            validation_result, validation_report)) {
+      return true;
     }
   } else {
     // Fields that are a part of constant tables (i.e. primary key lookup) are
@@ -575,33 +579,105 @@ bool Item_func_json_schema_valid::val_bool() {
     // up the cached schema validator during fix_fields, the item will appear as
     // const here, and thus failing the assertion if we don't take constant
     // tables into account.
-    DBUG_ASSERT(!args[0]->const_item() ||
-                (args[0]->real_item()->type() == Item::FIELD_ITEM &&
-                 down_cast<const Item_field *>(args[0]->real_item())
+    DBUG_ASSERT(!json_schema->const_item() ||
+                (json_schema->real_item()->type() == Item::FIELD_ITEM &&
+                 down_cast<const Item_field *>(json_schema->real_item())
                      ->table_ref->table->const_table));
 
-    if (!is_convertible_to_json(args[0])) {
-      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name());
+    if (!is_convertible_to_json(json_schema)) {
+      my_error(ER_INVALID_TYPE_FOR_JSON, MYF(0), 1, func_name);
       return true;
     }
 
     String schema_buffer;
-    String *schema_string = args[0]->val_str(&schema_buffer);
-    if (args[0]->null_value) {
-      DBUG_ASSERT(maybe_null);
-      null_value = true;
+    String *schema_string = json_schema->val_str(&schema_buffer);
+    if (json_schema->null_value) {
+      *null_value = true;
       return false;
     }
 
     if (is_valid_json_schema(document_string->ptr(), document_string->length(),
                              schema_string->ptr(), schema_string->length(),
-                             func_name(), &validation_result)) {
-      return error_bool();
+                             func_name, validation_result, validation_report)) {
+      return true;
     }
   }
 
-  null_value = false;
+  *null_value = false;
+  return false;
+}
+
+bool Item_func_json_schema_valid::val_bool() {
+  DBUG_ASSERT(fixed);
+  bool validation_result = false;
+  if (do_json_schema_validation(args[0], args[1], func_name(),
+                                m_cached_schema_validator.get(), &null_value,
+                                &validation_result, nullptr)) {
+    return error_bool();
+  }
+
+  DBUG_ASSERT(maybe_null || !null_value);
   return validation_result;
+}
+
+bool Item_func_json_schema_validation_report::fix_fields(THD *thd, Item **ref) {
+  return Item_json_func::fix_fields(thd, ref) ||
+         evaluate_constant_json_schema(thd, args[0], &m_cached_schema_validator,
+                                       ref);
+}
+
+void Item_func_json_schema_validation_report::cleanup() {
+  Item_json_func::cleanup();
+  m_cached_schema_validator = nullptr;
+}
+
+Item_func_json_schema_validation_report::
+    Item_func_json_schema_validation_report(THD *thd, const POS &pos,
+                                            PT_item_list *a)
+    : Item_json_func(thd, pos, a) {}
+
+bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
+  DBUG_ASSERT(fixed);
+  bool validation_result = false;
+  Json_schema_validation_report validation_report;
+  if (do_json_schema_validation(args[0], args[1], func_name(),
+                                m_cached_schema_validator.get(), &null_value,
+                                &validation_result, &validation_report)) {
+    return error_bool();
+  }
+
+  DBUG_ASSERT(maybe_null || !null_value);
+  std::unique_ptr<Json_object> result(new (std::nothrow) Json_object());
+  if (result == nullptr) return error_json();  // OOM
+
+  Json_boolean *json_validation_result =
+      new (std::nothrow) Json_boolean(validation_result);
+  if (result->add_alias("valid", json_validation_result)) return error_json();
+
+  if (!validation_result) {
+    Json_string *json_human_readable_reason = new (std::nothrow)
+        Json_string(validation_report.human_readable_reason());
+    if (result->add_alias("reason", json_human_readable_reason))
+      return error_json();  // OOM
+
+    Json_string *json_schema_location =
+        new (std::nothrow) Json_string(validation_report.schema_location());
+    if (result->add_alias("schema-location", json_schema_location))
+      return error_json();  // OOM
+
+    Json_string *json_schema_failed_keyword = new (std::nothrow)
+        Json_string(validation_report.schema_failed_keyword());
+    if (result->add_alias("schema-failed-keyword", json_schema_failed_keyword))
+      return error_json();  // OOM
+
+    Json_string *json_document_location =
+        new (std::nothrow) Json_string(validation_report.document_location());
+    if (result->add_alias("document-location", json_document_location))
+      return error_json();  // OOM
+  }
+
+  *wr = Json_wrapper(std::move(result));
+  return false;
 }
 
 typedef Prealloced_array<size_t, 16> Sorted_index_array;

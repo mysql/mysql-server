@@ -29,6 +29,7 @@
 #include <rapidjson/memorystream.h>
 #include <rapidjson/reader.h>
 #include <rapidjson/schema.h>
+#include <rapidjson/stringbuffer.h>
 #include <string>
 #include <utility>
 
@@ -94,7 +95,8 @@ static bool parse_json_schema(const char *json_schema_str,
 bool is_valid_json_schema(const char *document_str, size_t document_length,
                           const char *json_schema_str,
                           size_t json_schema_length, const char *function_name,
-                          bool *is_valid) {
+                          bool *is_valid,
+                          Json_schema_validation_report *validation_report) {
   rapidjson::Document schema_document;
   if (parse_json_schema(json_schema_str, json_schema_length, function_name,
                         &schema_document)) {
@@ -103,30 +105,30 @@ bool is_valid_json_schema(const char *document_str, size_t document_length,
 
   return Json_schema_validator(schema_document)
       .is_valid_json_schema(document_str, document_length, function_name,
-                            is_valid);
+                            is_valid, validation_report);
 }
 
 Json_schema_validator::Json_schema_validator(
     const rapidjson::Document &schema_document)
     : m_cached_schema(schema_document, &m_remote_document_provider) {}
 
-unique_ptr_destroy_only<Json_schema_validator> create_json_schema_validator(
-    MEM_ROOT *mem_root, const char *json_schema_str, size_t json_schema_length,
-    const char *function_name) {
+unique_ptr_destroy_only<const Json_schema_validator>
+create_json_schema_validator(MEM_ROOT *mem_root, const char *json_schema_str,
+                             size_t json_schema_length,
+                             const char *function_name) {
   rapidjson::Document schema_document;
   if (parse_json_schema(json_schema_str, json_schema_length, function_name,
                         &schema_document)) {
     return nullptr;
   }
 
-  return make_unique_destroy_only<Json_schema_validator>(mem_root,
-                                                         schema_document);
+  return make_unique_destroy_only<const Json_schema_validator>(mem_root,
+                                                               schema_document);
 }
 
-bool Json_schema_validator::is_valid_json_schema(const char *document_str,
-                                                 size_t document_length,
-                                                 const char *function_name,
-                                                 bool *is_valid) const {
+bool Json_schema_validator::is_valid_json_schema(
+    const char *document_str, size_t document_length, const char *function_name,
+    bool *is_valid, Json_schema_validation_report *validation_report) const {
   // Set up the JSON Schema validator using Syntax_check_handler that will catch
   // JSON documents that are too deeply nested.
   Syntax_check_handler syntaxCheckHandler;
@@ -164,5 +166,39 @@ bool Json_schema_validator::is_valid_json_schema(const char *document_str,
   }
 
   *is_valid = validator.IsValid();
+  if (!validator.IsValid() && validation_report != nullptr) {
+    // Populate the validation report. Since the validator is local to this
+    // function, all strings provided by the validator must be allocated so that
+    // they survive beyond this function.
+    rapidjson::StringBuffer string_buffer;
+
+    // Where in the JSON Schema the validation failed.
+    validator.GetInvalidSchemaPointer().StringifyUriFragment(string_buffer);
+    std::string schema_location(string_buffer.GetString(),
+                                string_buffer.GetSize());
+
+    // Where in the JSON document the validation failed.
+    string_buffer.Clear();
+    validator.GetInvalidDocumentPointer().StringifyUriFragment(string_buffer);
+    std::string document_location(string_buffer.GetString(),
+                                  string_buffer.GetSize());
+
+    validation_report->set_error_report(std::move(schema_location),
+                                        validator.GetInvalidSchemaKeyword(),
+                                        std::move(document_location));
+  }
+
   return false;
+}
+
+std::string Json_schema_validation_report::human_readable_reason() const {
+  std::string reason;
+  reason.append("The JSON document location '");
+  reason.append(document_location());
+  reason.append("' failed requirement '");
+  reason.append(schema_failed_keyword());
+  reason.append("' at JSON Schema location '");
+  reason.append(schema_location());
+  reason.append("'");
+  return reason;
 }

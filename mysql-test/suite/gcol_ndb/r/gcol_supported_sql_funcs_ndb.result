@@ -2794,6 +2794,24 @@ a	b
 {}	1
 drop table t1;
 set sql_warnings = 0;
+# JSON_SCHEMA_VALIDATION_REPORT()
+set sql_warnings = 1;
+create table t1 (a varchar(1024), b varchar(1024) generated always as
+(JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', a)) virtual) charset latin1;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(1024) DEFAULT NULL,
+  `b` varchar(1024) GENERATED ALWAYS AS (json_schema_validation_report(_utf8mb4'{"type": "object"}',`a`)) VIRTUAL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t1 values ('{}', default);
+insert into t1 values ('[]', default);
+select * from t1;
+a	b
+[]	{"valid": false, "reason": "The JSON document location '#' failed requirement 'type' at JSON Schema location '#'", "schema-location": "#", "document-location": "#", "schema-failed-keyword": "type"}
+{}	{"valid": true}
+drop table t1;
+set sql_warnings = 0;
 #
 # OTHER FUNCTIONS
 #

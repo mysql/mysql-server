@@ -330,7 +330,34 @@ class Item_func_json_schema_valid final : public Item_bool_func {
  private:
   // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
   // are called.
-  unique_ptr_destroy_only<Json_schema_validator> m_cached_schema_validator;
+  unique_ptr_destroy_only<const Json_schema_validator>
+      m_cached_schema_validator;
+};
+
+/**
+  Represents the JSON function
+  JSON_SCHEMA_VALIDATION_REPORT( <json schema>, <json doc> )
+*/
+class Item_func_json_schema_validation_report final : public Item_json_func {
+ public:
+  Item_func_json_schema_validation_report(THD *thd, const POS &pos,
+                                          PT_item_list *a);
+
+  const char *func_name() const override {
+    return "json_schema_validation_report";
+  }
+
+  bool val_json(Json_wrapper *wr) override;
+
+  bool fix_fields(THD *, Item **) override;
+
+  void cleanup() override;
+
+ private:
+  // Wrap the object in a unique_ptr so that the relevant rapidjson destructors
+  // are called.
+  unique_ptr_destroy_only<const Json_schema_validator>
+      m_cached_schema_validator;
 };
 
 /**

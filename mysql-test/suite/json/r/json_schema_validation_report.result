@@ -1,0 +1,111 @@
+# See that NULL-handling is correct
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, NULL);
+JSON_SCHEMA_VALIDATION_REPORT(NULL, NULL)
+NULL
+SELECT JSON_SCHEMA_VALIDATION_REPORT(JSON_OBJECT(), NULL);
+JSON_SCHEMA_VALIDATION_REPORT(JSON_OBJECT(), NULL)
+NULL
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, JSON_OBJECT());
+JSON_SCHEMA_VALIDATION_REPORT(NULL, JSON_OBJECT())
+NULL
+# A few "happy" cases
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '{}');
+JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '{}')
+{"valid": true}
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "array"}', '[]');
+JSON_SCHEMA_VALIDATION_REPORT('{"type": "array"}', '[]')
+{"valid": true}
+# Cases where the JSON document is invalid
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '[]');
+JSON_SCHEMA_VALIDATION_REPORT('{"type": "object"}', '[]')
+{"valid": false, "reason": "The JSON document location '#' failed requirement 'type' at JSON Schema location '#'", "schema-location": "#", "document-location": "#", "schema-failed-keyword": "type"}
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{
+  "type": "object",
+  "properties": {
+    "geometry": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "minimum": -90
+        }
+      }
+    }
+ }
+}',
+'{
+  "geometry": {
+    "longitude": -90,
+    "latitude": -180
+  }
+}');
+JSON_SCHEMA_VALIDATION_REPORT('{
+  "type": "object",
+  "properties": {
+    "geometry": {
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "minimum": -90
+        }
+      }
+    }
+ }
+}',
+'{
+  "geometry": {
+    "longitude": -90,
+ 
+{"valid": false, "reason": "The JSON document location '#/geometry/latitude' failed requirement 'minimum' at JSON Schema location '#/properties/geometry/properties/latitude'", "schema-location": "#/properties/geometry/properties/latitude", "document-location": "#/geometry/latitude", "schema-failed-keyword": "minimum"}
+# A case where the JSON Schema is invalid
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{"type": "object-object"}', '{}');
+JSON_SCHEMA_VALIDATION_REPORT('{"type": "object-object"}', '{}')
+{"valid": false, "reason": "The JSON document location '#' failed requirement 'type' at JSON Schema location '#'", "schema-location": "#", "document-location": "#", "schema-failed-keyword": "type"}
+# Non-json JSON Schema input
+SELECT JSON_SCHEMA_VALIDATION_REPORT(POINT(1, 1), '{}');
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_validation_report; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{ bar', '{}');
+ERROR 22032: Invalid JSON text in argument 1 to function json_schema_validation_report: "Missing a name for object member." at position 2.
+# Non-object JSON Schema input
+SELECT JSON_SCHEMA_VALIDATION_REPORT('[]', '{}');
+ERROR 22032: Invalid JSON type in argument 1 to function json_schema_validation_report; an object is required.
+# Non-json JSON document input
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{}', POINT(1, 1));
+ERROR 22032: Invalid data type for JSON data in argument 2 to function json_schema_validation_report; a JSON string or JSON type is required.
+SELECT JSON_SCHEMA_VALIDATION_REPORT('{}', '{ bar');
+ERROR 22032: Invalid JSON text in argument 2 to function json_schema_validation_report: "Missing a name for object member." at position 2.
+# Wrong argument count
+SELECT JSON_SCHEMA_VALIDATION_REPORT();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALIDATION_REPORT'
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALIDATION_REPORT'
+SELECT JSON_SCHEMA_VALIDATION_REPORT(NULL, NULL, NULL);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_SCHEMA_VALIDATION_REPORT'
+# Ensure that our item tree transformation doesn't get stuck forever when
+# using prepared statements.
+PREPARE stmt FROM 'SELECT JSON_SCHEMA_VALIDATION_REPORT(?, ''{}'') FROM DUAL';
+SET @json_schema = '{"type":"object"}';
+SET @null = NULL;
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALIDATION_REPORT(?, '{}')
+{"valid": true}
+EXECUTE stmt USING @null;
+JSON_SCHEMA_VALIDATION_REPORT(?, '{}')
+NULL
+EXECUTE stmt USING @json_schema;
+JSON_SCHEMA_VALIDATION_REPORT(?, '{}')
+{"valid": true}
+#
+# Bug#29529220: WL#13005: ASSERTION FAILURE: `!ARGS[0]->CONST_ITEM()'
+# Bug#29528888: WL#11999: SIG6 IN ITEM_FUNC_JSON_SCHEMA_VALID::VAL_BOOL()
+#               AT ITEM_JSON_FUNC.CC
+#
+CREATE TABLE t1 (pk INT PRIMARY KEY, j JSON);
+INSERT INTO t1 VALUES (1, '{"key": "foobar"}' );
+SELECT JSON_SCHEMA_VALIDATION_REPORT(j, j) FROM t1 WHERE pk = 1;
+JSON_SCHEMA_VALIDATION_REPORT(j, j)
+{"valid": true}
+SELECT JSON_SCHEMA_VALIDATION_REPORT(t2.j, t2.j)
+FROM t1, (SELECT * FROM t1 WHERE pk = 1) t2;
+JSON_SCHEMA_VALIDATION_REPORT(t2.j, t2.j)
+{"valid": true}
+DROP TABLE t1;
