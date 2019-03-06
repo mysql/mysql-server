@@ -3088,7 +3088,7 @@ sub check_running_as_root () {
 sub check_debug_support ($) {
   my $mysqld_variables = shift;
 
-  if (!$mysqld_variables->{'debug'}) {
+  if (not exists $mysqld_variables->{'debug'}) {
     $debug_compiled_binaries = 0;
 
     if ($opt_debug) {
