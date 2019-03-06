@@ -1107,7 +1107,7 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
       "&disconnect_on_metadata_unavailable=yes");
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, 1000))
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, 5000))
       << router.get_full_output();
 
   /*

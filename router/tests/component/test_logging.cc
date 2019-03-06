@@ -411,7 +411,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   auto router = launch_router("-c " + conf_file);
 
-  bool ready = wait_for_port_ready(router_port, 1000);
+  bool ready = wait_for_port_ready(router_port, 5000);
   EXPECT_TRUE(ready) << router.get_full_output();
 
   // try to make a connection; this will fail but should generate a warning in

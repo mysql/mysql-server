@@ -137,7 +137,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
     auto router =
         RouterComponentTest::launch_router("-c " + conf_file, true, false);
     if (wait_for_md_refresh_started) {
-      bool ready = wait_for_refresh_thread_started(1000);
+      bool ready = wait_for_refresh_thread_started(5000);
       EXPECT_TRUE(ready) << get_router_log_output();
     }
 

@@ -192,7 +192,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     auto router = RouterComponentTest::launch_router("-c " + conf_file,
                                                      catch_stderr, with_sudo);
     if (wait_ready) {
-      bool ready = wait_for_port_ready(router_port, 1000);
+      bool ready = wait_for_port_ready(router_port, 5000);
       EXPECT_TRUE(ready) << get_router_log_output();
     }
 
