@@ -30,6 +30,8 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
 x_root	Query	executing
@@ -39,16 +41,12 @@ event_scheduler	Daemon	Waiting on empty queue
 RUN kill 5126
 While executing kill 5126:
 Got expected error: Unknown thread id: 5126 (code 1094)
-RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
-USER	COMMAND	STATE
-x_root	Query	executing
-root	Sleep	
-event_scheduler	Daemon	Waiting on empty queue
-0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Syncing with status [ 'Mysqlx_sessions_closed' == 3 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 RUN set @current := connection_id()
 
 0 rows affected
@@ -62,21 +60,17 @@ event_scheduler	Daemon	Waiting on empty queue
 RUN kill CONNECTION_ID
 
 0 rows affected
-RUN select sleep(1)
-sleep(1)
-0
-0 rows affected
-RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
-USER	COMMAND	STATE
-x_root	Query	executing
-root	Sleep	
-event_scheduler	Daemon	Waiting on empty queue
-0 rows affected
 RUN kill @current
 While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
 Application terminated with expected error: MySQL server has gone away (code 2006)
 ok
+# Syncing with status [ 'Mysqlx_sessions_fatal_error' == 1 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
+select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
+USER	COMMAND	STATE
+root	Query	executing
+event_scheduler	Daemon	Waiting on empty queue
 RUN set @current := connection_id()
 
 0 rows affected
@@ -91,6 +85,12 @@ While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
 Application terminated with expected error: MySQL server has gone away (code 2006)
 ok
+# Syncing with status [ 'Mysqlx_sessions_fatal_error' == 2 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
+select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
+USER	COMMAND	STATE
+root	Query	executing
+event_scheduler	Daemon	Waiting on empty queue
 show status like 'Mysqlx_sessions%';
 Variable_name	Value
 Mysqlx_sessions	0
