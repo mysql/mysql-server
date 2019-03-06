@@ -1617,13 +1617,12 @@ bool ha_ndbcluster::get_error_message(int error,
   bytes are unused.
 */
 static
-uint32 field_used_length(const Field* field)
+uint32 field_used_length(const Field* field, ptrdiff_t row_offset=0)
 {
  if (field->type() == MYSQL_TYPE_VARCHAR)
  {
-   const Field_varstring* f = static_cast<const Field_varstring*>(field);
-   return f->length_bytes + const_cast<Field_varstring*>(f)->data_length();
-                            // ^ no 'data_length() const'
+   const Field_varstring* f = down_cast<const Field_varstring*>(field);
+   return f->length_bytes + f->data_length(row_offset);
  }
  return field->pack_length();
 }
@@ -7010,83 +7009,82 @@ int ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 
   for (uint i= 0; i < table_share->fields; i++) 
   {
+    if (!bitmap_is_set(table->read_set, i))
+      continue;
+
     Field *field= table->field[i];
-    if (bitmap_is_set(table->read_set, i) && field->stored_in_db)
+    if (!field->stored_in_db)
+      continue;
+
+    if (likely(!(field->flags & BLOB_FLAG)))
     {
-      if (field->type() == MYSQL_TYPE_BIT)
+      if (field->is_real_null(src_offset))
       {
-        Field_bit *field_bit= static_cast<Field_bit*>(field);
-        if (!field->is_real_null(src_offset))
-        {
-          field->move_field_offset(src_offset);
-          longlong value= field_bit->val_int();
-          field->move_field_offset(dst_offset-src_offset);
-          field_bit->set_notnull();
-          /* Field_bit in DBUG requires the bit set in write_set for store(). */
-          my_bitmap_map *old_map=
-            dbug_tmp_use_all_columns(table, table->write_set);
-          ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
-          dbug_tmp_restore_column_map(table->write_set, old_map);
-          field->move_field_offset(-dst_offset);
-        }
+        /* NULL bits already set -> no further action needed. */
       }
-      else if (field->flags & BLOB_FLAG)
+      else if (likely(field->type() != MYSQL_TYPE_BIT))
       {
-        Field_blob *field_blob= (Field_blob *)field;
-        NdbBlob *ndb_blob= m_value[i].blob;
-        /* unpack_record *only* called for scan result processing
-         * *while* the scan is open and the Blob is active.
-         * Verify Blob state to be certain.
-         * Accessing PK/UK op Blobs after execute() is unsafe
-         */
-        DBUG_ASSERT(ndb_blob != nullptr);
-        DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
-        int isNull;
-        ndbcluster::ndbrequire(ndb_blob->getNull(isNull) == 0);
-        Uint64 len64= 0;
-        field_blob->move_field_offset(dst_offset);
-        if (!isNull)
-        {
-          ndbcluster::ndbrequire(ndb_blob->getLength(len64) == 0);
-          ndbcluster::ndbrequire(len64 <= (Uint64)0xffffffff);
-
-          if(len64 > field_blob->max_data_length())
-          {
-            len64 = calc_ndb_blob_len(ndb_blob->getColumn()->getCharset(), 
-                                    blob_ptr, field_blob->max_data_length());
-
-            // push a warning
-            push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
-                        WARN_DATA_TRUNCATED,
-                        "Truncated value from TEXT field \'%s\'", field_blob->field_name);
-
-          }
-          field->set_notnull();
-        }
-        /* Need not set_null(), as we initialized null bits to 1 above. */
-        field_blob->set_ptr((uint32)len64, blob_ptr);
-        field_blob->move_field_offset(-dst_offset);
-        blob_ptr+= (len64 + 7) & ~((Uint64)7);
+        /*
+          A normal, non-NULL field (not blob or bit type).
+          Only copy actually used bytes if varstrings.
+        */
+        const uint32 actual_length= field_used_length(field,src_offset);
+        field->set_notnull(dst_offset);
+        memcpy(field->ptr+dst_offset, field->ptr+src_offset, actual_length);
       }
-      else
+      else  //MYSQL_TYPE_BIT
       {
+        Field_bit *field_bit= down_cast<Field_bit*>(field);
         field->move_field_offset(src_offset);
-        /* Normal field (not blob or bit type). */
-        if (!field->is_null())
-        {
-          /* Only copy actually used bytes of varstrings. */
-          uint32 actual_length= field_used_length(field);
-          uchar *src_ptr= field->ptr;
-          field->move_field_offset(dst_offset - src_offset);
-          field->set_notnull();
-          memcpy(field->ptr, src_ptr, actual_length);
-          field->move_field_offset(-dst_offset);
-        }
-        else
-          field->move_field_offset(-src_offset);
-        /* No action needed for a NULL field. */
+        longlong value= field_bit->val_int();
+        field->move_field_offset(dst_offset-src_offset);
+        field_bit->set_notnull();
+        /* Field_bit in DBUG requires the bit set in write_set for store(). */
+        my_bitmap_map *old_map=
+          dbug_tmp_use_all_columns(table, table->write_set);
+        ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
+        dbug_tmp_restore_column_map(table->write_set, old_map);
+        field->move_field_offset(-dst_offset);
       }
-    }  // if(bitmap_is_set...
+    }
+    else // BLOB_FLAG
+    {
+      Field_blob *field_blob= (Field_blob *)field;
+      NdbBlob *ndb_blob= m_value[i].blob;
+      /* unpack_record *only* called for scan result processing
+       * *while* the scan is open and the Blob is active.
+       * Verify Blob state to be certain.
+       * Accessing PK/UK op Blobs after execute() is unsafe
+       */
+      DBUG_ASSERT(ndb_blob != nullptr);
+      DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
+      int isNull;
+      ndbcluster::ndbrequire(ndb_blob->getNull(isNull) == 0);
+      Uint64 len64= 0;
+      field_blob->move_field_offset(dst_offset);
+      if (!isNull)
+      {
+        ndbcluster::ndbrequire(ndb_blob->getLength(len64) == 0);
+        ndbcluster::ndbrequire(len64 <= (Uint64)0xffffffff);
+
+        if(len64 > field_blob->max_data_length())
+        {
+          len64 = calc_ndb_blob_len(ndb_blob->getColumn()->getCharset(),
+                                  blob_ptr, field_blob->max_data_length());
+
+          // push a warning
+          push_warning_printf(table->in_use, Sql_condition::SL_WARNING,
+                      WARN_DATA_TRUNCATED,
+                      "Truncated value from TEXT field \'%s\'", field_blob->field_name);
+
+        }
+        field->set_notnull();
+      }
+      /* Need not set_null(), as we initialized null bits to 1 above. */
+      field_blob->set_ptr((uint32)len64, blob_ptr);
+      field_blob->move_field_offset(-dst_offset);
+      blob_ptr+= (len64 + 7) & ~((Uint64)7);
+    }
   }  // for(...
 
   if (unlikely(!m_cond.check_condition()))
