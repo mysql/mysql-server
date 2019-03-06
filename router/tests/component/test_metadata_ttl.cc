@@ -207,7 +207,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
 
   auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
                                                   false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, 1000);
+  bool ready = wait_for_port_ready(md_server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -282,7 +282,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
 
   auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
                                                   false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, 1000);
+  bool ready = wait_for_port_ready(md_server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
   // launch the router with metadata-cache configuration

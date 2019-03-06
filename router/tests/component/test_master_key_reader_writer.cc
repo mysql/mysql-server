@@ -210,7 +210,7 @@ TEST_F(MasterKeyReaderWriterTest,
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -260,7 +260,7 @@ TEST_F(MasterKeyReaderWriterTest,
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -320,7 +320,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -355,7 +355,7 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -395,7 +395,7 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -459,7 +459,7 @@ TEST_F(MasterKeyReaderWriterTest,
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -502,7 +502,7 @@ TEST_F(MasterKeyReaderWriterTest,
   unsigned server_port = port_pool_.get_next_available();
   auto server_mock = launch_mysql_server_mock(
       get_data_dir().join("bootstrap.js").str(), server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -543,7 +543,7 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   // launch server
   auto server = launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   auto default_section_map = get_default_section_map();
@@ -591,7 +591,7 @@ TEST_F(MasterKeyReaderWriterTest,
 
   // launch server
   auto server = launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   auto default_section_map = get_default_section_map();
@@ -636,7 +636,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
 
   // launch second metadata server
   auto server = launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   auto default_section_map = get_default_section_map(true, true);
@@ -670,7 +670,7 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
 
   // launch second metadata server
   auto server = launch_mysql_server_mock(json_primary_node, server_port, false);
-  bool server_ready = wait_for_port_ready(server_port, 1000);
+  bool server_ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   auto incorrect_master_key_default_section_map =
@@ -763,7 +763,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_, 1000))
+    EXPECT_TRUE(wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT))
         << "Timed out waiting for mock server port ready\n"
         << server_mock.get_full_output();
     return server_mock;
@@ -789,7 +789,7 @@ class MasterKeyReaderWriterSystemDeploymentTest : public RouterComponentTest,
  */
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
   auto server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_, 1000);
+  bool server_ready = wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -829,7 +829,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        BootstrapFailsWhenCannotRunMasterKeyReader) {
   auto server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_, 1000);
+  bool server_ready = wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -864,7 +864,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
 TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
        BootstrapFailsWhenCannotRunMasterKeyWriter) {
   auto server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_, 1000);
+  bool server_ready = wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
@@ -906,7 +906,7 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   write_to_file(keyring_path, "keyring file content");
 
   auto server_mock = run_server_mock();
-  bool server_ready = wait_for_port_ready(server_port_, 1000);
+  bool server_ready = wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server_mock.get_full_output();
 
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);

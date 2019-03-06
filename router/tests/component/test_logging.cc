@@ -411,7 +411,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
 
   auto router = launch_router("-c " + conf_file);
 
-  bool ready = wait_for_port_ready(router_port, 5000);
+  bool ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(ready) << router.get_full_output();
 
   // try to make a connection; this will fail but should generate a warning in
@@ -1002,7 +1002,7 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // launch mock server and wait for it to start accepting connections
   RouterComponentTest::CommandHandle server_mock =
       launch_mysql_server_mock(json_stmts, server_port);
-  EXPECT_TRUE(wait_for_port_ready(server_port, 5000))
+  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
 
   constexpr char name[] =
@@ -1055,7 +1055,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port, 1000))
+  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
@@ -1093,7 +1093,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port, 1000))
+  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
@@ -1140,7 +1140,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port, 1000))
+  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
@@ -1197,7 +1197,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  EXPECT_TRUE(wait_for_port_ready(server_port, 1000))
+  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << "Timed out waiting for mock server port ready" << std::endl
       << server_mock.get_full_output();
 
@@ -1393,13 +1393,14 @@ TEST_F(MetadataCacheLoggingTest,
   // launch second metadata server
   auto server = launch_mysql_server_mock(json_primary_node_,
                                          cluster_nodes_ports[1], false);
-  bool server_ready = wait_for_port_ready(cluster_nodes_ports[1], 1000);
+  bool server_ready =
+      wait_for_port_ready(cluster_nodes_ports[1], DEFAULT_PORT_WAIT);
   EXPECT_TRUE(server_ready) << server.get_full_output();
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
       "-c " + init_keyring_and_config_file(conf_dir));
-  bool router_ready = wait_for_port_ready(router_port, 1000);
+  bool router_ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
   // expect something like this to appear on STDERR

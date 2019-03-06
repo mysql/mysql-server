@@ -161,7 +161,7 @@ void CommonBootstrapTest::bootstrap_failover(
     auto &proc = std::get<0>(mock_server);
     unsigned int port = std::get<1>(mock_server);
 
-    bool ready = wait_for_port_ready(port, 1000);
+    bool ready = wait_for_port_ready(port, DEFAULT_PORT_WAIT);
     EXPECT_TRUE(ready) << proc.get_full_output();
   }
 
@@ -726,7 +726,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-    bool ready = wait_for_port_ready(server_port, 1000);
+    bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode
@@ -816,7 +816,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
+  bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -858,7 +858,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-    bool ready = wait_for_port_ready(server_port, 1000);
+    bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode

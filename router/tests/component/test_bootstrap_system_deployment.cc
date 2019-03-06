@@ -62,7 +62,7 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_, 1000))
+    EXPECT_TRUE(wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT))
         << "Timed out waiting for mock server port ready\n"
         << server_mock.get_full_output();
     return server_mock;

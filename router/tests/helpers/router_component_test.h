@@ -47,6 +47,8 @@ using mysql_harness::Path;
  * process */
 const size_t MAX_PARAMS{30};
 
+constexpr unsigned DEFAULT_PORT_WAIT{5000};
+
 /** @class RouterComponentTest
  *
  * Base class for the MySQLRouter component-like tests.

@@ -275,7 +275,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersChangedInRuntime) {
   for (unsigned i = 0; i < 2; ++i) {
     cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 1000))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], DEFAULT_PORT_WAIT))
         << cluster_nodes[i].get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
@@ -418,7 +418,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   RouterComponentTest::CommandHandle cluster_node(
       RouterComponentTest::launch_mysql_server_mock(
           trace_file, cluster_node_port, false, cluster_http_port));
-  ASSERT_TRUE(wait_for_port_ready(cluster_node_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(cluster_node_port, DEFAULT_PORT_WAIT))
       << cluster_node.get_full_output();
   ASSERT_TRUE(
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
@@ -457,7 +457,7 @@ TEST_F(StateFileDynamicChangesTest, MetadataServersInaccessible) {
   SCOPED_TRACE("// Launch ther router with the initial state file");
   auto router = launch_router(temp_test_dir, metadata_cache_section,
                               routing_section, state_file);
-  ASSERT_TRUE(wait_for_port_ready(router_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << router.get_full_output();
 
   SCOPED_TRACE(
@@ -514,7 +514,7 @@ TEST_F(StateFileDynamicChangesTest, GroupReplicationIdDiffers) {
       get_data_dir().join("metadata_dynamic_nodes.js").str();
   auto cluster_node = RouterComponentTest::launch_mysql_server_mock(
       trace_file, cluster_node_port, false, cluster_http_port);
-  ASSERT_TRUE(wait_for_port_ready(cluster_node_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(cluster_node_port, DEFAULT_PORT_WAIT))
       << cluster_node.get_full_output();
   ASSERT_TRUE(
       MockServerRestClient(cluster_http_port).wait_for_rest_endpoint_ready())
@@ -621,7 +621,7 @@ TEST_F(StateFileDynamicChangesTest, SplitBrainScenario) {
     const auto port_http = cluster_node_ports[i].second;
     cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
         trace_file, port_connect, false, port_http));
-    ASSERT_TRUE(wait_for_port_ready(port_connect, 1000))
+    ASSERT_TRUE(wait_for_port_ready(port_connect, DEFAULT_PORT_WAIT))
         << cluster_nodes[i].get_full_output();
     ASSERT_TRUE(MockServerRestClient(port_http).wait_for_rest_endpoint_ready())
         << cluster_nodes[i].get_full_output();
@@ -750,7 +750,7 @@ TEST_F(StateFileDynamicChangesTest, EmptyMetadataServersList) {
   auto router = launch_router(temp_test_dir, metadata_cache_section,
                               routing_section, state_file);
 
-  wait_for_port_ready(router_port, 3000);
+  wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
 
   SCOPED_TRACE(
       "// Wait a few ttl periods to make sure the metadata_cache tried "
@@ -1164,7 +1164,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   const auto metadata_server_port = port_pool_.get_next_available();
   auto md_server = RouterComponentTest::launch_mysql_server_mock(
       trace_file, metadata_server_port, false);
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(metadata_server_port, DEFAULT_PORT_WAIT))
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
@@ -1233,7 +1233,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   const auto metadata_server_port = port_pool_.get_next_available();
   auto md_server = RouterComponentTest::launch_mysql_server_mock(
       trace_file, metadata_server_port, false);
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port, 1000))
+  ASSERT_TRUE(wait_for_port_ready(metadata_server_port, DEFAULT_PORT_WAIT))
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");

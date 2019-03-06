@@ -100,10 +100,10 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   auto router_static = launch_router("-c " + conf_file);
 
   // wait for both to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
 
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << get_router_log_output();
 
   // launch another router to do the bootstrap connecting to the mock server
@@ -163,9 +163,9 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   auto router_static = launch_router("-c " + conf_file);
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << get_router_log_output();
 
   // try to create 3 connections, the third should fail
@@ -213,9 +213,9 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   auto router_static = launch_router("-c " + conf_file);
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << get_router_log_output();
 
   // don't allow router to create any more (client) threads
@@ -334,14 +334,14 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   auto router_static = launch_router("-c " + conf_file);
 
   // wait for mock server to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
 
   // wait for router to begin accepting the connections
   // NOTE: this should cause connection/disconnection which
   //       should be treated as connection error and increment
   //       connection errors counter.  This test relies on that.
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << get_router_log_output();
 
   // wait until blocking client host info appears in the log
@@ -459,9 +459,9 @@ TEST_F(RouterRoutingTest, test1) {
   auto router_static = launch_router("-c " + conf_file);
 
   // wait for server and router to begin accepting the connections
-  ASSERT_TRUE(wait_for_port_ready(server_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
       << server_mock.get_full_output();
-  ASSERT_TRUE(wait_for_port_ready(router_port, 5000))
+  ASSERT_TRUE(wait_for_port_ready(router_port, DEFAULT_PORT_WAIT))
       << get_router_log_output();
 
   // we loop just for good measure, to additionally test that this behaviour is

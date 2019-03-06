@@ -78,7 +78,7 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
     // launch the router
     CommandHandle router =
         RouterComponentTest::launch_router("-c " + conf_file);
-    bool ready = wait_for_port_ready(router_port, 1000);
+    bool ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
     EXPECT_TRUE(ready) << router.get_full_output() << get_router_log_output();
 
     return router;
@@ -302,7 +302,8 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 
   // wait for the whole cluster to be up
   for (size_t i = 0; i < cluster_nodes.size(); i++)
-    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i], 1000), Eq(true))
+    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i], DEFAULT_PORT_WAIT),
+                Eq(true))
         << cluster_nodes[i].get_full_output();
 
   // write Router config
