@@ -167,7 +167,7 @@ public:
    *
    * @param start index of first character
    * @param stop index of last character
-   * @return a new string on success or a null string on failure
+   * @return a new string
    */
   BaseString substr(ssize_t start, ssize_t stop = -1) const;
 
