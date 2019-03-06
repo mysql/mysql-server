@@ -1,6 +1,20 @@
 #create the necessary tables and setup
 --source suite/ndb/include/ndb_addnode_restart_setup.inc
 
+# The test uses up all data memory, this triggers error in shema distribution
+# wich will log an error before falling back to old protocol.
+# First mysqld
+--disable_query_log ONCE
+call mtr.add_suppression("Failed to send result for schema operation");
+
+# Second mysqld
+--connect(mysqld2,127.0.0.1,root,,test,$MASTER_MYPORT1)
+--connection mysqld2
+--disable_query_log ONCE
+call mtr.add_suppression("Failed to send result for schema operation");
+connection default;
+
+
 let NDBAPITEST_NAME=testSystemRestart;
 let NDBAPITEST_ARGS=-nMTR_AddNodesAndRestart1 -l1 --noddl -v T1;
 let NDBAPITEST_CLEANUP_QUERY=DROP DATABASE TEST_DB;

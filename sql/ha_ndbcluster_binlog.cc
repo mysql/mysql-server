@@ -3555,8 +3555,10 @@ class Ndb_schema_event_handler {
 
     // Bitmap for the slock bits
     MY_BITMAP slock;
-    (void)bitmap_init(&slock, nullptr, schema_dist_table.get_slock_bytes() * 8,
-                      false);
+    const uint slock_bits = schema_dist_table.get_slock_bytes() * 8;
+    // Make sure that own nodeid fits in slock
+    ndbcluster::ndbrequire(own_nodeid() <= slock_bits);
+    (void)bitmap_init(&slock, nullptr, slock_bits, false);
 
     while (1)
     {
@@ -3849,13 +3851,15 @@ class Ndb_schema_event_handler {
       break;
     }
 
+    bool ret = true;
     if (ndb_error) {
-      ndb_log_warning(
-          "Could not reply to schema operation '%s.%s', NDB error: %d %s",
-          schema->db, schema->name, ndb_error->code, ndb_error->message);
+      log_NDB_error(*ndb_error);
+      ndb_log_warning("Failed to send result for schema operation '%s.%s'",
+                      schema->db, schema->name);
+      ret = false; // Failed to reply
     }
     if (trans) ndb->closeTransaction(trans);
-    DBUG_RETURN(0);
+    DBUG_RETURN(ret);
   }
 
   void remove_schema_result_rows(uint32 schema_op_id) {
@@ -5574,7 +5578,11 @@ class Ndb_schema_event_handler {
       std::string message;
       if (schema->schema_op_id) {
         // Use new protocol
-        ack_schema_op_with_result(schema, result, message);
+        if (!ack_schema_op_with_result(schema, result, message)) {
+          // Fallback to old protocol as stop gap, no result will be returned
+          // but at least the coordinator will be informed
+          ack_schema_op(schema);
+        }
       } else {
         // Use old protocol
         ack_schema_op(schema);
@@ -5854,7 +5862,11 @@ class Ndb_schema_event_handler {
         std::string message;
         if (schema->schema_op_id) {
           // Use new protocol
-          ack_schema_op_with_result(schema, result, message);
+          if (!ack_schema_op_with_result(schema, result, message)) {
+            // Fallback to old protocol as stop gap, no result will be returned
+            // but at least the coordinator will be informed
+            ack_schema_op(schema);
+          }
         } else {
           // Use old protocol
           ack_schema_op(schema);
