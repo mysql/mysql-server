@@ -1055,23 +1055,18 @@ Gcs_xcom_view_identifier *Gcs_xcom_state_exchange::get_new_view_id() {
   }
 
   assert(view_id != NULL);
-  MYSQL_GCS_DEBUG_EXECUTE(
-      uint64_t fixed_view_id = 0; uint32_t monotonic_view_id = 0;
-      for (state_it = m_member_states.begin();
-           state_it != m_member_states.end(); state_it++) {
-        Xcom_member_state *member_state = (*state_it).second;
-        monotonic_view_id = member_state->get_view_id()->get_monotonic_part();
-        fixed_view_id = member_state->get_view_id()->get_fixed_part();
-        /*
-          Views that have a monotonic part that is not zero must have
-          the same value.
-        */
-        if (monotonic_view_id != 0) {
-          if ((view_id->get_monotonic_part() != monotonic_view_id) ||
-              (view_id->get_fixed_part() != fixed_view_id))
-            return NULL;
-        }
-      });
+  MYSQL_GCS_DEBUG_EXECUTE(for (state_it = m_member_states.begin();
+                               state_it != m_member_states.end(); state_it++) {
+    Gcs_xcom_view_identifier member_state_view =
+        *(static_cast<Xcom_member_state *>((*state_it).second)->get_view_id());
+    /*
+      Views that have a monotonic part that is not zero must have
+      the same value.
+    */
+    if (member_state_view.get_monotonic_part() != 0) {
+      if ((*view_id) != member_state_view) return NULL;
+    }
+  });
 
   return view_id;
 }

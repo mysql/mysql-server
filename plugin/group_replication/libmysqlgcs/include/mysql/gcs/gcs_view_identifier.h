@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 #define GCS_VIEW_IDENTIFIER_INCLUDED
 
 #include <string>
+#include <typeinfo>
 
 /**
   @class Gcs_view_identifier
@@ -69,24 +70,37 @@ class Gcs_view_identifier {
 
     @param[in] other the Gcs_view_identifier to compare to
 
-    @return the result of comparing internal representation with the
-            compare operation from the string object
+    @return true if the objects is less than @c other, according to the
+                 internal representation of the object.
+            false otherwise.
   */
 
-  bool operator<(const Gcs_view_identifier &other) const;
+  bool operator<(const Gcs_view_identifier &other) const {
+    return typeid(*this) == typeid(other) && this->lessThan(other);
+  }
 
   /**
     Redefinition of the operator equals, to allow usage in sets.
 
     @param[in] other the Gcs_view_identifier to compare to
 
-    @return the result of comparing internal representation with the
-            compare operation from the string object
+    @return true if the objects have the same internal representation.
+            false otherwise.
   */
 
-  bool operator==(const Gcs_view_identifier &other) const;
+  bool operator==(const Gcs_view_identifier &other) const {
+    return typeid(*this) == typeid(other) && this->equals(other);
+  }
+
+  bool operator!=(const Gcs_view_identifier &other) const {
+    return !(*this == other);
+  }
 
   virtual ~Gcs_view_identifier() {}
+
+ private:
+  virtual bool equals(const Gcs_view_identifier &other) const = 0;
+  virtual bool lessThan(const Gcs_view_identifier &other) const = 0;
 };
 
 #endif  // GCS_VIEW_IDENTIFIER_INCLUDED
