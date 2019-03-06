@@ -12,6 +12,9 @@ Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: ':
 Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '\*/red'" found
 Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '0.0.0.0/red'" found
 Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '::/red'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/'" found
+Pattern "ERROR.*Server.*Invalid value for command line option bind-addresses: '127.0.0.1/,localhost'" found
+Pattern "ERROR.*Server.*Invalid value for command line option admin-address: '127.0.0.1/'" found
 # Try specifying incorrect values to --mysqlx-bind-address
 # restart: --log-error=MYSQLD_LOG --mysqlx-bind-address=10.0.2.1/green
 Pattern "ERROR.*Server.*Unknown network namespace 'green'" found
