@@ -2060,3 +2060,50 @@ eval $query;
 set @@session.optimizer_switch=@optimizer_switch_saved;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#29435133 JOIN_CACHE::JOIN_RECORD() MAY LEAVE A TABLE IN HAS_NULL_ROW-STATE
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_10_unique varchar(10)
+) ENGINE=innodb;
+
+INSERT INTO t1 VALUES ('nthfyejwxd');
+INSERT INTO t1 VALUES ('drrqahbhai');
+
+CREATE TABLE t3 (
+  col_int int(11) NOT NULL,
+  col_int_unique int(11) not null,
+  col_varchar_10 varchar(10) not null
+) ENGINE=innodb;
+
+INSERT INTO t3 VALUES(9, 4, '');
+
+
+CREATE TABLE t4 (
+  col_int_unique int(11)
+) ENGINE=innodb;
+
+# Rows *not* matching t3.col_int_unique
+INSERT INTO t4 VALUES(3);
+
+
+CREATE TABLE t2 (
+  col_int int(11)
+) ENGINE=innodb;
+
+# t2 intentionally empty
+
+let $query=SELECT * FROM t1 AS table1
+WHERE
+  table1.col_varchar_10_unique = ALL (
+    SELECT STRAIGHT_JOIN table3s.col_varchar_10 AS field3 FROM
+      t4 AS table4s LEFT JOIN
+        (t3 AS table3s JOIN t2 AS table2s)
+      ON table3s.col_int_unique = table4s.col_int_unique);
+
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1,t2,t3,t4;

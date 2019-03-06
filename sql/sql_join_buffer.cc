@@ -1794,6 +1794,7 @@ finish:
     for (plan_idx i = qep_tab->first_inner(); i <= qep_tab->last_inner(); ++i)
       join->qep_tab[i].first_unmatched = NO_PLAN_IDX;
   }
+  restore_last_record();
   for (int cnt = 1; cnt <= static_cast<int>(tables); cnt++) {
     /*
       We must restore the status of outer tables as it was before entering
@@ -1804,10 +1805,14 @@ finish:
     const table_map map = tr->map();
     if (saved_status_bits[0] & map) table->set_not_started();
     if (saved_status_bits[1] & map) table->set_no_row();
-    if (saved_status_bits[2] & map) table->set_null_row();
+    if (saved_status_bits[2] & map)
+      table->set_null_row();
+    else {
+      table->reset_null_row();
+    }
   }
-  restore_last_record();
   reset_cache(true);
+  DBUG_ASSERT(!qep_tab->table()->has_null_row());
   DBUG_RETURN(rc);
 }
 
