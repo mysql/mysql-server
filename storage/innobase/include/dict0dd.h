@@ -942,10 +942,10 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
 #endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
-@param[in]      space_name      tablespace name
+@param[in]      file_name      tablespace name
 @param[in,out]	tablespace_name	tablespace name which is in table name
                                 charset. */
-void dd_filename_to_spacename(const char *space_name,
+void dd_filename_to_spacename(const char *file_name,
                               std::string *tablespace_name);
 
 #ifndef UNIV_HOTBACKUP
