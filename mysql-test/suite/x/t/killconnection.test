@@ -109,6 +109,7 @@ let $wait_for_status_variable =
  'Mysqlx_sessions';
 let $wait_for_status_value = 1, 0;
 source ../include/wait_for_status_variables.inc;
+--replace_regex /Execute/Query/
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 
 ###kill mysqlx protocol session using mysqlx protocol when mysqlxplugin installed (expect error again)
@@ -121,6 +122,7 @@ let $wait_for_status_variable =
  'Mysqlx_sessions';
 let $wait_for_status_value = 2, 0;
 source ../include/wait_for_status_variables.inc;
+--replace_regex /Execute/Query/
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 ##expect Mysqlx_sessions_fatal_error incremented when killing its own session
 show status like 'Mysqlx_sessions%';
