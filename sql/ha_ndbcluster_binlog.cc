@@ -3399,8 +3399,21 @@ class Ndb_schema_event_handler {
                           schema_op->type));
       DBUG_RETURN(schema_op);
     }
-  }; //class Ndb_schema_op
+  };
 
+  class Ndb_schema_op_result {
+    uint32 m_result{0};
+    std::string m_message;
+  public:
+    void set_result(uint32 result, const std::string message) {
+      // Both result and message must be set
+      DBUG_ASSERT(result && message.length());
+      m_result = result;
+      m_message = message;
+    }
+    const char *message() const { return m_message.c_str(); }
+    uint32 result() const { return m_result; }
+  };
 
   // NOTE! This function has misleading name
   static void
@@ -3762,24 +3775,18 @@ class Ndb_schema_event_handler {
     this node. This is done by writing a new row to the ndb_schema_result table.
 
     @param schema The schema operation which has just been completed
-    @param result The result of completed schema operation, zero result means
-    that schema operation completed sucessfully on this node
-    @param result The message used to further describe why the result of this
-    schema operation was not zero
-
-    @note It's only allowed to pass a message if result != 0
+    @param schema_op_result The result of completed schema operation
 
     @return true if ack suceeds
     @return false if ack fails(writing to the table could not be done)
 
   */
-  bool ack_schema_op_with_result(const Ndb_schema_op *schema, uint32 result,
-                                 const std::string &message) const {
+  bool ack_schema_op_with_result(
+      const Ndb_schema_op *schema,
+      const Ndb_schema_op_result &schema_op_result) const {
     DBUG_ENTER("ack_schema_op_with_result");
-    DBUG_PRINT("enter", ("result: %d, message: '%s'", result, message.c_str()));
-
-    // Only allow message if result != 0
-    DBUG_ASSERT(result == 0 || (result && message.length()));
+    DBUG_PRINT("enter", ("result: %d, message: '%s'", schema_op_result.result(),
+                         schema_op_result.message()));
 
     // Should only call this function if ndb_schema has a schema_op_id
     // column which enabled the client to send schema->schema_op_id != 0
@@ -3818,9 +3825,10 @@ class Ndb_schema_event_handler {
                       schema->schema_op_id) ||
             op->equal(Ndb_schema_result_table::COL_PARTICIPANT_NODEID,
                       own_nodeid()) ||
-            op->setValue(Ndb_schema_result_table::COL_RESULT, result) ||
+            op->setValue(Ndb_schema_result_table::COL_RESULT,
+                         schema_op_result.result()) ||
             op->setValue(Ndb_schema_result_table::COL_MESSAGE,
-                         message.c_str())) {
+                         schema_op_result.message())) {
           goto err;
         }
       }
@@ -5483,6 +5491,7 @@ class Ndb_schema_event_handler {
             ndb_schema_object->waiting_participants_to_string().c_str());
       }
 
+      Ndb_schema_op_result schema_op_result;
       switch (schema_type)
       {
       case SOT_CLEAR_SLOCK:
@@ -5562,11 +5571,9 @@ class Ndb_schema_event_handler {
 
       }
 
-      uint32 result = 0;
-      std::string message;
       if (schema->schema_op_id) {
         // Use new protocol
-        if (!ack_schema_op_with_result(schema, result, message)) {
+        if (!ack_schema_op_with_result(schema, schema_op_result)) {
           // Fallback to old protocol as stop gap, no result will be returned
           // but at least the coordinator will be informed
           ack_schema_op(schema);
@@ -5579,10 +5586,8 @@ class Ndb_schema_event_handler {
     DBUG_RETURN(0);
   }
 
-
-  void
-  handle_schema_op_post_epoch(const Ndb_schema_op* schema)
-  {
+  void handle_schema_op_post_epoch(const Ndb_schema_op *schema,
+                                   Ndb_schema_op_result &) {
     DBUG_ENTER("handle_schema_op_post_epoch");
     DBUG_PRINT("enter", ("%s.%s: query: '%s'  type: %d",
                          schema->db, schema->name,
@@ -5836,12 +5841,11 @@ class Ndb_schema_event_handler {
           continue; // Handled an ack -> don't send new ack
         }
 
-        handle_schema_op_post_epoch(schema);
-        uint32 result = 0;
-        std::string message;
+        Ndb_schema_op_result schema_op_result;
+        handle_schema_op_post_epoch(schema, schema_op_result);
         if (schema->schema_op_id) {
           // Use new protocol
-          if (!ack_schema_op_with_result(schema, result, message)) {
+          if (!ack_schema_op_with_result(schema, schema_op_result)) {
             // Fallback to old protocol as stop gap, no result will be returned
             // but at least the coordinator will be informed
             ack_schema_op(schema);
