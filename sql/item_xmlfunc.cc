@@ -2309,10 +2309,11 @@ bool Item_xml_str_func::resolve_type(THD *) {
 }
 
 bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
-  String *xp, tmp;
+  String *xp;
   MY_XPATH xpath;
 
-  if (!(xp = xpath_expr->val_str(&tmp))) return current_thd->is_error();
+  if (!(xp = xpath_expr->val_str(&xpath_tmp_value)))
+    return current_thd->is_error();
 
   my_xpath_init(&xpath);
   xpath.cs = collation.collation;
