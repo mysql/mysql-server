@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 #                    LOG_DOMAIN domain
 #                    SOURCES file1 ...
 #                    INTERFACE directory
-#                    DESTINATION string
+#                    DESTINATION directory
 #                    REQUIRES plugin ...)
 #
 # The add_harness_plugin command will set up a new plugin target and
@@ -47,11 +47,8 @@
 # plugin. If no LOG_DOMAIN is given, the log domain will be the name
 # of the plugin.
 #
-# If DESTINATION is provided it will be used as destination directory
-# for plugins for install commands. DESTINATION is optional and
-# defaults to ${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}
-# Note: on Windows ${HARNESS_INSTALL_LIBRARY_DIR} is always used
-# as DESTINATION for plugins.
+# DESTINATION specifies the directory where plugins will be installed.
+# Providing it is compulsory unless NO_INSTALL is provided.
 #
 # Files provided after the SOURCES keyword are the sources to build
 # the plugin from, while the files in the directory after INTERFACE
@@ -72,11 +69,6 @@ FUNCTION(add_harness_plugin NAME)
   IF(_option_UNPARSED_ARGUMENTS)
     MESSAGE(AUTHOR_WARNING
       "Unrecognized arguments: ${_option_UNPARSED_ARGUMENTS}")
-  ENDIF()
-
-  # Set default values
-  IF(NOT _option_DESTINATION)
-    SET(_option_DESTINATION "${HARNESS_INSTALL_LIBRARY_DIR}/${HARNESS_NAME}")
   ENDIF()
 
   # Set the log domain to the name of the plugin unless an explicit
@@ -138,19 +130,24 @@ FUNCTION(add_harness_plugin NAME)
 
   # Add install rules to install the interface header files and the
   # plugin correctly.
-  IF(NOT _option_NO_INSTALL AND HARNESS_INSTALL_PLUGINS)
+  IF(NOT _option_NO_INSTALL)
+    IF(NOT _option_DESTINATION)
+      MESSAGE(ERROR "Parameter 'DESTINATION' is mandatory unless 'NO_INSTALL' is provided.")
+    ENDIF()
+
     IF(WIN32)
       INSTALL(TARGETS ${NAME}
-        RUNTIME DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}
+        RUNTIME DESTINATION ${_option_DESTINATION}
         COMPONENT Router)
       INSTALL(FILES $<TARGET_PDB_FILE:${NAME}>
-            DESTINATION ${HARNESS_INSTALL_LIBRARY_DIR}
-            COMPONENT Router)
+        DESTINATION ${_option_DESTINATION}
+        COMPONENT Router)
     ELSE()
       INSTALL(TARGETS ${NAME}
         LIBRARY DESTINATION ${_option_DESTINATION}
         COMPONENT Router)
     ENDIF()
+
     IF(_option_INTERFACE)
       FILE(GLOB interface_files ${_option_INTERFACE}/*.h)
       INSTALL(FILES ${interface_files}

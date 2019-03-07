@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -84,11 +84,6 @@ ENDIF()
 # INSTALL(FILES ${routing_headers}
 #   DESTINATION "include/mysql/${HARNESS_NAME}")
 
-IF(WIN32)
-  INSTALL(TARGETS routing 
-    RUNTIME DESTINATION "lib"
-    COMPONENT Router)
-ENDIF()
 
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(tests/)

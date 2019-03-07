@@ -27,8 +27,6 @@ SET(HARNESS_INSTALL_BIN_DIR "bin" CACHE PATH
     "Installation directory for Harness main binaries")
 SET(ENABLE_HARNESS_PROGRAM YES CACHE BOOL
   "Whether to build and install the Harness main program")
-SET(HARNESS_INSTALL_PLUGINS YES CACHE BOOL
-  "Whether to install the Harness provided plugins")
 
 SET(HARNESS_NAME "harness"
   CACHE STRING "Name of Harness")
