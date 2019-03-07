@@ -13,12 +13,13 @@
 #  (S3)   join member with the base version         (base version)         OK
 #  (S3)   member leaves
 #  (S3)   join member with a higher major version   (major version +1)     OK
-#  (S4)   join member with a higher minor version   (minor version + 1)  Failure
-#  (S3)   member leaves
 #  (S4)   join member with a higher minor version   (minor version + 1)    OK
+#  (S1)   member leaves
 #  (S2)   member leaves
-#  (S4)   member leaves
 #  (S5)   join member with the base version         (base version)         OK
+#  (S4)   member leaves
+#  (S5)   member leaves
+#  (S5)   join member with the base version         (base version)       Failure
 #
 # *) The group start happens with Server 1 joining
 #
@@ -70,7 +71,8 @@ INSERT INTO t1 VALUES (1);
 --echo #
 --echo # Try to add a new member with a higher minor version
 --echo # Version = Base version + 1 minor version
---echo # The member will join the group
+--echo # The member will join the group as there are other members with the
+--echo # same major version
 --echo #
 
 --connection server2
@@ -97,10 +99,6 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
 --connection server3
 --echo server3
 
-SET session sql_log_bin=0;
-call mtr.add_suppression("Member version is incompatible with the group");
-SET session sql_log_bin=1;
-
 --source include/start_group_replication.inc
 
 --echo #
@@ -125,42 +123,17 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 --source include/assert.inc
 
 --echo #
---echo # Try to add a new member with a major version equal to the base version,
---echo # but a higher minor version.
+--echo # Add server 4 with a higher minor version than base
 --echo # Version = Base version + 1 minor version
---echo # It will fail to join since a higher major version member is present
+--echo # The member will join the group as there are other members with the
+--echo # same major version
 --echo #
 
 --connection server4
 --echo server4
 
 SET @debug_saved_s4= @@GLOBAL.DEBUG;
-
-SET session sql_log_bin=0;
-call mtr.add_suppression("Member version is incompatible with the group");
-SET session sql_log_bin=1;
-
-# Cause the member to broadcast and compare himself using a high version
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
-SET GLOBAL group_replication_group_name= "8a1da670-05fa-11e5-b939-0800200c9a66";
---error ER_GROUP_REPLICATION_CONFIGURATION
-START GROUP_REPLICATION;
-
---echo #
---echo # Make server 3 leave so every member has the same major version
---echo # Try to add server 4 again with a higher minor version than base
---echo # Version = Base version + 1 minor version
---echo # The member will join the group
---echo #
-
---connection server3
---echo server3
-
---source include/stop_group_replication.inc
-
---connection server4
---echo server4
-
 --source include/start_group_replication.inc
 
 # Check the data is there
@@ -170,19 +143,20 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --echo #
---echo # Remove all servers with higher minor versions
---echo # Try to add a new member with a lower patch version than member 1
+--echo # Remove server 1 and server 2
+--echo # Try to add a new member with a base version than member 1
 --echo # Version = Base version
---echo # The member will join the group
+--echo # The member will join the group because of server 4 which has
+--echo # same major version
 --echo #
 
---connection server2
---echo server2
+--connection server1
+--echo server1
 
 --source include/stop_group_replication.inc
 
---connection server4
---echo server4
+--connection server2
+--echo server2
 
 --source include/stop_group_replication.inc
 
@@ -198,40 +172,64 @@ START GROUP_REPLICATION;
 --source include/assert.inc
 
 --echo #
+--echo # Remove all servers with base major version.
+--echo # Try to add a new member with a base version.
+--echo # Version = Base version
+--echo # The member will not join the group because of server 3
+--echo # has higher major version.
+--echo #
+
+--connection server4
+--echo server4
+
+--source include/stop_group_replication.inc
+
+--connection server5
+--echo server5
+
+--source include/stop_group_replication.inc
+
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo #
 --echo # Clean up
 --echo #
+
+--connection server3
+--echo server3
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= @debug_save_s3;
+--source ../inc/start_and_bootstrap_group_replication.inc
 
 --connection server1
 --echo server1
 
 SET @@GLOBAL.DEBUG= @debug_save_s1;
-
-# Restart group replication to reset the member version
---source include/stop_group_replication.inc
 --source include/start_group_replication.inc
 
 --connection server2
 --echo server2
 
-# Reset the version of the compatibility module
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
---source include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save_s2;
-
---connection server3
---echo server3
-
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
 --source include/start_group_replication.inc
-SET @@GLOBAL.DEBUG= @debug_save_s3;
 
 --connection server4
 --echo server4
 
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
---source include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save_s4;
+--source include/start_group_replication.inc
 
+--connection server5
+--echo server5
+
+--source include/start_group_replication.inc
 DROP TABLE t1;
 
 --source ../inc/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1436,13 +1436,26 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const
 
   std::vector<Group_member_info*> *all_members= group_member_mgr->get_all_members();
   std::vector<Group_member_info*>::iterator all_members_it;
+  Member_version lowest_version(0xFFFFFF);
+
+  for (all_members_it = all_members->begin();
+       all_members_it != all_members->end(); all_members_it++)
+  {
+    if ((*all_members_it)->get_uuid() != local_member_info->get_uuid() &&
+        (*all_members_it)->get_member_version() < lowest_version)
+    {
+      lowest_version = (*all_members_it)->get_member_version();
+    }
+  }
+
   for (all_members_it= all_members->begin();
        all_members_it!= all_members->end();
        all_members_it++)
   {
     Member_version member_version= (*all_members_it)->get_member_version();
     compatibility_type=
-      compatibility_manager->check_local_incompatibility(member_version);
+      compatibility_manager->check_local_incompatibility(member_version,
+                                         member_version == lowest_version);
 
     if (compatibility_type == READ_COMPATIBLE)
     {

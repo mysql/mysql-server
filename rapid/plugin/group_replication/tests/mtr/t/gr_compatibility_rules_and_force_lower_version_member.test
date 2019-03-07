@@ -60,7 +60,7 @@ call mtr.add_suppression("Member version is incompatible with the group");
 SET session sql_log_bin=1;
 
 SET @debug_saved= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error';
+SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_rule_error_major';
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 
