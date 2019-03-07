@@ -3305,4 +3305,32 @@ EXECUTE prep_stmt ;
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'Z'
 DROP TABLE t1,t2;
+#
+# Bug#29402481: INCORRECT RESULT FROM OUTER JOIN QUERIES
+#
+CREATE TABLE t1 (
+pk int primary key auto_increment,
+col_int_unique int unique
+) ENGINE=InnoDB;
+INSERT INTO t1(col_int_unique) values (6),(7);
+CREATE TABLE t2 (
+pk int primary key auto_increment,
+col_int_key int(11) DEFAULT NULL,
+col_int_unique int(11) DEFAULT NULL,
+UNIQUE KEY `ix2` (col_int_key,col_int_unique),
+KEY col_int_key (col_int_key)
+) ENGINE=InnoDB;
+CREATE TABLE t3 (
+pk int NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t3(pk) values (6),(7);
+SELECT STRAIGHT_JOIN t1.col_int_unique, t2.col_int_key, t3.pk
+FROM
+(t1 LEFT JOIN t2 ON t1.col_int_unique = t2.col_int_key)
+LEFT JOIN t3 ON t3.pk = t1.col_int_unique AND
+t1.col_int_unique = t2.col_int_key;
+col_int_unique	col_int_key	pk
+6	NULL	NULL
+7	NULL	NULL
+DROP TABLE t1,t2,t3;
 set optimizer_switch=default;
