@@ -113,15 +113,15 @@ id	val1	val2
 10	10	NULL
 select id, sha1(val) from t8 order by id;
 id	sha1(val)
-1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
-2	bc6d3732391be0cf937c126aedd201348b77eb73
-3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
-4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
-5	28f701601814c80158537b932009ee46e2f7ceda
-6	7aaa4f2845f274d843997517f64e0f613cbb8439
-7	d13462051501e81028a3aafcf1359af394493cba
-8	b37f6ddcefad7e8657837d3177f9ef2462f98acf
-9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+1	025bd54db3f70cdac283a9653518c14f3d331602
+2	360252745cb517637959a9ba6cb7a789cf05fa98
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	61984ed58e8de9ab388e62b54ced499e7336e82e
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
 10	NULL
 select * from t9 order by auto;
 auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
@@ -251,15 +251,15 @@ id	val1	val2
 10	10	NULL
 select id, sha1(val) from t8 order by id;
 id	sha1(val)
-1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
-2	bc6d3732391be0cf937c126aedd201348b77eb73
-3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
-4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
-5	28f701601814c80158537b932009ee46e2f7ceda
-6	7aaa4f2845f274d843997517f64e0f613cbb8439
-7	d13462051501e81028a3aafcf1359af394493cba
-8	b6632b5c953bfe0c9dbec96f99374ab2acc842ea
-9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+1	025bd54db3f70cdac283a9653518c14f3d331602
+2	360252745cb517637959a9ba6cb7a789cf05fa98
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	f8f5538687ac9a4294a44de553d46dd798524504
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
 10	NULL
 select * from t9 order by auto;
 auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
@@ -389,15 +389,15 @@ id	val1	val2
 10	10	NULL
 select id, sha1(val) from t8 order by id;
 id	sha1(val)
-1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
-2	bc6d3732391be0cf937c126aedd201348b77eb73
-3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
-4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
-5	28f701601814c80158537b932009ee46e2f7ceda
-6	7aaa4f2845f274d843997517f64e0f613cbb8439
-7	d13462051501e81028a3aafcf1359af394493cba
-8	b37f6ddcefad7e8657837d3177f9ef2462f98acf
-9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+1	025bd54db3f70cdac283a9653518c14f3d331602
+2	360252745cb517637959a9ba6cb7a789cf05fa98
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	61984ed58e8de9ab388e62b54ced499e7336e82e
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
 10	NULL
 select * from t9 order by auto;
 auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
@@ -527,15 +527,15 @@ id	val1	val2
 10	10	NULL
 select id, sha1(val) from t8 order by id;
 id	sha1(val)
-1	fd7d9e6b83b0d8c82065d03cb3aa7fd9004b1be3
-2	bc6d3732391be0cf937c126aedd201348b77eb73
-3	558ea7eaf6bc169cf132d8b79fa3cb24d256b43d
-4	b940efa7f439709e3a9f6f7ae7a139a0ffc4615c
-5	28f701601814c80158537b932009ee46e2f7ceda
-6	7aaa4f2845f274d843997517f64e0f613cbb8439
-7	d13462051501e81028a3aafcf1359af394493cba
-8	b6632b5c953bfe0c9dbec96f99374ab2acc842ea
-9	26dd2ef1ebb5fa7958eccce47d8f71257642a207
+1	025bd54db3f70cdac283a9653518c14f3d331602
+2	360252745cb517637959a9ba6cb7a789cf05fa98
+3	e315b8015984d48b3d1777787d8b629bd77454cf
+4	946a83f98e3f05c3d94f0c7f2e7131324245797c
+5	66f223928b25272f115396aa099fb38efbfe3885
+6	125d03fac5bb972ef45466e36d25fd219bf09b36
+7	cf47dcc87c1ca726f74a86a4aac57d453703facc
+8	f8f5538687ac9a4294a44de553d46dd798524504
+9	ac1bc0da10ddfceab57a04d09524ffde6eb83cf9
 10	NULL
 select * from t9 order by auto;
 auto	string	vstring	tiny	short	medium	long_int	longlong	real_float	real_double	real_decimal	utiny	ushort	umedium	ulong	ulonglong	bits	options	flags	date_field	year_field	time_field	date_time
