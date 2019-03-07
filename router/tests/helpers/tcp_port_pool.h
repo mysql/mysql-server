@@ -25,6 +25,7 @@
 #ifndef _TCP_PORT_POOL_H_
 #define _TCP_PORT_POOL_H_
 
+#include <chrono>
 #include <cstdint>
 
 /** @class UniqueID
@@ -73,7 +74,9 @@ class TcpPortPool {
   TcpPortPool &operator=(const TcpPortPool &) = delete;
   TcpPortPool(TcpPortPool &&other) = default;
 
-  uint16_t get_next_available();
+  uint16_t get_next_available(
+      const std::chrono::milliseconds socket_probe_timeout =
+          std::chrono::milliseconds(200));
 
  private:
   UniqueId unique_id_;

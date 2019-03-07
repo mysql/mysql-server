@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -246,6 +246,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
           .c_str());  // "Rt Acceptor" would be too long :(
 
   destination_->start(env);
+  auto socket_ops = context_.get_socket_operations();
 
   auto allowed_nodes_changed = [&](const AllowedNodes &nodes,
                                    const std::string &reason) {
@@ -278,10 +279,10 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
   });
 
   if (service_tcp_ != routing::kInvalidSocket) {
-    routing::set_socket_blocking(service_tcp_, false);
+    socket_ops->set_socket_blocking(service_tcp_, false);
   }
   if (service_named_socket_ != routing::kInvalidSocket) {
-    routing::set_socket_blocking(service_named_socket_, false);
+    socket_ops->set_socket_blocking(service_named_socket_, false);
   }
 
   const int kAcceptUnixSocketNdx = 0;
@@ -296,14 +297,14 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
 
   while (is_running(env)) {
     // wait for the accept() sockets to become readable (POLLIN)
-    int ready_fdnum = context_.get_socket_operations()->poll(
-        fds, sizeof(fds) / sizeof(fds[0]), kAcceptorStopPollInterval_ms);
+    int ready_fdnum = socket_ops->poll(fds, sizeof(fds) / sizeof(fds[0]),
+                                       kAcceptorStopPollInterval_ms);
     // < 0 - failure
     // == 0 - timeout
     // > 0  - number of pollfd's with a .revent
 
     if (ready_fdnum < 0) {
-      const int last_errno = context_.get_socket_operations()->get_errno();
+      const int last_errno = socket_ops->get_errno();
       switch (last_errno) {
         case EINTR:
         case EAGAIN:
@@ -332,10 +333,9 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
 
       if ((sock_client = accept(fds[ndx].fd, (struct sockaddr *)&client_addr,
                                 &sin_size)) < 0) {
-        log_error(
-            "[%s] Failed accepting connection: %s", context_.get_name().c_str(),
-            get_message_error(context_.get_socket_operations()->get_errno())
-                .c_str());
+        log_error("[%s] Failed accepting connection: %s",
+                  context_.get_name().c_str(),
+                  get_message_error(socket_ops->get_errno()).c_str());
         continue;
       }
 
@@ -374,9 +374,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
           context_.max_connect_errors_) {
         std::string client_name, msg;
         try {
-          client_name =
-              get_peer_name(&client_addr, context_.get_socket_operations())
-                  .first;
+          client_name = get_peer_name(&client_addr, socket_ops).first;
         } catch (std::runtime_error &err) {
           log_error("Failed retrieving client address: %s", err.what());
           client_name = "[unknown]";
@@ -385,8 +383,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
         context_.get_protocol().send_error(sock_client, 1129, msg, "HY000",
                                            context_.get_name());
         log_info("%s", msg.c_str());
-        context_.get_socket_operations()->close(
-            sock_client);  // no shutdown() before close()
+        socket_ops->close(sock_client);  // no shutdown() before close()
         continue;
       }
 
@@ -395,8 +392,7 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
         context_.get_protocol().send_error(
             sock_client, 1040, "Too many connections to MySQL Router", "08004",
             context_.get_name());
-        context_.get_socket_operations()->close(
-            sock_client);  // no shutdown() before close()
+        socket_ops->close(sock_client);  // no shutdown() before close()
         log_warning("[%s] reached max active connections (%d max=%d)",
                     context_.get_name().c_str(),
                     context_.info_active_routes_.load(), max_connections_);
@@ -407,18 +403,16 @@ void MySQLRouting::start_acceptor(mysql_harness::PluginFuncEnv *env) {
       if (is_tcp && setsockopt(sock_client, IPPROTO_TCP, TCP_NODELAY,
                                reinterpret_cast<char *>(&opt_nodelay),
                                static_cast<socklen_t>(sizeof(int))) == -1) {
-        log_info(
-            "[%s] fd=%d client setsockopt(TCP_NODELAY) failed: %s",
-            context_.get_name().c_str(), sock_client,
-            get_message_error(context_.get_socket_operations()->get_errno())
-                .c_str());
+        log_info("[%s] fd=%d client setsockopt(TCP_NODELAY) failed: %s",
+                 context_.get_name().c_str(), sock_client,
+                 get_message_error(socket_ops->get_errno()).c_str());
 
         // if it fails, it will be slower, but cause no harm
       }
 
       // On some OS'es the socket will be non-blocking as a result of accept()
       // on non-blocking socket. We need to make sure it's always blocking.
-      routing::set_socket_blocking(sock_client, true);
+      socket_ops->set_socket_blocking(sock_client, true);
 
       // launch client thread which will service this new connection
       create_connection(sock_client, client_addr);

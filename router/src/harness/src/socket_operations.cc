@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -231,6 +231,21 @@ std::string SocketOperations::get_local_hostname() {
   }
 #endif
   return buf;
+}
+
+void SocketOperations::set_socket_blocking(int sock, bool blocking) {
+#ifndef _WIN32
+  auto flags = fcntl(sock, F_GETFL, nullptr);
+  if (blocking) {
+    flags &= ~O_NONBLOCK;
+  } else {
+    flags |= O_NONBLOCK;
+  }
+  fcntl(sock, F_SETFL, flags);
+#else
+  u_long mode = blocking ? 0 : 1;
+  ioctlsocket(sock, FIONBIO, &mode);
+#endif
 }
 
 }  // namespace mysql_harness
