@@ -274,6 +274,7 @@ ulong open_files_limit;
 ulong opt_binlog_rows_event_max_size;
 uint test_flags = 0;
 static uint opt_protocol = 0;
+static uint opt_compress = 0;
 static FILE *result_file;
 
 #ifndef DBUG_OFF
@@ -1579,6 +1580,8 @@ static struct my_option my_long_options[] = {
     {"print-table-metadata", OPT_PRINT_TABLE_METADATA,
      "Print metadata stored in Table_map_log_event", &opt_print_table_metadata,
      &opt_print_table_metadata, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"compress", 'C', "Use compression in server/client protocol.",
+     &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 /**
@@ -1839,6 +1842,9 @@ static Exit_status safe_connect() {
   if (opt_protocol)
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
   if (opt_bind_addr) mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
+
+  if (opt_compress) mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+
 #if defined(_WIN32)
   if (shared_memory_base_name)
     mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME,
