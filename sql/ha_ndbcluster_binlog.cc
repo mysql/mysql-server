@@ -4044,17 +4044,6 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
-
-  void
-  ack_after_epoch(const Ndb_schema_op* schema)
-  {
-    DBUG_ENTER("ack_after_epoch");
-    assert(!is_post_epoch()); // Only before epoch
-    m_post_epoch_ack_list.push_back(schema, m_mem_root);
-    DBUG_VOID_RETURN;
-  }
-
-
   uint own_nodeid(void) const
   {
     return m_own_nodeid;
@@ -5511,7 +5500,6 @@ class Ndb_schema_event_handler {
       case SOT_DROP_TABLESPACE:
       case SOT_DROP_LOGFILE_GROUP:
         handle_after_epoch(schema);
-        ack_after_epoch(schema);
         DBUG_RETURN(0);
 
       case SOT_TRUNCATE_TABLE:
@@ -5609,10 +5597,6 @@ class Ndb_schema_event_handler {
 
       switch (schema_type)
       {
-      case SOT_CLEAR_SLOCK:
-        handle_clear_slock(schema);
-        break;
-
       case SOT_DROP_DB:
         handle_drop_db(schema);
         break;
@@ -5666,7 +5650,6 @@ class Ndb_schema_event_handler {
   bool is_post_epoch(void) const { return m_post_epoch; }
 
   List<const Ndb_schema_op> m_post_epoch_handle_list;
-  List<const Ndb_schema_op> m_post_epoch_ack_list;
 
  public:
   Ndb_schema_event_handler() = delete;
@@ -5684,7 +5667,6 @@ class Ndb_schema_event_handler {
   {
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
-    DBUG_ASSERT(m_post_epoch_ack_list.elements == 0);
   }
 
   void handle_schema_result_insert(uint32 nodeid, uint32 schema_op_id,
@@ -5849,15 +5831,12 @@ class Ndb_schema_event_handler {
       const Ndb_schema_op* schema;
       while ((schema= m_post_epoch_handle_list.pop()))
       {
-        handle_schema_op_post_epoch(schema);
-      }
+        if (schema->type == SOT_CLEAR_SLOCK){
+          handle_clear_slock(schema);
+          continue; // Handled an ack -> don't send new ack
+        }
 
-      /*
-       process any operations that should be unlocked/acked after
-       the epoch is complete
-      */
-      while ((schema= m_post_epoch_ack_list.pop()))
-      {
+        handle_schema_op_post_epoch(schema);
         uint32 result = 0;
         std::string message;
         if (schema->schema_op_id) {
@@ -5875,7 +5854,6 @@ class Ndb_schema_event_handler {
     }
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
-    DBUG_ASSERT(m_post_epoch_ack_list.elements == 0);
   }
 };
 
