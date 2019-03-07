@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +60,9 @@ Compatibility_module::add_incompatibility(Member_version &from,
 }
 
 Compatibility_type
-Compatibility_module::check_local_incompatibility(Member_version &to)
+Compatibility_module::check_local_incompatibility(Member_version &to, bool is_lowest_version)
 {
-  return check_incompatibility(get_local_version(), to);
+  return check_incompatibility(get_local_version(), to, is_lowest_version);
 }
 
 bool
@@ -96,7 +96,8 @@ Compatibility_module::check_version_range_incompatibility(Member_version &from,
 
 Compatibility_type
 Compatibility_module::check_incompatibility(Member_version &from,
-                                            Member_version &to)
+                                            Member_version &to,
+                                            bool do_version_check)
 {
   //Check if they are the same...
   if (from == to)
@@ -127,10 +128,20 @@ Compatibility_module::check_incompatibility(Member_version &from,
   //It was not deemed incompatible by the table rules:
 
   /*
-    If they belong to the same major version
+    Version compatibility might only be against the lowest group version
   */
-  if (from.get_major_version() == to.get_major_version())
+  if(do_version_check)
+  {
+    /*
+      If they belong to the same major version
+    */
+    if (from.get_major_version() == to.get_major_version())
+      return COMPATIBLE;
+  }
+  else
+  {
     return COMPATIBLE;
+  }
 
   //If it has a higher major version then change to read mode
   if (from.get_major_version() > to.get_major_version())
