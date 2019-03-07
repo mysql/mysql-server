@@ -8352,19 +8352,13 @@ static Item *reduce_cond_for_table(Item *cond, table_map null_extended) {
         - for the execution phase, all possible execution methods must test
         ref->null_rejecting.
       */
-      if (func->used_tables() & null_extended) {
-        /*
-          Refering null-extended tables voids the test_if_ref() logic,
-          keep predicate.
-        */
-        DBUG_RETURN(cond);
-      }
-
       Item *left_item = func->arguments()[0]->real_item();
       Item *right_item = func->arguments()[1]->real_item();
       if ((left_item->type() == Item::FIELD_ITEM &&
+           !(left_item->used_tables() & null_extended) &&
            test_if_ref(down_cast<Item_field *>(left_item), right_item)) ||
           (right_item->type() == Item::FIELD_ITEM &&
+           !(right_item->used_tables() & null_extended) &&
            test_if_ref(down_cast<Item_field *>(right_item), left_item))) {
         DBUG_RETURN(nullptr);
       }
@@ -8413,7 +8407,16 @@ bool JOIN::finalize_table_conditions() {
     Opt_trace_object trace_cond(trace);
     trace_cond.add_utf8_table(best_ref[i]->table_ref);
     trace_cond.add("original_table_condition", condition);
-    condition = reduce_cond_for_table(condition, table_map(0));
+
+    /*
+      Calculate the set of possibly NULL extended tables when 'condition'
+      is evaluated. As it is evaluated on a found row from table, that
+      table is subtracted from the nullable tables. Note that a FOUND_MATCH
+      trigger is a special case, handled in reduce_cond_for_table().
+    */
+    const table_map null_extended =
+        select_lex->outer_join & ~best_ref[i]->table_ref->map();
+    condition = reduce_cond_for_table(condition, null_extended);
     if (condition != nullptr) condition->update_used_tables();
 
     /*
