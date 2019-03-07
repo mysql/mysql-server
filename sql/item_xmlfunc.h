@@ -50,6 +50,7 @@ class Item_xml_str_func : public Item_str_func {
  protected:
   ParsedXML pxml;
   Item *nodeset_func;
+  String xpath_tmp_value;
 
  public:
   Item_xml_str_func(const POS &pos, Item *a, Item *b)
