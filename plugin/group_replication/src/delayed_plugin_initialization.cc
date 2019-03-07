@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,11 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   }
   mysql_mutex_unlock(&server_ready_lock);
 
-  if (server_engine_initialized()) {
+  bool is_server_engine_initialized = server_engine_initialized();
+  DBUG_EXECUTE_IF(
+      "group_replication_force_delayed_initialization_thread_handler_error",
+      { is_server_engine_initialized = false; });
+  if (is_server_engine_initialized) {
     // Protect this delayed start against other start/stop requests
     MUTEX_LOCK(lock, get_plugin_running_lock());
 
@@ -149,6 +153,7 @@ int Delayed_initialization_thread::initialization_thread_handler() {
 
     error = initialize_plugin_and_join(PSESSION_INIT_THREAD, this);
   } else {
+    signal_read_mode_ready();
     error = 1;
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_START_GRP_RPL_FAILED);
   }

@@ -1,0 +1,3 @@
+--force-restart
+--no-console
+--log_error=$MYSQLTEST_VARDIR/tmp/gr_delayed_initialization_thread_handler_error.1.error
