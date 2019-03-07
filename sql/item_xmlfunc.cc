@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2642,10 +2642,10 @@ void Item_xml_str_func::fix_length_and_dec()
 
 void Item_xml_str_func::parse_xpath(Item* xpath_expr)
 {
-  String *xp, tmp;
+  String *xp;
   MY_XPATH xpath;
 
-  if (!(xp= xpath_expr->val_str(&tmp)))
+  if (!(xp= xpath_expr->val_str(&xpath_tmp_value)))
     return;
 
   my_xpath_init(&xpath);
