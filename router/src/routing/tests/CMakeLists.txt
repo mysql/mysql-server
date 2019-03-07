@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ TARGET_INCLUDE_DIRECTORIES(routing_plugin_tests PRIVATE ${include_dirs})
 
 TARGET_COMPILE_DEFINITIONS(routing_plugin_tests PUBLIC -Drouting_DEFINE_STATIC=1)
 
-IF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+IF(SOLARIS)
   TARGET_LINK_LIBRARIES(routing_tests -lnsl -lsocket)
   TARGET_LINK_LIBRARIES(routing_plugin_tests -lnsl -lsocket)
 ENDIF()

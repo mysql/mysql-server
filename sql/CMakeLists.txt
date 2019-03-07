@@ -539,14 +539,6 @@ SET(SQL_SHARED_SOURCES
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
-
-# Needed so that IDEs (e.g. Xcode) can see all sources when searching
-FILE(GLOB_RECURSE SQL_HEADERS
-  "${CMAKE_SOURCE_DIR}/include/*.h"
-  "${CMAKE_SOURCE_DIR}/sql/*.h"
-  "${CMAKE_SOURCE_DIR}/storage/*.h"
-)
-
 # Needed so that IDEs (e.g. Xcode) can see all sources when searching 
 FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/include/*.h"
@@ -554,24 +546,21 @@ FILE(GLOB_RECURSE SQL_HEADERS
   "${CMAKE_SOURCE_DIR}/storage/*.h"
 ) 
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_linux.cc)
-ENDIF()
-
-IF(APPLE)
-  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_apple.cc)
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_freebsd.cc)
-ENDIF()
-
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_solaris.cc)
-ENDIF()
-
-IF(WIN32)
-  LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
+IF(LINUX)
+  LIST(APPEND SQL_SHARED_SOURCES
+    resourcegroups/platform/thread_attrs_api_linux.cc)
+ELSEIF(APPLE)
+  LIST(APPEND SQL_SHARED_SOURCES
+    resourcegroups/platform/thread_attrs_api_apple.cc)
+ELSEIF(FREEBSD)
+  LIST(APPEND SQL_SHARED_SOURCES
+    resourcegroups/platform/thread_attrs_api_freebsd.cc)
+ELSEIF(SOLARIS)
+  LIST(APPEND SQL_SHARED_SOURCES
+    resourcegroups/platform/thread_attrs_api_solaris.cc)
+ELSEIF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES
+    resourcegroups/platform/thread_attrs_api_win.cc)
 ENDIF()
 
 SET(SQL_SOURCE

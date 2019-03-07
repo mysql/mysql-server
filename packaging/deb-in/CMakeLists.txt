@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+IF(NOT LINUX)
   RETURN()
 ENDIF()
 IF (NOT DEFINED DEB_CODENAME)

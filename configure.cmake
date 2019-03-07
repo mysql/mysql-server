@@ -32,7 +32,7 @@ INCLUDE (CheckCXXSourceRuns)
 INCLUDE (CheckSymbolExists)
 
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
+IF(SOLARIS AND CMAKE_COMPILER_IS_GNUCXX)
   ## We will be using gcc to generate .so files
   ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
   ## The client library contains C++ code, so add dependency on libstdc++
@@ -49,12 +49,6 @@ IF(NOT SYSTEM_TYPE)
   ELSE()
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
-ENDIF()
-
-# Probobuf 2.6.1 on Sparc. Both gcc and Solaris Studio need this.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-    SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-  ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
 ENDIF()
 
 # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
@@ -507,8 +501,10 @@ ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   STRING(TOLOWER ${CMAKE_SYSTEM_PROCESSOR}  processor)
-  IF(processor MATCHES "86" OR processor MATCHES "amd64" OR processor MATCHES "x64")
-    IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(processor MATCHES "86" OR
+      processor MATCHES "amd64" OR
+      processor MATCHES "x64")
+    IF(NOT SOLARIS)
       # The loader in some Solaris versions has a bug due to which it refuses to
       # start a binary that has been compiled by GCC and uses __asm__("pause")
       # with the error:
@@ -584,7 +580,7 @@ int main()
 }" HAVE_BUILTIN_EXPECT)
 
 # GCC has __builtin_stpcpy but still calls stpcpy
-IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS" OR NOT CMAKE_COMPILER_IS_GNUCC)
+IF(NOT SOLARIS OR NOT CMAKE_COMPILER_IS_GNUCC)
 CHECK_C_SOURCE_COMPILES("
 int main()
 {

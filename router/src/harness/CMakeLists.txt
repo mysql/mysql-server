@@ -192,7 +192,7 @@ generate_export_header(harness-library
   BASE_NAME HARNESS
   EXPORT_FILE_NAME ${MySQLRouter_BINARY_DIR}/include/harness_export.h)
 
-IF(${CMAKE_SYSTEM_NAME} STREQUAL "SunOS")
+IF(SOLARIS)
   TARGET_LINK_LIBRARIES(harness-library -lnsl -lsocket)
   TARGET_LINK_LIBRARIES(harness-archive -lnsl -lsocket)
 ENDIF()

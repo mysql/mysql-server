@@ -621,17 +621,17 @@ then
           #
           # Note: If directory of log file name does not exists or
           #       if write or execute permissions are missing on directory then
-          #       --log-error is set  $DATADIR/`@HOSTNAME@`.err
+          #       --log-error is set  $DATADIR/`hostname`.err
 
           log_dir_name="$(dirname "$err_log")";
           if [ ! -d "$log_dir_name" ]
           then
             log_notice "Directory "$log_dir_name" does not exists.";
-            err_log=$DATADIR/`@HOSTNAME@`.err
+            err_log=$DATADIR/`hostname`.err
           elif [ ! -x "$log_dir_name" -o ! -w "$log_dir_name" ]
           then
             log_notice "Do not have Execute or Write permissions on directory "$log_dir_name".";
-            err_log=$DATADIR/`@HOSTNAME@`.err
+            err_log=$DATADIR/`hostname`.err
           else
             err_log=$(cd $log_dir_name && pwd -P)/$(basename "$err_log")
           fi
@@ -639,8 +639,8 @@ then
       * ) err_log="$DATADIR/$err_log" ;;
     esac
   else
-    err_log=$DATADIR/`@HOSTNAME@`.err
-    err_log_append=`@HOSTNAME@`.err
+    err_log=$DATADIR/`hostname`.err
+    err_log_append=`hostname`.err
   fi
 
   append_arg_to_args "--log-error=$err_log_append"
@@ -740,8 +740,8 @@ fi
 
 if test -z "$pid_file"
 then
-  pid_file="$DATADIR/`@HOSTNAME@`.pid"
-  pid_file_append="`@HOSTNAME@`.pid"
+  pid_file="$DATADIR/`hostname`.pid"
+  pid_file_append="`hostname`.pid"
 else
   pid_file_append="$pid_file"
   case "$pid_file" in

@@ -24,6 +24,8 @@
 
 INCLUDE(CheckCSourceRuns)
 
+SET(FREEBSD 1)
+
 # We require at least Clang 4.0.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_C_COMPILER_ID MATCHES "Clang")

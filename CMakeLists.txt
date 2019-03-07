@@ -721,7 +721,7 @@ ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+IF(LINUX)
   OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
   SET(LINK_RANDOMIZE_SEED "mysql"
     CACHE STRING "Seed to use for link randomization")
@@ -888,7 +888,7 @@ ENDIF()
 
 INCLUDE(cmake/boost.cmake)
 
-IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
+IF (LINUX)
   OPTION(WITH_SYSTEMD "Enable installation of systemd support files" OFF)
   IF (WITH_SYSTEMD)
     INCLUDE(cmake/systemd.cmake)
@@ -1111,7 +1111,7 @@ MACRO(MY_TARGET_INCLUDE_SYSTEM_DIRECTORIES TARGET LIBRARY)
   ENDIF()
 ENDMACRO()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+IF(LINUX)
   # Check for pthread_setname_np
   CHECK_C_SOURCE_COMPILES("
   #include <pthread.h>

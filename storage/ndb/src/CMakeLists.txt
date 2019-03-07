@@ -265,7 +265,7 @@ ELSE()
     SET(ndbclient_so_link_flags
       "${ndbclient_so_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libndbclient.ver")
   ENDIF()
-  IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+  IF(SOLARIS)
     SET(ndbclient_so_link_flags
       "${ndbclient_so_link_flags} ${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()

@@ -54,15 +54,10 @@ CMAKE_POP_CHECK_STATE()
 
 
 
-IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+IF(SOLARIS)
   #On Solaris, default awk is next to unusable while the xpg4 one is ok.
   IF(EXISTS /usr/xpg4/bin/awk)
     SET(AWK_EXECUTABLE /usr/xpg4/bin/awk)
-  ENDIF()
-ELSEIF(CMAKE_SYSTEM_NAME STREQUAL "OS400")
-  #Workaround for cases, where /usr/bin/gawk is not executable
-  IF(EXISTS /QOpenSys/usr/bin/awk)
-    SET(AWK_EXECUTABLE /QOpenSys/usr/bin/awk)
   ENDIF()
 ENDIF()
 

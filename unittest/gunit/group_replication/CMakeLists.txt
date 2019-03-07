@@ -43,9 +43,10 @@ SET(TESTS
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
-  TARGET_LINK_LIBRARIES(${test}-t gr_unit_test_resource gunit_small ${GCS_LIBRARY})
+  TARGET_LINK_LIBRARIES(${test}-t
+    gr_unit_test_resource gunit_small ${GCS_LIBRARY})
   # mysys_ssl/libmysys_ssl.a already includes SSL objects on Solaris
-  IF(NOT CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(NOT SOLARIS)
     TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
   ENDIF()
 ENDFOREACH()

@@ -20,13 +20,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(RPATH_ORIGIN "@loader_path")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "CYGWIN")
-  set(RPATH_ORIGIN "\$ORIGIN")
-else()
-  set(RPATH_ORIGIN "\$ORIGIN")
-endif()
+IF(APPLE)
+  SET(RPATH_ORIGIN "@loader_path")
+ELSE()
+  SET(RPATH_ORIGIN "\$ORIGIN")
+ENDIF()
 
 # relative to CMAKE_INSTALL_PREFIX or absolute
 SET(ROUTER_INSTALL_BINDIR "${INSTALL_BINDIR}")
