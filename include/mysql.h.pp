@@ -579,7 +579,7 @@ MYSQL_RES * mysql_use_result(MYSQL *mysql);
 enum net_async_status mysql_real_connect_nonblocking(
     MYSQL *mysql, const char *host, const char *user, const char *passwd,
     const char *db, unsigned int port, const char *unix_socket,
-                               unsigned long clientflag);
+    unsigned long clientflag);
 enum net_async_status mysql_send_query_nonblocking(
     MYSQL *mysql, const char *query, unsigned long length);
 enum net_async_status mysql_real_query_nonblocking(
@@ -637,7 +637,7 @@ MYSQL_FIELD_OFFSET mysql_field_seek(MYSQL_RES *result,
                                             MYSQL_FIELD_OFFSET offset);
 MYSQL_ROW mysql_fetch_row(MYSQL_RES *result);
 enum net_async_status mysql_fetch_row_nonblocking(MYSQL_RES *res,
-                                                        MYSQL_ROW *row);
+                                                          MYSQL_ROW *row);
 unsigned long * mysql_fetch_lengths(MYSQL_RES *result);
 MYSQL_FIELD * mysql_fetch_field(MYSQL_RES *result);
 MYSQL_RES * mysql_list_fields(MYSQL *mysql, const char *table,
