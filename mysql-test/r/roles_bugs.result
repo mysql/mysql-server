@@ -94,3 +94,6 @@ DROP DATABASE my_db;
 DROP USER my_user;
 DROP USER foo@localhost, baz@localhost;
 DROP ROLE my_role;
+
+# End of 8.0 tests
+

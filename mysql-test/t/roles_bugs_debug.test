@@ -69,5 +69,9 @@ DROP DATABASE my_db;
 DROP USER foo, bar;
 DROP ROLE foo_role;
 
+--echo
+--echo # End of 8.0 tests
+--echo
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
