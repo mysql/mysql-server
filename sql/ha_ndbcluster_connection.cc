@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/mysqld.h"     // server_id, connection_events_loop_aborted
-#include "sql/rpl_slave.h"  // report_port
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"
 #include "storage/ndb/include/kernel/ndb_limits.h"
@@ -46,8 +45,6 @@
 #include "sql/ndb_log.h"
 #include "sql/ndb_sleep.h"
 #include "sql/table.h"
-
-extern char *my_bind_addr_str;
 
 Ndb* g_ndb= NULL;
 Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
@@ -174,6 +171,10 @@ bool parse_pool_nodeids(const char* opt_str,
    opt_disable_networking, mysqld_port, my_bind_addr_str, report_port,
    report_host, and mysqld_unix_port are all server global variables.
 */
+
+// Using variables from mysqld.cc
+extern uint report_port;
+
 static int
 get_processinfo_port()
 {
@@ -204,23 +205,21 @@ get_processinfo_port()
   return port;
 }
 
-static const char *
-get_processinfo_host()
-{
-  const char * host = 0;
-#ifndef EMBEDDED_LIBRARY
-  host = report_host;
-  if(! host)
-  {
+// Using variables from mysqld.cc
+extern char *report_host;
+extern char *my_bind_addr_str;
+
+static const char *get_processinfo_host() {
+  const char *host = report_host;
+  if (!host) {
     host = my_bind_addr_str;
-    if(! ( strcmp(host, "*") &&          // If bind_address matches any of
-           strcmp(host, "0.0.0.0") &&    // these strings, let ProcessInfo
-           strcmp(host, "::")))          // use the NDB transporter address.
+    if (!(strcmp(host, "*") &&        // If bind_address matches any of
+          strcmp(host, "0.0.0.0") &&  // these strings, let ProcessInfo
+          strcmp(host, "::")))        // use the NDB transporter address.
     {
-      host = 0;
+      host = nullptr;
     }
   }
-#endif
   return host;
 }
 

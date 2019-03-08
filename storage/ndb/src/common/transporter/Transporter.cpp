@@ -72,6 +72,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   // Initialize member variables
   ndb_socket_invalidate(&theSocket);
 
+  DBUG_ASSERT(rHostName);
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
   }
