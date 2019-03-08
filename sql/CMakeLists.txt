@@ -539,12 +539,23 @@ SET(SQL_SHARED_SOURCES
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
-# Needed so that IDEs (e.g. Xcode) can see all sources when searching 
-FILE(GLOB_RECURSE SQL_HEADERS
-  "${CMAKE_SOURCE_DIR}/include/*.h"
-  "${CMAKE_SOURCE_DIR}/sql/*.h"
-  "${CMAKE_SOURCE_DIR}/storage/*.h"
-) 
+UNSET(SQL_HEADERS)
+IF(CMAKE_GENERATOR STREQUAL "Xcode")
+  OPTION(GLOB_RECURSE_SQL_HEADERS "Find header files with GLOB_RECURSE" ON)
+ELSE()
+  OPTION(GLOB_RECURSE_SQL_HEADERS "Find header files with GLOB_RECURSE" OFF)
+ENDIF()
+IF(GLOB_RECURSE_SQL_HEADERS)
+  # Needed so that IDEs (e.g. Xcode) can see all sources when searching
+  # This recursive search finds over 1500 header files, and may actually
+  # take a significant amount of time. Hence, do it only upon request.
+  # Visual Studio will scan/parse for headers at startup anyways.
+  FILE(GLOB_RECURSE SQL_HEADERS
+    "${CMAKE_SOURCE_DIR}/include/*.h"
+    "${CMAKE_SOURCE_DIR}/sql/*.h"
+    "${CMAKE_SOURCE_DIR}/storage/*.h"
+    )
+ENDIF()
 
 IF(LINUX)
   LIST(APPEND SQL_SHARED_SOURCES
