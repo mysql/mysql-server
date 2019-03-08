@@ -675,7 +675,7 @@ SUCCESS
 #
 alter table t2 add column b int default 5;
 # A commit is done internally by ALTER. 
-call p_verify_status_increment(2, 0, 3, 0);
+call p_verify_status_increment(4, 0, 3, 0);
 SUCCESS
 
 commit;
@@ -689,7 +689,7 @@ SUCCESS
 # 24. DDL: TRUNCATE TEMPORARY TABLE
 
 truncate table t2;
-call p_verify_status_increment(5, 0, 4, 0);
+call p_verify_status_increment(6, 0, 4, 0);
 SUCCESS
 
 commit;

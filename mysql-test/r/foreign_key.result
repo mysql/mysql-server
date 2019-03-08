@@ -3065,7 +3065,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
 SET FOREIGN_KEY_CHECKS = 1;
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ERROR HY000: Cannot add foreign key constraint
 SET FOREIGN_KEY_CHECKS = 0;
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
 ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'

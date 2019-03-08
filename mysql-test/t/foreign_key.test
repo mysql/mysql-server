@@ -3067,7 +3067,7 @@ CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
 SET FOREIGN_KEY_CHECKS = 1;
 # We get more generic error message here because SE check kicks in
 # before SQL-layer check.
---error ER_FK_NO_INDEX_PARENT
+--error ER_CANNOT_ADD_FOREIGN
 CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
 SET FOREIGN_KEY_CHECKS = 0;
 --error ER_FK_NO_INDEX_PARENT

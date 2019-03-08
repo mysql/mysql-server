@@ -12547,31 +12547,21 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   ut_ad(handler == NULL || handler->is_intrinsic());
   ut_ad(handler == NULL || is_intrinsic_temp_table());
 
-#ifndef UNIV_DEBUG
-#define dbug_v_stack_overrun false
-#else  /* UNIV_DEBUG */
-  bool dbug_v_stack_overrun = false;
-#endif /* UNIV_DEBUG */
-
-  DBUG_EXECUTE_IF("enable_stack_overrun_alter_table",
-                  { dbug_v_stack_overrun = true; });
-
   /* There is no concept of foreign key for intrinsic tables. */
-  if (handler == NULL && stmt != NULL && dd_table != nullptr &&
-      (!(dd_table->foreign_keys().empty() &&
-         dd_table->foreign_key_parents().empty()) ||
-       dbug_v_stack_overrun)) {
+  if (handler == NULL && stmt != NULL && dd_table != nullptr
+      /* FIXME: NewDD: WL#6049 should add a new call to check if a table
+      is a parent table of any FK. If the table is not child table, nor
+      parent table, then it can skip the check:
+      dd_table->foreign_keys().empty() &&
+      dd_table->referenced_keys().empty() */
+  ) {
     dberr_t err = DB_SUCCESS;
 
-    DBUG_EXECUTE_IF("enable_stack_overrun_alter_table",
-                    { DBUG_SET("+d,simulate_stack_overrun"); });
     mutex_enter(&dict_sys->mutex);
     err = row_table_add_foreign_constraints(
         m_trx, stmt, stmt_len, m_table_name,
         m_create_info->options & HA_LEX_CREATE_TMP_TABLE, dd_table);
     mutex_exit(&dict_sys->mutex);
-    DBUG_EXECUTE_IF("enable_stack_overrun_alter_table",
-                    { DBUG_SET("-d,simulate_stack_overrun"); });
 
     switch (err) {
       case DB_PARENT_NO_INDEX:
