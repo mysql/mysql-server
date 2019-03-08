@@ -67,9 +67,12 @@ class User_params : public Rewrite_params {
 */
 class Show_user_params : public Rewrite_params {
  public:
-  Show_user_params(bool hide_password_hash)
-      : Rewrite_params(), hide_password_hash(hide_password_hash) {}
+  Show_user_params(bool hide_password_hash, bool print_identified_with_as_hex)
+      : Rewrite_params(),
+        hide_password_hash(hide_password_hash),
+        print_identified_with_as_hex_(print_identified_with_as_hex) {}
   bool hide_password_hash;
+  bool print_identified_with_as_hex_;
 };
 
 /**
@@ -147,7 +150,7 @@ class Rewriter_user : public I_rewriter {
   /* Append the literal value <secret> to the str */
   void append_literal_secret(String *str) const;
   /* Append the password hash to the output string */
-  void append_auth_str(LEX_USER *lex, String *str) const;
+  virtual void append_auth_str(LEX_USER *lex, String *str) const;
   /* Append the authentication plugin name for the user */
   void append_plugin_name(const LEX_USER *user, String *str) const;
   /*
@@ -216,6 +219,10 @@ class Rewriter_show_create_user final : public Rewriter_user {
                             Rewrite_params *params);
   bool rewrite() const override;
 
+ protected:
+  /* Append the password hash to the output string */
+  virtual void append_auth_str(LEX_USER *lex, String *str) const override;
+
  private:
   void append_user_auth_info(LEX_USER *user, bool comma,
                              String *str) const override;
@@ -223,7 +230,7 @@ class Rewriter_show_create_user final : public Rewriter_user {
   void rewrite_password_reuse(const LEX *lex, String *str) const override;
   /* Append the DEFAULT ROLE OPTIONS clause */
   void rewrite_default_roles(const LEX *lex, String *str) const;
-  bool m_hide_password_hash = false;
+  Show_user_params *show_params_;
 };
 /** Rewrites the SET statement. */
 class Rewriter_set : public I_rewriter {

@@ -330,7 +330,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
   lex->users_list.push_back(user_name);
   {
-    Show_user_params show_user_params(hide_password_hash);
+    Show_user_params show_user_params(
+        hide_password_hash, thd->variables.print_identified_with_as_hex);
     mysql_rewrite_acl_query(thd, Consumer_type::STDOUT, &show_user_params,
                             false);
     sql_text.takeover(thd->rewritten_query);

@@ -13886,6 +13886,10 @@ TEXT_STRING_password:
 
 TEXT_STRING_hash:
           TEXT_STRING_sys
+        | HEX_NUM
+          {
+            $$= Item_hex_string::make_hex_str($1.str, $1.length);
+          }
         ;
 
 TEXT_STRING_validated:

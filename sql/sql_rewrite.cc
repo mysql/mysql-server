@@ -784,10 +784,8 @@ void Rewriter_alter_user::rewrite_password_reuse(const LEX *lex,
 Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
                                                      Consumer_type type,
                                                      Rewrite_params *params)
-    : Rewriter_user(thd, type) {
-  Show_user_params *show_params = dynamic_cast<Show_user_params *>(params);
-  if (show_params) m_hide_password_hash = show_params->hide_password_hash;
-}
+    : Rewriter_user(thd, type),
+      show_params_(dynamic_cast<Show_user_params *>(params)) {}
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
@@ -803,6 +801,36 @@ bool Rewriter_show_create_user::rewrite() const {
   rewrite_default_roles(lex, rlb);
   parent::rewrite();
   return true;
+}
+
+/**
+  A special rewriter override to make SHOW CREATE USER convert the string
+  to hex if print_identified_with_as hex is on
+
+  @param [in]       user    LEX_USER to fetch the auth string of it.
+  @param [in, out]  str     The string in which hash value is suffixed
+
+  @sa Rewriter_user::append_auth_str
+*/
+void Rewriter_show_create_user::append_auth_str(LEX_USER *user,
+                                                String *str) const {
+  String from_auth(user->auth.str, user->auth.length, system_charset_info);
+
+  if (show_params_ && show_params_->print_identified_with_as_hex_ &&
+      user->auth.length) {
+    for (const char *c = user->auth.str;
+         static_cast<size_t>(c - user->auth.str) < user->auth.length; c++) {
+      if (!my_isgraph(system_charset_info, *c)) {
+        from_auth.alloc(user->auth.length * 2 + 3);
+        str_to_hex(from_auth.c_ptr_quick(), user->auth.str, user->auth.length);
+        from_auth.length(user->auth.length * 2 + 2);
+        str->append(from_auth);
+
+        return;
+      }
+    }
+  }
+  append_query_string(m_thd, system_charset_info, &from_auth, str);
 }
 /**
   Append the PASSWORD HISTORY clause for users
@@ -840,7 +868,7 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
   append_plugin_name(user, str);
   if (user->auth.length > 0) {
     str->append(STRING_WITH_LEN(" AS "));
-    if (m_hide_password_hash) {
+    if (show_params_ && show_params_->hide_password_hash) {
       append_literal_secret(str);
     } else {
       append_auth_str(user, str);

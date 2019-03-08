@@ -971,6 +971,9 @@ The following options may be given as the first argument:
  --preload-buffer-size=# 
  The size of the buffer that is allocated when preloading
  indexes
+ --print-identified-with-as-hex 
+ SHOW CREATE USER will print the AS clause as HEX if it
+ contains non-prinable characters
  --profiling-history-size=# 
  Limit of query profiling memory
  --query-alloc-block-size=# 
@@ -1650,6 +1653,7 @@ persisted-globals-load TRUE
 port ####
 port-open-timeout 0
 preload-buffer-size 32768
+print-identified-with-as-hex FALSE
 profiling-history-size 15
 query-alloc-block-size 8192
 query-prealloc-size 8192

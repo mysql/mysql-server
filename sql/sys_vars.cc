@@ -6560,3 +6560,10 @@ static Sys_var_bool Sys_table_encryption_privilege_check(
     GLOBAL_VAR(opt_table_encryption_privilege_check), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_set_table_encryption_privilege_access), ON_UPDATE(0));
+
+static Sys_var_bool Sys_var_print_identified_with_as_hex(
+    "print_identified_with_as_hex",
+    "SHOW CREATE USER will print the AS clause as HEX if it contains "
+    "non-prinable characters",
+    SESSION_VAR(print_identified_with_as_hex), CMD_LINE(OPT_ARG),
+    DEFAULT(false));
