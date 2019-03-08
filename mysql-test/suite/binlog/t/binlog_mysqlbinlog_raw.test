@@ -113,9 +113,12 @@ INSERT INTO t1 values (1);
 DROP TABLE t1;
 
 --echo # test mysqlbinlog '-C' option with --raw
---exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
---exec $MYSQL_BINLOG --compress --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
---exec $MYSQL_BINLOG -C --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
+--exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ $binlog_file < /dev/null > /dev/null 2>&1
+--remove_file $MYSQL_TMP_DIR/$binlog_file
+--exec $MYSQL_BINLOG --compress --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ $binlog_file < /dev/null > /dev/null 2>&1
+--remove_file $MYSQL_TMP_DIR/$binlog_file
+--exec $MYSQL_BINLOG -C --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --result-file=$MYSQL_TMP_DIR/ $binlog_file < /dev/null > /dev/null 2>&1
+--remove_file $MYSQL_TMP_DIR/$binlog_file
 
 --echo # test mysqlbinlog '--compress' option without --raw
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file < /dev/null > /dev/null 2>&1
