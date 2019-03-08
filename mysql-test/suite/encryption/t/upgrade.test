@@ -164,3 +164,26 @@ SHOW GRANTS FOR 'root'@'localhost';
 --echo ########################################################################
 let $restart_parameters =;
 --source include/start_mysqld.inc
+
+--echo ########################################################################
+--echo # Bug #29447073: UPGRADE FROM 8.0.16 TO TRUNK FAILS WHEN MYSQL TABLESPACE IS ENCRYPTED
+--echo ########################################################################
+
+alter tablespace mysql encryption='Y';
+
+--replace_result $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
+--let $restart_parameters = restart: --upgrade=FORCE --early-plugin-load=keyring_file=$KEYRING_PLUGIN $KEYRING_PLUGIN_OPT
+--let $wait_counter=10000
+--source include/restart_mysqld.inc
+--source include/wait_until_connected_again.inc
+
+--source include/mysql_upgrade_cleanup.inc
+
+alter tablespace mysql encryption='N';
+
+--echo ########################################################################
+--echo # Cleanup: Restart with default options.
+--echo ########################################################################
+let $restart_parameters =;
+--source include/start_mysqld.inc
+
