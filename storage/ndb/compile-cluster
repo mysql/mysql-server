@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ use strict;
 use Cwd 'abs_path';
 use File::Basename;
 use Getopt::Long;
+use IPC::Cmd qw[can_run];
 
 # Automatically flush STDOUT
 select(STDOUT);
@@ -86,12 +87,14 @@ if ($^O eq "cygwin" or $^O eq "msys") {
 }
 
 # Check that cmake exists and figure out it's version
+my $cmake = can_run("cmake3") || can_run("cmake");
+
 my $cmake_version_id;
 {
-  my $version_text = `cmake --version`;
+  my $version_text = `$cmake --version`;
   print $version_text;
   die "Could not find cmake" if ($?);
-  if ( $version_text =~ /^cmake version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
+  if ( $version_text =~ /^cmake[3]? version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
   {
     #print "1: $1 2: $2 3: $3\n";
     $cmake_version_id= $1*10000 + $2*100 + $3;
@@ -376,7 +379,7 @@ if(! -d "$opt_srcdir/libmysqld")
     if (-f "$opt_srcdir/CMakeCache.txt");
   push(@args, $opt_srcdir);
   
-  cmd("cmake", @args);
+  cmd($cmake, @args);
 }
 
 #
@@ -409,7 +412,7 @@ if (!$opt_build)
       push(@args, $config);
     }
 
-    cmd("cmake", @args);
+    cmd($cmake, @args);
 
   }
   else
