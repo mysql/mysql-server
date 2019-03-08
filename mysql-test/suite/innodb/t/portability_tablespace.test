@@ -114,7 +114,7 @@ SELECT space,path FROM INFORMATION_SCHEMA.INNODB_DATAFILES WHERE path LIKE '%und
 
 --copy_files_wildcard $MYSQLD_OLD_DATADIR  $MYSQLD_NEW_DATADIR *.ibd
 --copy_file $MYSQLD_OLD_DATADIR/undo_001  $MYSQL_TMP_DIR/undo_directory1/undo_001
---copy_file $MYSQLD_OLD_DATADIR/undo_002  $MYSQL_TMP_DIR/undo_directory1/undo_002
+--remove_file $MYSQLD_OLD_DATADIR/undo_002
 --copy_file $MYSQLD_OLD_DATADIR/undo_003.ibu  $MYSQL_TMP_DIR/undo_directory1/undo_003.ibu
 --copy_file $MYSQLD_OLD_DATADIR/undo_004.ibu  $MYSQL_TMP_DIR/undo_directory2/undo_004.ibu
 

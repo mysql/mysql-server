@@ -1204,6 +1204,7 @@ static dberr_t srv_undo_tablespaces_create() {
 
     /* Since it is not found, create it. */
     undo::Tablespace undo_space(space_id);
+    undo_space.set_new();
     err = srv_undo_tablespace_create(undo_space);
     if (err != DB_SUCCESS) {
       ib::info(ER_IB_MSG_1088, undo_space.space_name());

@@ -1008,12 +1008,12 @@ void dd_table_close(dict_table_t *table, THD *thd, MDL_ticket **mdl,
 @param[in]	new_space_name	New tablespace name
 @param[in]	new_path	New data file path
 @retval DB_SUCCESS on success. */
-dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
+dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
                              const char *new_space_name, const char *new_path) {
   THD *thd = current_thd;
   std::string tablespace_name;
 
-  DBUG_ENTER("dd_rename_tablespace");
+  DBUG_ENTER("dd_tablespace_rename");
 #ifdef UNIV_DEBUG
   btrsea_sync_check check(false);
   ut_ad(!sync_check_iterate(check));
@@ -5637,7 +5637,7 @@ bool dd_rename_fts_table(const dict_table_t *table, const char *old_name) {
   if (dict_table_is_file_per_table(table)) {
     char *new_path = fil_space_get_first_path(table->space);
 
-    if (dd_rename_tablespace(table->dd_space_id, table->name.m_name,
+    if (dd_tablespace_rename(table->dd_space_id, table->name.m_name,
                              new_path) != DB_SUCCESS) {
       ut_a(false);
     }

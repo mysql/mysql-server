@@ -13074,7 +13074,7 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
 
     auto dd_space_id = dd_first_index(to_table)->tablespace_id();
 
-    error = dd_rename_tablespace(dd_space_id, norm_to, new_path);
+    error = dd_tablespace_rename(dd_space_id, norm_to, new_path);
 
     if (new_path != nullptr) {
       ut_free(new_path);

@@ -9135,7 +9135,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
     auto new_path = std::get<dd_fil::NEW_PATH>(tablespace);
     auto object_id = std::get<dd_fil::OBJECT_ID>(tablespace);
 
-    err = dd_rename_tablespace(object_id, space_name.c_str(), new_path.c_str());
+    err = dd_tablespace_rename(object_id, space_name.c_str(), new_path.c_str());
 
     if (err != DB_SUCCESS) {
       ib::error(ER_IB_MSG_345) << "Unable to update tablespace ID"
@@ -9315,6 +9315,30 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
   ut_ad((fsp_is_ibd_tablespace(space_id) &&
          Fil_path::has_suffix(IBD, old_path)) ||
         fsp_is_undo_tablespace(space_id));
+
+  if (fsp_is_undo_tablespace(space_id)) {
+    undo::spaces->s_lock();
+    space_id_t space_num = undo::id2num(space_id);
+    undo::Tablespace *undo_space = undo::spaces->find(space_num);
+    if (undo_space != nullptr && undo_space->is_new()) {
+      /* This undo tablespace was created during startup so it will not be
+      in the list of scanned files. But the DD might need to be updated if
+      the undo directory is different now from when the database was
+      initialized. */
+      *new_path = undo_space->file_name();
+      Fil_state state = ((old_path.compare(*new_path) == 0) ? Fil_state::MATCHES
+                                                            : Fil_state::MOVED);
+      undo::spaces->s_unlock();
+
+      if (state == Fil_state::MOVED) {
+        fil_system->moved(dd_object_id, space_id, space_name, old_path,
+                          *new_path);
+      }
+
+      return (state);
+    }
+    undo::spaces->s_unlock();
+  }
 
   /* Single threaded code, no need to acquire mutex. */
   const auto &end = recv_sys->deleted.end();
