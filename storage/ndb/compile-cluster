@@ -30,7 +30,7 @@
 # This script is intended for internal use
 #
 use strict;
-use Cwd 'abs_path';
+use Cwd qw[abs_path cwd];
 use File::Basename;
 use Getopt::Long;
 use IPC::Cmd qw[can_run];
@@ -242,7 +242,8 @@ if(! -d "$opt_srcdir/libmysqld")
   my $opt_with_plugins;
   my $opt_without_plugin;
   my $opt_extra_charsets;
-  my $opt_with_extra_charsets;  
+  my $opt_with_extra_charsets;
+  my $opt_force_insource_build;
   Getopt::Long::Configure("pass_through");
   GetOptions(
     'prefix=s' => \$opt_prefix,
@@ -261,6 +262,7 @@ if(! -d "$opt_srcdir/libmysqld")
     'without-plugin=s' => \$opt_without_plugin,
     'with-extra-charsets=s' => \$opt_with_extra_charsets,
     'extra-charsets=s' => \$opt_extra_charsets,
+    'force-insource-build' => \$opt_force_insource_build,
   ) or exit(1);
 
   if($opt_prefix)
@@ -331,7 +333,10 @@ if(! -d "$opt_srcdir/libmysqld")
   {
     push(@args, "-DWITH_EXTRA_CHARSETS=$opt_with_extra_charsets");
   }
-  
+  if ($opt_force_insource_build)
+  {
+    push(@args, "-DFORCE_INSOURCE_BUILD=1");
+  }
 
   # Default conversion of remaining args in ARGV from
   # 1) --arg          -> -DARG=1
@@ -378,6 +383,24 @@ if(! -d "$opt_srcdir/libmysqld")
   die "srcdir already contains CMakeCache.txt, this will not work!"
     if (-f "$opt_srcdir/CMakeCache.txt");
   push(@args, $opt_srcdir);
+
+  if (cwd() eq $opt_srcdir && !$opt_force_insource_build)
+  {
+    die "
+    Please do not build in-source.  Out-of source builds are highly
+    recommended: you can have multiple builds for the same source, and there is
+    an easy way to do cleanup, simply remove the build directory (note that
+    'make clean' or 'make distclean' does *not* work)
+
+    You *can* force in-source build by invoking compile-cluster with
+    -force-insource-build option which in turn invokes cmake with
+    -DFORCE_INSOURCE_BUILD=1";
+  }
+
+  if ($cmake_version_id < 30403)
+  {
+    die "CMake 3.4.3 or higher is required";
+  }
   
   cmd($cmake, @args);
 }
@@ -392,37 +415,26 @@ if (!$opt_build)
 }
 
 {
-  if ($cmake_version_id >= 20800)
-  {
-    # Use the universal "cmake --build <dir>" way of building
-    # which is available from cmake 2.8 and works on all platforms
-    my @args;
-    push(@args, "--build");
-    push(@args, ".");
+  # Use the universal "cmake --build <dir>" way of building
+  # which is available from cmake 2.8 and works on all platforms
+  my @args;
+  push(@args, "--build");
+  push(@args, ".");
 
-    if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+  if ($^O eq "cygwin" or $^O eq "MSWin32" or $^O eq "msys")
+  {
+    # Choose to build RelWitDebInfo by default on Windows
+    my $config = 'RelWithDebInfo';
+    if ($opt_debug)
     {
-      # Choose to build RelWitDebInfo by default on Windows
-      my $config = 'RelWithDebInfo';
-      if ($opt_debug)
-      {
-	$config = 'Debug';
-      }
-      push(@args, "--config");
-      push(@args, $config);
+      $config = 'Debug';
     }
-
-    cmd($cmake, @args);
-
+    push(@args, "--config");
+    push(@args, $config);
   }
-  else
-  {
-    # Use make to build, not supported on Windows
-    die "You need to install cmake with version > 2.8"
-      if ($^O eq "cygwin" or $^O eq "MSWin32");
 
-    cmd("make");
-  }
+  cmd($cmake, @args);
+
 }
 
 if ($opt_distcheck)
