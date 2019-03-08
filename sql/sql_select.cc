@@ -3978,6 +3978,8 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
                 !(having_cond->used_tables() & ~(1 | PSEUDO_TABLE_BITS)));
     used_tables = 1;
   }
+  // Condition may contain outer references, const and non-deterministic exprs:
+  used_tables |= PSEUDO_TABLE_BITS;
 
   /*
     All conditions which can be applied after reading from used_tables are
@@ -3989,7 +3991,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
   */
   Item *sort_table_cond =
       (rollup.state == ROLLUP::STATE_NONE)
-          ? make_cond_for_table(thd, having_cond, used_tables, (table_map)0,
+          ? make_cond_for_table(thd, having_cond, used_tables, table_map{0},
                                 false)
           : nullptr;
   if (sort_table_cond) {
@@ -4004,7 +4006,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
     DBUG_EXECUTE("where", print_where(thd, curr_table->condition(),
                                       "select and having", QT_ORDINARY););
 
-    having_cond = make_cond_for_table(thd, having_cond, ~(table_map)0,
+    having_cond = make_cond_for_table(thd, having_cond, ~table_map{0},
                                       ~used_tables, false);
     DBUG_EXECUTE("where", print_where(thd, having_cond, "having after sort",
                                       QT_ORDINARY););

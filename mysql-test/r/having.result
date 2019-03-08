@@ -925,3 +925,32 @@ field1
 z
 DROP TABLE CC;
 DROP VIEW v1;
+# Bug#28934388: LIMIT is applied before HAVING when you have a subquery
+CREATE TABLE t (id INT PRIMARY KEY, value INT);
+INSERT INTO t VALUES (1, 99), (2,98), (3, 97);
+CREATE TABLE o(c INTEGER);
+INSERT INTO o(c) VALUES(1), (2);
+SELECT t1.id, (SELECT t2.value FROM t t2 WHERE t1.id = t2.id) AS sub_value
+FROM t t1
+HAVING sub_value = 99
+ORDER BY value
+LIMIT 1;
+id	sub_value
+1	99
+SELECT t1.id, (SELECT t2.value FROM t t2 WHERE t1.id = t2.id) AS sub_value
+FROM t t1
+HAVING sub_value = 99 AND RAND() >= 0.0E0
+ORDER BY value
+LIMIT 1;
+id	sub_value
+1	99
+SELECT (SELECT (SELECT t2.value+o.c FROM t t2 WHERE t1.id = t2.id) AS sub_value
+FROM t t1
+HAVING sub_value = 99
+ORDER BY value
+LIMIT 1) AS sub_value
+FROM o;
+sub_value
+99
+99
+DROP TABLE t, o;
