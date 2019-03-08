@@ -374,6 +374,11 @@ int Security_context::activate_role(LEX_CSTRING role, LEX_CSTRING role_host,
   Subscribes to a cache entry of aggregated ACLs.
   A Security_context can only have one subscription at a time. If another one
   is requested, the former will be returned.
+
+  We do this subscription before execution of every statement(prepared or
+  conventional) as the global acl version might have increased due to
+  a grant/revoke or flush. Hence, the granularity of after effects of
+  grant/revoke or flush due to roles is per statement.
 */
 void Security_context::checkout_access_maps(void) {
   DBUG_ENTER("Security_context::checkout_access_maps");

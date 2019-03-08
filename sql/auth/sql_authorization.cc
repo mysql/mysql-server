@@ -2867,6 +2867,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   thd->lex->restore_backup_query_tables_list(&backup);
   get_global_acl_cache()->increase_version();
+  DEBUG_SYNC(thd, "after_table_grant_revoke");
   DBUG_RETURN(result);
 }
 
@@ -3947,12 +3948,11 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
                              Field_iterator_table_ref *fields) {
   Security_context *sctx = thd->security_context();
   ulong want_access = want_access_arg;
-  const char *table_name = NULL;
-
-  const char *db_name = NULL;
-  GRANT_INFO *grant;
-  /* Initialized only to make gcc happy */
-  GRANT_TABLE *grant_table = NULL;
+  const char *table_name = nullptr;
+  const char *field_name = nullptr;
+  const char *db_name = nullptr;
+  GRANT_INFO *grant = nullptr;
+  GRANT_TABLE *grant_table = nullptr;
   /*
      Flag that gets set if privilege checking has to be performed on column
      level.
@@ -3960,14 +3960,16 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
   bool using_column_privileges = false;
   bool has_roles = thd->security_context()->get_active_roles()->size() > 0;
   Grant_table_aggregate aggr;
-
+  DEBUG_SYNC(thd, "in_check_grant_all_columns");
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
   if (!acl_cache_lock.lock()) return true;
 
   for (; !fields->end_of_fields(); fields->next()) {
-    const char *field_name = fields->name();
-
-    if (table_name != fields->get_table_name()) {
+    grant = fields->grant(); /* Get cached GRANT_INFO on field */
+    // Check the privileges at column level if table does not have wanted access
+    want_access = want_access_arg & ~grant->privilege;
+    if (want_access) {
+      field_name = fields->name();
       table_name = fields->get_table_name();
       db_name = fields->get_db_name();
       if (has_roles) {
@@ -3975,60 +3977,42 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         LEX_CSTRING str_table_name = {table_name, strlen(table_name)};
         aggr = thd->security_context()->table_and_column_acls(str_db_name,
                                                               str_table_name);
-        /* Get cached GRANT_INFO */
-        grant = fields->grant();
         /* Update it to reflect current role privileges */
         grant->privilege = aggr.table_access;
         /* Reduce remaining privilege requirements */
         want_access = want_access_arg & ~grant->privilege;
-      } else {
-        grant = fields->grant();
-        /* get a fresh one for each table */
-        want_access = want_access_arg & ~grant->privilege;
-        if (want_access) {
-          /* reload table if someone has modified any grants */
-          if (grant->version != grant_version) {
-            grant->grant_table = table_hash_search(
-                sctx->host().str, sctx->ip().str, db_name,
-                sctx->priv_user().str, table_name, 0); /* purecov: inspected */
-            grant->version = grant_version;            /* purecov: inspected */
-          }
-
-          grant_table = grant->grant_table;
-          DBUG_ASSERT(grant_table);
-        }
-      }
-    }
-
-    if (want_access) {
-      if (has_roles) {
         /* Does any of the columns have the access we need? */
         if (aggr.cols & want_access) {
           /* Find our column */
           std::string q_name(field_name);
           Column_map::iterator it = aggr.columns.find(q_name);
-          if (it != aggr.columns.end()) {
-            if (!(~(it->second) & want_access)) {
-              DBUG_PRINT("info",
-                         ("Sufficient column privileges found for %s.%s.%s",
-                          db_name, table_name, field_name));
-              goto err;
-            }
-          } else {
+          if (it != aggr.columns.end()) using_column_privileges = true;
+          if (it == aggr.columns.end() || (~(it->second) & want_access)) {
             DBUG_PRINT("info", ("No column privileges found for %s.%s.%s",
                                 db_name, table_name, field_name));
             goto err;
           }
+          DBUG_PRINT("info", ("Sufficient column privileges found for %s.%s.%s",
+                              db_name, table_name, field_name));
         }
       } else {
-        /* Roles are not used; fall back on legacy behavior */
+        /* reload table if someone has modified any grants */
+        if (grant->version != grant_version) {
+          grant->grant_table = table_hash_search(
+              sctx->host().str, sctx->ip().str, db_name, sctx->priv_user().str,
+              table_name, 0);             /* purecov: inspected */
+          grant->version = grant_version; /* purecov: inspected */
+        }
+        grant_table = grant->grant_table;
+        if (grant_table == nullptr) goto err;
         GRANT_COLUMN *grant_column =
             column_hash_search(grant_table, field_name, strlen(field_name));
         if (grant_column) using_column_privileges = true;
-        if (!grant_column || (~grant_column->rights & want_access)) goto err;
+        if (grant_column == nullptr || (~grant_column->rights & want_access))
+          goto err;
       }
     }
-  }  // next table
+  }  // next field
   return false;
 
 err:
