@@ -5,7 +5,7 @@ CREATE TABLE t2 SELECT SQL_BIG_RESULT f1, COUNT(f2) FROM t1 GROUP BY f1;
 SHOW STATUS LIKE 'handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	23
+Handler_read_key	24
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
