@@ -2350,9 +2350,19 @@ static int unpack_field(MYSQL *mysql, MEM_ROOT *alloc, bool default_value,
     field->name_length = lengths[1];
 
     if (server_capabilities & CLIENT_LONG_FLAG) {
+      if (lengths[4] != 3) {
+        /* malformed packet. signal an error. */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
       field->flags = uint2korr((uchar *)row->data[4]);
       field->decimals = (uint)(uchar)row->data[4][2];
     } else {
+      if (lengths[4] != 2) {
+        /* malformed packet. signal an error. */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
       field->flags = (uint)(uchar)row->data[4][0];
       field->decimals = (uint)(uchar)row->data[4][1];
     }
