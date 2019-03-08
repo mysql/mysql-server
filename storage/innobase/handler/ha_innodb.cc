@@ -3202,7 +3202,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
           << " tablespaces";
 
       if (*moved_count > 0) {
-        msg << ", moved count " << moved_count;
+        msg << ", moved count " << *moved_count;
       }
       msg << " so far.";
 
@@ -4940,22 +4940,22 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   /* InnoDB files should be found in the following locations only. */
   std::string directories;
 
+  /* This is the default directory for .ibd files. */
+  directories.append(MySQL_datadir_path.path());
+
+  directories.push_back(FIL_PATH_SEPARATOR);
+  directories.append(srv_data_home);
+
   if (innobase_directories != nullptr && *innobase_directories != 0) {
     Fil_path::normalize(innobase_directories);
-    directories.append(Fil_path::parse(innobase_directories));
     directories.push_back(FIL_PATH_SEPARATOR);
+    directories.append(Fil_path::parse(innobase_directories));
   }
-
-  directories.append(srv_data_home);
 
   if (srv_undo_dir != nullptr && *srv_undo_dir != 0) {
     directories.push_back(FIL_PATH_SEPARATOR);
     directories.append(srv_undo_dir);
   }
-
-  /* This is the default directory for .ibd files. */
-  directories.push_back(FIL_PATH_SEPARATOR);
-  directories.append(MySQL_datadir_path.path());
 
   err = srv_start(create, directories);
 
