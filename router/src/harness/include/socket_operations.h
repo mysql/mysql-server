@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,6 +112,14 @@ class HARNESS_EXPORT SocketOperationsBase {
                                         std::chrono::milliseconds timeout) = 0;
 
   /**
+   * Sets blocking flag for given socket
+   *
+   * @param sock a socket file descriptor
+   * @param blocking whether to set blocking off (false) or on (true)
+   */
+  virtual void set_socket_blocking(int sock, bool blocking) = 0;
+
+  /**
    * get the non-blocking connect() status
    *
    * must be called after connect()ed socket became writable.
@@ -202,6 +210,14 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
    * @see connect_non_blocking_wait() and poll()
    */
   int connect_non_blocking_status(int sock, int &so_error) override;
+
+  /**
+   * Sets blocking flag for given socket
+   *
+   * @param sock a socket file descriptor
+   * @param blocking whether to set blocking off (false) or on (true)
+   */
+  void set_socket_blocking(int sock, bool blocking) override;
 
   /** @brief return hostname of local host
    *

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
   MOCK_METHOD2(connect_non_blocking_wait,
                int(socket_t sock, std::chrono::milliseconds timeout));
+  MOCK_METHOD2(set_socket_blocking, void(int, bool));
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
   MOCK_METHOD1(set_errno, void(int err));
   MOCK_METHOD0(get_errno, int());

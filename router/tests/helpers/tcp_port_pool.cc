@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -202,12 +202,15 @@ UniqueId::UniqueId(UniqueId &&other) {
  * EACCESS etc.)
  * */
 static bool try_to_connect(uint16_t port,
+                           const std::chrono::milliseconds socket_probe_timeout,
                            const std::string &hostname = "127.0.0.1") {
   struct addrinfo hints, *ainfo;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
+
+  auto socket_ops = mysql_harness::SocketOperations::instance();
 
   int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
                            &hints, &ainfo);
@@ -225,15 +228,41 @@ static bool try_to_connect(uint16_t port,
     throw std::runtime_error("try_to_connect(): socket() failed: " +
                              std::to_string(get_socket_errno()));
   }
-  std::shared_ptr<void> exit_close_socket(nullptr, [&](void *) {
-    mysql_harness::SocketOperations::instance()->close(sock_id);
-  });
+  std::shared_ptr<void> exit_close_socket(
+      nullptr, [&](void *) { socket_ops->close(sock_id); });
 
+  socket_ops->set_socket_blocking(sock_id, false);
   status = connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
-  return status >= 0;
+  if (status >= 0) {
+    return true;
+  }
+
+  switch (socket_ops->get_errno()) {
+#ifdef _WIN32
+    case WSAEINPROGRESS:
+    case WSAEWOULDBLOCK:
+#else
+    case EINPROGRESS:
+#endif
+      if (0 != socket_ops->connect_non_blocking_wait(
+                   sock_id, std::chrono::milliseconds(socket_probe_timeout))) {
+        return false;
+      }
+
+      {
+        int so_error = 0;
+        return (0 ==
+                socket_ops->connect_non_blocking_status(sock_id, so_error));
+      }
+    default:;
+      // fallback
+  }
+
+  return false;
 }
 
-uint16_t TcpPortPool::get_next_available() {
+uint16_t TcpPortPool::get_next_available(
+    const std::chrono::milliseconds socket_probe_timeout) {
   while (true) {
     if (number_of_ids_used_ >= kMaxPort) {
       throw std::runtime_error("No more available ports from UniquePortsGroup");
@@ -246,7 +275,8 @@ uint16_t TcpPortPool::get_next_available() {
 
     // there is no lock file for a given port but let's also check if there
     // really is nothing that will accept our connection attempt on that port
-    if (!try_to_connect(result)) return result;
+    if (!try_to_connect(result, socket_probe_timeout, "127.0.0.1"))
+      return result;
 
     std::cerr << "get_next_available(): port " << result
               << " seems busy, not using\n";

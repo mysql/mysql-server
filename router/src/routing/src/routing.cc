@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -123,23 +123,6 @@ std::string get_routing_strategy_name(
     return kRoutingStrategyNames[static_cast<int>(routing_strategy)];
 }
 
-void set_socket_blocking(int sock, bool blocking) {
-  assert(!(sock < 0));
-#ifndef _WIN32
-  auto flags = fcntl(sock, F_GETFL, nullptr);
-  assert(flags >= 0);
-  if (blocking) {
-    flags &= ~O_NONBLOCK;
-  } else {
-    flags |= O_NONBLOCK;
-  }
-  fcntl(sock, F_SETFL, flags);
-#else
-  u_long mode = blocking ? 0 : 1;
-  ioctlsocket(sock, FIONBIO, &mode);
-#endif
-}
-
 RoutingSockOps *RoutingSockOps::instance(
     mysql_harness::SocketOperationsBase *sock_ops) {
   static RoutingSockOps routing_sock_ops(sock_ops);
@@ -187,7 +170,7 @@ int RoutingSockOps::get_mysql_socket(
     } else {
       bool connection_is_good = true;
 
-      set_socket_blocking(sock, false);
+      so_->set_socket_blocking(sock, false);
 
       if (::connect(sock, info->ai_addr, info->ai_addrlen) < 0) {
         switch (so_->get_errno()) {
@@ -243,7 +226,7 @@ int RoutingSockOps::get_mysql_socket(
 
   // set blocking; MySQL protocol is blocking and we do not take advantage of
   // any non-blocking possibilities
-  set_socket_blocking(sock, true);
+  so_->set_socket_blocking(sock, false);
 
   int opt_nodelay = 1;
   if (setsockopt(
