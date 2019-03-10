@@ -2488,7 +2488,9 @@ bool Item_subselect::clean_up_after_removal(uchar *arg) {
   SELECT_LEX *root = nullptr;
 
   if (ctx != nullptr && ctx->m_removing_const_preds) {
-    if (ctx->m_root->is_in_select_list(this)) return false;
+    if ((ctx->m_root->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST) &&
+        ctx->m_root->is_in_select_list(this))
+      return false;
   } else if (ctx != nullptr) {
     root = ctx->m_root;
   }
