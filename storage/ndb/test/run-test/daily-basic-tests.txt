@@ -1,4 +1,4 @@
-# Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ cmd: testBasic
 args: -r 5000 -n 899 T15 D1 D2
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n NFMaster T1
 
 max-time: 600
@@ -52,7 +52,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n NFMasterAsSlave T1
 
 max-time: 600
@@ -60,7 +60,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n NFSlave T1 
 
 max-time: 600
@@ -68,7 +68,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n FailMaster T1
 
 max-time: 600
@@ -76,7 +76,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n FailMasterAsSlave T1
 
 max-time: 600
@@ -84,7 +84,7 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n FailSlave T1
 
 max-time: 600
@@ -92,20 +92,20 @@ cmd: testBasic
 args: -n PkRead T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n BackupOne T1 T6 I3 D2
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n BackupDDL T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n Bug57650 T1
 
 # Bug18379657 added on 17.04.2014
 #max-time: 1000
-#cmd: atrt-testBackup
+#cmd: testBackup
 #args: -n BackupBank T6
 #
 # BASIC FUNCTIONALITY
@@ -2159,11 +2159,11 @@ cmd: testNodeRestart
 args: -n GCPStopFalsePositive T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n Bug17882305 T1
 
 max-time: 600
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n Bug19202654 T1
 
 max-time : 600
