@@ -1620,6 +1620,8 @@ bool JOIN::prepare_result() {
 
   error = 0;
   // Create result tables for materialized views/derived tables
+  // NOTE: This is not relevant for the iterator executor;
+  // materialization iterators create their own tables.
   if ((select_lex->materialized_derived_table_count > 0 ||
        select_lex->table_func_count > 0) &&
       !zero_result_cause) {

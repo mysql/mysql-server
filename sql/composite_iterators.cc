@@ -513,6 +513,16 @@ MaterializeIterator::MaterializeIterator(
       m_invalidators(thd->mem_root) {}
 
 bool MaterializeIterator::Init() {
+  if (!table()->materialized && table()->pos_in_table_list != nullptr &&
+      table()->pos_in_table_list->is_view_or_derived()) {
+    // Create the table if it's the very first time.
+    // TODO: Figure out why this is done only for derived tables and views,
+    // not for e.g. sort materialization.
+    if (table()->pos_in_table_list->create_materialized_table(thd())) {
+      return true;
+    }
+  }
+
   // If this is a CTE, it could be referred to multiple times in the same query.
   // If so, check if we have already been materialized through any of our alias
   // tables.
@@ -971,6 +981,12 @@ MaterializedTableFunctionIterator::MaterializedTableFunctionIterator(
       m_table_function(table_function) {}
 
 bool MaterializedTableFunctionIterator::Init() {
+  if (!table()->materialized) {
+    // Create the table if it's the very first time.
+    if (table()->pos_in_table_list->create_materialized_table(thd())) {
+      return true;
+    }
+  }
   (void)m_table_function->fill_result_table();
   if (table()->in_use->is_error()) {
     return true;
