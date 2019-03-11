@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ cmd: testSystemRestart
 args: -n SR_DD_2b D1
 max-time: 1800
 
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n BackupBank T6
 max-time: 2160
 
