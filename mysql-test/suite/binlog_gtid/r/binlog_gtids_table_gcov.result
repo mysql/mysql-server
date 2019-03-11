@@ -23,6 +23,10 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 call mtr.add_suppression(".* Turning logging off for the whole duration of the "
                          "MySQL server process. To turn it on again: fix the "
                          "cause, shutdown the MySQL server and restart it.");
+call mtr.add_suppression("ERROR.*Unable to create a new binlog file: Table "
+                         "`mysql.gtid_executed` couldn't be opened. Current"
+                         " binlog file was flushed to disk and will be kept"
+                         " in use.");
 INSERT INTO t1 VALUES(1);
 SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 FLUSH LOGS;
@@ -35,6 +39,6 @@ SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 SELECT * FROM mysql.gtid_executed;
 source_uuid	interval_start	interval_end
 MASTER_UUID	1	2
-include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+include/assert.inc [committed gtid set is MASTER_UUID:1-5]
 SET GLOBAL binlog_error_action= ABORT_SERVER;
 DROP TABLE t1;

@@ -5398,7 +5398,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  my $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 
   if ($tinfo->{'secondary-engine'}) {
     # Search for unexpected warnings in secondary engine server error
@@ -5415,7 +5416,8 @@ sub check_warnings ($) {
 
   # Return immediately if no check proceess was started
   return 0 unless (keys %started);
-  wait_for_check_warnings(\%started, $tinfo);
+  $res = wait_for_check_warnings(\%started, $tinfo);
+  return $res if $res;
 }
 
 # Loop through our list of processes and look for and entry with the

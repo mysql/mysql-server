@@ -771,4 +771,6 @@ t_set	CREATE TABLE `t_set` (
 # Restart DB server which was created by MTR default
 # restart: --datadir=MYSQLD_DATADIR2 --innodb_page_size=4K --log-error=MYSQLD_LOG
 # Remove copied files
+# Restart the server with default options.
+# restart
 # end of test
