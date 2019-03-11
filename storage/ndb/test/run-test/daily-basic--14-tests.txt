@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ cmd: testBasic
 args: -n Bug28073
 max-time: 180
 
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n Bug17882305 T1
 max-time: 180
 
@@ -99,7 +99,7 @@ cmd: testSystemRestart
 args: -n SR_DD_3 D2
 max-time: 900
 
-cmd: atrt-testBackup
+cmd: testBackup
 args: -n NFMaster T1
 max-time: 1260
 

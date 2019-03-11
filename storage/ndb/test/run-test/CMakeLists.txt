@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ ADD_CUSTOM_TARGET(check_testcase_files ALL
                   SOURCES check_testcase_files.passed)
 
 INSTALL(TARGETS atrt DESTINATION mysql-test/ndb)
-INSTALL(PROGRAMS   atrt-testBackup atrt-mysql-test-run
+INSTALL(PROGRAMS atrt-mysql-test-run
         DESTINATION bin)
 INSTALL(PROGRAMS atrt-analyze-result.sh atrt-backtrace.sh atrt-gather-result.sh
                  atrt-setup.sh atrt-mysqltest autotest-boot.sh autotest-run.sh
