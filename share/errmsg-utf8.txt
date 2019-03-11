@@ -13568,7 +13568,7 @@ ER_GRP_RPL_FETCH_LOG_EVENT_FAILED
   eng "Failed to fetch Log_event containing required server info for applier"
 
 ER_GRP_RPL_START_GRP_RPL_FAILED
-  eng "Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with --initialize or --initialize-insecure."
+  eng "Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with --initialize, --initialize-insecure or --upgrade=MINIMAL on a server upgrade."
 
 ER_GRP_RPL_CONN_INTERNAL_PLUGIN_FAIL
   eng "Failed to establish an internal server connection to execute plugin operations"
