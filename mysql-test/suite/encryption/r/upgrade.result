@@ -210,3 +210,13 @@ GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
 # Cleanup: Restart with default options.
 ########################################################################
 # restart
+########################################################################
+# Bug #29447073: UPGRADE FROM 8.0.16 TO TRUNK FAILS WHEN MYSQL TABLESPACE IS ENCRYPTED
+########################################################################
+alter tablespace mysql encryption='Y';
+# restart: --upgrade=FORCE --early-plugin-load=keyring_file=keyring_file.so KEYRING_PLUGIN_OPT
+alter tablespace mysql encryption='N';
+########################################################################
+# Cleanup: Restart with default options.
+########################################################################
+# restart

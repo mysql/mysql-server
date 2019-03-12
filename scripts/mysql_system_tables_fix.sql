@@ -226,8 +226,7 @@ ALTER TABLE db
   MODIFY  Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
-ALTER TABLE func
-  ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
+ALTER TABLE func CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE func
   MODIFY type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
 
