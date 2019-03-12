@@ -4502,7 +4502,7 @@ void handler::mark_trx_read_write() {
     have been started, unless it's a DDL call, for which the
     storage engine starts the transaction internally, and commits
     it internally, without registering in the ha_list.
-    Unfortunately here we can't know know for sure if the engine
+    Unfortunately here we can't know for sure if the engine
     has registered the transaction or not, so we must check.
   */
   if (ha_info->is_started()) {
