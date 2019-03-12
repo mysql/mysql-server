@@ -3803,71 +3803,59 @@ class Ndb_schema_event_handler {
       ndbcluster::ndbrequire(ndb->getDictionary()->getNdbError().code == 4009);
       DBUG_RETURN(false);
     }
+
     const NdbDictionary::Table *ndbtab = schema_result_table.get_table();
-    const NdbError *ndb_error = nullptr;
-    NdbTransaction *trans = 0;
-    int retries = 100;
+    const uint32 nodeid = schema->node_id;
+    const uint32 schema_op_id = schema->schema_op_id;
+    const uint32 participant_nodeid = own_nodeid();
+    const uint32 result = schema_op_result.result();
+    const char *message = schema_op_result.message();
 
-    while (1) {
-      trans = ndb->startTransaction();
-      if (trans == nullptr) goto err;
+    // Function for inserting row with result in ndb_schema_result
+    std::function<const NdbError *(NdbTransaction *)>
+        ack_schema_op_with_result_func =
+            [ndbtab, nodeid, schema_op_id, participant_nodeid, result,
+             message](NdbTransaction *trans) -> const NdbError * {
+      DBUG_ENTER("ack_schema_op_with_result_func");
 
-      {
-        /* Write row */
-        NdbOperation *op = trans->getNdbOperation(ndbtab);
-        if (op == nullptr) {
-          goto err;
-        }
+      NdbOperation *op = trans->getNdbOperation(ndbtab);
+      if (op == nullptr) DBUG_RETURN(&trans->getNdbError());
 
-        if (op->insertTuple() ||
-            op->equal(Ndb_schema_result_table::COL_NODEID, schema->node_id) ||
-            op->equal(Ndb_schema_result_table::COL_SCHEMA_OP_ID,
-                      schema->schema_op_id) ||
-            op->equal(Ndb_schema_result_table::COL_PARTICIPANT_NODEID,
-                      own_nodeid()) ||
-            op->setValue(Ndb_schema_result_table::COL_RESULT,
-                         schema_op_result.result()) ||
-            op->setValue(Ndb_schema_result_table::COL_MESSAGE,
-                         schema_op_result.message())) {
-          goto err;
-        }
-      }
+      /* Write row */
+      if (op->insertTuple() != 0 ||
+          op->equal(Ndb_schema_result_table::COL_NODEID, nodeid) != 0 ||
+          op->equal(Ndb_schema_result_table::COL_SCHEMA_OP_ID, schema_op_id) !=
+              0 ||
+          op->equal(Ndb_schema_result_table::COL_PARTICIPANT_NODEID,
+                    participant_nodeid) != 0 ||
+          op->setValue(Ndb_schema_result_table::COL_RESULT, result) != 0 ||
+          op->setValue(Ndb_schema_result_table::COL_MESSAGE, message) != 0)
+        DBUG_RETURN(&op->getNdbError());
+
       if (trans->execute(NdbTransaction::Commit,
                          NdbOperation::DefaultAbortOption,
-                         1 /*force send*/) == 0) {
-        // Success
-        ndb_log_verbose(
-            19,
-            "Replied to schema operation '%s.%s(%u/%u)', nodeid: %d, "
-            "schema_op_id: %d",
-            schema->db, schema->name, schema->id, schema->version,
-            schema->node_id, schema->schema_op_id);
-        break;
-      }
-    err:
-      const NdbError *this_error =
-          trans ? &trans->getNdbError() : &ndb->getNdbError();
-      if (this_error->status == NdbError::TemporaryError &&
-          !thd_killed(m_thd)) {
-        if (retries--) {
-          if (trans) ndb->closeTransaction(trans);
-          ndb_retry_sleep(30);  // transaction -> short retry
-          continue;             // retry
-        }
-      }
-      ndb_error = this_error;
-      break;
-    }
+                         1 /*force send*/) != 0)
+        DBUG_RETURN(&trans->getNdbError());
 
-    bool ret = true;
-    if (ndb_error) {
-      log_NDB_error(*ndb_error);
+      DBUG_RETURN(nullptr);
+    };
+
+    NdbError ndb_err;
+    if (!ndb_trans_retry(ndb, m_thd, ndb_err, ack_schema_op_with_result_func)) {
+      log_NDB_error(ndb_err);
       ndb_log_warning("Failed to send result for schema operation '%s.%s'",
                       schema->db, schema->name);
-      ret = false; // Failed to reply
+      DBUG_RETURN(false);
     }
-    if (trans) ndb->closeTransaction(trans);
-    DBUG_RETURN(ret);
+
+    // Success
+    ndb_log_verbose(19,
+                    "Replied to schema operation '%s.%s(%u/%u)', nodeid: %d, "
+                    "schema_op_id: %d",
+                    schema->db, schema->name, schema->id, schema->version,
+                    schema->node_id, schema->schema_op_id);
+
+    DBUG_RETURN(true);
   }
 
   void remove_schema_result_rows(uint32 schema_op_id) {
