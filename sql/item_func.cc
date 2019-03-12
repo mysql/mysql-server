@@ -3216,7 +3216,10 @@ longlong Item_func_min_max::int_op() {
   for (uint i = 0; i < arg_count; i++) {
     const longlong val = args[i]->val_int();
     if ((null_value = args[i]->null_value)) return 0;
-    DBUG_ASSERT(!unsigned_flag || (unsigned_flag && args[i]->unsigned_flag));
+#ifndef DBUG_OFF
+    Integer_value arg_val(val, args[i]->unsigned_flag);
+    DBUG_ASSERT(!unsigned_flag || !arg_val.is_negative());
+#endif
     const bool val_is_smaller = unsigned_flag ? static_cast<ulonglong>(val) <
                                                     static_cast<ulonglong>(res)
                                               : val < res;
