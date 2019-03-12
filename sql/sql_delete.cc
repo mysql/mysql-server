@@ -195,6 +195,12 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     DBUG_RETURN(true); /* purecov: inspected */
 
   /*
+    Reset the field list to remove any hidden fields added by substitute_gc() in
+    the previous execution.
+  */
+  select_lex->all_fields = select_lex->fields_list;
+
+  /*
     See if we can substitute expressions with equivalent generated
     columns in the WHERE and ORDER BY clauses of the DELETE statement.
     It is unclear if this is best to do before or after the other
