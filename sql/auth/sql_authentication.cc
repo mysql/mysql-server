@@ -4207,7 +4207,7 @@ static MYSQL_SYSVAR_STR(
 static MYSQL_SYSVAR_BOOL(
     auto_generate_rsa_keys, auth_rsa_auto_generate_rsa_keys,
     PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
-    "Auto generate RSA keys at server startup if correpsonding "
+    "Auto generate RSA keys at server startup if corresponding "
     "system variables are not specified and key files are not present "
     "at the default location.",
     NULL, NULL, true);

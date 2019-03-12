@@ -7430,7 +7430,7 @@ struct my_option my_long_options[] = {
     {"default-storage-engine", 0, "The default storage engine for new tables",
      &default_storage_engine, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"default-tmp-storage-engine", 0,
-     "The default storage engine for new explict temporary tables",
+     "The default storage engine for new explicit temporary tables",
      &default_tmp_storage_engine, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
     {"default-time-zone", 0, "Set the default time zone.", &default_tz_name,

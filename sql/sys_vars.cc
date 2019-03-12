@@ -1212,7 +1212,7 @@ static Sys_var_enum Sys_binlog_row_image(
     "Controls whether rows should be logged in 'FULL', 'NOBLOB' or "
     "'MINIMAL' formats. 'FULL', means that all columns in the before "
     "and after image are logged. 'NOBLOB', means that mysqld avoids logging "
-    "blob columns whenever possible (eg, blob column was not changed or "
+    "blob columns whenever possible (e.g. blob column was not changed or "
     "is not part of primary key). 'MINIMAL', means that a PK equivalent (PK "
     "columns or full row if there is no PK in the table) is logged in the "
     "before image, and only changed columns are logged in the after image. "
@@ -5622,7 +5622,7 @@ static Sys_var_ulong Sys_slave_parallel_workers(
 
 static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
     "slave_pending_jobs_size_max",
-    "Max size of Slave Worker queues holding yet not applied events."
+    "Max size of Slave Worker queues holding not yet applied events. "
     "The least possible value must be not less than the master side "
     "max_allowed_packet.",
     GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
@@ -6534,8 +6534,8 @@ static bool check_set_default_table_encryption_access(
 
 static Sys_var_bool Sys_default_table_encryption(
     "default_table_encryption",
-    "Database and tablespace created with this default encryption property"
-    "unless, the user specify a explicit encryption property.",
+    "Database and tablespace are created with this default encryption property "
+    "unless the user specifies an explicit encryption property.",
     HINT_UPDATEABLE SESSION_VAR(default_table_encryption), CMD_LINE(OPT_ARG),
     DEFAULT(false), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_set_default_table_encryption_access), ON_UPDATE(0));

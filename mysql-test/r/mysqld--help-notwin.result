@@ -172,7 +172,7 @@ The following options may be given as the first argument:
  'NOBLOB' or 'MINIMAL' formats. 'FULL', means that all
  columns in the before and after image are logged.
  'NOBLOB', means that mysqld avoids logging blob columns
- whenever possible (eg, blob column was not changed or is
+ whenever possible (e.g. blob column was not changed or is
  not part of primary key). 'MINIMAL', means that a PK
  equivalent (PK columns or full row if there is no PK in
  the table) is logged in the before image, and only
@@ -262,13 +262,13 @@ The following options may be given as the first argument:
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-table-encryption 
- Database and tablespace created with this default
- encryption propertyunless, the user specify a explicit
+ Database and tablespace are created with this default
+ encryption property unless the user specifies an explicit
  encryption property.
  --default-time-zone=name 
  Set the default time zone.
  --default-tmp-storage-engine=name 
- The default storage engine for new explict temporary
+ The default storage engine for new explicit temporary
  tables
  --default-week-format=# 
  The default week format used by WEEK() functions
@@ -1210,9 +1210,9 @@ The following options may be given as the first argument:
  --slave-parallel-workers=# 
  Number of worker threads for executing events in parallel
  --slave-pending-jobs-size-max=# 
- Max size of Slave Worker queues holding yet not applied
- events.The least possible value must be not less than the
- master side max_allowed_packet.
+ Max size of Slave Worker queues holding not yet applied
+ events. The least possible value must be not less than
+ the master side max_allowed_packet.
  --slave-preserve-commit-order 
  Force slave workers to make commits in the same order as
  on the master. Disabled by default.
