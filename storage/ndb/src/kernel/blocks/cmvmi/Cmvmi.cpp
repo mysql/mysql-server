@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -465,8 +465,14 @@ void
 SavedEventBuffer::purge()
 {
   const Uint32 * ptr = m_data + m_read_pos;
-  const SavedEvent * header = (SavedEvent*)ptr;
-  Uint32 len = SavedEvent::HeaderLength + header->m_len;
+  /* First word of SavedEvent is m_len.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  constexpr Uint32 len_off = 0;
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  const Uint32 data_len = ptr[len_off];
+  Uint32 len = SavedEvent::HeaderLength + data_len;
   m_read_pos = (m_read_pos + len) % m_buffer_len;
 }
 
@@ -518,17 +524,23 @@ SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
   assert(m_scan_pos != m_write_pos);
   Uint32 * dst = (Uint32*)_dst;
   const Uint32 * ptr = m_data + m_scan_pos;
-  SavedEvent * s = (SavedEvent*)ptr;
-  assert(s->m_len <= 25);
-  Uint32 total = s->m_len + SavedEvent::HeaderLength;
+  /* First word of SavedEvent is m_len.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  constexpr Uint32 len_off = 0;
+  static_assert(offsetof(SavedEvent, m_len) == len_off * sizeof(Uint32), "");
+  const Uint32 data_len = ptr[len_off];
+  assert(data_len <= 25);
+  Uint32 total = data_len + SavedEvent::HeaderLength;
   if (m_scan_pos + total <= m_buffer_len)
   {
-    memcpy(dst, s, 4 * total);
+    memcpy(dst, ptr, 4 * total);
   }
   else
   {
     Uint32 remain = m_buffer_len - m_scan_pos;
-    memcpy(dst, s, 4 * remain);
+    memcpy(dst, ptr, 4 * remain);
     memcpy(dst + remain, m_data, 4 * (total - remain));
   }
   m_scan_pos = (m_scan_pos + total) % m_buffer_len;
@@ -545,8 +557,19 @@ SavedEventBuffer::getScanPosSeq() const
 {
   assert(m_scan_pos != m_write_pos);
   const Uint32 * ptr = m_data + m_scan_pos;
-  SavedEvent * s = (SavedEvent*)ptr;
-  return s->m_seq;
+  /* First word of SavedEvent is m_len.
+   * Second word of SavedEvent is m_seq.
+   * One can not safely cast ptr to SavedEvent pointer since it may wrap if at
+   * end of buffer.
+   */
+  static_assert(offsetof(SavedEvent, m_seq) % sizeof(Uint32) == 0, "");
+  constexpr Uint32 seq_off = offsetof(SavedEvent, m_seq) / sizeof(Uint32);
+  if (m_scan_pos + seq_off < m_buffer_len)
+  {
+    return ptr[seq_off];
+  }
+  const Uint32 wrap_seq_off = m_scan_pos + seq_off - m_buffer_len;
+  return m_data[wrap_seq_off];
 }
 
 void Cmvmi::execEVENT_REP(Signal* signal) 
