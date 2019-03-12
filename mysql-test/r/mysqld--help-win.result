@@ -1373,7 +1373,7 @@ The following options may be given as the first argument:
  Prohibit update of a VIEW, which does not contain a key
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
- --upgrade[=name]    Set server upgrade mode. NONE to abort server if
+ --upgrade=name      Set server upgrade mode. NONE to abort server if
  automatic upgrade of the server is needed; MINIMAL to
  start the server, but skip upgrade steps that are not
  absolutely necessary; AUTO (default) to upgrade the

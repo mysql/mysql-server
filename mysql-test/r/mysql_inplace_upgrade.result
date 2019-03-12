@@ -26,6 +26,11 @@ DROP DATABASE db2;
 Pattern "Server upgrade started with version \d+, but server upgrade of version \d+ is still pending\." found
 Pattern "Server upgrade started with version \d+, but server upgrade of version \d+ is still pending\." found
 ###########################################################################
+# Test default upgrade option
+###########################################################################
+Pattern "upgrade\s+AUTO" found
+Pattern "option \'--upgrade\' requires an argument\." found
+###########################################################################
 # Cleanup
 ###########################################################################
 # restart:
