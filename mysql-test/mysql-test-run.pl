@@ -453,6 +453,14 @@ sub main {
           remove_suite_from_list($suite);
         }
       }
+
+      # Remove secondary engine test suites if not supported
+      if (defined $::secondary_engine and not $secondary_engine_support) {
+        for my $suite (split(",", $opt_suites)) {
+          next if not $suite =~ /$::secondary_engine/;
+          remove_suite_from_list($suite);
+        }
+      }
     }
   }
 
