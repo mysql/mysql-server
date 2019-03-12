@@ -702,6 +702,16 @@ ENDIF()
 
 IF(USE_LD_LLD)
   CMAKE_PUSH_CHECK_STATE(RESET)
+
+  # RPM builds on Fedora use -specs files.
+  # This may cause the test for -fuse-ld=lld to succeed, when it should fail.
+  SET(SAVE_CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  SET(SAVE_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+  STRING(REGEX REPLACE "-specs=/usr/lib/rpm/redhat/.*"  ""
+    CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REGEX REPLACE "-specs=/usr/lib/rpm/redhat/.*"  ""
+    CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
   SET(CMAKE_REQUIRED_LIBRARIES "-fuse-ld=lld")
   CHECK_C_SOURCE_COMPILES("int main() {}" C_LD_LLD_RESULT)
   CHECK_CXX_SOURCE_COMPILES("int main() {}" CXX_LD_LLD_RESULT)
@@ -709,6 +719,8 @@ IF(USE_LD_LLD)
     STRING_APPEND(CMAKE_C_LINK_FLAGS " -fuse-ld=lld")
     STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -fuse-ld=lld")
   ENDIF()
+  SET(CMAKE_C_FLAGS ${SAVE_CMAKE_C_FLAGS})
+  SET(CMAKE_CXX_FLAGS ${SAVE_CMAKE_CXX_FLAGS})
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
