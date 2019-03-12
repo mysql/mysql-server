@@ -1249,8 +1249,10 @@ int main(int argc, char *argv[]) {
     status.batch = 1;
     opt_silent = 1;
     ignore_errors = 0;
-  } else
+  } else {
+    opt_binhex = 1;
     status.add_to_history = 1;
+  }
   status.exit_status = 1;
 
   {
@@ -1621,8 +1623,8 @@ static struct my_option my_long_options[] = {
      0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"bind-address", 0, "IP address to bind to.", (uchar **)&opt_bind_addr,
      (uchar **)&opt_bind_addr, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"binary-as-hex", 0, "Print binary data as hex", &opt_binhex, &opt_binhex,
-     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"binary-as-hex", OPT_MYSQL_BINARY_AS_HEX, "Print binary data as hex", NULL,
+     NULL, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &charsets_dir, &charsets_dir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1990,6 +1992,9 @@ bool get_one_option(int optid,
       status.batch = 1;
       status.add_to_history = 0;
       set_if_bigger(opt_silent, 1);  // more silent
+      break;
+    case OPT_MYSQL_BINARY_AS_HEX:
+      opt_binhex = (argument != disabled_my_option);
       break;
     case 'W':
 #ifdef _WIN32
@@ -4690,6 +4695,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
+  if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexidecimal\n");
 
   if ((status_str = mysql_stat(&mysql)) && !mysql_error(&mysql)[0]) {
     ulong sec;
