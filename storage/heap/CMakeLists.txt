@@ -20,24 +20,46 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(HEAP_PLUGIN_STATIC  "heap")
-SET(HEAP_PLUGIN_MANDATORY  TRUE)
+SET(HEAP_SOURCES
+  _check.cc
+  _rectest.cc
+  hp_block.cc
+  hp_clear.cc
+  hp_close.cc
+  hp_create.cc
+  hp_delete.cc
+  hp_extra.cc
+  hp_hash.cc
+  hp_info.cc
+  hp_open.cc
+  hp_panic.cc
+  hp_rename.cc
+  hp_rfirst.cc
+  hp_rkey.cc
+  hp_rlast.cc
+  hp_rnext.cc
+  hp_rprev.cc
+  hp_rrnd.cc
+  hp_rsame.cc
+  hp_scan.cc
+  hp_static.cc
+  hp_update.cc
+  hp_write.cc
+  )
 
-SET(HEAP_SOURCES  _check.cc _rectest.cc hp_block.cc hp_clear.cc hp_close.cc hp_create.cc
-				ha_heap.cc
-				hp_delete.cc hp_extra.cc hp_hash.cc hp_info.cc hp_open.cc hp_panic.cc
-				hp_rename.cc hp_rfirst.cc hp_rkey.cc hp_rlast.cc hp_rnext.cc hp_rprev.cc
-				hp_rrnd.cc hp_rsame.cc hp_scan.cc hp_static.cc hp_update.cc hp_write.cc)
+ADD_LIBRARY(heap_library STATIC ${HEAP_SOURCES})
+ADD_DEPENDENCIES(heap_library GenError)
+TARGET_LINK_LIBRARIES(heap_library mysys)
 
-MYSQL_ADD_PLUGIN(heap ${HEAP_SOURCES} STORAGE_ENGINE MANDATORY)
+MYSQL_ADD_PLUGIN(heap ha_heap.cc
+  STORAGE_ENGINE MANDATORY
+  LINK_LIBRARIES heap_library
+  )
 
 IF(WITH_UNIT_TESTS)
-  ADD_LIBRARY(heap_nopfs STATIC ${HEAP_SOURCES})
-  ADD_DEPENDENCIES(heap_nopfs GenError)
-
   MYSQL_ADD_EXECUTABLE(hp_test1 hp_test1.cc ADD_TEST hp_test1)
-  TARGET_LINK_LIBRARIES(hp_test1 heap_nopfs mysys)
+  TARGET_LINK_LIBRARIES(hp_test1 heap_library)
 
   MYSQL_ADD_EXECUTABLE(hp_test2 hp_test2.cc ADD_TEST hp_test2)
-  TARGET_LINK_LIBRARIES(hp_test2 heap_nopfs mysys)
+  TARGET_LINK_LIBRARIES(hp_test2 heap_library)
 ENDIF()

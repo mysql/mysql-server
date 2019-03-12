@@ -20,24 +20,65 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-ADD_LIBRARY(myisam_sys STATIC
+SET(MYISAM_SOURCES
+  # Originally part of mysys.
   my_lock.cc
   my_redel.cc
   queues.cc
-)
-
-SET(MYISAM_SOURCES  ft_boolean_search.cc ft_nlq_search.cc ft_parser.cc ft_static.cc
-                                ha_myisam.cc
-				ft_stopwords.cc ft_update.cc mi_cache.cc mi_changed.cc mi_check.cc
-				mi_checksum.cc mi_close.cc mi_create.cc mi_dbug.cc mi_delete.cc
-				mi_delete_all.cc mi_delete_table.cc mi_dynrec.cc mi_extra.cc mi_info.cc
-				mi_key.cc mi_keycache.cc mi_locking.cc mi_log.cc mi_open.cc
-				mi_packrec.cc mi_page.cc mi_panic.cc mi_preload.cc mi_range.cc mi_rename.cc
-				mi_rfirst.cc mi_rlast.cc mi_rnext.cc mi_rnext_same.cc mi_rprev.cc mi_rrnd.cc
-				mi_rsame.cc mi_rsamepos.cc mi_scan.cc mi_search.cc mi_static.cc mi_statrec.cc
-				mi_unique.cc mi_update.cc mi_write.cc rt_index.cc rt_key.cc rt_mbr.cc
-				rt_split.cc sort.cc sp_key.cc mi_extrafunc.h myisamdef.h
-				rt_index.h mi_rkey.cc)
+  # Implementation of myisam storage engine.
+  ft_boolean_search.cc
+  ft_nlq_search.cc
+  ft_parser.cc
+  ft_static.cc
+  ft_stopwords.cc
+  ft_update.cc
+  mi_cache.cc
+  mi_changed.cc
+  mi_check.cc
+  mi_checksum.cc
+  mi_close.cc
+  mi_create.cc
+  mi_dbug.cc
+  mi_delete.cc
+  mi_delete_all.cc
+  mi_delete_table.cc
+  mi_dynrec.cc
+  mi_extra.cc
+  mi_info.cc
+  mi_key.cc
+  mi_keycache.cc
+  mi_locking.cc
+  mi_log.cc
+  mi_open.cc
+  mi_packrec.cc
+  mi_page.cc
+  mi_panic.cc
+  mi_preload.cc
+  mi_range.cc
+  mi_rename.cc
+  mi_rfirst.cc
+  mi_rkey.cc
+  mi_rlast.cc
+  mi_rnext.cc
+  mi_rnext_same.cc
+  mi_rprev.cc
+  mi_rrnd.cc
+  mi_rsame.cc
+  mi_rsamepos.cc
+  mi_scan.cc
+  mi_search.cc
+  mi_static.cc
+  mi_statrec.cc
+  mi_unique.cc
+  mi_update.cc
+  mi_write.cc
+  rt_index.cc
+  rt_key.cc
+  rt_mbr.cc
+  rt_split.cc
+  sort.cc
+  sp_key.cc
+  )
 
 # MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
 # As MyISAM is not maintained anymore, it is not worth fixing these,
@@ -60,28 +101,27 @@ IF(HAS_WARN_FLAG)
     COMPILE_FLAGS "${HAS_WARN_FLAG}")
 ENDIF()
 
-MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 
-  STORAGE_ENGINE 
+ADD_LIBRARY(myisam_library STATIC ${MYISAM_SOURCES})
+ADD_DEPENDENCIES(myisam_library GenError)
+TARGET_LINK_LIBRARIES(myisam_library mysys)
+
+MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
+  STORAGE_ENGINE
   MANDATORY
-  LINK_LIBRARIES mysys myisam_sys
+  LINK_LIBRARIES myisam_library
 )
 
-ADD_LIBRARY(myisam_nopfs STATIC ${MYISAM_SOURCES})
-ADD_DEPENDENCIES(myisam_nopfs GenError)
-TARGET_LINK_LIBRARIES(myisam_nopfs mysys myisam_sys)
-SET(MYISAM_NOPFS myisam_nopfs)
-
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc)
-TARGET_LINK_LIBRARIES(myisam_ftdump ${MYISAM_NOPFS} mysys_ssl)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam_library mysys_ssl)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc)
-TARGET_LINK_LIBRARIES(myisamchk ${MYISAM_NOPFS} mysys_ssl)
+TARGET_LINK_LIBRARIES(myisamchk myisam_library mysys_ssl)
 
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.cc)
-TARGET_LINK_LIBRARIES(myisamlog ${MYISAM_NOPFS} ${LIBSOCKET})
+TARGET_LINK_LIBRARIES(myisamlog myisam_library ${LIBSOCKET})
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
-TARGET_LINK_LIBRARIES(myisampack ${MYISAM_NOPFS} mysys_ssl)
+TARGET_LINK_LIBRARIES(myisampack myisam_library mysys_ssl)
 
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")

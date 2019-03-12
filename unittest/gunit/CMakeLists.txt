@@ -263,9 +263,9 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl mytap dbug strings myisam_sys ${GTEST_LIBRARIES} libmysql_errmsg)
+  mysys mysys_ssl dbug strings  ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
-  mysys mysys_ssl mytap dbug strings ${GTEST_LIBRARIES})
+  mysys mysys_ssl dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 IF(WIN32)
