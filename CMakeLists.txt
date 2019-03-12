@@ -760,6 +760,14 @@ IF (USE_LD_GOLD AND NOT (C_LD_LLD_RESULT AND CXX_LD_LLD_RESULT))
   CMAKE_POP_CHECK_STATE()
 ENDIF()
 
+# Linker/binutils bug in Fedora 28, undefined reference to symbol '__bss_start'
+IF(LINUX_FEDORA_28)
+  IF(NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=lld" AND
+      NOT CMAKE_CXX_LINK_FLAGS MATCHES "-fuse-ld=gold")
+    STRING_APPEND(CMAKE_CXX_LINK_FLAGS " -Wl,--copy-dt-needed-entries")
+  ENDIF()
+ENDIF()
+
 IF(LINK_RANDOMIZE)
   STRING_APPEND(CMAKE_C_FLAGS   " -ffunction-sections -fdata-sections")
   STRING_APPEND(CMAKE_CXX_FLAGS " -ffunction-sections -fdata-sections")
