@@ -2808,6 +2808,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   int error;
   uint records, i, bitmap_size;
   bool error_reported = false;
+  bool has_default_values = false;
   const bool internal_tmp = share->table_category == TABLE_CATEGORY_TEMPORARY;
   DBUG_ASSERT(!internal_tmp || share->ref_count() != 0);
   uchar *record, *bitmaps;
@@ -2873,6 +2874,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (records == 0) {
     /* We are probably in hard repair, and the buffers should not be used */
     outparam->record[0] = outparam->record[1] = share->default_values;
+    has_default_values = true;
   } else {
     outparam->record[0] = record;
     if (records > 1)
@@ -2911,6 +2913,12 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (new_field == NULL) goto err;
     new_field->init(outparam);
     new_field->move_field_offset(move_offset);
+    /*
+       Initialize Field::pack_length() number of bytes for new_field->ptr
+       only if there are no default values for the field.
+    */
+    if (!has_default_values)
+      memset(new_field->ptr, 0, new_field->pack_length());
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
