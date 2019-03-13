@@ -2538,6 +2538,7 @@ MYSQL_FIELD *cli_read_metadata_ex(MYSQL *mysql, MEM_ROOT *alloc,
       (MYSQL_FIELD *)alloc->Alloc((uint)sizeof(MYSQL_FIELD) * field_count);
   if (!result) {
     set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+    end_server(mysql);
     DBUG_RETURN(0);
   }
   memset(fields, 0, sizeof(MYSQL_FIELD) * field_count);
@@ -2580,8 +2581,9 @@ static int alloc_field_alloc(MYSQL *mysql) {
   }
   /* At this point the NET is receiving a resultset. max packet should be set */
   DBUG_ASSERT(mysql->net.max_packet_size != 0);
-  /* Limit the size of the columns buffer to MAX packet size */
-  mysql->field_alloc->set_max_capacity(mysql->net.max_packet_size);
+  /* Limit the size of the columns buffer to MAX packet size or 1M */
+  mysql->field_alloc->set_max_capacity(
+      std::max(1024UL * 1024UL, mysql->net.max_packet_size));
   return 0;
 }
 
