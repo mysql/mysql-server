@@ -128,6 +128,15 @@ class Ndb_schema_dist_client {
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
 
+  // List of schema operation results, populated when schema operation has
+  // completed sucessfully.
+  struct Schema_op_result {
+    uint32 nodeid;
+    uint32 result;
+    std::string message;
+  };
+  std::vector<Schema_op_result> m_schema_op_results;
+
   int log_schema_op_impl(Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,

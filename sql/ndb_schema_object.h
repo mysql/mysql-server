@@ -244,6 +244,17 @@ class NDB_SCHEMA_OBJECT {
      @return true if all participants has completed
    */
   bool client_wait_completed(uint max_wait_seconds) const;
+
+  struct Result {
+    uint32 nodeid;
+    uint32 result;
+    std::string message;
+  };
+  /**
+     @brief Return list of schema operation results consisting of nodeid,
+     result and message
+   */
+  void client_get_schema_op_results(std::vector<Result> &results) const;
 };
 
 #endif

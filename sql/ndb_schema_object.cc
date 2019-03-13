@@ -356,3 +356,20 @@ bool NDB_SCHEMA_OBJECT::client_wait_completed(uint max_wait_seconds) const {
 
   return completed;
 }
+
+void NDB_SCHEMA_OBJECT::client_get_schema_op_results(
+    std::vector<Result> &results) const {
+  std::unique_lock<std::mutex> lock_participants(state.m_lock);
+  // Make sure that coordinator has completed
+  ndbcluster::ndbrequire(state.m_coordinator_completed);
+
+  for (const auto& it : state.m_participants) {
+    const State::Participant &participant = it.second;
+    if (participant.m_result)
+      results.push_back({
+          it.first,              // nodeid
+          participant.m_result,  // result
+          participant.m_message  // message
+      });
+  }
+}

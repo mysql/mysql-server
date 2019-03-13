@@ -2768,8 +2768,8 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   }
 
   ndb_log_verbose(
-      19, "Distributed '%s' type: %s(%u) query: \'%s\' to all subscribers",
-      op_name.c_str(), type_name(type), type, query);
+      19, "Distribution of '%s' type: %u query: \'%s\' - started!",
+      op_name.c_str(), type, query);
 
   // Wait for participants to complete the schema change
   int max_timeout = 120;  // Seconds to wait for schema operation to complete
@@ -2778,12 +2778,16 @@ int Ndb_schema_dist_client::log_schema_op_impl(
 
     if (completed) break;  // Done, normal completion
 
-    if (m_thd->killed) break;
+    if (m_thd->killed) {
+      ndb_log_warning("Distribution of '%s' type: %u, query: '%s' - killed!",
+                      op_name.c_str(), type, query);
+      break;
+    }
 
     max_timeout--;
     if (max_timeout == 0) {
-      ndb_log_error("%s, distributing '%s' timed out. Ignoring...",
-                    type_str(type), op_name.c_str());
+      ndb_log_error("Distribution of '%s' type: %u, query: '%s' - timed out!",
+                    op_name.c_str(), type, query);
       DBUG_ASSERT(false);
       break;
     }
@@ -2791,13 +2795,17 @@ int Ndb_schema_dist_client::log_schema_op_impl(
       ndb_report_waiting(type_str(type), max_timeout, "distributing",
                          op_name.c_str(),
                          ndb_schema_object->waiting_participants_to_string());
-    }
+  }
+  ndb_log_verbose(19, "Distribution of '%s' type: %u, query: '%s' - completed!",
+                  op_name.c_str(), type, query);
 
-    ndb_log_verbose(19,
-                    "distribution of '%s' type: %s(%u) query: \'%s\' - complete!",
-        op_name.c_str(), type_name(type), type, query);
+  // Copy results from the NDB_SCHEMA_OBJECT before it is released
+  std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
+  ndb_schema_object->client_get_schema_op_results(participant_results);
+  for (auto it : participant_results)
+    m_schema_op_results.push_back({it.nodeid, it.result, it.message});
 
-    DBUG_RETURN(0);
+  DBUG_RETURN(0);
 }
 
 
