@@ -181,6 +181,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0file.h"
 
 #include <mutex>
+#include <string>
 #include <vector>
 
 #ifdef HAVE_UNISTD_H
@@ -19108,6 +19109,79 @@ static void innodb_srv_buffer_pool_in_core_file_update(THD *thd, SYS_VAR *var,
   buf_pool_update_madvise();
 }
 
+/** Validate the requested buffer pool size.  Also, reserve the necessary
+memory needed for buffer pool resize.
+@param[in]	thd	thread handle
+@param[in]	buffer_pool_size buffer pool size value to be validated
+@param[out]	aligned_buffer_pool_size aligned version of buffer_pool_size
+if validation succeeds, else original value passed in
+@return true on success, false on failure.
+*/
+static bool innodb_buffer_pool_size_validate(THD *thd,
+                                             longlong buffer_pool_size,
+                                             ulint &aligned_buffer_pool_size) {
+  os_rmb;
+  if (srv_buf_pool_old_size != srv_buf_pool_size) {
+    push_warning(thd, ER_BUFPOOL_RESIZE_INPROGRESS);
+    return false;
+  }
+
+  if (srv_buf_pool_instances > 1 &&
+      buffer_pool_size < BUF_POOL_SIZE_THRESHOLD) {
+#ifdef UNIV_DEBUG
+    /* Ignore 1G constraint to enable mulitple instances
+    for debug and test. */
+    if (srv_buf_pool_debug) {
+      goto debug_set;
+    }
+#endif /* UNIV_DEBUG */
+
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Cannot update innodb_buffer_pool_size"
+                        " to less than 1GB if"
+                        " innodb_buffer_pool_instances > 1.");
+    return false;
+  }
+
+#ifdef UNIV_DEBUG
+debug_set:
+#endif /* UNIV_DEBUG */
+
+  if (sizeof(ulint) == 4) {
+    if (buffer_pool_size > UINT_MAX32) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WRONG_VALUE_FOR_VAR,
+          ER_THD(thd, ER_WRONG_VALUE_FOR_VAR), "innodb_buffer_pool_size",
+          std::to_string(buffer_pool_size).c_str());
+      return false;
+    }
+  }
+
+  aligned_buffer_pool_size =
+      buf_pool_size_align(static_cast<ulint>(buffer_pool_size));
+
+  if (srv_buf_pool_size == static_cast<ulint>(buffer_pool_size)) {
+    /* nothing to do */
+  } else if (srv_buf_pool_size == aligned_buffer_pool_size) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "InnoDB: Cannot resize buffer pool to lesser than"
+                        " chunk size of %llu bytes.",
+                        srv_buf_pool_chunk_unit);
+  } else {
+    srv_buf_pool_size = aligned_buffer_pool_size;
+    os_wmb;
+
+    if (buffer_pool_size != static_cast<longlong>(aligned_buffer_pool_size)) {
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
+          ER_THD(thd, ER_TRUNCATED_WRONG_VALUE), "innodb_buffer_pool_size",
+          std::to_string(buffer_pool_size).c_str());
+    }
+  }
+
+  return true;
+}
+
 /** Update the system variable innodb_buffer_pool_size using the "saved"
 value. This function is registered as a callback with MySQL.
 @param[in]	thd	thread handle
@@ -19116,18 +19190,22 @@ value. This function is registered as a callback with MySQL.
 @param[in]	save	immediate result from check function */
 static void innodb_buffer_pool_size_update(THD *thd, SYS_VAR *var,
                                            void *var_ptr, const void *save) {
-  longlong in_val = *static_cast<const longlong *>(save);
+  longlong requested_buffer_pool_size = *static_cast<const longlong *>(save);
+  ulint aligned_buffer_pool_size = 0u;
+  if (innodb_buffer_pool_size_validate(thd, requested_buffer_pool_size,
+                                       aligned_buffer_pool_size)) {
+    snprintf(export_vars.innodb_buffer_pool_resize_status,
+             sizeof(export_vars.innodb_buffer_pool_resize_status),
+             "Requested to resize buffer pool.");
 
-  snprintf(export_vars.innodb_buffer_pool_resize_status,
-           sizeof(export_vars.innodb_buffer_pool_resize_status),
-           "Requested to resize buffer pool.");
+    os_event_set(srv_buf_resize_event);
 
-  os_event_set(srv_buf_resize_event);
+    ib::info(ER_IB_MSG_573)
+        << export_vars.innodb_buffer_pool_resize_status
+        << " (new size: " << aligned_buffer_pool_size << " bytes)";
 
-  ib::info(ER_IB_MSG_573) << export_vars.innodb_buffer_pool_resize_status
-                          << " (new size: " << in_val << " bytes)";
-
-  *static_cast<longlong *>(var_ptr) = in_val;
+    *static_cast<longlong *>(var_ptr) = aligned_buffer_pool_size;
+  }
 }
 
 /** Check whether valid argument given to "innodb_fts_internal_tbl_name"
@@ -20818,17 +20896,6 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
                           "Data file autoextend increment in megabytes", NULL,
                           NULL, 64L, 1L, 1000L, 0);
 
-/** Validate the requested buffer pool size.  Also, reserve the necessary
-memory needed for buffer pool resize.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	save	immediate result for update function
-@param[in]	value	incoming string
-@return 0 on success, 1 on failure.
-*/
-static int innodb_buffer_pool_size_validate(THD *thd, SYS_VAR *var, void *save,
-                                            struct st_mysql_value *value);
-
 static MYSQL_SYSVAR_BOOL(
     dedicated_server, srv_dedicated_server,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_NOPERSIST | PLUGIN_VAR_READONLY,
@@ -20846,8 +20913,7 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
                              PLUGIN_VAR_RQCMDARG,
                              "The size of the memory buffer InnoDB uses to "
                              "cache data and indexes of its tables.",
-                             innodb_buffer_pool_size_validate,
-                             innodb_buffer_pool_size_update,
+                             NULL, innodb_buffer_pool_size_update,
                              static_cast<longlong>(srv_buf_pool_def_size),
                              static_cast<longlong>(srv_buf_pool_min_size),
                              LLONG_MAX, 1024 * 1024L);
@@ -22578,96 +22644,6 @@ void ib_warn_row_too_big(const dict_table_t *table) {
                " ROW_FORMAT=COMPRESSED "
              : "",
       prefix ? DICT_MAX_FIXED_COL_LEN : 0);
-}
-
-/** Validate the requested buffer pool size.  Also, reserve the necessary
-memory needed for buffer pool resize.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	save	immediate result for update function
-@param[in]	value	incoming string
-@return 0 on success, 1 on failure.
-*/
-static int innodb_buffer_pool_size_validate(THD *thd, SYS_VAR *var, void *save,
-                                            struct st_mysql_value *value) {
-  longlong intbuf;
-
-  value->val_int(value, &intbuf);
-
-  os_rmb;
-
-  if (srv_buf_pool_old_size != srv_buf_pool_size) {
-    my_error(ER_BUFPOOL_RESIZE_INPROGRESS, MYF(0));
-    return (1);
-  }
-
-  if (srv_buf_pool_instances > 1 && intbuf < BUF_POOL_SIZE_THRESHOLD) {
-#ifdef UNIV_DEBUG
-    /* Ignore 1G constraint to enable mulitple instances
-    for debug and test. */
-    if (srv_buf_pool_debug) {
-      goto debug_set;
-    }
-#endif /* UNIV_DEBUG */
-
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        "Cannot update innodb_buffer_pool_size"
-                        " to less than 1GB if"
-                        " innodb_buffer_pool_instances > 1.");
-    return (1);
-  }
-
-#ifdef UNIV_DEBUG
-debug_set:
-#endif /* UNIV_DEBUG */
-
-  if (sizeof(ulint) == 4) {
-    if (intbuf > UINT_MAX32) {
-      const char *intbuf_char;
-      char buff[1024];
-      int len = sizeof(buff);
-
-      intbuf_char = value->val_str(value, buff, &len);
-
-      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "innodb_buffer_pool_size",
-               intbuf_char);
-      return (1);
-    }
-  }
-
-  ulint requested_buf_pool_size =
-      buf_pool_size_align(static_cast<ulint>(intbuf));
-
-  *static_cast<longlong *>(save) = requested_buf_pool_size;
-
-  if (srv_buf_pool_size == static_cast<ulint>(intbuf)) {
-    /* nothing to do */
-    return (0);
-  }
-
-  if (srv_buf_pool_size == requested_buf_pool_size) {
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        "InnoDB: Cannot resize buffer pool to lesser than"
-                        " chunk size of %llu bytes.",
-                        srv_buf_pool_chunk_unit);
-    /* nothing to do */
-    return (0);
-  }
-
-  srv_buf_pool_size = requested_buf_pool_size;
-  os_wmb;
-
-  if (intbuf != static_cast<longlong>(requested_buf_pool_size)) {
-    char buf[64];
-    int len = 64;
-    value->val_str(value, buf, &len);
-    push_warning_printf(
-        thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
-        ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
-        mysql_sysvar_buffer_pool_size.name, value->val_str(value, buf, &len));
-  }
-
-  return (0);
 }
 
 /** Constructs fake dict_col_t describing column for foreign key type

@@ -61,7 +61,6 @@ let $wait_condition =
 --source include/wait_condition.inc
 
 # trying to update innodb_buffer_pool_size
---error ER_BUFPOOL_RESIZE_INPROGRESS
 set global innodb_buffer_pool_size = 8*1024*1024;
 select @@global.innodb_buffer_pool_size;
 
