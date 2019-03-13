@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,9 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  # Subfeature "Server" (hidden)
  SET(CPACK_COMPONENT_SERVER_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_SERVER_HIDDEN 1)
+ # Subfeature "Shared libraries" (hidden)
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "MySQLServer")
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_HIDDEN 1)
  # Subfeature "Client" 
  SET(CPACK_COMPONENT_CLIENT_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_CLIENT_DISPLAY_NAME "Client Programs")
@@ -93,6 +96,12 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_DISPLAY_NAME "Client C API library (shared)")
  SET(CPACK_COMPONENT_SHAREDLIBRARIES_DESCRIPTION "Installs shared client library")
   
+ #Subfeature "Embedded"
+ SET(CPACK_COMPONENT_EMBEDDED_GROUP "Devel")
+ SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded server library")
+ SET(CPACK_COMPONENT_EMBEDDED_DESCRIPTION "Installs embedded server library")
+ SET(CPACK_COMPONENT_EMBEDDED_WIX_LEVEL 2)
+
 #Feature Debug Symbols
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DISPLAY_NAME "Debug Symbols")
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DESCRIPTION "Installs Debug Symbols")
@@ -153,4 +162,3 @@ IF(WITH_NDBCLUSTER)
   SET(CPACK_COMPONENT_NODEJS_DISPLAY_NAME "nodejs Connector for Cluster")
   SET(CPACK_COMPONENT_NODEJS_DESCRIPTION "Installs nodejs connector")
 ENDIF()
-
