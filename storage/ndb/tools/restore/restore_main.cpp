@@ -1493,7 +1493,7 @@ int do_restore(RestoreThreadData *thrdata)
       BaseString tableName(table->getTableName());
       Vector<BaseString> tableNameParts;
       tableName.split(tableNameParts, "/");
-      if (tableNameParts[2].substr(0,8) == "NDB$BLOB")
+      if (tableNameParts[2].starts_with("NDB$BLOB"))
       {
         restoreLogger.log_error("Found column of type blob with print-sql-log option set. Exiting..." );
         return NDBT_FAILED;
