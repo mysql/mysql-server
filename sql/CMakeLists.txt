@@ -201,6 +201,7 @@ SET(DD_SOURCES
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
   dd/impl/types/object_table_impl.cc
+  dd/impl/types/object_table_definition_impl.cc
   dd/impl/types/parameter_impl.cc
   dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc

@@ -1353,6 +1353,16 @@ bool sync_meta_data(THD *thd) {
     std::unique_ptr<Tablespace> persisted_dd_tspace(
         const_cast<Tablespace *>(tmp_tspace));
 
+    // If the persisted meta data indicates that the DD tablespace is
+    // encrypted, then we record this fact to make sure the DDL statements
+    // that are genereated during e.g. upgrade will have the correct
+    // encryption option.
+    String_type encryption("");
+    Object_table_definition_impl::set_dd_tablespace_encrypted(
+        persisted_dd_tspace->options().exists("encryption") &&
+        !persisted_dd_tspace->options().get("encryption", &encryption) &&
+        encryption == "Y");
+
     // Get the persisted DD table objects into a vector.
     std::vector<std::unique_ptr<Table_impl>> persisted_dd_tables;
     for (System_tables::Const_iterator it = System_tables::instance()->begin();

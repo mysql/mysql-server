@@ -971,6 +971,13 @@ bool upgrade_tables(THD *thd) {
 
   dd::cache::Shared_dictionary_cache::instance()->reset(false);
 
+  /*
+    Reset the encryption attribute in object table def since we will now
+    start over by creating the scaffolding, which expectes an unencrypted
+    DD tablespace.
+  */
+  Object_table_definition_impl::set_dd_tablespace_encrypted(false);
+
   // Reset the DDSE local dictionary cache.
   handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
   if (ddse->dict_cache_reset == nullptr) return true;
