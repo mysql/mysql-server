@@ -36,6 +36,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld.h"  // table_alias_charset
 #include "mysqld_error.h"
+#include "scope_guard.h"  // create_scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // DROP_ACL
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
@@ -135,11 +136,11 @@ static bool fk_truncate_illegal_if_parent(THD *thd, TABLE_LIST *table_list,
   return false;
 }
 
-enum truncate_result {
-  TRUNCATE_OK = 0,
-  TRUNCATE_FAILED_BUT_BINLOG,
-  TRUNCATE_FAILED_SKIP_BINLOG,
-  TRUNCATE_FAILED_OPEN
+enum class Truncate_result {
+  OK = 0,
+  FAILED_BUT_BINLOG,
+  FAILED_SKIP_BINLOG,
+  FAILED_OPEN
 };
 
 /**
@@ -149,19 +150,22 @@ enum truncate_result {
   @param  table_ref     Table list element for the table to be truncated.
   @param  table_def     Dictionary table object.
 
-  @retval TRUNCATE_OK   Truncate was successful and statement can be safely
-                        binlogged.
-  @retval TRUNCATE_FAILED_BUT_BINLOG Truncate failed but still go ahead with
-                        binlogging as in case of non transactional tables
-                        partial truncation is possible.
+  @retval Truncate_result::OK   Truncate was successful and statement can be
+                        safely binlogged.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
-                        binlog the statement.
-  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
-                        the statement.
+  @retval Truncate_result::FAILED_BUT_BINLOG Truncate failed but still
+                        go ahead with binlogging as in case of non
+                        transactional tables partial truncation is
+                        possible.
+
+  @retval Truncate_result::FAILED_SKIP_BINLOG Truncate was not
+                        successful hence do not binlog the statement.
+
+  @retval Truncate_result::FAILED_OPEN Truncate failed to open table,
+                        do not binlog the statement.
 */
 
-static truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
+static Truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
                                              dd::Table *table_def) {
   DBUG_ENTER("handler_truncate_base");
   DBUG_ASSERT(table_def != nullptr);
@@ -196,12 +200,7 @@ static truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, flags))
-    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
-
-  /* Whether to truncate regardless of foreign keys. */
-  if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
-    if (fk_truncate_illegal_if_parent(thd, table_ref, table_def))
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    DBUG_RETURN(Truncate_result::FAILED_OPEN);
 
   /*
     Remove all TABLE/handler instances except the one to be used for
@@ -224,17 +223,17 @@ static truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
      */
     if (error == HA_ERR_WRONG_COMMAND ||
         table_ref->table->file->has_transactions())
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+      DBUG_RETURN(Truncate_result::FAILED_SKIP_BINLOG);
     else
-      DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
+      DBUG_RETURN(Truncate_result::FAILED_BUT_BINLOG);
   } else if ((table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)) {
     if (thd->dd_client()->update(table_def)) {
       /* Statement rollback will revert effect of handler::truncate() as well.
        */
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+      DBUG_RETURN(Truncate_result::FAILED_SKIP_BINLOG);
     }
   }
-  DBUG_RETURN(TRUNCATE_OK);
+  DBUG_RETURN(Truncate_result::OK);
 }
 
 /**
@@ -243,19 +242,22 @@ static truncate_result handler_truncate_base(THD *thd, TABLE_LIST *table_ref,
   @param  thd           Thread context.
   @param  table_ref     Table list element for the table to be truncated.
 
-  @retval TRUNCATE_OK   Truncate was successful and statement can be safely
-                        binlogged.
-  @retval TRUNCATE_FAILED_BUT_BINLOG Truncate failed but still go ahead with
-                        binlogging as in case of non transactional tables
-                        partial truncation is possible.
+  @retval Truncate_result::OK   Truncate was successful and statement can be
+                        safely binlogged.
 
-  @retval TRUNCATE_FAILED_SKIP_BINLOG Truncate was not successful hence do not
+  @retval Truncate_result::FAILED_BUT_BINLOG Truncate failed but still
+                        go ahead with binlogging as in case of non
+                        transactional tables partial truncation is
+                        possible.
+
+  @retval Truncate_result::FAILED_SKIP_BINLOG Truncate was not successful hence
+                        do not binlog the statement.
+
+  @retval Truncate_result::FAILED_OPEN Truncate failed to open table, do not
                         binlog the statement.
-  @retval TRUNCATE_FAILED_OPEN Truncate failed to open table, do not binlog
-                        the statement.
 */
 
-static truncate_result handler_truncate_temporary(THD *thd,
+static Truncate_result handler_truncate_temporary(THD *thd,
                                                   TABLE_LIST *table_ref) {
   DBUG_ENTER("handler_truncate_temporary");
 
@@ -266,7 +268,7 @@ static truncate_result handler_truncate_temporary(THD *thd,
 
   /* Open the table as it will handle some required preparations. */
   if (open_and_lock_tables(thd, table_ref, 0))
-    DBUG_RETURN(TRUNCATE_FAILED_OPEN);
+    DBUG_RETURN(Truncate_result::FAILED_OPEN);
 
   int error =
       table_ref->table->file->ha_truncate(table_ref->table->s->tmp_table_def);
@@ -281,11 +283,11 @@ static truncate_result handler_truncate_temporary(THD *thd,
      */
     if (error == HA_ERR_WRONG_COMMAND ||
         table_ref->table->file->has_transactions())
-      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+      DBUG_RETURN(Truncate_result::FAILED_SKIP_BINLOG);
     else
-      DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
+      DBUG_RETURN(Truncate_result::FAILED_BUT_BINLOG);
   }
-  DBUG_RETURN(TRUNCATE_OK);
+  DBUG_RETURN(Truncate_result::OK);
 }
 
 /*
@@ -294,15 +296,12 @@ static truncate_result handler_truncate_temporary(THD *thd,
   @param[in]  thd               Thread context.
   @param[in]  table_ref         Table list element for the table to
                                 be truncated.
-  @param[out] hton              Pointer to handlerton object for the
-                                table's storage engine.
 
   @retval  false  Success.
   @retval  true   Error.
 */
 
-bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
-                                        handlerton **hton) {
+bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref) {
   TABLE *table = NULL;
   DBUG_ENTER("Sql_cmd_truncate_table::lock_table");
 
@@ -332,60 +331,131 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
     if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
       DBUG_RETURN(true);
 
-    *hton = table->s->db_type();
-
     table_ref->mdl_request.ticket = table->mdl_ticket;
-  } else {
-    /* Acquire an exclusive lock. */
-    DBUG_ASSERT(table_ref->next_global == NULL);
-    if (lock_table_names(thd, table_ref, NULL, thd->variables.lock_wait_timeout,
-                         0))
-      DBUG_RETURN(true);
 
-    const char *schema_name = table_ref->db;
-    const char *table_name = table_ref->table_name;
-
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    const dd::Table *table = NULL;
-    if (thd->dd_client()->acquire(schema_name, table_name, &table)) {
-      // Error is reported by the dictionary subsystem.
-      DBUG_RETURN(true);
-    }
-
-    if (table == nullptr ||
-        table->hidden() == dd::Abstract_table::HT_HIDDEN_SE) {
-      my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
-      DBUG_RETURN(true);
-    }
-
-    if (dd::table_storage_engine(thd, table, hton)) DBUG_RETURN(true);
-  }
-
-  /*
-    A storage engine can recreate or truncate the table only if there
-    are no references to it from anywhere, i.e. no cached TABLE in the
-    table cache.
-  */
-  if (thd->locked_tables_mode) {
+    /*
+      A storage engine can recreate or truncate the table only if there
+      are no references to it from anywhere, i.e. no cached TABLE in the
+      table cache.
+    */
     DEBUG_SYNC(thd, "upgrade_lock_for_truncate");
     /* To remove the table from the cache we need an exclusive lock. */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
     m_ticket_downgrade = table->mdl_ticket;
     /* Close if table is going to be recreated. */
-    if ((*hton)->flags & HTON_CAN_RECREATE)
+    if (table->s->db_type()->flags & HTON_CAN_RECREATE)
       close_all_tables_for_name(thd, table->s, false, NULL);
-  } else {
-    /* Table is already locked exclusively. Remove cached instances. */
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db,
-                     table_ref->table_name, false);
-  }
+
+    DBUG_RETURN(false);
+  }  //  if (thd->locked_tables_mode)
+  DBUG_ASSERT(!thd->locked_tables_mode);
+
+  /* Acquire an exclusive lock. */
+  DBUG_ASSERT(table_ref->next_global == NULL);
+  if (lock_table_names(thd, table_ref, NULL, thd->variables.lock_wait_timeout,
+                       0))
+    DBUG_RETURN(true);
+
+  /* Table is already locked exclusively. Remove cached instances. */
+  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_ref->db, table_ref->table_name,
+                   false);
 
   DBUG_RETURN(false);
 }
 
-/*
-  Optimized delete of all rows by doing a full generate of the table.
+/**
+   Completes transaction by attempting to binlog and commit if
+   truncate has been successful so far. Rolls back if truncate has
+   already failed, or if binlogging or commit fails.
+ */
+void Sql_cmd_truncate_table::end_transaction(THD *thd, bool binlog_stmt,
+                                             bool binlog_is_trans) {
+  if (binlog_stmt) {
+    int ble = write_bin_log(thd, !m_error, thd->query().str,
+                            thd->query().length, binlog_is_trans);
+    m_error |= (ble != 0);
+  }
+
+  if (!m_error)
+    m_error = (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
+  if (m_error) {
+    trans_rollback_stmt(thd);
+    /*
+      Full rollback in case we have THD::transaction_rollback_request
+      and to synchronize DD state in cache and on disk (as statement
+      rollback doesn't clear DD cache of modified uncommitted objects).
+    */
+    trans_rollback(thd);
+  }
+}
+
+/**
+   Performs cleanup actions after truncate of a normal (non-temporary)
+   table. Calls post_ddl hook, reopens locked tables in locked_tables
+   mode and possibly downgrades a temporarily upgraded MDL.
+*/
+void Sql_cmd_truncate_table::cleanup_base(THD *thd, const handlerton *hton) {
+  if (hton != nullptr && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+      hton->post_ddl)
+    hton->post_ddl(thd);
+
+  if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+    thd->locked_tables_list.unlink_all_closed_tables(thd, nullptr, 0);
+
+  /*
+    A locked table ticket was upgraded to a exclusive lock. After the
+    the query has been written to the binary log, downgrade the lock
+    to a shared one.
+  */
+  if (m_ticket_downgrade) {
+    m_ticket_downgrade->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    m_ticket_downgrade = nullptr;  // For possible re-execution
+  }
+}
+
+/**
+   Reopens a temporary table after truncate if supported.
+   Deletes table and flags error if unuccessful.
+*/
+void Sql_cmd_truncate_table::cleanup_temporary(THD *thd, handlerton *hton,
+                                               const TABLE_LIST &table_ref,
+                                               Up_table *tdef_holder_ptr,
+                                               const std::string &saved_path) {
+  DBUG_ASSERT(m_ticket_downgrade == nullptr);
+
+  if ((hton->flags & HTON_CAN_RECREATE) == 0 || !(*tdef_holder_ptr)) {
+    // For the non-recreate case, or if we bailed before closing the table
+    // (e.g. if thd->decide_logging_format() returns true)
+    return;
+  }
+
+  /* Temporary table was closed and needs to be reopened. */
+  DBUG_ASSERT(*tdef_holder_ptr);
+  DBUG_ASSERT(saved_path.length() > 0);
+  TABLE *new_table =
+      open_table_uncached(thd, saved_path.c_str(), table_ref.db,
+                          table_ref.table_name, true, true, **tdef_holder_ptr);
+  if (new_table == nullptr) {
+    // Not checking return value since we are cleaning up after a
+    // failed open
+    rm_temporary_table(thd, hton, saved_path.c_str(), tdef_holder_ptr->get());
+    m_error = true;
+    return;
+  }
+  DBUG_ASSERT(new_table != nullptr);
+
+  // Transfer ownership of dd::Table object to the new
+  // TABLE_SHARE. tdef_holder_ptr could either be the old or the new
+  // table definition at this point.
+  new_table->s->tmp_table_def = tdef_holder_ptr->release();
+  thd->thread_specific_used = true;
+}
+
+/**
+  Optimized delete of all rows by doing a full generate of the base
+  (non-temporary) table.
 
   @remark Will work even if the .MYI and .MYD files are destroyed.
           In other words, it works as long as the .FRM is intact and
@@ -398,156 +468,104 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   @retval  true   Error.
 */
 
-bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
-  int error;
-  bool binlog_stmt;
-  bool binlog_is_trans;
-  handlerton *hton = nullptr;
-  bool is_temporary;
-  /* Context for reopening temporary table. */
-  std::unique_ptr<dd::Table> tmp_table_def, old_tmp_table_def;
-  char saved_path[FN_REFLEN + 1];
-
+void Sql_cmd_truncate_table::truncate_base(THD *thd, TABLE_LIST *table_ref) {
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
+  DBUG_ASSERT(is_temporary_table(table_ref) == false);
+
+  m_error = true;
+  bool binlog_stmt = false;
+  bool binlog_is_trans = false;
+  handlerton *hton = nullptr;
 
   DBUG_ASSERT((!table_ref->table) || (table_ref->table && table_ref->table->s));
+  DBUG_ASSERT(m_ticket_downgrade == nullptr);
 
   dd::Schema_MDL_locker mdl_locker(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  /* Initialize, or reinitialize in case of reexecution (SP). */
-  m_ticket_downgrade = NULL;
+  // Actions needed to cleanup before leaving scope.
+  auto cleanup_guard = create_scope_guard([&]() {
+    end_transaction(thd, binlog_stmt, binlog_is_trans);
+    cleanup_base(thd, hton);
+  });
+  if (mdl_locker.ensure_locked(table_ref->db)) DBUG_VOID_RETURN;
 
-  /* If it is a temporary table, no need to take locks. */
-  is_temporary = is_temporary_table(table_ref);
+  if (lock_table(thd, table_ref)) DBUG_VOID_RETURN;
 
-  if (is_temporary) {
-    TABLE *tmp_table = table_ref->table;
-    hton = tmp_table->s->db_type();
+  dd::Table *table_def = nullptr;
+  if (thd->dd_client()->acquire_for_modification(
+          table_ref->db, table_ref->table_name, &table_def)) {
+    DBUG_VOID_RETURN;
+  }
+  if (table_def == nullptr ||
+      table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE) {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), table_ref->db, table_ref->table_name);
+    DBUG_VOID_RETURN;
+  }
+  DBUG_ASSERT(table_def != nullptr);
+
+  if (table_def->options().exists("secondary_engine")) {
+    /* Truncate operation is not allowed for tables with secondary engine
+     * since it's not currently supported by change propagation
+     */
+    my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
+    DBUG_VOID_RETURN;
+  }
+  if (dd::table_storage_engine(thd, table_def, &hton)) {
+    DBUG_VOID_RETURN;
+  }
+  DBUG_ASSERT(hton != nullptr);
+
+  /*
+    Check if table can't be truncated because there is a foreign key
+    on some other table which references it.
+  */
+  if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)) {
+    if (fk_truncate_illegal_if_parent(thd, table_ref, table_def)) {
+      DBUG_VOID_RETURN;
+    }
+  }
+
+  if (hton->flags & HTON_CAN_RECREATE) {
+    // Set this before any potential error returns
+    binlog_is_trans = (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+    if (mysql_audit_table_access_notify(thd, table_ref) != 0) {
+      DBUG_VOID_RETURN;
+    }
 
     /*
-      THD::decide_logging_format has not yet been called and may
-      not be called at all depending on the engine, so call it here.
+      The storage engine can truncate the table by creating an
+      empty table with the same structure.
     */
-    if (thd->decide_logging_format(table_ref) != 0) DBUG_RETURN(true);
-    /* In RBR, the statement is not binlogged if the table is temporary. */
-    binlog_stmt = !thd->is_current_stmt_binlog_format_row();
+    HA_CREATE_INFO create_info;
 
-    /* Note that a temporary table cannot be partitioned. */
-    if (hton->flags & HTON_CAN_RECREATE) {
-      HA_CREATE_INFO create_info;
-      char saved_norm_path[FN_REFLEN + 1];
+    // Create a path to the table, but without a extension
+    char path[FN_REFLEN + 1];
+    build_table_filename(path, sizeof(path) - 1, table_ref->db,
+                         table_ref->table_name, "", 0);
 
-      tmp_table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-      /*
-        If LOCK TABLES list is not empty and contains this table
-        then unlock the table and remove it from this list.
-      */
-      mysql_lock_remove(thd, thd->lock, tmp_table);
-
-      /*
-        Transfer ownership of dd::Table object and save path so
-        we can reopen table after freeing the TABLE_SHARE.
-      */
-      tmp_table_def.reset(tmp_table->s->tmp_table_def);
-      tmp_table->s->tmp_table_def = nullptr;
-      old_tmp_table_def.reset(tmp_table_def->clone());
-      my_stpcpy(saved_path, tmp_table->s->path.str);
-
-      /* Save normalized path so we can free TABLE_SHARE. */
-      my_stpcpy(saved_norm_path, tmp_table->s->normalized_path.str);
-
-      /* Free TABLE and TABLE_SHARE but don't delete table. */
-      close_temporary_table(thd, tmp_table, true, false);
-
-      /*
-        We must use normalized_path since for temporary tables it
-        differs from what dd_recreate_table() would generate based
-        on table and schema names.
-      */
-      if ((error = ha_create_table(thd, saved_norm_path, table_ref->db,
-                                   table_ref->table_name, &create_info, true,
-                                   true, tmp_table_def.get()))) {
-        /* No need to binlog failed truncate-by-recreate. */
-        binlog_stmt = false;
-      }
-
-      DBUG_ASSERT(!thd->get_transaction()->cannot_safely_rollback(
-          Transaction_ctx::STMT));
-
-      binlog_is_trans = (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
-    } else {
-      /*
-        The engine does not support truncate-by-recreate. Open the
-        table and invoke the handler truncate. In such a manner this
-        can in fact open several tables if it's a temporary MyISAMMRG
-        table.
-      */
-      error = handler_truncate_temporary(thd, table_ref);
-
-      binlog_is_trans = table_ref->table->file->has_transactions();
-    }
-  } else /* It's not a temporary table. */
-  {
-    if (mdl_locker.ensure_locked(table_ref->db)) DBUG_RETURN(true);
-
-    if (lock_table(thd, table_ref, &hton)) DBUG_RETURN(true);
-
-    dd::Table *table_def = nullptr;
-    if (thd->dd_client()->acquire_for_modification(
-            table_ref->db, table_ref->table_name, &table_def))
-      DBUG_RETURN(true);
-
-    DBUG_ASSERT(table_def != nullptr);
-
-    if (table_def->options().exists("secondary_engine")) {
-      /* Truncate operation is not allowed for tables with secondary engine
-       * since it's not currently supported by change propagation
-       */
-      my_error(ER_SECONDARY_ENGINE_DDL, MYF(0));
-      DBUG_RETURN(true);
+    // Attempt to reconstruct the table
+    if (ha_create_table(thd, path, table_ref->db, table_ref->table_name,
+                        &create_info, true, false, table_def) != 0) {
+      DBUG_VOID_RETURN;
     }
 
-    if (hton->flags & HTON_CAN_RECREATE) {
-      error = mysql_audit_table_access_notify(thd, table_ref);
-      /*
-        The storage engine can truncate the table by creating an
-        empty table with the same structure.
-      */
+    // Binlog only if truncate-by-recreate succeeds.
+    m_error = false;
+    binlog_stmt = true;
+    DBUG_VOID_RETURN;
+  }  // hton->flags & HTON_CAN_RECREATE
 
-      /*
-        Check if table can't be truncated because there is a foreign key
-        on some other table which references it.
-      */
-      if (!error &&
-          !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
-        error = fk_truncate_illegal_if_parent(thd, table_ref, table_def);
-
-      if (!error) {
-        HA_CREATE_INFO create_info;
-
-        // Create a path to the table, but without a extension
-        char path[FN_REFLEN + 1];
-        build_table_filename(path, sizeof(path) - 1, table_ref->db,
-                             table_ref->table_name, "", 0);
-
-        // Attempt to reconstruct the table
-        error = ha_create_table(thd, path, table_ref->db, table_ref->table_name,
-                                &create_info, true, false, table_def);
-      }
-
-      /* No need to binlog a failed truncate-by-recreate. */
-      binlog_stmt = !error;
-      binlog_is_trans = (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
-    } else {
-      /*
-        The engine does not support truncate-by-recreate.
-        Attempt to use the handler truncate method.
-        MYSQL_AUDIT_TABLE_ACCESS_READ audit event is generated when opening
-        tables using open_tables function.
-      */
-      error = handler_truncate_base(thd, table_ref, table_def);
-
+  DBUG_ASSERT((hton->flags & HTON_CAN_RECREATE) == false);
+  /*
+    The engine does not support truncate-by-recreate.
+    Attempt to use the handler truncate method.
+    MYSQL_AUDIT_TABLE_ACCESS_READ audit event is generated when opening
+    tables using open_tables function.
+  */
+  const Truncate_result tr = handler_truncate_base(thd, table_ref, table_def);
+  switch (tr) {
       /*
         All effects of a TRUNCATE TABLE operation are committed even if
         truncation fails in the case of non transactional tables. Thus, the
@@ -555,82 +573,155 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
         The exceptions are failure to open table or unimplemented truncate
         method.
       */
-      if (error == TRUNCATE_OK || error == TRUNCATE_FAILED_BUT_BINLOG) {
-        binlog_stmt = true;
-        binlog_is_trans = table_ref->table->file->has_transactions();
-      } else {
-        binlog_stmt = false;
-        binlog_is_trans = false;  // Safety.
-      }
-
+    case Truncate_result::OK:
+      m_error = false;
+      // fallthrough
+    case Truncate_result::FAILED_BUT_BINLOG:
+      binlog_stmt = true;
+      binlog_is_trans = table_ref->table->file->has_transactions();
+      // fallthrough
+    case Truncate_result::FAILED_SKIP_BINLOG:
       /*
         Call to handler_truncate() might have updated table definition
         in the data-dictionary, let us remove TABLE_SHARE from the TDC.
         This needs to be done even in case of failure so InnoDB SE
         properly invalidates its internal cache.
       */
-      if (error != TRUNCATE_FAILED_OPEN) {
-        close_all_tables_for_name(thd, table_ref->table->s, false, NULL);
-      }
-    }
-  }
+      close_all_tables_for_name(thd, table_ref->table->s, false, nullptr);
+      break;
 
-  /* DDL is logged in statement format, regardless of binlog format. */
-  if (binlog_stmt)
-    error |= write_bin_log(thd, !error, thd->query().str, thd->query().length,
-                           binlog_is_trans);
+    case Truncate_result::FAILED_OPEN:
+      // Nothing to do here
+      break;
 
-  /* Commit or rollback statement before downgrading metadata lock. */
-  if (!error) error = (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+    default:
+      DBUG_ASSERT(false);
+  };
 
-  if (error) {
-    trans_rollback_stmt(thd);
-    /*
-      Full rollback in case we have THD::transaction_rollback_request
-      and to synchronize DD state in cache and on disk (as statement
-      rollback doesn't clear DD cache of modified uncommitted objects).
-    */
-    trans_rollback(thd);
-  }
+  DBUG_ASSERT(m_error || !thd->get_stmt_da()->is_set());
+  DBUG_VOID_RETURN;
+}
 
-  if (is_temporary) {
-    if (hton->flags & HTON_CAN_RECREATE) {
-      /* Temporary table was closed and needs to be reopened. */
+/**
+  Optimized delete of all rows by doing a full generate of the temporary table.
 
-      if (error && (hton->flags & HTON_SUPPORTS_ATOMIC_DDL))
-        tmp_table_def = std::move(old_tmp_table_def);
+  @remark Will work even if the .MYI and .MYD files are destroyed.
+          In other words, it works as long as the .FRM is intact and
+          the engine supports re-create.
 
-      TABLE *new_table;
+  @param  thd         Thread context.
+  @param  table_ref   Table list element for the table to be truncated.
 
-      if ((new_table = open_table_uncached(thd, saved_path, table_ref->db,
-                                           table_ref->table_name, true, true,
-                                           *tmp_table_def))) {
-        /* Transfer ownership of dd::Table object to the new TABLE_SHARE. */
-        new_table->s->tmp_table_def = tmp_table_def.release();
-        thd->thread_specific_used = true;
-      } else {
-        rm_temporary_table(thd, hton, saved_path, tmp_table_def.get());
-        error = true;
-      }
-    }
-  } else {
-    /* Base table case. */
-    if ((hton->flags & HTON_SUPPORTS_ATOMIC_DDL) && hton->post_ddl)
-      hton->post_ddl(thd);
+  @retval  false  Success.
+  @retval  true   Error.
+*/
 
-    if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
-      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
-  }
+void Sql_cmd_truncate_table::truncate_temporary(THD *thd,
+                                                TABLE_LIST *table_ref) {
+  DBUG_ENTER("Sql_cmd_truncate_table::truncate_temporary");
+  DBUG_ASSERT(is_temporary_table(table_ref));
+
+  /* Initialize, or reinitialize in case of reexecution (SP). */
+  m_error = true;
+  bool binlog_stmt = false;
+  bool binlog_is_trans = false;
+  handlerton *hton = nullptr;
+
+  Up_table tdef_holder;
+  std::string saved_path;
+
+  m_ticket_downgrade = nullptr;
+
+  DBUG_ASSERT((!table_ref->table) || (table_ref->table && table_ref->table->s));
+
+  // Actions needed to cleanup before leaving scope.
+  auto cleanup_guard = create_scope_guard([&]() {
+    end_transaction(thd, binlog_stmt, binlog_is_trans);
+    cleanup_temporary(thd, hton, *table_ref, &tdef_holder, saved_path);
+  });
+
+  TABLE *tmp_table = table_ref->table;
+  hton = tmp_table->s->db_type();
 
   /*
-    A locked table ticket was upgraded to a exclusive lock. After the
-    the query has been written to the binary log, downgrade the lock
-    to a shared one.
+    THD::decide_logging_format has not yet been called and may
+    not be called at all depending on the engine, so call it here.
   */
-  if (m_ticket_downgrade)
-    m_ticket_downgrade->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  if (thd->decide_logging_format(table_ref) != 0) DBUG_VOID_RETURN;
 
-  DBUG_RETURN(error);
+  /* Note that a temporary table cannot be partitioned. */
+  if (hton->flags & HTON_CAN_RECREATE) {
+    tmp_table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
+    /*
+      If LOCK TABLES list is not empty and contains this table
+      then unlock the table and remove it from this list.
+    */
+    mysql_lock_remove(thd, thd->lock, tmp_table);
+
+    /*
+      Transfer ownership of dd::Table object and save path so
+      we can reopen table after freeing the TABLE_SHARE.
+    */
+    tdef_holder.reset(tmp_table->s->tmp_table_def);
+    tmp_table->s->tmp_table_def = nullptr;
+    saved_path.assign(tmp_table->s->path.str, tmp_table->s->path.length);
+
+    /* Save normalized path so we can free TABLE_SHARE. */
+    std::string saved_norm_path{tmp_table->s->normalized_path.str,
+                                tmp_table->s->normalized_path.length};
+
+    /* Free TABLE and TABLE_SHARE but don't delete table. */
+    close_temporary_table(thd, tmp_table, true, false);
+
+    /*
+      We must use normalized_path since for temporary tables it
+      differs from what dd_recreate_table() would generate based
+      on table and schema names.
+    */
+    HA_CREATE_INFO create_info;
+
+    // Create a clone of the tdef which can be manipulated by ha_create_table
+    Up_table tdef_clone = Up_table{tdef_holder->clone()};
+    m_error = ha_create_table(thd, saved_norm_path.c_str(), table_ref->db,
+                              table_ref->table_name, &create_info, true, true,
+                              tdef_clone.get());
+
+    DBUG_ASSERT(
+        !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT));
+    binlog_is_trans = (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
+    if (!m_error || (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) == 0) {
+      // If create succeeded, or the SE does not support atomic ddl,
+      // we need to replace the table def
+      tdef_holder.reset(tdef_clone.release());
+    }
+    if (m_error) {
+      DBUG_VOID_RETURN;
+    }
+
+    /* Only binlog if truncate-by-recreate succeeds. */
+    /* In RBR, the statement is not binlogged if the table is temporary. */
+    binlog_stmt = !thd->is_current_stmt_binlog_format_row();
+    DBUG_VOID_RETURN;
+  }  // hton->flags & HTON_CAN_RECREATE
+
+  DBUG_ASSERT((hton->flags & HTON_CAN_RECREATE) == false);
+  /*
+    The engine does not support truncate-by-recreate. Open the
+    table and invoke the handler truncate. In such a manner this
+    can in fact open several tables if it's a temporary MyISAMMRG
+    table.
+  */
+  const Truncate_result tr = handler_truncate_temporary(thd, table_ref);
+  if (tr != Truncate_result::OK) {
+    DBUG_VOID_RETURN;
+  }
+  m_error = false;
+  /* Only binlog if truncate succeeds. */
+  /* In RBR, the statement is not binlogged if the table is temporary. */
+  binlog_stmt = !thd->is_current_stmt_binlog_format_row();
+  binlog_is_trans = table_ref->table->file->has_transactions();
+  DBUG_VOID_RETURN;
 }
 
 /**
@@ -641,13 +732,17 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref) {
   @return false on success.
 */
 bool Sql_cmd_truncate_table::execute(THD *thd) {
-  bool res = true;
-  TABLE_LIST *first_table = thd->lex->select_lex->table_list.first;
   DBUG_ENTER("Sql_cmd_truncate_table::execute");
 
-  if (check_one_table_access(thd, DROP_ACL, first_table)) DBUG_RETURN(res);
+  TABLE_LIST *first_table = thd->lex->select_lex->table_list.first;
+  if (check_one_table_access(thd, DROP_ACL, first_table)) DBUG_RETURN(true);
 
-  if (!(res = truncate_table(thd, first_table))) my_ok(thd);
+  if (is_temporary_table(first_table))
+    truncate_temporary(thd, first_table);
+  else
+    truncate_base(thd, first_table);
 
-  DBUG_RETURN(res);
+  if (!m_error) my_ok(thd);
+
+  DBUG_RETURN(m_error);
 }
