@@ -2844,14 +2844,17 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
 
 bool Protocol_classic::get_compression() { return m_thd->net.compress; }
 
-bool Protocol_classic::start_result_metadata(uint num_cols, uint flags,
+bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
                                              const CHARSET_INFO *cs) {
   DBUG_ENTER("Protocol_classic::start_result_metadata");
-  DBUG_PRINT("info", ("num_cols %u, flags %u", num_cols, flags));
+  DBUG_PRINT("info", ("num_cols %u, flags %u", num_cols_arg, flags));
+  uint num_cols = num_cols_arg;
   result_cs = (CHARSET_INFO *)cs;
   send_metadata = true;
   field_count = num_cols;
   sending_flags = flags;
+
+  DBUG_EXECUTE_IF("send_large_column_count_in_metadata", num_cols = 50397184;);
   /*
     We don't send number of column for PS, as it's sent in a preceding packet.
   */
@@ -2867,6 +2870,8 @@ bool Protocol_classic::start_result_metadata(uint num_cols, uint flags,
 
     my_net_write(&m_thd->net, (uchar *)&tmp, (size_t)(pos - (uchar *)&tmp));
   }
+  DBUG_EXECUTE_IF("send_large_column_count_in_metadata",
+                  num_cols = num_cols_arg;);
 #ifndef DBUG_OFF
   /*
     field_types will be filled only if we send metadata.

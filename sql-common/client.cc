@@ -2578,6 +2578,10 @@ static int alloc_field_alloc(MYSQL *mysql) {
     init_alloc_root(PSI_NOT_INSTRUMENTED, mysql->field_alloc, 8192,
                     0); /* Assume rowlength < 8192 */
   }
+  /* At this point the NET is receiving a resultset. max packet should be set */
+  DBUG_ASSERT(mysql->net.max_packet_size != 0);
+  /* Limit the size of the columns buffer to MAX packet size */
+  mysql->field_alloc->set_max_capacity(mysql->net.max_packet_size);
   return 0;
 }
 
