@@ -2657,11 +2657,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
                        query, db, table_name));
-  if (!ndb_schema_share)
-  {
-    DBUG_RETURN(0);
-  }
-
 
   // Create NDB_SCHEMA_OBJECT
   std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
@@ -2685,15 +2680,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   const std::string op_name = db + std::string(".") + table_name + "(" +
                               std::to_string(ndb_table_id) + "/" +
                               std::to_string(ndb_table_version) + ")";
-
-  {
-    /* begin protect ndb_schema_share */
-    Mutex_guard ndb_schema_share_g(injector_data_mutex);
-    if (ndb_schema_share == NULL)
-    {
-      DBUG_RETURN(0);
-    }
-  }
 
   // Open ndb_schema table
   Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
