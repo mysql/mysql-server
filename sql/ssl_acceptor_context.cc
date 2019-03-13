@@ -515,6 +515,35 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   return false;
 }
 
+/**
+  Verifies the server certificate for formal validity and against the
+    CA certificates if specified.
+
+  This verifies things like expiration dates, full certificate chains
+  present etc.
+
+  @param ctx The listening SSL context with all certificates installed
+  @retval NULL No errors found
+  @retval non-null The text of the error from the library
+*/
+#ifndef HAVE_WOLFSSL
+static const char *verify_store_cert(SSL_CTX *ctx) {
+  const char *result = NULL;
+  X509 *cert = SSL_CTX_get0_certificate(ctx);
+  X509_STORE_CTX *sctx = X509_STORE_CTX_new();
+
+  if (NULL != sctx &&
+      0 != X509_STORE_CTX_init(sctx, SSL_CTX_get_cert_store(ctx), cert, NULL) &&
+      !X509_verify_cert(sctx)) {
+    result = X509_verify_cert_error_string(X509_STORE_CTX_get_error(sctx));
+  }
+  if (sctx != NULL) X509_STORE_CTX_free(sctx);
+  return result;
+}
+#else  /* HAVE_WOLFSSL */
+static const char *verify_store_cert(SSL_CTX *) { return NULL; }
+#endif /* HAVE_WOLFSSL */
+
 SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
                                        enum enum_ssl_init_error *out_error)
     : ssl_acceptor_fd(nullptr), acceptor(nullptr) {
@@ -534,6 +563,13 @@ SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
 
     if (!ssl_acceptor_fd && report_ssl_error)
       LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
+
+    if (ssl_acceptor_fd) {
+      const char *error = verify_store_cert(ssl_acceptor_fd->ssl_context);
+
+      if (error && report_ssl_error)
+        LogErr(WARNING_LEVEL, ER_SSL_SERVER_CERT_VERIFY_FAILED, error);
+    }
 
     if (ssl_acceptor_fd) acceptor = SSL_new(ssl_acceptor_fd->ssl_context);
   }

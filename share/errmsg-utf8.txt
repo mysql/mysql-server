@@ -19122,6 +19122,9 @@ ER_IB_RECV_FIRST_REC_GROUP_INVALID
 ER_DD_UPGRADE_COMPLETED
   eng "Data dictionary upgrade from version '%u' to '%u' completed."
 
+ER_SSL_SERVER_CERT_VERIFY_FAILED
+  eng "Server SSL certificate doesn't verify: %s"
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
