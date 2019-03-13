@@ -84,6 +84,8 @@ enum Schema_op_result_code {
 
 }  // namespace Ndb_schema_dist
 
+class Ndb;
+
 /**
   @brief Ndb_schema_dist_client, class represents a Client
   in the schema distribution.
@@ -126,12 +128,20 @@ class Ndb_schema_dist_client {
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
 
-  int log_schema_op_impl(class Ndb* ndb, const char *query, int query_length,
+  int log_schema_op_impl(Ndb* ndb, const char *query, int query_length,
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
                          SCHEMA_OP_TYPE type,
                          uint32 anyvalue);
 
+  /**
+     @brief Write row to ndb_schema to initiate the schema operation
+     @return true on sucess and false on failure
+   */
+  bool write_schema_op_to_NDB(Ndb *ndb, const char *query, int query_length,
+                              const char *db, const char *name, uint32 id,
+                              uint32 version, uint32 nodeid, uint32 type,
+                              uint32 schema_op_id, uint32 anyvalue);
   /**
     @brief Distribute the schema operation to the other MySQL Server(s)
     @note For now, just call the old log_schema_op_impl(), over time

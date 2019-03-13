@@ -2643,6 +2643,81 @@ static void ndb_report_waiting(const char *key,
   }
 }
 
+bool Ndb_schema_dist_client::write_schema_op_to_NDB(
+    Ndb *ndb, const char *query, int query_length, const char *db,
+    const char *name, uint32 id, uint32 version, uint32 nodeid, uint32 type,
+    uint32 schema_op_id, uint32 anyvalue) {
+  DBUG_ENTER("write_schema_op_to_NDB");
+
+  // Open ndb_schema table
+  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+  if (!schema_dist_table.open()) {
+    DBUG_RETURN(false);
+  }
+  const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
+
+  // Pack db and table_name
+  char db_buf[FN_REFLEN];
+  char name_buf[FN_REFLEN];
+  ndb_pack_varchar(ndbtab, SCHEMA_DB_I, db_buf, db, strlen(db));
+  ndb_pack_varchar(ndbtab, SCHEMA_NAME_I, name_buf, name, strlen(name));
+
+  // Start the schema operation with all bits set in the slock column.
+  // The expectation is that all participants will reply and those not
+  // connected will be filtered away by the coordinator.
+  std::vector<char> slock_data;
+  slock_data.assign(schema_dist_table.get_slock_bytes(), 0xFF);
+
+  // Function for writing row to ndb_schema
+  std::function<const NdbError *(NdbTransaction *)> write_schema_op_func =
+      [&](NdbTransaction *trans) -> const NdbError * {
+    DBUG_ENTER("write_schema_op_func");
+
+    NdbOperation *op = trans->getNdbOperation(ndbtab);
+    if (op == nullptr) DBUG_RETURN(&trans->getNdbError());
+
+    const Uint64 log_epoch = 0;
+    if (op->writeTuple() != 0 || op->equal(SCHEMA_DB_I, db_buf) != 0 ||
+        op->equal(SCHEMA_NAME_I, name_buf) != 0 ||
+        op->setValue(SCHEMA_SLOCK_I, slock_data.data()) != 0 ||
+        op->setValue(SCHEMA_NODE_ID_I, nodeid) != 0 ||
+        op->setValue(SCHEMA_EPOCH_I, log_epoch) != 0 ||
+        op->setValue(SCHEMA_ID_I, id) != 0 ||
+        op->setValue(SCHEMA_VERSION_I, version) != 0 ||
+        op->setValue(SCHEMA_TYPE_I, type) != 0 ||
+        op->setAnyValue(anyvalue) != 0)
+      DBUG_RETURN(&op->getNdbError());
+
+    NdbBlob *ndb_blob = op->getBlobHandle(SCHEMA_QUERY_I);
+    if (ndb_blob == nullptr) DBUG_RETURN(&op->getNdbError());
+
+    if (ndb_blob->setValue(query, query_length) != 0)
+      DBUG_RETURN(&ndb_blob->getNdbError());
+
+    if (schema_dist_table.have_schema_op_id_column()) {
+      if (op->setValue(SCHEMA_OP_ID_I, schema_op_id) != 0)
+        DBUG_RETURN(&op->getNdbError());
+    }
+
+    if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,
+                       1 /* force send */) != 0) {
+      DBUG_RETURN(&trans->getNdbError());
+    }
+
+    DBUG_RETURN(nullptr);
+  };
+
+  NdbError ndb_err;
+  if (!ndb_trans_retry(ndb, m_thd, ndb_err, write_schema_op_func)) {
+    m_thd_ndb->push_ndb_error_warning(ndb_err);
+    m_thd_ndb->push_warning("Failed to write schema operation");
+    DBUG_RETURN(false);
+  }
+
+  (void)ndb->getDictionary()->forceGCPWait(1);
+
+  DBUG_RETURN(true);
+}
 
 /*
   log query in ndb_schema table
@@ -2655,8 +2730,8 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     uint32 anyvalue)
 {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
-  DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
-                       query, db, table_name));
+  DBUG_PRINT("enter",
+             ("query: %s  db: %s  table_name: %s", query, db, table_name));
 
   // Create NDB_SCHEMA_OBJECT
   std::unique_ptr<NDB_SCHEMA_OBJECT, decltype(&NDB_SCHEMA_OBJECT::release)>
@@ -2681,168 +2756,48 @@ int Ndb_schema_dist_client::log_schema_op_impl(
                               std::to_string(ndb_table_id) + "/" +
                               std::to_string(ndb_table_version) + ")";
 
-  // Open ndb_schema table
-  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
-  if (!schema_dist_table.open()) {
+  // Use nodeid of the primary cluster connection since that is
+  // the nodeid which the coordinator and participants listen to
+  const uint32 own_nodeid = g_ndb_cluster_connection->node_id();
+
+  // Write schema operation to the table
+  if (!write_schema_op_to_NDB(ndb, query, query_length, db, table_name,
+                              ndb_table_id, ndb_table_version, own_nodeid, type,
+                              ndb_schema_object->schema_op_id(), anyvalue)) {
     DBUG_RETURN(1);
   }
-  const NdbDictionary::Table *ndbtab = schema_dist_table.get_table();
-
-  NdbTransaction *trans = nullptr;
-  int retries= 100;
-  const NdbError *ndb_error = nullptr;
-  while (1)
-  {
-    char tmp_buf[FN_REFLEN];
-    const Uint64 log_epoch = 0;
-    const uint32 log_type= (uint32)type;
-    const char *log_db= db;
-    const char *log_tab= table_name;
-    // Use nodeid of the primary cluster connection since that is
-    // the nodeid which the coordinator and participants listen to
-    const uint32 log_node_id = g_ndb_cluster_connection->node_id();
-
-    if ((trans= ndb->startTransaction()) == 0)
-      goto err;
-
-    {
-      NdbOperation *op= nullptr;
-      int r= 0;
-      r|= (op= trans->getNdbOperation(ndbtab)) == nullptr;
-      DBUG_ASSERT(r == 0);
-      r|= op->writeTuple();
-      DBUG_ASSERT(r == 0);
-      
-      /* db */
-      ndb_pack_varchar(ndbtab, SCHEMA_DB_I, tmp_buf, log_db,
-                       strlen(log_db));
-      r|= op->equal(SCHEMA_DB_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* name */
-      ndb_pack_varchar(ndbtab, SCHEMA_NAME_I, tmp_buf, log_tab,
-                       strlen(log_tab));
-      r|= op->equal(SCHEMA_NAME_I, tmp_buf);
-      DBUG_ASSERT(r == 0);
-      /* slock */
-      {
-        // Start the schema operation with all bits set in the slock column.
-        // The expectation is that all participants will reply and those not
-        // connected will be filtered away by the coordinator.
-        std::vector<char> slock_data;
-        slock_data.assign(schema_dist_table.get_slock_bytes(), 0xFF);
-        r|= op->setValue(SCHEMA_SLOCK_I, slock_data.data());
-        DBUG_ASSERT(r == 0);
-      }
-      /* query */
-      {
-        NdbBlob *ndb_blob= op->getBlobHandle(SCHEMA_QUERY_I);
-        DBUG_ASSERT(ndb_blob != nullptr);
-        uint blob_len= query_length;
-        const char* blob_ptr= query;
-        r|= ndb_blob->setValue(blob_ptr, blob_len);
-        DBUG_ASSERT(r == 0);
-      }
-      /* node_id */
-      r|= op->setValue(SCHEMA_NODE_ID_I, log_node_id);
-      DBUG_ASSERT(r == 0);
-      /* epoch */
-      r|= op->setValue(SCHEMA_EPOCH_I, log_epoch);
-      DBUG_ASSERT(r == 0);
-      /* id */
-      r|= op->setValue(SCHEMA_ID_I, ndb_table_id);
-      DBUG_ASSERT(r == 0);
-      /* version */
-      r|= op->setValue(SCHEMA_VERSION_I, ndb_table_version);
-      DBUG_ASSERT(r == 0);
-      /* type */
-      r|= op->setValue(SCHEMA_TYPE_I, log_type);
-      DBUG_ASSERT(r == 0);
-      /* schema_op_id */
-      if (schema_dist_table.have_schema_op_id_column()){
-        r|= op->setValue(SCHEMA_OP_ID_I, ndb_schema_object->schema_op_id());
-        DBUG_ASSERT(r == 0);
-      }
-      /* any value */
-      r|= op->setAnyValue(anyvalue);
-      DBUG_ASSERT(r == 0);
-    }
-    if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,
-                       1 /* force send */) == 0)
-    {
-      DBUG_PRINT("info", ("logged: %s", query));
-      ndb->getDictionary()->forceGCPWait(1);
-      break;
-    }
-err:
-    const NdbError *this_error= trans ?
-      &trans->getNdbError() : &ndb->getNdbError();
-    if (this_error->status == NdbError::TemporaryError && !m_thd->killed)
-    {
-      if (retries--)
-      {
-        if (trans)
-          ndb->closeTransaction(trans);
-        ndb_retry_sleep(30); /* milliseconds, transaction */
-        continue; // retry
-      }
-    }
-    ndb_error= this_error;
-    break;
-  }
-
-  if (ndb_error)
-    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                        ER_GET_ERRMSG, ER_THD(m_thd, ER_GET_ERRMSG),
-                        ndb_error->code,
-                        ndb_error->message,
-                        "Could not log query '%s' on other mysqld's");
-          
-  if (trans)
-    ndb->closeTransaction(trans);
 
   ndb_log_verbose(
       19, "Distributed '%s' type: %s(%u) query: \'%s\' to all subscribers",
       op_name.c_str(), type_name(type), type, query);
 
-  /*
-    Wait for other mysqld's to acknowledge the table operation
-  */
-  if (unlikely(ndb_error))
-  {
-    ndb_log_error("%s, distributing '%s' err: %u", type_str(type),
-                  op_name.c_str(), ndb_error->code);
-    DBUG_RETURN(1);
-  }
-
-  int max_timeout= 120; // Seconds to wait for schema operation to complete
+  // Wait for participants to complete the schema change
+  int max_timeout = 120;  // Seconds to wait for schema operation to complete
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
 
-    if (completed)
-      break; // Done, normal completion
+    if (completed) break;  // Done, normal completion
 
-    if (m_thd->killed)
-      break;
+    if (m_thd->killed) break;
 
     max_timeout--;
-    if (max_timeout == 0)
-    {
+    if (max_timeout == 0) {
       ndb_log_error("%s, distributing '%s' timed out. Ignoring...",
                     type_str(type), op_name.c_str());
       DBUG_ASSERT(false);
       break;
     }
     if (ndb_log_get_verbose_level())
-      ndb_report_waiting(
-          type_str(type), max_timeout, "distributing", op_name.c_str(),
-          ndb_schema_object->waiting_participants_to_string());
-  }
+      ndb_report_waiting(type_str(type), max_timeout, "distributing",
+                         op_name.c_str(),
+                         ndb_schema_object->waiting_participants_to_string());
+    }
 
-  ndb_log_verbose(19,
-                  "distribution of '%s' type: %s(%u) query: \'%s\' - complete!",
-                  op_name.c_str(), type_name(type), type, query);
+    ndb_log_verbose(19,
+                    "distribution of '%s' type: %s(%u) query: \'%s\' - complete!",
+        op_name.c_str(), type_name(type), type, query);
 
-  DBUG_RETURN(0);
+    DBUG_RETURN(0);
 }
 
 
