@@ -315,6 +315,12 @@ struct Being_modified {
       UNCOMMITTED transactions don't read an inconsistent BLOB. */
       if (index->is_compressed()) {
         blobref.set_being_modified(true, nullptr);
+
+        if (m_op == OPCODE_INSERT_UPDATE) {
+          /* Inserting by updating a del-marked record. */
+          blobref.set_page_no(FIL_NULL, nullptr);
+        }
+
         if (!m_btr_ctx.is_bulk()) {
           buf_block_t *rec_block = btr_pcur_get_block(m_pcur);
           page_zip_des_t *page_zip = buf_block_get_page_zip(rec_block);
@@ -1313,7 +1319,8 @@ bool ref_t::is_lob_partially_updatable(const dict_index_t *index) const {
 std::ostream &ref_t::print(std::ostream &out) const {
   out << "[ref_t: m_ref=" << (void *)m_ref << ", space_id=" << space_id()
       << ", page_no=" << page_no() << ", offset=" << offset()
-      << ", length=" << length() << "]";
+      << ", length=" << length()
+      << ", is_being_modified=" << is_being_modified() << "]";
   return (out);
 }
 
