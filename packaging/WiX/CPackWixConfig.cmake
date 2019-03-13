@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -56,6 +56,9 @@ SET(CPACK_COMPONENT_GROUP_MYSQLSERVER_DESCRIPTION "Install MySQL Server")
  # Subfeature "Server" (hidden)
  SET(CPACK_COMPONENT_SERVER_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_SERVER_HIDDEN 1)
+ # Subfeature "Shared libraries" (hidden)
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "MySQLServer")
+ SET(CPACK_COMPONENT_SHAREDLIBRARIES_HIDDEN 1)
  # Subfeature "Client" 
  SET(CPACK_COMPONENT_CLIENT_GROUP "MySQLServer")
  SET(CPACK_COMPONENT_CLIENT_DISPLAY_NAME "Client Programs")
@@ -82,11 +85,6 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  #Subfeature "Development"
  SET(CPACK_COMPONENT_DEVELOPMENT_GROUP "Devel")
  SET(CPACK_COMPONENT_DEVELOPMENT_HIDDEN 1)
- 
- #Subfeature "Shared libraries"
- SET(CPACK_COMPONENT_SHAREDLIBRARIES_GROUP "Devel")
- SET(CPACK_COMPONENT_SHAREDLIBRARIES_DISPLAY_NAME "Client C API library (shared)")
- SET(CPACK_COMPONENT_SHAREDLIBRARIES_DESCRIPTION "Installs shared client library")
  
  #Subfeature "Embedded"
  SET(CPACK_COMPONENT_EMBEDDED_GROUP "Devel")
