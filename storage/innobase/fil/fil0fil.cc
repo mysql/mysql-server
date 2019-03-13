@@ -91,6 +91,7 @@ using Space_id_set = std::set<space_id_t>;
 char *Fil_path::SEPARATOR = "\\/";
 char *Fil_path::DOT_SLASH = "./";
 char *Fil_path::DOT_DOT_SLASH = "../";
+char *Fil_path::SLASH_DOT_DOT_SLASH = "/../";
 #endif /* defined(__SUNPRO_CC) */
 
 /** Used for collecting the data in boot_tablespaces() */
@@ -8844,6 +8845,39 @@ bool Fil_path::is_valid() const {
 #endif /* _WIN32 */
 
   return (false);
+}
+
+/** Determine if the path contains a redundant section like "/mydb/../"
+Fil_path::normalize() must be run before this.
+@param[in]  path    pathname
+@return true if a redundant section if found, false if not */
+bool Fil_path::is_circular() const {
+  size_t first;
+
+  /* Find the first named directory.  It is OK for a path to
+  start with "../../../dir". */
+  for (first = 0; m_path[first] == OS_SEPARATOR || m_path[first] == '.';
+       ++first)
+    ;
+
+  size_t back_up = m_path.find(SLASH_DOT_DOT_SLASH, first);
+  if (back_up == std::string::npos) {
+    return (false);
+  }
+
+#ifndef _WIN32
+  /* If the path contains a symlink before the /../ and the platform
+  is not Windows, then '/../' does not go bback through the symlink,
+  so it is not circular.  It refers to the parent of the symlinked
+  location and we must allow it. On Windows, it backs up to the directory
+  where the symlink starts, which is a circular reference. */
+  std::string up_path = m_path.substr(0, back_up);
+  if (my_is_symlink(up_path.c_str(), NULL)) {
+    return (false);
+  }
+#endif /* _WIN32 */
+
+  return (true);
 }
 
 /** Sets the flags of the tablespace. The tablespace must be locked

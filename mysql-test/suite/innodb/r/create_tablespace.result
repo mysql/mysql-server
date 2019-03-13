@@ -265,7 +265,7 @@ DROP TABLESPACE `undo_002`;
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd' ENGINE=InnoDB;
 CREATE TABLESPACE `s1_#_hash` ADD DATAFILE 's1_#_hash.ibd';
 CREATE TABLESPACE s1_remote ADD DATAFILE 'MYSQL_TMP_DIR/s1.ibd.ibd';
-CREATE TABLESPACE s2_remote ADD DATAFILE 'MYSQL_TMP_DIR/s2_#_dir/../s2_#_dir/s2.ibd';
+CREATE TABLESPACE s2_remote ADD DATAFILE 'MYSQL_TMP_DIR/s2_#_dir/s2.ibd';
 CREATE TABLESPACE s_bad ADD DATAFILE '.ibd';
 ERROR HY000: The ADD DATAFILE filepath does not have a proper filename.
 SHOW WARNINGS;
@@ -321,7 +321,7 @@ mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppr
 mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s1_#_hash	General	DEFAULT	0	Any	s1_#_hash.ibd
 s1_remote	General	DEFAULT	0	Any	MYSQL_TMP_DIR/s1.ibd.ibd
-s2_remote	General	DEFAULT	0	Any	MYSQL_TMP_DIR/s2_#_dir/.MYSQLD_DATADIR/s2_#_dir/s2.ibd
+s2_remote	General	DEFAULT	0	Any	MYSQL_TMP_DIR/s2_#_dir/s2.ibd
 s4_def	General	DEFAULT	0	Any	MYSQL_TMP_DIR/tablespace.ibd/s4.ibd
 s_def	General	DEFAULT	0	Any	s_def.ibd
 === information_schema.files ===
@@ -330,7 +330,7 @@ mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_
 mtr/test_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/test_suppressions	MYSQLD_DATADIR/mtr/test_suppressions.ibd
 s1_#_hash	TABLESPACE	InnoDB	NORMAL	s1_#_hash	MYSQLD_DATADIR/s1_#_hash.ibd
 s1_remote	TABLESPACE	InnoDB	NORMAL	s1_remote	MYSQL_TMP_DIR/s1.ibd.ibd
-s2_remote	TABLESPACE	InnoDB	NORMAL	s2_remote	MYSQL_TMP_DIR/s2_#_dir/.MYSQLD_DATADIR/s2_#_dir/s2.ibd
+s2_remote	TABLESPACE	InnoDB	NORMAL	s2_remote	MYSQL_TMP_DIR/s2_#_dir/s2.ibd
 s4_def	TABLESPACE	InnoDB	NORMAL	s4_def	MYSQL_TMP_DIR/tablespace.ibd/s4.ibd
 s_def	TABLESPACE	InnoDB	NORMAL	s_def	MYSQLD_DATADIR/s_def.ibd
 # Directory listing of MYSQLD_DATADIR/

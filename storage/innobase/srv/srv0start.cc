@@ -1770,8 +1770,6 @@ static dberr_t srv_init_abort_low(bool create_new_db,
     ib::error(ER_IB_MSG_1105, msg.str().c_str(), ut_strerr(err));
   }
 
-  undo_spaces_deinit();
-
   srv_shutdown_all_bg_threads();
 
   return (err);
@@ -2614,13 +2612,6 @@ files_checked:
     err = srv_undo_tablespaces_init(false);
 
     if (err != DB_SUCCESS && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-      if (err == DB_TABLESPACE_NOT_FOUND) {
-        /* A tablespace was not found.
-        The user must force recovery. */
-
-        srv_fatal_error();
-      }
-
       return (srv_init_abort(err));
     }
 

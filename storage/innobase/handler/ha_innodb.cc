@@ -14027,6 +14027,17 @@ static int validate_create_tablespace_info(ib_file_suffix type, THD *thd,
   /* Validate the ADD DATAFILE name. */
   Fil_path filepath(alter_info->data_file_name, true);
 
+  /* If this path contains a circular section such as "/anydir/../" then
+  reject it since if that unnecessary directory reference is deleted
+  the path will not be useaable on Linux. */
+  if (filepath.is_circular()) {
+    my_printf_error(ER_WRONG_FILE_NAME,
+                    "The ADD DATAFILE filepath cannot contain circular "
+                    "directory references.",
+                    MYF(0));
+    error = HA_ERR_WRONG_FILE_NAME;
+  }
+
 #ifndef _WIN32
   /* On Non-Windows platforms, '\\' is a valid file name character.
   But for InnoDB datafiles, we always assume it is a directory
