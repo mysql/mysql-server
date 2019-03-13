@@ -130,7 +130,7 @@ class Ndb_schema_dist_client {
                          const char *db, const char *table_name,
                          uint32 ndb_table_id, uint32 ndb_table_version,
                          SCHEMA_OP_TYPE type,
-                         bool log_query_on_participant);
+                         uint32 anyvalue);
 
   /**
     @brief Distribute the schema operation to the other MySQL Server(s)
@@ -150,6 +150,17 @@ class Ndb_schema_dist_client {
    * @return string describing the type
    */
   const char* type_str(SCHEMA_OP_TYPE type) const;
+
+  /**
+     @brief Calculate the anyvalue to use for this schema change. The anyvalue
+     is used to transport additional settings from client to the participants.
+
+     @param force_nologging Force setting anyvalue to not log schema change on
+     participant
+
+     @return The anyvalue to use for schema change
+   */
+  uint32 calculate_anyvalue(bool force_nologging) const;
 
  public:
   Ndb_schema_dist_client() = delete;

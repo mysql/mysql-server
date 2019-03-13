@@ -2652,7 +2652,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     Ndb* ndb,
     const char *query, int query_length, const char *db, const char *table_name,
     uint32 ndb_table_id, uint32 ndb_table_version, SCHEMA_OP_TYPE type,
-    bool log_query_on_participant)
+    uint32 anyvalue)
 {
   DBUG_ENTER("Ndb_schema_dist_client::log_schema_op_impl");
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
@@ -2777,58 +2777,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
         DBUG_ASSERT(r == 0);
       }
       /* any value */
-      Uint32 anyValue = 0;
-      if (! m_thd->slave_thread)
-      {
-        /* Schema change originating from this MySQLD, check SQL_LOG_BIN
-         * variable and pass 'setting' to all logging MySQLDs via AnyValue  
-         */
-        if (thd_test_options(m_thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
-        {
-          DBUG_PRINT("info", ("Schema event for binlogging"));
-          ndbcluster_anyvalue_set_normal(anyValue);
-        }
-        else
-        {
-          DBUG_PRINT("info", ("Schema event not for binlogging")); 
-          ndbcluster_anyvalue_set_nologging(anyValue);
-        }
-
-        if(!log_query_on_participant)
-        {
-          DBUG_PRINT("info", ("Forcing query not to be binlogged on participant"));
-          ndbcluster_anyvalue_set_nologging(anyValue);
-        }
-      }
-      else
-      {
-        /* 
-           Slave propagating replicated schema event in ndb_schema
-           In case replicated serverId is composite 
-           (server-id-bits < 31) we copy it into the 
-           AnyValue as-is
-           This is for 'future', as currently Schema operations
-           do not have composite AnyValues.
-           In future it may be useful to support *not* mapping composite
-           AnyValues to/from Binlogged server-ids.
-        */
-        DBUG_PRINT("info", ("Replicated schema event with original server id %d",
-                            m_thd->server_id));
-        anyValue = thd_unmasked_server_id(m_thd);
-      }
-
-#ifndef DBUG_OFF
-      /*
-        MySQLD will set the user-portion of AnyValue (if any) to all 1s
-        This tests code filtering ServerIds on the value of server-id-bits.
-      */
-      const char* p = getenv("NDB_TEST_ANYVALUE_USERDATA");
-      if (p != 0  && *p != 0 && *p != '0' && *p != 'n' && *p != 'N')
-      {
-        dbug_ndbcluster_anyvalue_set_userbits(anyValue);
-      }
-#endif  
-      r|= op->setAnyValue(anyValue);
+      r|= op->setAnyValue(anyvalue);
       DBUG_ASSERT(r == 0);
     }
     if (trans->execute(NdbTransaction::Commit, NdbOperation::DefaultAbortOption,

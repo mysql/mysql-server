@@ -30,12 +30,15 @@
 #include "my_dbug.h"
 #include "ndbapi/ndb_cluster_connection.hpp"
 #include "sql/ha_ndbcluster_tables.h"
+#include "sql/ndb_anyvalue.h"
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_schema_dist_table.h"
 #include "sql/ndb_schema_result_table.h"
 #include "sql/ndb_share.h"
 #include "sql/ndb_thd.h"
 #include "sql/ndb_thd_ndb.h"
+#include "sql/query_options.h"          // OPTION_BIN_LOG
+#include "sql/sql_thd_internal_api.h"
 
 
 static const std::string NDB_SCHEMA_TABLE_DB = NDB_REP_DB;
@@ -289,9 +292,12 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
     }
   }
 
+  // Calculate anyvalue
+  const Uint32 anyvalue = calculate_anyvalue(log_query_on_participant);
+
   const int result = log_schema_op_impl(
       m_thd_ndb->ndb, query, static_cast<int>(query_length), db, table_name, id,
-      version, type, log_query_on_participant);
+      version, type, anyvalue);
   if (result != 0) {
     // Schema distribution failed
     m_thd_ndb->push_warning("Schema distribution failed!");
@@ -684,4 +690,52 @@ Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type)
   }
   DBUG_ASSERT(false);
   return "<unknown>";
+}
+
+uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
+  Uint32 anyValue = 0;
+  if (!thd_slave_thread(m_thd)) {
+    /* Schema change originating from this MySQLD, check SQL_LOG_BIN
+     * variable and pass 'setting' to all logging MySQLDs via AnyValue
+     */
+    if (thd_test_options(m_thd, OPTION_BIN_LOG)) /* e.g. SQL_LOG_BIN == on */
+    {
+      DBUG_PRINT("info", ("Schema event for binlogging"));
+      ndbcluster_anyvalue_set_normal(anyValue);
+    } else {
+      DBUG_PRINT("info", ("Schema event not for binlogging"));
+      ndbcluster_anyvalue_set_nologging(anyValue);
+    }
+
+    if (!force_nologging) {
+      DBUG_PRINT("info", ("Forcing query not to be binlogged on participant"));
+      ndbcluster_anyvalue_set_nologging(anyValue);
+    }
+  } else {
+    /*
+       Slave propagating replicated schema event in ndb_schema
+       In case replicated serverId is composite
+       (server-id-bits < 31) we copy it into the
+       AnyValue as-is
+       This is for 'future', as currently Schema operations
+       do not have composite AnyValues.
+       In future it may be useful to support *not* mapping composite
+       AnyValues to/from Binlogged server-ids.
+    */
+    DBUG_PRINT("info", ("Replicated schema event with original server id"));
+    anyValue = thd_unmasked_server_id(m_thd);
+  }
+
+#ifndef DBUG_OFF
+  /*
+    MySQLD will set the user-portion of AnyValue (if any) to all 1s
+    This tests code filtering ServerIds on the value of server-id-bits.
+  */
+  const char *p = getenv("NDB_TEST_ANYVALUE_USERDATA");
+  if (p != 0 && *p != 0 && *p != '0' && *p != 'n' && *p != 'N') {
+    dbug_ndbcluster_anyvalue_set_userbits(anyValue);
+  }
+#endif
+  DBUG_PRINT("info", ("anyvalue: %u", anyValue));
+  return anyValue;
 }
