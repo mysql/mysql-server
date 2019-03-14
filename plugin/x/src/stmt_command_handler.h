@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,6 @@ class Stmt_command_handler {
 
  private:
   ngs::Error_code sql_stmt_execute(const Mysqlx::Sql::StmtExecute &msg);
-  ngs::Error_code deprecated_admin_stmt_execute(
-      const Mysqlx::Sql::StmtExecute &msg);
   ngs::Error_code admin_stmt_execute(const Mysqlx::Sql::StmtExecute &msg);
 
   Query_string_builder m_qb{1024};

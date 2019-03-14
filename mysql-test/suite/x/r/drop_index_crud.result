@@ -6,97 +6,9 @@ RUN CREATE DATABASE xplugintest
 RUN USE xplugintest
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Create and drop indexes of different types on single fields
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TINYINT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -119,38 +31,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -158,70 +38,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TINYINT UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -244,38 +60,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -283,70 +67,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TINYINT(2) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -369,38 +89,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -408,70 +96,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "SMALLINT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -494,38 +118,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -533,70 +125,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "SMALLINT UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -619,38 +147,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -658,70 +154,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "SMALLINT(4) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -754,38 +186,6 @@ doc	_id	$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -793,70 +193,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "MEDIUMINT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -879,38 +215,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -918,70 +222,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "MEDIUMINT UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1004,38 +244,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1043,70 +251,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "MEDIUMINT(7) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1139,38 +283,6 @@ doc	_id	$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1178,70 +290,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INTEGER"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1264,38 +312,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1303,70 +319,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INTEGER UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1389,38 +341,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1428,70 +348,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INTEGER(6) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1524,38 +380,6 @@ doc	_id	$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1563,70 +387,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BIGINT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1649,38 +409,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1688,70 +416,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BIGINT UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1774,38 +438,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1813,70 +445,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BIGINT(13)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1909,38 +477,6 @@ doc	_id	$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -1948,70 +484,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BIGINT(22) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2034,38 +506,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2073,70 +513,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "REAL"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2159,38 +535,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_fr_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2198,70 +542,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "REAL UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2284,38 +564,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_fr_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2323,70 +571,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "FLOAT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2409,38 +593,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_f_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2448,70 +600,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "FLOAT UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2534,38 +622,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_f_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2573,70 +629,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DOUBLE"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2659,38 +651,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_fd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2698,70 +658,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DOUBLE UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2784,38 +680,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_fd_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2823,70 +687,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DOUBLE(7,4) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2919,38 +719,6 @@ doc	_id	$ix_fd7_4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -2958,70 +726,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DECIMAL"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3044,38 +748,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_xd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3083,70 +755,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DECIMAL(10) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3179,38 +787,6 @@ doc	_id	$ix_xd10_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3218,70 +794,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DECIMAL(8,2) UNSIGNED"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3314,38 +826,6 @@ doc	_id	$ix_xd8_2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3353,70 +833,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "NUMERIC"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3439,38 +855,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_xn_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3478,70 +862,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "NUMERIC(10,2)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3574,38 +894,6 @@ doc	_id	$ix_xn10_2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3613,70 +901,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "NUMERIC(5)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3709,38 +933,6 @@ doc	_id	$ix_xn5_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3748,70 +940,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DATE"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3834,38 +962,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_d_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3873,70 +969,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TIME"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3959,38 +991,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_dt_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -3998,70 +998,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TIME(2)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4094,38 +1030,6 @@ doc	_id	$ix_dt2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4133,70 +1037,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TIMESTAMP"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4219,38 +1059,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_ds_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4258,70 +1066,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TIMESTAMP(6)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4354,38 +1098,6 @@ doc	_id	$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4393,70 +1105,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DATETIME"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4479,38 +1127,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_dd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4518,70 +1134,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "DATETIME(6)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4604,38 +1156,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_dd6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4643,70 +1163,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "YEAR"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4729,38 +1185,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -4768,70 +1192,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "VARCHAR(15)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Error {
   severity: ERROR
   code: 5017
@@ -4865,38 +1225,6 @@ doc	_id
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Error {
   severity: ERROR
   code: 1091
@@ -4908,70 +1236,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "CHAR(25)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5003,38 +1267,6 @@ doc	_id	$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5042,70 +1274,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BIT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5128,38 +1296,6 @@ table1	CREATE TABLE `table1` (
   UNIQUE KEY `ix` (`$ix_t_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5167,70 +1303,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "BLOB(50)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5263,38 +1335,6 @@ doc	_id	$ix_bt50_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5302,70 +1342,6 @@ RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TEXT(30)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5398,38 +1374,6 @@ doc	_id	$ix_t30_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 RUN DELETE FROM xplugintest.table1
 
 1 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "ix"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5438,95 +1382,6 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 Create index on two fields
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "two_field_index"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_text"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TEXT(10)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_int"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5540,38 +1395,6 @@ table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 table1	0	two_field_index	1	$ix_t10_r_0AD3DA5237EEE3DFC9BAFF8E7071211F65E9713C	A	0	10	null		BTREE			YES	null
 table1	0	two_field_index	2	$ix_i_r_B8701A5C0B839D9E3336ED0BD89272C2666E1C74	A	0	null	null		BTREE			YES	null
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "two_field_index"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5580,160 +1403,7 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 Create two indexes using the same field
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "index1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
-}
-
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "index2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "INT"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -5751,38 +1421,6 @@ table1	0	index1	2	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null
 table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE			YES	null
 0 rows affected
 Drop the first of the indexes, it should keep the shared column
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "index1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5792,38 +1430,6 @@ table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 table1	0	index2	1	$ix_i_r_EF67772F9C09859F0E6CC3208EDA759461EA79E2	A	0	null	null		BTREE			YES	null
 0 rows affected
 Drop the second of the indexes, the column should be gone
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "index2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -5832,75 +1438,11 @@ Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_par
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
 0 rows affected
 Error scenarios when dropping the index
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "nonexisting"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "date_index"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Error {
   severity: ERROR
   code: 5113
   msg: "Invalid collection name: nonexisting.table1"
   sql_state: "HY000"
-}
-
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "nonexisting"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "date_index"
-      }
-    }
-  }
-  namespace: "xplugin"
 }
 
 Mysqlx.Error {
@@ -5910,107 +1452,11 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "nonexisting"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Error {
   severity: ERROR
   code: 1091
   msg: "Can\'t DROP \'nonexisting\'; check that column/key exists"
   sql_state: "42000"
-}
-
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "tblob_index"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.col_blob"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TINYBLOB(10)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
 }
 
 Mysqlx.Error {
@@ -6069,38 +1515,6 @@ table1	1	fulltext_idx_2	1	SUBJECT	A	0	100	null	YES	BTREE			YES	null
 table1	1	fulltext_idx_3	1	book	A	0	100	null	YES	BTREE			YES	null
 0 rows affected
 drop primary index
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "PRIMARY"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
@@ -6116,106 +1530,10 @@ table1	CREATE TABLE `table1` (
   KEY `fulltext_idx_3` (`book`(100))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "fulltext_idx_1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "fulltext_idx_3"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
-}
-
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "fulltext_idx_2"
-      }
-    }
-  }
-  namespace: "xplugin"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -6251,74 +1569,10 @@ UNIQUE `idx2` (LastName)
 
 0 rows affected
  drop index from data_model=TABLE
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "idx1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Mysqlx.Sql.StmtExecuteOk {
 }
 
 Error can not drop primary index when column defined as auto_increment
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "PRIMARY"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Incorrect table definition; there can be only one auto column and it must be defined as a key (code 1075)
 RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table

@@ -101,10 +101,7 @@ create user expired@localhost;
 alter user expired@localhost password expire;
 --echo Check whether password expired sandbox applies to admin cmds
 --write_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
-Mysqlx.Sql.StmtExecute {
-    stmt: "list_clients"
-    namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->expecterror 1820
 -->recvresult
 
@@ -113,10 +110,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-    stmt: "list_clients"
-    namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 EOF
 

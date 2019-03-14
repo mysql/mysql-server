@@ -51,7 +51,7 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 
 -->macro Make_index  %NAME%  %TYPE%
--->stmtadmin create_collection_index	{"schema": "xtest", "collection":"books", "name":"%NAME%", "unique":true, "constraint":{"member":"$.%NAME%", "type":"%TYPE%", "required":false}}
+-->stmtadmin create_collection_index	{"schema": "xtest", "collection":"books", "name":"%NAME%", "unique":true, "fields":{"field":"$.%NAME%", "type":"%TYPE%", "required":false}}
 -->recvresult
 -->endmacro
 

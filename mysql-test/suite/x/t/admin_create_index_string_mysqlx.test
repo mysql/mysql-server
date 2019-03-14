@@ -106,7 +106,7 @@ Mysqlx.Crud.Insert {
 -->callmacro Insert	books0	'{"_id": "one", "name": "The Bla", "isbn" : "9780262527804", "pages":30}'	ER_SUCCESS
 -->callmacro Insert	books0	'{"_id": "two", "name": "The Bla Bla", "isbn" : "1280262527804", "pages":50}'	ER_SUCCESS
 
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books0", "name":"mix", "unique":true, "constraint":[{"member":"$.isbn", "type":"TEXT(80)", "required":false}, {"member":"$.pages", "type":"INT", "required":false}]}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books0", "name":"mix", "unique":true, "fields":[{"field":"$.isbn", "type":"TEXT(80)", "required":false}, {"field":"$.pages", "type":"INT", "required":false}]}
 -->recvresult
 -->callmacro Assert_use_of_index	books0	mix	doc->'$.isbn' = '9780262527804' and doc->'$.pages' > 1
 

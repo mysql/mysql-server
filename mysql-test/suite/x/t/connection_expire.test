@@ -137,29 +137,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvtype Mysqlx.Error
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugin"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
+-->stmtadmin create_collection	{"schema":"xplugin" ,"name":"table2"}
 -->expecterror %EXPECT_ERROR%
 -->recvresult
 EOF

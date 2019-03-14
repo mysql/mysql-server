@@ -12,7 +12,7 @@
 ## Test data
 -->macro Create_index  %MEMBER%
 -->title =Member: %MEMBER%
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name": "index", "unique": true, "constraint":{"member": "%MEMBER%", "type": "text(20)", "required": false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name": "index", "unique": true, "fields":{"field": "%MEMBER%", "type": "text(20)", "required": false}}
 -->recvresult be-quiet
 -->endmacro
 

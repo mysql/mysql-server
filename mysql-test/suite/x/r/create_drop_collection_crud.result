@@ -18,55 +18,8 @@ RUN USE xplugintest
 RUN CREATE TABLE table1 ( _id INT , doc JSON ) 
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_1"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW TABLES
@@ -219,29 +172,6 @@ table2	CREATE TABLE `table2` (
 RUN DROP TABLE table2
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW CREATE TABLE table2
@@ -255,146 +185,17 @@ table2	CREATE TABLE `table2` (
 RUN CREATE TABLE table2_tmp ( col1 INT)
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2_tmp"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW CREATE TABLE table2
 While executing SHOW CREATE TABLE table2:
 Got expected error: Table 'xplugintest.table2' doesn't exist (code 1146)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown table 'xplugintest.table2' (code 1051)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_non_existing"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown table 'xplugintest_non_existing.table2' (code 1051)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid number of arguments, expected 2 but got 1 (code 5015)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: OBJECT
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
+Got expected error: Invalid number of arguments, expected value for 'name' (code 5015)
+Got expected error: Invalid value for argument 'name' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -439,29 +240,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest_user_access"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: CREATE command denied to user 'user1'@'localhost' for table 'table1' (code 1142)
 RUN SHOW CREATE TABLE xplugintest_user_access.table1
 While executing SHOW CREATE TABLE xplugintest_user_access.table1:
@@ -483,38 +261,11 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table3"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table4"
-      }
-    }
-  }
-  namespace: "xplugin"
+Got expected error: Invalid number of arguments, expected value for 'schema' (code 5015)
+Mysqlx.Ok {
+  msg: "bye!"
 }
-
+ok
 Got expected error: Invalid number of arguments, expected 2 but got 3 (code 5015)
 Mysqlx.Ok {
   msg: "bye!"
@@ -523,20 +274,31 @@ ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
   args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
+    type: OBJECT
+    obj {
+      fld {
+        key: "schema"
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "xplugintest"
+            }
+          }
+        }
       }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
+      fld {
+        key: "name"
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "table2"
+            }
+          }
+        }
       }
     }
   }
@@ -548,110 +310,21 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "non_existing"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Unknown database 'non_existing' (code 1049)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_NULL
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'name' at #2 (should be string) (code 5016)
+Got expected error: Invalid value for argument 'name' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: OBJECT
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table3"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
+Got expected error: Invalid value for argument 'schema' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table1"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: Table 'table1' already exists (code 1050)
 Mysqlx.Ok {
   msg: "bye!"

@@ -132,21 +132,7 @@ show grants;
 
 -->echo killing abc user session with its own session 'abc' which should be successful
 -->echo expect right error instead of End of File
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 4
-    }
-  }
-}
-
-#-->echo expect Mysqlx.Sql.StmtExecuteOk
-#-->recvresult
-# and switch back to default
+-->stmtadmin kill_client	{"id": 4 }
 -->recvuntildisc
 
 callmacro Wait_for_status_variable	Mysqlx_sessions	1;
@@ -221,150 +207,33 @@ EOF
 
 callmacro kill_client_expect_error	11	ER_NO_SUCH_THREAD;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_STRING
-          v_string:{
-            value: "1"
-          }
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": "1"}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_BOOL
-          v_bool:1
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": true}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_BOOL
-          v_bool:0
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": false}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_BOOL
-          v_bool:false
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": 1.0}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_BOOL
-          v_bool:true
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": null}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_FLOAT
-          v_float:1
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
--->recvresult
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_DOUBLE
-          v_double:1
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
--->recvresult
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_NULL
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
--->recvresult
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_OCTETS
-          v_octets {value:"1"}
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
--->recvresult
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-          type: V_SINT
-          v_signed_int:-1
-     }
-  }
-}
--->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->stmtadmin kill_client	{"id": -1}
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
 -->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with x_root user even though kill_client returns errors
 quiet;
-callmacro Assert_status_variable	Mysqlx_stmt_kill_client	11;
+callmacro Assert_status_variable	Mysqlx_stmt_kill_client	7;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
 callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
@@ -379,10 +248,7 @@ EOF
 -->expecterror ER_MUST_CHANGE_PASSWORD
 show processlist;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->expecterror ER_MUST_CHANGE_PASSWORD
 -->recvresult
 
@@ -395,24 +261,10 @@ EOF
 -->import kill_and_restart.macro
 
 -->echo checking list_clients and kill_client with mixed case, expect success as these commands are case insensitive
-Mysqlx.Sql.StmtExecute {
-  stmt: "LIST_clients"
-  namespace: "xplugin"
-}
-## expect Mysqlx.Sql.StmtExecuteOk
+-->stmtadmin LIST_clients
 -->recvresult client_id user host
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_CLIENT"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 998
-    }
-  }
-}
+-->stmtadmin kill_CLIENT	{"id": 998}
 -->expecterror ER_NO_SUCH_THREAD
 -->recvresult
 
@@ -968,20 +820,7 @@ noquiet;
 
 -->echo killing abc user session with its own session 'abc' which should be successful
 -->echo expect right error instead of End of File
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 4
-    }
-  }
-}
-
-#-->echo expect Mysqlx.Sql.StmtExecuteOk
-#-->recvresult
+-->stmtadmin kill_client	{"id": 4}
 -->echo switch back to default session
 -->recvuntildisc
 

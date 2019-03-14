@@ -39,7 +39,7 @@ Mysqlx.Crud.Insert {
 
 
 -->macro Create_index  %INDEX%  %UNIQUE%  %DOCUMENT_PATH%  %TYPE%  %REQUIRED%  %ERROR%
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"dt", "name": %INDEX%, "unique": %UNIQUE%, "constraint":{"member": %DOCUMENT_PATH%, "type": %TYPE%,"required": %REQUIRED%}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"dt", "name": %INDEX%, "unique": %UNIQUE%, "fields":{"field": %DOCUMENT_PATH%, "type": %TYPE%,"required": %REQUIRED%}}
 -->expecterror %ERROR%
 -->recvresult
 -->endmacro

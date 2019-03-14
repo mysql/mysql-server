@@ -26,6 +26,7 @@
 #define PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_
 
 #include <google/protobuf/repeated_field.h>
+
 #include <initializer_list>
 #include <map>
 #include <string>
@@ -36,8 +37,6 @@
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 
 namespace xpl {
-class Session;
-class Session_options;
 
 class Admin_command_handler {
  public:
@@ -81,8 +80,7 @@ class Admin_command_handler {
 
   explicit Admin_command_handler(ngs::Session_interface *session);
 
-  ngs::Error_code execute(const std::string &name_space,
-                          const std::string &command, Command_arguments *args);
+  ngs::Error_code execute(const std::string &command, Command_arguments *args);
 
   static const char *const k_mysqlx_namespace;
 
@@ -91,42 +89,30 @@ class Admin_command_handler {
   using Value_list = Command_arguments::List;
   using Argument_appearance = Command_arguments::Appearance_type;
 
-  ngs::Error_code ping(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code ping(Command_arguments *args);
 
-  ngs::Error_code list_clients(const std::string &name_space,
-                               Command_arguments *args);
-  ngs::Error_code kill_client(const std::string &name_space,
-                              Command_arguments *args);
+  ngs::Error_code list_clients(Command_arguments *args);
+  ngs::Error_code kill_client(Command_arguments *args);
 
-  ngs::Error_code create_collection(const std::string &name_space,
-                                    Command_arguments *args);
-  ngs::Error_code drop_collection(const std::string &name_space,
-                                  Command_arguments *args);
-  ngs::Error_code ensure_collection(const std::string &name_space,
-                                    Command_arguments *args);
+  ngs::Error_code create_collection(Command_arguments *args);
+  ngs::Error_code drop_collection(Command_arguments *args);
+  ngs::Error_code ensure_collection(Command_arguments *args);
 
-  ngs::Error_code create_collection_index(const std::string &name_space,
-                                          Command_arguments *args);
-  ngs::Error_code drop_collection_index(const std::string &name_space,
-                                        Command_arguments *args);
+  ngs::Error_code create_collection_index(Command_arguments *args);
+  ngs::Error_code drop_collection_index(Command_arguments *args);
 
-  ngs::Error_code list_objects(const std::string &name_space,
-                               Command_arguments *args);
+  ngs::Error_code list_objects(Command_arguments *args);
 
-  ngs::Error_code enable_notices(const std::string &name_space,
-                                 Command_arguments *args);
-  ngs::Error_code disable_notices(const std::string &name_space,
-                                  Command_arguments *args);
-  ngs::Error_code list_notices(const std::string &name_space,
-                               Command_arguments *args);
+  ngs::Error_code enable_notices(Command_arguments *args);
+  ngs::Error_code disable_notices(Command_arguments *args);
+  ngs::Error_code list_notices(Command_arguments *args);
 
-  using Method_ptr = ngs::Error_code (Admin_command_handler::*)(
-      const std::string &name_space, Command_arguments *args);
+  using Method_ptr =
+      ngs::Error_code (Admin_command_handler::*)(Command_arguments *args);
   static const struct Command_handler
       : private std::map<std::string, Method_ptr> {
     Command_handler();
     ngs::Error_code execute(Admin_command_handler *admin,
-                            const std::string &name_space,
                             const std::string &command,
                             Command_arguments *args) const;
   } m_command_handler;
@@ -136,7 +122,7 @@ class Admin_command_handler {
 
 #define DOC_MEMBER_REGEX                                                     \
   R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_)" \
-  R"(\\$]*|\\*|\\".*\\")))*)"
+  R"(\\$]*|\\*|\\".*\\"|`.*`)))*)"
 
 }  // namespace xpl
 

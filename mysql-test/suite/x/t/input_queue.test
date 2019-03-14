@@ -66,10 +66,7 @@ UNLOCK TABLES;
 
 -->echo Bug 21811192 (fixed)
 -->echo Lets try if plugin is processing new data
-Mysqlx.Sql.StmtExecute {
-  stmt:"ping"
-  namespace: "xplugin"
-}
+-->stmtadmin ping
 -->recvresult
 -->closesession %SESSION%
 -->endmacro
@@ -102,10 +99,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo Bug 21811192 (fixed)
 -->echo Lets try if plugin is processing new data
-Mysqlx.Sql.StmtExecute {
-  stmt:"ping"
-  namespace: "xplugin"
-}
+-->stmtadmin ping
 -->recvresult
 -->closesession %SESSION%
 -->endmacro

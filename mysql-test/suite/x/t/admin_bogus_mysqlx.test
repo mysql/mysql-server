@@ -12,7 +12,7 @@ Mysqlx.Sql.StmtExecute {
   stmt: "whatever"
   namespace: "mysqlx"
 }
--->expecterror 5157
+-->expecterror ER_X_INVALID_ADMIN_COMMAND
 -->recvresult
 
 
@@ -20,7 +20,15 @@ Mysqlx.Sql.StmtExecute {
   stmt: "whatever"
   namespace: "bogus"
 }
--->expecterror 5162
+-->expecterror ER_X_INVALID_NAMESPACE
+-->recvresult
+
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "xplugin"
+}
+-->expecterror ER_X_INVALID_NAMESPACE
 -->recvresult
 
 -->sql

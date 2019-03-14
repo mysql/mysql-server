@@ -181,18 +181,7 @@ select 4;
 -->newsession sess	x_root
 -->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
 -->setsession
-
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -214,17 +203,7 @@ Mysqlx.Sql.StmtExecute {
 }
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -247,17 +226,7 @@ Mysqlx.Sql.StmtExecute {
 -->sleep 1
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -284,17 +253,7 @@ Mysqlx.Connection.CapabilitiesGet {
 }
 
 -->setsession
-Mysqlx.Sql.StmtExecute {
-    namespace: "xplugin"
-    stmt: "kill_client"
-    args {
-        type: SCALAR
-        scalar {
-            type: V_UINT
-            v_unsigned_int: %SESS_CLIENT_ID%
-        }
-    }
-}
+-->stmtadmin kill_client	{"id": %SESS_CLIENT_ID% }
 # The kill operation can return an error here. If the thread being killed is in "kill immune" mode
 # its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
 # The kill immune mode is to be removed in the future.
@@ -413,10 +372,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 -->title -Final check of clients still around
 
-Mysqlx.Sql.StmtExecute {
-    stmt: "list_clients"
-    namespace: "xplugin"
-}
+-->stmtadmin list_clients
 -->recvresult
 
 

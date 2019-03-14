@@ -84,7 +84,7 @@ USE xtest
 -->title -Collection with index
 -->stmtadmin create_collection	{"schema":"xtest", "name":"fruit"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name", "unique": true, "constraint":{"member": "$.name", "type": "text(20)", "required": false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"fruit", "name": "fruit_name", "unique": true, "fields":{"field": "$.name", "type": "text(20)", "required": false}}
 -->recvresult
 -->stmtadmin list_objects	{"schema":"xtest", "pattern":"fruit"}
 -->recvresult

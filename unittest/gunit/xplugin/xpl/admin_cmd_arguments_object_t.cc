@@ -672,6 +672,8 @@ Param_docpath_arg docpath_arg_param[] = {
     {ER_X_SUCCESS, "$.\"***\""},
     {ER_X_SUCCESS, "$.\"pa.th\""},
     {ER_X_CMD_ARGUMENT_VALUE, "$*"},
+    {ER_X_SUCCESS, "$.`a#1`"},
+    {ER_X_SUCCESS, "$.`a\\`"},
 };
 
 INSTANTIATE_TEST_CASE_P(docpath_arg, Admin_command_arguments_docpath_test,

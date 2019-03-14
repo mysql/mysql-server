@@ -33,10 +33,6 @@ if (`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32","Win64","Wind
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_sql", Value, 1] = 0
 --source include/assert.inc
 
---let $assert_text= No connections were made, Mysqlx_stmt_execute_xplugin must match default value which is 0.
---let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_xplugin", Value, 1] = 0
---source include/assert.inc
-
 --let $assert_text= No connections were made, Mysqlx_stmt_execute_mysqlx must match default value which is 0.
 --let $assert_cond= [SHOW STATUS LIKE "Mysqlx_stmt_execute_mysqlx", Value, 1] = 0
 --source include/assert.inc

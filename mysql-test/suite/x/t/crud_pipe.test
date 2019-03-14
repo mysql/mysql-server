@@ -28,29 +28,7 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 #-- Create table2
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
+-->stmtadmin create_collection	{"schema":"xplugintest","name":"table2"}
 
 #-- Select
 -->echo send SELECT (100+?)

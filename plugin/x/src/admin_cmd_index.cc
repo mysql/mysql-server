@@ -26,6 +26,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <memory>
 
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
@@ -140,8 +141,7 @@ std::string Admin_command_index::get_default_field_type(
  *   be usable unless queries also specify left(), which is not desired.
  */
 
-ngs::Error_code Admin_command_index::create(const std::string &name_space,
-                                            Command_arguments *args) {
+ngs::Error_code Admin_command_index::create(Command_arguments *args) {
   std::string schema;
   std::string collection;
   std::string index_name;
@@ -150,33 +150,17 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   bool is_unique = false;
   std::vector<Command_arguments *> constraints;
 
-  ngs::Error_code error;
-  if (name_space == Admin_command_handler::k_mysqlx_namespace)
-    error =
-        args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
-            .string_arg({"collection"}, &collection,
-                        Argument_appearance::k_obligatory)
-            .string_arg({"name"}, &index_name,
-                        Argument_appearance::k_obligatory)
-            .bool_arg({"unique"}, &is_unique, Argument_appearance::k_obligatory)
-            .string_arg({"type"}, &index_type, Argument_appearance::k_optional)
-            .string_arg({"with_parser"}, &parser,
-                        Argument_appearance::k_optional)
-            .object_list({"fields", "constraint"}, &constraints,
-                         Argument_appearance::k_obligatory)
-            .error();
-  else
-    error =
-        args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
-            .string_arg({"collection"}, &collection,
-                        Argument_appearance::k_obligatory)
-            .string_arg({"name"}, &index_name,
-                        Argument_appearance::k_obligatory)
-            .bool_arg({"unique"}, &is_unique, Argument_appearance::k_obligatory)
-            .object_list({"constraint"}, &constraints,
-                         Argument_appearance::k_obligatory)
-            .error();
-
+  ngs::Error_code error =
+      args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
+          .string_arg({"collection"}, &collection,
+                      Argument_appearance::k_obligatory)
+          .string_arg({"name"}, &index_name, Argument_appearance::k_obligatory)
+          .bool_arg({"unique"}, &is_unique, Argument_appearance::k_obligatory)
+          .string_arg({"type"}, &index_type, Argument_appearance::k_optional)
+          .string_arg({"with_parser"}, &parser, Argument_appearance::k_optional)
+          .object_list({"fields", "constraint"}, &constraints,
+                       Argument_appearance::k_obligatory)
+          .error();
   if (error) return error;
 
   if (schema.empty())
@@ -223,8 +207,7 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   using Fields = std::vector<std::unique_ptr<const Index_field_interface>>;
   Fields fields;
   for (auto c : constraints) {
-    fields.emplace_back(
-        create_field(name_space, virtual_supported, type_id, c, &error));
+    fields.emplace_back(create_field(virtual_supported, type_id, c, &error));
     if (error) return error;
   }
   error = args->end();
@@ -332,8 +315,7 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
  * - collection: string - name of collection with dropped index
  * - schema: string - name of collection's schema
  */
-ngs::Error_code Admin_command_index::drop(const std::string & /*name_space*/,
-                                          Command_arguments *args) {
+ngs::Error_code Admin_command_index::drop(Command_arguments *args) {
   Query_string_builder qb;
   std::string schema;
   std::string collection;
@@ -390,36 +372,24 @@ ngs::Error_code Admin_command_index::drop(const std::string & /*name_space*/,
 }
 
 const Admin_command_index::Index_field_interface *
-Admin_command_index::create_field(const std::string &name_space,
-                                  const bool is_virtual_allowed,
+Admin_command_index::create_field(const bool is_virtual_allowed,
                                   const Index_type_id &index_type,
                                   Command_arguments *constraint,
                                   ngs::Error_code *error) const {
   Index_field_info info;
   bool is_array{false};
-  if (name_space == Admin_command_handler::k_mysqlx_namespace)
-    *error =
-        constraint
-            ->docpath_arg({"field", "member"}, &info.m_path,
-                          Argument_appearance::k_obligatory)
-            .string_arg({"type"}, &info.m_type, Argument_appearance::k_optional)
-            .bool_arg({"required"}, &info.m_is_required,
-                      Argument_appearance::k_optional)
-            .uint_arg({"options"}, &info.m_options,
-                      Argument_appearance::k_optional)
-            .uint_arg({"srid"}, &info.m_srid, Argument_appearance::k_optional)
-            .bool_arg({"array"}, &is_array, Argument_appearance::k_optional)
-            .error();
-  else
-    *error =
-        constraint
-            ->docpath_arg({"member"}, &info.m_path,
-                          Argument_appearance::k_obligatory)
-            .string_arg({"type"}, &info.m_type, Argument_appearance::k_optional)
-            .bool_arg({"required"}, &info.m_is_required,
-                      Argument_appearance::k_obligatory)
-            .error();
-
+  *error =
+      constraint
+          ->docpath_arg({"field", "member"}, &info.m_path,
+                        Argument_appearance::k_obligatory)
+          .string_arg({"type"}, &info.m_type, Argument_appearance::k_optional)
+          .bool_arg({"required"}, &info.m_is_required,
+                    Argument_appearance::k_optional)
+          .uint_arg({"options"}, &info.m_options,
+                    Argument_appearance::k_optional)
+          .uint_arg({"srid"}, &info.m_srid, Argument_appearance::k_optional)
+          .bool_arg({"array"}, &is_array, Argument_appearance::k_optional)
+          .error();
   if (*error) return nullptr;
 
   if (info.m_type.empty())

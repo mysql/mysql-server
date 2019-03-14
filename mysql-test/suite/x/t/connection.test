@@ -380,22 +380,14 @@ create user con2@localhost identified by 'con2';
 grant all on *.* to con2@localhost;
 -->endsql
 -->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
 -->echo create and activate new session con1
 -->newsession con1	con1	con1
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -404,12 +396,9 @@ Mysqlx.Sql.StmtExecute {
 -->peerdisc 1000 1000
 
 -->sleep 2
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
+
 -->sql
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
@@ -442,34 +431,23 @@ create user con2@localhost identified by 'con2';
 grant all on *.* to con2@localhost;
 -->endsql
 -->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
 -->echo create and activate new session con1
 -->newsession con1	con1	con1
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
 -->newsession con2	con2	con2
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
+
 -->sql
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
@@ -503,11 +481,7 @@ grant all on *.* to xcon2@localhost;
 set @@global.mysqlx_max_connections=2;
 -->endsql
 -->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -521,11 +495,7 @@ show status like 'Mysqlx_connection_accept_errors';
 -->echo create and activate new session con1
 -->newsession xcon1	xcon1	xcon1
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -544,11 +514,7 @@ show status like 'Mysqlx_connection_accept_errors';
 ## switch back to default session
 -->setsession
 -->sleep 2
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->sql
@@ -561,11 +527,7 @@ show status like 'Mysqlx_connection_accept_errors';
 
 -->newsession xcon2	xcon2	xcon2
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->sql
@@ -600,11 +562,7 @@ grant all on *.* to xcon2@localhost;
 SET GLOBAL mysqlx_connect_timeout = 300;
 -->endsql
 -->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -625,11 +583,7 @@ show status like 'Mysqlx_connection_accept_errors';
 #### show status like 'Mysqlx_connection_errors'; Bug #21782329
 -->endsql
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -650,12 +604,9 @@ show status like 'Mysqlx_connection_accept_errors';
 ## switch back to default session
 -->setsession
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
+
 -->sql
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
@@ -665,25 +616,11 @@ show status like 'Mysqlx_connection_accept_errors';
 
 -->newsession xcon3	xcon2	xcon2
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  namespace: "xplugin"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 9
-    }
-  }
-}
+-->stmtadmin kill_client	{"id":9}
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
@@ -698,11 +635,7 @@ noquery_result;
 noquiet;
 query_result;
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
 
 -->sql
@@ -724,11 +657,7 @@ create user mysqlcon2@localhost identified by 'mysqlcon2';
 set @@global.max_connections=2;
 -->endsql
 -->echo Test data
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -736,11 +665,7 @@ Mysqlx.Sql.StmtExecute {
 -->newsession con1	mysqlcon1	mysqlcon1
 
 -->sleep 2
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
@@ -750,12 +675,9 @@ Mysqlx.Sql.StmtExecute {
 -->peerdisc 1000 1000
 
 -->sleep 2
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+-->stmtadmin list_clients
 -->recvresult client_id user host
+
 -->sql
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';

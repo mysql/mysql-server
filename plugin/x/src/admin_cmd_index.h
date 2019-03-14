@@ -42,9 +42,8 @@ class Admin_command_index {
 
   explicit Admin_command_index(ngs::Session_interface *session)
       : m_session(session) {}
-  ngs::Error_code create(const std::string &name_space,
-                         Command_arguments *args);
-  ngs::Error_code drop(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code create(Command_arguments *args);
+  ngs::Error_code drop(Command_arguments *args);
 
   struct Index_field_info {
     std::string m_path;
@@ -85,8 +84,7 @@ class Admin_command_index {
                                         const std::string &table_name,
                                         ngs::Error_code *error) const;
 
-  const Index_field_interface *create_field(const std::string &name_space,
-                                            const bool is_virtual_allowed,
+  const Index_field_interface *create_field(const bool is_virtual_allowed,
                                             const Index_type_id &index_type,
                                             Command_arguments *constraint,
                                             ngs::Error_code *error) const;

@@ -10,12 +10,11 @@ Mysqlx.Ok {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "bla"
   namespace: "bla"
@@ -30,7 +29,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -52,7 +51,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -67,7 +66,7 @@ Mysqlx.Ok {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -87,7 +86,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -142,7 +141,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -192,7 +191,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -226,7 +225,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -268,7 +267,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -290,7 +289,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -314,7 +313,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -365,7 +364,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -379,7 +378,7 @@ Mysqlx.Ok {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -399,7 +398,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {
@@ -446,7 +445,7 @@ Mysqlx.Ok {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Sql.StmtExecuteOk {
@@ -466,7 +465,7 @@ Mysqlx.Error {
 
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
-  namespace: "xplugin"
+  namespace: "mysqlx"
 }
 
 Mysqlx.Error {

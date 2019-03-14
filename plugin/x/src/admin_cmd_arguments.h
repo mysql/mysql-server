@@ -25,6 +25,7 @@
 #ifndef PLUGIN_X_SRC_ADMIN_CMD_ARGUMENTS_H_
 #define PLUGIN_X_SRC_ADMIN_CMD_ARGUMENTS_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -32,51 +33,6 @@
 #include "plugin/x/src/admin_cmd_handler.h"
 
 namespace xpl {
-
-class Admin_command_arguments_list
-    : public Admin_command_handler::Command_arguments {
- public:
-  explicit Admin_command_arguments_list(const List &args);
-
-  Admin_command_arguments_list &string_arg(
-      Argument_name_list name, std::string *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &string_list(
-      Argument_name_list name, std::vector<std::string> *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &sint_arg(
-      Argument_name_list name, int64_t *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &uint_arg(
-      Argument_name_list name, uint64_t *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &bool_arg(
-      Argument_name_list name, bool *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &docpath_arg(
-      Argument_name_list name, std::string *ret_value,
-      const Appearance_type appearance) override;
-  Admin_command_arguments_list &object_list(
-      Argument_name_list name, std::vector<Command_arguments *> *ret_value,
-      const Appearance_type appearance,
-      unsigned expected_members_count) override;
-
-  bool is_end() const override;
-  const ngs::Error_code &end() override;
-  const ngs::Error_code &error() const override { return m_error; }
-
- protected:
-  bool check_scalar_arg(const Argument_name_list &argname,
-                        Mysqlx::Datatypes::Scalar::Type type,
-                        const char *type_name,
-                        const Appearance_type appearance);
-  void arg_type_mismatch(const char *argname, int argpos, const char *type);
-
-  const List &m_args;
-  List::const_iterator m_current;
-  ngs::Error_code m_error;
-  int m_args_consumed;
-};
 
 class Admin_command_arguments_object
     : public Admin_command_handler::Command_arguments {

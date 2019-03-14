@@ -46,14 +46,8 @@ Fourth query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test1
 Mysqlx.Ok {
   msg: "bye!"
@@ -98,14 +92,8 @@ Fourth query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test2
 Mysqlx.Ok {
   msg: "bye!"
@@ -145,14 +133,8 @@ Fourth query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test3
 Mysqlx.Ok {
   msg: "bye!"
@@ -192,14 +174,8 @@ Fourth query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test4
 Mysqlx.Ok {
   msg: "bye!"
@@ -245,14 +221,8 @@ Fourth query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test5
 Mysqlx.Ok {
   msg: "bye!"
@@ -275,14 +245,8 @@ Second query
 0 rows affected
 Bug 21811192 (fixed)
 Lets try if plugin is processing new data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 closing session test6
 Mysqlx.Ok {
   msg: "bye!"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,9 @@
 
 #include <algorithm>
 #include <map>
+#include <string>
 
-#include "my_dbug.h"
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/ngs/include/ngs/interface/notice_configuration_interface.h"
 #include "plugin/x/ngs/include/ngs/notice_descriptor.h"
@@ -40,10 +41,7 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
   using Notice_type = ::ngs::Notice_type;
 
  public:
-  Notice_configuration() {
-    set_notice(Notice_type::k_warning, true);
-    set_notice(Notice_type::k_xplugin_deprecation, true);
-  }
+  Notice_configuration() { set_notice(Notice_type::k_warning, true); }
 
   bool get_name_by_notice_type(const Notice_type notice_type,
                                std::string *out_name) const override {
@@ -72,13 +70,13 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
   }
 
   bool is_notice_enabled(const Notice_type notice_type) const override {
-    return m_notices[static_cast<int>(notice_type)];
+    return m_notices[static_cast<int32_t>(notice_type)];
   }
 
   void set_notice(const Notice_type notice_type,
                   const bool should_be_enabled) override {
     DBUG_ASSERT(notice_type != Notice_type::k_last_element);
-    m_notices[static_cast<int>(notice_type)] = should_be_enabled;
+    m_notices[static_cast<int32_t>(notice_type)] = should_be_enabled;
 
     m_is_dispatchable_enabled = std::any_of(
         ::ngs::Notice_descriptor::dispatchables.begin(),
@@ -92,7 +90,7 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
 
  private:
   const std::map<std::string, Notice_type> &get_map_of_notice_names() const {
-    const static std::map<std::string, Notice_type> notice_name_to_type{
+    static const std::map<std::string, Notice_type> notice_name_to_type{
         {"warnings", Notice_type::k_warning},
         {"group_replication/membership/quorum_loss",
          Notice_type::k_group_replication_quorum_loss},
@@ -106,7 +104,7 @@ class Notice_configuration : public ngs::Notice_configuration_interface {
     return notice_name_to_type;
   }
 
-  bool m_notices[(int)Notice_type::k_last_element]{false};
+  bool m_notices[static_cast<int32_t>(Notice_type::k_last_element)]{false};
   bool m_is_dispatchable_enabled{false};
 };
 

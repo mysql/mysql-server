@@ -87,51 +87,9 @@ EOF
 ## server1
 
 --write_file $MYSQL_TMP_DIR/crud_on_server1.tmp
-Mysqlx.Sql.StmtExecute {
-  stmt: "list_objects"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: ""
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin list_objects	{"schema":"test"}
 -->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection	{"schema":"test","name":"characters"}
 -->recvresult
 
 Mysqlx.Crud.Insert {
@@ -742,28 +700,8 @@ Mysqlx.Crud.Find {
   data_model: DOCUMENT
 }
 -->recvresult
-Mysqlx.Sql.StmtExecute {
-  stmt: "drop_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "test"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "characters"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+
+-->stmtadmin drop_collection	{"schema":"test", "name":"characters"}
 -->recvresult
 EOF
 --exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/crud_on_server3.tmp 2>&1

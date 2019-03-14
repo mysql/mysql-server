@@ -46,7 +46,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":true}}
 -->recvresult
 -->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
 -->callmacro Show	%NAME%
@@ -55,7 +55,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup_without_data %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":true}}
 -->recvresult
 -->endmacro
 

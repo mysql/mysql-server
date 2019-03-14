@@ -40,28 +40,7 @@ CREATE TABLE table1 ( _id INT PRIMARY KEY, doc JSON ) ;
 
 #-- "Create table table2 in xplugintest "
 
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection	{"schema":"xplugintest","name":"table2"}
 -->recvresult
 
 -->echo Insert multiple rows into a Document column
@@ -101,69 +80,7 @@ SELECT * FROM xplugintest.table2;
 
 
 #-- "Index with  unique(true), index column NOT NULL (true)"
-Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "name_index"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.name"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TEXT(50)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
+-->stmtadmin create_collection_index	{"schema":"xplugintest", "collection":"table2", "name":"name_index", "unique":true, "fields":{"field":"$.name", "type":"TEXT(50)","required":true}}
 -->recvresult
 -->sql
 SHOW CREATE TABLE xplugintest.table2;

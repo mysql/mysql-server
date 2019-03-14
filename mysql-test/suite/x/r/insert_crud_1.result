@@ -349,32 +349,8 @@ col1	col2
 RUN DROP TABLE categories_child
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "maincollection"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Insert multiple rows into a Document column
 send Mysqlx.Crud.Insert {
   collection {

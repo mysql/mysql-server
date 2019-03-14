@@ -188,29 +188,6 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugin"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"

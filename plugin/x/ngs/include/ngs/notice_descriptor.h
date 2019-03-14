@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@ enum class Notice_type {
   k_group_replication_view_changed,
   k_group_replication_member_role_changed,
   k_group_replication_member_state_changed,
-  k_xplugin_deprecation,
   k_last_element
 };
 

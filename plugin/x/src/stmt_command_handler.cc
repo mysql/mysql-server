@@ -45,8 +45,6 @@ ngs::Error_code Stmt_command_handler::execute(
       !msg.has_namespace_())
     return sql_stmt_execute(msg);
 
-  if (msg.namespace_() == "xplugin") return deprecated_admin_stmt_execute(msg);
-
   if (msg.namespace_() == Admin_command_handler::k_mysqlx_namespace)
     return admin_stmt_execute(msg);
 
@@ -84,31 +82,12 @@ ngs::Error_code Stmt_command_handler::sql_stmt_execute(
   return ngs::Success();
 }
 
-ngs::Error_code Stmt_command_handler::deprecated_admin_stmt_execute(
-    const Mysqlx::Sql::StmtExecute &msg) {
-  m_session->update_status(
-      &ngs::Common_status_variables::m_stmt_execute_xplugin);
-  auto &notice_config = m_session->get_notice_configuration();
-
-  if (notice_config.is_notice_enabled(
-          ngs::Notice_type::k_xplugin_deprecation)) {
-    m_session->proto().send_notice_txt_message(
-        "Namespace 'xplugin' is deprecated, please use 'mysqlx' instead");
-
-    notice_config.set_notice(ngs::Notice_type::k_xplugin_deprecation, false);
-  }
-  Admin_command_arguments_list args(msg.args());
-  return Admin_command_handler(m_session).execute(msg.namespace_(), msg.stmt(),
-                                                  &args);
-}
-
 ngs::Error_code Stmt_command_handler::admin_stmt_execute(
     const Mysqlx::Sql::StmtExecute &msg) {
   m_session->update_status(
       &ngs::Common_status_variables::m_stmt_execute_mysqlx);
   Admin_command_arguments_object args(msg.args());
-  return Admin_command_handler(m_session).execute(msg.namespace_(), msg.stmt(),
-                                                  &args);
+  return Admin_command_handler(m_session).execute(msg.stmt(), &args);
 }
 
 }  // namespace xpl

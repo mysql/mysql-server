@@ -45,7 +45,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":false}}
 -->recvresult
 -->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
 -->callmacro Show	%NAME%
@@ -54,7 +54,7 @@ CREATE TABLE xtest.xtable (doc JSON);
 -->macro Setup_without_data %NAME%
 -->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":false}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "fields":{"field":"$.email", "type":"TEXT(20)","required":false}}
 -->recvresult
 -->endmacro
 
@@ -211,7 +211,7 @@ EOF
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"add_or_replace"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"add_or_replace", "name":"_name", "unique":true, "constraint":{"member":"$.name", "type":"TEXT(50)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"add_or_replace", "name":"_name", "unique":true, "fields":{"field":"$.name", "type":"TEXT(50)","required":true}}
 -->recvresult
 
 -->varlet %DOC1_BASIC% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"document_001", "name":"basic"}' content_type:2}}
@@ -237,9 +237,9 @@ EOF
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"multi"}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_first", "unique":true, "constraint":{"member":"$.first", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_first", "unique":true, "fields":{"field":"$.first", "type":"TEXT(20)","required":true}}
 -->recvresult
--->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_second", "unique":true, "constraint":{"member":"$.second", "type":"TEXT(20)","required":true}}
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"multi", "name":"_second", "unique":true, "fields":{"field":"$.second", "type":"TEXT(20)","required":true}}
 -->recvresult
 
 -->varlet %DOC1_A_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"001", "first":"A", "second":"A"}' content_type:2}}

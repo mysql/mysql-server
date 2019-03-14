@@ -17,32 +17,8 @@ RUN USE xplugintest
 RUN CREATE TABLE table1 ( _id INT PRIMARY KEY, doc JSON ) 
 
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Insert multiple rows into a Document column
 send Mysqlx.Crud.Insert {
   collection {
@@ -82,70 +58,6 @@ doc	_id
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "create_collection_index"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "xplugintest"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "table2"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "name_index"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "$.name"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_STRING
-      v_string {
-        value: "TEXT(50)"
-      }
-    }
-  }
-  args {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: true
-    }
-  }
-  namespace: "xplugin"
-}
-
 
 command ok
 RUN SHOW CREATE TABLE xplugintest.table2

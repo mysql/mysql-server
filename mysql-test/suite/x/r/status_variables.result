@@ -1,7 +1,6 @@
 # restart
 include/assert.inc [Mysqlx_port must match value set by MTR]
 include/assert.inc [No connections were made, Mysqlx_stmt_execute_sql must match default value which is 0.]
-include/assert.inc [No connections were made, Mysqlx_stmt_execute_xplugin must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_stmt_execute_mysqlx must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_crud_update must match default value which is 0.]
 include/assert.inc [No connections were made, Mysqlx_crud_update must match default value which is 0.]
