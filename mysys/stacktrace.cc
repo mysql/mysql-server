@@ -64,6 +64,11 @@
 #include <execinfo.h>
 #endif
 
+#ifdef __FreeBSD__
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+#endif
+
 #ifdef __linux__
 /* __bss_start doesn't seem to work on FreeBSD and doesn't exist on OSX/Solaris.
  */
@@ -255,6 +260,26 @@ static void my_demangle_symbols(char **addrs, int n) {
 #endif /* HAVE_ABI_CXA_DEMANGLE */
 
 void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack) {
+#if defined(__FreeBSD__)
+  static char procname_buffer[2048];
+  unw_cursor_t cursor;
+  unw_context_t uc;
+  unw_word_t ip;
+
+  unw_getcontext(&uc);
+  unw_init_local(&cursor, &uc);
+  unw_word_t offp;
+  while (unw_step(&cursor) > 0) {
+    unw_get_reg(&cursor, UNW_REG_IP, &ip);
+    unw_get_proc_name(&cursor, procname_buffer, sizeof(procname_buffer), &offp);
+    int status;
+    char *demangled = my_demangle(procname_buffer, &status);
+    my_safe_printf_stderr("[0x%lx] %s+0x%lx\n", ip,
+                          demangled ? demangled : procname_buffer, offp);
+    if (demangled) free(demangled);
+  }
+#endif
+
   void *addrs[128];
   char **strings = NULL;
   int n = backtrace(addrs, array_elements(addrs));

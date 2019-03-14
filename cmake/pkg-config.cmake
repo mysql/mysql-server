@@ -21,7 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 MACRO(MYSQL_CHECK_PKGCONFIG)
-  IF(LINUX)
+  IF(LINUX OR FREEBSD)
     # Do a sanity check, before bailing out in FIND_PACKAGE below.
     FIND_PROGRAM(MY_PKG_CONFIG_EXECUTABLE NAMES pkg-config
       DOC "pkg-config executable")
