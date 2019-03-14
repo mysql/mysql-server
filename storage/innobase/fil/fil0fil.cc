@@ -8847,10 +8847,6 @@ bool Fil_path::is_valid() const {
   return (false);
 }
 
-/** Determine if the path contains a redundant section like "/mydb/../"
-Fil_path::normalize() must be run before this.
-@param[in]  path    pathname
-@return true if a redundant section if found, false if not */
 bool Fil_path::is_circular() const {
   size_t first;
 

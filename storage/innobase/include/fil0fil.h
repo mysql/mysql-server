@@ -476,6 +476,7 @@ class Fil_path {
   bool is_valid() const MY_ATTRIBUTE((warn_unused_result));
 
   /** Determine if m_path contains a circular section like "/anydir/../"
+  Fil_path::normalize() must be run before this.
   @return true if a circular section if found, false if not */
   bool is_circular() const MY_ATTRIBUTE((warn_unused_result));
 
