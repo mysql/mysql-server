@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,7 +71,7 @@ Digest &Digest::operator=(const Digest &digest) {
 }
 
 void Digest::compute(uchar *memory, size_t memory_size) {
-  // We are using SHA_EVP256 method from mysys_ssl library which symbols are
+  // We are using SHA_EVP256 method from mysys library which symbols are
   // exported  by mysqld. SHA_EVP256 is defined in both cases - when server is
   // linked with openssl  and when it is linked with wolfSSL.
   (void)::SHA_EVP256(memory, memory_size, value);

@@ -28,10 +28,9 @@ ENDIF()
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/../include/mysqlrouter)
 
 IF(WITH_SSL STREQUAL "wolfssl")
-  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys_ssl/my_aes_wolfssl.cc)
-  #ADD_DEFINITIONS(-DSIZEOF_LONG=${SIZEOF_LONG} -DSIZEOF_LONG_LONG=${SIZEOF_LONG_LONG})
+  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys/my_aes_wolfssl.cc)
 ELSE()
-  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys_ssl/my_aes_openssl.cc)
+  SET(MY_AES_IMPL ${CMAKE_SOURCE_DIR}/mysys/my_aes_openssl.cc)
 ENDIF()
 
 

@@ -26,7 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys_ssl/crypt_genhash_impl.cc
+  @file mysys/crypt_genhash_impl.cc
 */
 
 // First include (the generated) my_config.h, to get correct platform defines.

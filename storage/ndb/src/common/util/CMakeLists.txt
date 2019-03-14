@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ProcessInfo.cpp
             OwnProcessInfo.cpp
 )
-SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys mysys_ssl)
+SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 
 FOREACH(tests BaseString Bitmask SparseBitmask Parser HashMap2 LinkedStack)

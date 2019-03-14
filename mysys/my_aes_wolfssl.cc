@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys_ssl/my_aes_wolfssl.cc
+  @file mysys/my_aes_wolfssl.cc
 */
 
 #include <aes.h>
@@ -35,7 +35,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "m_string.h"
 #include "my_aes_impl.h"
 #include "my_inttypes.h"
-#include "mysys_ssl/my_aes_impl.h"
+#include "mysys/my_aes_impl.h"
 
 /** AES block size is fixed to be 128 bits for CBC and ECB */
 #define MY_AES_BLOCK_SIZE 16

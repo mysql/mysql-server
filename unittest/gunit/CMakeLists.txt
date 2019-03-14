@@ -265,9 +265,9 @@ ADD_LIBRARY(gunit_large STATIC
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
 TARGET_LINK_LIBRARIES(gunit_small
-  mysys mysys_ssl dbug strings  ${GTEST_LIBRARIES} libmysql_errmsg)
+  mysys dbug strings  ${GTEST_LIBRARIES} libmysql_errmsg)
 TARGET_LINK_LIBRARIES(gunit_large
-  mysys mysys_ssl dbug strings ${GTEST_LIBRARIES})
+  mysys dbug strings ${GTEST_LIBRARIES})
 MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 IF(WIN32)
@@ -477,7 +477,7 @@ IF (MERGE_UNITTESTS)
     ADD_TEST merge_small_tests)
   SET_TARGET_PROPERTIES(merge_small_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(merge_small_tests-t
-    mysys mysys_ssl sqlgunitlib gunit_small)
+    mysys sqlgunitlib gunit_small)
   
   IF(WIN32)
     LIST(APPEND ALL_LARGE_TESTS ../../sql/nt_servc.cc)

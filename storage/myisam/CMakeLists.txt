@@ -112,16 +112,16 @@ MYSQL_ADD_PLUGIN(myisam ha_myisam.cc
 )
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.cc)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam_library mysys_ssl)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam_library)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.cc)
-TARGET_LINK_LIBRARIES(myisamchk myisam_library mysys_ssl)
+TARGET_LINK_LIBRARIES(myisamchk myisam_library)
 
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.cc)
 TARGET_LINK_LIBRARIES(myisamlog myisam_library ${LIBSOCKET})
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.cc)
-TARGET_LINK_LIBRARIES(myisampack myisam_library mysys_ssl)
+TARGET_LINK_LIBRARIES(myisampack myisam_library)
 
 IF (MSVC)
   SET_TARGET_PROPERTIES(myisamchk myisampack PROPERTIES LINK_FLAGS "setargv.obj")
