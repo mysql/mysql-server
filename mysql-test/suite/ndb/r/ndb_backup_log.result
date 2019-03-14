@@ -10,7 +10,7 @@ create table t1 (
 a int,
 av varbinary(3064) not null,
 b int,
-bv varbinary(10920) not null,
+bv varbinary(26920) not null,
 primary key(a,av)
 ) engine=ndb;
 Add 100 rows
@@ -22,11 +22,11 @@ Backup started
 Make a set of changes which we expect to be logged
 5 new rows
 insert into t1 values
-(101, repeat('B', 3064), 101, repeat('M', 10920)),
-(102, repeat('C', 3064), 102, repeat('N', 10920)),
-(103, repeat('D', 3064), 103, repeat('O', 10920)),
-(104, repeat('E', 3064), 104, repeat('P', 10920)),
-(105, repeat('F', 3064), 105, repeat('Q', 10920));
+(101, repeat('B', 3064), 101, repeat('M', 26920)),
+(102, repeat('C', 3064), 102, repeat('N', 26920)),
+(103, repeat('D', 3064), 103, repeat('O', 26920)),
+(104, repeat('E', 3064), 104, repeat('P', 26920)),
+(105, repeat('F', 3064), 105, repeat('Q', 26920));
 10 rows updated
 update t1 set b=b+1, bv=repeat('R', 10920) where a >= 50 and a < 60;
 5 rows deleted
@@ -42,7 +42,7 @@ Backup completed
 truncate t1;
 Now restore it and check the log content
 drop table t1;
-create table txt (a varbinary(20000));
+create table txt (a varbinary(36000));
 create table logentries as 
 select * from txt where 
 (a like 'INSERT %') or
