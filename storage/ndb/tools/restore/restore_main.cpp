@@ -32,6 +32,7 @@
 #include <ndb_global.h>
 #include <ndb_limits.h>
 #include <ndb_opts.h>
+#include <ndb_version.h>
 
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include "consumer_printer.hpp"
@@ -1417,7 +1418,7 @@ int do_restore(RestoreThreadData *thrdata)
   {
   restoreLogger.log_info("Backup version in files: %s ndb version: %s",
            ndbGetVersionString(version, 0,
-                               isDrop6(version) ? "-drop6" : 0,
+                               ndbd_drop6(version) ? "-drop6" : 0,
                                buf, sizeof(buf)),
            ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0,
                                 buf, sizeof(buf)));
@@ -1426,7 +1427,7 @@ int do_restore(RestoreThreadData *thrdata)
   {
     restoreLogger.log_info("Backup version in files: %s",
            ndbGetVersionString(version, 0,
-                               isDrop6(version) ? "-drop6" : 0,
+                               ndbd_drop6(version) ? "-drop6" : 0,
                                buf, sizeof(buf)));
   }
 
