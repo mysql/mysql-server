@@ -169,6 +169,7 @@ public:
   int index_prev(uchar *buf) override;
   int index_first(uchar *buf) override;
   int index_last(uchar *buf) override;
+  int index_next_same(uchar *buf, const uchar *key, uint keylen) override;
   int index_read_last(uchar * buf, const uchar * key, uint key_len) override;
   int rnd_init(bool scan) override;
   int rnd_end() override;

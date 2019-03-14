@@ -478,3 +478,43 @@ select x from t1 where x like 'ccc_';
 select x from t1 where x like 'ddd%';
 select x from t1 where x like 'ddd_';
 drop table t1;
+
+
+--echo #
+--echo # Bug#29474188 MISSING RESULT ROWS FROM A SORTED RESULT
+--echo #              SPECIFYING A 'LIMIT'
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key int(11) DEFAULT NULL,
+  col_varchar_256_unique varchar(256) COLLATE latin1_bin DEFAULT NULL,
+  col_int int(11) NOT NULL,
+  pk int(11) NOT NULL,
+  PRIMARY KEY (col_int,pk),
+  KEY col_int_key (col_int_key)
+) ENGINE=ndbcluster;
+
+INSERT INTO t1 VALUES
+  (8, 'Stockholm',12,19),
+  (8, 'Trondheim', 5,13);
+
+# 'Limit 1000' is a 'magic' number required to trigger the usage
+# of 'priority queue' sort algorithm. Unfortunately the selected
+# sort algorithm seems to be invisible from any explain and so.
+SELECT col_varchar_256_unique AS field1, col_int_key AS field2
+ FROM t1
+ WHERE col_int_key = 8
+ ORDER BY field1,field2 limit 1000;
+
+# Both a higher and lower limit seems to pass without failure:
+SELECT col_varchar_256_unique AS field1, col_int_key AS field2
+ FROM t1
+ WHERE col_int_key = 8
+ ORDER BY field1,field2 limit 100;
+
+SELECT col_varchar_256_unique AS field1, col_int_key AS field2
+ FROM t1
+ WHERE col_int_key = 8
+ ORDER BY field1,field2 limit 10000;
+
+DROP TABLE t1;

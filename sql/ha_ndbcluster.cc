@@ -7286,6 +7286,18 @@ int ha_ndbcluster::index_last(uchar *buf)
   DBUG_RETURN(error);
 }
 
+
+int ha_ndbcluster::index_next_same(uchar *buf,
+                                   const uchar *key MY_ATTRIBUTE((unused)),
+                                   uint length MY_ATTRIBUTE((unused)))
+{
+  DBUG_ENTER("ha_ndbcluster::index_next_same");
+  ha_statistic_increment(&System_status_var::ha_read_next_count);
+  const int error= next_result(buf);
+  DBUG_RETURN(error);
+}
+
+
 int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 {
   DBUG_ENTER("ha_ndbcluster::index_read_last");
