@@ -27,7 +27,8 @@
 #include "debug_sync.h"
 #include "my_dbug.h"
 #include "mysql/plugin.h"
-#include "sql/mdl.h"
+#include "sql/ndb_global_schema_lock.h"
+#include "sql/ndb_schema_dist.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/sql_class.h"
@@ -462,11 +463,10 @@ ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace)
 }
 
 
-static
 bool
-notify_mdl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized)
+ndb_gsl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized)
 {
-  DBUG_ENTER("notify_mdl_lock");
+  DBUG_ENTER("ndb_gsl_lock");
 
   if (lock)
   {
@@ -488,168 +488,6 @@ notify_mdl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized)
 
   DBUG_RETURN(false); // OK
 }
-
-
-#ifndef DBUG_OFF
-static
-const char*
-mdl_namespace_name(const MDL_key* mdl_key)
-{
-  switch(mdl_key->mdl_namespace())
-  {
-  case MDL_key::GLOBAL:
-    return "GLOBAL";
-  case MDL_key::SCHEMA:
-    return "SCHEMA";
-  case MDL_key::TABLESPACE:
-    return "TABLESPACE";
-  case MDL_key::TABLE:
-    return "TABLE";
-  case MDL_key::FUNCTION:
-    return "FUNCTION";
-  case MDL_key::PROCEDURE:
-    return "PROCEDURE";
-  case MDL_key::TRIGGER:
-    return "TRIGGER";
-  case MDL_key::EVENT:
-    return "EVENT";
-  default:
-    return "<unknown>";
-  }
-}
-#endif
-
-
-/**
-  Callback handling the notification of ALTER TABLE start and end
-  on the given key. The function locks or unlocks the GSL thus
-  preventing concurrent modification to any other object in
-  the cluster.
-
-  @param thd                Thread context.
-  @param mdl_key            MDL key identifying table which is going to be
-                            or was ALTERed.
-  @param notification_type  Indicates whether this is pre-ALTER TABLE or
-                            post-ALTER TABLE notification.
-
-  @note This is an additional notification that spans the duration
-        of the whole ALTER TABLE thus avoiding the need for an expensive
-        abort of the ALTER late in the process when upgrade to X
-        metadata lock happens.
-
-  @note This callback is called in addition to notify_exclusive_mdl()
-        which means that during an ALTER TABLE we will get two different
-        calls to take and release GSL.
-
-  @see notify_alter_table() in handler.h
-*/
-
-static
-bool
-ndbcluster_notify_alter_table(THD *thd,
-                              const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
-                              ha_notification_type notification)
-{
-  DBUG_ENTER("ndbcluster_notify_alter_table");
-  DBUG_PRINT("enter", ("namespace: '%s', db: '%s', name: '%s'",
-                       mdl_namespace_name(mdl_key),
-                       mdl_key->db_name(), mdl_key->name()));
-
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
-              notification == HA_NOTIFY_POST_EVENT);
-
-  bool victimized;
-  bool result;
-  do
-  {
-    result = notify_mdl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
-                             false /* is_tablespace */, &victimized);
-    if (result && thd_killed(thd)) {
-      // Failed to acuire GSL and THD is killed -> give up!
-      DBUG_RETURN(true);
-    }
-    if (result && victimized == false) {
-      /*
-        Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
-        and let execution continue until one of ha_ndbcluster's DDL functions
-        use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
-        taken or not. This allows users to work with non NDB objects although
-        failure to lock GSL occurs(for example because connection to NDB is not
-        available).
-      */
-      DBUG_RETURN(false);
-    }
-  }
-  while (victimized);
-  DBUG_RETURN(result);
-}
-
-
-/**
-  Callback handling the notification about acquisition or after
-  release of exclusive metadata lock on object represented by
-  key. The function locks or unlocks the GSL thus preventing
-  concurrent modification to any other object in the cluster
-
-  @param thd                Thread context.
-  @param mdl_key            MDL key identifying object on which exclusive
-                            lock is to be acquired/was released.
-  @param notification_type  Indicates whether this is pre-acquire or
-                            post-release notification.
-  @param victimized        'true' if locking failed as we were choosen
-                            as a victim in order to avoid possible deadlocks.
-
-  @see notify_exclusive_mdl() in handler.h
-*/
-
-static
-bool
-ndbcluster_notify_exclusive_mdl(THD *thd,
-                                const MDL_key *mdl_key,
-                                ha_notification_type notification,
-                                bool *victimized)
-{
-  DBUG_ENTER("ndbcluster_notify_exclusive_mdl");
-  DBUG_PRINT("enter", ("namespace: '%s', db: '%s', name: '%s'",
-                       mdl_namespace_name(mdl_key),
-                       mdl_key->db_name(), mdl_key->name()));
-
-  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
-              notification == HA_NOTIFY_POST_EVENT);
-
-  const bool result = notify_mdl_lock(
-      thd, notification == HA_NOTIFY_PRE_EVENT,
-      mdl_key->mdl_namespace() == MDL_key::TABLESPACE, victimized);
-  if (result && *victimized == false) {
-    /*
-      Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
-      and let execution continue until one of ha_ndbcluster's DDL functions
-      use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
-      taken or not. This allows users to work with non NDB objects although
-      failure to lock GSL occurs(for example because connection to NDB is not
-      available).
-    */
-    DBUG_RETURN(false);
-  }
-  DBUG_RETURN(result);
-}
-
-
-#include "sql/ndb_global_schema_lock.h"
-
-void ndbcluster_global_schema_lock_init(handlerton *hton)
-{
-  hton->notify_alter_table = ndbcluster_notify_alter_table;
-  hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
-}
-
-
-void ndbcluster_global_schema_lock_deinit(handlerton* hton)
-{
-  hton->notify_alter_table = NULL;
-  hton->notify_exclusive_mdl = NULL;
-}
-
 
 bool
 Thd_ndb::has_required_global_schema_lock(const char* func) const

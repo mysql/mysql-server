@@ -384,7 +384,7 @@ bool ndb_show_foreign_key_mock_tables(THD* thd)
   return value;
 }
 
-static int ndbcluster_end(handlerton *hton, ha_panic_function);
+static int ndbcluster_end(handlerton *, ha_panic_function);
 static bool ndbcluster_show_status(handlerton *, THD*,
                                    stat_print_fn *,
                                    enum ha_stat_type);
@@ -13755,6 +13755,106 @@ static Ndb_server_hooks ndb_server_hooks;
 
 
 /**
+  Callback handling the notification of ALTER TABLE start and end
+  on the given key. The function locks or unlocks the GSL thus
+  preventing concurrent modification to any other object in
+  the cluster.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was ALTERed.
+  @param notification_type  Indicates whether this is pre-ALTER TABLE or
+                            post-ALTER TABLE notification.
+
+  @note This is an additional notification that spans the duration
+        of the whole ALTER TABLE thus avoiding the need for an expensive
+        abort of the ALTER late in the process when upgrade to X
+        metadata lock happens.
+
+  @note This callback is called in addition to notify_exclusive_mdl()
+        which means that during an ALTER TABLE we will get two different
+        calls to take and release GSL.
+
+  @see notify_alter_table() in handler.h
+*/
+
+static bool ndbcluster_notify_alter_table(
+    THD *thd, const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
+    ha_notification_type notification) {
+  DBUG_ENTER("ndbcluster_notify_alter_table");
+  DBUG_PRINT("enter",
+             ("db: '%s', name: '%s'", mdl_key->db_name(), mdl_key->name()));
+
+  bool victimized;
+  bool result;
+  do
+  {
+    result = ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
+                          false /* is_tablespace */, &victimized);
+    if (result && thd_killed(thd)) {
+      // Failed to acuire GSL and THD is killed -> give up!
+      DBUG_RETURN(true);
+    }
+    if (result && victimized == false) {
+      /*
+        Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
+        and let execution continue until one of ha_ndbcluster's DDL functions
+        use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
+        taken or not. This allows users to work with non NDB objects although
+        failure to lock GSL occurs(for example because connection to NDB is
+        not available).
+      */
+      DBUG_RETURN(false);
+    }
+  }
+  while (victimized);
+  DBUG_RETURN(result);
+}
+
+/**
+  Callback handling the notification about acquisition or after
+  release of exclusive metadata lock on object represented by
+  key. The function locks or unlocks the GSL thus preventing
+  concurrent modification to any other object in the cluster
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+  @param victimized        'true' if locking failed as we were choosen
+                            as a victim in order to avoid possible deadlocks.
+
+  @see notify_exclusive_mdl() in handler.h
+*/
+
+static bool ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                                            ha_notification_type notification,
+                                            bool *victimized) {
+  DBUG_ENTER("ndbcluster_notify_exclusive_mdl");
+  DBUG_PRINT("enter",
+             ("namespace: %u, db: '%s', name: '%s'", mdl_key->mdl_namespace(),
+              mdl_key->db_name(), mdl_key->name()));
+
+  const bool result =
+      ndb_gsl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
+                   mdl_key->mdl_namespace() == MDL_key::TABLESPACE, victimized);
+  if (result && *victimized == false) {
+    /*
+      Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
+      and let execution continue until one of ha_ndbcluster's DDL functions
+      use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
+      taken or not. This allows users to work with non NDB objects although
+      failure to lock GSL occurs(for example because connection to NDB is not
+      available).
+    */
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(result);
+}
+
+/**
   Check if types of child and parent columns in foreign key are compatible.
 
   @param child_column_type  Child column type description.
@@ -13895,8 +13995,6 @@ int ndbcluster_init(void* handlerton_ptr)
   ndb_setup_complete= 0;
   
   ndbcluster_hton= hton;
-  ndbcluster_global_schema_lock_init(hton);
-
   hton->state=            SHOW_OPTION_YES;
   hton->db_type=          DB_TYPE_NDBCLUSTER;
   hton->close_connection= ndbcluster_close_connection;
@@ -13937,6 +14035,8 @@ int ndbcluster_init(void* handlerton_ptr)
 
   hton->check_fk_column_compat = ndbcluster_check_fk_column_compat;
   hton->pre_dd_shutdown = ndbcluster_pre_dd_shutdown;
+  hton->notify_alter_table = ndbcluster_notify_alter_table;
+  hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
 
   // Initialize NdbApi
   ndb_init_internal(1);
@@ -14007,7 +14107,7 @@ int ndbcluster_init(void* handlerton_ptr)
 }
 
 
-static int ndbcluster_end(handlerton *hton, ha_panic_function)
+static int ndbcluster_end(handlerton *, ha_panic_function)
 {
   DBUG_ENTER("ndbcluster_end");
 
@@ -14029,7 +14129,6 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function)
   ndb_index_stat_end();
   ndbcluster_disconnect();
 
-  ndbcluster_global_schema_lock_deinit(hton);
   ndb_index_stat_thread.deinit();
 
   mysql_mutex_destroy(&ndbcluster_mutex);

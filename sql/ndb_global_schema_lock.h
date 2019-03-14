@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,22 @@
 #ifndef NDB_GLOBAL_SCHEMA_LOCK_H
 #define NDB_GLOBAL_SCHEMA_LOCK_H
 
-void ndbcluster_global_schema_lock_init(struct handlerton*);
-void ndbcluster_global_schema_lock_deinit(struct handlerton*);
+class THD;
+
+/**
+  Locks or unlock the GSL, thus preventing concurrent
+  modification to any other object in the cluster
+
+  @param thd                Thread context.
+  @param lock               Indicates whether GSL should be locked or unlocked
+  @param is_tablespace      Locking for tablespace object
+  @param victimized         'true' if locking failed as we were choosen
+                             as a victim in order to avoid possible deadlocks.
+
+  @return false ok
+  @return true  error
+*/
+
+bool ndb_gsl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized);
 
 #endif
