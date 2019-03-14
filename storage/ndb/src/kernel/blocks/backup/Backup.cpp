@@ -10430,7 +10430,7 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
   }
 
   Uint32 datalen = len;
-  len += (sizeof(BackupFormat::LogFile::LogEntry) >> 2) - 2;
+  len += BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
   trigPtr.p->logEntry->Length = htonl(len);
 
   if(ptr.p->flags & BackupReq::USE_UNDO_LOG)

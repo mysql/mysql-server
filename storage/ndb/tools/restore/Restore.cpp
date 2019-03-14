@@ -33,6 +33,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 #include <NdbAutoPtr.hpp>
+#include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 #include "sql/ha_ndbcluster_tables.h"
@@ -2107,7 +2108,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE_no_fragid->TriggerEvent);
       frag_id= 0;
       attr_data= &logE_no_fragid->Data[0];
-      attr_data_len= len - ((offsetof(LogE_no_fragid, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry_no_fragid::HEADER_LENGTH_WORDS;
     }
     else /* normal case */
     {
@@ -2117,7 +2119,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE->TriggerEvent);
       frag_id= ntohl(logE->FragId);
       attr_data= &logE->Data[0];
-      attr_data_len= len - ((offsetof(LogE, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
     }
     
     const bool hasGcp= (triggerEvent & 0x10000) != 0;
