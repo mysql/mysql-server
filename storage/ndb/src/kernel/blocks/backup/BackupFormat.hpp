@@ -287,6 +287,7 @@ struct BackupFormat {
     struct LogEntry {
       // Header length excluding leading Length word.
       static constexpr Uint32 HEADER_LENGTH_WORDS = 3;
+      static constexpr Uint32 FRAGID_OFFSET = 3;
       // Add one word for leading Length word for data offset
       static constexpr Uint32 DATA_OFFSET = 1 + HEADER_LENGTH_WORDS;
 
@@ -297,6 +298,9 @@ struct BackupFormat {
       Uint32 FragId;
       Uint32 Data[1]; // Len = Length - 3
     };
+    static_assert(offsetof(LogEntry, FragId) ==
+                    LogEntry::FRAGID_OFFSET * sizeof(Uint32),
+                  "");
     static_assert(offsetof(LogEntry, Data) ==
                     LogEntry::DATA_OFFSET * sizeof(Uint32),
                   "");

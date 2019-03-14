@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "BackupFormat.hpp"
 #include <AttributeHeader.hpp>
 #include <SimpleProperties.hpp>
+#include <util/version.h>
 #include <ndb_version.h>
 #include <util/ndbzio.h>
 
@@ -54,7 +55,7 @@ NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &);
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
 
-Int32 readLogEntry(ndbzio_stream*, Uint32**);
+Int32 readLogEntry(ndbzio_stream*, Uint32**, Uint32 file_type, Uint32 version);
 
 struct RowEntry
 {
@@ -706,7 +707,7 @@ main(int argc, const char * argv[])
             }
             i++;
           }
-          else
+          else if (verbose_level == 0)
           {
             printf("Usage: %s <filename>\n", argv[0]);
             ndb_end_and_exit(1);
@@ -750,10 +751,18 @@ main(int argc, const char * argv[])
         {
           print_restored_rows = true;
         }
-        else
+        else if (!strncmp(argv[i], "-v", 2))
+        {
+          verbose_level++;
+        }
+        else if (verbose_level == 0)
         {
           printf("Usage: %s <filename>\n", argv[0]);
           ndb_end_and_exit(1);
+        }
+        else if (i + 1 == argc)
+        {
+          file = argv[i];
         }
       }
     }
@@ -807,14 +816,17 @@ main(int argc, const char * argv[])
       ndbout << fragHeader << endl;
       
       Uint32 len, * data, header_type;
-      while((len = readRecord(f, &data, &header_type, true)) > 0){
-#if 0
-	ndbout << "-> " << hex;
-	for(Uint32 i = 0; i<len; i++){
-	  ndbout << data[i] << " ";
-	}
-	ndbout << endl;
-#endif
+      while((len = readRecord(f, &data, &header_type, true)) > 0)
+      {
+        if (verbose_level > 0)
+        {
+	  ndbout << "-> " << hex;
+	  for(Uint32 i = 0; i < len; i++)
+          {
+	    ndbout << data[i] << " ";
+          }
+	  ndbout << endl;
+        }
       }
 
       BackupFormat::DataFile::FragmentFooter fragFooter;
@@ -850,13 +862,20 @@ main(int argc, const char * argv[])
     
     break;
   }
-  case BackupFormat::LOG_FILE:{
+  case BackupFormat::LOG_FILE:
+  case BackupFormat::UNDO_FILE:
+  {
     logEntryNo = 0;
+
+    const Uint32 log_entry_version =
+        (likely(ndbd_backup_file_fragid(fileHeader.BackupVersion)) ? 2 : 1);
 
     typedef BackupFormat::LogFile::LogEntry LogEntry;
 
-    Uint32 len, * data;
-    while((len = readLogEntry(f, &data)) > 0){
+    Int32 dataLen;
+    Uint32 * data;
+    while ((dataLen = readLogEntry(f, &data, fileHeader.FileType, log_entry_version)) > 0)
+    {
       LogEntry * logEntry = (LogEntry *) data;
       /**
        * Log Entry
@@ -865,27 +884,30 @@ main(int argc, const char * argv[])
       bool gcp = (event & 0x10000) != 0;
       event &= 0xFFFF;
       if(gcp)
-	len --;
+	dataLen--;
       
       ndbout << "LogEntry Table: " << (Uint32)ntohl(logEntry->TableId) 
 	     << " Event: " << event
-	     << " Length: " << (len - 2);
+	     << " Length: " << dataLen;
       
-      const Uint32 dataLen = len - 2;
-#if 0
-      Uint32 pos = 0;
-      while(pos < dataLen){
-	AttributeHeader * ah = (AttributeHeader*)&logEntry->Data[pos];
-	ndbout_c(" Attribut: %d Size: %d",
-		 ah->getAttributeId(),
-		 ah->getDataSize());
-	pos += ah->getDataSize() + 1;
-      }
-#endif
       if(gcp)
 	  ndbout << " GCP: " << (Uint32)ntohl(logEntry->Data[dataLen]);
       ndbout << endl;
+      if (verbose_level > 0)
+      {
+        Int32 pos = 0;
+        while (pos < dataLen)
+        {
+          AttributeHeader * ah = (AttributeHeader*)&logEntry->Data[pos];
+          ndbout_c(" Attribut: %d Size: %d",
+                   ah->getAttributeId(),
+                   ah->getDataSize());
+          pos += ah->getDataSize() + 1;
+        }
+        require(pos == dataLen);
+      }
     }
+    require(dataLen == 0);
     break;
   }
   case BackupFormat::LCP_FILE:
@@ -916,14 +938,17 @@ main(int argc, const char * argv[])
       ndbout << fragHeader << endl;
       
       Uint32 len, * data, header_type;
-      while((len = readRecord(f, &data, &header_type, true)) > 0){
-#if 0
-	ndbout << "-> " << hex;
-	for(Uint32 i = 0; i<len; i++){
-	  ndbout << data[i] << " ";
-	}
-	ndbout << endl;
-#endif
+      while((len = readRecord(f, &data, &header_type, true)) > 0)
+      {
+        if (verbose_level > 0)
+        {
+	  ndbout << "-> " << hex;
+	  for(Uint32 i = 0; i < len; i++)
+          {
+	    ndbout << data[i] << " ";
+          }
+          ndbout << endl;
+        }
       }
       
       BackupFormat::DataFile::FragmentFooter fragFooter;
@@ -1013,10 +1038,15 @@ readHeader(ndbzio_stream* f, BackupFormat::FileHeader * dst){
   if(dst->SectionType != BackupFormat::FILE_HEADER)
     RETURN_FALSE();
 
-  if(dst->SectionLength != ((sizeof(BackupFormat::FileHeader) - 12) >> 2))
+  const Uint32 file_header_section_length =
+    ((dst->BackupVersion < NDBD_RAW_LCP)
+     ? sizeof(BackupFormat::FileHeader_pre_backup_version)
+     : sizeof(BackupFormat::FileHeader))/4 - 3;
+
+  if(dst->SectionLength != file_header_section_length)
     RETURN_FALSE();
 
-  if(aread(&dst->FileType, 4, dst->SectionLength - 2, f) != 
+  if(aread(&dst->FileType, 4, dst->SectionLength - 2, f) !=
      (dst->SectionLength - 2))
     RETURN_FALSE();
 
@@ -1025,6 +1055,12 @@ readHeader(ndbzio_stream* f, BackupFormat::FileHeader * dst){
   dst->BackupKey_0 = ntohl(dst->BackupKey_0);
   dst->BackupKey_1 = ntohl(dst->BackupKey_1);
   
+  if (dst->BackupVersion < NDBD_RAW_LCP)
+  {
+    dst->NdbVersion = dst->BackupVersion;
+    dst->MySQLVersion = 0;
+  }
+
   if(dst->ByteOrder != 0x12345678)
     endian = true;
   
@@ -1182,15 +1218,71 @@ readRecord(ndbzio_stream* f, Uint32 **dst, Uint32 *ext_header_type, bool print)
 }
 
 Int32
-readLogEntry(ndbzio_stream* f, Uint32 **dst){
+readLogEntry(ndbzio_stream* f, Uint32 **dst, Uint32 file_type, Uint32 version)
+{
+  constexpr Uint32 word_size = sizeof(Uint32);
+
   Uint32 len;
-  if(aread(&len, 1, 4, f) != 4)
+  if(aread(&len, word_size, 1, f) != 1)
     RETURN_FALSE();
-  
+
   len = ntohl(len);
+
+  if (len == 0)
+    return 0;
   
-  if(aread(&theData.buf[1], 4, len, f) != len)
-    return -1;
+  Uint32 data_len;
+  if (likely(version == 2))
+  {
+    constexpr Uint32 header_len =
+        BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
+    if (len < header_len)
+    {
+      return -1;
+    }
+    if (1 + len > MaxReadWords)
+    {
+      return -1;
+    }
+    data_len = len - header_len;
+    if (aread(&theData.buf[1], word_size, len, f) != len)
+    {
+      return -1;
+    }
+  }
+  else
+  {
+    assert(version == 1);
+    constexpr Uint32 header_len =
+        BackupFormat::LogFile::LogEntry_no_fragid::HEADER_LENGTH_WORDS;
+    if (len < header_len)
+    {
+      return -1;
+    }
+    static_assert(header_len <=
+                    BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS,
+                  "");
+    constexpr Uint32 header_len_diff =
+        BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS - header_len;
+    if (1 + len + header_len_diff > MaxReadWords)
+    {
+      return -1;
+    }
+    data_len = len - header_len;
+    if (aread(&theData.buf[1], word_size, header_len, f) != header_len)
+    {
+      return -1;
+    }
+    // No fragment id in log event, set it to zero.
+    theData.buf[BackupFormat::LogFile::LogEntry::FRAGID_OFFSET] = 0;
+    if (aread(&theData.buf[BackupFormat::LogFile::LogEntry::DATA_OFFSET],
+              word_size,
+              data_len,
+              f) != data_len)
+    {
+      return -1;
+    }
+  }
   
   theData.buf[0] = len;
   
@@ -1199,9 +1291,23 @@ readLogEntry(ndbzio_stream* f, Uint32 **dst){
   
   * dst = &theData.buf[0];
   
-  return len;
-}
+  if (file_type == BackupFormat::UNDO_FILE)
+  {
+    Uint32 tail_length;
+    if (aread(&tail_length, word_size, 1, f) != 1)
+    {
+      return -1;
+    }
+    tail_length = ntohl(tail_length);
 
+    if (len != tail_length)
+    {
+      return -1;
+    }
+  }
+
+  return data_len;
+}
 
 NdbOut & 
 operator<<(NdbOut& ndbout, const BackupFormat::FileHeader & hf){
