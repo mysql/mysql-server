@@ -25,6 +25,7 @@
 #ifndef BACKUP_FORMAT_HPP
 #define BACKUP_FORMAT_HPP
 
+#include <ndb_limits.h>
 #include <ndb_types.h>
 
 #define JAM_FILE_ID 473
@@ -42,6 +43,9 @@ struct BackupFormat {
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_SMALL = 4096;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
   static const Uint32 BYTES_PER_PART_ON_DISK = 3;
+  static constexpr Uint32 MAX_BACKUP_FILE_LOG_DATA_SIZE =
+    MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS +
+    MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS;
 
   enum RecordType
   {
@@ -290,6 +294,11 @@ struct BackupFormat {
       static constexpr Uint32 FRAGID_OFFSET = 3;
       // Add one word for leading Length word for data offset
       static constexpr Uint32 DATA_OFFSET = 1 + HEADER_LENGTH_WORDS;
+      static constexpr Uint32 MAX_SIZE = 1 /* length word */ +
+                                         HEADER_LENGTH_WORDS +
+                                         MAX_BACKUP_FILE_LOG_DATA_SIZE +
+                                         1 /* gci */ +
+                                         1 /* trailing length word for undo */;
 
       Uint32 Length;
       Uint32 TableId;

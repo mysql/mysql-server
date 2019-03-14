@@ -6098,11 +6098,14 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     2,   // 32k
     0    // 3M
   };
-  const Uint32 maxInsert[] = {
-    MAX_WORDS_META_FILE,
-    4096,    // 16k
-    BACKUP_MIN_BUFF_WORDS
+
+  constexpr Uint32 maxInsert[] =
+  {
+    MAX_WORDS_META_FILE,                       // control files
+    BackupFormat::LogFile::LogEntry::MAX_SIZE, // redo/undo log files
+    BACKUP_MIN_BUFF_WORDS                      // data files
   };
+
   Uint32 minWrite[] = {
     8192,
     8192,

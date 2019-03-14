@@ -1220,6 +1220,7 @@ readRecord(ndbzio_stream* f, Uint32 **dst, Uint32 *ext_header_type, bool print)
 Int32
 readLogEntry(ndbzio_stream* f, Uint32 **dst, Uint32 file_type, Uint32 version)
 {
+  static_assert(MaxReadWords >= BackupFormat::LogFile::LogEntry::MAX_SIZE, "");
   constexpr Uint32 word_size = sizeof(Uint32);
 
   Uint32 len;
