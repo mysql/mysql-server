@@ -1747,9 +1747,11 @@ void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
 @retval NULL if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd) {
 #ifdef UNIV_DEBUG
-  trx_t *trx = thd_to_trx(thd);
-  btrsea_sync_check check(trx->has_search_latch);
-  ut_ad(!sync_check_iterate(check));
+  if (thd != nullptr) {
+    trx_t *trx = thd_to_trx(thd);
+    btrsea_sync_check check(trx->has_search_latch);
+    ut_ad(!sync_check_iterate(check));
+  }
 #endif /* UNIV_DEBUG */
 
   const char *tmp_dir = THDVAR(thd, tmpdir);
