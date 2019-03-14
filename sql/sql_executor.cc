@@ -3868,11 +3868,12 @@ int EQRefIterator::Read() {
   /*
     Calculate if needed to read row. Always needed if
     - no rows read yet, or
+    - table has a pushed condition, or
     - cache is disabled, or
     - previous lookup caused error when calculating key.
   */
-  bool read_row =
-      !table()->is_started() || m_ref->disable_cache || m_ref->key_err;
+  bool read_row = !table()->is_started() || table()->file->pushed_cond ||
+                  m_ref->disable_cache || m_ref->key_err;
   if (!read_row)
     // Last lookup found a row, copy its key to secondary buffer
     memcpy(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length);

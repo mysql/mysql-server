@@ -3404,3 +3404,32 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a3` AS `a3`,`test`.`t1`.`b3` AS `b3`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`d3` AS `d3`,`test`.`t2`.`a3` AS `a3`,`test`.`t2`.`b3` AS `b3`,`test`.`t2`.`c3` AS `c3`,`test`.`t2`.`d3` AS `d3` from `test`.`t1` straight_join `test`.`t1` `t2` where (((`test`.`t1`.`b3` = 1) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (1,2,3)) and (`test`.`t2`.`b3` between 1 and 5) and (`test`.`t2`.`c3` > 1)) or ((`test`.`t1`.`b3` = 2) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (10,20,30)) and (`test`.`t2`.`b3` between 1 and 10) and (`test`.`t2`.`c3` > 2)) or ((`test`.`t1`.`b3` = 3) and (`test`.`t2`.`a3` = `test`.`t1`.`a3`) and (`test`.`t1`.`c3` in (100,200,300)) and (`test`.`t2`.`b3` between 1 and 15) and (`test`.`t2`.`c3` > 3)))
 drop table t1;
+#
+# Bug#29460314 NDB: INCORRECT JOIN RESULT WHEN EQ_REF IS
+# COMBINED WITH PUSHED CONDITION
+#
+create table t1(a int not null, b int not null) engine=ndb;
+insert into t1 values (1,0), (1,1), (1,2);
+create table t2(pk int primary key, x int not null, y int not null) engine=ndb;
+insert into t2 values (0,0,0), (1,1,1), (2,2,2);
+create table t3(d int primary key) engine=ndb;
+insert into t3 values (0), (1), (2);
+Explain should verify that the condition 't2.x = t1.b' is pushed
+explain
+select straight_join * from t1
+join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+join t3 on t3.d = t2.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	func	1	33.33	Parent of 2 pushed join@1; Using where; Using pushed condition (`test`.`t2`.`x` = `test`.`t1`.`b`)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.y	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	Can't push table 't2' as child, column 'pk' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 't3' as child of 't1', column 't2.y' is outside scope of pushable join
+Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`x` = `test`.`t1`.`b`) and (`test`.`t3`.`d` = `test`.`t2`.`y`) and (`test`.`t2`.`pk` = (`test`.`t1`.`a` + 0)))
+select straight_join * from t1
+join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+join t3 on t3.d = t2.y;
+a	b	pk	x	y	d
+1	1	1	1	1	1
+drop table t1,t2,t3;

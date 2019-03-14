@@ -3292,5 +3292,36 @@ where
   )
 ;
 
-
 drop table t1;
+
+
+--echo #
+--echo # Bug#29460314 NDB: INCORRECT JOIN RESULT WHEN EQ_REF IS
+--echo # COMBINED WITH PUSHED CONDITION
+--echo #
+
+create table t1(a int not null, b int not null) engine=ndb;
+insert into t1 values (1,0), (1,1), (1,2);
+
+create table t2(pk int primary key, x int not null, y int not null) engine=ndb;
+insert into t2 values (0,0,0), (1,1,1), (2,2,2);
+
+create table t3(d int primary key) engine=ndb;
+insert into t3 values (0), (1), (2);
+
+# Note, we use an arithmetic expression in the join condition
+# 't2.pk = t1.a+0' as a convenient way of preventing t2 being
+# join-pushed as a child of t1. If t2 becomes a pushed child,
+# it would prevent the condition 't2.x = t1.b' to be pushed
+#
+--echo Explain should verify that the condition 't2.x = t1.b' is pushed
+explain
+select straight_join * from t1
+  join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+  join t3 on t3.d = t2.y;
+
+select straight_join * from t1
+  join t2 on t2.pk = t1.a+0 and t2.x = t1.b
+  join t3 on t3.d = t2.y;
+
+drop table t1,t2,t3;
