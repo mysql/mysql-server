@@ -3405,11 +3405,12 @@ class Ndb_schema_event_handler {
     uint32 m_result{0};
     std::string m_message;
   public:
-    void set_result(uint32 result, const std::string message) {
-      // Both result and message must be set
-      DBUG_ASSERT(result && message.length());
-      m_result = result;
-      m_message = message;
+   void set_result(Ndb_schema_dist::Schema_op_result_code result,
+                   const std::string message) {
+     // Both result and message must be set
+     DBUG_ASSERT(result && message.length());
+     m_result = result;
+     m_message = message;
     }
     const char *message() const { return m_message.c_str(); }
     uint32 result() const { return m_result; }
@@ -3968,8 +3969,8 @@ class Ndb_schema_event_handler {
     return;
   }
 
-
-  void check_wakeup_clients(uint32 result, const char* message) const {
+  void check_wakeup_clients(Ndb_schema_dist::Schema_op_result_code result,
+                            const char *message) const {
     // Build list of current subscribers
     std::unordered_set<uint32> subscribers;
     m_schema_dist_data.get_subscriber_list(subscribers);
@@ -5781,14 +5782,15 @@ class Ndb_schema_event_handler {
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      check_wakeup_clients(4009, "Node failure");
+      check_wakeup_clients(Ndb_schema_dist::NODE_FAILURE, "Node failure");
       break;
     }
 
     case NDBEVENT::TE_SUBSCRIBE:
     {
       /* Add node as subscriber */
-      m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
+      m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(),
+                                          pOp->getReqNodeId());
       // No 'check_wakeup_clients', adding subscribers doesn't complete anything
       break;
     }
@@ -5796,8 +5798,10 @@ class Ndb_schema_event_handler {
     case NDBEVENT::TE_UNSUBSCRIBE:
     {
       /* Remove node as subscriber */
-      m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      check_wakeup_clients(1, "Node unsubscribed");
+      m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(),
+                                            pOp->getReqNodeId());
+      check_wakeup_clients(Ndb_schema_dist::NODE_UNSUBSCRIBE,
+                           "Node unsubscribed");
       break;
     }
 

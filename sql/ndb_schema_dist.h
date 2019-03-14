@@ -74,6 +74,16 @@ enum SCHEMA_OP_TYPE
   SOT_DROP_LOGFILE_GROUP= 25
 };
 
+namespace Ndb_schema_dist {
+
+// Schema operation result codes
+enum Schema_op_result_code {
+  NODE_UNSUBSCRIBE = 9001,  // Node unsubscribe during
+  NODE_FAILURE = 9002       // Node failed during
+};
+
+}  // namespace Ndb_schema_dist
+
 /**
   @brief Ndb_schema_dist_client, class represents a Client
   in the schema distribution.
