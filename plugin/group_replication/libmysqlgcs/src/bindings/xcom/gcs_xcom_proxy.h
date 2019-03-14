@@ -941,6 +941,34 @@ class Gcs_xcom_proxy_impl : public Gcs_xcom_proxy_base {
   Gcs_xcom_input_queue m_xcom_input_queue;
 
   /*
+    Auxiliary function for the "xcom_wait_*" functions. Executes the actual
+    timed wait for the variable associated with the condition to be changed
+    and performs error checking.
+
+    The function will lock @c condition_lock, so it must be unlocked when the
+    function is called.
+
+    @param condition Cond variable on which we want to wait.
+    @param condition_lock Lock to access the @c condition variable.
+    @param need_to_wait A function implemented by the caller that verifies if
+                        the wait shall be executed. The function must return
+                        true when the wait must be executed, false otherwise.
+    @param condition_event A function that returns the string identifying the
+                           event associated with the cond. The string will be
+                           printed as a suffix to the error messages:
+                           "<error code> while waiting for <cond_event string>"
+                           The function receives the error code of the timed
+                           wait as an argument.
+
+    @retval GCS_OK if the wait is successful;
+            GCS_NOK if the timed wait terminates with an error.
+   */
+  enum_gcs_error xcom_wait_for_condition(
+      My_xp_cond_impl &condition, My_xp_mutex_impl &condition_lock,
+      std::function<bool(void)> need_to_wait,
+      std::function<const std::string(int res)> condition_event);
+
+  /*
     Disabling the copy constructor and assignment operator.
   */
   Gcs_xcom_proxy_impl(Gcs_xcom_proxy_impl const &);

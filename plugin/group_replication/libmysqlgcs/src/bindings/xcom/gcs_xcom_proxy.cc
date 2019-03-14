@@ -359,43 +359,51 @@ node_address *Gcs_xcom_proxy_impl::new_node_address_uuid(unsigned int n,
   return ::new_node_address_uuid(n, names, uuids);
 }
 
-enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_ready() {
+enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_for_condition(
+    My_xp_cond_impl &condition, My_xp_mutex_impl &condition_lock,
+    std::function<bool(void)> need_to_wait,
+    std::function<const std::string(int res)> condition_event) {
   enum_gcs_error ret = GCS_OK;
   struct timespec ts;
   int res = 0;
 
-  m_lock_xcom_ready.lock();
+  condition_lock.lock();
 
-  if (!m_is_xcom_ready) {
+  if (need_to_wait()) {
     My_xp_util::set_timespec(&ts, m_wait_time);
-    res =
-        m_cond_xcom_ready.timed_wait(m_lock_xcom_ready.get_native_mutex(), &ts);
+    res = condition.timed_wait(condition_lock.get_native_mutex(), &ts);
   }
+
+  condition_lock.unlock();
 
   if (res != 0) {
-    ret = GCS_NOK;
     // There was an error
+    ret = GCS_NOK;
+    std::string error_string = condition_event(res);
     if (res == ETIMEDOUT) {
-      // timeout
-      MYSQL_GCS_LOG_ERROR("Timeout while waiting for the group"
-                          << " communication engine to be ready!");
+      MYSQL_GCS_LOG_ERROR("Timeout while waiting for " << error_string << "!")
     } else if (res == EINVAL) {
       // invalid abstime or cond or mutex
-      MYSQL_GCS_LOG_ERROR("Invalid parameter received by the timed wait for"
-                          << " the group communication engine to be ready.");
+      MYSQL_GCS_LOG_ERROR("Invalid parameter received by the timed wait for "
+                          << error_string << "!")
     } else if (res == EPERM) {
-      // mutex isn't owned by the current thread at the time of the call
-      MYSQL_GCS_LOG_ERROR("Thread waiting for the group communication"
-                          << " engine to be ready does not own the mutex at the"
-                          << " time of the call!");
+      MYSQL_GCS_LOG_ERROR("Thread waiting for "
+                          << error_string
+                          << " does not own the mutex at the time of the call!")
     } else
-      MYSQL_GCS_LOG_ERROR("Error while waiting for the group"
-                          << "communication engine to be ready!");
+      MYSQL_GCS_LOG_ERROR("Error while waiting for " << error_string << "!")
   }
 
-  m_lock_xcom_ready.unlock();
-
   return ret;
+}
+
+enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_ready() {
+  auto event_string = [](MY_ATTRIBUTE((unused)) int res) {
+    return "the group communication engine to be ready";
+  };
+  return xcom_wait_for_condition(m_cond_xcom_ready, m_lock_xcom_ready,
+                                 [this]() { return !m_is_xcom_ready; },
+                                 event_string);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_is_ready() {
@@ -422,43 +430,16 @@ void Gcs_xcom_proxy_impl::xcom_signal_ready() {
 }
 
 enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_exit() {
-  enum_gcs_error ret = GCS_OK;
-  struct timespec ts;
-  int res = 0;
-
-  m_lock_xcom_exit.lock();
-
-  if (!m_is_xcom_exit) {
-    My_xp_util::set_timespec(&ts, m_wait_time);
-    res = m_cond_xcom_exit.timed_wait(m_lock_xcom_exit.get_native_mutex(), &ts);
-  }
-
-  if (res != 0) {
-    ret = GCS_NOK;
-    // There was an error
+  auto event_string = [](int res) {
     if (res == ETIMEDOUT) {
-      // timeout
-      MYSQL_GCS_LOG_ERROR(
-          "Timeout while waiting for the group communication engine to exit!")
-    } else if (res == EINVAL) {
-      // invalid abstime or cond or mutex
-      MYSQL_GCS_LOG_ERROR(
-          "Timed wait for group communication engine to exit received an "
-          "invalid parameter!")
-    } else if (res == EPERM) {
-      // mutex isn't owned by the current thread at the time of the call
-      MYSQL_GCS_LOG_ERROR(
-          "Timed wait for group communication engine to exit using mutex that "
-          "isn't owned by the current thread at the time of the call!")
+      return "the group communication engine to exit";
     } else {
-      MYSQL_GCS_LOG_ERROR(
-          "Error while waiting for group communication to exit!")
+      return "group communication engine to exit";
     }
-  }
-
-  m_lock_xcom_exit.unlock();
-
-  return ret;
+  };
+  return xcom_wait_for_condition(m_cond_xcom_exit, m_lock_xcom_exit,
+                                 [this]() { return !m_is_xcom_exit; },
+                                 event_string);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_is_exit() {
@@ -485,41 +466,23 @@ void Gcs_xcom_proxy_impl::xcom_signal_exit() {
 }
 
 void Gcs_xcom_proxy_impl::xcom_wait_for_xcom_comms_status_change(int &status) {
-  struct timespec ts;
-  int res = 0;
+  auto wait_cond = [this]() {
+    return m_xcom_comms_status == XCOM_COMM_STATUS_UNDEFINED;
+  };
+  auto event_string = [](MY_ATTRIBUTE((unused)) int res) {
+    return "the group communication engine's communications status to change";
+  };
+
+  enum_gcs_error res = xcom_wait_for_condition(m_cond_xcom_comms_status,
+                                               m_lock_xcom_comms_status,
+                                               wait_cond, event_string);
 
   m_lock_xcom_comms_status.lock();
-
-  if (m_xcom_comms_status == XCOM_COMM_STATUS_UNDEFINED) {
-    My_xp_util::set_timespec(&ts, m_wait_time);
-    res = m_cond_xcom_comms_status.timed_wait(
-        m_lock_xcom_comms_status.get_native_mutex(), &ts);
-  }
-
-  if (res != 0) {
-    // There was an error while retrieving the latest status change.
+  if (res != GCS_OK) {
     status = XCOM_COMMS_OTHER;
-
-    if (res == ETIMEDOUT) {
-      // timeout
-      MYSQL_GCS_LOG_ERROR("Timeout while waiting for the group communication"
-                          << " engine's communications status to change!");
-    } else if (res == EINVAL) {
-      // invalid abstime or cond or mutex
-      MYSQL_GCS_LOG_ERROR("Invalid parameter received by the timed wait for"
-                          << " the group communication engine's communications"
-                          << " status to change.");
-    } else if (res == EPERM) {
-      // mutex isn't owned by the current thread at the time of the call
-      MYSQL_GCS_LOG_ERROR("Thread waiting for the group communication"
-                          << " engine's communications status to change does"
-                          << " not own the mutex at the time of the call!");
-    } else
-      MYSQL_GCS_LOG_ERROR("Error while waiting for the group communication"
-                          << " engine's communications status to change!");
-  } else
+  } else {
     status = m_xcom_comms_status;
-
+  }
   m_lock_xcom_comms_status.unlock();
 }
 
