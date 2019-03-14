@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,20 +97,25 @@ public:
   {
     Channel_info::send_error_and_close_channel(errorcode, error, senderror);
 
-    if (m_handle_client_file_map)
-      CloseHandle(m_handle_client_file_map);
-    if (m_handle_client_map)
-      CloseHandle(m_handle_client_map);
-    if (m_event_server_wrote)
-      CloseHandle(m_event_server_wrote);
-    if (m_event_server_read)
-      CloseHandle(m_event_server_read);
-    if (m_event_client_wrote)
-      CloseHandle(m_event_client_wrote);
-    if (m_event_client_read)
-      CloseHandle(m_event_client_read);
-    if (m_event_conn_closed)
-      CloseHandle(m_event_conn_closed);
+    // Channel_info::send_error_and_close_channel will have closed
+    // handles on senderror
+    if (!senderror)
+    {
+      if (m_handle_client_file_map)
+        CloseHandle(m_handle_client_file_map);
+      if (m_handle_client_map)
+        UnmapViewOfFile(m_handle_client_map);
+      if (m_event_server_wrote)
+        CloseHandle(m_event_server_wrote);
+      if (m_event_server_read)
+        CloseHandle(m_event_server_read);
+      if (m_event_client_wrote)
+        CloseHandle(m_event_client_wrote);
+      if (m_event_client_read)
+        CloseHandle(m_event_client_read);
+      if (m_event_conn_closed)
+        CloseHandle(m_event_conn_closed);
+    }
   }
 };
 
