@@ -474,6 +474,8 @@ void mtr_t::commit() {
   ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
   m_impl.m_state = MTR_STATE_COMMITTING;
 
+  DBUG_EXECUTE_IF("mtr_commit_crash", DBUG_SUICIDE(););
+
   Command cmd(this);
 
   if (m_impl.m_n_log_recs > 0 ||
@@ -744,6 +746,54 @@ void mtr_t::print() const {
   ib::info(ER_IB_MSG_1275) << "Mini-transaction handle: memo size "
                            << m_impl.m_memo.size() << " bytes log size "
                            << get_log()->size() << " bytes";
+}
+
+lsn_t mtr_commit_mlog_test(log_t &log, size_t payload) {
+  constexpr size_t MAX_PAYLOAD_SIZE = 1024;
+  ut_a(payload <= MAX_PAYLOAD_SIZE);
+
+  /* Create MLOG_TEST record in the memory. */
+  byte record[MLOG_TEST_REC_OVERHEAD + MAX_PAYLOAD_SIZE];
+
+  byte *record_end =
+      Log_test::create_mlog_rec(record, 1, MLOG_TEST_VALUE, payload);
+
+  const size_t rec_len = record_end - record;
+
+  mtr_t mtr;
+  mtr_start(&mtr);
+
+  /* Copy the created MLOG_TEST to mtr's local buffer. */
+  byte *dst = mlog_open(&mtr, rec_len);
+  std::memcpy(dst, record, rec_len);
+  mlog_close(&mtr, dst + rec_len);
+
+  mtr.added_rec();
+
+  ut_ad(mtr.get_expected_log_size() == MLOG_TEST_REC_OVERHEAD + payload);
+
+  mtr_commit(&mtr);
+
+  return (mtr.commit_lsn());
+}
+
+void mtr_commit_mlog_test_filling_block(log_t &log, size_t space_left) {
+  const lsn_t current_lsn = log_get_lsn(log);
+
+  ut_a(space_left <= LOG_BLOCK_DATA_SIZE);
+
+  size_t payload = OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE -
+                   current_lsn % OS_FILE_LOG_BLOCK_SIZE;
+
+  space_left += MLOG_TEST_REC_OVERHEAD;
+
+  if (payload < space_left) {
+    payload += LOG_BLOCK_DATA_SIZE;
+  }
+
+  payload -= space_left;
+
+  mtr_commit_mlog_test(*log_sys, payload);
 }
 
 #endif /* UNIV_DEBUG */

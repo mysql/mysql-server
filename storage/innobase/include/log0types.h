@@ -502,6 +502,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
   /** Lsn from which recovery has been started. */
   lsn_t recovered_lsn;
+
 #endif /* !UNIV_HOTBACKUP */
 
   /** Number of log files. */
@@ -527,11 +528,19 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /** Wall time when we printed the statistics last time. */
   mutable time_t last_printout_time;
 
-  //#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
+
   /** When this is set, writing to the redo log should be disabled.
   We check for this in functions that write to the redo log. */
   bool disable_redo_writes;
-  //#endif /* UNIV_DEBUG */
+
+  /** DEBUG only - if we copied or initialized the first block in buffer,
+  this is set to lsn for which we did that. We later ensure that we start
+  the redo log at the same lsn. Else it is zero and we would crash when
+  trying to start redo then. */
+  lsn_t first_block_is_correct_for_lsn;
+
+#endif /* UNIV_DEBUG */
 
   /** Padding before memory used for checkpoints logic. */
   alignas(INNOBASE_CACHE_LINE_SIZE)

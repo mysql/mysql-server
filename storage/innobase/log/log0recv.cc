@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -976,8 +976,19 @@ static dberr_t recv_log_recover_pre_8_0_4(log_t &log,
   recv_sys->parse_start_lsn = checkpoint_lsn;
   recv_sys->bytes_to_ignore_before_checkpoint = 0;
   recv_sys->recovered_lsn = checkpoint_lsn;
+  recv_sys->previous_recovered_lsn = checkpoint_lsn;
   recv_sys->checkpoint_lsn = checkpoint_lsn;
   recv_sys->scanned_lsn = checkpoint_lsn;
+  recv_sys->last_block_first_rec_group = 0;
+
+  ut_d(log.first_block_is_correct_for_lsn = checkpoint_lsn);
+
+  /* We are not going to rewrite the block, but just in case we prefer to
+  have first_rec_group which points on checkpoint_lsn (instead of pointing
+  on mini transactions from earlier formats). This is extra safety if one
+  day this block would become rewritten because of some new bug (using new
+  format). */
+  log_block_set_first_rec_group(buf, checkpoint_lsn % OS_FILE_LOG_BLOCK_SIZE);
 
   log_start(log, checkpoint_no + 1, checkpoint_lsn, checkpoint_lsn);
 
@@ -2232,8 +2243,18 @@ static byte *recv_parse_or_apply_log_rec_body(
 #ifndef UNIV_HOTBACKUP
       if (log_test != nullptr) {
         ptr = log_test->parse_mlog_rec(ptr, end_ptr);
-        break;
+      } else {
+        /* Just parse and ignore record to pass it and go forward. Note that
+        this record is also used in the innodb.log_first_rec_group mtr test. The
+        record is written in the buf0flu.cc when flushing page in that case. */
+        Log_test::Key key;
+        Log_test::Value value;
+        lsn_t start_lsn, end_lsn;
+
+        ptr = Log_test::parse_mlog_rec(ptr, end_ptr, key, value, start_lsn,
+                                       end_lsn);
       }
+      break;
 #endif /* !UNIV_HOTBACKUP */
        /* Fall through. */
 
@@ -2744,6 +2765,39 @@ static bool recv_update_bytes_to_ignore_before_checkpoint(
   return (false);
 }
 
+/** Tracks changes of recovered_lsn and tracks proper values for what
+first_rec_group should be for consecutive blocks. Must be called when
+recv_sys->recovered_lsn is changed to next lsn pointing at boundary
+between consecutive parsed mini transactions. */
+static void recv_track_changes_of_recovered_lsn() {
+  if (recv_sys->parse_start_lsn == 0) {
+    return;
+  }
+  /* If we have already found the first block with mtr beginning there,
+  we started to track boundaries between blocks. Since then we track
+  all proper values of first_rec_group for consecutive blocks.
+  The reason for that is to ensure that the first_rec_group of the last
+  block is correct. Even though we do not depend during this recovery
+  on that value, it would become important if we crashed later, because
+  the last recovered block would become the first used block in redo and
+  since then we would depend on a proper value of first_rec_group there.
+  The checksums of log blocks should detect if it was incorrect, but the
+  checksums might be disabled in the configuration. */
+  const auto old_block =
+      recv_sys->previous_recovered_lsn / OS_FILE_LOG_BLOCK_SIZE;
+
+  const auto new_block = recv_sys->recovered_lsn / OS_FILE_LOG_BLOCK_SIZE;
+
+  if (old_block != new_block) {
+    ut_a(new_block > old_block);
+
+    recv_sys->last_block_first_rec_group =
+        recv_sys->recovered_lsn % OS_FILE_LOG_BLOCK_SIZE;
+  }
+
+  recv_sys->previous_recovered_lsn = recv_sys->recovered_lsn;
+}
+
 /** Parse and store a single log record entry.
 @param[in]	ptr		start of buffer
 @param[in]	end_ptr		end of buffer
@@ -2793,6 +2847,8 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
 
   recv_sys->recovered_offset += len;
   recv_sys->recovered_lsn = new_recovered_lsn;
+
+  recv_track_changes_of_recovered_lsn();
 
   if (recv_update_bytes_to_ignore_before_checkpoint(len)) {
     return (false);
@@ -2961,7 +3017,7 @@ static bool recv_multi_rec(byte *ptr, byte *end_ptr) {
 
     switch (type) {
       case MLOG_MULTI_REC_END:
-
+        recv_track_changes_of_recovered_lsn();
         /* Found the end mark for the records */
         return (false);
 
@@ -3270,6 +3326,8 @@ bool meb_scan_log_recs(
 
       recv_sys->scanned_lsn = recv_sys->parse_start_lsn;
       recv_sys->recovered_lsn = recv_sys->parse_start_lsn;
+
+      recv_track_changes_of_recovered_lsn();
     }
 
     scanned_lsn += data_len;
@@ -3439,6 +3497,11 @@ static void recv_recovery_begin(log_t &log, lsn_t *contiguous_lsn) {
   recv_sys->checkpoint_lsn = *contiguous_lsn;
   recv_sys->scanned_lsn = *contiguous_lsn;
   recv_sys->recovered_lsn = *contiguous_lsn;
+
+  /* We have to trust that the first_rec_group in the first block is
+  correct as we can't start parsing earlier to check it ourselves. */
+  recv_sys->previous_recovered_lsn = *contiguous_lsn;
+  recv_sys->last_block_first_rec_group = 0;
 
   recv_sys->scanned_checkpoint_no = 0;
   recv_previous_parsed_rec_type = MLOG_SINGLE_REC_FLAG;
@@ -3700,14 +3763,48 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   end_lsn = ut_uint64_align_up(recovered_lsn, OS_FILE_LOG_BLOCK_SIZE);
 
-  if (start_lsn < end_lsn) {
-    ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
+  ut_a(start_lsn < end_lsn);
+  ut_a(start_lsn % log.buf_size + OS_FILE_LOG_BLOCK_SIZE <= log.buf_size);
 
-    recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
+  recv_read_log_seg(log, recv_sys->last_block, start_lsn, end_lsn);
 
-    memcpy(log.buf + start_lsn % log.buf_size, recv_sys->last_block,
-           OS_FILE_LOG_BLOCK_SIZE);
+  byte *log_buf_block = log.buf + start_lsn % log.buf_size;
+
+  std::memcpy(log_buf_block, recv_sys->last_block, OS_FILE_LOG_BLOCK_SIZE);
+
+  if (recv_sys->last_block_first_rec_group != 0 &&
+      log_block_get_first_rec_group(log_buf_block) !=
+          recv_sys->last_block_first_rec_group) {
+    /* We must not start with invalid first_rec_group in the first block,
+    because if we crashed, we could be unable to recover. We do NOT have
+    guarantee that the first_rec_group was correct because recovery did
+    not report error. The first_rec_group was used only to locate the
+    beginning of the log for recovery. For later blocks it was not used.
+    It might be corrupted on disk and stay unnoticed if checksums for
+    log blocks are disabled. In such case it would be better to repair
+    it now instead of relying on the broken value and risking data loss.
+    We emit warning to notice user about the situation. We repair that
+    only in the log buffer. */
+
+    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID,
+             uint(log_block_get_first_rec_group(log_buf_block)),
+             uint(recv_sys->last_block_first_rec_group));
+
+    log_block_set_first_rec_group(log_buf_block,
+                                  recv_sys->last_block_first_rec_group);
+
+  } else if (log_block_get_first_rec_group(log_buf_block) == 0) {
+    /* Again, if it was zero, for any reason, we prefer to fix it
+    before starting (we emit warning). */
+
+    ib::warn(ER_IB_RECV_FIRST_REC_GROUP_INVALID, uint(0),
+             uint(recovered_lsn % OS_FILE_LOG_BLOCK_SIZE));
+
+    log_block_set_first_rec_group(log_buf_block,
+                                  recovered_lsn % OS_FILE_LOG_BLOCK_SIZE);
   }
+
+  ut_d(log.first_block_is_correct_for_lsn = recovered_lsn);
 
   log_start(log, checkpoint_no + 1, checkpoint_lsn, recovered_lsn);
 
