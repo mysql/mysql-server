@@ -5,66 +5,81 @@
 
 --echo Check that backup contains the expected log entries
 
-use test;
-create table test.t1 (a int primary key, b int) engine=ndb;
+--echo Use a table with (almost) as big primary key as possible and also
+--echo (almost) as big row as possible, aiming to catch row data buffer
+--echo overflows in Ndb.
+--echo One could stretch the Ndb internal row size even more by using as
+--echo many columns in the primary key as possible, and also as many
+--echo columns in for the row in total, but this simpler table is choosen
+--echo to avoid cumbersome statements.
+
+create table t1 (
+  a int,
+  av varbinary(3064) not null,
+  b int,
+  bv varbinary(10920) not null,
+  primary key(a,av)
+) engine=ndb;
 
 --echo Add 100 rows
 --disable_query_log
 let $rows=100;
 while ($rows)
 {
-  eval insert into test.t1 values ($rows, $rows);
+  eval insert into t1 values ($rows, repeat('A',3064), $rows, repeat('Z',10920));
   dec $rows;
 }
 --enable_query_log
 
 --echo Start a backup with completion stalled
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all error 10039"
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo Make a set of changes which we expect to be logged
 
 --echo 5 new rows
-insert into test.t1 values (101,101), (102,102), (103,103), (104,104), (105,105);
+insert into t1 values
+  (101, repeat('B', 3064), 101, repeat('M', 10920)),
+  (102, repeat('C', 3064), 102, repeat('N', 10920)),
+  (103, repeat('D', 3064), 103, repeat('O', 10920)),
+  (104, repeat('E', 3064), 104, repeat('P', 10920)),
+  (105, repeat('F', 3064), 105, repeat('Q', 10920));
 
 --echo 10 rows updated
-update test.t1 set b=b+1 where a >= 50 and a < 60;
+update t1 set b=b+1, bv=repeat('R', 10920) where a >= 50 and a < 60;
 
 --echo 5 rows deleted
-delete from test.t1 order by a limit 5;
+delete from t1 order by a limit 5;
 
 --echo 5 new rows updated
-update test.t1 set b=b*2 where a>100;
+update t1 set b=b*2, bv=repeat('S', 10920) where a>100 and av <> repeat('_', 3064);
 
 --echo 5 new rows deleted
-delete from test.t1 where a > 100;
+delete from t1 where a > 100;
 
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM --no-defaults --verbose=0 -e "all error 0"
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
-truncate test.t1;
+truncate t1;
 
 --echo Now restore it and check the log content
 --let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print-log $NDB_BACKUPS-$the_backup_id > $outfile 2>&1
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print-log $NDB_BACKUPS-$the_backup_id >> $outfile 2>&1
 
-drop table test.t1;
+drop table t1;
 
-create table txt (a varchar(512));
+create table txt (a varbinary(20000));
 
 --disable_query_log
-eval load data infile '$outfile' into table txt fields terminated by '\n';
+eval load data infile '$outfile' into table txt fields terminated by '\r';
 --enable_query_log
 
 --remove_file $outfile
-
-# Remove windows line feeds
-update txt set a = TRIM(TRAILING "\r" FROM a);
 
 create table logentries as 
   select * from txt where 
@@ -76,6 +91,7 @@ create table logentries as
 select count(1) from logentries;
 
 --echo Show logentries
+--echo Note, column values are truncated to near 1000 bytes due to use of NdbOut.
 select * from logentries order by a;
 
 --echo Show no duplicates
@@ -86,6 +102,3 @@ drop table txt;
 
 
 --source suite/ndb/include/backup_restore_cleanup.inc
-
-
---remove_file $NDB_TOOLS_OUTPUT
