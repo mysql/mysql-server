@@ -24,12 +24,12 @@ SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
 IF(SOLARIS)
- # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
- IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
-     OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-   TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE
-     $<$<CONFIG:RelWithDebInfo>:-xO1>)
- ENDIF()
+  # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
+  IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"
+      OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+    TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE
+      $<$<CONFIG:RelWithDebInfo>:-xO1>)
+  ENDIF()
 ENDIF()
 
 SET(MYSYS_SOURCES
@@ -116,7 +116,21 @@ SET(MYSYS_SOURCES
   thr_rwlock.cc
   tree.cc
   typelib.cc
+  # From deleted mysys_ssl library
+  crypt_genhash_impl.cc
+  my_default.cc
+  my_getopt.cc
+  my_aes.cc
+  my_sha1.cc
+  my_sha2.cc
+  my_md5.cc
+  my_rnd.cc
 )
+IF(WITH_SSL STREQUAL "wolfssl")
+  LIST(APPEND MYSYS_SOURCES my_aes_wolfssl.cc)
+ELSE()
+  LIST(APPEND MYSYS_SOURCES my_aes_openssl.cc)
+ENDIF()
 
 IF (WIN32)
   LIST(APPEND MYSYS_SOURCES
@@ -129,11 +143,11 @@ IF (WIN32)
 ENDIF()
 
 IF(HAVE_POSIX_TIMERS)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} posix_timers.cc)
+  LIST(APPEND MYSYS_SOURCES posix_timers.cc)
 ENDIF()
 
 IF(HAVE_KQUEUE_TIMERS)
-  SET(MYSYS_SOURCES ${MYSYS_SOURCES} kqueue_timers.cc)
+  LIST(APPEND MYSYS_SOURCES kqueue_timers.cc)
 ENDIF()
 
 IF(HAVE_GETPWNAM)
@@ -143,11 +157,11 @@ ENDIF()
 IF(SOLARIS AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
   # Inline assembly template for rdtsc
   SET_SOURCE_FILES_PROPERTIES(my_rdtsc.cc
-   PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
+    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
 ENDIF()
 
 IF(HAVE_LINUX_LARGE_PAGES)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.cc)
+  LIST(APPEND MYSYS_SOURCES my_largepage.cc)
 ENDIF()
 
 IF(FREEBSD)
@@ -165,11 +179,16 @@ ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES}
   ${LIBRT}
   ${LIBEXECINFO}
   ${LIBUNWIND_LDFLAGS}
+  ${SSL_LIBRARIES}
   )
 
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
+# Needed to resolve OpenSSL dependency on Windows
+IF(WIN32 AND NOT WITH_SSL STREQUAL "wolfssl")
+  TARGET_LINK_LIBRARIES(mysys crypt32)
 ENDIF()
 
 # Bug in std::call_once in optimized mode
@@ -180,9 +199,11 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(thr_lock thr_lock.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(thr_lock mysys)
 SET_TARGET_PROPERTIES(thr_lock PROPERTIES COMPILE_FLAGS "-DMAIN")
+
 MYSQL_ADD_EXECUTABLE(mf_iocache_test mf_iocache.cc SKIP_INSTALL)
 TARGET_LINK_LIBRARIES(mf_iocache_test mysys)
 SET_TARGET_PROPERTIES(mf_iocache_test PROPERTIES COMPILE_FLAGS "-DMAIN")
+
 MYSQL_ADD_EXECUTABLE(base64_test base64.cc SKIP_INSTALL)
 SET_TARGET_PROPERTIES(base64_test PROPERTIES COMPILE_FLAGS "-DMAIN")
 TARGET_LINK_LIBRARIES(base64_test mysys)

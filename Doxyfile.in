@@ -856,7 +856,6 @@ INPUT                  = ./client \
                          ./libservices \
                          ./mysql-test/mysql-test-run.dox \
                          ./mysys \
-                         ./mysys_ssl \
                          ./plugin/audit_null \
                          ./plugin/auth \
                          ./plugin/daemon_example \

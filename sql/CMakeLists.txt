@@ -707,7 +707,7 @@ ADD_DEPENDENCIES(sql_main GenLockOrderSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys dbug strings vio
   binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
@@ -838,7 +838,6 @@ IF(NOT DISABLE_SHARED)
       "$<TARGET_FILE:binlogevents_static>"
       "$<TARGET_FILE:dbug>"
       "$<TARGET_FILE:mysys>"
-      "$<TARGET_FILE:mysys_ssl>"
       "$<TARGET_FILE:mytime>"
       "$<TARGET_FILE:slave>"
       "$<TARGET_FILE:sql_main>"
@@ -852,7 +851,7 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
-  sql_main sql_gis binlog rpl master slave sql_main sql_dd sql_gis mysys mysys_ssl
+  sql_main sql_gis binlog rpl master slave sql_main sql_dd sql_gis mysys
   binlogevents_static ${ICU_LIBRARIES})
 
 # Remove transitive link dependencies when linking plugins
@@ -982,7 +981,7 @@ ADD_CUSTOM_COMMAND(
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
 ADD_DEPENDENCIES(mysql_tzinfo_to_sql GenError)
 
 ADD_CUSTOM_TARGET( 

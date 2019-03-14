@@ -49,7 +49,7 @@
 #include "my_io.h"
 #include "my_rnd.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysys_ssl/my_default_priv.h"
+#include "mysys/my_default_priv.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 

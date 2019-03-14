@@ -26,7 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys_ssl/my_default.cc
+  @file mysys/my_default.cc
   Add all options from files named "group".cnf from the default_directories
   before the command line arguments.
   On Windows defaults will also search in the Windows directory for a file
@@ -74,9 +74,9 @@
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql_version.h"  // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/my_default_priv.h"
 #include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_ssl/my_default_priv.h"
 #include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>

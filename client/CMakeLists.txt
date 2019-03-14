@@ -115,7 +115,7 @@ MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysql_ssl_rsa_setup mysql_ssl_rsa_setup.cc path.cc logger.cc)
-TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(mysql_ssl_rsa_setup mysys)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)

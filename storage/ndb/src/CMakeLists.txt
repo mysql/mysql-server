@@ -91,7 +91,7 @@ ENDIF()
 # Build static ndbclient library
 #
 SET(NDBCLIENT_LIBS
-  mysys dbug strings mysys_ssl
+  mysys dbug strings
   ${SSL_LIBRARIES} ${ZLIB_LIBRARY}
   ndbapi
   ndbtransport
@@ -105,7 +105,7 @@ SET(NDBCLIENT_LIBS
   ndbconf)
 
 SET(LIBS_TO_MERGE
-  mysys dbug mytime strings mysys_ssl
+  mysys dbug mytime strings
   ndbapi
   ndbtransport
   ndbtrace

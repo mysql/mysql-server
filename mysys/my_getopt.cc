@@ -26,7 +26,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-  @file mysys_ssl/my_getopt.cc
+  @file mysys/my_getopt.cc
 */
 
 #include <errno.h>
