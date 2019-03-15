@@ -59,8 +59,7 @@ ENDIF()
 INCLUDE(GenerateExportHeader)
 
 SET(MY_SSL_SOURCE_DIR ${MySQLRouter_SOURCE_DIR}/src/router/src/common)
-SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include
-                        ${SSL_INCLUDE_DIRS})
+SET(MY_SSL_INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/router/include)
 
 # Generate dynamic_state_schema.cc
 # With *one* common custom command, generating dynamic_state_schema.[cc|h]

@@ -165,10 +165,3 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(ibd2sdi GenError)
 
 ENDIF()
-
-# In published release builds on Solaris, we need to bundle gcc source.
-# PB2 will take care of putting it in extra/ when needed
-IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/gcc-4.8.1.tar.bz2)
-  INSTALL(FILES gcc-4.8.1.tar.bz2 
-          DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Development)
-ENDIF()

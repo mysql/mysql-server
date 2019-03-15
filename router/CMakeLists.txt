@@ -94,7 +94,6 @@ INCLUDE(cmake/set_rpath.cmake)
 
 # SSL
 MESSAGE(STATUS "MySQL Router SSL_LIBRARIES:    ${SSL_LIBRARIES}")
-MESSAGE(STATUS "MySQL Router SSL_INCLUDE_DIRS: ${SSL_INCLUDE_DIRS}")
 
 # Required tools, libraries, etc..
 INCLUDE(cmake/testing.cmake)  # does not enable testing
