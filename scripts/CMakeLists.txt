@@ -366,6 +366,8 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
       IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
         IF (lib MATCHES "^\\-l")
           SET(${var} "${${var}} ${lib} ")
+        ELSEIF (lib MATCHES "^\\-L")
+          SET(${var} "${${var}} ${lib} ")
         ELSEIF(lib MATCHES "^/")
           # Full path, convert to just filename, strip "lib" prefix and extension
           GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
