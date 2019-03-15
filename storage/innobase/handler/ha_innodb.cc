@@ -248,7 +248,7 @@ static char *innobase_enable_monitor_counter = NULL;
 static char *innobase_disable_monitor_counter = NULL;
 static char *innobase_reset_monitor_counter = NULL;
 static char *innobase_reset_all_monitor_counter = NULL;
-static char *innobase_directories = NULL;
+char *innobase_directories = NULL;
 
 static ulong innodb_flush_method;
 
