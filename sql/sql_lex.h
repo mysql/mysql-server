@@ -3618,12 +3618,21 @@ struct LEX : public Query_tables_list {
 */
 class Yacc_state {
  public:
-  Yacc_state() { reset(); }
+  Yacc_state() : yacc_yyss(NULL), yacc_yyvs(NULL), yacc_yyls(NULL) { reset(); }
 
   void reset() {
-    yacc_yyss = NULL;
-    yacc_yyvs = NULL;
-    yacc_yyls = NULL;
+    if (yacc_yyss != NULL) {
+      my_free(yacc_yyss);
+      yacc_yyss = NULL;
+    }
+    if (yacc_yyvs != NULL) {
+      my_free(yacc_yyvs);
+      yacc_yyvs = NULL;
+    }
+    if (yacc_yyls != NULL) {
+      my_free(yacc_yyls);
+      yacc_yyls = NULL;
+    }
     m_lock_type = TL_READ_DEFAULT;
     m_mdl_type = MDL_SHARED_READ;
   }
