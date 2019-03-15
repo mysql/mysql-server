@@ -38,3 +38,6 @@ SET DEBUG_SYNC= 'RESET';
 DROP DATABASE my_db;
 DROP USER foo, bar;
 DROP ROLE foo_role;
+
+# End of 8.0 tests
+
