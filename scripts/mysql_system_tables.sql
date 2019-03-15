@@ -515,7 +515,7 @@ SET @cmd="CREATE TABLE IF NOT EXISTS ndb_binlog_index (
   ) ENGINE=INNODB CHARACTER SET latin1 STATS_PERSISTENT=0 TABLESPACE=mysql";
 
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
-SET @str = IF(@have_ndb = 1, @cmd, 'SET @dummy = 0');
+SET @str = IF(@have_ndb = 1, @str, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
