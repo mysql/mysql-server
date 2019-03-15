@@ -13168,7 +13168,10 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   
   if (unlikely(getNodeState().startLevel == NodeState::SL_SINGLEUSER &&
                getNodeState().getSingleUserApi() !=
-               refToNode(apiConnectptr.p->ndbapiBlockref)))
+               refToNode(apiConnectptr.p->ndbapiBlockref) &&
+               /* Don't refuse scan to start on table marked as
+                  NDB_SUM_READONLY or NDB_SUM_READWRITE */
+               tabptr.p->singleUserMode == NDB_SUM_LOCKED))
   {
     errCode = ZCLUSTER_IN_SINGLEUSER_MODE;
     goto SCAN_TAB_error;
