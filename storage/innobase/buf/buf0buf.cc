@@ -989,10 +989,6 @@ static buf_chunk_t *buf_chunk_init(
   /* Round down to a multiple of page size,
   although it already should be. */
   mem_size = ut_2pow_round(mem_size, UNIV_PAGE_SIZE);
-  /* Reserve space for the block descriptors. */
-  mem_size += ut_2pow_round(
-      (mem_size / UNIV_PAGE_SIZE) * (sizeof *block) + (UNIV_PAGE_SIZE - 1),
-      UNIV_PAGE_SIZE);
 
   DBUG_EXECUTE_IF("ib_buf_chunk_init_fails", return (NULL););
 
@@ -2022,10 +2018,10 @@ static void buf_pool_resize() {
     buf_flush_list_mutex_exit(buf_pool);
 #endif
 
-    buf_pool->curr_size = new_instance_size;
-
     buf_pool->n_chunks_new =
         new_instance_size * UNIV_PAGE_SIZE / srv_buf_pool_chunk_unit;
+
+    buf_pool->curr_size = buf_pool->n_chunks_new * buf_pool->chunks->size;
 
     os_wmb;
   }
@@ -2353,7 +2349,7 @@ withdraw_retry:
       buf_pool->read_ahead_area = static_cast<page_no_t>(
           ut_min(BUF_READ_AHEAD_PAGES,
                  ut_2_power_up(buf_pool->curr_size / BUF_READ_AHEAD_PORTION)));
-      buf_pool->curr_pool_size = buf_pool->curr_size * UNIV_PAGE_SIZE;
+      buf_pool->curr_pool_size = buf_pool->n_chunks * srv_buf_pool_chunk_unit;
       curr_size += buf_pool->curr_pool_size;
       buf_pool->old_size = buf_pool->curr_size;
     }
