@@ -462,21 +462,7 @@ notify_mdl_lock(THD *thd, bool lock, bool *victimized)
     if (ndbcluster_global_schema_lock(thd, true, victimized) != 0)
     {
       DBUG_PRINT("error", ("Failed to lock global schema lock"));
-      /*
-        If not 'victimized' in order to avoid deadlocks:
- 
-        Ignore error to lock GSL and let execution continue
-        until one of ha_ndbcluster's DDL functions use
-        Thd_ndb::has_required_global_schema_lock() to verify
-        if the GSL is taken or not.
-        This allows users to work with non NDB objects although
-        failure to lock GSL occurs(for example because connection
-        to NDB is not available).
-
-        Victimized failures are handled immediately by MDL
-        releasing, and later retrying the locks.
-      */
-      DBUG_RETURN(*victimized == true); // Ignore error if not 'victimized'
+      DBUG_RETURN(true); // Error
     }
     DBUG_RETURN(false); // OK
   }
@@ -559,16 +545,26 @@ ndbcluster_notify_alter_table(THD *thd,
   DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
-  bool victimized= false;
+  bool victimized;
   bool result;
   do
   {
     result =
-      notify_mdl_lock(thd,
-                      notification == HA_NOTIFY_PRE_EVENT, &victimized);
+      notify_mdl_lock(thd, notification == HA_NOTIFY_PRE_EVENT, &victimized);
     if (result && thd_killed(thd)) {
       // Failed to acuire GSL and THD is killed -> give up!
-      break; // Terminate loop
+      DBUG_RETURN(true);
+    }
+    if (result && victimized == false) {
+      /*
+        Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
+        and let execution continue until one of ha_ndbcluster's DDL functions
+        use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
+        taken or not. This allows users to work with non NDB objects although
+        failure to lock GSL occurs(for example because connection to NDB is not
+        available).
+      */
+      DBUG_RETURN(false);
     }
   }
   while (victimized);
@@ -611,6 +607,17 @@ ndbcluster_notify_exclusive_mdl(THD *thd,
   const bool result =
       notify_mdl_lock(thd,
                       notification == HA_NOTIFY_PRE_EVENT, victimized);
+  if (result && *victimized == false) {
+    /*
+      Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
+      and let execution continue until one of ha_ndbcluster's DDL functions
+      use Thd_ndb::has_required_global_schema_lock() to verify if the GSL is
+      taken or not. This allows users to work with non NDB objects although
+      failure to lock GSL occurs(for example because connection to NDB is not
+      available).
+    */
+    DBUG_RETURN(false);
+  }
   if (mdl_key->mdl_namespace() == MDL_key::TABLESPACE && !result)
   {
     if (notification == HA_NOTIFY_PRE_EVENT)
