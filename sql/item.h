@@ -3382,7 +3382,13 @@ class Item_field : public Item_ident {
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
   bool get_timeval(struct timeval *tm, int *warnings) override;
-  bool is_null() override { return field->is_null(); }
+  bool is_null() override {
+    // NOTE: May return true even if maybe_null is not set!
+    // This can happen if the underlying TABLE did not have a NULL row
+    // at set_field() time (ie., table->is_null_row() was false),
+    // but does now.
+    return field->is_null();
+  }
   Item *get_tmp_table_item(THD *thd) override;
   bool collect_item_field_processor(uchar *arg) override;
   bool add_field_to_set_processor(uchar *arg) override;
