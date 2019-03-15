@@ -353,7 +353,8 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES)
 
   # On Windows, ssleay32.lib/libeay32.lib or libssl.lib/libcrypto.lib
   # must be merged into mysqlclient.lib
-  IF(WIN32 AND ${TARGET} STREQUAL "mysqlclient")
+  IF(WIN32 AND ${TARGET} STREQUAL "mysqlclient"
+      AND NOT WITH_SSL STREQUAL "wolfssl")
     SET(LINKER_EXTRA_FLAGS "")
     FOREACH(LIB ${SSL_LIBRARIES})
       STRING_APPEND(LINKER_EXTRA_FLAGS " ${LIB}")
