@@ -16799,9 +16799,6 @@ ER_IB_MSG_851
 ER_IB_MSG_852
   eng "%s"
 
-ER_IB_MSG_853
-  eng "%s"
-
 ER_IB_MSG_854
   eng "%s"
 
@@ -18514,6 +18511,9 @@ ER_IB_MSG_MADV_DONTDUMP_UNSUPPORTED
 
 ER_IB_MSG_MADVISE_FAILED
   eng "Disabling @@core_file because @@innodb_buffer_pool_in_core_file is disabled, yet madvise(%p,%zu,%s) failed with %s"
+
+ER_IB_OS_LARGE_PAGE_SIZE
+  eng "Unexpected OS large page size %zu, not a power of 2, skipping"
 
 ER_COLUMN_CHANGE_SIZE
   eng "Could not change column '%s' of table '%s'. The resulting size of index '%s' would exceed the max key length of %d bytes."

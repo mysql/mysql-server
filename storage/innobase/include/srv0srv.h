@@ -438,6 +438,10 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern bool srv_load_corrupted;
 
+/* Available OS RAM large page sizes */
+#define srv_large_page_sizes_length 8
+extern size_t srv_large_page_sizes[srv_large_page_sizes_length];
+
 /** Dedicated server setting */
 extern bool srv_dedicated_server;
 /** Requested size in bytes */

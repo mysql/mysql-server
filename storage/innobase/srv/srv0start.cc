@@ -49,6 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <dirent.h>
 
 #include <zlib.h>
 #include "btr0btr.h"
@@ -316,6 +317,55 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ut_a(ret);
 
   return (DB_SUCCESS);
+}
+
+/* Descending sort */
+static int size_t_cmp(const void *a, const void *b)
+{
+    const size_t *ia = (const size_t *)a; // casting pointer types
+    const size_t *ib = (const size_t *)b;
+    if (*ib > *ia)
+    {
+         return 1;
+    }
+    else if (*ib < *ia)
+    {
+         return -1;
+    }
+    return 0;
+}
+
+/** Fetch large page sizes available from linux */
+static void srv_get_large_page_sizes(size_t sizes[srv_large_page_sizes_length])
+{
+  DIR *dirp;
+  struct dirent *r;
+  int i= 0;
+
+  dirp= opendir("/sys/kernel/mm/hugepages");
+  if (dirp == NULL)
+  {
+    perror("Warning: failed to open /sys/kernel/mm/hugepages");
+  }
+  else
+  {
+    while (i < srv_large_page_sizes_length &&
+          (r= readdir(dirp)))
+    {
+      if (strncmp("hugepages-", r->d_name, 10) == 0)
+      {
+        sizes[i]= strtoull(r->d_name + 10, NULL, 10) * 1024ULL;
+        if (!ut_is_2pow(sizes[i]))
+        {
+          ib::warn(ER_IB_OS_LARGE_PAGE_SIZE, sizes[i]);
+          sizes[i] = 0;
+          continue;
+        }
+        ++i;
+      }
+    }
+    qsort(sizes, i, sizeof(size_t), size_t_cmp);
+  }
 }
 
 /** Initial number of the first redo log file */
@@ -2024,6 +2074,10 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
     return (srv_init_abort(DB_ERROR));
   }
+
+#if defined(HAVE_LINUX_MULTIPLE_LARGE_PAGES)
+  srv_get_large_page_sizes(srv_large_page_sizes);
+#endif /* HAVE_LINUX_MULTIPLE_LARGE_PAGES */
 
   double size;
   char unit;

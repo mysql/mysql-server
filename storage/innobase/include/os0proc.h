@@ -36,11 +36,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "univ.i"
 
-#ifdef UNIV_LINUX
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#endif
-
 typedef void *os_process_t;
 typedef unsigned long int os_process_id_t;
 

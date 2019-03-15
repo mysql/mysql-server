@@ -36,6 +36,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <errno.h>
 #include <stddef.h>
 #include <sys/types.h>
+
+#if defined HAVE_LINUX_LARGE_PAGES && defined HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#endif
+
 #include "ha_prototypes.h"
 #include "os0proc.h"
 #include "srv0srv.h"
@@ -70,49 +75,114 @@ ulint os_proc_get_number(void) {
 #endif
 }
 
+/*
+Returns the next large page size smaller or equal to the passed in size.
+
+The search starts at srv_large_page_sizes[*start].
+
+Assumes srv_get_large_page_sizes has been initialised
+
+For first use, have *start=0. There is no need to increment *start.
+
+@param   sz size to be searched for.
+@param   start ptr to int representing offset in my_large_page_sizes to start from.
+*start is updated during search and can be used to search again if 0 isn't returned.
+
+@returns the next size found. *start will be incremented to the next potential size.
+@retval  a large page size that is valid on this system or 0 if no large page size possible.
+*/
+static size_t os_next_large_page_size(size_t sz, int *start)
+{
+#if defined HAVE_LINUX_MULTIPLE_LARGE_PAGES
+  size_t cur;
+
+  while (*start < srv_large_page_sizes_length
+         && srv_large_page_sizes[*start] > 0)
+  {
+    cur= *start;
+    (*start)++;
+    if (srv_large_page_sizes[cur] <= sz)
+    {
+      return srv_large_page_sizes[cur];
+    }
+  }
+#endif
+  return 0;
+}
+
+static inline uint os_bit_size_t_log2(size_t value)
+{
+  uint bit;
+  for (bit=0 ; value > 1 ; value>>=1, bit++) ;
+  return bit;
+}
+
 /** Allocates large pages memory.
 @param[in,out]	n	Number of bytes to allocate
 @return allocated memory */
 void *os_mem_alloc_large(ulint *n) {
-  void *ptr;
+  void *ptr = NULL;
   ulint size;
 #if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-  int shmid;
-  struct shmid_ds buf;
+  int mapflag, i= 0;
+  size_t adjusted_size, large_page_size;
 
-  if (!os_use_large_pages || !os_large_page_size) {
+  if (!os_use_large_pages) {
     goto skip;
   }
-
-  /* Align block size to os_large_page_size */
-  ut_ad(ut_is_2pow(os_large_page_size));
-  size = ut_2pow_round(*n + (os_large_page_size - 1), os_large_page_size);
-
-  shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
-  if (shmid < 0) {
-    ib::warn(ER_IB_MSG_852)
-        << "Failed to allocate " << size << " bytes. errno " << errno;
-    ptr = NULL;
-  } else {
-    ptr = shmat(shmid, NULL, 0);
-    if (ptr == (void *)-1) {
-      ib::warn(ER_IB_MSG_853) << "Failed to attach shared memory segment,"
-                                 " errno "
-                              << errno;
-      ptr = NULL;
-    }
-
-    /* Remove the shared memory segment so that it will be
-    automatically freed after memory is detached or
-    process exits */
-    shmctl(shmid, IPC_RMID, &buf);
+#ifdef HAVE_LINUX_MULTIPLE_LARGE_PAGES
+  if (!os_large_page_size) {
+    /* advance i to be a smaller or equal to os_large_page_size */
+    os_next_large_page_size(os_large_page_size, &i);
   }
+  large_page_size = os_next_large_page_size(*n, &i);
+#else
+  large_page_size = os_large_page_size;
+#endif
+  if (!large_page_size)
+    goto skip;
+
+  ut_ad(ut_is_2pow(large_page_size));
+
+#if defined HAVE_LINUX_MULTIPLE_LARGE_PAGES
+  do
+#endif
+  {
+    mapflag = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB;
+#if defined HAVE_LINUX_MULTIPLE_LARGE_PAGES
+    /* MAP_HUGE_SHIFT added linux-3.8. Take largest HUGEPAGE size */
+    mapflag |= os_bit_size_t_log2(large_page_size) << MAP_HUGE_SHIFT;
+#endif
+    /* Align block size to large_page_size */
+    adjusted_size = ut_2pow_round(*n + (large_page_size - 1), large_page_size);
+    ptr = mmap(NULL, adjusted_size, PROT_READ | PROT_WRITE, mapflag, -1, 0);
+    if (ptr != (void*)-1) {
+#if defined HAVE_LINUX_MULTIPLE_LARGE_PAGES
+      break;
+    } else {
+      ptr = NULL;
+      if (errno == ENOMEM) {
+        /* no memory at this size, try next size */
+        continue;
+      }
+#else
+    } else {
+#endif
+      ptr = NULL;
+      ib::warn(ER_IB_MSG_852)
+          << "Failed to allocate " << adjusted_size << " bytes. pagesize " << large_page_size
+          << " bytes. errno " << errno;
+    }
+  }
+#if defined HAVE_LINUX_MULTIPLE_LARGE_PAGES
+  while ((large_page_size = os_next_large_page_size(*n, &i)));
+#endif
 
   if (ptr) {
-    *n = size;
-    os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
+    *n = adjusted_size;
+    os_atomic_increment_ulint(&os_total_large_mem_allocated, adjusted_size);
 
-    UNIV_MEM_ALLOC(ptr, size);
+    UNIV_MEM_ALLOC(ptr, adjusted_size);
     return (ptr);
   }
 
@@ -167,13 +237,6 @@ skip:
 void os_mem_free_large(void *ptr, ulint size) {
   ut_a(os_total_large_mem_allocated >= size);
 
-#if defined HAVE_LINUX_LARGE_PAGES && defined UNIV_LINUX
-  if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
-    os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
-    UNIV_MEM_FREE(ptr, size);
-    return;
-  }
-#endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 #ifdef _WIN32
   /* When RELEASE memory, the size parameter must be 0.
   Do not use MEM_RELEASE with MEM_DECOMMIT. */
