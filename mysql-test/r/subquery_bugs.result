@@ -717,3 +717,54 @@ SELECT /*+ MERGE(qn) */ * FROM qn
 field1	field2
 DROP TABLE t1, t2;
 set optimizer_switch=default;
+#
+# Bug #29493026: INCORRECT RESULT FROM QUERY CONTAINING AN IN-SUBQUERY
+#
+CREATE TABLE t1 (
+pk INTEGER
+);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (
+pk INTEGER PRIMARY KEY
+);
+INSERT INTO t2 VALUES(1);
+CREATE TABLE t3 (
+col_int_key INTEGER,
+pk INTEGER
+);
+INSERT INTO t3 VALUES (31,4),(2,5),(17,3),(5,2),(17,1);
+CREATE TABLE t4 (
+col_int_key INTEGER,
+col_int_unique INTEGER,
+UNIQUE KEY ix2 (col_int_key,col_int_unique)
+);
+INSERT INTO t4 VALUES (6,2),(34,3);
+set optimizer_switch='firstmatch=off';
+EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN (
+SELECT t2.pk FROM
+t4
+RIGHT JOIN t3 ON t4.col_int_key = t3.pk
+RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
+);
+EXPLAIN
+-> Remove duplicate (t1, t2) rows using temporary table (weedout)
+    -> Nested loop left join
+        -> Nested loop inner join
+            -> Filter: (t1.pk is not null)
+                -> Table scan on t1
+            -> Single-row index lookup on t2 using PRIMARY (pk=t1.pk)
+        -> Nested loop left join
+            -> Filter: (t3.col_int_key <> t2.pk)
+                -> Table scan on t3
+            -> Index lookup on t4 using ix2 (col_int_key=t3.pk)
+
+SELECT * FROM t1 WHERE pk IN (
+SELECT t2.pk FROM
+t4
+RIGHT JOIN t3 ON t4.col_int_key = t3.pk
+RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
+);
+pk
+1
+DROP TABLE t1, t2, t3, t4;
+set optimizer_switch=default;

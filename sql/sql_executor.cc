@@ -1583,7 +1583,7 @@ static Substructure FindSubstructure(
   }
 
   if (is_outer_join && is_weedout) {
-    if (outer_join_end >= weedout_end) {
+    if (outer_join_end > weedout_end) {
       // Weedout will be handled at a lower recursion level.
       is_weedout = false;
     } else {
@@ -1594,7 +1594,7 @@ static Substructure FindSubstructure(
     }
   }
   if (is_semijoin && is_weedout) {
-    if (semijoin_end >= weedout_end) {
+    if (semijoin_end > weedout_end) {
       // Weedout will be handled at a lower recursion level.
       is_weedout = false;
     } else {
