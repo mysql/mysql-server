@@ -2288,6 +2288,15 @@ bool Query_result_update::do_updates(THD *thd) {
     }
     DBUG_RETURN(false);
   }
+
+  // If we're updating based on an outer join, the executor may have left some
+  // rows in NULL row state. Reset them before we start looking at rows,
+  // so that generated fields don't inadvertedly get NULL inputs.
+  for (cur_table = update_tables; cur_table;
+       cur_table = cur_table->next_local) {
+    cur_table->table->reset_null_row();
+  }
+
   for (cur_table = update_tables; cur_table;
        cur_table = cur_table->next_local) {
     uint offset = cur_table->shared;

@@ -4127,6 +4127,9 @@ class handler {
     lower-level function and does not need to be re-done (which is why
     we need this status flag: to avoid redundant calculations, for
     performance).
+
+    Note that when updating generated fields, the NULL row status in
+    the underlying TABLE objects matter, so be sure to reset them if needed!
   */
   bool m_update_generated_read_fields;
 
@@ -4222,6 +4225,7 @@ class handler {
   int ha_rnd_init(bool scan);
   int ha_rnd_end();
   int ha_rnd_next(uchar *buf);
+  // See the comment on m_update_generated_read_fields.
   int ha_rnd_pos(uchar *buf, uchar *pos);
   int ha_index_read_map(uchar *buf, const uchar *key, key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
