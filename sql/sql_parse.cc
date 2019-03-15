@@ -4428,7 +4428,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
         /* copy password expire attributes to individual lex user */
         user->alter_status = thd->lex->alter_password;
 
+        /*
+          Only self password change is non-privileged operation. To detect the
+          same, we find :
+          (1) If it is only password change operation
+          (2) If this operation is on self
+        */
         if (user->uses_identified_by_clause &&
+            !user->uses_identified_with_clause &&
             !thd->lex->mqh.specified_limits &&
             !user->alter_status.update_account_locked_column &&
             !user->alter_status.update_password_expired_column &&
