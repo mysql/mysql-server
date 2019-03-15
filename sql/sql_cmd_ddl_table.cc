@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -383,18 +383,15 @@ bool Sql_cmd_create_or_drop_index_base::execute(THD *thd) {
 
 bool Sql_cmd_cache_index::execute(THD *thd) {
   TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
-  if (check_access(thd, INDEX_ACL, first_table->db,
-                   &first_table->grant.privilege,
-                   &first_table->grant.m_internal, 0, 0))
+  if (check_table_access(thd, INDEX_ACL, first_table, true, UINT_MAX, false))
     return true;
+
   return assign_to_keycache(thd, first_table);
 }
 
 bool Sql_cmd_load_index::execute(THD *thd) {
   TABLE_LIST *const first_table = thd->lex->select_lex->get_table_list();
-  if (check_access(thd, INDEX_ACL, first_table->db,
-                   &first_table->grant.privilege,
-                   &first_table->grant.m_internal, 0, 0))
+  if (check_table_access(thd, INDEX_ACL, first_table, true, UINT_MAX, false))
     return true;
   return preload_keys(thd, first_table);
 }
