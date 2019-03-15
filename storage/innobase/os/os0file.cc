@@ -7866,6 +7866,10 @@ Set the file create umask
 @param[in]	umask		The umask to use for file creation. */
 void os_file_set_umask(ulint umask) { os_innodb_umask = umask; }
 
+/** Get the file create umask
+@return the umask to use for file creation. */
+ulint os_file_get_umask() { return (os_innodb_umask); }
+
 /**
 @param[in]      type            The encryption type
 @return the string representation */

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1874,6 +1874,10 @@ ulint os_file_original_page_size(const byte *buf);
 /** Set the file create umask
 @param[in]	umask		The umask to use for file creation. */
 void os_file_set_umask(ulint umask);
+
+/** Get the file create umask
+@return the umask to use for file creation. */
+ulint os_file_get_umask();
 
 /** Free storage space associated with a section of the file.
 @param[in]	fh		Open file handle
