@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,7 @@ class NdbRecAttr;
  *   Ndb::createEventOperation()
  * - execute() starts the event flow. Use Ndb::pollEvents() to wait
  *   for an event to occur.  Use Ndb::nextEvent() to iterate
- *   through the events that have occured.
+ *   through the events that have occurred.
  * - The instance is removed by Ndb::dropEventOperation()
  *
  * For more info see:
@@ -76,7 +76,7 @@ class NdbRecAttr;
  * - Event code does not check table schema version. Make sure to drop events
  * after table is dropped. Will be fixed in later
  * versions.
- * - If a node failure has occured not all events will be received
+ * - If a node failure has occurred not all events will be received
  * anymore. Drop NdbEventOperation and Create again after nodes are up
  * again. Will be fixed in later versions.
  *
@@ -180,7 +180,7 @@ public:
   bool isConsistent() const;
 
   /**
-   * Query for occured event type.
+   * Query for occurred event type.
    *
    * @note Only valid after Ndb::nextEvent2() has been called and
    * returned a non-NULL value
@@ -191,7 +191,7 @@ public:
   NdbDictionary::Event::TableEvent getEventType2() const;
 
   /**
-   * Query for occured event type. This is a backward compatibility
+   * Query for occurred event type. This is a backward compatibility
    * wrapper for getEventType2(). Since it is called after nextEvent()
    * returned a non-NULL event operation after filtering exceptional epoch
    * event data, it should not see the exceptional event data types:

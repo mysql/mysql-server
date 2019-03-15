@@ -152,7 +152,7 @@ void getTextNDBStopForced(QQQQ) {
       reason_str.appfmt(" (extra info %d)", extra);
   }
   if (sphase < 255)
-    sphase_str.appfmt(" Occured during startphase %u.", sphase);
+    sphase_str.appfmt(" Occurred during startphase %u.", sphase);
   BaseString::snprintf(m_text, m_text_len,
 		       "Forced node shutdown completed%s.%s%s",
 		       action_str.c_str(), sphase_str.c_str(),

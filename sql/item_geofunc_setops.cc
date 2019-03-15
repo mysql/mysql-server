@@ -2229,7 +2229,7 @@ Geometry *Item_func_spatial_operation::bg_geo_set_op(Geometry *g1, Geometry *g2,
   }
 
   /*
-    null_value is set in above xxx_operatoin calls if error occured.
+    null_value is set in above xxx_operatoin calls if error occurred.
   */
   if (null_value) {
     error_str();

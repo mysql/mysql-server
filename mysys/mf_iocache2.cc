@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@
 
   RETURN VALUE
     0  All OK
-    1  An error occured
+    1  An error occurred
 */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
   size_t bytes_in_cache;

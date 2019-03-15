@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,7 +167,7 @@ NDB_SHARE::create_key(const char *new_key)
   my_stpcpy(buf_ptr, table_name_buf);
   buf_ptr += table_name_len;
 
-  // Check that writing has not occured beyond end of allocated memory
+  // Check that writing has not occurred beyond end of allocated memory
   assert(buf_ptr < reinterpret_cast<char*>(allocated_key) + size);
 
   DBUG_PRINT("info", ("size: %lu", (unsigned long)size));

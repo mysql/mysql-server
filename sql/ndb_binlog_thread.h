@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,10 +66,10 @@ private:
      notice that the recording is most likely not continuous.
   */
   enum Reconnect_type {
-    // Incident occured because the mysqld was stopped and
+    // Incident occurred because the mysqld was stopped and
     // is now starting up again
     MYSQLD_STARTUP,
-    // Incident occured because the mysqld was disconnected
+    // Incident occurred because the mysqld was disconnected
     // from the cluster
     CLUSTER_DISCONNECT
   };

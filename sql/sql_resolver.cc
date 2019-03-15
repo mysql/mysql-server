@@ -3613,7 +3613,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   select_item = find_item_in_list(thd, order_item, fields, &counter,
                                   REPORT_EXCEPT_NOT_FOUND, &resolution);
   if (!select_item)
-    return true; /* The item is not unique, or some other error occured. */
+    return true; /* The item is not unique, or some other error occurred. */
 
   /* Check whether the resolved field is not ambiguos. */
   if (select_item != not_found_item) {
@@ -4262,7 +4262,7 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
   @param table                      table to be checked
   @return Operation status
     @retval false   OK
-    @retval true    Error occured
+    @retval true    Error occurred
 
   @note  This function must be called after table->write_set has been
          filled.

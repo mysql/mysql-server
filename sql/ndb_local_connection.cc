@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
   Ed_connection con(m_thd);
   if (con.execute_direct(sql_text))
   {
-    /* Error occured while executing the query */
+    /* Error occurred while executing the query */
     const uint last_errno = con.get_last_errno();
     assert(last_errno); // last_errno must have been set
     const char* last_errmsg = con.get_last_error();

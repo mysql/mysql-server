@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -266,7 +266,7 @@ public:
     {
       // Windows does not sleep on 'select' with 0 sockets
       Sleep(timeout);
-      return 0; // Timeout occured
+      return 0; // Timeout occurred
     }
 #endif
 
@@ -304,7 +304,7 @@ public:
         timeout -= (int)NdbTick_Elapsed(start,now).milliSec();
 
         if (timeout <= 0)
-          return 0; // Timeout occured
+          return 0; // Timeout occurred
 
         //fprintf(stderr, "Got interrupted, retrying... timeout left: %d\n",
         //        timeout_millis);

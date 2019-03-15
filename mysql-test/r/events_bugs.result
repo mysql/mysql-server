@@ -604,7 +604,7 @@ INSERT INTO events_test.event_log VALUES (NULL,@evname,@cnt+1,current_timestamp(
 ROLLBACK;
 END IF;
 END;|
-Sleep till the first INSERT into events_test.event_log occured
+Sleep till the first INSERT into events_test.event_log occurred
 SELECT COUNT(*) > 0 AS "Expect 1" FROM events_test.event_log;
 Expect 1
 1

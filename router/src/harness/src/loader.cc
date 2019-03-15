@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -111,7 +111,7 @@ std::condition_variable we_might_shutdown_cond;
 enum ShutdownReason { SHUTDOWN_NONE, SHUTDOWN_REQUESTED, SHUTDOWN_FATAL_ERROR };
 
 // set when the Router receives a signal to shut down or some fatal error
-// condition occured
+// condition occurred
 static std::atomic<ShutdownReason> g_shutdown_pending{SHUTDOWN_NONE};
 
 // the thread that is setting the g_shutdown_pending to SHUTDOWN_FATAL_ERROR is

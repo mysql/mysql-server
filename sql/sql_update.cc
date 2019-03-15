@@ -2538,7 +2538,7 @@ bool Query_result_update::send_eof(THD *thd) {
   if (local_error > 0)  // if the above log write did not fail ...
   {
     /* Safety: If we haven't got an error before (can happen in do_updates) */
-    my_message(ER_UNKNOWN_ERROR, "An error occured in multi-table update",
+    my_message(ER_UNKNOWN_ERROR, "An error occurred in multi-table update",
                MYF(0));
     DBUG_RETURN(true);
   }

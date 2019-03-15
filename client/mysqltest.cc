@@ -1169,7 +1169,7 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
   Run query and dump the result to stderr in vertical format
 
   NOTE! This function should be safe to call when an error
-  has occured and thus any further errors will be ignored(although logged)
+  has occurred and thus any further errors will be ignored(although logged)
 
   SYNOPSIS
   show_query
@@ -1228,7 +1228,7 @@ static void show_query(MYSQL *mysql, const char *query) {
   is added to the warning stack, only print @@warning_count-1 warnings.
 
   NOTE! This function should be safe to call when an error
-  has occured and this any further errors will be ignored(although logged)
+  has occurred and this any further errors will be ignored(although logged)
 
   SYNOPSIS
   show_warnings_before_error
@@ -4904,7 +4904,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
         master_pos_wait returned NULL. This indicates that
         slave SQL thread is not started, the slave's master
         information is not initialized, the arguments are
-        incorrect, or an error has occured
+        incorrect, or an error has occurred
       */
       die("%.*s failed: '%s' returned NULL "
           "indicating slave SQL thread failure",

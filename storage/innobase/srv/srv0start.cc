@@ -803,7 +803,7 @@ dberr_t srv_undo_tablespace_fixup(const char *space_name, const char *file_name,
   ib::info(ER_IB_MSG_1079, ulong{space_num});
 
   /* It is possible for an explicit undo tablespace to have been truncated and
-  recreated but not yet written with a header page when a crash occured.  In
+  recreated but not yet written with a header page when a crash occurred.  In
   this case, the empty file would not have been scanned at startup and the
   first call to fixup did not know the filename.  Now that we know it, just
   delete any file with that name if it exists.  The dictionary claims it is

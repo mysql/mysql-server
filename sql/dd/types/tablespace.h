@@ -206,7 +206,7 @@ typedef std::vector<Tablespace_table_ref> Tablespace_table_ref_vec;
   @param thd thread context
   @param tso dd object
   @param tblrefs [OUT] Tablespace_table_ref objects for tables in tablespace
-  @retval true if error occured
+  @retval true if error occurred
   @retval false otherwise
  */
 bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,

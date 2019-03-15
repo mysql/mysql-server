@@ -211,7 +211,7 @@ static bool validate_srid_arg(Item *arg, gis::srid_t *srid, bool *null_value,
   @param[in] g The geometry to check.
   @param[in] func_name The function name to use in error messages.
 
-  @retval true An error has occured (and my_error has been called).
+  @retval true An error has occurred (and my_error has been called).
   @retval false Success.
 */
 static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
@@ -246,7 +246,7 @@ static bool verify_cartesian_srs(const Geometry *g, const char *func_name) {
 
   @param[in] srid The SRID to check
 
-  @retval true An error has occured (and my_error has been called).
+  @retval true An error has occurred (and my_error has been called).
   @retval false Success.
 */
 static bool verify_srid_is_defined(gis::srid_t srid) {
@@ -4524,7 +4524,7 @@ Gis_geometry_collection *BG_geometry_collection::as_geometry_collection(
          geo's data rather than directly using it.
   @param break_multi_geom whether break a multipoint or multilinestring or
          multipolygon so as to store its components separately into this object.
-  @return true if error occured, false if no error(successful).
+  @return true if error occurred, false if no error(successful).
  */
 bool BG_geometry_collection::store_geometry(const Geometry *geo,
                                             bool break_multi_geom) {
@@ -5063,7 +5063,7 @@ enum class ConvertUnitResult {
 ///  @param[in] function_name Name of the SQL function to report errors as.
 ///  @param[inout] length The length to convert to another unit.
 ///
-///  @retval kError An error has occured, this could be overflows, unsupported
+///  @retval kError An error has occurred, this could be overflows, unsupported
 /// units, srs without unit (SRID 0), conversion errors.
 ///  @retval kNull The result is sql null, because the to_unit was null.
 ///  @retval kOk Success.

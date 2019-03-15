@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,7 +73,7 @@ public:
     ~Context();
 
     ContextSectionType  type; ///< Section type (e.g. default section,section)
-    char          fname[256]; ///< Section name occuring in init config file
+    char          fname[256]; ///< Section name occurring in init config file
     char          pname[256]; ///< Section name stored in properties object
     Uint32          m_lineno; ///< Current line no in config file
     Uint32   m_sectionLineno; ///< Where did current section start

@@ -4690,7 +4690,7 @@ finish:
 
    @retval false  No error, if lock was obtained TABLE_LIST::mdl_request::ticket
                   is set to non-NULL value.
-   @retval true   Some error occured (probably thread was killed).
+   @retval true   Some error occurred (probably thread was killed).
 */
 
 static bool try_acquire_high_prio_shared_mdl_lock(THD *thd, TABLE_LIST *table,
@@ -4791,7 +4791,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock) {
       TABLE_LIST *dst_table = tables->schema_select_lex->table_list.first;
       if (try_acquire_high_prio_shared_mdl_lock(thd, dst_table, can_deadlock)) {
         /*
-          Some error occured (most probably we have been killed while
+          Some error occurred (most probably we have been killed while
           waiting for conflicting locks to go away), let the caller to
           handle the situation.
         */
@@ -6257,7 +6257,7 @@ bool SELECT_LEX_UNIT::add_fake_select_lex(THD *thd) {
   @retval
     false  if all is OK
   @retval
-    true   if a memory allocation error occured
+    true   if a memory allocation error occurred
 */
 
 bool push_new_name_resolution_context(Parse_context *pc, TABLE_LIST *left_op,

@@ -157,7 +157,7 @@ class CPCD {
      *
      *  @return
      *          - 0 if successful
-                - -1 and sets errno if an error occured
+                - -1 and sets errno if an error occurred
      */
     int writePid(int pid);
 
@@ -340,7 +340,7 @@ class CPCD {
    *          - true if the addition was successful,
    *          - false if not
    *          - RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
   bool defineProcess(RequestStatus *rs, Process *arg);
 
@@ -352,7 +352,7 @@ class CPCD {
    *          - true if the removal was successful,
    *          - false if not
    *          - The RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
   bool undefineProcess(RequestStatus *rs, int id);
 
@@ -366,7 +366,7 @@ class CPCD {
    *          - true if the marking was successful
    *          - false if not
    *          - RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
   bool startProcess(RequestStatus *rs, int id);
 
@@ -376,7 +376,7 @@ class CPCD {
    *          - true if the marking was successful
    *          - false if not
    *          - The RequestStatus will be filled in with a suitable error
-   *            if an error occured.
+   *            if an error occurred.
    */
   bool stopProcess(RequestStatus *rs, int id);
 

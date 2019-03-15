@@ -941,7 +941,7 @@ DELIMITER ;|
 #    reasonable time like 4 seconds. Till ~ 2 seconds could pass on a heavy
 #    loaded testing box before something gets executed).
 #    Detection of execution is via the records inserted by the event.
---echo Sleep till the first INSERT into events_test.event_log occured
+--echo Sleep till the first INSERT into events_test.event_log occurred
 let $wait_timeout= 4;
 let $wait_condition=
 SELECT COUNT(*) > 0 FROM events_test.event_log;

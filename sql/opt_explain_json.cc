@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -387,7 +387,7 @@ class context : public Explain_context {
     @returns
       -1   subquery wasn't found
        0   subqusery were added
-       1   error occured
+       1   error occurred
   */
   virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
                                  SELECT_LEX_UNIT *subquery

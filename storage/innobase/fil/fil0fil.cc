@@ -9852,7 +9852,7 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
 
   /* An undo space might be open but not have the ENCRYPTION bit set
   in its header if the current value of innodb_undo_log_encrypt=OFF
-  and a crash occured between flushing this redo record and the header
+  and a crash occurred between flushing this redo record and the header
   page of the undo space.  So if the flag is missing, ignore the header
   page. */
   if (fsp_is_undo_tablespace(space_id) && space != nullptr &&

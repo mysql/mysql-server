@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -82,7 +82,7 @@
   rnd_next signals that it has reached the end of its data. Also note that
   the table in question was already opened; had it not been open, a call to
   ha_example::open() would also have been necessary. Calls to
-  ha_example::extra() are hints as to what will be occuring to the request.
+  ha_example::extra() are hints as to what will be occurring to the request.
 
   A Longer Example can be found called the "Skeleton Engine" which can be
   found on TangentOrg. It has both an engine and a full build environment

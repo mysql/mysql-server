@@ -131,7 +131,7 @@ class Sdi_wcontext {
   /** Pointer to schema name to use for schema references in SDI */
   const String_type *m_schema_name;
 
-  /** Flag indicating that an error has occured */
+  /** Flag indicating that an error has occurred */
   bool m_error;
 
   friend char *buf_handle(Sdi_wcontext *wctx, size_t sz);
@@ -245,7 +245,7 @@ class Sdi_rcontext {
   /** Sdi version from SDI */
   std::uint64_t m_sdi_version;
 
-  /** Flag indicating that an error has occured */
+  /** Flag indicating that an error has occurred */
   bool m_error;
 
   friend void track_object(Sdi_rcontext *rctx, Column *column_object);

@@ -87,9 +87,9 @@ bool String::real_alloc(size_t length) {
 
    @retval false Either the copy operation is complete or, if the size of the
    new buffer is smaller than the currently allocated buffer (if one exists),
-   no allocation occured.
+   no allocation occurred.
 
-   @retval true An error occured when attempting to allocate memory or memory
+   @retval true An error occurred when attempting to allocate memory or memory
    allocation length exceeded allowed limit (4GB) for String Class.
 */
 bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
@@ -151,9 +151,9 @@ inline size_t String::next_realloc_exp_size(size_t sz) {
 
   @retval false Either the copy operation is complete or, if the size of the
   new buffer is smaller than the currently allocated buffer (if one exists),
-  no allocation occured.
+  no allocation occurred.
 
-  @retval true An error occured when attempting to allocate memory.
+  @retval true An error occurred when attempting to allocate memory.
 
   @see mem_realloc.
  */

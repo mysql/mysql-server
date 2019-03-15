@@ -3,7 +3,7 @@
 --source include/have_debug.inc
 
 --echo # Emulate failure to start the NDB schema transaction
---echo # when creating a table. Note that no NDB error really occured
+--echo # when creating a table. Note that no NDB error really occurred
 --echo # and it's thus normal to have error 0.
 SET SESSION debug="+d,ndb_schema_trans_start_fail";
 --error ER_CANT_CREATE_TABLE

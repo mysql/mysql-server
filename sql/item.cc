@@ -4709,7 +4709,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
   @retval
     0   column fully fixed and fix_fields() should return false
   @retval
-    -1  error occured
+    -1  error occurred
 */
 
 int Item_field::fix_outer_field(THD *thd, Field **from_field,
@@ -6982,7 +6982,7 @@ bool Item_field::send(Protocol *protocol, String *) {
     UPDATE statement.
 
   RETURN
-    0             if error occured
+    0             if error occurred
     ref           if all conditions are met
     this field    otherwise
 */

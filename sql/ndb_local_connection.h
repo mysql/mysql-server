@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class THD;
   The functionality is implemented by concatenating SQL
   queries and executing those using Ed_connection. Should
   the SQL query fail, the exact error message and all
-  warning that occured can be examined in order to handle
+  warning that occurred can be examined in order to handle
   the error in a graceful way.
 
 */

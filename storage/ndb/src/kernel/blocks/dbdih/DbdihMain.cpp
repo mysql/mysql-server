@@ -19188,7 +19188,7 @@ Dbdih::copyTabReq_complete(Signal* signal, TabRecordPtr tabPtr){
 void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId) 
 {
   /**
-   * No need to protect these changes, they are only occuring during
+   * No need to protect these changes, they are only occurring during
    * recovery when DBTC hasn't accessibility to the table yet.
    */
   RWFragment rf;

@@ -6130,7 +6130,7 @@ ER_EVENT_CANNOT_ALTER_IN_THE_PAST
   eng "Event execution time is in the past and ON COMPLETION NOT PRESERVE is set. The event was not changed. Specify a time in the future."
   ger "Execution Zeitpunkt des Ereignisses in der Vergangenheit liegt, und es war NACH ABSCHLUSS Set nicht erhalten. Die Veranstaltung wurde nicht verändert. Geben Sie einen Zeitpunkt in der Zukunft."
 OBSOLETE_ER_SLAVE_INCIDENT
-  eng "The incident %s occured on the master. Message: %s"
+  eng "The incident %s occurred on the master. Message: %s"
   ger "Der Vorfall %s passierte auf dem Master. Meldung: %s"
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
   eng "Table has no partition for some existing values"

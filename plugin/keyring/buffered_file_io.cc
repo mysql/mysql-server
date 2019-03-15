@@ -141,7 +141,7 @@ bool Buffered_file_io::check_file_structure(File file, size_t file_size) {
 
   @return
     @retval false   - file is loaded into buffer, or is empty
-    @retval true    - an error has occured during buffer loading
+    @retval true    - an error has occurred during buffer loading
 */
 bool Buffered_file_io::load_file_into_buffer(File file, Buffer *buffer) {
   // position ourselves at file end, leave on failure

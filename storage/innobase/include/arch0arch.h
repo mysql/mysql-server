@@ -779,7 +779,7 @@ class Arch_File_Ctx {
 #endif
 
   /** Fetch reset lsn of a particular reset point pertaining to a file.
-  @param[in]   block_num       block number where the reset occured.
+  @param[in]   block_num       block number where the reset occurred.
   @return reset lsn */
   lsn_t fetch_reset_lsn(uint64_t block_num);
 

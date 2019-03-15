@@ -109,7 +109,7 @@ class Hash_slave_rows {
      Allocates an empty entry to be added to the hash table.
      It should be called before calling member function @c put.
 
-     @returns NULL if a problem occured, a valid pointer otherwise.
+     @returns NULL if a problem occurred, a valid pointer otherwise.
   */
   HASH_ROW_ENTRY *make_entry();
 
@@ -121,7 +121,7 @@ class Hash_slave_rows {
                      before image begins.
      @param bi_ends  the position to where in the rows buffer the
                      before image ends.
-     @returns NULL if a problem occured, a valid pointer otherwise.
+     @returns NULL if a problem occurred, a valid pointer otherwise.
    */
   HASH_ROW_ENTRY *make_entry(const uchar *bi_start, const uchar *bi_ends);
 

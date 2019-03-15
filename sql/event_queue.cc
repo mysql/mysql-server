@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,7 +161,7 @@ void Event_queue::deinit_queue() {
   @param[out] created  set to true if no error and the element is
                        added to the queue, false otherwise
 
-  @retval true  an error occured. The value of created is undefined,
+  @retval true  an error occurred. The value of created is undefined,
                 the element was not deleted.
   @retval false success
 */

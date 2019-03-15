@@ -496,7 +496,7 @@ bool Acl_table_user_writer::setup_table(int &error, bool &builtin_plugin) {
           my_error(ER_NONEXISTING_GRANT, MYF(0), m_combo->user.str,
                    m_combo->host.str);
           /*
-            Return 1 as an indication that expected error occured during
+            Return 1 as an indication that expected error occurred during
             handling of REVOKE statement for an unknown user.
           */
           error = 1;

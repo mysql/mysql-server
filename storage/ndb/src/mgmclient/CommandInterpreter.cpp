@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -867,7 +867,7 @@ printLogEvent(struct ndb_logevent* event)
             reason_str.appfmt(" (extra info %d)", extra);
         }
         if (sphase < 255)
-          sphase_str.appfmt(" Occured during startphase %u.", sphase);
+          sphase_str.appfmt(" Occurred during startphase %u.", sphase);
         ndbout_c("Node %u: Forced node shutdown completed%s.%s%s",
                  R, action_str.c_str(), sphase_str.c_str(), 
                  reason_str.c_str());

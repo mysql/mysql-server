@@ -130,7 +130,7 @@ class Command_delegate {
     @param resultcs Charset of the result set
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int start_result_metadata(
@@ -147,7 +147,7 @@ class Command_delegate {
     @param charset Field's charset
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int field_metadata(struct st_send_field *field,
@@ -163,7 +163,7 @@ class Command_delegate {
     Indicates end of metadata for the result set
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int end_result_metadata(uint server_status MY_ATTRIBUTE((unused)),
@@ -175,7 +175,7 @@ class Command_delegate {
     Indicates the beginning of a new row in the result set/metadata
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int start_row() { return false; }
@@ -184,20 +184,20 @@ class Command_delegate {
    Indicates the end of the current row in the result set/metadata
 
    @returns
-   true  an error occured, server will abort the command
+   true  an error occurred, server will abort the command
    false ok
   */
   virtual int end_row() { return false; }
 
   /*
-    An error occured during execution
+    An error occurred during execution
 
-    @details This callback indicates that an error occureded during command
+    @details This callback indicates that an error occurreded during command
     execution and the partial row should be dropped. Server will raise error
     and return.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual void abort_row() {}
@@ -214,7 +214,7 @@ class Command_delegate {
     Receive NULL value from server
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_null() { return false; }
@@ -228,7 +228,7 @@ class Command_delegate {
     track the metadata that was sent just prior to the result set.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_integer(longlong value MY_ATTRIBUTE((unused))) {
@@ -242,7 +242,7 @@ class Command_delegate {
     @param unsigned_flag true <=> value is unsigned
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_longlong(longlong value MY_ATTRIBUTE((unused)),
@@ -256,7 +256,7 @@ class Command_delegate {
     @param value Value received
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_decimal(const decimal_t *value MY_ATTRIBUTE((unused))) {
@@ -273,7 +273,7 @@ class Command_delegate {
     track the metadata that was sent just prior to the result set.
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_double(double value MY_ATTRIBUTE((unused)),
@@ -287,7 +287,7 @@ class Command_delegate {
     @param value    Value received
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_date(const MYSQL_TIME *value MY_ATTRIBUTE((unused))) {
@@ -301,7 +301,7 @@ class Command_delegate {
     @param decimals Number of decimals
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_time(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
@@ -316,7 +316,7 @@ class Command_delegate {
     @param decimals Number of decimals
 
     @returns
-    true  an error occured during storing, server will abort the command
+    true  an error occurred during storing, server will abort the command
     false ok
   */
   virtual int get_datetime(const MYSQL_TIME *value MY_ATTRIBUTE((unused)),
@@ -332,7 +332,7 @@ class Command_delegate {
     @param valuecs Value's charset
 
     @returns
-    true  an error occured, server will abort the command
+    true  an error occurred, server will abort the command
     false ok
   */
   virtual int get_string(const char *const value MY_ATTRIBUTE((unused)),

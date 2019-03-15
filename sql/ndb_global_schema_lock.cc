@@ -647,7 +647,7 @@ Thd_ndb::has_required_global_schema_lock(const char* func) const
 {
   if (global_schema_lock_error)
   {
-    // An error occured while locking, either because
+    // An error occurred while locking, either because
     // no connection to cluster or another user has locked
     // the lock -> ok, but caller should not allow to continue
     return false;

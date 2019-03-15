@@ -334,7 +334,7 @@ let $assert_text= Value returned by SSS and PS table for Last_Error_Number shoul
 let $assert_cond= "$sss_value" = "$ps_value";
 --source include/assert.inc
 
-# since conflict has occured remove the entry from the slave
+# since conflict has occurred remove the entry from the slave
 #  and start slave again
 DELETE FROM dbcommon.t101 where a=1729;
 

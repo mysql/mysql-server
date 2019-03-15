@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -311,7 +311,7 @@ static void load_env_plugins(MYSQL *mysql) {
   This function must be called before any other client plugin function.
 
   @retval 0    successful
-  @retval != 0 error occured
+  @retval != 0 error occurred
 */
 int mysql_client_plugin_init() {
   MYSQL mysql;

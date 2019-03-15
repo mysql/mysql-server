@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ private:
 
 //
 //  ERR prints an NdbError object together with a description of where the
-//  error occured
+//  error occurred
 //
 #define NDB_ERR_OUT(where, error) \
   {  where << "ERROR: " << error.code << " " \

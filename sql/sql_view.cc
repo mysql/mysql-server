@@ -309,7 +309,7 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view) {
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
   @retval false Operation was a success.
-  @retval true An error occured.
+  @retval true An error occurred.
 */
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
@@ -420,7 +420,7 @@ err:
   @note This function handles both create and alter view commands.
 
   @retval false Operation was a success.
-  @retval true  An error occured.
+  @retval true  An error occurred.
 */
 
 bool mysql_create_view(THD *thd, TABLE_LIST *views,

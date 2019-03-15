@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ class PluginInfoFrontend final {
    *
    * @returns exit-code
    * @retval EXIT_SUCESS on success
-   * @retval EXIT_FAILURE if an error occured.
+   * @retval EXIT_FAILURE if an error occurred.
    */
   int run();
 

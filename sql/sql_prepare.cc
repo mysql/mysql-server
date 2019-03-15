@@ -1134,7 +1134,7 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
   @note This function handles create view commands.
 
   @retval false Operation was a success.
-  @retval true An error occured.
+  @retval true An error occurred.
 */
 
 static bool mysql_test_create_view(Prepared_statement *stmt) {

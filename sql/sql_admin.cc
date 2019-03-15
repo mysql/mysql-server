@@ -314,7 +314,7 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
          "analyze" or "histogram".
   @param table_name The name of the table that ANALYZE TABLE operated on.
 
-  @retval true An error occured while sending the result set to the client.
+  @retval true An error occurred while sending the result set to the client.
   @retval false The result set was sent to the client.
 */
 static bool send_analyze_table_errors(THD *thd, const char *operator_name,

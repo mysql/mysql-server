@@ -1,4 +1,4 @@
-Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
        in the caller's frame is set in the new context as well.
     4) For each instruction, call its execute() method.
        The result is a pointer to the next instruction to execute (or NULL)
-       if an error occured.
+       if an error occurred.
     5) On success, set the new values of the OUT and INOUT parameters in
        the caller's frame.
 
@@ -874,7 +874,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
           // '*nextp' will be set to the index of the next instruction
           // to execute. (For most instruction this will be the
           // instruction following this one.)
-          // Returns 0 on success, non-zero if some error occured.
+          // Returns 0 on success, non-zero if some error occurred.
           virtual int execute(THD *, uint *nextp)
         }
 

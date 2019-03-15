@@ -8056,7 +8056,7 @@ restart_cluster_failure:
       else if (ndb_latest_applied_binlog_epoch > 0)
       {
         log_warning("cluster has reconnected. "
-                    "Changes to the database that occured while "
+                    "Changes to the database that occurred while "
                     "disconnected will not be in the binlog");
       }
       log_verbose(1,

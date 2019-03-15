@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ error:
 
   RETURN VALUE
     0   Success
-    -1  An error has occured and 'my_errno' is set
+    -1  An error has occurred and 'my_errno' is set
         to indicate the actual error code.
 */
 

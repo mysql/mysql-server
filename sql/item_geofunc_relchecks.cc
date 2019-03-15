@@ -716,7 +716,7 @@ int Item_func_spatial_rel::geocol_equals_check(
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -757,7 +757,7 @@ int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -834,7 +834,7 @@ int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -890,7 +890,7 @@ int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -949,7 +949,7 @@ int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -1057,7 +1057,7 @@ int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -1118,7 +1118,7 @@ int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
   @tparam Geom_types Geometry types definitions.
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
 */
@@ -1173,7 +1173,7 @@ int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
   @param g1 First Geometry operand, not a geometry collection.
   @param g2 Second Geometry operand, not a geometry collection.
   @param relchk_type The type of relation check.
-  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @param[out] pnull_value Returns whether error occurred duirng the computation.
   @return 0 if specified relation doesn't hold for the given operands,
                 otherwise returns none 0.
  */

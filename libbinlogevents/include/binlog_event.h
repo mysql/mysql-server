@@ -26,7 +26,7 @@
 
   @file binlog_event.h
 
-  @brief Contains the classes representing events occuring in the replication
+  @brief Contains the classes representing events occurring in the replication
   stream. Each event is represented as a byte sequence with logical divisions
   as event header, event specific data and event footer. The header and footer
   are common to all the events and are represented as two different subclasses.

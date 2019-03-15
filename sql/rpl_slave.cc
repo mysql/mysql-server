@@ -8757,7 +8757,7 @@ int reset_slave(THD *thd) {
 */
 int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   int thread_mask = 0, error = 0;
-  const char *errmsg = "Unknown error occured while reseting slave";
+  const char *errmsg = "Unknown error occurred while reseting slave";
   DBUG_ENTER("reset_slave");
 
   bool is_default_channel =

@@ -1813,7 +1813,7 @@ int do_restore(RestoreThreadData *thrdata)
 	
 	if (res < 0)
 	{
-	  restoreLogger.log_error(" Restore: An error occured while restoring data. Exiting...");
+	  restoreLogger.log_error(" Restore: An error occurred while restoring data. Exiting...");
 	  return NDBT_FAILED;
 	}
 	if (!dataIter.validateFragmentFooter()) {
@@ -1824,7 +1824,7 @@ int do_restore(RestoreThreadData *thrdata)
       
       if (res < 0)
       {
-	restoreLogger.log_error("Restore: An error occured while restoring data. Exiting... res= %u", res);
+	restoreLogger.log_error("Restore: An error occurred while restoring data. Exiting... res= %u", res);
 	return NDBT_FAILED;
       }
       

@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -627,7 +627,7 @@ class ConfiguratorHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             
         except:
             self.server.logger.exception(rt + ' '+self.path+ ' failed')
-            self.send_error(500,'Unexpected exception occured while processing: '+rt+' '+self.path+'\n'+traceback.format_exc()) # Some other number
+            self.send_error(500,'Unexpected exception occurred while processing: '+rt+' '+self.path+'\n'+traceback.format_exc()) # Some other number
         
     def do_HEAD(self):
         """Handles HEAD requests by returning the headers without the body if file can be stated."""

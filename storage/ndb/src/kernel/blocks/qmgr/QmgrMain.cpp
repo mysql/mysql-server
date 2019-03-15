@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5062,7 +5062,7 @@ void Qmgr::systemErrorLab(Signal* signal, Uint32 line, const char * message)
   // Broadcast that this node is failing to other nodes
   failReport(signal, getOwnNodeId(), (UintR)ZTRUE, FailRep::ZOWN_FAILURE, getOwnNodeId());
 
-  // If it's known why shutdown occured
+  // If it's known why shutdown occurred
   // an error message has been passed to this function
   progError(line, NDBD_EXIT_NDBREQUIRE, message);  
 }//Qmgr::systemErrorLab()

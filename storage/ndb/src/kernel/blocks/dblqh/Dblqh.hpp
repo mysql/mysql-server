@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1668,12 +1668,12 @@ public:
     Uint16 stopMbyte;
    /**
      *       This variable refers to the file where invalidation is
-     *       occuring during system/node restart.
+     *       occurring during system/node restart.
      */
     Uint16 invalidateFileNo;
     /**
      *       This variable refers to the page where invalidation is
-     *       occuring during system/node restart.
+     *       occurring during system/node restart.
      */
     Uint16 invalidatePageNo;
     /**

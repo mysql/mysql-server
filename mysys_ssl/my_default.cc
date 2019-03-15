@@ -509,7 +509,7 @@ err:
 
   RETURN
     0 - ok
-    1 - error occured
+    1 - error occurred
 */
 
 static int handle_default_option(void *in_ctx, const char *group_name,

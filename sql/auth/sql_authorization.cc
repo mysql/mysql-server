@@ -5176,7 +5176,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   @return
     @retval false Success
-    @retval true An error occured. Error message not yet sent.
+    @retval true An error occurred. Error message not yet sent.
 */
 
 bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,

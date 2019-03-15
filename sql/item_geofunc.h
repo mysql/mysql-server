@@ -1001,7 +1001,7 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     @param[out] result Result of the relational operation.
     @param[out] null True if the function should return NULL, false otherwise.
 
-    @retval true An error has occured and has been reported with my_error.
+    @retval true An error has occurred and has been reported with my_error.
     @retval false Success.
   */
   virtual bool eval(const dd::Spatial_reference_system *srs,

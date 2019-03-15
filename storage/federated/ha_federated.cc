@@ -1879,7 +1879,7 @@ void ha_federated::start_bulk_insert(ha_rows rows) {
 
   @return Operation status
   @retval       0       No error
-  @retval       != 0    Error occured at remote server. Also sets my_errno.
+  @retval       != 0    Error occurred at remote server. Also sets my_errno.
 */
 
 int ha_federated::end_bulk_insert() {

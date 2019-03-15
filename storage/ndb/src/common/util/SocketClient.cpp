@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ SocketClient::connect(const char* server_hostname,
                m_connect_timeout_millisec : -1) <= 0)
   {
     // Nothing has happened on the socket after timeout
-    // or an error occured
+    // or an error occurred
     ndb_socket_close(m_sockfd);
     ndb_socket_invalidate(&m_sockfd);
     return m_sockfd;

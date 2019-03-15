@@ -11414,7 +11414,7 @@ int ha_ndbcluster::create(const char *name,
   {
     // Failed to open the newly created table from NDB, since the
     // table is apparently not in NDB it cant be dropped.
-    // However an NDB error must have occured since the table can't
+    // However an NDB error must have occurred since the table can't
     // be opened and as such the NDB error can be returned here
     DBUG_RETURN(create.failed_in_NDB(dict->getNdbError()));
   }

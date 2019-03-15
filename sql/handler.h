@@ -5490,7 +5490,7 @@ class handler {
     In the latter special case SE might require call to
     handlerton::dict_cache_reset() in order to invalidate its internal table
     definition cache after rollback.
-    b) If we have failed to upgrade lock or any errors have occured during
+    b) If we have failed to upgrade lock or any errors have occurred during
     the handler functions calls (including commit), we call
     handler::ha_commit_inplace_alter_table() to rollback all changes which
     were done during previous steps.

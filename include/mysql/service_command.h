@@ -74,7 +74,7 @@ struct st_send_field {
   stringified value or non-string data, which is in character_set_results.
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*start_result_metadata_t)(void *ctx, uint num_cols, uint flags,
@@ -88,7 +88,7 @@ typedef int (*start_result_metadata_t)(void *ctx, uint num_cols, uint flags,
   @param charset Field's charset
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*field_metadata_t)(void *ctx, struct st_send_field *field,
@@ -102,7 +102,7 @@ typedef int (*field_metadata_t)(void *ctx, struct st_send_field *field,
   @param warn_count     Number of warnings generated during execution to the
                           moment when the metadata is sent.
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*end_result_metadata_t)(void *ctx, uint server_status,
@@ -114,7 +114,7 @@ typedef int (*end_result_metadata_t)(void *ctx, uint server_status,
   @param ctx   Plugin's context
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*start_row_t)(void *ctx);
@@ -125,13 +125,13 @@ typedef int (*start_row_t)(void *ctx);
   @param ctx   Plugin's context
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*end_row_t)(void *ctx);
 
 /**
-  An error occured during execution
+  An error occurred during execution
 
   This callback indicates that an error occurred during command
   execution and the partial row should be dropped. Server will raise error
@@ -156,7 +156,7 @@ typedef ulong (*get_client_capabilities_t)(void *ctx);
   @param ctx  Plugin's context
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_null_t)(void *ctx);
@@ -171,7 +171,7 @@ typedef int (*get_null_t)(void *ctx);
   track the metadata that was sent just prior to the result set.
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_integer_t)(void *ctx, longlong value);
@@ -184,7 +184,7 @@ typedef int (*get_integer_t)(void *ctx, longlong value);
   @param is_unsigned   TRUE <=> value is unsigned
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_longlong_t)(void *ctx, longlong value, uint is_unsigned);
@@ -196,7 +196,7 @@ typedef int (*get_longlong_t)(void *ctx, longlong value, uint is_unsigned);
   @param value Value received
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_decimal_t)(void *ctx, const decimal_t *value);
@@ -212,7 +212,7 @@ typedef int (*get_decimal_t)(void *ctx, const decimal_t *value);
   track the metadata that was sent just prior to the result set.
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_double_t)(void *ctx, double value, uint32_t decimals);
@@ -224,7 +224,7 @@ typedef int (*get_double_t)(void *ctx, double value, uint32_t decimals);
   @param value    Value received
 
   @returns
-    1  an error occured during storing, server will abort the command
+    1  an error occurred during storing, server will abort the command
     0  ok
 */
 typedef int (*get_date_t)(void *ctx, const MYSQL_TIME *value);
@@ -237,7 +237,7 @@ typedef int (*get_date_t)(void *ctx, const MYSQL_TIME *value);
   @param decimals Number of decimals
 
   @returns
-    1  an error occured during storing, server will abort the command
+    1  an error occurred during storing, server will abort the command
     0  ok
 */
 typedef int (*get_time_t)(void *ctx, const MYSQL_TIME *value, uint decimals);
@@ -250,7 +250,7 @@ typedef int (*get_time_t)(void *ctx, const MYSQL_TIME *value, uint decimals);
   @param decimals Number of decimals
 
   @returns
-    1  an error occured during storing, server will abort the command
+    1  an error occurred during storing, server will abort the command
     0  ok
 */
 typedef int (*get_datetime_t)(void *ctx, const MYSQL_TIME *value,
@@ -273,7 +273,7 @@ typedef int (*get_datetime_t)(void *ctx, const MYSQL_TIME *value,
   @see start_result_metadata()
 
   @returns
-    1  an error occured, server will abort the command
+    1  an error occurred, server will abort the command
     0  ok
 */
 typedef int (*get_string_t)(void *ctx, const char *value, size_t length,

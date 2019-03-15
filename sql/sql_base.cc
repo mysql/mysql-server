@@ -514,7 +514,7 @@ static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
   if (share->error) {
     /*
       Table definition contained an error.
-      Note that we report ER_NO_SUCH_TABLE regardless of which error occured
+      Note that we report ER_NO_SUCH_TABLE regardless of which error occurred
       when the other thread tried to open the table definition (e.g. OOM).
     */
     my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
@@ -9012,7 +9012,7 @@ bool insert_fields(THD *thd, Name_resolution_context *context,
 
   @return Operation status
     @retval false   OK
-    @retval true    Error occured
+    @retval true    Error occurred
 */
 
 bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
@@ -9367,7 +9367,7 @@ bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
 
   @return Operation status
     @retval false   OK
-    @retval true    Error occured
+    @retval true    Error occurred
 */
 
 bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
@@ -9453,7 +9453,7 @@ err:
 
   RETURN
     false   OK
-    true    error occured
+    true    error occurred
 */
 
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,

@@ -1522,7 +1522,7 @@ a	b
 Osnabrück	Köln
 drop table t1;
 #
-# Bug#15328 Segmentation fault occured if my.cnf is invalid for escape sequence
+# Bug#15328 Segmentation fault occurred if my.cnf is invalid for escape sequence
 #
 --fields-optionally-enclosed-by="
 #

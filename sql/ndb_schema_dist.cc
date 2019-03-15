@@ -121,7 +121,7 @@ bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
 
   // Allow additional keys for rename which will use the "old" name
   // when communicating with participants until the rename is done.
-  // After rename has occured, the new name will be used
+  // After rename has occurred, the new name will be used
   m_prepared_keys.add_key(new_db, new_tabname);
 
   // Schema distribution is ready

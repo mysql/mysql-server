@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,7 +121,7 @@ class TranxNodeAllocator {
     it are in use. A new Block is allocated and is put into the rear of the
     Block link table if no Block is free.
 
-    @return Return a TranxNode *, or NULL if an error occured.
+    @return Return a TranxNode *, or NULL if an error occurred.
    */
   TranxNode *allocate_node() {
     TranxNode *trx_node;
@@ -150,7 +150,7 @@ class TranxNodeAllocator {
   /**
     All nodes are freed.
 
-    @return Return 0, or 1 if an error occured.
+    @return Return 0, or 1 if an error occurred.
    */
   int free_all_nodes() {
     current_block = first_block;
@@ -165,7 +165,7 @@ class TranxNodeAllocator {
 
     @param node All nodes before 'node' will be freed
 
-    @return Return 0, or 1 if an error occured.
+    @return Return 0, or 1 if an error occurred.
    */
   int free_nodes_before(TranxNode *node) {
     Block *block;

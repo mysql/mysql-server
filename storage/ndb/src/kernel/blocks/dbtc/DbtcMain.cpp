@@ -9976,7 +9976,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 }//execSCAN_HBREP()
 
 /*--------------------------------------------------------------------------*/
-/*      Timeout has occured on a fragment which means a scan has timed out. */
+/*      Timeout has occurred on a fragment which means a scan has timed out. */
 /*      If this is true we have an error in LQH/ACC.                        */
 /*--------------------------------------------------------------------------*/
 void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)

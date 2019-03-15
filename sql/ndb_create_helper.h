@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,7 @@ class Ndb_create_helper {
 
   /**
     @brief Check that warning(s) and error code have been reported
-    when failure to create the table occured. This enforces that error
+    when failure to create the table occurred. This enforces that error
     messages conforms to the rules:
       - at least one warning providing the details about what is wrong.
       - an error code and message has been set.

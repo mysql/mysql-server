@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1681,7 +1681,7 @@ int sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup = 1, int force
 Remark:   First send all prepared operations and then check if there are any
           transactions already completed. Wait for not completed
           transactions until the specified number have completed or until the
-          timeout has occured. Timeout zero means no waiting time.
+          timeout has occurred. Timeout zero means no waiting time.
 ******************************************************************************/
 int	
 Ndb::sendPollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup, int forceSend)
@@ -1725,7 +1725,7 @@ int pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup);
 
 Remark:   Check if there are any transactions already completed. Wait for not
           completed transactions until the specified number have completed or
-          until the timeout has occured. Timeout zero means no waiting time.
+          until the timeout has occurred. Timeout zero means no waiting time.
 ******************************************************************************/
 int	
 Ndb::pollNdb(int aMillisecondNumber, int minNoOfEventsToWakeup)

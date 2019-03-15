@@ -639,7 +639,7 @@ class Settable_routine_parameter {
 
     RETURN
       false if parameter value has been set,
-      true if error has occured.
+      true if error has occurred.
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it) = 0;
 

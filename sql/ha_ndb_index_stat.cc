@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2811,7 +2811,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
       break;
     if (st->error_count != snap.error_count)
     {
-      /* A new error has occured */
+      /* A new error has occurred */
       DBUG_ASSERT(st->error_count > snap.error_count);
       err= st->error.code;
       glob.analyze_error++;

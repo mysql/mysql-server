@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class ha_tina : public handler {
   File update_temp_file;
   String buffer;
   /*
-    The chain contains "holes" in the file, occured because of
+    The chain contains "holes" in the file, occurred because of
     deletes/updates. It is used in rnd_end() to get rid of them
     in the end of the query.
   */

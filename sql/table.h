@@ -1193,7 +1193,7 @@ class Blob_mem_storage {
      @param length         string length
 
      @retval Pointer to the copied string.
-     @retval 0 if an error occured.
+     @retval 0 if an error occurred.
   */
   char *store(const char *from, size_t length) {
     return (char *)memdup_root(&storage, from, length);

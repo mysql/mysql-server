@@ -721,7 +721,7 @@ static const TRAN_TYPE_INFO *find_transition_type(my_time_t t,
   TODO
     We can improve this function by creating joined array of transitions and
     leap corrections. This will require adding extra field to TRAN_TYPE_INFO
-    for storing number of "extra" seconds to minute occured due to correction
+    for storing number of "extra" seconds to minute occurred due to correction
     (60th and 61st second, look how we calculate them as "hit" in this
     function).
     Under realistic assumptions about frequency of transitions the same array

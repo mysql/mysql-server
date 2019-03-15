@@ -20074,7 +20074,7 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
         err == SubRemoveRef::AlreadyDropped)
     {
       jam();
-      // conf this since this may occur if a nodefailure has occured
+      // conf this since this may occur if a nodefailure has occurred
       // earlier so that the systable was not cleared
       SubRemoveConf* conf = (SubRemoveConf*) signal->getDataPtrSend();
       conf->senderRef  = reference();

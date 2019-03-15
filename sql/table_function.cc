@@ -725,7 +725,7 @@ void Json_table_column::cleanup() {
 
   @returns
     false table filled
-    true  error occured
+    true  error occurred
 */
 
 bool Table_function_json::fill_json_table() {

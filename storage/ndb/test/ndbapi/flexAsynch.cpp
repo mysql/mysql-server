@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -848,7 +848,7 @@ executeCallback(int result, NdbConnection* transObject, void* aObject)
       /* What can we do here? */
       ndbout_c("execute: %s", transObject->getNdbError().message);
     }//if(retCode == 3)
-    //    ndbout << "Error occured in poll:" << endl;
+    //    ndbout << "Error occurred in poll:" << endl;
     //    ndbout << NdbObject->getNdbError() << endl;
     failed++ ;
   }//if

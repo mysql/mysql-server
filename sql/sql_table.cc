@@ -6842,7 +6842,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
   @param key_count Number of indexes.
 
   @retval false OK.
-  @retval true An error occured and my_error() was called.
+  @retval true An error occurred and my_error() was called.
 */
 
 static bool check_promoted_index(const handler *file,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
  
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ void init_pool_header(allocation_reference *head, int slab_class);
 /* The public API */
 
 /* Attach a new pipeline to an NDB worker thread. 
-   Some initialization has already occured when the main single-thread startup
+   Some initialization has already occurred when the main single-thread startup
    called get_request_pipeline().  But this is the first call into a pipeline
    from its worker thread.  It will initialize the thread's identifier, and 
    attach the pipeline to its scheduler.

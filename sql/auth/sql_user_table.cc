@@ -806,7 +806,7 @@ int replace_db_table(THD *thd, TABLE *table, const char *db,
     if (what == 'N') {  // no row, no revoke
       my_error(ER_NONEXISTING_GRANT, MYF(0), combo.user.str, combo.host.str);
       /*
-        Return 1 as an indication that expected error occured during
+        Return 1 as an indication that expected error occurred during
         handling of REVOKE statement for an unknown user.
       */
       DBUG_RETURN(1);

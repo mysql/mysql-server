@@ -1336,7 +1336,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   for(int a = 0; a<pTab->getNoOfColumns(); a++){
     if (pTab->getColumn(a)->getPrimaryKey() == true){
       if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	// An error has occured, check that 
+	// An error has occurred, check that 
 	// it's possible to get the NdbErrorOperation
 	const NdbError err = pCon->getNdbError();
 	NDB_ERR(err);

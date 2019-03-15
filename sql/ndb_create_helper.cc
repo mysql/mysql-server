@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,7 @@ bool Ndb_create_helper::have_warning() const {
 int Ndb_create_helper::set_create_table_error() const {
   if (thd_sql_command(m_thd) == SQLCOM_ALTER_TABLE ||
       thd_sql_command(m_thd) == SQLCOM_CREATE_INDEX) {
-    // Error occured while creating the destination table for a copying
+    // Error occurred while creating the destination table for a copying
     // alter table, print error message describing the problem
     my_printf_error(ER_CANT_CREATE_TABLE,
                     "Can\'t create destination table for copying alter table",

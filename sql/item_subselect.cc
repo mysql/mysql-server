@@ -2832,7 +2832,7 @@ bool subselect_indexsubquery_engine::scan_table() {
   @param[out] require_scan   true if a NULL value is found that falls
                              into category a) above, false if index
                              lookup can be used.
-  @param[out] convert_error  true if an error occured during conversion
+  @param[out] convert_error  true if an error occurred during conversion
                              of values from one type to another, false
                              otherwise.
 

@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_IS_VALID_H_INCLUDED
 #define SQL_GIS_IS_VALID_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019 Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -42,8 +42,8 @@ namespace gis {
 /// @param[in] func_name Function name used in error reporting.
 /// @param[out] is_valid The validity of the geometry
 ///
-/// @retval false No error occured
-/// @retval true An error has occured, the error has been reported with
+/// @retval false No error occurred
+/// @retval true An error has occurred, the error has been reported with
 /// my_error().
 bool is_valid(const dd::Spatial_reference_system *srs, const Geometry *g,
               const char *func_name, bool *is_valid) noexcept;
