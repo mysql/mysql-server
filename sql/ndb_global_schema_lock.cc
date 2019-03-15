@@ -291,6 +291,7 @@ static
 int
 ndbcluster_global_schema_lock(THD *thd,
                               bool report_cluster_disconnected,
+                              bool is_tablespace,
                               bool *victimized)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
@@ -307,6 +308,9 @@ ndbcluster_global_schema_lock(THD *thd,
 
   if (thd_ndb->global_schema_lock_count)
   {
+    // Remember that GSL was locked for tablespace
+    if (is_tablespace) tablespace_gsl_guard.tablespace_gsl_acquired();
+
     if (thd_ndb->global_schema_lock_trans)
       thd_ndb->global_schema_lock_trans->refresh();
     else
@@ -343,6 +347,9 @@ ndbcluster_global_schema_lock(THD *thd,
     thd_ndb->schema_locks_count++;
     DBUG_PRINT("info", ("schema_locks_count: %d",
                         thd_ndb->schema_locks_count));
+
+    // Remember that GSL was locked for tablespace
+    if (is_tablespace) tablespace_gsl_guard.tablespace_gsl_acquired();
 
     // Sync point used when testing global schema lock concurrency
     DEBUG_SYNC(thd, "ndb_global_schema_lock_acquired");
@@ -383,7 +390,7 @@ ndbcluster_global_schema_lock(THD *thd,
 
 static
 int
-ndbcluster_global_schema_unlock(THD *thd)
+ndbcluster_global_schema_unlock(THD *thd, bool is_tablespace)
 {
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (unlikely(thd_ndb == NULL))
@@ -435,6 +442,10 @@ ndbcluster_global_schema_unlock(THD *thd)
   if (trans)
   {
     thd_ndb->global_schema_lock_trans= NULL;
+
+    // Remember GSL for tablespace released
+    if (is_tablespace) tablespace_gsl_guard.tablespace_gsl_released();
+
     NdbError ndb_error;
     if (!gsl_unlock_ext(ndb, trans, ndb_error))
     {
@@ -453,26 +464,28 @@ ndbcluster_global_schema_unlock(THD *thd)
 
 static
 bool
-notify_mdl_lock(THD *thd, bool lock, bool *victimized)
+notify_mdl_lock(THD *thd, bool lock, bool is_tablespace, bool *victimized)
 {
   DBUG_ENTER("notify_mdl_lock");
 
   if (lock)
   {
-    if (ndbcluster_global_schema_lock(thd, true, victimized) != 0)
-    {
+    if (ndbcluster_global_schema_lock(thd, true, is_tablespace, victimized) !=
+        0) {
       DBUG_PRINT("error", ("Failed to lock global schema lock"));
       DBUG_RETURN(true); // Error
     }
+
     DBUG_RETURN(false); // OK
   }
 
   *victimized= false;
-  if (ndbcluster_global_schema_unlock(thd) != 0)
+  if (ndbcluster_global_schema_unlock(thd, is_tablespace) != 0)
   {
     DBUG_PRINT("error", ("Failed to unlock global schema lock"));
     DBUG_RETURN(true); // Error
   }
+
   DBUG_RETURN(false); // OK
 }
 
@@ -549,8 +562,8 @@ ndbcluster_notify_alter_table(THD *thd,
   bool result;
   do
   {
-    result =
-      notify_mdl_lock(thd, notification == HA_NOTIFY_PRE_EVENT, &victimized);
+    result = notify_mdl_lock(thd, notification == HA_NOTIFY_PRE_EVENT,
+                             false /* is_tablespace */, &victimized);
     if (result && thd_killed(thd)) {
       // Failed to acuire GSL and THD is killed -> give up!
       DBUG_RETURN(true);
@@ -604,9 +617,9 @@ ndbcluster_notify_exclusive_mdl(THD *thd,
   DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
               notification == HA_NOTIFY_POST_EVENT);
 
-  const bool result =
-      notify_mdl_lock(thd,
-                      notification == HA_NOTIFY_PRE_EVENT, victimized);
+  const bool result = notify_mdl_lock(
+      thd, notification == HA_NOTIFY_PRE_EVENT,
+      mdl_key->mdl_namespace() == MDL_key::TABLESPACE, victimized);
   if (result && *victimized == false) {
     /*
       Failed to acquire GSL and not 'victimzed' -> ignore error to lock GSL
@@ -617,17 +630,6 @@ ndbcluster_notify_exclusive_mdl(THD *thd,
       available).
     */
     DBUG_RETURN(false);
-  }
-  if (mdl_key->mdl_namespace() == MDL_key::TABLESPACE && !result)
-  {
-    if (notification == HA_NOTIFY_PRE_EVENT)
-    {
-      tablespace_gsl_guard.tablespace_gsl_acquired();
-    }
-    else
-    {
-      tablespace_gsl_guard.tablespace_gsl_released();
-    }
   }
   DBUG_RETURN(result);
 }
@@ -688,7 +690,7 @@ Ndb_global_schema_lock_guard::Ndb_global_schema_lock_guard(THD *thd)
 Ndb_global_schema_lock_guard::~Ndb_global_schema_lock_guard()
 {
   if (m_locked)
-    ndbcluster_global_schema_unlock(m_thd);
+    ndbcluster_global_schema_unlock(m_thd, false /* is_tablespace */);
 }
 
 /**
@@ -712,7 +714,8 @@ int Ndb_global_schema_lock_guard::lock(void)
   bool ret;
   do
   {
-    ret= ndbcluster_global_schema_lock(m_thd, false, &victimized);
+    ret = ndbcluster_global_schema_lock(m_thd, false, false /* is_tablespace */,
+                                        &victimized);
     if (ret && thd_killed(m_thd)) {
       // Failed to acuire GSL and THD is killed -> give up!
       break; // Terminate loop
