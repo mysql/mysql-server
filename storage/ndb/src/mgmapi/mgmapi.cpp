@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1025,6 +1025,8 @@ status_ackumulate(struct ndb_mgm_node_state * state,
   } else if(strcmp("address", field) == 0){
     strncpy(state->connect_address, value, sizeof(state->connect_address));
     state->connect_address[sizeof(state->connect_address)-1]= 0;
+  } else if(strcmp("is_single_user", field) == 0){
+    state->is_single_user = atoi(value);
   } else {
     ndbout_c("Unknown field: %s", field);
   }

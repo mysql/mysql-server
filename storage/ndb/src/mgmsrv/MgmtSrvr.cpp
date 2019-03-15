@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1077,7 +1077,8 @@ MgmtSrvr::status_api(int nodeId,
                      Uint32& version, Uint32& mysql_version,
                      const char **address,
                      char *addr_buf,
-                     size_t addr_buf_size)
+                     size_t addr_buf_size,
+                     bool& is_single_user)
 {
   assert(getNodeType(nodeId) == NDB_MGM_NODE_TYPE_API);
   assert(version == 0 && mysql_version == 0);
@@ -1087,7 +1088,8 @@ MgmtSrvr::status_api(int nodeId,
                      mysql_version,
                      address,
                      addr_buf,
-                     addr_buf_size) != 0)
+                     addr_buf_size,
+                     is_single_user) != 0)
   {
     // Couldn't get version from any NDB node.
     assert(version == 0);
@@ -1115,7 +1117,8 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
 			 Uint32& mysql_version,
 			 const char **address,
                          char *addr_buf,
-                         size_t addr_buf_size)
+                         size_t addr_buf_size,
+                         bool& is_single_user)
 {
   SignalSender ss(theFacade);
   ss.lock();
@@ -1166,7 +1169,11 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
                               static_cast<void*>(&in),
                               addr_buf,
                               addr_buf_size);
-
+      is_single_user = false;
+      if (signal->getLength() > ApiVersionConf::SignalLengthWithoutSingleUser) {
+        // New nodes will return info about single user
+        is_single_user = conf->isSingleUser;
+      }
       return 0;
     }
 
@@ -2400,7 +2407,8 @@ MgmtSrvr::status_mgmd(NodeId node_id,
                       Uint32& version, Uint32& mysql_version,
                       const char **address,
                       char *addr_buf,
-                      size_t addr_buf_size)
+                      size_t addr_buf_size,
+                      bool& is_single_user)
 {
   assert(getNodeType(node_id) == NDB_MGM_NODE_TYPE_MGM);
 
@@ -2418,7 +2426,8 @@ MgmtSrvr::status_mgmd(NodeId node_id,
                    tmp_mysql_version,
                    address,
                    addr_buf,
-                   addr_buf_size);
+                   addr_buf_size,
+                   is_single_user);
     // Check that the version returned is equal to compiled in version
     assert(tmp_version == 0 ||
            (tmp_version == NDB_VERSION &&
@@ -2488,7 +2497,8 @@ MgmtSrvr::status(int nodeId,
 		 Uint32 * connectCount,
 		 const char **address,
                  char *addr_buf,
-                 size_t addr_buf_size)
+                 size_t addr_buf_size,
+                 bool* is_single_user)
 {
   switch(getNodeType(nodeId)){
   case NDB_MGM_NODE_TYPE_API:
@@ -2498,7 +2508,8 @@ MgmtSrvr::status(int nodeId,
                *mysql_version,
                address,
                addr_buf,
-               addr_buf_size);
+               addr_buf_size,
+               *is_single_user);
     return 0;
     break;
 
@@ -2509,7 +2520,8 @@ MgmtSrvr::status(int nodeId,
                 *mysql_version,
                 address,
                 addr_buf,
-                addr_buf_size);
+                addr_buf_size,
+                *is_single_user);
     return 0;
     break;
 
