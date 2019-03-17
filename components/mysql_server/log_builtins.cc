@@ -1449,7 +1449,8 @@ static int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)),
     // Buffering very first event; set up initial time-out ...
     log_buffering_timeout =
         now + (LOG_BUFFERING_TIMEOUT_AFTER * LOG_BUFFERING_TIME_SCALE);
-  else if (now > log_buffering_timeout) {
+
+  if (now > log_buffering_timeout || ll == nullptr) {
     // We timed out. Flush, and set up new, possibly shorter subsequent timeout.
 
     /*
