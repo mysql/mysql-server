@@ -567,7 +567,8 @@ bool add_sdi_info(THD *thd) {
   if (Upgrade_status().update(Upgrade_status::enum_stage::SDI_INFO_UPDATED))
     return true;
 
-  LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_DD_POPULATED);
+  LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_DD_POPULATED);
+  log_sink_buffer_check_timeout();
 
   return false;
 }  // add_sdi_info
@@ -884,7 +885,8 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
       If mysql.idb does not exist and updgrade stage tracking file
       does not exist, we are in upgrade mode.
     */
-    LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE_START);
+    LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_START);
+    log_sink_buffer_check_timeout();
   }
 
   /*
