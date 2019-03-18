@@ -43,7 +43,6 @@
 
 #define JAM_FILE_ID 423
 
-
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ----------------------- TRIGGER HANDLING ----------------------- */
@@ -1794,7 +1793,7 @@ out:
                  signal, FireTrigOrd::SignalLength, JBB);
     }
     break;
-  case (TriggerType::SUBSCRIPTION_BEFORE): // Only Suma
+  case (TriggerType::SUBSCRIPTION_BEFORE):
     jam();
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
