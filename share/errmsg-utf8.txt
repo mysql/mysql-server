@@ -11907,7 +11907,7 @@ ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR
   eng "Failed to find valid data directory."
 
 ER_DD_UPGRADE_START
-  eng "Starting upgrade on data directory."
+  eng "Starting upgrade of data directory."
 
 ER_DD_UPGRADE_FAILED_INIT_DD_SE
   eng "Failed to initialize DD Storage Engine."
@@ -19024,7 +19024,7 @@ ER_SERVER_UPGRADE_FAILED
   eng "Failed to upgrade server."
 
 ER_SERVER_UPGRADE_STATUS
-  eng "Server upgrade from %d to %d has %s."
+  eng "Server upgrade from '%d' to '%d' %s."
 
 ER_SERVER_UPGRADE_REPAIR_REQUIRED
   eng "Table '%s' requires repair."
@@ -19118,6 +19118,9 @@ ER_IB_MSG_TOO_LONG_PATH
 
 ER_IB_RECV_FIRST_REC_GROUP_INVALID
   eng "The last block of redo had corrupted first_rec_group and became fixed (%u -> %u)."
+
+ER_DD_UPGRADE_COMPLETED
+  eng "Data dictionary upgrade from version '%u' to '%u' completed."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.
