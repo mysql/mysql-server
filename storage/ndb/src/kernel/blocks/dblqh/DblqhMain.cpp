@@ -7875,6 +7875,33 @@ void Dblqh::tupkeyConfLab(Signal* signal,
   return;
 }//Dblqh::tupkeyConfLab()
 
+void Dblqh::sendBatchedLqhkeyreq(Signal* signal, Uint32 lqhRef, Uint32 siglen, SectionHandle* handle)
+{
+  jam();
+  const Uint32 version = getNodeInfo(refToNode(lqhRef)).m_version;
+  if (ndbd_frag_lqhkeyreq(version))
+  {
+    jam();
+    sendBatchedFragmentedSignal(lqhRef,
+                                GSN_LQHKEYREQ,
+                                signal,
+                                siglen,
+                                JBB,
+                                handle,
+                                false);
+  }
+  else
+  {
+    jam();
+    sendSignal(lqhRef,
+               GSN_LQHKEYREQ,
+               signal,
+               siglen,
+               JBB,
+               handle);
+  }
+}
+
 /* --------------------------------------------------------------------------
  *     THE CODE IS FOUND IN THE SIGNAL RECEPTION PART OF LQH                 
  * -------------------------------------------------------------------------- */
@@ -8538,10 +8565,7 @@ void Dblqh::packLqhkeyreqLab(Signal* signal,
       ndbassert(regTcPtr->attrInfoIVal == RNIL);
     }
 
-    sendSignal(lqhRef, GSN_LQHKEYREQ, signal,
-               LqhKeyReq::FixedSignalLength + nextPos,
-               JBB,
-               &handle);
+    sendBatchedLqhkeyreq(signal, lqhRef, LqhKeyReq::FixedSignalLength + nextPos, &handle);
     
     /* Long sections were freed as part of sendSignal */
     ndbassert( handle.m_cnt == 0);

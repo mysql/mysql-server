@@ -2723,6 +2723,10 @@ private:
   void sendLqhkeyconfTc(Signal* signal,
                         BlockReference atcBlockref,
                         TcConnectionrecPtr);
+  void sendBatchedLqhkeyreq(Signal* signal,
+                            Uint32 lqhRef,
+                            Uint32 siglen,
+                            SectionHandle* handle);
   void sendCommitLqh(Signal* signal,
                      BlockReference alqhBlockref,
                      const TcConnectionrec*);

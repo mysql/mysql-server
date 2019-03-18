@@ -4802,9 +4802,24 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
       handle.m_ptr[ LqhKeyReq::AttrInfoSectionNum ]= attrInfoSection;
       handle.m_cnt= 2;
     }
-    sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
-               nextPos + LqhKeyReq::FixedSignalLength, JBB, 
-               &handle);
+    if (ndbd_frag_lqhkeyreq(version))
+    {
+      jamDebug();
+      sendBatchedFragmentedSignal(TBRef,
+                                  GSN_LQHKEYREQ,
+                                  signal,
+                                  LqhKeyReq::FixedSignalLength + nextPos,
+                                  JBB,
+                                  &handle,
+                                  false);
+     }
+    else
+    {
+      jamDebug();
+      sendSignal(TBRef, GSN_LQHKEYREQ, signal,
+                 nextPos + LqhKeyReq::FixedSignalLength, JBB,
+                 &handle);
+    }
 
     /* Long sections were freed as part of sendSignal */
     ndbassert( handle.m_cnt == 0 );
@@ -15222,10 +15237,10 @@ bool Dbtc::sendScanFragReq(Signal* signal,
      * signal receiver can still take realtime breaks when 
      * receiving.
      * 
-     * Indicate to sendFirstFragment that we want to keep the
-     * fragments, so it must not free them, unless this is the
-     * last request in which case they can be freed.  If the
-     * last request is a local send then a copy is avoided.
+     * Indicate to sendBatchedFragmentedSignal that we want to
+     * keep the fragments, so it must not free them, unless this
+     * is the last request in which case they can be freed.  If
+     * the last request is a local send then a copy is avoided.
      */
     sendBatchedFragmentedSignal(NodeReceiverGroup(scanFragP.p->lqhBlockref),
                                 GSN_SCAN_FRAGREQ,
