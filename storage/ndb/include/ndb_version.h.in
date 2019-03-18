@@ -1162,4 +1162,19 @@ ndbd_frag_sub_table_data(Uint32 x)
   return x >= NDBD_FRAG_SUB_TABLE_DATA;
 }
 
+/**
+ * Fragmented FIRE_TRIG_ORD signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_FIRE_TRIG_ORD NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_fire_trig_ord(Uint32 x)
+{
+  return x >= NDBD_FRAG_FIRE_TRIG_ORD;
+}
+
 #endif
