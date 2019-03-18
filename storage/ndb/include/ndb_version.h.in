@@ -1177,4 +1177,19 @@ ndbd_frag_fire_trig_ord(Uint32 x)
   return x >= NDBD_FRAG_FIRE_TRIG_ORD;
 }
 
+/**
+ * Fragmented LQHKEYREQ signal.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_LQHKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_lqhkeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_LQHKEYREQ;
+}
+
 #endif
