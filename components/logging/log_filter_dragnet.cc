@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1663,7 +1663,7 @@ mysql_service_status_t log_filter_exit() {
 mysql_service_status_t log_filter_init() {
   const char *state = nullptr;
   char *var_value;
-  size_t var_len = 0;
+  size_t var_len = LOG_FILTER_DUMP_BUFF_SIZE;
   int rr = -1;
 
   if (inited) return true; /* purecov: inspected */

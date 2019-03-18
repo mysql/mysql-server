@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -57,8 +57,10 @@ class mysql_component_sys_variable_imp {
     Get the component system variable value from the global structure.
     @param component_name Name of the component
     @param var_name Name of the variable
-    @param [out] val Value of the variable
-    @param [out] out_length_of_val length of the output buffer
+    @param[in,out] val On input: a buffer to hold the value. On output a pointer
+    to the value.
+    @param[in,out] out_length_of_val On input: size of longest string that the
+    buffer can contain. On output the length of the copied string.
     @return Status of performed operation
     @retval false success
     @retval true failure

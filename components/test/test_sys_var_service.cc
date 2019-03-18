@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_macros.h"
 #include "typelib.h"
 
+#define VARIABLE_BUFFER_SIZE 1023
 #define MAX_BUFFER_LENGTH 100
 int log_text_len = 0;
 char log_text[MAX_BUFFER_LENGTH];
@@ -83,7 +84,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
 
   WRITE_LOG("%s\n", "test_component_sys_var init:");
 
-  var_value = new char[1024];
+  var_value = new char[VARIABLE_BUFFER_SIZE + 1];
 
   INTEGRAL_CHECK_ARG(int) int_arg;
   int_arg.def_val = 8;
@@ -195,6 +196,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("%s\n", "register_variable failed.");
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "int_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -202,6 +204,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "uint_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -209,6 +212,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "long_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -216,6 +220,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "ulong_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -223,6 +228,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "longlong_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -230,6 +236,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "ulonglong_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -237,6 +244,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "bool_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -244,6 +252,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "enum_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
@@ -251,6 +260,7 @@ static mysql_service_status_t test_component_sys_var_service_init() {
     WRITE_LOG("variable value : %s\n", var_value);
   }
 
+  len = VARIABLE_BUFFER_SIZE;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component", "str_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");
