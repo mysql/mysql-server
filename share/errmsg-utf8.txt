@@ -19147,6 +19147,9 @@ ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
 ER_WARN_DEPRECATED_FOUND_ROWS
   eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
 
+ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
+  eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

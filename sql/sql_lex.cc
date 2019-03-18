@@ -118,7 +118,8 @@ const int
         ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN,
         ER_BINLOG_UNSAFE_SKIP_LOCKED,
         ER_BINLOG_UNSAFE_NOWAIT,
-        ER_BINLOG_UNSAFE_XA};
+        ER_BINLOG_UNSAFE_XA,
+        ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT};
 
 /*
   Names of the index hints (for error messages). Keep in sync with

@@ -2742,4 +2742,20 @@ DROP TABLE replace_table;
 DROP TABLE create_ignore_test;
 DROP TABLE create_replace_test;
 DROP TABLE insert_2_keys;
+#
+# Bug#28297486: WL#9418: ERROR AND WARNING RELATED ISSUES
+#
+CREATE TABLE t(d DOUBLE DEFAULT (RAND()));
+CREATE FUNCTION f() RETURNS INT
+BEGIN
+INSERT INTO t VALUES ();
+RETURN 123;
+END|
+SELECT f();
+f()
+123
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
+DROP FUNCTION f;
+DROP TABLE t;
 "End of tests"

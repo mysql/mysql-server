@@ -2772,6 +2772,13 @@ class Query_tables_list {
     */
     BINLOG_STMT_UNSAFE_XA,
 
+    /**
+      If a substatement inserts into or updates a table that has a column with
+      an unsafe DEFAULT expression, it may not have the same effect on the
+      slave.
+    */
+    BINLOG_STMT_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT,
+
     /* the last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };

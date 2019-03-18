@@ -9548,6 +9548,34 @@ static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables) {
   return 0;
 }
 
+/**
+  Checks if a table has a column with a non-deterministic DEFAULT expression.
+*/
+static bool has_nondeterministic_default(const TABLE *table) {
+  return std::any_of(
+      table->field, table->field + table->s->fields, [](const Field *field) {
+        return field->m_default_val_expr != nullptr &&
+               field->m_default_val_expr->get_stmt_unsafe_flags() != 0;
+      });
+}
+
+/**
+  Checks if a TABLE_LIST contains a table that has been opened for writing, and
+  that has a column with a non-deterministic DEFAULT expression.
+*/
+static bool has_write_table_with_nondeterministic_default(
+    const TABLE_LIST *tables) {
+  for (const TABLE_LIST *table = tables; table != nullptr;
+       table = table->next_global) {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
+        has_nondeterministic_default(table->table))
+      return true;
+  }
+  return false;
+}
+
 /*
   Function to check whether the table in query uses a fulltext parser
   plugin or not.
@@ -9811,6 +9839,18 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
       if (lex->requires_prelocking() &&
           has_write_table_with_auto_increment(lex->first_not_own_table()))
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
+
+      /*
+        A query that modifies a table with a non-deterministic column default
+        expression in a substatement, can make the master and the slave
+        inconsistent. Switch to row logging in mixed mode, and raise a warning
+        in statement mode.
+      */
+      if (lex->requires_prelocking() &&
+          has_write_table_with_nondeterministic_default(
+              lex->first_not_own_table()))
+        lex->set_stmt_unsafe(
+            LEX::BINLOG_STMT_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT);
     }
 
     /*
