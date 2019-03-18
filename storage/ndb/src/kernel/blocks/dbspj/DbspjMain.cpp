@@ -848,6 +848,12 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
 void Dbspj::execLQHKEYREQ(Signal* signal)
 {
   jamEntry();
+  if (unlikely(!assembleFragments(signal)))
+  {
+    jam();
+    return;
+  }
+
   c_Counters.incr_counter(CI_READS_RECEIVED, 1);
 
   if (ERROR_INSERTED(17014))

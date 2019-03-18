@@ -5333,6 +5333,11 @@ static inline Uint32 getProgramWordCount(SegmentedSectionPtr attrInfo)
 /* ------------------------------------------------------------------------- */
 void Dblqh::execLQHKEYREQ(Signal* signal) 
 {
+  if (unlikely(!assembleFragments(signal)))
+  {
+    jam();
+    return;
+  }
   UintR sig0, sig1, sig2, sig3, sig4, sig5;
   Uint8 tfragDistKey;
 
