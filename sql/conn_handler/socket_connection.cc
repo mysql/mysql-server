@@ -1019,15 +1019,14 @@ static inline void wait_for_admin_thread_started() {
   Listen to admin interface and accept incoming connection on it.
   This function is run in a separate thread.
 
-  @param admin_socket  pointer to a socket for listening to admin interface
-  @param network_namespace_for_listening_socket  network namespace associated
-                                                 with the socket
   @return operation result. false on success, true on error
 */
 static bool handle_admin_socket(
+    /// pointer to a socket for listening to admin interface
     MYSQL_SOCKET admin_socket
 #ifdef HAVE_SETNS
     ,
+    /// network namespace associated with the socket
     const std::string &network_namespace_for_listening_socket
 #endif
 ) {
