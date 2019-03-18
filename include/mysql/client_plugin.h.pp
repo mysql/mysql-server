@@ -17,7 +17,7 @@ enum net_async_status {
   NET_ASYNC_COMPLETE = 0,
   NET_ASYNC_NOT_READY,
   NET_ASYNC_ERROR,
-  NET_ASYNC_COMPLETE_WITH_MORE_RESULTS
+  NET_ASYNC_COMPLETE_NO_MORE_RESULTS
 };
 typedef struct MYSQL_PLUGIN_VIO {
   int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio, unsigned char **buf);

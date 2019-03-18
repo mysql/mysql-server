@@ -4553,7 +4553,7 @@ int STDCALL mysql_next_result(MYSQL *mysql) {
                                                          yet completed, call
                                                          this API again
   @retval       NET_ASYNC_COMPLETE                       finished reading result
-  @retval       NET_ASYNC_COMPLETE_WITH_MORE_RESULTS     status to indicate if
+  @retval       NET_ASYNC_COMPLETE_NO_MORE_RESULTS       status to indicate if
                                                          more results exist
 */
 net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql) {
@@ -4573,7 +4573,7 @@ net_async_status STDCALL mysql_next_result_nonblocking(MYSQL *mysql) {
     MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
   }
 
-  DBUG_RETURN(NET_ASYNC_COMPLETE_WITH_MORE_RESULTS); /* No more results */
+  DBUG_RETURN(NET_ASYNC_COMPLETE_NO_MORE_RESULTS); /* No more results */
 }
 
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt) {
