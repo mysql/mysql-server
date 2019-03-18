@@ -1192,4 +1192,19 @@ ndbd_frag_lqhkeyreq(Uint32 x)
   return x >= NDBD_FRAG_LQHKEYREQ;
 }
 
+/**
+ * Fragmented TCKEYREQ and TCINDXREQ signals.
+ * Introduced with wl#11160 for supporting 30'000 bytes rows.
+ */
+
+#define NDBD_FRAG_TCKEYREQ NDB_MAKE_VERSION(8,0,18)
+
+static
+inline
+int
+ndbd_frag_tckeyreq(Uint32 x)
+{
+  return x >= NDBD_FRAG_TCKEYREQ;
+}
+
 #endif
