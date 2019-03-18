@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -1977,12 +1977,6 @@ Command::Result Command::cmd_noquery(std::istream &input,
   return Result::Continue;
 }
 
-bool Command::put_variable_to(std::string *result, const std::string &value) {
-  *result = value;
-
-  return true;
-}
-
 void Command::try_result(Result result) {
   if (result != Result::Continue) throw result;
 }
@@ -2018,14 +2012,20 @@ Command::Result Command::cmd_wait_for(std::istream &input,
           &context->m_options.m_show_query_result, false);
       Backup_and_restore<std::string> backup_and_restore_command_name(
           &context->m_command_name, "sql");
+      bool has_row = false;
 
       try_result(cmd_stmtsql(input, context, vargs[1]));
-      try_result(cmd_recvresult(
-          input, context, "",
-          std::bind(&Command::put_variable_to, &value, std::placeholders::_1)));
+      try_result(
+          cmd_recvresult(input, context, "",
+                         [&value, &has_row](const std::string &result_value) {
+                           value = result_value;
+                           has_row = true;
+                           return true;
+                         }));
+
       try_result(cmd_sleep(input, context, "1"));
 
-      match = (value == expected_value);
+      match = has_row && (value == expected_value);
     } while (!match && --countdown_retries);
   } catch (const Result result) {
     context->print_error(

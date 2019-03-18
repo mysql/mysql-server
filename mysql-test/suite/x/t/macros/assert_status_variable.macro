@@ -3,9 +3,11 @@
 # * Assert_received_notices
 
 -->macro Wait_for_status_variable  %VARIABLE_NAME%  %EXPECTED_VALUE%
+quiet;
 -->echo Verify [Status variable "%VARIABLE_NAME%" needs to have a value of %EXPECTED_VALUE%]
 wait_for %EXPECTED_VALUE%
-	SELECT VARIABLE_VALUE=%EXPECTED_VALUE% FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE '%VARIABLE_NAME%';
+	SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE '%VARIABLE_NAME%';
+noquiet;
 -->endmacro
 
 

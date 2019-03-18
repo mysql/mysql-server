@@ -3,6 +3,9 @@
 # This file contains following restart-oriented macros:
 #
 # * Kill_and_restart_mysqld - SESSION_NAME MTR_EXPECT_FILE
+# * Wait_for_others_are_idle - NONE
+# * kill_client - %CLIENT_ID_TO_KILL%
+# * kill_client_expect_error - %CLIENT_ID_TO_KILL% %ERROR_CODE%
 #
 
 ## Restart server macros
@@ -19,4 +22,38 @@ shutdown_server 0;
 
 #Wait for the server restart
 reconnect;
+-->endmacro
+
+
+# Wait for all other sql-session to be idle
+# only the current session (that check the state) can be active
+#
+# This macro can be used before killing other mysqlx session
+# to get stable status variable output.
+#
+-->macro Wait_for_others_are_idle
+-->echo WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+wait_for 1
+	select count(*) from information_schema.PROCESSLIST where COMMAND!='Daemon' and COMMAND!='Sleep';
+-->endmacro
+
+
+-->macro kill_client	%CLIENT_ID_TO_KILL%
+quiet;
+callmacro Wait_for_others_are_idle;
+
+echo RUN [stmtadmin kill_client %CLIENT_ID_TO_KILL%];
+-->stmtadmin kill_client	{"id": %CLIENT_ID_TO_KILL% }
+-->recvresult
+noquiet;
+-->endmacro
+
+
+-->macro kill_client_expect_error	%CLIENT_ID_TO_KILL%	%ERROR_CODE%
+quiet;
+echo RUN [stmtadmin kill_client %CLIENT_ID_TO_KILL%];
+-->stmtadmin kill_client	{"id": %CLIENT_ID_TO_KILL% }
+-->expecterror %ERROR_CODE%
+-->recvresult
+noquiet;
 -->endmacro

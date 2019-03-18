@@ -30,132 +30,60 @@ sleep(1)
 0
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
 1	x_root	localhost	$SESSION
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 create and activate new session
 connecting...
 active session is now 'aux'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 2	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 switch back to default session
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 2	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	2
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 2]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 1	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	3
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 3]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 create and activate new session abc
 expect only abc user session id
 connecting...
 active session is now 'abc'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 3	abc	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 killing x_root user session with unprivileged user 'abc' which should be unsuccessful
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+RUN [stmtadmin kill_client 1]
 Got expected error: You are not owner of thread (code 1095)
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with session abc where list_clients and kill_client executed once
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 RUN select user(),current_user()
 user()	current_user()
 abc@localhost	abc@localhost
@@ -167,48 +95,22 @@ GRANT USAGE ON *.* TO `abc`@`localhost`
 open another session of abc user and kill first session of abc user,which should be successful
 connecting...
 active session is now 'abc1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 3	abc	localhost
 4	abc	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 3
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 3]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 client_id	user	host	
 4	abc	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with new session abc where list_clients executed twice and kill_client executed once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	2
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 RUN select user(),current_user()
 user()	current_user()
 abc@localhost	abc@localhost
@@ -234,27 +136,16 @@ send Mysqlx.Sql.StmtExecute {
 Server disconnected
 closing session abc1
 switched to session default
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 switch back to default session
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	4
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 4]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 RUN select user(),current_user()
 user()	current_user()
 x_root@localhost	x_root@localhost
@@ -267,35 +158,13 @@ GRANT APPLICATION_PASSWORD_ADMIN,BACKUP_ADMIN,BINLOG_ADMIN,BINLOG_ENCRYPTION_ADM
 open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 connecting...
 active session is now 'process'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+RUN [stmtadmin kill_client 1]
 Got expected error: You are not owner of thread (code 1095)
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 checking list of clients after x_root user session killed by xplugin user
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 command ok
@@ -316,42 +185,17 @@ GRANT PROCESS ON *.* TO `process`@`localhost`
 open privileged user seession and kill x_root user session,expect success
 connecting...
 active session is now 'xplugin'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 1	x_root	localhost
 5	process	localhost
 6	xplugin	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 1]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 checking list of clients after x_root user session killed by xplugin user
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 6	xplugin	localhost
@@ -380,31 +224,12 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 7	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect error while killing client with data type other than usinged int
 try killing xprotocol session with valid sql_session id once xprotocol connetion opened with kill_client,expect error
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+RUN [stmtadmin kill_client 11]
 Got expected error: Unknown MySQLx client id 11 (code 1094)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -540,11 +365,9 @@ send Mysqlx.Sql.StmtExecute {
 
 Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with x_root user even though kill_client returns errors
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	11
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 11]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -560,29 +383,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 8
-    }
-  }
-  namespace: "xplugin"
-}
-
-Got expected error:
-Mysqlx.Error {
-  severity: ERROR
-  code: 1820
-  msg: "You must reset your password using ALTER USER statement before executing this statement."
-  sql_state: "HY000"
-}
-
-expect error for status var executed with password expired user
-RUN show status like 'Mysqlx_stmt%client%'
-While executing show status like 'Mysqlx_stmt%client%':
+RUN [stmtadmin kill_client 8]
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"
@@ -610,20 +411,11 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error:
-Mysqlx.Error {
-  severity: ERROR
-  code: 1094
-  msg: "Unknown MySQLx client id 998"
-  sql_state: "HY000"
-}
-
+Got expected error: Unknown MySQLx client id 998 (code 1094)
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with x_root user when these commads executed with mixed case
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -783,16 +575,9 @@ RUN create user xconnection50@localhost identified by  'xconnection50'
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
 10	x_root	localhost	$SESSION
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
@@ -900,23 +685,11 @@ connecting...
 active session is now 'xconnection49'
 connecting...
 active session is now 'xconnection50'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 60	xconnection50	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 switched to session default
 list all connected clients
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 10	x_root	localhost
 11	xconnection1	localhost
@@ -971,751 +744,223 @@ client_id	user	host
 60	xconnection50	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	2
-0 rows affected
-RUN show status like 'Mysqlx_sessions%'
-
-Variable_name	Value
-Mysqlx_sessions	51
-Mysqlx_sessions_accepted	60
-Mysqlx_sessions_closed	9
-Mysqlx_sessions_fatal_error	0
-Mysqlx_sessions_killed	4
-Mysqlx_sessions_rejected	0
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 51]
 killing all newly connected clients except x_root,one by one
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 11
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 11]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 12
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 12]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 13
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 13]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 14
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 14]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 15
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 15]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 16
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 16]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 17
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 17]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 18
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 18]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 19
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 19]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 20
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 20]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 21
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 21]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 22
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 22]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 23
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 23]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 24
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 24]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 25
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 25]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 26
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 26]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 27
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 27]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 28
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 28]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 29
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 29]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 30
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 30]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 31
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 31]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 32
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 32]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 33
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 33]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 34
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 34]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 35
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 35]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 36
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 36]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 37
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 37]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 38
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 38]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 39
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 39]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 40
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 40]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 41
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 41]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 42
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 42]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 43
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 43]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 44
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 44]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 45
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 45]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 46
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 46]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 47
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 47]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 48
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 48]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 49
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 49]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 50
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 50]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 51
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 51]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 52
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 52]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 53
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 53]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 54
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 54]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 55
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 55]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 56
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 56]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 57
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 57]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 58
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 58]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 59
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 59]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 60
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 60]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 10	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=49
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	50
-Mysqlx_stmt_list_clients	3
-0 rows affected
-RUN show status like 'Mysqlx_sessions%'
-
-Variable_name	Value
-Mysqlx_sessions	1
-Mysqlx_sessions_accepted	60
-Mysqlx_sessions_closed	59
-Mysqlx_sessions_fatal_error	0
-Mysqlx_sessions_killed	54
-Mysqlx_sessions_rejected	0
-0 rows affected
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=50
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 50]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 3]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions_accepted" needs to have a value of 60]
+Verify [Status variable "Mysqlx_sessions_closed" needs to have a value of 59]
+Verify [Status variable "Mysqlx_sessions_fatal_error" needs to have a value of 0]
+Verify [Status variable "Mysqlx_sessions_killed" needs to have a value of 54]
+Verify [Status variable "Mysqlx_sessions_rejected" needs to have a value of 0]
 RUN drop user xconnection1@localhost
 
 0 rows affected
@@ -1922,11 +1167,9 @@ send Mysqlx.Sql.StmtExecute {
 expect Mysqlx.Sql.StmtExecuteOk
 Got expected error: Unknown namespace invalid (code 5162)
 expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0 as these are not executed on right namespace
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	0
-0 rows affected
+in main, line 62:ERROR: Undefined macro Assert_status_variable
+in main, line 63:ERROR: Undefined macro Assert_status_variable
+in main, line 64:ERROR: Undefined macro Assert_status_variable
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -1942,100 +1185,45 @@ RUN set @@global.mysqlx_max_connections=3
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 62	sslcon	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 create and activate new session con1
 connecting...
 active session is now 'con1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 63	con1	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	0
-0 rows affected
+expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 0]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 3]
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 62	sslcon	localhost
 63	con1	localhost
 64	con2	localhost
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 63
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 63]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 64
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 64]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 62	sslcon	localhost
 command ok
@@ -2046,11 +1234,9 @@ RUN drop user con1@localhost
 RUN drop user con2@localhost
 
 0 rows affected
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	2
-Mysqlx_stmt_list_clients	3
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 2]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 3]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -2066,83 +1252,34 @@ RUN set @@global.mysqlx_max_connections=3
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 65	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1      con1    con1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 65	x_root	localhost
 66	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2      con2    con2'
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 65	x_root	localhost
 66	x_root	localhost
 67	x_root	localhost
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 66
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 66]
 
 command ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 67
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 67]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 65	x_root	localhost
 command ok
@@ -2198,172 +1335,79 @@ RUN alter user expire@localhost password expire
 
 0 rows affected
 Test data
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 create and activate new session
 connecting...
 active session is now 'aux'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	x_root	localhost
 2	x_root	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 switch back to default session
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect error
 client_id	user	host	
 1	x_root	localhost
 2	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	0
-Mysqlx_stmt_list_clients	2
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 2
-    }
-  }
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 0]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 2]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 1	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	3
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 3]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 create and activate new session abc
 expect only abc user session id
 connecting...
 active session is now 'abc'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 3	abc	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 killing x_root user session with unprivileged user 'abc' which should be unsuccessful
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+RUN [stmtadmin kill_client 1]
 Got expected error: You are not owner of thread (code 1095)
 expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	1
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 1]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 open another session of abc user and kill first session of abc user,which should be successful
 connecting...
 active session is now 'abc1'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 3	abc	localhost
 4	abc	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 3
-    }
-  }
-  namespace: "xplugin"
-}
-
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 3]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 client_id	user	host	
 4	abc	localhost
 command ok
 expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	2
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 killing abc user session with its own session 'abc' which should be successful
 expect right error instead of End of File
 send Mysqlx.Sql.StmtExecute {
@@ -2382,115 +1426,53 @@ switch back to default session
 Server disconnected
 closing session abc1
 switched to session default
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 client_id	user	host	
 1	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	4
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 4]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 1]
 open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 connecting...
 active session is now 'process'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+RUN [stmtadmin kill_client 1]
 Got expected error: You are not owner of thread (code 1095)
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 checking list of clients after x_root user session killed by xplugin user
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 command ok
 expect ERROR: SELECT command denied to user 'process'@'localhost' for table 'session_status' (code 1142) for show command
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	2
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 open privileged user seession and kill x_root user session,expect success
 connecting...
 active session is now 'xplugin'
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 1	x_root	localhost
 5	process	localhost
 6	xplugin	localhost
 command ok
-Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-send Mysqlx.Sql.StmtExecute {
-  stmt: "kill_client"
-  args {
-    type: SCALAR
-    scalar {
-      type: V_UINT
-      v_unsigned_int: 1
-    }
-  }
-  namespace: "xplugin"
-}
-
-expect Mysqlx.Sql.StmtExecuteOk
+WAIT [count(*) information_schema.PROCESSLIST == 1 - only current process can be active]
+RUN [stmtadmin kill_client 1]
 
 command ok
-RUN select sleep(0.5)
-sleep(0.5)
-0
-0 rows affected
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 checking list of clients after x_root user session killed by xplugin user
-send Mysqlx.Sql.StmtExecute {
-  stmt: "list_clients"
-  namespace: "xplugin"
-}
-
 client_id	user	host	
 5	process	localhost
 6	xplugin	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
-RUN show status like 'Mysqlx_stmt%client%'
-Variable_name	Value
-Mysqlx_stmt_kill_client	1
-Mysqlx_stmt_list_clients	2
-0 rows affected
+Verify [Status variable "Mysqlx_stmt_kill_client" needs to have a value of 1]
+Verify [Status variable "Mysqlx_stmt_list_clients" needs to have a value of 2]
+Verify [Status variable "Mysqlx_sessions" needs to have a value of 2]
 Cleanup
 RUN drop schema if exists xtest
 
