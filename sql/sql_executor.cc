@@ -2415,7 +2415,8 @@ void JOIN::create_iterators() {
       bool all_order_fields_used;
       ORDER *order = create_order_from_distinct(
           thd, ref_items[qep_tab->ref_item_slice], this->order, fields_list,
-          /*skip_aggregates=*/false, &all_order_fields_used);
+          /*skip_aggregates=*/false, /*convert_bit_fields_to_long=*/false,
+          &all_order_fields_used);
       if (order == nullptr) {
         // Only const fields.
         iterator.reset(new (thd->mem_root) LimitOffsetIterator(

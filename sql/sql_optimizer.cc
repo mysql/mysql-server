@@ -1225,6 +1225,7 @@ bool JOIN::optimize_distinct_group_order() {
     bool all_order_fields_used;
     if ((o = create_order_from_distinct(thd, ref_items[REF_SLICE_ACTIVE], order,
                                         fields_list, /*skip_aggregates=*/true,
+                                        /*convert_bit_fields_to_long=*/true,
                                         &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group =
@@ -9921,6 +9922,7 @@ static bool find_field_in_item_list(Field *field, void *data) {
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
                                   ORDER *order_list, List<Item> &fields,
                                   bool skip_aggregates,
+                                  bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used) {
   List_iterator<Item> li(fields);
   Item *item;
@@ -9957,7 +9959,7 @@ ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
       if (!ord) return 0;
 
       if (item->type() == Item::FIELD_ITEM &&
-          item->data_type() == MYSQL_TYPE_BIT) {
+          item->data_type() == MYSQL_TYPE_BIT && convert_bit_fields_to_long) {
         /*
           Because HEAP tables can't index BIT fields we need to use an
           additional hidden field for grouping because later it will be

@@ -970,3 +970,14 @@ SELECT DISTINCT COUNT(*) AS num FROM t1 GROUP BY f HAVING num=1;
 
 DROP TABLE t1;
 SET @@sort_buffer_size = @old_sort_buffer_size;
+
+--echo #
+--echo # Bug #29486219: RECENT REGRESSION: CRASH IN FILESORT::MAKE_SORTORDER()
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER NOT NULL,
+  b BIT(62) NOT NULL
+);
+SELECT DISTINCT b FROM t1 GROUP BY a, b;
+DROP TABLE t1;

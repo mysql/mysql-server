@@ -1181,6 +1181,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 ORDER *create_order_from_distinct(THD *thd, Ref_item_array ref_item_array,
                                   ORDER *order_list, List<Item> &fields,
                                   bool skip_aggregates,
+                                  bool convert_bit_fields_to_long,
                                   bool *all_order_by_fields_used);
 
 /**
