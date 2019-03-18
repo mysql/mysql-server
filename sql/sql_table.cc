@@ -7800,21 +7800,23 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field,
     data, which is 16384 _characters_ of utf8mb4 data).
   */
   if ((sql_field->flags & BLOB_FLAG) &&
-      (sql_field->explicit_display_width() || convert_character_set)) {
-    if (sql_field->sql_type == FIELD_TYPE_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
-        sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB) {
-      if (sql_field->explicit_display_width()) {
-        sql_field->sql_type =
-            get_blob_type_from_length(sql_field->max_display_width_in_bytes());
-      } else if (convert_character_set) {
-        const size_t max_codepoints_old_field =
-            sql_field->field->char_length() /
-            sql_field->field->charset()->mbmaxlen;
-        const size_t max_bytes_new_field =
-            max_codepoints_old_field * sql_field->charset->mbmaxlen;
-        sql_field->sql_type = get_blob_type_from_length(max_bytes_new_field);
-      }
+      (sql_field->sql_type == FIELD_TYPE_BLOB ||
+       sql_field->sql_type == FIELD_TYPE_TINY_BLOB ||
+       sql_field->sql_type == FIELD_TYPE_MEDIUM_BLOB)) {
+    if (sql_field->explicit_display_width()) {
+      sql_field->sql_type =
+          get_blob_type_from_length(sql_field->max_display_width_in_bytes());
+    } else if (convert_character_set && sql_field->field != nullptr) {
+      // If sql_field->field == nullptr, it means that we are doing a "CONVERT
+      // TO CHARACTER SET" _and_ adding a new column in the same statement.
+      // The new column will have the new correct character set, so we don't
+      // need to do anything for that column here.
+      const size_t max_codepoints_old_field =
+          sql_field->field->char_length() /
+          sql_field->field->charset()->mbmaxlen;
+      const size_t max_bytes_new_field =
+          max_codepoints_old_field * sql_field->charset->mbmaxlen;
+      sql_field->sql_type = get_blob_type_from_length(max_bytes_new_field);
     }
   }
 
