@@ -1417,6 +1417,58 @@ Dbtup::getOldTriggerId(const TupTriggerData* trigPtrP,
   return RNIL;
 }
 
+void
+Dbtup::sendBatchedFIRE_TRIG_ORD(Signal* signal, Uint32 ref, Uint32 siglen, SectionHandle* handle)
+{
+  jam();
+  const Uint32 version = getNodeInfo(refToNode(ref)).m_version;
+  if (ndbd_frag_fire_trig_ord(version))
+  {
+    jam();
+    sendBatchedFragmentedSignal(ref,
+                                GSN_FIRE_TRIG_ORD,
+                                signal,
+                                siglen,
+                                JBB,
+                                handle,
+                                false);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref,
+               GSN_FIRE_TRIG_ORD,
+               signal,
+               siglen,
+               JBB,
+               handle);
+  }
+}
+
+void
+Dbtup::sendBatchedFIRE_TRIG_ORD(Signal* signal, Uint32 ref, Uint32 siglen, LinearSectionPtr ptr[], Uint32 nptr)
+{
+  const Uint32 version = getNodeInfo(refToNode(ref)).m_version;
+  if (ndbd_frag_fire_trig_ord(version))
+  {
+    jam();
+    sendBatchedFragmentedSignal(ref,
+                                GSN_FIRE_TRIG_ORD,
+                                signal,
+                                siglen,
+                                JBB,
+                                ptr,
+                                nptr);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref, GSN_FIRE_TRIG_ORD,
+               signal, siglen, JBB, ptr, nptr);
+  }
+}
+
+
 #define ZOUT_OF_LONG_SIGNAL_MEMORY_IN_TRIGGER 312
 
 void Dbtup::executeTrigger(KeyReqStruct *req_struct,
@@ -1780,18 +1832,7 @@ out:
     fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
     fireTrigOrd->m_transId2 = req_struct->trans_id2;
-    if (longsignal)
-    {
-      jam();
-      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalLength, JBB, &handle);
-    }
-    else
-    {
-      jam();
-      sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalLength, JBB);
-    }
+    sendBatchedFIRE_TRIG_ORD(signal, req_struct->TC_ref, FireTrigOrd::SignalLength, &handle);
     break;
   case (TriggerType::SUBSCRIPTION_BEFORE):
     jam();
@@ -1828,8 +1869,7 @@ out:
       else
       {
         jam();
-        sendSignal(ref, GSN_FIRE_TRIG_ORD,
-                   signal, FireTrigOrd::SignalLengthSuma, JBB, ptr, 3);
+        sendBatchedFIRE_TRIG_ORD(signal, ref, FireTrigOrd::SignalLengthSuma, ptr, 3);
       }
     }
     break;
@@ -1851,7 +1891,7 @@ out:
     else
     {
       jam();
-      // Todo send onlu before/after depending on BACKUP REDO/UNDO
+      // Todo send only before/after depending on BACKUP REDO/UNDO
       ndbassert(longsignal);
       LinearSectionPtr ptr[3];
       ptr[0].p = keyBuffer;
@@ -1860,8 +1900,7 @@ out:
       ptr[1].sz = noBeforeWords;
       ptr[2].p = afterBuffer;
       ptr[2].sz = noAfterWords;
-      sendSignal(ref, GSN_FIRE_TRIG_ORD,
-                 signal, FireTrigOrd::SignalWithGCILength, JBB, ptr, 3);
+      sendBatchedFIRE_TRIG_ORD(signal, ref, FireTrigOrd::SignalWithGCILength, ptr, 3);
     }
     break;
   default:
