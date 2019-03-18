@@ -893,6 +893,8 @@ bool upgrade_system_schemas(THD *thd) {
 
   LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
          MYSQL_VERSION_ID, "started");
+  log_sink_buffer_check_timeout();
+
   bootstrap_error_handler.set_log_error(false);
   bool err =
       fix_mysql_tables(thd) || check_and_fix_sys_schema(thd) ||
@@ -912,6 +914,7 @@ bool upgrade_system_schemas(THD *thd) {
   if (!err)
     LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
            MYSQL_VERSION_ID, "completed");
+  log_sink_buffer_check_timeout();
 
   /*
    * During server startup, dd::reset_tables_and_tablespaces is called, which

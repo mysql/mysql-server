@@ -945,6 +945,11 @@ bool upgrade_tables(THD *thd) {
       update_versions(thd, false))
     return true;
 
+  LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_COMPLETED,
+         bootstrap::DD_bootstrap_ctx::instance().get_actual_dd_version(),
+         dd::DD_VERSION);
+  log_sink_buffer_check_timeout();
+
   /*
     Flush tables, reset the shared dictionary cache and the storage adapter.
     Start over DD bootstrap from the beginning.

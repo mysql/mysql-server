@@ -1191,8 +1191,10 @@ bool initialize_dd_properties(THD *thd) {
       If none of the above, then this must be DD upgrade or server
       upgrade, or both.
     */
-    if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade())
-      LogErr(INFORMATION_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
+    if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade()) {
+      LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
+      log_sink_buffer_check_timeout();
+    }
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
       // This condition is hit only if upgrade has been skipped before
       if (opt_upgrade_mode == UPGRADE_NONE) {
