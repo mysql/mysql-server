@@ -4957,6 +4957,13 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   DBUG_ENTER("Suma::execFIRE_TRIG_ORD");
   
   CRASH_INSERTION(13016);
+
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
   const Uint32 gci_hi    = trg->getGCI();

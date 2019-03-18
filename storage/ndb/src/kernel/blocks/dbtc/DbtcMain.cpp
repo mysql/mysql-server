@@ -18152,6 +18152,12 @@ Dbtc::execDROP_FK_IMPL_REQ(Signal* signal)
 void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
+
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
   FireTrigOrd * const fireOrd =  (FireTrigOrd *)signal->getDataPtr();
   SectionHandle handle(this, signal);
   const bool longsignal = handle.m_cnt > 0;

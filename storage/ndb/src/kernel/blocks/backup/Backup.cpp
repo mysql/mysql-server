@@ -10373,6 +10373,13 @@ void
 Backup::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
+
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   FireTrigOrd* trg = (FireTrigOrd*)signal->getDataPtr();
 
   const Uint32 gci = trg->getGCI();
