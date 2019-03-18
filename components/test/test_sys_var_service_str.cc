@@ -75,17 +75,46 @@ static mysql_service_status_t test_component_sys_var_service_str_init() {
   }
 
   {
-    char var[160];
+    char var1[160];
     char *pvar;
-    size_t len = sizeof(var) - 1;
+    size_t len = sizeof(var1) - 1;
 
-    pvar = &var[0];
+    pvar = &var1[0];
     if (mysql_service_component_sys_variable_register->get_variable(
             "mysql_server", "character_set_server", (void **)&pvar, &len)) {
       WRITE_LOG("%s\n",
                 "get_variable mysql_server.character_set_server failed.");
     } else {
-      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, var);
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
+    }
+
+    /* Use too small buffer, value is 7 bytes long (utf8mb4). */
+    char var2[7];
+    len = sizeof(var2) - 1;
+    pvar = &var2[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG(
+          "get_variable mysql_server.character_set_server failed. "
+          "The variable requires buffer %i bytes long.\n",
+          (int)len);
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
+    }
+
+    /* Use smallest buffer that can hold the value, value is 7 bytes long
+     * (utf8mb4). */
+    char var3[8];
+    len = sizeof(var3) - 1;
+    pvar = &var3[0];
+    if (mysql_service_component_sys_variable_register->get_variable(
+            "mysql_server", "character_set_server", (void **)&pvar, &len)) {
+      WRITE_LOG(
+          "get_variable mysql_server.character_set_server failed. \n"
+          "The variable requires buffer %i bytes long.\n",
+          (int)len);
+    } else {
+      WRITE_LOG2("character_set_server=[%.*s]\n", (int)len, pvar);
     }
   }
   {
@@ -121,6 +150,7 @@ static mysql_service_status_t test_component_sys_var_service_str_deinit() {
 
   var_value = new char[1024];
 
+  len = 1024;
   if (mysql_service_component_sys_variable_register->get_variable(
           "test_component_str", "str_sys_var", (void **)&var_value, &len)) {
     WRITE_LOG("%s\n", "get_variable failed.");

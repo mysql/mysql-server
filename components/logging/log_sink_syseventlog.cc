@@ -470,7 +470,7 @@ static void sysvar_update_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static int sysvar_install_tag(void) {
   char *var_value;
   char *new_value;
-  size_t var_len = 0;
+  size_t var_len = MAX_TAG_LEN;
   int rr = -1;
 
   if ((var_value = new char[MAX_TAG_LEN + 1]) == nullptr) return -1;
@@ -602,7 +602,7 @@ static void sysvar_update_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 static int sysvar_install_fac(void) {
   char *var_value;
   char *new_value;
-  size_t var_len = 0;
+  size_t var_len = MAX_FAC_LEN;
   int rr = -1;
 
   if ((var_value = new char[MAX_FAC_LEN + 1]) == nullptr) return -1;
