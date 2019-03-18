@@ -170,6 +170,7 @@ public:
   typedef Ptr<Subscriber> SubscriberPtr;
   typedef ArrayPool<Subscriber> Subscriber_pool;
   typedef DLList<Subscriber_pool> Subscriber_list;
+  typedef ConstLocalDLList<Subscriber_pool> ConstLocal_Subscriber_list;
   typedef LocalDLList<Subscriber_pool> Local_Subscriber_list;
 
   struct Table;
@@ -454,6 +455,10 @@ public:
                                  Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
+  void sendBatchedSUB_TABLE_DATA(Signal* signal,
+                                 Subscriber_list::Head subscriber,
+                                 LinearSectionPtr ptr[],
+                                 Uint32 nptr);
   void send_fragmented_SUB_TABLE_DATA_callback(Signal* signal,
                                                Uint32 inflight_index,
                                                Uint32 returnCode);

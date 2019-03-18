@@ -4883,6 +4883,46 @@ Suma::execFIRE_TRIG_ORD_L(Signal* signal)
 }
 
 void
+Suma::sendBatchedSUB_TABLE_DATA(Signal* signal,
+                                const Subscriber_list::Head subscribers,
+                                LinearSectionPtr lsptr[],
+                                Uint32 nptr)
+{
+  jam();
+  SubTableData * data = (SubTableData*)signal->getDataPtrSend();
+  ConstLocal_Subscriber_list list(c_subscriberPool, subscribers);
+  SubscriberPtr subbPtr;
+  for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
+  {
+    jam();
+    data->senderData = subbPtr.p->m_senderData;
+    const Uint32 version = getNodeInfo(refToNode(subbPtr.p->m_senderRef)).m_version;
+    if (ndbd_frag_sub_table_data(version))
+    {
+      jam();
+      sendBatchedFragmentedSignal(subbPtr.p->m_senderRef,
+                                  GSN_SUB_TABLE_DATA,
+                                  signal,
+                                  SubTableData::SignalLengthWithTransId,
+                                  JBB,
+                                  lsptr,
+                                  nptr);
+    }
+    else
+    {
+      jam();
+      sendSignal(subbPtr.p->m_senderRef,
+                 GSN_SUB_TABLE_DATA,
+                 signal,
+                 SubTableData::SignalLengthWithTransId,
+                 JBB,
+                 lsptr,
+                 nptr);
+    }
+  }
+}
+
+void
 Suma::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
@@ -4973,16 +5013,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->transId1       = transId1;
     data->transId2       = transId2;
     
-    {
-      Local_Subscriber_list list(c_subscriberPool, subPtr.p->m_subscribers);
-      SubscriberPtr subbPtr;
-      for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
-      {
-	data->senderData = subbPtr.p->m_senderData;
-	sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-		   SubTableData::SignalLengthWithTransId, JBB, ptr, nptr);
-      }
-    }
+    sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, ptr, nptr);
   }
   else 
   {
@@ -7411,18 +7442,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
         data->transId1       = transId1;
         data->transId2       = transId2;
 	
-	{
-          Local_Subscriber_list list(c_subscriberPool,
-                                       subPtr.p->m_subscribers);
-          SubscriberPtr subbPtr;
-          for(list.first(subbPtr); !subbPtr.isNull(); list.next(subbPtr))
-          {
-            jam();
-            data->senderData = subbPtr.p->m_senderData;
-            sendSignal(subbPtr.p->m_senderRef, GSN_SUB_TABLE_DATA, signal,
-                       SubTableData::SignalLengthWithTransId, JBB, lsptr, nptr);
-          }
-        }
+        sendBatchedSUB_TABLE_DATA(signal, subPtr.p->m_subscribers, lsptr, nptr);
       }
     }
   }
