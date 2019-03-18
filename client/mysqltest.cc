@@ -972,7 +972,7 @@ static int async_mysql_next_result_wrapper(MYSQL *mysql) {
   }
   if (status == NET_ASYNC_ERROR)
     return 1;
-  else if (status == NET_ASYNC_COMPLETE_WITH_MORE_RESULTS)
+  else if (status == NET_ASYNC_COMPLETE_NO_MORE_RESULTS)
     return -1;
   else
     return 0;
