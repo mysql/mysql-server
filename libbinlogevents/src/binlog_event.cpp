@@ -63,7 +63,8 @@ enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(
     Event_reader &reader) {
   enum_binlog_checksum_alg alg =
       get_checksum_alg(reader.buffer(), reader.length());
-  reader.shrink_limit(BINLOG_CHECKSUM_ALG_DESC_LEN);
+  if (alg != binary_log::BINLOG_CHECKSUM_ALG_UNDEF)
+    reader.shrink_limit(BINLOG_CHECKSUM_LEN);
   return alg;
 }
 
