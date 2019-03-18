@@ -4996,8 +4996,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 
     static_assert(1 + Buffer_page::GCI_SZ32 + buffer_header_sz + SUMA_BUF_SZ
                     <= Buffer_page::DATA_WORDS, "");
-    if (likely((dst1 = get_buffer_ptr(signal, bucket, gci, sz1)) &&
-              (dst2 = get_buffer_ptr(signal, bucket, gci, sz2))))
+    if (likely((dst1 = get_buffer_ptr(signal, bucket, gci, sz1, 1)) &&
+               (dst2 = get_buffer_ptr(signal, bucket, gci, sz2, 2))))
     {
       jam();
       dst1[0] = subPtr.i;
@@ -5554,7 +5554,7 @@ Suma::sendSUB_GCP_COMPLETE_REP(Signal* signal)
     if (subscribers || (c_buckets[i].m_state & Bucket::BUCKET_RESEND))
     {
       //Uint32* dst;
-      get_buffer_ptr(signal, i, gci, 0);
+      get_buffer_ptr(signal, i, gci, 0, 0);
     }
   }
 
@@ -6774,8 +6774,9 @@ operator<<(NdbOut & out, const Suma::Page_pos & pos)
 #endif
 
 Uint32*
-Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
+Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz, Uint32 part)
 {
+  jam();
   sz += 1; // len
   Bucket* bucket= c_buckets+buck;
   Page_pos pos= bucket->m_buffer_head;
@@ -6785,6 +6786,7 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
   
   if (likely(pos.m_page_id != RNIL))
   {
+    jam();
     page= c_page_pool.getPtr(pos.m_page_id);
     ptr= page->m_data + pos.m_page_pos;
   }
@@ -6800,7 +6802,9 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
     jam();
     pos.m_max_gci = max;
     bucket->m_buffer_head = pos;
-    *ptr = Buffer_page::SAME_GCI_FLAG | sz;
+    *ptr = Buffer_page::SAME_GCI_FLAG |
+           (part << Buffer_page::PART_NUM_SHIFT) |
+           sz;
     ptr++;
     return ptr;
   }
@@ -6811,7 +6815,8 @@ loop:
     pos.m_max_gci = max;
     pos.m_page_pos += Buffer_page::GCI_SZ32;
     bucket->m_buffer_head = pos;
-    * ptr++ = (sz + Buffer_page::GCI_SZ32);
+    * ptr++ = (part << Buffer_page::PART_NUM_SHIFT) |
+              (sz + Buffer_page::GCI_SZ32);
     * ptr++ = (Uint32)(gci >> 32);
     * ptr++ = (Uint32)(gci & 0xFFFFFFFF);
     return ptr;
@@ -7214,6 +7219,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   {
     Uint32 *src = nullptr;
     Uint32 sz;
+    Uint32 part = 0;
     while (ptr < end)
     {
       jam();
@@ -7227,6 +7233,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       ndbrequire(sz > 0);
       sz--; // remove *len* part of sz
 
+      part = (tmp >> Buffer_page::PART_NUM_SHIFT) & Buffer_page::PART_NUM_MASK;
       if ((tmp & Buffer_page::SAME_GCI_FLAG) == 0)
       {
         jam();
@@ -7260,6 +7267,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     else if(sz == 0)
     {
       jam();
+      ndbrequire(part == 0);
+
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
       Uint32 siglen = SubGcpCompleteRep::SignalLength;
 
@@ -7300,6 +7309,8 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
     else
     {
       jam();
+      ndbrequire(part == 1);
+
       const uint buffer_header_sz = 6;
       g_cnt++;
       Uint32 subPtrI = src[0];
@@ -7347,6 +7358,9 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
           jam();
           ptr = src2 + sz2;
         }
+
+        part = (tmp2 >> Buffer_page::PART_NUM_SHIFT) & Buffer_page::PART_NUM_MASK;
+        ndbrequire(part == 2);
 
         if ((tmp2 & Buffer_page::SAME_GCI_FLAG) == 0)
         {

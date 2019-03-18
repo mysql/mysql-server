@@ -680,6 +680,8 @@ private:
     static constexpr Uint32 GCI_SZ32 = 2;
     static constexpr Uint32 SAME_GCI_FLAG = 0x80000000;
     static constexpr Uint32 SIZE_MASK = 0x0000FFFF;
+    static constexpr Uint32 PART_NUM_SHIFT = 28;
+    static constexpr Uint32 PART_NUM_MASK = 7;
 
     Uint32 _tupdata1;
     Uint32 _tupdata2;
@@ -706,7 +708,7 @@ private:
   Bucket_mask m_switchover_buckets;  
   
   void init_buffers();
-  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz);
+  Uint32* get_buffer_ptr(Signal*, Uint32 buck, Uint64 gci, Uint32 sz, Uint32 part);
   Uint32 seize_page();
   void free_page(Uint32 page_id, Buffer_page* page);
   void out_of_buffer(Signal*);
