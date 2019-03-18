@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -660,6 +660,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
     new_thd = 1;
+    alloc_and_copy_thd_dynamic_variables(thd, !plugin_options);
   }
   /*
    locking is not needed as this function is executed only during server

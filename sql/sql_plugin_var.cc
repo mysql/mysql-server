@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -610,7 +610,10 @@ void sys_var_pluginvar::saved_value_to_string(THD *, set_var *var,
         longlong10_to_str(var->save_result.ulonglong_value, def_val, 10);
         return;
       case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
-        strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        if (((thdvar_str_t *)plugin_var)->def_val != NULL)
+          strcpy(def_val, ((thdvar_str_t *)plugin_var)->def_val);
+        else /* no default: consider empty */
+          def_val[0] = 0;
         return;
       case PLUGIN_VAR_DOUBLE | PLUGIN_VAR_THDLOCAL:
         var->save_result.double_value =
