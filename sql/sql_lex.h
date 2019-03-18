@@ -2571,7 +2571,9 @@ class Query_tables_list {
   */
   enum enum_lock_tables_state { LTS_NOT_LOCKED = 0, LTS_LOCKED };
   enum_lock_tables_state lock_tables_state;
-  bool is_query_tables_locked() { return (lock_tables_state == LTS_LOCKED); }
+  bool is_query_tables_locked() const {
+    return (lock_tables_state == LTS_LOCKED);
+  }
 
   /**
     Number of tables which were open by open_tables() and to be locked

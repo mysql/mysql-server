@@ -1915,7 +1915,8 @@ String *Item_func_soundex::val_str(String *str) {
      loop on input letters until end of input
   */
   for (nchars = 1;;) {
-    if ((rc = cs->cset->mb_wc(cs, &wc, (uchar *)from, (uchar *)end)) <= 0)
+    if ((rc = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(from),
+                              pointer_cast<const uchar *>(end))) <= 0)
       break; /* EOL or invalid byte sequence */
 
     if (rc == 1 && cs->ctype) {
@@ -2922,16 +2923,17 @@ bool Item_func_set_collation::resolve_type(THD *) {
 
 bool Item_func_set_collation::eq(const Item *item, bool binary_cmp) const {
   /* Assume we don't have rtti */
-  if (this == item) return 1;
-  if (item->type() != FUNC_ITEM) return 0;
-  Item_func *item_func = (Item_func *)item;
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
+  const Item_func *item_func = down_cast<const Item_func *>(item);
   if (arg_count != item_func->arg_count || functype() != item_func->functype())
-    return 0;
-  Item_func_set_collation *item_func_sc = (Item_func_set_collation *)item;
-  if (collation.collation != item_func_sc->collation.collation) return 0;
+    return false;
+  const Item_func_set_collation *item_func_sc =
+      down_cast<const Item_func_set_collation *>(item);
+  if (collation.collation != item_func_sc->collation.collation) return false;
   for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func_sc->args[i], binary_cmp)) return 0;
-  return 1;
+    if (!args[i]->eq(item_func_sc->args[i], binary_cmp)) return false;
+  return true;
 }
 
 void Item_func_set_collation::print(const THD *thd, String *str,
@@ -3017,17 +3019,21 @@ bool Item_func_weight_string::resolve_type(THD *) {
 }
 
 bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return 1;
-  if (item->type() != FUNC_ITEM ||
-      functype() != ((Item_func *)item)->functype() ||
-      strcmp(func_name(), ((Item_func *)item)->func_name()) != 0)
-    return 0;
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
 
-  Item_func_weight_string *wstr = (Item_func_weight_string *)item;
-  if (num_codepoints != wstr->num_codepoints || flags != wstr->flags) return 0;
+  const Item_func *func_item = down_cast<const Item_func *>(item);
+  if (functype() != func_item->functype() ||
+      strcmp(func_name(), func_item->func_name()) != 0)
+    return false;
 
-  if (!args[0]->eq(wstr->args[0], binary_cmp)) return 0;
-  return 1;
+  const Item_func_weight_string *wstr =
+      down_cast<const Item_func_weight_string *>(item);
+  if (num_codepoints != wstr->num_codepoints || flags != wstr->flags)
+    return false;
+
+  if (!args[0]->eq(wstr->args[0], binary_cmp)) return false;
+  return true;
 }
 
 /* Return a weight_string according to collation */
@@ -3212,17 +3218,20 @@ err:
 #endif
 
 bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return 1;
-  if (item->type() != FUNC_ITEM ||
-      functype() != ((Item_func *)item)->functype() ||
-      strcmp(func_name(), ((Item_func *)item)->func_name()))
-    return 0;
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
 
-  Item_char_typecast *cast = (Item_char_typecast *)item;
-  if (cast_length != cast->cast_length || cast_cs != cast->cast_cs) return 0;
+  const Item_func *func_item = down_cast<const Item_func *>(item);
+  if (functype() != func_item->functype() ||
+      strcmp(func_name(), func_item->func_name()))
+    return false;
 
-  if (!args[0]->eq(cast->args[0], binary_cmp)) return 0;
-  return 1;
+  const Item_char_typecast *cast = down_cast<const Item_char_typecast *>(item);
+  if (cast_length != cast->cast_length || cast_cs != cast->cast_cs)
+    return false;
+
+  if (!args[0]->eq(cast->args[0], binary_cmp)) return false;
+  return true;
 }
 
 void Item_char_typecast::print(const THD *thd, String *str,
@@ -3600,7 +3609,8 @@ String *Item_func_quote::val_str(String *str) {
     for (start = arg->ptr(), end = start + arg_length; start < end;) {
       my_wc_t wc;
       bool escape;
-      if ((mblen = cs->cset->mb_wc(cs, &wc, (uchar *)start, (uchar *)end)) <= 0)
+      if ((mblen = cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(start),
+                                   pointer_cast<const uchar *>(end))) <= 0)
         goto null;
       start += mblen;
       switch (wc) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,8 @@ const LEX_CSTRING sys_qb_prefix = {"select#", 7};
 
 static int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                           const CHARSET_INFO *cs) {
-  return cs->coll->strnncollsp(cs, (uchar *)s->str, s->length, (uchar *)t->str,
+  return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(s->str),
+                               s->length, pointer_cast<const uchar *>(t->str),
                                t->length);
 }
 

@@ -94,9 +94,9 @@ bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-  LEX_STRING names = {C_STRING_WITH_LEN("names")};
+  LEX_CSTRING names = {STRING_WITH_LEN("names")};
 
-  if (pctx && pctx->find_variable(names, false))
+  if (pctx && pctx->find_variable(names.str, names.length, false))
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), names.str);
   else
     error(pc, pos);
@@ -243,7 +243,7 @@ bool PT_internal_variable_name_1d::contextualize(Parse_context *pc) {
   value.base_name = ident;
 
   /* Best effort lookup for system variable. */
-  if (!pctx || !(spv = pctx->find_variable(ident, false))) {
+  if (!pctx || !(spv = pctx->find_variable(ident.str, ident.length, false))) {
     /* Not an SP local variable */
     if (find_sys_var_null_base(thd, &value)) return true;
   } else {
@@ -373,7 +373,8 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
     /* We're parsing SP and this is an SP-variable. */
 
     sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-    sp_variable *spv = pctx->find_variable(name->value.base_name, false);
+    sp_variable *spv = pctx->find_variable(name->value.base_name.str,
+                                           name->value.base_name.length, false);
 
     LEX_STRING expr_query = EMPTY_STR;
 
@@ -435,7 +436,7 @@ bool PT_option_value_no_option_type_password_for::contextualize(
   if (!user->host.str) {
     LEX_CSTRING sctx_priv_host = thd->security_context()->priv_host();
     DBUG_ASSERT(sctx_priv_host.str);
-    user->host.str = (char *)sctx_priv_host.str;
+    user->host.str = sctx_priv_host.str;
     user->host.length = sctx_priv_host.length;
   }
 
@@ -462,10 +463,10 @@ bool PT_option_value_no_option_type_password::contextualize(Parse_context *pc) {
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
-  LEX_STRING pw = {C_STRING_WITH_LEN("password")};
+  LEX_CSTRING pw = {STRING_WITH_LEN("password")};
   lex->contains_plaintext_password = true;
 
-  if (pctx && pctx->find_variable(pw, false)) {
+  if (pctx && pctx->find_variable(pw.str, pw.length, false)) {
     my_error(ER_SP_BAD_VAR_SHADOW, MYF(0), pw.str);
     return true;
   }
@@ -518,7 +519,7 @@ bool PT_select_sp_var::contextualize(Parse_context *pc) {
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   sp_variable *spv;
 
-  if (!pctx || !(spv = pctx->find_variable(name, false))) {
+  if (!pctx || !(spv = pctx->find_variable(name.str, name.length, false))) {
     my_error(ER_SP_UNDECLARED_VAR, MYF(0), name.str);
     return true;
   }

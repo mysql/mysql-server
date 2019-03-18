@@ -6791,7 +6791,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
     */
     MEM_ROOT *tmp_root = param->mem_root;
     param->thd->mem_root = param->old_root;
-    Item_func::optimize_type opt_type = cond_func->select_optimize();
+    Item_func::optimize_type opt_type = cond_func->select_optimize(param->thd);
     param->thd->mem_root = tmp_root;
     if (opt_type == Item_func::OPTIMIZE_NONE) DBUG_RETURN(NULL);
   }

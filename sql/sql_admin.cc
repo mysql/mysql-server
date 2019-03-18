@@ -107,7 +107,7 @@ static int send_check_errmsg(THD *thd, TABLE_LIST *table,
   Protocol *protocol = thd->get_protocol();
   protocol->start_row();
   protocol->store(table->alias, system_charset_info);
-  protocol->store((char *)operator_name, system_charset_info);
+  protocol->store(operator_name, system_charset_info);
   protocol->store(STRING_WITH_LEN("error"), system_charset_info);
   protocol->store(errmsg, system_charset_info);
   thd->clear_error();

@@ -1268,7 +1268,7 @@ void warn_about_deprecated_national(THD *thd)
         LEX_HOSTNAME ULONGLONG_NUM select_alias ident opt_ident ident_or_text
         role_ident role_ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
-        NCHAR_STRING opt_component key_cache_name
+        NCHAR_STRING opt_component
         sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         TEXT_STRING_validated
@@ -1280,6 +1280,7 @@ void warn_about_deprecated_national(THD *thd)
         lvalue_ident
 
 %type <lex_cstr>
+        key_cache_name
         opt_table_alias
         opt_replace_password
 
@@ -3301,7 +3302,7 @@ sp_fdparam:
             if (sp_check_name(&$1))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($1, true))
+            if (pctx->find_variable($1.str, $1.length, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -3356,7 +3357,7 @@ sp_pdparam:
             if (sp_check_name(&$2))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($2, true))
+            if (pctx->find_variable($2.str, $2.length, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -4146,7 +4147,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($1, true))
+            if (pctx->find_variable($1.str, $1.length, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -4166,7 +4167,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($3, true))
+            if (pctx->find_variable($3.str, $3.length, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -4547,7 +4548,7 @@ sp_fetch_list:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
             sp_variable *spv;
 
-            if (!pctx || !(spv= pctx->find_variable($1, false)))
+            if (!pctx || !(spv= pctx->find_variable($1.str, $1.length, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -4565,7 +4566,7 @@ sp_fetch_list:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
             sp_variable *spv;
 
-            if (!pctx || !(spv= pctx->find_variable($3, false)))
+            if (!pctx || !(spv= pctx->find_variable($3.str, $3.length, false)))
             {
               my_error(ER_SP_UNDECLARED_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -8758,7 +8759,7 @@ assign_to_keycache:
         ;
 
 key_cache_name:
-          ident    { $$= $1; }
+          ident    { $$= to_lex_cstring($1); }
         | DEFAULT_SYM { $$ = default_key_cache_base; }
         ;
 
@@ -13516,14 +13517,14 @@ text_string:
           }
         | HEX_NUM
           {
-            LEX_STRING s= Item_hex_string::make_hex_str($1.str, $1.length);
+            LEX_CSTRING s= Item_hex_string::make_hex_str($1.str, $1.length);
             $$= NEW_PTN String(s.str, s.length, &my_charset_bin);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | BIN_NUM
           {
-            LEX_STRING s= Item_bin_string::make_bin_str($1.str, $1.length);
+            LEX_CSTRING s= Item_bin_string::make_bin_str($1.str, $1.length);
             $$= NEW_PTN String(s.str, s.length, &my_charset_bin);
             if ($$ == NULL)
               MYSQL_YYABORT;

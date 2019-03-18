@@ -468,7 +468,7 @@ class Geometry {
 
   class Class_info {
    public:
-    LEX_STRING m_name;
+    const LEX_CSTRING m_name;
     int m_type_id;
     create_geom_t m_create_func;
     Class_info(const char *name, int type_id, create_geom_t create_func);

@@ -882,8 +882,8 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
   if (protocol->has_client_capability(CLIENT_SESSION_TRACK)) {
     /* the info field */
     if (state_changed || (message && message[0]))
-      pos =
-          net_store_data(pos, (uchar *)message, message ? strlen(message) : 0);
+      pos = net_store_data(pos, pointer_cast<const uchar *>(message),
+                           message ? strlen(message) : 0);
     /* session state change information */
     if (unlikely(state_changed)) {
       store.set_charset(thd->variables.collation_database);
@@ -902,7 +902,8 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
     }
   } else if (message && message[0]) {
     /* the info field, if there is a message to store */
-    pos = net_store_data(pos, (uchar *)message, strlen(message));
+    pos = net_store_data(pos, pointer_cast<const uchar *>(message),
+                         strlen(message));
   }
 
   /* OK packet length will be restricted to 16777215 bytes */
@@ -1186,8 +1187,9 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   /* Converted error message is always null-terminated. */
   length = (uint)(strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 
-  DBUG_RETURN(net_write_command(net, (uchar)255, (uchar *)"", 0, (uchar *)buff,
-                                length));
+  DBUG_RETURN(net_write_command(net, uchar{255},
+                                pointer_cast<const uchar *>(""), 0,
+                                pointer_cast<uchar *>(buff), length));
 }
 
 /**
@@ -2849,7 +2851,7 @@ bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
   DBUG_ENTER("Protocol_classic::start_result_metadata");
   DBUG_PRINT("info", ("num_cols %u, flags %u", num_cols_arg, flags));
   uint num_cols = num_cols_arg;
-  result_cs = (CHARSET_INFO *)cs;
+  result_cs = cs;
   send_metadata = true;
   field_count = num_cols;
   sending_flags = flags;
@@ -3195,10 +3197,11 @@ bool Protocol_classic::store_string_aux(const char *from, size_t length,
   if (tocs && !my_charset_same(fromcs, tocs) && fromcs != &my_charset_bin &&
       tocs != &my_charset_bin) {
     /* Store with conversion */
-    return net_store_data((uchar *)from, length, fromcs, tocs);
+    return net_store_data(pointer_cast<const uchar *>(from), length, fromcs,
+                          tocs);
   }
   /* Store without conversion */
-  return net_store_data((uchar *)from, length);
+  return net_store_data(pointer_cast<const uchar *>(from), length);
 }
 
 int Protocol_classic::shutdown(bool) {

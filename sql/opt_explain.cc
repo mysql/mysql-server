@@ -2302,7 +2302,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
   bool res = false;
   THD *query_thd = NULL;
   bool send_ok = false;
-  char *user;
+  const char *user;
   bool unlock_thd_data = false;
   const std::string &db_name = thd->db().str ? thd->db().str : "";
   THD::Query_plan *qp;
@@ -2321,7 +2321,7 @@ bool Sql_cmd_explain_other_thread::execute(THD *thd) {
                           thd->m_main_security_ctx.priv_host().str,
                           thd->security_context()->priv_host().str))) {
     // Can see only connections of this user
-    user = (char *)thd->security_context()->priv_user().str;
+    user = thd->security_context()->priv_user().str;
   } else {
     // Can see all connections
     user = NULL;

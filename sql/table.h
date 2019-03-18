@@ -2955,14 +2955,19 @@ struct TABLE_LIST {
     In DELETE and UPDATE, a view used as a target table must be mergeable,
     updatable and defined over a single table.
   */
-  TABLE_LIST *updatable_base_table() {
-    TABLE_LIST *tbl = this;
+  const TABLE_LIST *updatable_base_table() const {
+    const TABLE_LIST *tbl = this;
     DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
     while (tbl->is_view_or_derived()) {
       tbl = tbl->merge_underlying_list;
       DBUG_ASSERT(tbl->is_updatable() && !tbl->is_multiple_tables());
     }
     return tbl;
+  }
+
+  TABLE_LIST *updatable_base_table() {
+    return const_cast<TABLE_LIST *>(
+        static_cast<const TABLE_LIST *>(this)->updatable_base_table());
   }
 
   /**

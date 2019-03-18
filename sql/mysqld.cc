@@ -946,15 +946,15 @@ bool opt_debugging = false;
 static bool opt_external_locking = 0, opt_console = 0;
 static bool opt_short_log_format = 0;
 static char *mysqld_user, *mysqld_chroot;
-static char *default_character_set_name;
-static char *character_set_filesystem_name;
-static char *lc_messages;
-static char *lc_time_names_name;
+static const char *default_character_set_name;
+static const char *character_set_filesystem_name;
+static const char *lc_messages;
+static const char *lc_time_names_name;
 char *my_bind_addr_str;
 char *my_admin_bind_addr_str;
 uint mysqld_admin_port;
 bool listen_admin_interface_in_separate_thread;
-static char *default_collation_name;
+static const char *default_collation_name;
 char *default_storage_engine;
 char *default_tmp_storage_engine;
 ulonglong temptable_max_ram;
@@ -1249,8 +1249,8 @@ const char *log_error_dest;
 const char *my_share_dir[FN_REFLEN];
 char glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN], lc_messages_dir[FN_REFLEN],
-    reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN], *opt_init_file,
-    *opt_tc_log_file;
+    reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN], *opt_init_file;
+const char *opt_tc_log_file;
 char *lc_messages_dir_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
@@ -1263,7 +1263,8 @@ Time_zone *default_tz;
 char *mysql_data_home = const_cast<char *>(".");
 const char *mysql_real_data_home_ptr = mysql_real_data_home;
 char server_version[SERVER_VERSION_LENGTH];
-char *mysqld_unix_port, *opt_mysql_tmpdir;
+const char *mysqld_unix_port;
+char *opt_mysql_tmpdir;
 
 /** name of reference on left expression in rewritten IN subquery */
 const char *in_left_expr_name = "<left expr>";
@@ -1376,8 +1377,9 @@ static bool mysqld_process_must_end_at_startup = false;
 /* replication parameters, if master_host is not NULL, we are a slave */
 uint report_port = 0;
 ulong master_retry_count = 0;
-char *master_info_file;
-char *relay_log_info_file, *report_user, *report_password, *report_host;
+const char *master_info_file;
+const char *relay_log_info_file;
+char *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name = 0;
 /*
   True if the --relay-log-index is set by users from
@@ -1624,7 +1626,7 @@ static void add_terminator(vector<my_option> *options);
 extern "C" bool mysqld_get_one_option(int, const struct my_option *, char *);
 static void set_server_version(void);
 static int init_thread_environment();
-static char *get_relative_path(const char *path);
+static const char *get_relative_path(const char *path);
 static int fix_paths(void);
 static int test_if_case_insensitive(const char *dir_name);
 static void end_ssl();
@@ -2349,7 +2351,7 @@ static void set_ports() {
 #ifdef _WIN32
     mysqld_unix_port = (char *)MYSQL_NAMEDPIPE;
 #else
-    mysqld_unix_port = (char *)MYSQL_UNIX_ADDR;
+    mysqld_unix_port = MYSQL_UNIX_ADDR;
 #endif
     if ((env = getenv("MYSQL_UNIX_PORT")))
       mysqld_unix_port = env; /* purecov: inspected */
@@ -2407,7 +2409,7 @@ static void set_user(const char *user, struct passwd *user_info_arg) {
   /* purecov: begin tested */
   DBUG_ASSERT(user_info_arg != 0);
 #ifdef HAVE_INITGROUPS
-  initgroups((char *)user, user_info_arg->pw_gid);
+  initgroups(user, user_info_arg->pw_gid);
 #endif
   if (setgid(user_info_arg->pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETGID, strerror(errno));
@@ -3964,8 +3966,6 @@ SHOW_VAR com_status_vars[] = {
 LEX_CSTRING sql_statement_names[(uint)SQLCOM_END + 1];
 
 static void init_sql_statement_names() {
-  static LEX_CSTRING empty = {C_STRING_WITH_LEN("")};
-
   char *first_com = (char *)offsetof(System_status_var, com_stat[0]);
   char *last_com =
       (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_END]);
@@ -3975,7 +3975,8 @@ static void init_sql_statement_names() {
   uint i;
   uint com_index;
 
-  for (i = 0; i < ((uint)SQLCOM_END + 1); i++) sql_statement_names[i] = empty;
+  for (i = 0; i < ((uint)SQLCOM_END + 1); i++)
+    sql_statement_names[i] = {STRING_WITH_LEN("")};
 
   SHOW_VAR *var = &com_status_vars[0];
   while (var->name != NULL) {
@@ -4373,7 +4374,7 @@ int init_common_variables() {
     if (!my_strcasecmp(&my_charset_latin1, lc_messages,
                        mysqld_default_locale_name))
       return 1;
-    lc_messages = (char *)mysqld_default_locale_name;
+    lc_messages = mysqld_default_locale_name;
   }
   global_system_variables.lc_messages = my_default_lc_messages;
   if (init_errmessage()) /* Read error messages from file */
@@ -4392,7 +4393,8 @@ int init_common_variables() {
     the requested character set is not available (see bug#18743).
   */
   for (;;) {
-    char *next_character_set_name = strchr(default_character_set_name, ',');
+    char *next_character_set_name =
+        strchr(const_cast<char *>(default_character_set_name), ',');
     if (next_character_set_name) *next_character_set_name++ = '\0';
     if (!(default_charset_info = get_charset_by_csname(
               default_character_set_name, MY_CS_PRIMARY, MYF(MY_WME)))) {
@@ -4464,7 +4466,7 @@ int init_common_variables() {
     if (!my_strcasecmp(&my_charset_latin1, lc_time_names_name,
                        mysqld_default_locale_name))
       return 1;
-    lc_time_names_name = (char *)mysqld_default_locale_name;
+    lc_time_names_name = mysqld_default_locale_name;
   }
   global_system_variables.lc_time_names = my_default_lc_time_names;
 
@@ -4827,7 +4829,8 @@ static int flush_auto_options(const char *fname) {
 static int init_server_auto_options() {
   bool flush = false;
   char fname[FN_REFLEN];
-  char *name = (char *)"auto";
+  char name[] = "auto";
+  char *name_ptr = name;
   const char *groups[] = {"auto", NULL};
   char *uuid = 0;
   my_option auto_options[] = {
@@ -4842,7 +4845,7 @@ static int init_server_auto_options() {
     DBUG_RETURN(1);
 
   /* load_defaults require argv[0] is not null */
-  char **argv = &name;
+  char **argv = &name_ptr;
   int argc = 1;
   if (!check_file_permissions(fname, false)) {
     /*
@@ -5395,7 +5398,7 @@ static int init_server_components() {
   dynamic_plugins_are_initialized =
       true; /* Don't separate from init function */
 
-  LEX_CSTRING plugin_name = {C_STRING_WITH_LEN("thread_pool")};
+  LEX_CSTRING plugin_name = {STRING_WITH_LEN("thread_pool")};
   if (Connection_handler_manager::thread_handling !=
           Connection_handler_manager::SCHEDULER_ONE_THREAD_PER_CONNECTION ||
       plugin_is_ready(plugin_name, MYSQL_DAEMON_PLUGIN)) {
@@ -5538,7 +5541,7 @@ static int init_server_components() {
 
   if (log_output_options & LOG_TABLE) {
     /* Fall back to log files if the csv engine is not loaded. */
-    LEX_CSTRING csv_name = {C_STRING_WITH_LEN("csv")};
+    LEX_CSTRING csv_name = {STRING_WITH_LEN("csv")};
     if (!plugin_is_ready(csv_name, MYSQL_STORAGE_ENGINE_PLUGIN)) {
       LogErr(ERROR_LEVEL, ER_NO_CSV_NO_LOG_TABLES);
       log_output_options = (log_output_options & ~LOG_TABLE) | LOG_FILE;
@@ -6731,8 +6734,9 @@ int mysqld_main(int argc, char **argv)
     Event must be invoked after error_handler_hook is assigned to
     my_message_sql, otherwise my_message will not cause the event to abort.
   */
+  void *argv_p = argv;
   if (mysql_audit_notify(AUDIT_EVENT(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
-                         (const char **)argv, argc))
+                         static_cast<const char **>(argv_p), argc))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
@@ -6755,9 +6759,9 @@ int mysqld_main(int argc, char **argv)
       .prio(SYSTEM_LEVEL)
       .lookup(ER_SERVER_STARTUP_MSG, my_progname, server_version,
 #ifdef HAVE_SYS_UN_H
-              (opt_initialize ? (char *)"" : mysqld_unix_port),
+              (opt_initialize ? "" : mysqld_unix_port),
 #else
-              (char *)"",
+              "",
 #endif
               mysqld_port, MYSQL_COMPILATION_COMMENT_SERVER);
 
@@ -8020,7 +8024,7 @@ static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *) {
   if (ssl)
     var->value = const_cast<char *>(SSL_get_version(ssl));
   else
-    var->value = (char *)"";
+    var->value = const_cast<char *>("");
   return 0;
 }
 
@@ -8074,7 +8078,7 @@ static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
   if (ssl)
     var->value = const_cast<char *>(SSL_get_cipher(ssl));
   else
-    var->value = (char *)"";
+    var->value = const_cast<char *>("");
   return 0;
 }
 
@@ -8510,7 +8514,7 @@ static void usage(void) {
             default_character_set_name, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(MYSQLD_ABORT_EXIT);
   if (!default_collation_name)
-    default_collation_name = (char *)default_charset_info->name;
+    default_collation_name = default_charset_info->name;
   if (is_help_or_validate_option() || opt_verbose) {
     my_progname = my_progname + dirname_length(my_progname);
   }
@@ -8580,7 +8584,7 @@ static int mysql_init_variables() {
   opt_disable_networking = opt_skip_show_db = 0;
   opt_skip_name_resolve = 0;
   opt_general_logname = opt_binlog_index_name = opt_slow_logname = NULL;
-  opt_tc_log_file = (char *)"tc.log";  // no hostname in tc_log file name !
+  opt_tc_log_file = "tc.log";  // no hostname in tc_log file name !
   opt_myisam_log = 0;
   mqh_used = 0;
   cleanup_done = 0;
@@ -8635,8 +8639,8 @@ static int mysql_init_variables() {
   multi_keycache_init();
 
   /* Replication parameters */
-  master_info_file = (char *)"master.info",
-  relay_log_info_file = (char *)"relay-log.info";
+  master_info_file = "master.info";
+  relay_log_info_file = "relay-log.info";
   report_user = report_password = report_host = 0; /* TO BE DELETED */
   opt_relay_logname = opt_relaylog_index_name = 0;
   opt_relaylog_index_name_supplied = false;
@@ -8648,11 +8652,11 @@ static int mysql_init_variables() {
   total_ha_2pc = 0;
   /* Variables in libraries */
   charsets_dir = 0;
-  default_character_set_name = (char *)MYSQL_DEFAULT_CHARSET_NAME;
+  default_character_set_name = MYSQL_DEFAULT_CHARSET_NAME;
   default_collation_name = compiled_default_collation_name;
-  character_set_filesystem_name = (char *)"binary";
-  lc_messages = (char *)mysqld_default_locale_name;
-  lc_time_names_name = (char *)mysqld_default_locale_name;
+  character_set_filesystem_name = "binary";
+  lc_messages = mysqld_default_locale_name;
+  lc_time_names_name = mysqld_default_locale_name;
 
   /* Variables that depends on compile options */
 #ifndef DBUG_OFF
@@ -9458,7 +9462,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   if (global_system_variables.low_priority_updates)
     thr_upgraded_concurrent_insert_lock = TL_WRITE_LOW_PRIORITY;
 
-  if (ft_boolean_check_syntax_string((uchar *)ft_boolean_syntax)) {
+  if (ft_boolean_check_syntax_string(
+          pointer_cast<const uchar *>(ft_boolean_syntax))) {
     LogErr(ERROR_LEVEL, ER_FT_BOOL_SYNTAX_INVALID, ft_boolean_syntax);
     return 1;
   }
@@ -9590,13 +9595,13 @@ static void set_server_version(void) {
 #endif
 }
 
-static char *get_relative_path(const char *path) {
+static const char *get_relative_path(const char *path) {
   if (test_if_hard_path(path) && is_prefix(path, DEFAULT_MYSQL_HOME) &&
       strcmp(DEFAULT_MYSQL_HOME, FN_ROOTDIR)) {
     path += strlen(DEFAULT_MYSQL_HOME);
     while (is_directory_separator(*path)) path++;
   }
-  return (char *)path;
+  return path;
 }
 
 /**
@@ -9814,7 +9819,7 @@ static int fix_paths(void) {
       FN_LIBCHAR)
     --mysql_unpacked_real_data_home_len;
 
-  char *sharedir = get_relative_path(SHAREDIR);
+  const char *sharedir = get_relative_path(SHAREDIR);
   if (test_if_hard_path(sharedir))
     strmake(buff, sharedir, sizeof(buff) - 1); /* purecov: tested */
   else

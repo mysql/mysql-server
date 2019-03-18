@@ -630,9 +630,9 @@ bool TABLE_LIST::setup_table_function(THD *thd) {
   Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, "table_function");
-  char *func_name;
+  const char *func_name;
   uint func_name_len;
-  func_name = (char *)table_function->func_name();
+  func_name = table_function->func_name();
   func_name_len = strlen(func_name);
 
   set_uses_materialization();

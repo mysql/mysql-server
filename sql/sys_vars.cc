@@ -1486,7 +1486,7 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var) {
     } else {
       // Use the default value defined by sys_var.
       lex_cstring_set(&se_name,
-                      pointer_cast<char *>(
+                      pointer_cast<const char *>(
                           down_cast<Sys_var_plugin *>(self)->global_value_ptr(
                               thd, nullptr)));
     }

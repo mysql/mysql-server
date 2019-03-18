@@ -123,41 +123,31 @@ enum enum_slow_query_log_table_field {
 };
 
 static const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("start_time")},
-     {C_STRING_WITH_LEN("timestamp(6)")},
+    {{STRING_WITH_LEN("start_time")},
+     {STRING_WITH_LEN("timestamp(6)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("user_host")},
-     {C_STRING_WITH_LEN("mediumtext")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("query_time")},
-     {C_STRING_WITH_LEN("time(6)")},
+    {{STRING_WITH_LEN("user_host")},
+     {STRING_WITH_LEN("mediumtext")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("query_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("lock_time")}, {STRING_WITH_LEN("time(6)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("rows_sent")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("rows_examined")},
+     {STRING_WITH_LEN("int(11)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("lock_time")},
-     {C_STRING_WITH_LEN("time(6)")},
+    {{STRING_WITH_LEN("db")},
+     {STRING_WITH_LEN("varchar(512)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("last_insert_id")},
+     {STRING_WITH_LEN("int(11)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("rows_sent")},
-     {C_STRING_WITH_LEN("int(11)")},
+    {{STRING_WITH_LEN("insert_id")}, {STRING_WITH_LEN("int(11)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("server_id")},
+     {STRING_WITH_LEN("int(10) unsigned")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("rows_examined")},
-     {C_STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("db")},
-     {C_STRING_WITH_LEN("varchar(512)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("last_insert_id")},
-     {C_STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("insert_id")},
-     {C_STRING_WITH_LEN("int(11)")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("server_id")},
-     {C_STRING_WITH_LEN("int(10) unsigned")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("sql_text")},
-     {C_STRING_WITH_LEN("mediumblob")},
-     {NULL, 0}},
-    {{C_STRING_WITH_LEN("thread_id")},
-     {C_STRING_WITH_LEN("bigint(21) unsigned")},
+    {{STRING_WITH_LEN("sql_text")}, {STRING_WITH_LEN("mediumblob")}, {NULL, 0}},
+    {{STRING_WITH_LEN("thread_id")},
+     {STRING_WITH_LEN("bigint(21) unsigned")},
      {NULL, 0}}};
 
 static const TABLE_FIELD_DEF slow_query_log_table_def = {
@@ -174,23 +164,23 @@ enum enum_general_log_table_field {
 };
 
 static const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] = {
-    {{C_STRING_WITH_LEN("event_time")},
-     {C_STRING_WITH_LEN("timestamp(6)")},
+    {{STRING_WITH_LEN("event_time")},
+     {STRING_WITH_LEN("timestamp(6)")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("user_host")},
-     {C_STRING_WITH_LEN("mediumtext")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("thread_id")},
-     {C_STRING_WITH_LEN("bigint(21) unsigned")},
+    {{STRING_WITH_LEN("user_host")},
+     {STRING_WITH_LEN("mediumtext")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("thread_id")},
+     {STRING_WITH_LEN("bigint(21) unsigned")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("server_id")},
-     {C_STRING_WITH_LEN("int(10) unsigned")},
+    {{STRING_WITH_LEN("server_id")},
+     {STRING_WITH_LEN("int(10) unsigned")},
      {NULL, 0}},
-    {{C_STRING_WITH_LEN("command_type")},
-     {C_STRING_WITH_LEN("varchar(64)")},
-     {C_STRING_WITH_LEN("utf8")}},
-    {{C_STRING_WITH_LEN("argument")},
-     {C_STRING_WITH_LEN("mediumblob")},
+    {{STRING_WITH_LEN("command_type")},
+     {STRING_WITH_LEN("varchar(64)")},
+     {STRING_WITH_LEN("utf8")}},
+    {{STRING_WITH_LEN("argument")},
+     {STRING_WITH_LEN("mediumblob")},
      {NULL, 0}}};
 
 static const TABLE_FIELD_DEF general_log_table_def = {GLT_FIELD_COUNT,
@@ -649,22 +639,29 @@ bool File_query_log::write_general(ulonglong event_utime,
   int time_buff_len =
       make_iso8601_timestamp(local_time_buff, event_utime, opt_log_timestamps);
 
-  if (my_b_write(&log_file, (uchar *)local_time_buff, time_buff_len)) goto err;
+  if (my_b_write(&log_file, pointer_cast<uchar *>(local_time_buff),
+                 time_buff_len))
+    goto err;
 
-  if (my_b_write(&log_file, (uchar *)"\t", 1)) goto err;
+  if (my_b_write(&log_file, pointer_cast<const uchar *>("\t"), 1)) goto err;
 
   length = snprintf(buff, 32, "%5u ", thread_id);
 
-  if (my_b_write(&log_file, (uchar *)buff, length)) goto err;
+  if (my_b_write(&log_file, pointer_cast<uchar *>(buff), length)) goto err;
 
-  if (my_b_write(&log_file, (uchar *)command_type, command_type_len)) goto err;
+  if (my_b_write(&log_file, pointer_cast<const uchar *>(command_type),
+                 command_type_len))
+    goto err;
 
-  if (my_b_write(&log_file, (uchar *)"\t", 1)) goto err;
+  if (my_b_write(&log_file, pointer_cast<const uchar *>("\t"), 1)) goto err;
 
   /* sql_text */
-  if (my_b_write(&log_file, (uchar *)sql_text, sql_text_len)) goto err;
+  if (my_b_write(&log_file, pointer_cast<const uchar *>(sql_text),
+                 sql_text_len))
+    goto err;
 
-  if (my_b_write(&log_file, (uchar *)"\n", 1) || flush_io_cache(&log_file))
+  if (my_b_write(&log_file, pointer_cast<const uchar *>("\n"), 1) ||
+      flush_io_cache(&log_file))
     goto err;
 
   mysql_mutex_unlock(&LOCK_log);
@@ -825,7 +822,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
   if (end != buff) {
     *end++ = ';';
     *end = '\n';
-    if (my_b_write(&log_file, (uchar *)"SET ", 4) ||
+    if (my_b_write(&log_file, pointer_cast<const uchar *>("SET "), 4) ||
         my_b_write(&log_file, (uchar *)buff + 1, (uint)(end - buff)))
       goto err;
   }
@@ -836,8 +833,10 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
                     { DBUG_SET("+d,simulate_file_write_error"); });
     if (my_b_write(&log_file, (uchar *)buff, buff_len)) goto err;
   }
-  if (my_b_write(&log_file, (uchar *)sql_text, sql_text_len) ||
-      my_b_write(&log_file, (uchar *)";\n", 2) || flush_io_cache(&log_file))
+  if (my_b_write(&log_file, pointer_cast<const uchar *>(sql_text),
+                 sql_text_len) ||
+      my_b_write(&log_file, pointer_cast<const uchar *>(";\n"), 2) ||
+      flush_io_cache(&log_file))
     goto err;
 
   mysql_mutex_unlock(&LOCK_log);
@@ -1884,7 +1883,7 @@ bool init_error_log() {
 
   if (log_builtins_init() < 0) {
     log_write_errstream(
-        C_STRING_WITH_LEN("failed to initialized basic error logging"));
+        STRING_WITH_LEN("failed to initialized basic error logging"));
     return true;
   } else
     return false;

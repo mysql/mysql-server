@@ -523,7 +523,7 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   void set_max_str_length(size_t max_str_length) {
     return cmp.set_max_str_length(max_str_length);
   }
-  optimize_type select_optimize() const override { return OPTIMIZE_OP; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const override { return rev_functype() != UNKNOWN_FUNC; }
 
@@ -973,7 +973,7 @@ class Item_func_ne final : public Item_func_comparison {
   longlong val_int() override;
   enum Functype functype() const override { return NE_FUNC; }
   cond_result eq_cmp_result() const override { return COND_FALSE; }
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   const char *func_name() const override { return "<>"; }
   Item *negated_item() override;
 
@@ -1037,7 +1037,7 @@ class Item_func_between final : public Item_func_opt_neg {
         compare_as_temporal_dates(false),
         compare_as_temporal_times(false) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   enum Functype functype() const override { return BETWEEN; }
   const char *func_name() const override { return "between"; }
   bool fix_fields(THD *, Item **) override;
@@ -1064,7 +1064,7 @@ class Item_func_strcmp final : public Item_bool_func2 {
   Item_func_strcmp(const POS &pos, Item *a, Item *b)
       : Item_bool_func2(pos, a, b) {}
   longlong val_int() override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NONE; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NONE; }
   const char *func_name() const override { return "strcmp"; }
 
   void print(const THD *thd, String *str,
@@ -1767,7 +1767,7 @@ class Item_func_in final : public Item_func_opt_neg {
     cleanup_arrays();
     DBUG_VOID_RETURN;
   }
-  optimize_type select_optimize() const override { return OPTIMIZE_KEY; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   enum Functype functype() const override { return IN_FUNC; }
@@ -1896,7 +1896,7 @@ class Item_func_isnull : public Item_bool_func {
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
@@ -1953,7 +1953,7 @@ class Item_func_isnotnull final : public Item_bool_func {
     return false;
   }
   const char *func_name() const override { return "isnotnull"; }
-  optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
   table_map not_null_tables() const override {
     return abort_on_null ? not_null_tables_cache : 0;
   }
@@ -1999,7 +1999,7 @@ class Item_func_like final : public Item_bool_func2 {
 
   longlong val_int() override;
   enum Functype functype() const override { return LIKE_FUNC; }
-  optimize_type select_optimize() const override;
+  optimize_type select_optimize(const THD *thd) override;
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "like"; }
   bool fix_fields(THD *thd, Item **ref) override;
@@ -2211,7 +2211,7 @@ class Item_equal final : public Item_bool_func {
   enum Functype functype() const override { return MULT_EQUAL_FUNC; }
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
-  optimize_type select_optimize() const override { return OPTIMIZE_EQUAL; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_EQUAL; }
   /**
     Order field items in multiple equality according to a sorting criteria.
 

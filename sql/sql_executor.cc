@@ -5189,8 +5189,7 @@ ulonglong unique_hash(Field *field, ulonglong *hash_val) {
     crc ^= seed1;
   } else
     while (pos != end)
-      crc = ((crc << 8) + (((uchar) * (uchar *)pos++))) +
-            (crc >> (8 * sizeof(ha_checksum) - 8));
+      crc = ((crc << 8) + (*pos++)) + (crc >> (8 * sizeof(ha_checksum) - 8));
 finish:
   *hash_val = crc;
   return crc;

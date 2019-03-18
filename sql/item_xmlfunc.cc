@@ -2188,7 +2188,6 @@ static int my_xpath_parse_QName(MY_XPATH *xpath) {
 */
 
 static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
-  LEX_STRING name;
   int user_var;
   const char *dollar_pos;
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_DOLLAR) ||
@@ -2198,19 +2197,20 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
        !my_xpath_parse_term(xpath, MY_XPATH_LEX_IDENT)))
     return 0;
 
-  name.length = xpath->prevtok.end - xpath->prevtok.beg;
-  name.str = const_cast<char *>(xpath->prevtok.beg);
+  size_t name_length = xpath->prevtok.end - xpath->prevtok.beg;
+  const char *name_str = xpath->prevtok.beg;
 
   if (user_var)
-    xpath->item = new Item_func_get_user_var(Name_string(name, false));
+    xpath->item =
+        new Item_func_get_user_var(Name_string(name_str, name_length, false));
   else {
     sp_variable *spv;
     sp_pcontext *spc;
     LEX *lex;
     if ((lex = current_thd->lex) && (spc = lex->get_sp_current_parsing_ctx()) &&
-        (spv = spc->find_variable(name, false))) {
-      Item_splocal *splocal =
-          new Item_splocal(Name_string(name, false), spv->offset, spv->type, 0);
+        (spv = spc->find_variable(name_str, name_length, false))) {
+      Item_splocal *splocal = new Item_splocal(
+          Name_string(name_str, name_length, false), spv->offset, spv->type, 0);
 #ifndef DBUG_OFF
       if (splocal) splocal->m_sp = lex->sphead;
 #endif

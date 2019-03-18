@@ -1826,7 +1826,7 @@ class Item : public Parse_tree_node {
     This function should not be used by code that is called during optimization
     and/or execution only. Use const_for_execution() in this case.
   */
-  bool may_evaluate_const(THD *thd) const;
+  bool may_evaluate_const(const THD *thd) const;
 
   /**
     This method is used for to:
@@ -4219,7 +4219,7 @@ class Item_string : public Item_basic_constant {
 
   /* Create from the given name and string. */
   Item_string(const POS &pos, const Name_string name_par,
-              const LEX_STRING &literal, const CHARSET_INFO *cs,
+              const LEX_CSTRING &literal, const CHARSET_INFO *cs,
               Derivation dv = DERIVATION_COERCIBLE,
               uint repertoire = MY_REPERTOIRE_UNICODE30)
       : super(pos), m_cs_specified(false) {
@@ -4455,7 +4455,7 @@ class Item_hex_string : public Item_basic_constant {
   bool eq(const Item *item, bool binary_cmp) const override;
   Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) override;
   bool check_partition_func_processor(uchar *) override { return false; }
-  static LEX_STRING make_hex_str(const char *str, size_t str_length);
+  static LEX_CSTRING make_hex_str(const char *str, size_t str_length);
 
  private:
   void hex_string_init(const char *str, uint str_length);
@@ -4472,7 +4472,7 @@ class Item_bin_string final : public Item_hex_string {
     bin_string_init(literal.str, literal.length);
   }
 
-  static LEX_STRING make_bin_str(const char *str, size_t str_length);
+  static LEX_CSTRING make_bin_str(const char *str, size_t str_length);
 
  private:
   void bin_string_init(const char *str, size_t str_length);

@@ -1633,7 +1633,7 @@ end:
 
 void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
   char buf[100];
-  char *buf_ptr = (char *)&buf;
+  const char *buf_ptr = buf;
   TABLE_LIST table_list;
 
   table_list.db = table_arg->s->db.str;
@@ -1644,12 +1644,12 @@ void partition_info::print_no_partition_found(THD *thd, TABLE *table_arg) {
                ER_THD(thd, ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT), MYF(0));
   } else {
     if (column_list)
-      buf_ptr = (char *)"from column_list";
+      buf_ptr = "from column_list";
     else {
       my_bitmap_map *old_map =
           dbug_tmp_use_all_columns(table_arg, table_arg->read_set);
       if (part_expr->null_value)
-        buf_ptr = (char *)"NULL";
+        buf_ptr = "NULL";
       else
         longlong2str(err_value, buf, part_expr->unsigned_flag ? 10 : -10);
       dbug_tmp_restore_column_map(table_arg->read_set, old_map);

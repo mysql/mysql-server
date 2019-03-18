@@ -1,7 +1,7 @@
 #ifndef KEYCACHES_INCLUDED
 #define KEYCACHES_INCLUDED
 
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,12 +65,12 @@ class NAMED_ILIST : public I_List<NAMED_ILINK> {
   void delete_elements();
 };
 
-extern LEX_STRING default_key_cache_base;
+extern LEX_CSTRING default_key_cache_base;
 extern KEY_CACHE zero_key_cache;
 extern NAMED_ILIST key_caches;
 
 KEY_CACHE *create_key_cache(const char *name, size_t length);
-KEY_CACHE *get_key_cache(const LEX_STRING *cache_name);
+KEY_CACHE *get_key_cache(const LEX_CSTRING *cache_name);
 KEY_CACHE *get_or_create_key_cache(const char *name, size_t length);
 bool process_key_caches(process_key_cache_t func);
 

@@ -939,7 +939,7 @@ bool Item_view_ref::check_column_privileges(uchar *arg) {
   return false;
 }
 
-bool Item::may_evaluate_const(THD *thd) const {
+bool Item::may_evaluate_const(const THD *thd) const {
   return !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
          (const_item() ||
           (const_for_execution() && thd->lex->is_query_tables_locked()));
@@ -1607,7 +1607,7 @@ bool Item_splocal::set_value(THD *thd, sp_rcontext *ctx, Item **it) {
 *****************************************************************************/
 
 Item_case_expr::Item_case_expr(uint case_expr_id)
-    : Item_sp_variable(Name_string(C_STRING_WITH_LEN("case_expr"))),
+    : Item_sp_variable(Name_string(STRING_WITH_LEN("case_expr"))),
       m_case_expr_id(case_expr_id) {}
 
 Item *Item_case_expr::this_item() {
@@ -2581,7 +2581,7 @@ const char *Item_ident::full_name() const {
                 ->Alloc(strlen(table_name) + strlen(field_name) + 2);
       strxmov(tmp, table_name, ".", field_name, NullS);
     } else
-      tmp = (char *)field_name;
+      return field_name;
   }
   return tmp;
 }
@@ -2702,10 +2702,10 @@ bool Item_field::get_timeval(struct timeval *tm, int *warnings) {
 }
 
 bool Item_field::eq(const Item *item, bool) const {
-  Item *real_item = ((Item *)item)->real_item();
-  if (real_item->type() != FIELD_ITEM) return 0;
+  const Item *real_item = const_cast<Item *>(item)->real_item();
+  if (real_item->type() != FIELD_ITEM) return false;
 
-  Item_field *item_field = (Item_field *)real_item;
+  const Item_field *item_field = down_cast<const Item_field *>(real_item);
 
   /*
     When a field is passed forward in execution via an internal tmp table,
@@ -2994,15 +2994,15 @@ bool Item_decimal::eq(const Item *item, bool) const {
   if (type() == item->type() && item->basic_const_item()) {
     /*
       We need to cast off const to call val_decimal(). This should
-      be OK for a basic constant. Additionally, we can pass 0 as
+      be OK for a basic constant. Additionally, we can pass nullptr as
       a true decimal constant will return its internal decimal
       storage and ignore the argument.
     */
-    Item *arg = (Item *)item;
-    my_decimal *value = arg->val_decimal(0);
+    Item *arg = const_cast<Item *>(item);
+    const my_decimal *value = arg->val_decimal(nullptr);
     return !my_decimal_cmp(&decimal_value, value);
   }
-  return 0;
+  return false;
 }
 
 void Item_decimal::set_decimal_value(const my_decimal *value_par) {
@@ -3466,11 +3466,12 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
     }
     switch (item_result_type) {
       case REAL_RESULT:
-        set_double(*(double *)entry->ptr());
+        set_double(*pointer_cast<const double *>(entry->ptr()));
         item_type = Item::REAL_ITEM;
         break;
       case INT_RESULT:
-        set_int(*(longlong *)entry->ptr(), MY_INT64_NUM_DECIMAL_DIGITS);
+        set_int(*pointer_cast<const longlong *>(entry->ptr()),
+                MY_INT64_NUM_DECIMAL_DIGITS);
         item_type = Item::INT_ITEM;
         break;
       case STRING_RESULT: {
@@ -4989,10 +4990,10 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     *ref = NULL;  // Don't call set_properties()
     bool use_plain_ref = place == CTX_HAVING || !select->group_list.elements;
     rf = use_plain_ref
-             ? new Item_ref(context, ref, (char *)table_name,
-                            (char *)field_name, m_alias_of_expr)
-             : new Item_outer_ref(context, ref, (char *)table_name,
-                                  (char *)field_name, m_alias_of_expr, select);
+             ? new Item_ref(context, ref, table_name, field_name,
+                            m_alias_of_expr)
+             : new Item_outer_ref(context, ref, table_name, field_name,
+                                  m_alias_of_expr, select);
     *ref = save;
     if (!rf) return -1;
 
@@ -5016,7 +5017,7 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
     if (last_checked_context->select_lex->having_fix_field) {
       Item_ref *rf;
       rf = new Item_ref(context, (cached_table->db[0] ? cached_table->db : 0),
-                        (char *)cached_table->alias, (char *)field_name);
+                        cached_table->alias, field_name);
       if (!rf) return -1;
       thd->change_item_tree(reference, rf);
       /*
@@ -5552,7 +5553,7 @@ Item *Item_field::replace_equal_field(uchar *) {
 
 void Item::init_make_field(Send_field *tmp_field,
                            enum enum_field_types field_type_arg) {
-  char *empty_name = (char *)"";
+  const char *empty_name = "";
   tmp_field->db_name = empty_name;
   tmp_field->org_table_name = empty_name;
   tmp_field->org_col_name = empty_name;
@@ -5713,7 +5714,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length) {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
-  uchar *null_ptr = maybe_null ? (uchar *)"" : 0;
   Field *field;
 
   switch (data_type()) {
@@ -5723,38 +5723,31 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length) {
       break;
     case MYSQL_TYPE_TINY:
       field = new (*THR_MALLOC)
-          Field_tiny((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                     item_name.ptr(), 0, unsigned_flag);
+          Field_tiny(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_SHORT:
       field = new (*THR_MALLOC)
-          Field_short((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                      item_name.ptr(), 0, unsigned_flag);
+          Field_short(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_LONG:
       field = new (*THR_MALLOC)
-          Field_long((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                     item_name.ptr(), 0, unsigned_flag);
+          Field_long(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_LONGLONG:
-      field = new (*THR_MALLOC)
-          Field_longlong((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                         item_name.ptr(), 0, unsigned_flag);
+      field = new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
+                                               item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_FLOAT:
-      field = new (*THR_MALLOC)
-          Field_float((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                      item_name.ptr(), decimals, 0, unsigned_flag);
+      field = new (*THR_MALLOC) Field_float(
+          max_length, maybe_null, item_name.ptr(), decimals, unsigned_flag);
       break;
     case MYSQL_TYPE_DOUBLE:
-      field = new (*THR_MALLOC)
-          Field_double((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                       item_name.ptr(), decimals, 0, unsigned_flag);
+      field = new (*THR_MALLOC) Field_double(
+          max_length, maybe_null, item_name.ptr(), decimals, unsigned_flag);
       break;
     case MYSQL_TYPE_INT24:
       field = new (*THR_MALLOC)
-          Field_medium((uchar *)0, max_length, null_ptr, 0, Field::NONE,
-                       item_name.ptr(), 0, unsigned_flag);
+          Field_medium(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
     case MYSQL_TYPE_DATE:
     case MYSQL_TYPE_NEWDATE:
@@ -5773,12 +5766,12 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length) {
           Field_datetimef(maybe_null, item_name.ptr(), decimals);
       break;
     case MYSQL_TYPE_YEAR:
-      field = new (*THR_MALLOC) Field_year((uchar *)0, max_length, null_ptr, 0,
-                                           Field::NONE, item_name.ptr());
+      field =
+          new (*THR_MALLOC) Field_year(max_length, maybe_null, item_name.ptr());
       break;
     case MYSQL_TYPE_BIT:
-      field = new (*THR_MALLOC) Field_bit_as_char(NULL, max_length, null_ptr, 0,
-                                                  Field::NONE, item_name.ptr());
+      field = new (*THR_MALLOC)
+          Field_bit_as_char(max_length, maybe_null, item_name.ptr());
       break;
     default:
       /* This case should never be chosen */
@@ -6107,7 +6100,7 @@ bool Item_int::eq(const Item *arg, bool) const {
       We need to cast off const to call val_int(). This should be OK for
       a basic constant.
     */
-    Item *item = (Item *)arg;
+    Item *item = const_cast<Item *>(arg);
     return item->val_int() == value && item->unsigned_flag == unsigned_flag;
   }
   return false;
@@ -6207,8 +6200,7 @@ static uint nr_of_decimals(const char *str, const char *end) {
 void Item_float::init(const char *str_arg, uint length) {
   int error;
   const char *end_not_used;
-  value = my_strntod(&my_charset_bin, (char *)str_arg, length, &end_not_used,
-                     &error);
+  value = my_strntod(&my_charset_bin, str_arg, length, &end_not_used, &error);
   if (error) {
     char tmp[NAME_LEN + 1];
     snprintf(tmp, sizeof(tmp), "%.*s", length, str_arg);
@@ -6258,7 +6250,7 @@ bool Item_float::eq(const Item *arg, bool) const {
       We need to cast off const to call val_int(). This should be OK for
       a basic constant.
     */
-    Item *item = (Item *)arg;
+    Item *item = const_cast<Item *>(arg);
     return item->val_real() == value;
   }
   return false;
@@ -6281,13 +6273,11 @@ Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
   hex_string_init(literal.str, literal.length);
 }
 
-LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
+LEX_CSTRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
   size_t max_length = (str_length + 1) / 2;
-  LEX_STRING ret = {(char *)"", 0};
   char *ptr = (char *)(*THR_MALLOC)->Alloc(max_length + 1);
-  if (!ptr) return ret;
-  ret.str = ptr;
-  ret.length = max_length;
+  if (ptr == nullptr) return NULL_CSTR;
+  LEX_CSTRING ret = {ptr, max_length};
   char *end = ptr + max_length;
   if (max_length * 2 != str_length)
     *ptr++ = char_val(*str++);  // Not even, assume 0 prefix
@@ -6300,7 +6290,7 @@ LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length) {
 }
 
 void Item_hex_string::hex_string_init(const char *str, uint str_length) {
-  LEX_STRING s = make_hex_str(str, str_length);
+  LEX_CSTRING s = make_hex_str(str, str_length);
   str_value.set(s.str, s.length, &my_charset_bin);
   set_data_type(MYSQL_TYPE_VARCHAR);
   max_length = s.length;
@@ -6428,18 +6418,16 @@ Item *Item_hex_string::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
   In number context this is a longlong value.
 */
 
-LEX_STRING Item_bin_string::make_bin_str(const char *str, size_t str_length) {
+LEX_CSTRING Item_bin_string::make_bin_str(const char *str, size_t str_length) {
   const char *end = str + str_length - 1;
   uchar bits = 0;
   uint power = 1;
 
   size_t max_length = (str_length + 7) >> 3;
   char *ptr = (char *)(*THR_MALLOC)->Alloc(max_length + 1);
-  if (!ptr) return NULL_STR;
+  if (ptr == nullptr) return NULL_CSTR;
 
-  LEX_STRING ret;
-  ret.str = ptr;
-  ret.length = max_length;
+  LEX_CSTRING ret{ptr, max_length};
 
   if (max_length > 0) {
     ptr += max_length - 1;
@@ -6461,7 +6449,7 @@ LEX_STRING Item_bin_string::make_bin_str(const char *str, size_t str_length) {
 }
 
 void Item_bin_string::bin_string_init(const char *str, size_t str_length) {
-  LEX_STRING s = make_bin_str(str, str_length);
+  LEX_CSTRING s = make_bin_str(str, str_length);
   max_length = s.length;
   str_value.set(s.str, s.length, &my_charset_bin);
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
@@ -7751,7 +7739,7 @@ void Item_ref::fix_after_pullout(SELECT_LEX *parent_select,
 
 bool Item_view_ref::eq(const Item *item, bool) const {
   if (item->type() == REF_ITEM) {
-    Item_ref *item_ref = (Item_ref *)item;
+    const Item_ref *item_ref = down_cast<const Item_ref *>(item);
     if (item_ref->ref_type() == VIEW_REF) {
       Item *item_ref_ref = *(item_ref->ref);
       return ((*ref)->real_item() == item_ref_ref->real_item());
@@ -7845,7 +7833,7 @@ bool Item_default_value::itemize(Parse_context *pc, Item **res) {
 
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const {
   return item->type() == DEFAULT_VALUE_ITEM &&
-         ((Item_default_value *)item)->arg->eq(arg, binary_cmp);
+         down_cast<const Item_default_value *>(item)->arg->eq(arg, binary_cmp);
 }
 
 bool Item_default_value::fix_fields(THD *thd, Item **) {
@@ -8073,9 +8061,11 @@ void Item_trigger_field::setup_field(
 
 bool Item_trigger_field::eq(const Item *item, bool) const {
   return item->type() == TRIGGER_FIELD_ITEM &&
-         trigger_var_type == ((Item_trigger_field *)item)->trigger_var_type &&
-         !my_strcasecmp(system_charset_info, field_name,
-                        ((Item_trigger_field *)item)->field_name);
+         trigger_var_type ==
+             down_cast<const Item_trigger_field *>(item)->trigger_var_type &&
+         !my_strcasecmp(
+             system_charset_info, field_name,
+             down_cast<const Item_trigger_field *>(item)->field_name);
 }
 
 void Item_trigger_field::set_required_privilege(bool rw) {
@@ -9293,24 +9283,23 @@ Field *Item_type_holder::make_field_by_type(TABLE *table, bool strict) {
   /*
     The field functions defines a field to be not null if null_ptr is not 0
   */
-  uchar *null_ptr = maybe_null ? (uchar *)"" : 0;
   Field *field;
 
   switch (data_type()) {
     case MYSQL_TYPE_ENUM:
       DBUG_ASSERT(enum_set_typelib);
-      field = new (*THR_MALLOC) Field_enum(
-          (uchar *)0, max_length, null_ptr, 0, Field::NONE, item_name.ptr(),
-          get_enum_pack_length(enum_set_typelib->count), enum_set_typelib,
-          collation.collation);
+      field = new (*THR_MALLOC)
+          Field_enum(max_length, maybe_null, item_name.ptr(),
+                     get_enum_pack_length(enum_set_typelib->count),
+                     enum_set_typelib, collation.collation);
       if (field) field->init(table);
       break;
     case MYSQL_TYPE_SET:
       DBUG_ASSERT(enum_set_typelib);
-      field = new (*THR_MALLOC) Field_set(
-          (uchar *)0, max_length, null_ptr, 0, Field::NONE, item_name.ptr(),
-          get_set_pack_length(enum_set_typelib->count), enum_set_typelib,
-          collation.collation);
+      field = new (*THR_MALLOC)
+          Field_set(max_length, maybe_null, item_name.ptr(),
+                    get_set_pack_length(enum_set_typelib->count),
+                    enum_set_typelib, collation.collation);
       if (field) field->init(table);
       break;
     case MYSQL_TYPE_NULL:

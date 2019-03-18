@@ -73,7 +73,7 @@ static void store_lenenc_string(String &to, const char *from, size_t length);
 class Session_sysvars_tracker : public State_tracker {
  private:
   struct sysvar_node_st {
-    LEX_STRING m_sysvar_name;
+    LEX_CSTRING m_sysvar_name;
     bool m_changed;
   };
 
@@ -121,7 +121,7 @@ class Session_sysvars_tracker : public State_tracker {
       variables_list = NULL;
     }
 
-    sysvar_node_st *search(sysvar_node_st *node, LEX_STRING tmp) {
+    sysvar_node_st *search(sysvar_node_st *node, const LEX_CSTRING &tmp) {
       sysvar_node_st *res;
       res = search((const uchar *)tmp.str, tmp.length);
       if (!res) {
@@ -138,7 +138,7 @@ class Session_sysvars_tracker : public State_tracker {
 
     const CHARSET_INFO *char_set() const { return m_char_set; }
 
-    bool insert(sysvar_node_st *node, LEX_STRING var);
+    bool insert(sysvar_node_st *node, const LEX_CSTRING &var);
     void reset();
     bool update(vars_list *from, THD *thd);
     bool parse_var_list(THD *thd, LEX_STRING var_list, bool throw_error,
@@ -405,7 +405,7 @@ bool Session_sysvars_tracker::vars_list::update(vars_list *from, THD *thd) {
             true   error
 */
 bool Session_sysvars_tracker::vars_list::insert(sysvar_node_st *node,
-                                                LEX_STRING var) {
+                                                const LEX_CSTRING &var) {
   if (!node) {
     if (!(node = (sysvar_node_st *)my_malloc(key_memory_THD_Session_tracker,
                                              sizeof(sysvar_node_st), MY_WME))) {
@@ -500,7 +500,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
 
     if (!thd || session_created) {
       if (find_sys_var_ex(thd, var.str, var.length, throw_error, true)) {
-        if (insert(NULL, var) == true) {
+        if (insert(nullptr, to_lex_cstring(var)) == true) {
           /* Error inserting into the hash. */
           unlock_plugin_mutex();
           return true; /* Error */
@@ -517,7 +517,7 @@ bool Session_sysvars_tracker::vars_list::parse_var_list(
         return true;
       }
     } else {
-      if (insert(NULL, var) == true) {
+      if (insert(nullptr, to_lex_cstring(var)) == true) {
         /* Error inserting into the hash. */
         return true; /* Error */
       }
@@ -715,18 +715,18 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd,
                                               LEX_CSTRING *tracked_item_name) {
   DBUG_ASSERT(tracked_item_name->str);
   sysvar_node_st *node = NULL;
-  LEX_STRING tmp;
-  tmp.str = (char *)tracked_item_name->str;
+  LEX_CSTRING tmp;
+  tmp.str = tracked_item_name->str;
   tmp.length = tracked_item_name->length;
   /*
     Check if the specified system variable is being tracked, if so
     mark it as changed and also set the class's m_changed flag.
   */
-  if ((node = (sysvar_node_st *)(orig_list->search(node, tmp)))) {
+  if ((node = orig_list->search(node, tmp))) {
     node->m_changed = true;
     m_changed = true;
     /* do not cache the statement when there is change in session state */
-    thd->lex->safe_to_cache_query = 0;
+    thd->lex->safe_to_cache_query = false;
   }
 }
 
@@ -742,10 +742,10 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd,
 
 const uchar *Session_sysvars_tracker::sysvars_get_key(const uchar *entry,
                                                       size_t *length) {
-  char *key;
-  key = ((sysvar_node_st *)entry)->m_sysvar_name.str;
-  *length = ((sysvar_node_st *)entry)->m_sysvar_name.length;
-  return (uchar *)key;
+  const char *key =
+      pointer_cast<const sysvar_node_st *>(entry)->m_sysvar_name.str;
+  *length = pointer_cast<const sysvar_node_st *>(entry)->m_sysvar_name.length;
+  return pointer_cast<const uchar *>(key);
 }
 
 /**

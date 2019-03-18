@@ -1686,7 +1686,7 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     */
     Item_ref *const left =
         new Item_ref(&select->context, (Item **)optimizer->get_cache(),
-                     (char *)"<no matter>", (char *)in_left_expr_name);
+                     "<no matter>", in_left_expr_name);
     if (left == NULL) DBUG_RETURN(RES_ERROR);
 
     if (mark_as_outer(left_expr, 0))
@@ -1775,7 +1775,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
       select->group_list.elements || select->m_windows.elements > 0) {
     bool tmp;
     Item_ref_null_helper *ref_null = new Item_ref_null_helper(
-        &select->context, this, &select->base_ref_items[0], (char *)"<ref>",
+        &select->context, this, &select->base_ref_items[0], "<ref>",
         this->full_name());
     Item_bool_func *item = func->create(m_injected_left_expr, ref_null);
     item->set_created_by_in2exists();
@@ -1924,9 +1924,9 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         */
         Item_bool_func *new_having =
             func->create(m_injected_left_expr,
-                         new Item_ref_null_helper(
-                             &select->context, this, &select->base_ref_items[0],
-                             (char *)"<no matter>", (char *)"<result>"));
+                         new Item_ref_null_helper(&select->context, this,
+                                                  &select->base_ref_items[0],
+                                                  "<no matter>", "<result>"));
         new_having->set_created_by_in2exists();
         if (!abort_on_null && left_expr->maybe_null) {
           if (!(new_having = new Item_func_trig_cond(
@@ -2097,19 +2097,18 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         DBUG_RETURN(RES_ERROR);
       Item_ref *const left =
           new Item_ref(&select->context, (*optimizer->get_cache())->addr(i),
-                       (char *)"<no matter>", (char *)in_left_expr_name);
+                       "<no matter>", in_left_expr_name);
       if (left == NULL) DBUG_RETURN(RES_ERROR); /* purecov: inspected */
 
       if (mark_as_outer(left_expr, i))
         left->depended_from = select->outer_select();
 
       Item_bool_func *item_eq = new Item_func_eq(
-          left, new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                             (char *)"<list ref>"));
+          left,
+          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
       item_eq->set_created_by_in2exists();
       Item_bool_func *item_isnull = new Item_func_isnull(
-          new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                       (char *)"<list ref>"));
+          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
       item_isnull->set_created_by_in2exists();
       Item_bool_func *col_item = new Item_cond_or(item_eq, item_isnull);
       col_item->set_created_by_in2exists();
@@ -2124,8 +2123,8 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       having_item = and_items(having_item, col_item);
       having_item->set_created_by_in2exists();
       Item_bool_func *item_nnull_test = new Item_is_not_null_test(
-          this, new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                             (char *)"<list ref>"));
+          this,
+          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
       item_nnull_test->set_created_by_in2exists();
       if (!abort_on_null && left_expr->element_index(i)->maybe_null) {
         if (!(item_nnull_test = new Item_func_trig_cond(
@@ -2170,25 +2169,24 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
         DBUG_RETURN(RES_ERROR);
       Item_ref *const left =
           new Item_ref(&select->context, (*optimizer->get_cache())->addr(i),
-                       (char *)"<no matter>", (char *)in_left_expr_name);
+                       "<no matter>", in_left_expr_name);
       if (left == NULL) DBUG_RETURN(RES_ERROR);
 
       if (mark_as_outer(left_expr, i))
         left->depended_from = select->outer_select();
 
       Item_bool_func *item = new Item_func_eq(
-          left, new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                             (char *)"<list ref>"));
+          left,
+          new Item_ref(&select->context, pitem_i, "<no matter>", "<list ref>"));
       item->set_created_by_in2exists();
       if (!abort_on_null) {
         Item_bool_func *having_col_item = new Item_is_not_null_test(
-            this, new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                               (char *)"<list ref>"));
+            this, new Item_ref(&select->context, pitem_i, "<no matter>",
+                               "<list ref>"));
 
         having_col_item->set_created_by_in2exists();
-        Item_bool_func *item_isnull = new Item_func_isnull(
-            new Item_ref(&select->context, pitem_i, (char *)"<no matter>",
-                         (char *)"<list ref>"));
+        Item_bool_func *item_isnull = new Item_func_isnull(new Item_ref(
+            &select->context, pitem_i, "<no matter>", "<list ref>"));
         item_isnull->set_created_by_in2exists();
         item = new Item_cond_or(item, item_isnull);
         item->set_created_by_in2exists();

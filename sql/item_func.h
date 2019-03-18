@@ -341,7 +341,7 @@ class Item_func : public Item_result_field {
   void update_used_tables() override;
   void set_used_tables(table_map map) { used_tables_cache = map; }
   bool eq(const Item *item, bool binary_cmp) const override;
-  virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
+  virtual optimize_type select_optimize(const THD *) { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
   inline Item **arguments() const {

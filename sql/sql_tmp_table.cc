@@ -170,7 +170,7 @@ static Field *create_tmp_field_from_item(Item *item, TABLE *table,
     case REAL_RESULT:
       new_field = new (*THR_MALLOC)
           Field_double(item->max_length, maybe_null, item->item_name.ptr(),
-                       item->decimals, true);
+                       item->decimals, false, true);
       break;
     case INT_RESULT:
       /*

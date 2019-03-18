@@ -87,7 +87,7 @@ namespace {
   Static name of Group Replication plugin.
 */
 LEX_CSTRING group_replication_plugin_name_str = {
-    C_STRING_WITH_LEN("group_replication")};
+    STRING_WITH_LEN("group_replication")};
 }  // namespace
 
 /*

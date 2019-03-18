@@ -347,10 +347,12 @@ class sp_pcontext {
   /// The function is called only at parsing time.
   ///
   /// @param name               Variable name.
+  /// @param name_len           Variable name length.
   /// @param current_scope_only A flag if we search only in current scope.
   ///
   /// @return instance of found SP-variable, or NULL if not found.
-  sp_variable *find_variable(LEX_STRING name, bool current_scope_only) const;
+  sp_variable *find_variable(const char *name, size_t name_len,
+                             bool current_scope_only) const;
 
   /// Find SP-variable by the offset in the root parsing context.
   ///

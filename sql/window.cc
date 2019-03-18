@@ -690,9 +690,8 @@ bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
 
   for (ORDER *order = o->value.first; order; order = order->next) {
     if (partition_order) {
-      Item_ref *ir =
-          new Item_ref(&select->context, order->item, (char *)"<no matter>",
-                       (char *)"<window partition by>");
+      Item_ref *ir = new Item_ref(&select->context, order->item, "<no matter>",
+                                  "<window partition by>");
       if (ir == nullptr) return true;
 
       Cached_item *ci = new_Cached_item(thd, ir);
@@ -700,9 +699,8 @@ bool Window::setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
 
       m_partition_items.push_back(ci);
     } else {
-      Item_ref *ir =
-          new Item_ref(&select->context, order->item, (char *)"<no matter>",
-                       (char *)"<window order by>");
+      Item_ref *ir = new Item_ref(&select->context, order->item, "<no matter>",
+                                  "<window order by>");
       if (ir == nullptr) return true;
 
       Cached_item *ci = new_Cached_item(thd, ir);

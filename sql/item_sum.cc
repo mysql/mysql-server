@@ -661,8 +661,8 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
   Field *field;
   switch (result_type()) {
     case REAL_RESULT:
-      field = new (*THR_MALLOC)
-          Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
+      field = new (*THR_MALLOC) Field_double(
+          max_length, maybe_null, item_name.ptr(), decimals, false, true);
       break;
     case INT_RESULT:
       field = new (*THR_MALLOC) Field_longlong(max_length, maybe_null,
@@ -843,7 +843,8 @@ static int simple_str_key_cmp(const void *arg, const void *a, const void *b) {
 
 int Aggregator_distinct::composite_key_cmp(const void *arg, const void *a,
                                            const void *b) {
-  Aggregator_distinct *aggr = (Aggregator_distinct *)arg;
+  const Aggregator_distinct *aggr =
+      static_cast<const Aggregator_distinct *>(arg);
   const uchar *key1 = pointer_cast<const uchar *>(a);
   const uchar *key2 = pointer_cast<const uchar *>(b);
   Field **field = aggr->table->field;
@@ -2145,8 +2146,8 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table) {
   } else if (hybrid_type == DECIMAL_RESULT)
     field = Field_new_decimal::create_from_item(this);
   else
-    field = new (*THR_MALLOC)
-        Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
+    field = new (*THR_MALLOC) Field_double(
+        max_length, maybe_null, item_name.ptr(), decimals, false, true);
   if (field) field->init(table);
   DBUG_RETURN(field);
 }
@@ -2514,8 +2515,8 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table) {
         new (*THR_MALLOC) Field_string(sizeof(double) * 2 + sizeof(longlong), 0,
                                        item_name.ptr(), &my_charset_bin);
   } else
-    field = new (*THR_MALLOC)
-        Field_double(max_length, maybe_null, item_name.ptr(), decimals, true);
+    field = new (*THR_MALLOC) Field_double(
+        max_length, maybe_null, item_name.ptr(), decimals, false, true);
 
   if (field != NULL) field->init(table);
 
@@ -3834,7 +3835,8 @@ String *Item_sum_udf_str::val_str(String *str) {
 int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
                                        const void *key2) {
   DBUG_ENTER("group_concat_key_cmp_with_distinct");
-  Item_func_group_concat *item_func = (Item_func_group_concat *)arg;
+  const Item_func_group_concat *item_func =
+      static_cast<const Item_func_group_concat *>(arg);
   TABLE *table = item_func->table;
 
   for (uint i = 0; i < item_func->arg_count_field; i++) {
@@ -3854,7 +3856,8 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
     if (!field) continue;
 
     uint offset = field->offset(field->table->record[0]) - table->s->null_bytes;
-    int res = field->cmp((uchar *)key1 + offset, (uchar *)key2 + offset);
+    int res = field->cmp(pointer_cast<const uchar *>(key1) + offset,
+                         pointer_cast<const uchar *>(key2) + offset);
     if (res) DBUG_RETURN(res);
   }
   DBUG_RETURN(0);
@@ -3867,7 +3870,8 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
 int group_concat_key_cmp_with_order(const void *arg, const void *key1,
                                     const void *key2) {
   DBUG_ENTER("group_concat_key_cmp_with_order");
-  const Item_func_group_concat *grp_item = (Item_func_group_concat *)arg;
+  const Item_func_group_concat *grp_item =
+      static_cast<const Item_func_group_concat *>(arg);
   const ORDER *order_item, *end;
   TABLE *table = grp_item->table;
 
@@ -3890,7 +3894,8 @@ int group_concat_key_cmp_with_order(const void *arg, const void *key1,
 
     uint offset =
         (field->offset(field->table->record[0]) - table->s->null_bytes);
-    int res = field->cmp((uchar *)key1 + offset, (uchar *)key2 + offset);
+    int res = field->cmp(pointer_cast<const uchar *>(key1) + offset,
+                         pointer_cast<const uchar *>(key2) + offset);
     if (res) DBUG_RETURN(((order_item)->direction == ORDER_ASC) ? res : -res);
   }
   /*
@@ -4359,7 +4364,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   */
   if (!(table = create_tmp_table(thd, tmp_table_param, all_fields, NULL, false,
                                  true, aggr_select->active_options(),
-                                 HA_POS_ERROR, (char *)"")))
+                                 HA_POS_ERROR, "")))
     DBUG_RETURN(true);
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows = 1;
@@ -4541,9 +4546,8 @@ bool Item_rank::check_wf_semantics(THD *thd, SELECT_LEX *select,
       We need to access the value of the ORDER expression when evaluating
       RANK to determine equality or not, so we need a handle.
     */
-    Item_ref *ir =
-        new Item_ref(&select->context, o->item, (char *)"<no matter>",
-                     (char *)"<partition order>");
+    Item_ref *ir = new Item_ref(&select->context, o->item, "<no matter>",
+                                "<partition order>");
     if (ir == nullptr) return true;
 
     m_previous.push_back(new_Cached_item(thd, ir));

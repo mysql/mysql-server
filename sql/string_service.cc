@@ -97,8 +97,9 @@ int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle) {
   const CHARSET_INFO *cs = str->charset();
   const char *end = str->ptr() + str->length();
   if (iterator->iterator_ptr >= end) return (0);
-  char_len = (cs->cset->ctype(cs, &char_type, (uchar *)iterator->iterator_ptr,
-                              (uchar *)end));
+  char_len = (cs->cset->ctype(
+      cs, &char_type, pointer_cast<const uchar *>(iterator->iterator_ptr),
+      pointer_cast<const uchar *>(end)));
   iterator->ctype = char_type;
   tmp_len = (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
   if (iterator->iterator_ptr + tmp_len > end)

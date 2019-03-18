@@ -90,7 +90,8 @@ inline void store_token(sql_digest_storage *digest_storage, uint token) {
   Read an identifier from token array.
 */
 inline uint read_identifier(const sql_digest_storage *digest_storage,
-                            uint index, char **id_string, int *id_length) {
+                            uint index, const char **id_string,
+                            int *id_length) {
   uint new_index;
   uint safe_byte_count = digest_storage->m_byte_count;
 
@@ -112,7 +113,7 @@ inline uint read_identifier(const sql_digest_storage *digest_storage,
     bytes_needed += length;
     /* If we can read entire identifier from token array */
     if ((index + bytes_needed) <= safe_byte_count) {
-      *id_string = (char *)(src + 2);
+      *id_string = pointer_cast<const char *>(src) + 2;
       *id_length = length;
 
       new_index = index + bytes_needed;
@@ -207,7 +208,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
   }
 
   char id_buffer[NAME_LEN + 1] = {'\0'};
-  char *id_string;
+  const char *id_string;
   size_t id_length;
   bool convert_text = !my_charset_same(from_cs, to_cs);
 
@@ -227,7 +228,7 @@ void compute_digest_text(const sql_digest_storage *digest_storage,
       case IDENT_QUOTED:
       case TOK_IDENT:
       case TOK_IDENT_AT: {
-        char *id_ptr = NULL;
+        const char *id_ptr = nullptr;
         int id_len = 0;
         uint err_cs = 0;
 

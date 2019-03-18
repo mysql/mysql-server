@@ -571,7 +571,6 @@ static int check_connection(THD *thd) {
       main_sctx_host = thd->m_main_security_ctx.host();
       if (host && host != my_localhost) {
         my_free(host);
-        host = (char *)main_sctx_host.str;
       }
 
       /* Cut very long hostnames to avoid possible overflows */

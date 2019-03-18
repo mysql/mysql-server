@@ -153,10 +153,8 @@ static constexpr const Known_date_time_format known_date_time_formats[6] = {
 /*
   Date formats corresponding to compound %r and %T conversion specifiers
 */
-static const Date_time_format time_ampm_format = {{0},
-                                                  {(char *)"%I:%i:%S %p", 11}};
-static const Date_time_format time_24hrs_format = {{0},
-                                                   {(char *)"%H:%i:%S", 8}};
+static const Date_time_format time_ampm_format = {{0}, {"%I:%i:%S %p", 11}};
+static const Date_time_format time_24hrs_format = {{0}, {"%H:%i:%S", 8}};
 
 /**
   Extract datetime value to MYSQL_TIME struct from string value
@@ -305,7 +303,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           /* Second part */
         case 'f':
           tmp = val_end;
-          if (tmp - val > 6) tmp = (char *)val + 6;
+          if (tmp - val > 6) tmp = val + 6;
           l_time->second_part = (int)my_strtoll10(val, &tmp, &error);
           frac_part = 6 - (int)(tmp - val);
           if (frac_part > 0)
@@ -337,7 +335,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
             goto err;
           break;
         case 'w':
-          tmp = (char *)val + 1;
+          tmp = val + 1;
           if ((weekday = (int)my_strtoll10(val, &tmp, &error)) < 0 ||
               weekday >= 7)
             goto err;
@@ -346,7 +344,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           val = tmp;
           break;
         case 'j':
-          tmp = (char *)val + MY_MIN(val_len, 3);
+          tmp = val + MY_MIN(val_len, 3);
           yearday = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -358,7 +356,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'u':
           sunday_first_n_first_week_non_iso = (*ptr == 'U' || *ptr == 'V');
           strict_week_number = (*ptr == 'V' || *ptr == 'v');
-          tmp = (char *)val + MY_MIN(val_len, 2);
+          tmp = val + MY_MIN(val_len, 2);
           if ((week_number = (int)my_strtoll10(val, &tmp, &error)) < 0 ||
               (strict_week_number && !week_number) || week_number > 53)
             goto err;
@@ -369,7 +367,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'X':
         case 'x':
           strict_week_number_year_type = (*ptr == 'X');
-          tmp = (char *)val + MY_MIN(4, val_len);
+          tmp = val + MY_MIN(4, val_len);
           strict_week_number_year = (int)my_strtoll10(val, &tmp, &error);
           val = tmp;
           break;
@@ -932,8 +930,10 @@ longlong Item_datetime_func::val_date_temporal() {
 
 bool Item_date_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_date_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_date_literal *>(item)->cached_time);
 }
 
 void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
@@ -944,8 +944,10 @@ void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
 
 bool Item_datetime_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_datetime_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_datetime_literal *>(item)->cached_time);
 }
 
 void Item_datetime_literal::print(const THD *, String *str,
@@ -957,8 +959,10 @@ void Item_datetime_literal::print(const THD *, String *str,
 
 bool Item_time_literal::eq(const Item *item, bool) const {
   return item->basic_const_item() && type() == item->type() &&
-         strcmp(func_name(), ((Item_func *)item)->func_name()) == 0 &&
-         cached_time.eq(((Item_time_literal *)item)->cached_time);
+         strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) ==
+             0 &&
+         cached_time.eq(
+             down_cast<const Item_time_literal *>(item)->cached_time);
 }
 
 void Item_time_literal::print(const THD *, String *str, enum_query_type) const {
@@ -1831,20 +1835,20 @@ bool Item_func_date_format::resolve_type(THD *thd) {
 }
 
 bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const {
-  Item_func_date_format *item_func;
-
-  if (item->type() != FUNC_ITEM) return 0;
-  if (strcmp(func_name(), ((Item_func *)item)->func_name()) != 0) return 0;
-  if (this == item) return 1;
-  item_func = (Item_func_date_format *)item;
-  if (!args[0]->eq(item_func->args[0], binary_cmp)) return 0;
+  if (item->type() != FUNC_ITEM) return false;
+  if (strcmp(func_name(), down_cast<const Item_func *>(item)->func_name()) != 0)
+    return false;
+  if (this == item) return true;
+  const Item_func_date_format *item_func =
+      down_cast<const Item_func_date_format *>(item);
+  if (!args[0]->eq(item_func->args[0], binary_cmp)) return false;
   /*
     We must compare format string case sensitive.
     This needed because format modifiers with different case,
     for example %m and %M, have different meaning.
   */
-  if (!args[1]->eq(item_func->args[1], 1)) return 0;
-  return 1;
+  if (!args[1]->eq(item_func->args[1], 1)) return false;
+  return true;
 }
 
 uint Item_func_date_format::format_length(const String *format) {
@@ -2403,16 +2407,16 @@ longlong Item_extract::val_int() {
 }
 
 bool Item_extract::eq(const Item *item, bool binary_cmp) const {
-  if (this == item) return 1;
+  if (this == item) return true;
   if (item->type() != FUNC_ITEM ||
-      functype() != ((Item_func *)item)->functype())
+      functype() != down_cast<const Item_func *>(item)->functype())
     return 0;
 
-  Item_extract *ie = (Item_extract *)item;
-  if (ie->int_type != int_type) return 0;
+  const Item_extract *ie = down_cast<const Item_extract *>(item);
+  if (ie->int_type != int_type) return false;
 
-  if (!args[0]->eq(ie->args[0], binary_cmp)) return 0;
-  return 1;
+  if (!args[0]->eq(ie->args[0], binary_cmp)) return false;
+  return true;
 }
 
 void Item_datetime_typecast::print(const THD *thd, String *str,

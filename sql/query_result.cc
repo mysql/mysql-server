@@ -347,7 +347,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
   uint items_left = items.elements;
   List_iterator_fast<Item> li(items);
 
-  if (my_b_write(&cache, (uchar *)exchange->line.line_start->ptr(),
+  if (my_b_write(&cache,
+                 pointer_cast<const uchar *>(exchange->line.line_start->ptr()),
                  exchange->line.line_start->length()))
     goto err;
   while ((item = li++)) {
@@ -403,8 +404,10 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       res = &cvt_str;
     }
     if (res && enclosed) {
-      if (my_b_write(&cache, (uchar *)exchange->field.enclosed->ptr(),
-                     exchange->field.enclosed->length()))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.enclosed->ptr()),
+              exchange->field.enclosed->length()))
         goto err;
     }
     if (!res) {  // NULL
@@ -414,7 +417,7 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
           null_buff[0] = escape_char;
           null_buff[1] = 'N';
           if (my_b_write(&cache, (uchar *)null_buff, 2)) goto err;
-        } else if (my_b_write(&cache, (uchar *)"NULL", 4))
+        } else if (my_b_write(&cache, pointer_cast<const uchar *>("NULL"), 4))
           goto err;
       } else {
         used_length = 0;  // Fill with space
@@ -565,7 +568,8 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
                     ? field_sep_char
                     : escape_char;
             tmp_buff[1] = *pos ? *pos : '0';
-            if (my_b_write(&cache, (uchar *)start, (uint)(pos - start)) ||
+            if (my_b_write(&cache, pointer_cast<const uchar *>(start),
+                           (uint)(pos - start)) ||
                 my_b_write(&cache, (uchar *)tmp_buff, 2))
               goto err;
             start = pos + 1;
@@ -575,7 +579,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
         /* Assert that no escape mode is active here */
         DBUG_ASSERT(in_escapable_4_bytes == 0);
 
-        if (my_b_write(&cache, (uchar *)start, (uint)(pos - start))) goto err;
+        if (my_b_write(&cache, pointer_cast<const uchar *>(start),
+                       (uint)(pos - start)))
+          goto err;
       } else if (my_b_write(&cache, (uchar *)res->ptr(), used_length))
         goto err;
     }
@@ -594,17 +600,22 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
       }
     }
     if (res && enclosed) {
-      if (my_b_write(&cache, (uchar *)exchange->field.enclosed->ptr(),
-                     exchange->field.enclosed->length()))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.enclosed->ptr()),
+              exchange->field.enclosed->length()))
         goto err;
     }
     if (--items_left) {
-      if (my_b_write(&cache, (uchar *)exchange->field.field_term->ptr(),
-                     field_term_length))
+      if (my_b_write(
+              &cache,
+              pointer_cast<const uchar *>(exchange->field.field_term->ptr()),
+              field_term_length))
         goto err;
     }
   }
-  if (my_b_write(&cache, (uchar *)exchange->line.line_term->ptr(),
+  if (my_b_write(&cache,
+                 pointer_cast<const uchar *>(exchange->line.line_term->ptr()),
                  exchange->line.line_term->length()))
     goto err;
   DBUG_RETURN(false);
@@ -647,7 +658,7 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
     res = item->val_str(&tmp);
     if (!res)  // If NULL
     {
-      if (my_b_write(&cache, (uchar *)"", 1)) goto err;
+      if (my_b_write(&cache, pointer_cast<const uchar *>(""), 1)) goto err;
     } else if (my_b_write(&cache, (uchar *)res->ptr(), res->length())) {
       char errbuf[MYSYS_STRERROR_SIZE];
       my_error(ER_ERROR_ON_WRITE, MYF(0), path, my_errno(),

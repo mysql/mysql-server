@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ class Sql_cmd_drop_index final : public Sql_cmd_create_or_drop_index_base {
 
 class Sql_cmd_cache_index final : public Sql_cmd_ddl_table {
  public:
-  Sql_cmd_cache_index(Alter_info *alter_info, const LEX_STRING &key_cache_name)
+  Sql_cmd_cache_index(Alter_info *alter_info, const LEX_CSTRING &key_cache_name)
       : Sql_cmd_ddl_table(alter_info), m_key_cache_name(key_cache_name) {}
 
   enum_sql_command sql_command_code() const override {
@@ -121,7 +121,7 @@ class Sql_cmd_cache_index final : public Sql_cmd_ddl_table {
   bool assign_to_keycache(THD *thd, TABLE_LIST *tables);
 
  private:
-  const LEX_STRING m_key_cache_name;
+  const LEX_CSTRING m_key_cache_name;
 };
 
 class Sql_cmd_load_index final : public Sql_cmd_ddl_table {

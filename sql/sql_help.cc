@@ -648,17 +648,17 @@ bool mysqld_help(THD *thd, const char *mask) {
   SELECT_LEX *const select_lex = thd->lex->select_lex;
   DBUG_ENTER("mysqld_help");
 
-  tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_topic"), "help_topic",
+  tables[0].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("help_topic"), "help_topic",
                            TL_READ);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_category"), "help_category",
+  tables[1].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("help_category"), "help_category",
                            TL_READ);
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_relation"), "help_relation",
+  tables[2].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("help_relation"), "help_relation",
                            TL_READ);
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("help_keyword"), "help_keyword",
+  tables[3].init_one_table(STRING_WITH_LEN("mysql"),
+                           STRING_WITH_LEN("help_keyword"), "help_keyword",
                            TL_READ);
   tables[0].next_global = tables[0].next_local =
       tables[0].next_name_resolution_table = &tables[1];

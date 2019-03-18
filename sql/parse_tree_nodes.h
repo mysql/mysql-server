@@ -4737,7 +4737,7 @@ class PT_cache_index_stmt final : public PT_table_ddl_stmt_base {
  public:
   PT_cache_index_stmt(MEM_ROOT *mem_root,
                       Mem_root_array<PT_assign_to_keycache *> *tbl_index_lists,
-                      const LEX_STRING &key_cache_name)
+                      const LEX_CSTRING &key_cache_name)
       : PT_table_ddl_stmt_base(mem_root),
         m_tbl_index_lists(tbl_index_lists),
         m_key_cache_name(key_cache_name) {}
@@ -4746,7 +4746,7 @@ class PT_cache_index_stmt final : public PT_table_ddl_stmt_base {
 
  private:
   Mem_root_array<PT_assign_to_keycache *> *m_tbl_index_lists;
-  const LEX_STRING m_key_cache_name;
+  const LEX_CSTRING m_key_cache_name;
 };
 
 class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
@@ -4754,7 +4754,7 @@ class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
   PT_cache_index_partitions_stmt(MEM_ROOT *mem_root, Table_ident *table,
                                  PT_adm_partition *partitions,
                                  List<Index_hint> *opt_key_usage_list,
-                                 const LEX_STRING &key_cache_name)
+                                 const LEX_CSTRING &key_cache_name)
       : PT_table_ddl_stmt_base(mem_root),
         m_table(table),
         m_partitions(partitions),
@@ -4767,7 +4767,7 @@ class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
   Table_ident *m_table;
   PT_adm_partition *m_partitions;
   List<Index_hint> *m_opt_key_usage_list;
-  const LEX_STRING m_key_cache_name;
+  const LEX_CSTRING m_key_cache_name;
 };
 
 class PT_preload_keys final : public Table_ddl_node {

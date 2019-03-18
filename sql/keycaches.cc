@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,12 +60,12 @@ void NAMED_ILIST::delete_elements() {
 
 /* Key cache functions */
 
-LEX_STRING default_key_cache_base = {C_STRING_WITH_LEN("default")};
+LEX_CSTRING default_key_cache_base = {STRING_WITH_LEN("default")};
 
 KEY_CACHE
 zero_key_cache;  ///< @@nonexistent_cache.param->value_ptr() points here
 
-KEY_CACHE *get_key_cache(const LEX_STRING *cache_name) {
+KEY_CACHE *get_key_cache(const LEX_CSTRING *cache_name) {
   if (!cache_name || !cache_name->length) cache_name = &default_key_cache_base;
   return ((KEY_CACHE *)find_named(&key_caches, cache_name->str,
                                   cache_name->length, 0));
@@ -98,10 +98,10 @@ KEY_CACHE *create_key_cache(const char *name, size_t length) {
 }
 
 KEY_CACHE *get_or_create_key_cache(const char *name, size_t length) {
-  LEX_STRING key_cache_name;
+  LEX_CSTRING key_cache_name;
   KEY_CACHE *key_cache;
 
-  key_cache_name.str = (char *)name;
+  key_cache_name.str = name;
   key_cache_name.length = length;
   if (!(key_cache = get_key_cache(&key_cache_name)))
     key_cache = create_key_cache(name, length);

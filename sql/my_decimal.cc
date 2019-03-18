@@ -360,7 +360,7 @@ void print_decimal_buff(const my_decimal *dec, const uchar *ptr, int length) {
   print_decimal(dec);
   fprintf(DBUG_FILE, "Record: ");
   for (int i = 0; i < length; i++) {
-    fprintf(DBUG_FILE, "%02X ", (uint)((uchar *)ptr)[i]);
+    fprintf(DBUG_FILE, "%02X ", ptr[i]);
   }
   fprintf(DBUG_FILE, "\n");
 }

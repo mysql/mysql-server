@@ -501,7 +501,7 @@ static void build_worker_info_name(char *to, const char *path,
 void Rpl_info_factory::init_repository_metadata() {
   /* Needed for the file names and paths for worker info files. */
   size_t len;
-  char *relay_log_info_file_name;
+  const char *relay_log_info_file_name;
   char relay_log_info_file_dirpart[FN_REFLEN];
 
   /* Extract the directory name from relay_log_info_file */

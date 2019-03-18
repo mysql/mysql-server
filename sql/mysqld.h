@@ -216,7 +216,7 @@ extern bool check_proxy_users, mysql_native_password_proxy_users,
 #ifdef _WIN32
 extern const char *shared_memory_base_name;
 #endif
-extern char *mysqld_unix_port;
+extern const char *mysqld_unix_port;
 extern char *default_tz_name;
 extern Time_zone *default_tz;
 extern char *default_storage_engine;
@@ -273,7 +273,7 @@ extern uint mysqld_admin_port;
 extern bool listen_admin_interface_in_separate_thread;
 extern char glob_hostname[FN_REFLEN];
 extern char system_time_zone[30], *opt_init_file;
-extern char *opt_tc_log_file;
+extern const char *opt_tc_log_file;
 extern char server_uuid[UUID_LENGTH + 1];
 extern const char *server_uuid_ptr;
 extern const double log_10[309];

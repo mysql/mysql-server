@@ -2177,6 +2177,11 @@ class Field_tiny : public Field_num {
              const char *field_name_arg, bool zero_arg, bool unsigned_arg)
       : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
+  Field_tiny(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+             bool unsigned_arg)
+      : Field_num(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, 0, false, unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const override { return MYSQL_TYPE_TINY; }
   enum ha_base_keytype key_type() const final override {
@@ -2231,9 +2236,13 @@ class Field_short final : public Field_num {
               const char *field_name_arg, bool zero_arg, bool unsigned_arg)
       : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
+  Field_short(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+              bool unsigned_arg)
+      : Field_num(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, 0, false, unsigned_arg) {}
   Field_short(uint32 len_arg, const char *field_name_arg, bool unsigned_arg)
-      : Field_num(nullptr, len_arg, nullptr, 0, NONE, field_name_arg, 0, false,
-                  unsigned_arg) {}
+      : Field_short(len_arg, false, field_name_arg, unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_SHORT; }
   enum ha_base_keytype key_type() const final override {
@@ -2287,6 +2296,11 @@ class Field_medium final : public Field_num {
                const char *field_name_arg, bool zero_arg, bool unsigned_arg)
       : Field_num(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                   field_name_arg, 0, zero_arg, unsigned_arg) {}
+  Field_medium(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+               bool unsigned_arg)
+      : Field_num(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, 0, false, unsigned_arg) {}
   enum Item_result result_type() const final override { return INT_RESULT; }
   enum_field_types type() const final override { return MYSQL_TYPE_INT24; }
   enum ha_base_keytype key_type() const final override {
@@ -2461,6 +2475,11 @@ class Field_float final : public Field_real {
               bool unsigned_arg)
       : Field_real(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, dec_arg, zero_arg, unsigned_arg) {}
+  Field_float(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+              uint8 dec_arg, bool unsigned_arg)
+      : Field_real(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, dec_arg, false, unsigned_arg) {}
   enum_field_types type() const final override { return MYSQL_TYPE_FLOAT; }
   enum ha_base_keytype key_type() const final override {
     return HA_KEYTYPE_FLOAT;
@@ -2516,10 +2535,15 @@ class Field_double final : public Field_real {
                    maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
                    field_name_arg, dec_arg, false, false) {}
   Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
-               uint8 dec_arg, bool not_fixed_arg)
+               uint8 dec_arg, bool unsigned_arg)
       : Field_real(nullptr, len_arg,
                    maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
-                   field_name_arg, dec_arg, false, false) {
+                   field_name_arg, dec_arg, false, unsigned_arg) {}
+  Field_double(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+               uint8 dec_arg, bool unsigned_arg, bool not_fixed_arg)
+      : Field_real(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, dec_arg, false, unsigned_arg) {
     not_fixed = not_fixed_arg;
   }
   enum_field_types type() const final override { return MYSQL_TYPE_DOUBLE; }
@@ -3121,7 +3145,11 @@ class Field_year final : public Field_tiny {
              uchar null_bit_arg, uchar auto_flags_arg,
              const char *field_name_arg)
       : Field_tiny(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
-                   field_name_arg, 1, 1) {}
+                   field_name_arg, true, true) {}
+  Field_year(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg)
+      : Field_tiny(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, true, true) {}
   enum_field_types type() const final override { return MYSQL_TYPE_YEAR; }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
@@ -4248,6 +4276,12 @@ class Field_enum : public Field_str {
         typelib(typelib_arg) {
     flags |= ENUM_FLAG;
   }
+  Field_enum(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+             uint packlength_arg, TYPELIB *typelib_arg,
+             const CHARSET_INFO *charset_arg)
+      : Field_enum(nullptr, len_arg,
+                   maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                   field_name_arg, packlength_arg, typelib_arg, charset_arg) {}
   Field *new_field(MEM_ROOT *root, TABLE *new_table,
                    bool keep_type) const final override;
   enum_field_types type() const final override { return MYSQL_TYPE_STRING; }
@@ -4314,6 +4348,12 @@ class Field_set final : public Field_enum {
         empty_set_string("", 0, charset_arg) {
     flags = (flags & ~ENUM_FLAG) | SET_FLAG;
   }
+  Field_set(uint32 len_arg, bool maybe_null_arg, const char *field_name_arg,
+            uint32 packlength_arg, TYPELIB *typelib_arg,
+            const CHARSET_INFO *charset_arg)
+      : Field_set(nullptr, len_arg,
+                  maybe_null_arg ? &dummy_null_buffer : nullptr, 0, NONE,
+                  field_name_arg, packlength_arg, typelib_arg, charset_arg) {}
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
   type_conversion_status store(double nr) final override {
@@ -4477,6 +4517,11 @@ class Field_bit_as_char final : public Field_bit {
   Field_bit_as_char(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                     uchar null_bit_arg, uchar auto_flags_arg,
                     const char *field_name_arg);
+  Field_bit_as_char(uint32 len_arg, bool maybe_null_arg,
+                    const char *field_name_arg)
+      : Field_bit_as_char(nullptr, len_arg,
+                          maybe_null_arg ? &dummy_null_buffer : nullptr, 0,
+                          NONE, field_name_arg) {}
   enum ha_base_keytype key_type() const final override {
     return HA_KEYTYPE_BINARY;
   }

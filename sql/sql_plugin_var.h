@@ -266,11 +266,11 @@ class sys_var_pluginvar : public sys_var {
   uchar *do_value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
     return do_value_ptr(thd, thd, type, base);
   }
-  uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                           LEX_STRING *base) {
+  const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                 LEX_STRING *base) {
     return do_value_ptr(running_thd, target_thd, OPT_SESSION, base);
   }
-  uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
+  const uchar *global_value_ptr(THD *thd, LEX_STRING *base) {
     return do_value_ptr(thd, OPT_GLOBAL, base);
   }
   bool do_check(THD *thd, set_var *var);

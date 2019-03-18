@@ -344,7 +344,8 @@ MYSQL_LEX_STRING mysql_parser_item_string(MYSQL_ITEM item) {
 void mysql_parser_free_string(MYSQL_LEX_STRING string) { delete[] string.str; }
 
 MYSQL_LEX_STRING mysql_parser_get_query(MYSQL_THD thd) {
-  MYSQL_LEX_STRING str = {(char *)thd->query().str, thd->query().length};
+  MYSQL_LEX_STRING str = {const_cast<char *>(thd->query().str),
+                          thd->query().length};
   return str;
 }
 

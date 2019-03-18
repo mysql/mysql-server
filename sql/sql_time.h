@@ -58,7 +58,7 @@ class my_decimal;
  */
 struct Date_time_format {
   uchar positions[8];
-  LEX_STRING format;
+  LEX_CSTRING format;
 };
 
 /**

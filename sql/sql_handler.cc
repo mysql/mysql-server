@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -574,9 +574,7 @@ retry:
   }
 
   if (m_key_name) {
-    keyno = find_type((char *)m_key_name, &table->s->keynames,
-                      FIND_TYPE_NO_PREFIX) -
-            1;
+    keyno = find_type(m_key_name, &table->s->keynames, FIND_TYPE_NO_PREFIX) - 1;
     if (keyno < 0) {
       my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), m_key_name, tables->alias);
       goto err;

@@ -726,10 +726,10 @@ void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax) {
     LogErr(WARNING_LEVEL, ER_DEPRECATED_SYNTAX_NO_REPLACEMENT, old_syntax);
 }
 
-const LEX_STRING warning_level_names[] = {{C_STRING_WITH_LEN("Note")},
-                                          {C_STRING_WITH_LEN("Warning")},
-                                          {C_STRING_WITH_LEN("Error")},
-                                          {C_STRING_WITH_LEN("?")}};
+const LEX_CSTRING warning_level_names[] = {{STRING_WITH_LEN("Note")},
+                                           {STRING_WITH_LEN("Warning")},
+                                           {STRING_WITH_LEN("Error")},
+                                           {STRING_WITH_LEN("?")}};
 
 /**
   Send all notes, errors or warnings to the client in a result set. The function
@@ -932,7 +932,8 @@ size_t convert_error_message(char *to, size_t to_length,
 
   wc_mb = to_cs->cset->wc_mb;
   while (1) {
-    if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, from_end)) > 0) {
+    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                           from_end)) > 0) {
       if (!wc) break;
       from += cnvres;
     } else if (cnvres == MY_CS_ILSEQ) {

@@ -68,7 +68,7 @@ class Protocol_classic : public Protocol {
   uint sending_flags;
   ulong input_packet_length;
   uchar *input_raw_packet;
-  CHARSET_INFO *result_cs;
+  const CHARSET_INFO *result_cs;
   bool net_store_data(const uchar *from, size_t length);
   virtual bool net_store_data(const uchar *from, size_t length,
                               const CHARSET_INFO *fromcs,

@@ -177,9 +177,9 @@ class sys_var {
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
   bool check(THD *thd, set_var *var);
-  uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                   LEX_STRING *base);
-  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  const uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
+                         LEX_STRING *base);
+  const uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   virtual void update_default(longlong new_def_value) {
     option.def_value = new_def_value;
   }
@@ -322,9 +322,9 @@ class sys_var {
     It must be of show_val_type type (bool for SHOW_BOOL, int for SHOW_INT,
     longlong for SHOW_LONGLONG, etc).
   */
-  virtual uchar *session_value_ptr(THD *running_thd, THD *target_thd,
-                                   LEX_STRING *base);
-  virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base);
+  virtual const uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                         LEX_STRING *base);
+  virtual const uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 
   /**
     A pointer to a storage area of the variable, to the raw data.

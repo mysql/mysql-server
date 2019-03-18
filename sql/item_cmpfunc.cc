@@ -2330,15 +2330,16 @@ longlong Item_func_strcmp::val_int() {
 
 bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
   /* Assume we don't have rtti */
-  if (this == item) return 1;
-  if (item->type() != FUNC_ITEM) return 0;
-  Item_func *item_func = (Item_func *)item;
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
+  const Item_func *item_func = down_cast<const Item_func *>(item);
   if (arg_count != item_func->arg_count || functype() != item_func->functype())
-    return 0;
-  if (negated != ((Item_func_opt_neg *)item_func)->negated) return 0;
+    return false;
+  if (negated != down_cast<const Item_func_opt_neg *>(item_func)->negated)
+    return false;
   for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->arguments()[i], binary_cmp)) return 0;
-  return 1;
+    if (!args[i]->eq(item_func->arguments()[i], binary_cmp)) return false;
+  return true;
 }
 
 bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
@@ -5570,10 +5571,10 @@ longlong Item_func_like::val_int() {
   We can optimize a where if first character isn't a wildcard
 */
 
-Item_func::optimize_type Item_func_like::select_optimize() const {
-  if (!args[1]->may_evaluate_const(current_thd)) return OPTIMIZE_NONE;
+Item_func::optimize_type Item_func_like::select_optimize(const THD *thd) {
+  if (!args[1]->may_evaluate_const(thd)) return OPTIMIZE_NONE;
 
-  String *res2 = args[1]->val_str((String *)&cmp.value2);
+  String *res2 = args[1]->val_str(&cmp.value2);
   if (!res2) return OPTIMIZE_NONE;
 
   if (!res2->length())  // Can optimize empty wildcard: column LIKE ''

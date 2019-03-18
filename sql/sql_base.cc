@@ -2101,7 +2101,7 @@ static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
   DBUG_ENTER("find_dup_table");
   DBUG_PRINT("enter", ("table alias: %s", table->alias));
 
-  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
+  DBUG_ASSERT(table == table->updatable_base_table());
   /*
     If this function called for CREATE command that we have not opened table
     (table->table equal to 0) and right names is in current TABLE_LIST
@@ -2179,7 +2179,7 @@ static TABLE_LIST *find_dup_table(const TABLE_LIST *table,
 
 TABLE_LIST *unique_table(const TABLE_LIST *table, TABLE_LIST *table_list,
                          bool check_alias) {
-  DBUG_ASSERT(table == ((TABLE_LIST *)table)->updatable_base_table());
+  DBUG_ASSERT(table == table->updatable_base_table());
 
   TABLE_LIST *dup;
   if (table->table && table->table->file->ht->db_type == DB_TYPE_MRG_MYISAM) {

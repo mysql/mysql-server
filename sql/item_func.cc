@@ -495,9 +495,9 @@ void Item_func::print_op(const THD *thd, String *str,
 /// @note Please keep in sync with Item_sum::eq().
 bool Item_func::eq(const Item *item, bool binary_cmp) const {
   /* Assume we don't have rtti */
-  if (this == item) return 1;
-  if (item->type() != FUNC_ITEM) return 0;
-  Item_func *item_func = (Item_func *)item;
+  if (this == item) return true;
+  if (item->type() != FUNC_ITEM) return false;
+  const Item_func *item_func = down_cast<const Item_func *>(item);
   Item_func::Functype func_type;
   if ((func_type = functype()) != item_func->functype() ||
       arg_count != item_func->arg_count ||
@@ -505,10 +505,10 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
        strcmp(func_name(), item_func->func_name()) != 0) ||
       (func_type == Item_func::FUNC_SP &&
        my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
-    return 0;
+    return false;
   for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->args[i], binary_cmp)) return 0;
-  return 1;
+    if (!args[i]->eq(item_func->args[i], binary_cmp)) return false;
+  return true;
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {
@@ -3546,8 +3546,9 @@ longlong Item_func_find_in_set::val_int() {
     int position = 0;
     while (1) {
       int symbol_len;
-      if ((symbol_len = cs->cset->mb_wc(cs, &wc, (uchar *)str_end,
-                                        (uchar *)real_end)) > 0) {
+      if ((symbol_len =
+               cs->cset->mb_wc(cs, &wc, pointer_cast<const uchar *>(str_end),
+                               pointer_cast<const uchar *>(real_end))) > 0) {
         const char *substr_end = str_end + symbol_len;
         bool is_last_item = (substr_end == real_end);
         bool is_separator = (wc == (my_wc_t)separator);
@@ -3727,7 +3728,7 @@ bool udf_handler::fix_fields(THD *thd, Item_result_field *func, uint arg_count,
 
       f_args.lengths[i] = arguments[i]->max_length;
       f_args.maybe_null[i] = arguments[i]->maybe_null;
-      f_args.attributes[i] = (char *)arguments[i]->item_name.ptr();
+      f_args.attributes[i] = const_cast<char *>(arguments[i]->item_name.ptr());
       f_args.attribute_lengths[i] = arguments[i]->item_name.length();
 
       if (arguments[i]->may_evaluate_const(thd)) {
@@ -5960,12 +5961,13 @@ void Item_func_get_user_var::print(const THD *thd, String *str,
 
 bool Item_func_get_user_var::eq(const Item *item, bool) const {
   /* Assume we don't have rtti */
-  if (this == item) return 1;  // Same item is same.
+  if (this == item) return true;  // Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
-      ((Item_func *)item)->functype() != functype())
-    return 0;
-  Item_func_get_user_var *other = (Item_func_get_user_var *)item;
+      down_cast<const Item_func *>(item)->functype() != functype())
+    return false;
+  const Item_func_get_user_var *other =
+      down_cast<const Item_func_get_user_var *>(item);
   return name.eq_bin(other->name);
 }
 
@@ -6068,7 +6070,7 @@ bool Item_func_get_system_var::is_written_to_binlog() {
 }
 
 bool Item_func_get_system_var::resolve_type(THD *thd) {
-  char *cptr;
+  const char *cptr;
   maybe_null = true;
 
   if (!var->check_scope(var_type)) {
@@ -6103,11 +6105,11 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
     case SHOW_CHAR_PTR:
       set_data_type(MYSQL_TYPE_VARCHAR);
       mysql_mutex_lock(&LOCK_global_system_variables);
-      cptr =
-          var->show_type() == SHOW_CHAR
-              ? pointer_cast<char *>(var->value_ptr(thd, var_type, &component))
-              : *pointer_cast<char **>(
-                    var->value_ptr(thd, var_type, &component));
+      cptr = var->show_type() == SHOW_CHAR
+                 ? pointer_cast<const char *>(
+                       var->value_ptr(thd, var_type, &component))
+                 : *pointer_cast<const char *const *>(
+                       var->value_ptr(thd, var_type, &component));
       if (cptr)
         max_length = system_charset_info->cset->numchars(
             system_charset_info, cptr, cptr + strlen(cptr));
@@ -6119,8 +6121,8 @@ bool Item_func_get_system_var::resolve_type(THD *thd) {
     case SHOW_LEX_STRING: {
       set_data_type(MYSQL_TYPE_VARCHAR);
       mysql_mutex_lock(&LOCK_global_system_variables);
-      LEX_STRING *ls =
-          pointer_cast<LEX_STRING *>(var->value_ptr(thd, var_type, &component));
+      const LEX_STRING *ls = pointer_cast<const LEX_STRING *>(
+          var->value_ptr(thd, var_type, &component));
       max_length = system_charset_info->cset->numchars(
           system_charset_info, ls->str, ls->str + ls->length);
       mysql_mutex_unlock(&LOCK_global_system_variables);
@@ -6230,7 +6232,7 @@ longlong Item_func_get_system_var::get_sys_var_safe(THD *thd) {
   T value;
   {
     MUTEX_LOCK(lock, &LOCK_global_system_variables);
-    value = *pointer_cast<T *>(var->value_ptr(thd, var_type, &component));
+    value = *pointer_cast<const T *>(var->value_ptr(thd, var_type, &component));
   }
   cache_present |= GET_SYS_VAR_CACHE_LONG;
   used_query_id = thd->query_id;
@@ -6349,15 +6351,17 @@ String *Item_func_get_system_var::val_str(String *str) {
     case SHOW_CHAR_PTR:
     case SHOW_LEX_STRING: {
       mysql_mutex_lock(&LOCK_global_system_variables);
-      char *cptr = var->show_type() == SHOW_CHAR
-                       ? (char *)var->value_ptr(thd, var_type, &component)
-                       : *(char **)var->value_ptr(thd, var_type, &component);
+      const char *cptr = var->show_type() == SHOW_CHAR
+                             ? pointer_cast<const char *>(
+                                   var->value_ptr(thd, var_type, &component))
+                             : *pointer_cast<const char *const *>(
+                                   var->value_ptr(thd, var_type, &component));
       if (cptr) {
-        size_t len =
-            var->show_type() == SHOW_LEX_STRING
-                ? ((LEX_STRING *)(var->value_ptr(thd, var_type, &component)))
-                      ->length
-                : strlen(cptr);
+        size_t len = var->show_type() == SHOW_LEX_STRING
+                         ? (pointer_cast<const LEX_STRING *>(
+                                var->value_ptr(thd, var_type, &component)))
+                               ->length
+                         : strlen(cptr);
         if (str->copy(cptr, len, collation.collation)) {
           null_value = true;
           str = NULL;
@@ -6431,7 +6435,8 @@ double Item_func_get_system_var::val_real() {
   switch (var->show_type()) {
     case SHOW_DOUBLE:
       mysql_mutex_lock(&LOCK_global_system_variables);
-      cached_dval = *(double *)var->value_ptr(thd, var_type, &component);
+      cached_dval = *pointer_cast<const double *>(
+          var->value_ptr(thd, var_type, &component));
       mysql_mutex_unlock(&LOCK_global_system_variables);
       used_query_id = thd->query_id;
       cached_null_value = null_value;
@@ -6442,9 +6447,11 @@ double Item_func_get_system_var::val_real() {
     case SHOW_LEX_STRING:
     case SHOW_CHAR_PTR: {
       mysql_mutex_lock(&LOCK_global_system_variables);
-      char *cptr = var->show_type() == SHOW_CHAR
-                       ? (char *)var->value_ptr(thd, var_type, &component)
-                       : *(char **)var->value_ptr(thd, var_type, &component);
+      const char *cptr = var->show_type() == SHOW_CHAR
+                             ? pointer_cast<const char *>(
+                                   var->value_ptr(thd, var_type, &component))
+                             : *pointer_cast<const char *const *>(
+                                   var->value_ptr(thd, var_type, &component));
       // Treat empty strings as NULL, like val_int() does.
       if (cptr && *cptr)
         cached_dval = double_from_string_with_check(system_charset_info, cptr,
@@ -6481,12 +6488,13 @@ double Item_func_get_system_var::val_real() {
 
 bool Item_func_get_system_var::eq(const Item *item, bool) const {
   /* Assume we don't have rtti */
-  if (this == item) return 1;  // Same item is same.
+  if (this == item) return true;  // Same item is same.
   /* Check if other type is also a get_user_var() object */
   if (item->type() != FUNC_ITEM ||
-      ((Item_func *)item)->functype() != functype())
-    return 0;
-  Item_func_get_system_var *other = (Item_func_get_system_var *)item;
+      down_cast<const Item_func *>(item)->functype() != functype())
+    return false;
+  const Item_func_get_system_var *other =
+      down_cast<const Item_func_get_system_var *>(item);
   return (var == other->var && var_type == other->var_type);
 }
 

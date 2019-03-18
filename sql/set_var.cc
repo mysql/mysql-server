@@ -327,11 +327,11 @@ bool sys_var::update(THD *thd, set_var *var) {
   }
 }
 
-uchar *sys_var::session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
+const uchar *sys_var::session_value_ptr(THD *, THD *target_thd, LEX_STRING *) {
   return session_var_ptr(target_thd);
 }
 
-uchar *sys_var::global_value_ptr(THD *, LEX_STRING *) {
+const uchar *sys_var::global_value_ptr(THD *, LEX_STRING *) {
   return global_var_ptr();
 }
 
@@ -365,8 +365,8 @@ bool sys_var::check(THD *thd, set_var *var) {
   return false;
 }
 
-uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
-                          LEX_STRING *base) {
+const uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd,
+                                enum_var_type type, LEX_STRING *base) {
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
     mysql_mutex_assert_owner(&LOCK_global_system_variables);
     AutoRLock lock(guard);
@@ -375,7 +375,8 @@ uchar *sys_var::value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
     return session_value_ptr(running_thd, target_thd, base);
 }
 
-uchar *sys_var::value_ptr(THD *thd, enum_var_type type, LEX_STRING *base) {
+const uchar *sys_var::value_ptr(THD *thd, enum_var_type type,
+                                LEX_STRING *base) {
   return value_ptr(thd, thd, type, base);
 }
 
@@ -461,22 +462,25 @@ void sys_var::do_deprecated_warning(THD *thd) {
 
 Item *sys_var::copy_value(THD *thd) {
   LEX_STRING str;
-  uchar *val_ptr = session_value_ptr(thd, thd, &str);
+  const uchar *val_ptr = session_value_ptr(thd, thd, &str);
   switch (get_var_type()) {
     case GET_INT:
-      return new Item_int(*(int *)val_ptr);
+      return new Item_int(*pointer_cast<const int *>(val_ptr));
     case GET_UINT:
-      return new Item_int((ulonglong) * (uint *)val_ptr);
+      return new Item_int(
+          static_cast<ulonglong>(*pointer_cast<const uint *>(val_ptr)));
     case GET_LONG:
-      return new Item_int((longlong) * (long *)val_ptr);
+      return new Item_int(
+          static_cast<longlong>(*pointer_cast<const long *>(val_ptr)));
     case GET_ULONG:
-      return new Item_int((ulonglong) * (ulong *)val_ptr);
+      return new Item_int(
+          static_cast<ulonglong>(*pointer_cast<const ulong *>(val_ptr)));
     case GET_LL:
-      return new Item_int(*(longlong *)val_ptr);
+      return new Item_int(*pointer_cast<const longlong *>(val_ptr));
     case GET_ULL:
-      return new Item_int(*(ulonglong *)val_ptr);
+      return new Item_int(*pointer_cast<const ulonglong *>(val_ptr));
     case GET_BOOL:
-      return new Item_int(*(bool *)val_ptr);
+      return new Item_int(*pointer_cast<const bool *>(val_ptr));
     case GET_ENUM:
     case GET_SET:
     case GET_FLAGSET:
@@ -484,12 +488,13 @@ Item *sys_var::copy_value(THD *thd) {
     case GET_STR:
     case GET_NO_ARG:
     case GET_PASSWORD: {
-      const char *tmp_str_val = (const char *)val_ptr;
+      const char *tmp_str_val = pointer_cast<const char *>(val_ptr);
       return new Item_string(tmp_str_val, strlen(tmp_str_val),
                              system_charset_info);
     }
     case GET_DOUBLE:
-      return new Item_float(*(double *)val_ptr, NOT_FIXED_DEC);
+      return new Item_float(*pointer_cast<const double *>(val_ptr),
+                            NOT_FIXED_DEC);
     default:
       DBUG_ASSERT(0);
   }
@@ -657,7 +662,8 @@ int mysql_del_sys_var_chain(sys_var *first) {
     False if a >= b.
 */
 static int show_cmp(const void *a, const void *b) {
-  return strcmp(((SHOW_VAR *)a)->name, ((SHOW_VAR *)b)->name);
+  return strcmp(static_cast<const SHOW_VAR *>(a)->name,
+                static_cast<const SHOW_VAR *>(b)->name);
 }
 
 /*

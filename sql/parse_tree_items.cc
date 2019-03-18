@@ -312,7 +312,7 @@ bool PTI_simple_ident_ident::itemize(Parse_context *pc, Item **res) {
   sp_pcontext *pctx = lex->get_sp_current_parsing_ctx();
   sp_variable *spv;
 
-  if (pctx && (spv = pctx->find_variable(ident, false))) {
+  if (pctx && (spv = pctx->find_variable(ident.str, ident.length, false))) {
     sp_head *sp = lex->sphead;
 
     DBUG_ASSERT(sp);

@@ -6987,7 +6987,7 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
   /* If item is of type 'field op field/constant' add it to key_fields */
   if (cond->type() != Item::FUNC_ITEM) return false;
   Item_func *const cond_func = down_cast<Item_func *>(cond);
-  switch (cond_func->select_optimize()) {
+  switch (cond_func->select_optimize(thd)) {
     case Item_func::OPTIMIZE_NONE:
       break;
     case Item_func::OPTIMIZE_KEY: {

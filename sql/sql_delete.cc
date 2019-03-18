@@ -809,8 +809,9 @@ bool Sql_cmd_delete::execute_inner(THD *thd) {
 ***************************************************************************/
 
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b) {
-  handler *file = (handler *)arg;
-  return file->cmp_ref((const uchar *)a, (const uchar *)b);
+  const handler *file = static_cast<const handler *>(arg);
+  return file->cmp_ref(static_cast<const uchar *>(a),
+                       static_cast<const uchar *>(b));
 }
 
 bool Query_result_delete::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
