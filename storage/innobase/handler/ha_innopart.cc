@@ -2914,15 +2914,15 @@ int ha_innopart::extra(enum ha_extra_function operation) {
 }
 
 /* Get partition row type
-@param[in] table   partition_table
+@param[in] partition_table partition table
 @param[in] part_id Id of partition for which row type to be retrieved
 @return Partition row type. */
-enum row_type ha_innopart::get_partition_row_type(const dd::Table *table,
-                                                  uint part_id) {
+enum row_type ha_innopart::get_partition_row_type(
+    const dd::Table *partition_table, uint part_id) {
   dd::Table::enum_row_format format;
   row_type real_type = ROW_TYPE_NOT_USED;
 
-  auto dd_table = table->leaf_partitions().at(part_id);
+  auto dd_table = partition_table->leaf_partitions().at(part_id);
   const dd::Properties &part_p = dd_table->se_private_data();
   if (part_p.exists(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT])) {
     part_p.get(dd_partition_key_strings[DD_PARTITION_ROW_FORMAT],
