@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,10 @@ static uint get_collation_number_internal(const char *name) {
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
   DBUG_ASSERT(coll_name_num_map != nullptr);
-  return (*coll_name_num_map)[lower_case_name];
+  auto name_num_map_it = coll_name_num_map->find(lower_case_name);
+  if (name_num_map_it != coll_name_num_map->end())
+    return name_num_map_it->second;
+  return 0;
 }
 
 static void simple_cs_init_functions(CHARSET_INFO *cs) {
