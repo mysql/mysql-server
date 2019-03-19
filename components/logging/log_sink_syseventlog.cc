@@ -687,13 +687,13 @@ static void sysvar_update_pid(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 */
 static int sysvar_install_pid(void) {
   char *var_value = nullptr;
-  size_t var_len;
+  size_t var_len = 15;
   bool var_bool;
   int rr = -1;
 
   values_pid.def_val = log_syslog_include_pid;
 
-  if ((var_value = new char[16]) == nullptr) return -1;
+  if ((var_value = new char[var_len + 1]) == nullptr) return -1;
 
   // register variable
   if (mysql_service_component_sys_variable_register->register_variable(

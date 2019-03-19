@@ -1669,7 +1669,7 @@ mysql_service_status_t log_filter_init() {
   if (inited) return true; /* purecov: inspected */
 
   inited = true;
-  var_value = new char[LOG_FILTER_DUMP_BUFF_SIZE];
+  var_value = new char[var_len + 1];
 
   values_filter_rules.def_val = const_cast<char *>(LOG_FILTER_DEFAULT_RULES);
 
