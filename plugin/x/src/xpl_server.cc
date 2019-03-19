@@ -329,7 +329,7 @@ static bool parse_bind_address_value(const char *begin_address_value,
   return false;
 }
 
-int Server::main(MYSQL_PLUGIN p) {
+int Server::plugin_main(MYSQL_PLUGIN p) {
   plugin_handle = p;
 
   uint32 listen_backlog = 50 + Plugin_system_variables::max_connections / 5;
@@ -431,7 +431,7 @@ int Server::main(MYSQL_PLUGIN p) {
   return 0;
 }
 
-int Server::exit(MYSQL_PLUGIN) {
+int Server::plugin_exit(MYSQL_PLUGIN) {
   // this flag will trigger the on_verify_server_state() timer to trigger an
   // acceptor thread exit
   exiting = true;

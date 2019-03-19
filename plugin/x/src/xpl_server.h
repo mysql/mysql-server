@@ -72,8 +72,8 @@ class Server : public ngs::Server_delegate {
          std::shared_ptr<ngs::Protocol_config> config,
          std::shared_ptr<ngs::Timeout_callback_interface> timeout_callback);
 
-  static int main(MYSQL_PLUGIN p);
-  static int exit(MYSQL_PLUGIN p);
+  static int plugin_main(MYSQL_PLUGIN p);
+  static int plugin_exit(MYSQL_PLUGIN p);
   static bool reset();
   static void stop();
   static std::string get_document_id(const THD *thd, const uint16_t offset,
