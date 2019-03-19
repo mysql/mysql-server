@@ -249,6 +249,7 @@ Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
+Obsoletes:      mariadb-gssapi-server
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 Provides:       mysql-compat-server = %{version}-%{release}
