@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -292,14 +292,14 @@ static SYS_VAR *semi_sync_master_system_vars[] = {
 };
 static void fix_rpl_semi_sync_master_timeout(MYSQL_THD, SYS_VAR *, void *ptr,
                                              const void *val) {
-  *(unsigned long *)ptr = *(unsigned long *)val;
+  *static_cast<unsigned long *>(ptr) = *static_cast<const unsigned long *>(val);
   repl_semisync->setWaitTimeout(rpl_semi_sync_master_timeout);
   return;
 }
 
 static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD, SYS_VAR *,
                                                  void *ptr, const void *val) {
-  *(unsigned long *)ptr = *(unsigned long *)val;
+  *static_cast<unsigned long *>(ptr) = *static_cast<const unsigned long *>(val);
   repl_semisync->setTraceLevel(rpl_semi_sync_master_trace_level);
   ack_receiver->setTraceLevel(rpl_semi_sync_master_trace_level);
   return;
@@ -307,7 +307,7 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD, SYS_VAR *,
 
 static void fix_rpl_semi_sync_master_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
                                              const void *val) {
-  *(char *)ptr = *(char *)val;
+  *static_cast<char *>(ptr) = *static_cast<const char *>(val);
   if (rpl_semi_sync_master_enabled) {
     if (repl_semisync->enableMaster() != 0)
       rpl_semi_sync_master_enabled = false;
@@ -327,17 +327,16 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
 static void fix_rpl_semi_sync_master_wait_for_slave_count(MYSQL_THD, SYS_VAR *,
                                                           void *,
                                                           const void *val) {
-  (void)repl_semisync->setWaitSlaveCount(*(unsigned int *)val);
-  return;
+  (void)repl_semisync->setWaitSlaveCount(
+      *static_cast<const unsigned int *>(val));
 }
 
 static void fix_rpl_semi_sync_master_wait_no_slave(MYSQL_THD, SYS_VAR *,
                                                    void *ptr, const void *val) {
-  if (rpl_semi_sync_master_wait_no_slave != *(char *)val) {
-    *(char *)ptr = *(char *)val;
+  if (rpl_semi_sync_master_wait_no_slave != *static_cast<const char *>(val)) {
+    *static_cast<char *>(ptr) = *static_cast<const char *>(val);
     repl_semisync->set_wait_no_slave(val);
   }
-  return;
 }
 
 Trans_observer trans_observer = {

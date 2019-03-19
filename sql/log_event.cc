@@ -13192,7 +13192,7 @@ void Transaction_context_log_event::add_read_set(const char *hash) {
   **************************************************************************/
 
 #ifdef MYSQL_SERVER
-View_change_log_event::View_change_log_event(char *raw_view_id)
+View_change_log_event::View_change_log_event(const char *raw_view_id)
     : binary_log::View_change_event(raw_view_id),
       Log_event(header(), footer(), Log_event::EVENT_TRANSACTIONAL_CACHE,
                 Log_event::EVENT_NORMAL_LOGGING) {

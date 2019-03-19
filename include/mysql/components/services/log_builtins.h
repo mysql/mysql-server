@@ -37,6 +37,7 @@
 #include <mysql/components/services/log_shared.h>
 #if defined(MYSQL_DYNAMIC_PLUGIN)
 #include <mysql/service_plugin_registry.h>
+#include <type_traits>
 #endif
 #include <stdarg.h>
 #include <stdio.h>
@@ -1366,8 +1367,15 @@ inline LogEvent &LogEvent::message(const char *fmt, ...) {
 inline void deinit_logging_service_for_plugin(
     SERVICE_TYPE(registry) * *reg_srv, SERVICE_TYPE(log_builtins) * *log_bi,
     SERVICE_TYPE(log_builtins_string) * *log_bs) {
-  if (*log_bi) (*reg_srv)->release((my_h_service)(*log_bi));
-  if (*log_bs) (*reg_srv)->release((my_h_service)(*log_bs));
+  using log_builtins_t = std::remove_const_t<SERVICE_TYPE(log_builtins)>;
+  using log_builtins_string_t =
+      std::remove_const_t<SERVICE_TYPE(log_builtins_string)>;
+  if (*log_bi)
+    (*reg_srv)->release(
+        reinterpret_cast<my_h_service>(const_cast<log_builtins_t *>(*log_bi)));
+  if (*log_bs)
+    (*reg_srv)->release(reinterpret_cast<my_h_service>(
+        const_cast<log_builtins_string_t *>(*log_bs)));
   mysql_plugin_registry_release(*reg_srv);
   *log_bi = nullptr;
   *log_bs = nullptr;

@@ -1186,7 +1186,7 @@ class View_change_event : public Binary_log_event {
   */
   View_change_event(const char *buf, const Format_description_event *fde);
 
-  explicit View_change_event(char *raw_view_id);
+  explicit View_change_event(const char *raw_view_id);
 
   virtual ~View_change_event();
 

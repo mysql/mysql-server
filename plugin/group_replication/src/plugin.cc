@@ -2418,8 +2418,8 @@ static void update_recovery_retry_count(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  (*(ulong *)var_ptr) = (*(ulong *)save);
   ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_donor_retry_count(in_val);
@@ -2436,8 +2436,8 @@ static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR *,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  (*(ulong *)var_ptr) = (*(ulong *)save);
   ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_donor_reconnect_interval(in_val);
@@ -2455,8 +2455,8 @@ static void update_ssl_use(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  bool use_ssl_val = *((bool *)save);
-  (*(bool *)var_ptr) = (*(bool *)save);
+  bool use_ssl_val = *static_cast<const bool *>(save);
+  *static_cast<bool *>(var_ptr) = use_ssl_val;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_use_ssl(use_ssl_val);
@@ -2521,8 +2521,8 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  const char *new_option_val = *(const char **)save;
-  (*(const char **)var_ptr) = (*(const char **)save);
+  const char *new_option_val = *static_cast<char *const *>(save);
+  *static_cast<const char **>(var_ptr) = new_option_val;
 
   // According to the var name, get the operation code and act accordingly
   switch (ov.recovery_ssl_opt_map[var->name]) {
@@ -2572,8 +2572,8 @@ static void update_recovery_get_public_key(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  bool get_public_key = *((bool *)save);
-  (*(bool *)var_ptr) = (*(bool *)save);
+  bool get_public_key = *static_cast<const bool *>(save);
+  *static_cast<bool *>(var_ptr) = get_public_key;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_get_public_key(get_public_key);
@@ -2590,8 +2590,8 @@ static void update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR *,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  bool ssl_verify_server_cert = *((bool *)save);
-  (*(bool *)var_ptr) = (*(bool *)save);
+  bool ssl_verify_server_cert = *static_cast<const bool *>(save);
+  *static_cast<bool *>(var_ptr) = ssl_verify_server_cert;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_ssl_verify_server_cert(
@@ -2642,7 +2642,7 @@ static void update_recovery_completion_policy(MYSQL_THD, SYS_VAR *,
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
   ulong in_val = *static_cast<const ulong *>(save);
-  (*(ulong *)var_ptr) = (*(ulong *)save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (recovery_module != NULL) {
     recovery_module->set_recovery_completion_policy(
@@ -2662,7 +2662,7 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
   ulong in_val = *static_cast<const ulong *>(save);
-  (*(ulong *)var_ptr) = (*(ulong *)save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (applier_module != NULL) {
     applier_module->set_stop_wait_timeout(in_val);
@@ -3090,7 +3090,7 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
   ulong in_val = *static_cast<const ulong *>(save);
-  (*(ulong *)var_ptr) = (*(ulong *)save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (group_partition_handler != NULL) {
     group_partition_handler->update_timeout_on_unreachable(in_val);
@@ -3134,8 +3134,8 @@ static void update_member_weight(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  (*(uint *)var_ptr) = (*(uint *)save);
   uint in_val = *static_cast<const uint *>(save);
+  *static_cast<uint *>(var_ptr) = in_val;
 
   if (local_member_info != NULL) {
     local_member_info->set_member_weight(in_val);
@@ -3172,8 +3172,8 @@ static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  (*(ulong *)var_ptr) = (*(ulong *)save);
   ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
   Gcs_interface_parameters gcs_module_parameters;
 
   if (ov.group_name_var == NULL) {
@@ -3234,7 +3234,7 @@ static void update_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *var_ptr,
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
   uint in_val = *static_cast<const uint *>(save);
-  (*(uint *)var_ptr) = (*(uint *)save);
+  *static_cast<uint *>(var_ptr) = in_val;
 
   if (autorejoin_module->is_autorejoin_ongoing()) {
     my_message(ER_GRP_RPL_STARTED_AUTO_REJOIN,
@@ -3292,8 +3292,8 @@ static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  (*(ulong *)var_ptr) = (*(ulong *)save);
   ulonglong in_val = *static_cast<const ulonglong *>(save);
+  *static_cast<ulonglong *>(var_ptr) = in_val;
 
   if (gcs_module != NULL) {
     gcs_module->set_xcom_cache_size(in_val);

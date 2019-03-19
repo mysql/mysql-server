@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,6 +39,7 @@
 #include "my_sys.h"  // my_write, my_malloc
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+#include "template_utils.h"
 
 static const char *log_filename = "test_sql_sqlmode";
 
@@ -126,7 +127,8 @@ static const char *sep =
     "========================================================================"
     "\n";
 
-#define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+#define WRITE_SEP() \
+  my_write(outfile, pointer_cast<const uchar *>(sep), strlen(sep), MYF(0))
 
 static const char *user_localhost = "localhost";
 static const char *user_local = "127.0.0.1";
@@ -243,11 +245,11 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
   DBUG_PRINT("info", ("field->decimals: %d", (int)field->decimals));
   DBUG_PRINT("info", ("field->type: %d", (int)field->type));
 
-  strcpy(cfield->db_name, (char *)field->db_name);
-  strcpy(cfield->table_name, (char *)field->table_name);
-  strcpy(cfield->org_table_name, (char *)field->org_table_name);
-  strcpy(cfield->col_name, (char *)field->col_name);
-  strcpy(cfield->org_col_name, (char *)field->org_col_name);
+  strcpy(cfield->db_name, field->db_name);
+  strcpy(cfield->table_name, field->table_name);
+  strcpy(cfield->org_table_name, field->org_table_name);
+  strcpy(cfield->col_name, field->col_name);
+  strcpy(cfield->org_col_name, field->org_col_name);
   cfield->length = field->length;
   cfield->charsetnr = field->charsetnr;
   cfield->flags = field->flags;
@@ -752,7 +754,7 @@ static void dump_closing_ok(struct st_plugin_ctx *ctx) {
 static void set_query_in_com_data(const char *query, union COM_DATA *cmd) {
   char buffer[STRING_BUFFER_SIZE];
 
-  cmd->com_query.query = (char *)query;
+  cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
   WRITE_VAL2("EXECUTING:[%u][%s]\n", cmd->com_query.length, query);
 }

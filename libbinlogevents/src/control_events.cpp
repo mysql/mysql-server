@@ -591,7 +591,7 @@ Transaction_context_event::~Transaction_context_event() {
   clear_set(&read_set);
 }
 
-View_change_event::View_change_event(char *raw_view_id)
+View_change_event::View_change_event(const char *raw_view_id)
     : Binary_log_event(VIEW_CHANGE_EVENT),
       view_id(),
       seq_number(0),

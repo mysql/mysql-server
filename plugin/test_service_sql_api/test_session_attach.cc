@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -160,7 +160,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd) {
 
   plugin_context->log_test_line(test_cmd);
 
-  cmd.com_query.query = (char *)test_cmd;
+  cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
 
   const bool failed =

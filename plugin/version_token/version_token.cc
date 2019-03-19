@@ -142,7 +142,7 @@ static MYSQL_THDVAR_ULONG(session_number,
 static void update_session_version_tokens(MYSQL_THD thd, SYS_VAR *,
                                           void *var_ptr, const void *save) {
   THDVAR(thd, session_number) = 0;
-  *(char **)var_ptr = *(char **)save;
+  *static_cast<char **>(var_ptr) = *static_cast<char *const *>(save);
 }
 
 static MYSQL_THDVAR_STR(session, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,

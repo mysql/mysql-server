@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@
 #include "my_sys.h"  // my_write, my_malloc
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+#include "template_utils.h"
 
 /* purecov: begin inspected */
 static const char *log_filename = "test_sql_stmt";
@@ -73,7 +74,8 @@ static const char *sep =
     "========================================================================"
     "\n";
 
-#define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+#define WRITE_SEP() \
+  my_write(outfile, pointer_cast<const uchar *>(sep), strlen(sep), MYF(0))
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -716,7 +718,7 @@ static char *fieldflags2str(uint f) {
 }
 
 static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
-  cmd->com_query.query = (char *)query;
+  cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
 }
 
@@ -1200,7 +1202,6 @@ static void test_5(MYSQL_SESSION session, void *p) {
 
   Server_context ctx;
   COM_DATA cmd;
-  uchar *data = nullptr;
 
   WRITE_STR("CREATE TABLE\n");
   set_query_in_com_data(&cmd,
@@ -1214,20 +1215,20 @@ static void test_5(MYSQL_SESSION session, void *p) {
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
-  data = (uchar *)"Catalin ";
   cmd.com_stmt_send_long_data.stmt_id = ctx.stmt_id;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
-  cmd.com_stmt_send_long_data.longdata = data;
+  cmd.com_stmt_send_long_data.longdata =
+      const_cast<uchar *>(pointer_cast<const uchar *>("Catalin "));
   WRITE_STR("SEND PARAMETER AS COM_STMT_SEND_LONG_DATA\n");
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
 
-  data = (uchar *)"Besleaga";
   cmd.com_stmt_send_long_data.stmt_id = ctx.stmt_id;
   // Append data to the same parameter
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
-  cmd.com_stmt_send_long_data.longdata = data;
+  cmd.com_stmt_send_long_data.longdata =
+      const_cast<uchar *>(pointer_cast<const uchar *>("Besleaga"));
   WRITE_STR("APPEND TO THE SAME COLUMN\n");
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
 
@@ -1264,22 +1265,22 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   // Send long data to non existing prepared statement
-  data = (uchar *)"12345";
   cmd.com_stmt_send_long_data.stmt_id = 199999;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
-  cmd.com_stmt_send_long_data.longdata = data;
+  cmd.com_stmt_send_long_data.longdata =
+      const_cast<uchar *>(pointer_cast<const uchar *>("12345"));
   WRITE_STR("APPEND TO A NON EXISTING STATEMENT\n");
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
   WRITE_STR("ERRORS ONLY SHOW AT FIRST EXECUTION OF COM_STMT_EXECUTE\n");
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   // Send long data to non existing parameter
-  data = (uchar *)"12345";
   cmd.com_stmt_send_long_data.stmt_id = ctx.stmt_id;
   cmd.com_stmt_send_long_data.param_number = 15;
   cmd.com_stmt_send_long_data.length = 8;
-  cmd.com_stmt_send_long_data.longdata = data;
+  cmd.com_stmt_send_long_data.longdata =
+      const_cast<uchar *>(pointer_cast<const uchar *>("12345"));
   WRITE_STR("APPEND DATA TO NON EXISTING PARAMETER\n");
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
   WRITE_STR("ERRORS ONLY SHOW AT FIRST EXECUTION OF COM_STMT_EXECUTE\n");

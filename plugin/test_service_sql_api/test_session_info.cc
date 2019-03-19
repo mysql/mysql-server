@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "sql_string.h" /* STRING_PSI_MEMORY_KEY */
+#include "template_utils.h"
 #include "violite.h"
 
 #include <mysql/components/my_service.h>
@@ -71,7 +72,8 @@ static const char *sep =
     "=========================================================================="
     "==================\n";
 
-#define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+#define WRITE_SEP() \
+  my_write(outfile, pointer_cast<const uchar *>(sep), strlen(sep), MYF(0))
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -207,11 +209,11 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
   DBUG_PRINT("info", ("field->decimals: %d", (int)field->decimals));
   DBUG_PRINT("info", ("field->type: %d", (int)field->type));
 
-  strcpy(cfield->db_name, (char *)field->db_name);
-  strcpy(cfield->table_name, (char *)field->table_name);
-  strcpy(cfield->org_table_name, (char *)field->org_table_name);
-  strcpy(cfield->col_name, (char *)field->col_name);
-  strcpy(cfield->org_col_name, (char *)field->org_col_name);
+  strcpy(cfield->db_name, field->db_name);
+  strcpy(cfield->table_name, field->table_name);
+  strcpy(cfield->org_table_name, field->org_table_name);
+  strcpy(cfield->col_name, field->col_name);
+  strcpy(cfield->org_col_name, field->org_col_name);
   cfield->length = field->length;
   cfield->charsetnr = field->charsetnr;
   cfield->flags = field->flags;
@@ -466,8 +468,8 @@ static void sql_handle_error(void *ctx, uint sql_errno,
   DBUG_ENTER("sql_handle_error");
   pctx->sql_errno = sql_errno;
   if (pctx->sql_errno) {
-    strcpy(pctx->err_msg, (char *)err_msg);
-    strcpy(pctx->sqlstate, (char *)sqlstate);
+    strcpy(pctx->err_msg, err_msg);
+    strcpy(pctx->sqlstate, sqlstate);
   }
   pctx->num_rows = 0;
   DBUG_VOID_RETURN;

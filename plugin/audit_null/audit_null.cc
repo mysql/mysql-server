@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,80 +39,80 @@
 LEX_CSTRING event_names[][6] = {
     /** MYSQL_AUDIT_GENERAL_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_LOG")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_ERROR")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_RESULT")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_STATUS")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_LOG")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_ERROR")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_RESULT")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GENERAL_STATUS")},
     },
     /** MYSQL_AUDIT_CONNECTION_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_CONNECT")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_DISCONNECT")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_CHANGE_USER")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_CONNECT")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_DISCONNECT")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_CHANGE_USER")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE")},
     },
     /** MYSQL_AUDIT_PARSE_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_PARSE_PREPARSE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_PARSE_POSTPARSE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_PARSE_PREPARSE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_PARSE_POSTPARSE")},
     },
     /** MYSQL_AUDIT_AUTHORIZATION_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_USER")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_DB")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_TABLE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_COLUMN")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_PROCEDURE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_PROXY")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_USER")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_DB")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_TABLE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_COLUMN")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_PROCEDURE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHORIZATION_PROXY")},
     },
     /** MYSQL_AUDIT_TABLE_ROW_ACCES_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_READ")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_INSERT")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_UPDATE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_DELETE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_READ")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_INSERT")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_UPDATE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_TABLE_ACCESS_DELETE")},
     },
     /** MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GLOBAL_VARIABLE_GET")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_GLOBAL_VARIABLE_SET")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GLOBAL_VARIABLE_GET")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_GLOBAL_VARIABLE_SET")},
     },
     /** MYSQL_AUDIT_SERVER_STARTUP_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_SERVER_STARTUP_STARTUP")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_SERVER_STARTUP_STARTUP")},
     },
     /** MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_SERVER_SHUTDOWN_SHUTDOWN")},
     },
     /** MYSQL_AUDIT_COMMAND_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_COMMAND_START")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_COMMAND_END")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_COMMAND_START")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_COMMAND_END")},
     },
     /** MYSQL_AUDIT_QUERY_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_QUERY_START")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_QUERY_NESTED_START")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_QUERY_STATUS_END")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_QUERY_NESTED_STATUS_END")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_QUERY_START")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_QUERY_NESTED_START")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_QUERY_STATUS_END")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_QUERY_NESTED_STATUS_END")},
     },
     /** MYSQL_AUDIT_STORED_PROGRAM_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_STORED_PROGRAM_EXECUTE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_STORED_PROGRAM_EXECUTE")},
     },
     /** MYSQL_AUDIT_AUTHENTICATION_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_FLUSH")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_FLUSH")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP")},
     },
     /** MYSQL_AUDIT_MESSAGE_CLASS */
     {
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_INTERNAL")},
-        {C_STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_USER")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_INTERNAL")},
+        {STRING_WITH_LEN("MYSQL_AUDIT_MESSAGE_USER")},
     }};
 
 static volatile int number_of_calls;
@@ -142,11 +142,15 @@ static char *g_record_buffer;
 */
 
 static SHOW_VAR simple_status[] = {
-    {"Audit_null_called", (char *)&number_of_calls, SHOW_INT,
-     SHOW_SCOPE_GLOBAL},
+    {"Audit_null_called",
+     const_cast<char *>(reinterpret_cast<volatile char *>(&number_of_calls)),
+     SHOW_INT, SHOW_SCOPE_GLOBAL},
 
-#define AUDIT_NULL_VAR(x) \
-  {"Audit_null_" #x, (char *)&number_of_calls_##x, SHOW_INT, SHOW_SCOPE_GLOBAL},
+#define AUDIT_NULL_VAR(x)                                        \
+  {"Audit_null_" #x,                                             \
+   const_cast<char *>(                                           \
+       reinterpret_cast<volatile char *>(&number_of_calls_##x)), \
+   SHOW_INT, SHOW_SCOPE_GLOBAL},
 #include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
@@ -272,7 +276,7 @@ static LEX_CSTRING event_to_str(unsigned int event_class,
 
   @retval Token retrieved from a string.
 */
-static LEX_CSTRING get_token(const char **str) {
+static LEX_CSTRING get_token(char **str) {
   LEX_CSTRING ret = {NULL, 0};
 
   if (*str != NULL) {
@@ -313,7 +317,7 @@ static char *add_event(const char *var, LEX_CSTRING event, const char *data,
 
 static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
                                  const char *data, size_t data_length) {
-  const char *record_str = (const char *)THDVAR(thd, event_record_def);
+  char *record_str = THDVAR(thd, event_record_def);
   LEX_CSTRING record_begin = get_token(&record_str);
   LEX_CSTRING record_end = get_token(&record_str);
 
@@ -377,16 +381,16 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
 
     /* Add event. */
 
-    record_str = (const char *)THDVAR(thd, event_record_def);
+    record_str = THDVAR(thd, event_record_def);
 
     /* Remove starting event. */
-    memmove((char *)record_str, (void *)record_end.str, record_end.length + 1);
+    memmove(record_str, (void *)record_end.str, record_end.length + 1);
   }
 }
 
 static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
                            bool consume_event) {
-  LEX_CSTRING abort_ret_command = {C_STRING_WITH_LEN("ABORT_RET")};
+  LEX_CSTRING abort_ret_command = {STRING_WITH_LEN("ABORT_RET")};
 
   if (!my_charset_latin1.coll->strnncoll(
           &my_charset_latin1, (const uchar *)event_command.str,
@@ -394,14 +398,13 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
           abort_ret_command.length, 0)) {
     int ret_code = (int)THDVAR(thd, abort_value);
     const char *err_message = (const char *)THDVAR(thd, abort_message);
-    LEX_CSTRING status = {C_STRING_WITH_LEN("EVENT-ORDER-ABORT")};
-    LEX_CSTRING order_cstr;
+    LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-ABORT")};
 
-    lex_cstring_set(&order_cstr, (const char *)THDVAR(thd, event_order_check));
+    char *order_str = THDVAR(thd, event_order_check);
 
     /* Do not replace order string yet. */
     if (consume_event) {
-      memmove((char *)order_cstr.str, (void *)status.str, status.length + 1);
+      memmove(order_str, (void *)status.str, status.length + 1);
 
       THDVAR(thd, abort_value) = 1;
       THDVAR(thd, abort_message) = 0;
@@ -409,7 +412,7 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
 
     if (err_message) {
       my_message(ER_AUDIT_API_ABORT, err_message, MYF(0));
-      THDVAR(thd, event_order_check) = (char *)order_cstr.str;
+      THDVAR(thd, event_order_check) = order_str;
     }
 
     return ret_code;
@@ -434,8 +437,9 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       0,
   };
   int buffer_data = 0;
-  unsigned long event_subclass = (unsigned long)*(int *)event;
-  const char *order_str = (const char *)THDVAR(thd, event_order_check);
+  unsigned long event_subclass =
+      static_cast<unsigned long>(*static_cast<const int *>(event));
+  char *order_str = THDVAR(thd, event_order_check);
   int event_order_started = (int)THDVAR(thd, event_order_started);
   int exact_check = (int)THDVAR(thd, event_order_check_exact);
   LEX_CSTRING event_name = event_to_str(event_class, event_subclass);
@@ -720,7 +724,7 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       return 1;
     }
   } else {
-    LEX_CSTRING ignore = {C_STRING_WITH_LEN("<IGNORE>")};
+    LEX_CSTRING ignore = {STRING_WITH_LEN("<IGNORE>")};
 
     /* When we are not in the event order check, check if the specified
        data corresponds to the actual event data. */
@@ -734,20 +738,18 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
         char invalid_data_buffer[sizeof(buffer)] = {
             0,
         };
-        LEX_CSTRING status = {C_STRING_WITH_LEN("EVENT-ORDER-INVALID-DATA")};
-        LEX_CSTRING order_cstr;
+        LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-INVALID-DATA")};
 
-        lex_cstring_set(&order_cstr,
-                        (const char *)THDVAR(thd, event_order_check));
+        char *order_str = THDVAR(thd, event_order_check);
 
-        memmove((char *)order_cstr.str, (void *)status.str, status.length + 1);
+        memmove(order_str, status.str, status.length + 1);
 
         strxnmov(invalid_data_buffer, sizeof(invalid_data_buffer),
                  "Invalid data for '", event_name.str, "' -> ", buffer, NullS);
         my_message(ER_AUDIT_API_ABORT, invalid_data_buffer, MYF(0));
 
         THDVAR(thd, event_order_started) = 0;
-        THDVAR(thd, event_order_check) = (char *)order_cstr.str;
+        THDVAR(thd, event_order_check) = order_str;
 
         return 1;
       }
@@ -756,10 +758,9 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
       event_command.str = NULL;
       event_command.length = 0;
     } else {
-      LEX_CSTRING order_cstr;
+      LEX_STRING order_cstr;
       ulong consume = THDVAR(thd, event_order_check_consume_ignore_count);
-      lex_cstring_set(&order_cstr,
-                      (const char *)THDVAR(thd, event_order_check));
+      lex_string_set(&order_cstr, THDVAR(thd, event_order_check));
 
       THDVAR(thd, event_order_started) = 1;
 
@@ -772,17 +773,16 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
         consume_event = false;
       } else {
         /* Consume matched event. */
-        memmove((char *)order_cstr.str, (void *)order_str,
+        memmove(order_cstr.str, order_str,
                 order_cstr.length - (order_str - order_cstr.str) + 1);
 
         /* Count new length. */
-        lex_cstring_set(&order_cstr, order_cstr.str);
+        lex_string_set(&order_cstr, order_cstr.str);
 
         if (order_cstr.length == 0) {
-          LEX_CSTRING status = {C_STRING_WITH_LEN("EVENT-ORDER-OK")};
+          LEX_CSTRING status = {STRING_WITH_LEN("EVENT-ORDER-OK")};
 
-          memmove((char *)order_cstr.str, (void *)status.str,
-                  status.length + 1);
+          memmove(order_cstr.str, status.str, status.length + 1);
 
           /* event_order_started contains message. Do not verify it. */
           THDVAR(thd, event_order_started) = 0;

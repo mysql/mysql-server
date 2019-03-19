@@ -4044,7 +4044,7 @@ class View_change_log_event : public binary_log::View_change_event,
   size_t get_size_data_map(std::map<std::string, std::string> *map);
 
  public:
-  View_change_log_event(char *view_id);
+  View_change_log_event(const char *view_id);
 
   View_change_log_event(const char *buffer,
                         const Format_description_event *descr_event);

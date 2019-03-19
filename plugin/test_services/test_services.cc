@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,9 @@ static volatile t_test_status test_status;
 
 /* declaration of status variable for plugin */
 static SHOW_VAR test_services_status[] = {
-    {"test_services_status", (char *)&test_status, SHOW_INT, SHOW_SCOPE_GLOBAL},
+    {"test_services_status",
+     const_cast<char *>(reinterpret_cast<volatile char *>(&test_status)),
+     SHOW_INT, SHOW_SCOPE_GLOBAL},
     {0, 0, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
 /* SQL (system) variables to control test execution                     */

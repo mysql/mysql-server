@@ -39,13 +39,15 @@
 #include "my_systime.h"  // my_sleep()
 #include "mysql_com.h"
 #include "sql/sql_plugin.h"  // st_plugin_int
+#include "template_utils.h"
 
 #define STRING_BUFFER_SIZE 1024
 
 static const char *sep =
     "======================================================\n";
 
-#define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+#define WRITE_SEP() \
+  my_write(outfile, pointer_cast<const uchar *>(sep), strlen(sep), MYF(0))
 
 static SERVICE_TYPE(registry) *reg_srv = nullptr;
 SERVICE_TYPE(log_builtins) *log_bi = nullptr;
@@ -187,11 +189,11 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
   DBUG_PRINT("info", ("field->decimals: %d", (int)field->decimals));
   DBUG_PRINT("info", ("field->type: %d", (int)field->type));
 
-  strcpy(cfield->db_name, (char *)field->db_name);
-  strcpy(cfield->table_name, (char *)field->table_name);
-  strcpy(cfield->org_table_name, (char *)field->org_table_name);
-  strcpy(cfield->col_name, (char *)field->col_name);
-  strcpy(cfield->org_col_name, (char *)field->org_col_name);
+  strcpy(cfield->db_name, field->db_name);
+  strcpy(cfield->table_name, field->table_name);
+  strcpy(cfield->org_table_name, field->org_table_name);
+  strcpy(cfield->col_name, field->col_name);
+  strcpy(cfield->org_col_name, field->org_col_name);
   cfield->length = field->length;
   cfield->charsetnr = field->charsetnr;
   cfield->flags = field->flags;
@@ -540,7 +542,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   COM_DATA cmd;
 
   pctx->reset();
-  cmd.com_query.query = (char *)test_cmd;
+  cmd.com_query.query = test_cmd;
   cmd.com_query.length = strlen(cmd.com_query.query);
   int fail = command_service_run_command(session, COM_QUERY, &cmd,
                                          &my_charset_utf8_general_ci, &sql_cbs,

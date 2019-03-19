@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"  // my_write, my_malloc
+#include "template_utils.h"
 
 static const char *log_filename = "test_x_sessions_init";
 
@@ -54,7 +55,8 @@ static const char *sep =
     "========================================================================"
     "\n";
 
-#define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+#define WRITE_SEP() \
+  my_write(outfile, pointer_cast<const uchar *>(sep), strlen(sep), MYF(0))
 
 /* SQL (system) variable to control number of sessions                    */
 /* Only effective at start od mysqld by setting it as option --loose-...  */
@@ -194,7 +196,7 @@ static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   COM_DATA cmd;
   pctx->reset();
-  cmd.com_query.query = (char *)"SELECT * FROM test.t_int";
+  cmd.com_query.query = "SELECT * FROM test.t_int";
   cmd.com_query.length = strlen(cmd.com_query.query);
   command_service_run_command(NULL, COM_QUERY, &cmd,
                               &my_charset_utf8_general_ci, &sql_cbs,
