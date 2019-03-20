@@ -52,11 +52,12 @@
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"                // dd::Schema_MDL_locker
 #include "sql/dd/dd_table.h"                 // dd::get_sql_type_by_field_info
-#include "sql/dd/impl/bootstrap/bootstrapper.h"  // dd::Column
-#include "sql/dd/impl/dictionary_impl.h"         // dd::Dictionary_impl
-#include "sql/dd/impl/system_registry.h"         // dd::System_views
-#include "sql/dd/impl/utils.h"                   // dd::System_views
-#include "sql/dd/properties.h"                   // dd::Properties
+#include "sql/dd/impl/bootstrap/bootstrap_ctx.h"  // dd::bootstrap::DD_boot...
+#include "sql/dd/impl/bootstrap/bootstrapper.h"   // dd::Column
+#include "sql/dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"          // dd::System_views
+#include "sql/dd/impl/utils.h"                    // dd::System_views
+#include "sql/dd/properties.h"                    // dd::Properties
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"  // dd::Column
 #include "sql/dd/types/schema.h"
@@ -467,14 +468,16 @@ bool update_server_I_S_metadata(THD *thd) {
   bool error = false;
   dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
 
-  // Stop if I_S version is same.
+  // Stop if I_S version is same and no DD upgrade was done.
   uint actual_version = d->get_actual_I_S_version(thd);
 
   // Testing to make sure we update plugins when version changes.
   DBUG_EXECUTE_IF("test_i_s_metadata_version",
                   { actual_version = UNKNOWN_PLUGIN_VERSION; });
 
-  if (d->get_target_I_S_version() == actual_version) return false;
+  if (d->get_target_I_S_version() == actual_version &&
+      !dd::bootstrap::DD_bootstrap_ctx::instance().dd_upgrade_done())
+    return false;
 
   /*
     Stop server restart if I_S version is changed and the server is

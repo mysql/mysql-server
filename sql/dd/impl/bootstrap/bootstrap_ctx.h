@@ -25,6 +25,7 @@
 
 #include <set>
 
+#include "my_dbug.h"            // DBUG_ASSERT
 #include "my_inttypes.h"        // uint
 #include "mysql_version.h"      // MYSQL_VERSION_ID
 #include "sql/dd/dd_version.h"  // DD_VERSION
@@ -83,6 +84,7 @@ static std::set<uint> unsupported_server_versions = {};
 
 class DD_bootstrap_ctx {
  private:
+  uint m_did_dd_upgrade_from = 0;
   uint m_actual_dd_version = 0;
   uint m_upgraded_server_version = 0;
   Stage m_stage = Stage::NOT_STARTED;
@@ -106,6 +108,14 @@ class DD_bootstrap_ctx {
   }
 
   uint get_actual_dd_version() const { return m_actual_dd_version; }
+
+  void set_dd_upgrade_done() {
+    DBUG_ASSERT(m_did_dd_upgrade_from == 0);
+    DBUG_ASSERT(is_dd_upgrade());
+    m_did_dd_upgrade_from = m_actual_dd_version;
+  }
+
+  bool dd_upgrade_done() const { return m_did_dd_upgrade_from != 0; }
 
   bool actual_dd_version_is(uint compare_actual_dd_version) const {
     return (m_actual_dd_version == compare_actual_dd_version);

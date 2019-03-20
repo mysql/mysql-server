@@ -953,6 +953,17 @@ bool upgrade_tables(THD *thd) {
   sysd::notify("STATUS=Data Dictionary upgrade complete\n");
 
   /*
+    At this point, the DD upgrade is committed. Below, we will reset the
+    DD cache and re-initialize based on 'mysql.dd_properties', hence,
+    we will lose track of the fact that we have done a DD upgrade as part
+    of this restart. Thus, we record this fact in the bootstrap context
+    so we can check it e.g. when initializeing the information schema,
+    where we need to regenerate the meta data if the underlying tables
+    have changed.
+  */
+  bootstrap::DD_bootstrap_ctx::instance().set_dd_upgrade_done();
+
+  /*
     Flush tables, reset the shared dictionary cache and the storage adapter.
     Start over DD bootstrap from the beginning.
   */
