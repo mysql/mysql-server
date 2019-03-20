@@ -50,6 +50,7 @@
 #include "sql/dd/types/object_table.h"             // dd::Object_table
 #include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/schema.h"
+#include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_class.h"  // THD
 #include "sql/table.h"      // MYSQL_SCHEMA_NAME
 
@@ -949,6 +950,7 @@ bool upgrade_tables(THD *thd) {
          bootstrap::DD_bootstrap_ctx::instance().get_actual_dd_version(),
          dd::DD_VERSION);
   log_sink_buffer_check_timeout();
+  sysd::notify("STATUS=Data Dictionary upgrade complete\n");
 
   /*
     Flush tables, reset the shared dictionary cache and the storage adapter.

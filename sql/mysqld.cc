@@ -5475,7 +5475,6 @@ static int init_server_components() {
       delete_optimizer_cost_module();
     }
   }
-
   auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
   // Initialize the Resource group subsystem.
   if (!is_help_or_validate_option() && !opt_initialize) {
@@ -5606,7 +5605,6 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
   (void)RUN_HOOK(server_state, before_recovery, (NULL));
-
   if (ha_recover(0)) {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -5838,7 +5836,7 @@ int mysqld_main(int argc, char **argv)
   // Substitute the full path to the executable in argv[0]
   substitute_progpath(argv);
   sysd::notify_connect();
-  sysd::notify("STATUS=SERVER_BOOTING\n");
+  sysd::notify("STATUS=Server startup in progress\n");
 
   /*
     Perform basic thread library and malloc initialization,
@@ -6793,7 +6791,8 @@ int mysqld_main(int argc, char **argv)
   (void)MYSQL_SET_STAGE(0, __FILE__, __LINE__);
 
   server_operational_state = SERVER_OPERATING;
-  sysd::notify("READY=1\nSTATUS=SERVER_OPERATING\nMAIN_PID=", getpid(), "\n");
+  sysd::notify("READY=1\nSTATUS=Server is operational\nMAIN_PID=", getpid(),
+               "\n");
 
   (void)RUN_HOOK(server_state, before_handle_connection, (NULL));
 
@@ -6819,7 +6818,7 @@ int mysqld_main(int argc, char **argv)
   mysqld_socket_acceptor->connection_event_loop();
 #endif /* _WIN32 */
   server_operational_state = SERVER_SHUTTING_DOWN;
-  sysd::notify("STOPPING=1\nSTATUS=SERVER_SHUTTING_DOWN\n");
+  sysd::notify("STOPPING=1\nSTATUS=Server shutdown in progress\n");
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
@@ -6869,6 +6868,7 @@ int mysqld_main(int argc, char **argv)
 #endif  // _WIN32
 
   clean_up(1);
+  sysd::notify("STATUS=Server shutdown complete");
   mysqld_exit(signal_hand_thr_exit_code);
 }
 

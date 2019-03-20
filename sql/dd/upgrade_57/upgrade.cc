@@ -70,6 +70,7 @@
 #include "sql/lock.h"       // Tablespace_hash_set
 #include "sql/log.h"        // sql_print_warning
 #include "sql/mysqld.h"     // key_file_sdi
+#include "sql/sd_notify.h"  // sysd::notify
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_list.h"
 #include "sql/sql_plugin.h"
@@ -569,6 +570,7 @@ bool add_sdi_info(THD *thd) {
 
   LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_DD_POPULATED);
   log_sink_buffer_check_timeout();
+  sysd::notify("STATUS=Data Dictionary upgrade from MySQL 5.7 complete\n");
 
   return false;
 }  // add_sdi_info
@@ -887,6 +889,7 @@ bool do_pre_checks_and_initialize_dd(THD *thd) {
     */
     LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE_START);
     log_sink_buffer_check_timeout();
+    sysd::notify("STATUS=Data Dictionary upgrade from MySQL 5.7 in progress\n");
   }
 
   /*

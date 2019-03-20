@@ -69,6 +69,7 @@
 #include "sql/handler.h"                   // dict_init_mode_t
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
+#include "sql/sd_notify.h"  // sysd::notify
 #include "sql/thd_raii.h"
 
 using namespace dd;
@@ -1194,6 +1195,7 @@ bool initialize_dd_properties(THD *thd) {
     if (bootstrap::DD_bootstrap_ctx::instance().is_dd_upgrade()) {
       LogErr(SYSTEM_LEVEL, ER_DD_UPGRADE, actual_version, dd::DD_VERSION);
       log_sink_buffer_check_timeout();
+      sysd::notify("STATUS=Data Dictionary upgrade in progress\n");
     }
     if (bootstrap::DD_bootstrap_ctx::instance().is_server_upgrade()) {
       // This condition is hit only if upgrade has been skipped before

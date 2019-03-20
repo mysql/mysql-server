@@ -47,9 +47,10 @@
 #include "sql/dd/types/routine.h"              // dd::Table
 #include "sql/dd/types/table.h"                // dd::Table
 #include "sql/dd/types/tablespace.h"
-#include "sql/dd_sp.h"    // prepare_sp_chistics_from_dd_routine
-#include "sql/sp.h"       // Stored_routine_creation_ctx
-#include "sql/sp_head.h"  // sp_head
+#include "sql/dd_sp.h"      // prepare_sp_chistics_from_dd_routine
+#include "sql/sd_notify.h"  // sysd::notify
+#include "sql/sp.h"         // Stored_routine_creation_ctx
+#include "sql/sp_head.h"    // sp_head
 #include "sql/sql_base.h"
 #include "sql/sql_prepare.h"
 #include "sql/strfunc.h"
@@ -894,6 +895,7 @@ bool upgrade_system_schemas(THD *thd) {
   LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
          MYSQL_VERSION_ID, "started");
   log_sink_buffer_check_timeout();
+  sysd::notify("STATUS=Server upgrade in progress\n");
 
   bootstrap_error_handler.set_log_error(false);
   bool err =
@@ -915,6 +917,7 @@ bool upgrade_system_schemas(THD *thd) {
     LogErr(SYSTEM_LEVEL, ER_SERVER_UPGRADE_STATUS, server_version,
            MYSQL_VERSION_ID, "completed");
   log_sink_buffer_check_timeout();
+  sysd::notify("STATUS=Server upgrade complete\n");
 
   /*
    * During server startup, dd::reset_tables_and_tablespaces is called, which
