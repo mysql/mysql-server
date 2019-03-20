@@ -13,8 +13,8 @@
 --disable_query_log
 --disable_result_log
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
-let $MYSQL_BASEDIR= `SELECT @@basedir`;
-let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+let $MYSQLD_SOCKET= `SELECT @@socket`;
+let $MYSQLD_PORT= `SELECT @@port`;
 
 --echo # Initialization - create table.
 CREATE TABLE t (a INT NOT NULL PRIMARY KEY) ENGINE = InnoDB;
@@ -100,7 +100,7 @@ while ($pass != 2) {
   --echo # 6. Recover 103, write new redo record X during recovery and crash just before flushing page with 103
 
   --error 137
-  --exec $MYSQLD --no-defaults --datadir=$MYSQLD_DATADIR --basedir=$MYSQLD_BASEDIR --lc-messages-dir=$MYSQL_MESSAGESDIR  --debug="+d,log_first_rec_group_test"
+  --exec $MYSQLD --no-defaults --datadir=$MYSQLD_DATADIR --socket=$MYSQLD_SOCKET --port=$MYSQLD_PORT --skip-ssl --secure-file-priv="" --skip-mysqlx --debug="+d,log_first_rec_group_test"
 
   --echo # 7. Start recovery and ensure all is recovered - we must recover 103.
   --echo #    If first_rec_group was pointing to X we would skip 103.
