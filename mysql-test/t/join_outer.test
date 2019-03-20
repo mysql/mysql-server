@@ -2345,3 +2345,66 @@ SELECT STRAIGHT_JOIN t1.col_int_unique, t2.col_int_key, t3.pk
 
 
 DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # Bug#29493830 CONST'IFIED OUTER JOIN RETURN INCORRECT RESULTS
+--echo #
+
+CREATE TABLE t1 (
+  col_int_unique INT DEFAULT NULL,
+  col_int_key INT DEFAULT NULL,
+  UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (5,0);
+
+CREATE TABLE t2 (
+  col_char_16_unique char(16) DEFAULT NULL,
+  col_int_key INT DEFAULT NULL,
+  col_int_unique INT DEFAULT NULL,
+  UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+
+INSERT INTO t2 VALUES ("just",21,5);
+
+CREATE TABLE t3 (
+  col_int INT DEFAULT NULL,
+  col_char_16_unique CHAR(16) DEFAULT NULL,
+  UNIQUE KEY col_char_16_unique (col_char_16_unique)
+) ENGINE=InnoDB;
+
+INSERT INTO t3 VALUES (9,"foo");
+
+CREATE TABLE t4 (
+  col_int INT DEFAULT NULL,
+  col_int_unique INT DEFAULT NULL,
+  UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+
+INSERT INTO t4 VALUES (9,5);
+
+# t3 will be marked by the optimizer as 'Impossible ON condition'
+# and const optimized as a NULL row. However the optimizer failed
+# to set 'TABLE::const_table = true'. When later also const optimizing
+# t4, join_read_const_table() failed to evaluate the predicate term
+# 't3.col_int = t4.col_int' on t4. -> incorrect result.
+
+let query = SELECT STRAIGHT_JOIN
+  t3.col_int, t4.col_int,
+  t3.col_int = t4.col_int or t4.col_int IS NULL
+  FROM (t1
+    LEFT JOIN t2
+    ON t1.col_int_key = t2.col_int_key AND
+       t1.col_int_unique = t2.col_int_unique
+    LEFT JOIN t3
+    ON t3.col_char_16_unique = t2.col_char_16_unique
+    LEFT JOIN t4
+    ON t4.col_int = t3.col_int AND    #Note, this pred term
+       t4.col_int_unique = t1.col_int_unique
+ ) WHERE t1.col_int_unique = 5;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3, t4;

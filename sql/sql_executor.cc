@@ -3608,7 +3608,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   int error;
   DBUG_ENTER("join_read_const_table");
   TABLE *table = tab->table();
-  table->const_table = 1;
+  table->const_table = true;
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE) {
     const enum_sql_command sql_command = tab->join()->thd->lex->sql_command;

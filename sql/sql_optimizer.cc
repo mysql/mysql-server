@@ -5220,6 +5220,7 @@ bool JOIN::extract_func_dependent_tables() {
           if (!(keyuse->val->used_tables() & ~const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting) {
             table->set_null_row();
+            table->const_table = true;
             found_const_table_map |= tl->map();
             mark_const_table(tab, keyuse);
             goto more_const_tables_found;

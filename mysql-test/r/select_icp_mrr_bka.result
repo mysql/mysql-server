@@ -2404,7 +2404,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,NULL AS `id3`,`test`.`t4`.`id4` AS `id4`,`test`.`t4`.`id44` AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t4` on(multiple equal(NULL, `test`.`t4`.`id4`)) where ((`test`.`t2`.`id2` = 1) or (`test`.`t4`.`id4` = 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1`,`test`.`t2`.`id2` AS `id2`,NULL AS `id3`,NULL AS `id4`,NULL AS `id44` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`id2` = `test`.`t1`.`id1`)) left join `test`.`t4` on(multiple equal(NULL, NULL)) where ((`test`.`t2`.`id2` = 1) or (NULL = 1))
 select * from t1 left join t2 on id1 = id2 left join t3 on id1 = id3
 left join t4 on id3 = id4 where id2 = 1 or id4 = 1;
 id1	id2	id3	id4	id44
@@ -3686,7 +3686,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	const	idx1	NULL	NULL	NULL	1	100.00	Impossible ON condition
 1	SIMPLE	t3	NULL	ref	idx1	idx1	5	const	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, `test`.`t2`.`b`)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
+Note	1003	/* select#1 */ select '2' AS `id`,NULL AS `a`,NULL AS `b`,NULL AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3`.`e` AS `e` from `test`.`t1` left join `test`.`t2` on(multiple equal(NULL, NULL)) join `test`.`t3` where (`test`.`t3`.`d` = 2)
 SELECT * FROM t1 LEFT JOIN t2 ON t2.b=t1.a INNER JOIN t3 ON t3.d=t1.id
 WHERE t1.id=2;
 id	a	b	c	d	e

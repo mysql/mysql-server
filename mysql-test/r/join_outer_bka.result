@@ -3335,4 +3335,68 @@ col_int_unique	col_int_key	pk
 6	NULL	NULL
 7	NULL	NULL
 DROP TABLE t1,t2,t3;
+#
+# Bug#29493830 CONST'IFIED OUTER JOIN RETURN INCORRECT RESULTS
+#
+CREATE TABLE t1 (
+col_int_unique INT DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (5,0);
+CREATE TABLE t2 (
+col_char_16_unique char(16) DEFAULT NULL,
+col_int_key INT DEFAULT NULL,
+col_int_unique INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t2 VALUES ("just",21,5);
+CREATE TABLE t3 (
+col_int INT DEFAULT NULL,
+col_char_16_unique CHAR(16) DEFAULT NULL,
+UNIQUE KEY col_char_16_unique (col_char_16_unique)
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (9,"foo");
+CREATE TABLE t4 (
+col_int INT DEFAULT NULL,
+col_int_unique INT DEFAULT NULL,
+UNIQUE KEY col_int_unique (col_int_unique)
+) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (9,5);
+explain SELECT STRAIGHT_JOIN
+t3.col_int, t4.col_int,
+t3.col_int = t4.col_int or t4.col_int IS NULL
+FROM (t1
+LEFT JOIN t2
+ON t1.col_int_key = t2.col_int_key AND
+t1.col_int_unique = t2.col_int_unique
+LEFT JOIN t3
+ON t3.col_char_16_unique = t2.col_char_16_unique
+LEFT JOIN t4
+ON t4.col_int = t3.col_int AND    #Note, this pred term
+t4.col_int_unique = t1.col_int_unique
+) WHERE t1.col_int_unique = 5;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	NULL
+1	SIMPLE	t2	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
+1	SIMPLE	t3	NULL	const	col_char_16_unique	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	t4	NULL	const	col_int_unique	col_int_unique	5	const	1	100.00	Impossible ON condition
+Warnings:
+Note	1003	/* select#1 */ select straight_join NULL AS `col_int`,NULL AS `col_int`,((NULL = NULL) or (NULL is null)) AS `t3.col_int = t4.col_int or t4.col_int IS NULL` from `test`.`t1` left join `test`.`t2` on((multiple equal('0', NULL) and multiple equal(5, NULL))) left join `test`.`t3` on(multiple equal(NULL, NULL)) left join `test`.`t4` on((multiple equal(NULL, NULL) and multiple equal(5, NULL))) where true
+SELECT STRAIGHT_JOIN
+t3.col_int, t4.col_int,
+t3.col_int = t4.col_int or t4.col_int IS NULL
+FROM (t1
+LEFT JOIN t2
+ON t1.col_int_key = t2.col_int_key AND
+t1.col_int_unique = t2.col_int_unique
+LEFT JOIN t3
+ON t3.col_char_16_unique = t2.col_char_16_unique
+LEFT JOIN t4
+ON t4.col_int = t3.col_int AND    #Note, this pred term
+t4.col_int_unique = t1.col_int_unique
+) WHERE t1.col_int_unique = 5;
+col_int	col_int	t3.col_int = t4.col_int or t4.col_int IS NULL
+NULL	NULL	1
+DROP TABLE t1, t2, t3, t4;
 set optimizer_switch=default;
