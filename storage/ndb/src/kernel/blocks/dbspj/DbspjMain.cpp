@@ -7832,30 +7832,21 @@ Dbspj::scanFrag_send(Signal* signal,
        * signal receiver can still take realtime breaks when 
        * receiving.
        * 
-       * Indicate to sendFirstFragment that we want to keep the
-       * fragments, so it must not free them, unless this is the
-       * last request in which case they can be freed. If the
-       * last request is a local send then a copy is avoided.
+       * Indicate to sendBatchedFragmentedSignal that we want to
+       * keep the fragments, so it must not free them, unless this
+       * is the last request in which case they can be freed. If
+       * the last request is a local send then a copy is avoided.
        */
       {
         jam();
-        FragmentSendInfo fragSendInfo;
-        sendFirstFragment(fragSendInfo,
-                          ref,
-                          GSN_SCAN_FRAGREQ,
-                          signal,
-                          NDB_ARRAY_SIZE(data.m_scanFragReq),
-                          JBB,
-                          &handle,
-                          !releaseAtSend); //Keep sent sections,
-                                           //unless last send
-
-        while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
-        {
-          jam();
-          // Send remaining fragments
-          sendNextSegmentedFragment(signal, fragSendInfo);
-        }
+        sendBatchedFragmentedSignal(ref,
+                                    GSN_SCAN_FRAGREQ,
+                                    signal,
+                                    NDB_ARRAY_SIZE(data.m_scanFragReq),
+                                    JBB,
+                                    &handle,
+                                    !releaseAtSend); //Keep sent sections,
+                                                     //unless last send
       }
 
       if (releaseAtSend)

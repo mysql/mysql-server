@@ -15227,24 +15227,14 @@ bool Dbtc::sendScanFragReq(Signal* signal,
      * last request in which case they can be freed.  If the
      * last request is a local send then a copy is avoided.
      */
-    FragmentSendInfo fragSendInfo;
-
-    sendFirstFragment(fragSendInfo,
-                      NodeReceiverGroup(scanFragP.p->lqhBlockref),
-                      GSN_SCAN_FRAGREQ,
-                      signal,
-                      ScanFragReq::SignalLength,
-                      JBB,
-                      &sections,
-                      !isLastReq); // Keep sent sections unless
-                                   // last send
-
-    while (fragSendInfo.m_status != FragmentSendInfo::SendComplete)
-    {
-      jam();
-      /* Send remaining fragments */
-      sendNextSegmentedFragment(signal, fragSendInfo);
-    }
+    sendBatchedFragmentedSignal(NodeReceiverGroup(scanFragP.p->lqhBlockref),
+                                GSN_SCAN_FRAGREQ,
+                                signal,
+                                ScanFragReq::SignalLength,
+                                JBB,
+                                &sections,
+                                !isLastReq); // Keep sent sections unless
+                                             // last send
 
     if (!isLastReq && ScanFragReq::getMultiFragFlag(requestInfo))
     {
