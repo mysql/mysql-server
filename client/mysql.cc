@@ -4695,7 +4695,7 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
   else
     tee_fprintf(stdout, "UNIX socket:\t\t%s\n", mysql.unix_socket);
   if (mysql.net.compress) tee_fprintf(stdout, "Protocol:\t\tCompressed\n");
-  if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexidecimal\n");
+  if (opt_binhex) tee_fprintf(stdout, "Binary data as:\t\tHexadecimal\n");
 
   if ((status_str = mysql_stat(&mysql)) && !mysql_error(&mysql)[0]) {
     ulong sec;
