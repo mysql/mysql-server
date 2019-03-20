@@ -684,9 +684,9 @@ ERROR HY000: Cannot create a functional index on an expression that returns a BL
 # column that is a part of a functional index.
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
 ALTER TABLE t1 DROP COLUMN col2;
-ERROR HY000: Cannot drop column 'col2' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ERROR HY000: Column 'col2' has a functional index dependency and cannot be dropped or renamed.
 ALTER TABLE t1 DROP COLUMN col3;
-ERROR HY000: Cannot drop column 'col3' because it is used by a functional index. In order to drop the column, you must remove the functional index.
+ERROR HY000: Column 'col3' has a functional index dependency and cannot be dropped or renamed.
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;
 DROP TABLE t1;

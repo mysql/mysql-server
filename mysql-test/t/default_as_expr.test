@@ -839,14 +839,12 @@ DROP TABLE t2;
 --echo # BUG#28040739 - WL#9418: INCORRECT ERROR THROWN WITH RENAME COLUMN
 --echo #
 CREATE TABLE t1 ( i INT, j INT DEFAULT( i * i) ) ;
---echo # "Unknown column 'i' in 'default value expression'"
---error 1054
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
 ALTER TABLE t1 RENAME COLUMN i to i1 ;
 DROP TABLE t1;
 
 CREATE TABLE t1 ( i INT, j INT DEFAULT (i * i) ) ;
---echo # "Unknown column 'i' in 'default value expression'"
---error 1054
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
 ALTER TABLE t1 CHANGE COLUMN i i1 DOUBLE DEFAULT ( 4 * 4 ) ;
 DROP TABLE t1;
 

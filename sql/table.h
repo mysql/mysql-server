@@ -1635,7 +1635,6 @@ struct TABLE {
   void mark_columns_needed_for_insert(THD *thd);
   void mark_columns_per_binlog_row_image(THD *thd);
   void mark_generated_columns(bool is_update);
-  bool is_field_used_by_generated_columns(uint field_index, int *error_no);
   void mark_gcol_in_maps(Field *field);
   void column_bitmaps_set(MY_BITMAP *read_set_arg, MY_BITMAP *write_set_arg);
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,

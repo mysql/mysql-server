@@ -395,9 +395,9 @@ CREATE TABLE t1 (
 --echo # See that we get a reasonable error message when trying to remove a
 --echo # column that is a part of a functional index.
 CREATE TABLE t1 (col1 INT, col2 INT, col3 INT, INDEX idx ((col1 + col2 + col3)));
---error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
 ALTER TABLE t1 DROP COLUMN col2;
---error ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
 ALTER TABLE t1 DROP COLUMN col3;
 ALTER TABLE t1 DROP INDEX idx;
 ALTER TABLE t1 DROP COLUMN col3;

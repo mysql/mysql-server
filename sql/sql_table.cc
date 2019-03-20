@@ -224,6 +224,9 @@ static bool adjust_check_constraint_names_for_old_table_version(
 static bool is_any_check_constraints_evaluation_required(
     const Alter_info *alter_info);
 
+static bool check_if_field_used_by_generated_column_or_default(
+    TABLE *table, const Field *field, const Alter_info *alter_info);
+
 /**
   RAII class to control the atomic DDL commit on slave.
   A slave context flag responsible to mark the DDL as committed is
@@ -10762,6 +10765,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   Prealloced_array<Field *, 1> gcols_with_unchanged_expr(PSI_INSTRUMENT_ME);
   // Names of columns which default might have changed.
   Prealloced_array<const char *, 1> cols_with_default_change(PSI_INSTRUMENT_ME);
+  // Old table version columns which were renamed or dropped.
+  Prealloced_array<const Field *, 1> dropped_or_renamed_cols(PSI_INSTRUMENT_ME);
   DBUG_ENTER("fill_alter_inplace_info");
 
   /* Allocate result buffers. */
@@ -10934,6 +10939,7 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
       /* Check if field was renamed */
       if (field_renamed) {
         field->flags |= FIELD_IS_RENAMED;
+        dropped_or_renamed_cols.push_back(field);
         ha_alter_info->handler_flags |= Alter_inplace_info::ALTER_COLUMN_NAME;
       }
 
@@ -10990,11 +10996,13 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         Field is not present in new version of table and therefore was dropped.
       */
       DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_DROP_COLUMN);
-      if (field->is_virtual_gcol())
+      if (field->is_virtual_gcol()) {
         ha_alter_info->handler_flags |= Alter_inplace_info::DROP_VIRTUAL_COLUMN;
-      else
+        ha_alter_info->virtual_column_drop_count++;
+      } else
         ha_alter_info->handler_flags |= Alter_inplace_info::DROP_STORED_COLUMN;
       field->flags |= FIELD_IS_DROPPED;
+      dropped_or_renamed_cols.push_back(field);
     }
     if (field->stored_in_db) old_field_index_without_vgc++;
   }
@@ -11006,10 +11014,11 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         /*
           Field is not present in old version of table and therefore was added.
         */
-        if (new_field->is_virtual_gcol())
+        if (new_field->is_virtual_gcol()) {
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ADD_VIRTUAL_COLUMN;
-        else if (new_field->gcol_info || new_field->m_default_val_expr)
+          ha_alter_info->virtual_column_add_count++;
+        } else if (new_field->gcol_info || new_field->m_default_val_expr)
           ha_alter_info->handler_flags |=
               Alter_inplace_info::ADD_STORED_GENERATED_COLUMN;
         else
@@ -11036,26 +11045,54 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
   }
 
   /*
-    Detect cases when we have generated columns that depend on the DEFAULT
-    function on a column and column default might have changed.
+    Detect cases when we have generated columns that depend on columns
+    which were swapped (by renaming them) or replaced (by dropping and
+    then adding column with the same name). Also detect cases when
+    generated columns depend on the DEFAULT function on a column and
+    column default might have changed.
+
     Storage engine might be unable to do such operation inplace as indexes
     or value of stored generated columns might become invalid and require
     re-evaluation by SQL-layer.
   */
   for (Field *vfield : gcols_with_unchanged_expr) {
+    bool gcol_needs_reeval = false;
     for (const char *col_name : cols_with_default_change) {
       if (vfield->gcol_info->expr_item->walk(
               &Item::check_gcol_depend_default_processor, enum_walk::POSTFIX,
               reinterpret_cast<uchar *>(const_cast<char *>(col_name)))) {
-        if (vfield->is_virtual_gcol())
-          ha_alter_info->handler_flags |=
-              Alter_inplace_info::VIRTUAL_GCOL_REEVAL;
-        else
-          ha_alter_info->handler_flags |=
-              Alter_inplace_info::STORED_GCOL_REEVAL;
+        gcol_needs_reeval = true;
         break;
       }
     }
+
+    if (!gcol_needs_reeval && !dropped_or_renamed_cols.empty()) {
+      MY_BITMAP dependent_fields;
+      my_bitmap_map
+          bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
+      bitmap_init(&dependent_fields, bitbuf, table->s->fields, 0);
+      MY_BITMAP *save_old_read_set = table->read_set;
+      table->read_set = &dependent_fields;
+      Mark_field mark_fld(MARK_COLUMNS_TEMP);
+      vfield->gcol_info->expr_item->walk(&Item::mark_field_in_map,
+                                         enum_walk::PREFIX,
+                                         reinterpret_cast<uchar *>(&mark_fld));
+      for (const Field *field : dropped_or_renamed_cols) {
+        if (bitmap_is_set(table->read_set, field->field_index)) {
+          gcol_needs_reeval = true;
+          break;
+        }
+      }
+      table->read_set = save_old_read_set;
+    }
+
+    if (gcol_needs_reeval) {
+      if (vfield->is_virtual_gcol())
+        ha_alter_info->handler_flags |= Alter_inplace_info::VIRTUAL_GCOL_REEVAL;
+      else
+        ha_alter_info->handler_flags |= Alter_inplace_info::STORED_GCOL_REEVAL;
+    }
+
     /*
       Stop our search early if flags indicating re-evaluation of both
       virtual and stored generated columns are already set.
@@ -12909,25 +12946,15 @@ static bool transfer_preexisting_foreign_keys(
       const dd::Foreign_key_element *dd_fk_ele = dd_fk->elements()[j];
 
       if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN) {
-        /*
-          Check if column used in the foreign key was dropped.
-
-          Alter_info::drop_list no longer contains elements for dropped
-          columns at this point. So instead of looking up column in
-          this list, we check if list of columns for new version of table
-          still has the foreign key column (possibly under different name)
-          coming from the old version of table.
-        */
-        find_it.rewind();
-        const Create_field *find;
-        while ((find = find_it++)) {
-          if (find->field && my_strcasecmp(system_charset_info,
-                                           dd_fk_ele->column().name().c_str(),
-                                           find->field->field_name) == 0) {
-            break;
-          }
-        }
-        if (find == nullptr) {
+        /* Check if column used in the foreign key was dropped. */
+        if (std::any_of(
+                alter_info->drop_list.cbegin(), alter_info->drop_list.cend(),
+                [dd_fk_ele](const Alter_drop *drop) {
+                  return drop->type == Alter_drop::COLUMN &&
+                         !my_strcasecmp(system_charset_info,
+                                        dd_fk_ele->column().name().c_str(),
+                                        drop->name);
+                })) {
           my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0),
                    dd_fk_ele->column().name().c_str(), dd_fk->name().c_str());
           return true;
@@ -13050,6 +13077,7 @@ static bool transfer_preexisting_foreign_keys(
 
 /// Set column default, drop default or rename column name.
 static bool alter_column_name_or_default(
+    const Alter_info *alter_info,
     Prealloced_array<const Alter_column *, 1> *alter_list, Create_field *def) {
   DBUG_ENTER("alter_column_name_or_default");
 
@@ -13118,6 +13146,14 @@ static bool alter_column_name_or_default(
     case Alter_column::Type::RENAME_COLUMN: {
       def->change = alter->name;
       def->field_name = alter->m_new_name;
+
+      /*
+        If a generated column or a default expression is dependent
+        on this column, this column cannot be renamed.
+      */
+      if (check_if_field_used_by_generated_column_or_default(
+              def->field->table, def->field, alter_info))
+        DBUG_RETURN(true);
     } break;
 
     default:
@@ -13133,33 +13169,103 @@ static bool alter_column_name_or_default(
 }
 
 /**
-  Check if the given column index is in use by a functional index.
+  Check if the column being removed or renamed is in use by a generated
+  column, default or functional index, which will be kept around/unchanged
+  by this ALTER TABLE, and report error which is appropriate for the case.
 
-  @param table The table where the column exists.
-  @param field_index The column index.
+  @param table        TABLE object describing old table version.
+  @param field        Field object for column to be checked.
+  @param alter_info   Alter_info describing which columns, defaults or
+                      indexes are dropped or modified.
 
-  @retval true if the column is in use by a functional index.
-  @retval false if the column is not in use by a functional index.
+  @return
+    true     The field is used by generated column/default or functional
+             index, error was reported.
+    false    Otherwise.
+
 */
-static bool is_field_used_by_functional_index(TABLE *table, uint field_index) {
+static bool check_if_field_used_by_generated_column_or_default(
+    TABLE *table, const Field *field, const Alter_info *alter_info) {
   MY_BITMAP dependent_fields;
   my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
   bitmap_init(&dependent_fields, bitbuf, table->s->fields, 0);
   MY_BITMAP *save_old_read_set = table->read_set;
   table->read_set = &dependent_fields;
 
-  if (table->vfield != nullptr) {
-    for (Field **vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
-      Field *tmp_vfield = *vfield_ptr;
-      if (!tmp_vfield->is_field_for_functional_index()) {
+  for (Field **vfield_ptr = table->field; *vfield_ptr; vfield_ptr++) {
+    Field *vfield = *vfield_ptr;
+    if (vfield->is_gcol() ||
+        vfield->has_insert_default_general_value_expression()) {
+      /*
+        Ignore generated columns (including hidden columns for functional
+        indexes) and columns with generated defaults which are going to
+        be dropped.
+      */
+      if (std::any_of(alter_info->drop_list.cbegin(),
+                      alter_info->drop_list.cend(),
+                      [vfield](const Alter_drop *drop) {
+                        return drop->type == Alter_drop::COLUMN &&
+                               !my_strcasecmp(system_charset_info,
+                                              vfield->field_name, drop->name);
+                      }))
         continue;
-      }
 
-      DBUG_ASSERT(tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item);
+      /*
+        Ignore generated default values which are removed or changed.
+
+        If new default value is dependent on removed/renamed column
+        the problem will be detected and reported as error later.
+      */
+      if (vfield->has_insert_default_general_value_expression() &&
+          std::any_of(alter_info->alter_list.cbegin(),
+                      alter_info->alter_list.cend(),
+                      [vfield](const Alter_column *alter) {
+                        return (alter->change_type() ==
+                                    Alter_column::Type::SET_DEFAULT ||
+                                alter->change_type() ==
+                                    Alter_column::Type::DROP_DEFAULT) &&
+                               !my_strcasecmp(system_charset_info,
+                                              vfield->field_name, alter->name);
+                      }))
+        continue;
+
+      /*
+        Ignore columns which are explicitly mentioned in CHANGE/MODIFY
+        clauses in this ALTER TABLE and thus have new generation expression
+        or default.
+
+        Again if such new expression is dependent on removed/renamed column
+        the problem will be detected and reported as error later.
+      */
+      if (std::any_of(alter_info->create_list.cbegin(),
+                      alter_info->create_list.cend(),
+                      [vfield](const Create_field &def) {
+                        return (def.change &&
+                                !my_strcasecmp(system_charset_info,
+                                               vfield->field_name, def.change));
+                      }))
+        continue;
+
+      DBUG_ASSERT((vfield->gcol_info && vfield->gcol_info->expr_item) ||
+                  (vfield->m_default_val_expr &&
+                   vfield->m_default_val_expr->expr_item));
       Mark_field mark_fld(MARK_COLUMNS_TEMP);
-      tmp_vfield->gcol_info->expr_item->walk(
-          &Item::mark_field_in_map, enum_walk::PREFIX, (uchar *)&mark_fld);
-      if (bitmap_is_set(table->read_set, field_index)) {
+      Item *expr = vfield->is_gcol() ? vfield->gcol_info->expr_item
+                                     : vfield->m_default_val_expr->expr_item;
+      expr->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
+                 reinterpret_cast<uchar *>(&mark_fld));
+      if (bitmap_is_set(table->read_set, field->field_index)) {
+        if (vfield->is_gcol()) {
+          if (vfield->is_field_for_functional_index())
+            my_error(ER_DEPENDENT_BY_FUNCTIONAL_INDEX, MYF(0),
+                     field->field_name);
+          else
+            my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0),
+                     field->field_name);
+        } else {
+          my_error(ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE, MYF(0),
+                   field->field_name, table->alias);
+        }
         table->read_set = save_old_read_set;
         return true;
       }
@@ -13179,8 +13285,16 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   List<Create_field> new_create_list;
   /* New key definitions are added here */
   Mem_root_array<Key_spec *> new_key_list(thd->mem_root);
-  // DROP instructions for foreign keys and virtual generated columns
-  Mem_root_array<const Alter_drop *> new_drop_list(thd->mem_root);
+
+  /*
+    Original Alter_info::drop_list is used by foreign key handling code and
+    storage engines. check_if_field_used_by_generated_column_or_default()
+    also needs original Alter_info::drop_list. So this function should not
+    modify original list but rather work with its copy.
+  */
+  Prealloced_array<const Alter_drop *, 1> drop_list(
+      PSI_INSTRUMENT_ME, alter_info->drop_list.cbegin(),
+      alter_info->drop_list.cend());
 
   /*
     Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
@@ -13237,8 +13351,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   for (f_ptr = table->field; (field = *f_ptr); f_ptr++) {
     /* Check if field should be dropped */
     size_t i = 0;
-    while (i < alter_info->drop_list.size()) {
-      const Alter_drop *drop = alter_info->drop_list[i];
+    while (i < drop_list.size()) {
+      const Alter_drop *drop = drop_list[i];
       if (drop->type == Alter_drop::COLUMN &&
           !my_strcasecmp(system_charset_info, field->field_name, drop->name)) {
         /* Reset auto_increment value if it was dropped */
@@ -13248,34 +13362,20 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           create_info->used_fields |= HA_CREATE_USED_AUTO;
         }
 
-        int error_no;
         /*
           If a generated column or a default expression is dependent
           on this column, this column cannot be dropped.
         */
-        if (table->is_field_used_by_generated_columns(field->field_index,
-                                                      &error_no)) {
-          // Check if the field is referenced by a functional index.
-          if (is_field_used_by_functional_index(table, field->field_index)) {
-            my_error(ER_CANNOT_DROP_COLUMN_FUNCTIONAL_INDEX, MYF(0),
-                     field->field_name);
-          } else {
-            my_error(error_no, MYF(0), field->field_name, table->alias);
-          }
+        if (check_if_field_used_by_generated_column_or_default(table, field,
+                                                               alter_info))
           DBUG_RETURN(true);
-        }
 
-        /*
-          Mark the drop_column operation is on virtual GC so that a non-rebuild
-          on table can be done.
-        */
-        if (field->is_virtual_gcol()) new_drop_list.push_back(drop);
         break;  // Column was found.
       }
       i++;
     }
-    if (i < alter_info->drop_list.size()) {
-      alter_info->drop_list.erase(i);
+    if (i < drop_list.size()) {
+      drop_list.erase(i);
       continue;
     }
     /* Check if field is changed */
@@ -13295,21 +13395,23 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         DBUG_RETURN(true);
       }
       /*
+        If a generated column or a default expression is dependent
+        on this column, this column cannot be renamed.
+      */
+      if ((my_strcasecmp(system_charset_info, def->field_name, def->change) !=
+           0) &&
+          check_if_field_used_by_generated_column_or_default(table, field,
+                                                             alter_info)) {
+        DBUG_RETURN(true);
+      }
+
+      /*
         Add column being updated to the list of new columns.
         Note that columns with AFTER clauses are added to the end
         of the list for now. Their positions will be corrected later.
       */
       new_create_list.push_back(def);
-      if (!def->after) {
-        /*
-          If this ALTER TABLE doesn't have an AFTER clause for the modified
-          column then remove this column from the list of columns to be
-          processed. So later we can iterate over the columns remaining
-          in this list and process modified columns with AFTER clause or
-          add new columns.
-        */
-        def_it.remove();
-      }
+
       /*
         If the new column type is GEOMETRY (or a subtype) NOT NULL,
         and the old column type is nullable and not GEOMETRY (or a
@@ -13347,7 +13449,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       new_create_list.push_back(def);
 
       // Change the column default OR rename just the column name.
-      if (alter_column_name_or_default(&alter_list, def)) DBUG_RETURN(true);
+      if (alter_column_name_or_default(alter_info, &alter_list, def))
+        DBUG_RETURN(true);
     }
   }
   def_it.rewind();
@@ -13358,6 +13461,12 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                table->s->table_name.str);
       DBUG_RETURN(true);
     }
+
+    /*
+      If this ALTER TABLE doesn't have an AFTER clause for the modified
+      column then it doesn't need further processing.
+    */
+    if (def->change && !def->after) continue;
 
     /*
       New columns of type DATE/DATETIME/GEOMETRIC with NOT NULL constraint
@@ -13471,15 +13580,15 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
     const char *key_name = key_info->name;
     bool index_column_dropped = false;
     size_t drop_idx = 0;
-    while (drop_idx < alter_info->drop_list.size()) {
-      const Alter_drop *drop = alter_info->drop_list[drop_idx];
+    while (drop_idx < drop_list.size()) {
+      const Alter_drop *drop = drop_list[drop_idx];
       if (drop->type == Alter_drop::KEY &&
           !my_strcasecmp(system_charset_info, key_name, drop->name))
         break;
       drop_idx++;
     }
-    if (drop_idx < alter_info->drop_list.size()) {
-      alter_info->drop_list.erase(drop_idx);
+    if (drop_idx < drop_list.size()) {
+      drop_list.erase(drop_idx);
       continue;
     }
 
@@ -13669,14 +13778,13 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       new_key_list.push_back(alter_info->key_list[i]);  // Add new keys
   }
 
-  if (alter_info->drop_list.size() > 0) {
+  if (drop_list.size() > 0) {
     // Now this contains only DROP for foreign keys and not-found objects.
-    for (const Alter_drop *drop : alter_info->drop_list) {
+    for (const Alter_drop *drop : drop_list) {
       switch (drop->type) {
         case Alter_drop::KEY:
         case Alter_drop::COLUMN:
-          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-                   alter_info->drop_list[0]->name);
+          my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop_list[0]->name);
           DBUG_RETURN(true);
         case Alter_drop::CHECK_CONSTRAINT:
           /*
@@ -13692,10 +13800,6 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           break;
       }
     }
-    // new_drop_list has DROP for virtual generated columns; add foreign keys.
-    new_drop_list.reserve(new_drop_list.size() + alter_info->drop_list.size());
-    for (const Alter_drop *drop : alter_info->drop_list)
-      new_drop_list.push_back(drop);
   }
 
   /*
@@ -13726,10 +13830,6 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
   alter_info->key_list.resize(new_key_list.size());
   std::copy(new_key_list.begin(), new_key_list.end(),
             alter_info->key_list.begin());
-  alter_info->drop_list.clear();
-  alter_info->drop_list.resize(new_drop_list.size());
-  std::copy(new_drop_list.begin(), new_drop_list.end(),
-            alter_info->drop_list.begin());
 
   DBUG_RETURN(false);
 }

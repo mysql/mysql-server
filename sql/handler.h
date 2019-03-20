@@ -2958,6 +2958,12 @@ class Alter_inplace_info {
   KEY_PAIR *index_rename_buffer;
   KEY_PAIR *index_altered_visibility_buffer;
 
+  /** Number of virtual columns to be added. */
+  uint virtual_column_add_count;
+
+  /** number of virtual columns to be dropped. */
+  uint virtual_column_drop_count;
+
   /**
      Context information to allow handlers to keep context between in-place
      alter API calls.
@@ -3033,6 +3039,8 @@ class Alter_inplace_info {
         index_rename_count(0),
         index_altered_visibility_count(0),
         index_rename_buffer(NULL),
+        virtual_column_add_count(0),
+        virtual_column_drop_count(0),
         handler_ctx(NULL),
         group_commit_ctx(NULL),
         handler_flags(0),

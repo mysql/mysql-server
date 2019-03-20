@@ -223,13 +223,9 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
   const char *tmp_name;
   /** whether the order of the clustered index is unchanged */
   bool skip_pk_sort;
-  /** number of virtual columns to be added */
-  ulint num_to_add_vcol;
   /** virtual columns to be added */
   dict_v_col_t *add_vcol;
   const char **add_vcol_name;
-  /** number of virtual columns to be dropped */
-  ulint num_to_drop_vcol;
   /** virtual columns to be dropped */
   dict_v_col_t *drop_vcol;
   const char **drop_vcol_name;
@@ -275,10 +271,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx {
         max_autoinc(0),
         tmp_name(0),
         skip_pk_sort(false),
-        num_to_add_vcol(0),
         add_vcol(0),
         add_vcol_name(0),
-        num_to_drop_vcol(0),
         drop_vcol(0),
         drop_vcol_name(0),
         m_stage(NULL),
@@ -528,8 +522,9 @@ static bool check_v_col_in_order(const TABLE *table, const TABLE *altered_table,
 
     /* Check if this column is in drop list */
     for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
-      if (my_strcasecmp(system_charset_info, field->field_name, drop->name) ==
-          0) {
+      if (drop->type == Alter_drop::COLUMN &&
+          my_strcasecmp(system_charset_info, field->field_name, drop->name) ==
+              0) {
         dropped = true;
         break;
       }
@@ -3437,13 +3432,12 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
 
   ctx = static_cast<ha_innobase_inplace_ctx *>(ha_alter_info->handler_ctx);
 
-  ctx->num_to_add_vcol =
-      altered_table->s->fields + ctx->num_to_drop_vcol - table->s->fields;
-
-  ctx->add_vcol = static_cast<dict_v_col_t *>(
-      mem_heap_zalloc(ctx->heap, ctx->num_to_add_vcol * sizeof *ctx->add_vcol));
+  ctx->add_vcol = static_cast<dict_v_col_t *>(mem_heap_zalloc(
+      ctx->heap,
+      ha_alter_info->virtual_column_add_count * sizeof *ctx->add_vcol));
   ctx->add_vcol_name = static_cast<const char **>(mem_heap_alloc(
-      ctx->heap, ctx->num_to_add_vcol * sizeof *ctx->add_vcol_name));
+      ctx->heap,
+      ha_alter_info->virtual_column_add_count * sizeof *ctx->add_vcol_name));
 
   List_iterator_fast<Create_field> cf_it(
       ha_alter_info->alter_info->create_list);
@@ -3536,7 +3530,7 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
         ctx->heap,
         ctx->add_vcol[j].num_base * sizeof *(ctx->add_vcol[j].base_col)));
     ctx->add_vcol[j].v_pos =
-        ctx->old_table->n_v_cols - ctx->num_to_drop_vcol + j;
+        ctx->old_table->n_v_cols - ha_alter_info->virtual_column_drop_count + j;
 
     /* No need to track the list */
     ctx->add_vcol[j].v_indexes = NULL;
@@ -3561,18 +3555,18 @@ static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
 
   ctx = static_cast<ha_innobase_inplace_ctx *>(ha_alter_info->handler_ctx);
 
-  ctx->num_to_drop_vcol = ha_alter_info->alter_info->drop_list.size();
-
   ctx->drop_vcol = static_cast<dict_v_col_t *>(mem_heap_alloc(
-      ctx->heap, ctx->num_to_drop_vcol * sizeof *ctx->drop_vcol));
+      ctx->heap,
+      ha_alter_info->virtual_column_drop_count * sizeof *ctx->drop_vcol));
   ctx->drop_vcol_name = static_cast<const char **>(mem_heap_alloc(
-      ctx->heap, ctx->num_to_drop_vcol * sizeof *ctx->drop_vcol_name));
+      ctx->heap,
+      ha_alter_info->virtual_column_drop_count * sizeof *ctx->drop_vcol_name));
 
   for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
     const Field *field;
     ulint old_i;
 
-    ut_ad(drop->type == Alter_drop::COLUMN);
+    if (drop->type != Alter_drop::COLUMN) continue;
 
     for (old_i = 0; table->field[old_i]; old_i++) {
       const Field *n_field = table->field[old_i];
@@ -3581,24 +3575,22 @@ static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
         break;
       }
     }
+    /* SQL-layer already has checked that all columns to be dropped exist. */
+    ut_ad(table->field[old_i]);
+    field = table->field[old_i];
 
-    if (!table->field[old_i]) {
-      continue;
-    }
+    /*
+      We don't support simultaneous removal of virtual and stored columns
+      as in-place operation yet.
+    */
+    ut_ad(field->gcol_info && !field->stored_in_db);
 
     ulint col_len;
     ulint is_unsigned;
     ulint field_type;
     ulint charset_no;
 
-    field = table->field[old_i];
-
     ulint col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
-
-    if (!field->gcol_info || field->stored_in_db) {
-      my_error(ER_WRONG_KEY_COLUMN, MYF(0), field->field_name);
-      return (true);
-    }
 
     col_len = field->pack_length();
     field_type = (ulint)field->type();
@@ -4217,7 +4209,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     /* Need information for newly added virtual columns
     for create index */
     if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX) {
-      for (ulint i = 0; i < ctx->num_to_add_vcol; i++) {
+      for (ulint i = 0; i < ha_alter_info->virtual_column_add_count; i++) {
         /* Set mbminmax for newly added column */
         ulint i_mbminlen, i_mbmaxlen;
         dtype_get_mblen(ctx->add_vcol[i].m_col.mtype,
@@ -4228,7 +4220,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       }
       add_v = static_cast<dict_add_v_col_t *>(
           mem_heap_alloc(ctx->heap, sizeof *add_v));
-      add_v->n_v_col = ctx->num_to_add_vcol;
+      add_v->n_v_col = ha_alter_info->virtual_column_add_count;
       add_v->v_col = ctx->add_vcol;
       add_v->v_col_name = ctx->add_vcol_name;
     }
@@ -4650,9 +4642,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   /* Create the indexes and load into dictionary. */
 
   for (ulint a = 0; a < ctx->num_to_add_index; a++) {
-    if (index_defs[a].ind_type & DICT_VIRTUAL && ctx->num_to_drop_vcol > 0 &&
-        !new_clustered) {
-      innodb_v_adjust_idx_col(ha_alter_info, old_table, ctx->num_to_drop_vcol,
+    if (index_defs[a].ind_type & DICT_VIRTUAL &&
+        ha_alter_info->virtual_column_drop_count > 0 && !new_clustered) {
+      innodb_v_adjust_idx_col(ha_alter_info, old_table,
+                              ha_alter_info->virtual_column_drop_count,
                               &index_defs[a]);
     }
 
@@ -5448,8 +5441,6 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
     }
 
     DBUG_ASSERT(n_drop_fk > 0);
-
-    DBUG_ASSERT(n_drop_fk == ha_alter_info->alter_info->drop_list.size());
   } else {
     drop_fk = NULL;
   }
@@ -5948,7 +5939,8 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
                            NULL);
 
     ctx->new_table->vc_templ = s_templ;
-  } else if (ctx->num_to_add_vcol > 0 && ctx->num_to_drop_vcol == 0) {
+  } else if (ha_alter_info->virtual_column_add_count > 0 &&
+             ha_alter_info->virtual_column_drop_count == 0) {
     /* if there is ongoing drop virtual column, then we disallow
     inplace add index on newly added virtual column, so it does
     not need to come in here to rebuild template with add_v.
@@ -5958,7 +5950,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
 
     add_v = static_cast<dict_add_v_col_t *>(
         mem_heap_alloc(ctx->heap, sizeof *add_v));
-    add_v->n_v_col = ctx->num_to_add_vcol;
+    add_v->n_v_col = ha_alter_info->virtual_column_add_count;
     add_v->v_col = ctx->add_vcol;
     add_v->v_col_name = ctx->add_vcol_name;
 
@@ -5973,7 +5965,7 @@ bool ha_innobase::inplace_alter_table_impl(TABLE *altered_table,
   /* Drop virtual column without rebuild will keep dict table
   unchanged, we use old table to evaluate virtual column value
   in innobase_get_computed_value(). */
-  if (!ctx->need_rebuild() && ctx->num_to_drop_vcol > 0) {
+  if (!ctx->need_rebuild() && ha_alter_info->virtual_column_drop_count > 0) {
     eval_table = table;
   }
 
@@ -5999,7 +5991,8 @@ oom:
   }
 
   if (s_templ) {
-    ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0 || rebuild_templ);
+    ut_ad(ctx->need_rebuild() || ha_alter_info->virtual_column_add_count > 0 ||
+          rebuild_templ);
     dict_free_vc_templ(s_templ);
     UT_DELETE(s_templ);
 
@@ -6855,9 +6848,6 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_try_norebuild(
   DBUG_ASSERT(
       !(ha_alter_info->handler_flags & Alter_inplace_info::DROP_FOREIGN_KEY) ||
       ctx->num_to_drop_fk > 0);
-  DBUG_ASSERT(
-      ctx->num_to_drop_fk == ha_alter_info->alter_info->drop_list.size() ||
-      ctx->num_to_drop_vcol == ha_alter_info->alter_info->drop_list.size());
 
   for (ulint i = 0; i < ctx->num_to_add_index; i++) {
     dict_index_t *index = ctx->add_index[i];
@@ -7520,7 +7510,8 @@ rollback_trx:
     DBUG_RETURN(true);
   }
 
-  if (ctx0->num_to_drop_vcol || ctx0->num_to_add_vcol) {
+  if (ha_alter_info->virtual_column_drop_count ||
+      ha_alter_info->virtual_column_add_count) {
     if (ctx0->old_table->get_ref_count() > 1) {
       row_mysql_unlock_data_dictionary(trx);
       my_error(ER_TABLE_REFERENCED, MYF(0));

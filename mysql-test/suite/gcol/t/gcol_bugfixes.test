@@ -907,3 +907,441 @@ REPLACE INTO t(a, b, c) VALUES (0,7,12);
 REPLACE INTO t(a, b, c) VALUES (0,0,13);
 SELECT * FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #28772251 "SWAPPING COLUMN BY ALTER TABLE RENAME COLUMN BREAKS
+--echo #                STORED GENERATED COLUMN".
+--echo #
+
+--echo #
+--echo # 0) Original test case.
+--echo #
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 1) STORED);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a, b) VALUES (1, 2);
+SELECT * FROM t1;
+--echo # We block renaming of columns on which generated columns depend.
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+--echo # However, it is OK to rename such column in dependent expression
+--echo # is redefined in the same ALTER TABLE.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 1) STORED;
+SHOW CREATE TABLE t1;
+--echo # Check that generated column value reflect the fact that columns
+--echo # were swapped.
+SELECT * FROM t1;
+--echo # Similarly, we disallow replacement (via DROP + ADD) of columns on
+--echo # which generated columns depend. Replacement is allowed if
+--echo # dependent expression is updated within the same ALTER.
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 3;
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 3, MODIFY gcol INT AS (a + 1) STORED;
+SHOW CREATE TABLE t1;
+--echo # Check that generated column value reflect the fact that column
+--echo # was replaced.
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # More systematic test coverage.
+--echo #
+--echo # 1) Renaming columns on which generated columns depend.
+--echo #
+--echo # 1.1) Renaming column on which generated column depends is
+--echo #      prohibited (for both stored and virtual columns).
+CREATE TABLE t1 (a INT, gcol INT AS (a + 1) STORED);
+CREATE TABLE t2 (a INT, gcol INT AS (a + 1) VIRTUAL);
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN a TO b;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t2 RENAME COLUMN a TO b;
+--echo # Cases when rename happens through CHANGE COLUMN are also detected.
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t2 CHANGE COLUMN a b INT;
+--echo #
+--echo # 1.2) It is OK to rename such columns if dependent generated column
+--echo #      is dropped in the same ALTER.
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP COLUMN gcol;
+ALTER TABLE t2 RENAME COLUMN a TO b, DROP COLUMN gcol;
+--echo # This works even if dropped column comes earlier than renamed column.
+ALTER TABLE t1 ADD gcol INT AS (b + 1) STORED FIRST;
+ALTER TABLE t2 ADD gcol INT AS (b + 1) VIRTUAL FIRST;
+ALTER TABLE t1 DROP COLUMN gcol, RENAME COLUMN b TO c;
+ALTER TABLE t2 DROP COLUMN gcol, RENAME COLUMN b TO c;
+--echo #
+--echo # 1.3) It is also OK to rename such columns if dependent generated
+--echo #      column expression is updated/redefined.
+ALTER TABLE t1 ADD COLUMN gcol INT AS (c + 1) STORED;
+ALTER TABLE t2 ADD COLUMN gcol INT AS (c + 1) VIRTUAL;
+ALTER TABLE t1 RENAME COLUMN c TO d, MODIFY gcol INT AS (d + 1) STORED;
+ALTER TABLE t2 RENAME COLUMN c TO d, MODIFY gcol INT AS (d + 1) VIRTUAL;
+--echo # And again this works even if generated column comes earlier than
+--echo # renamed column.
+ALTER TABLE t1 DROP COLUMN gcol, ADD COLUMN gcol INT AS (d + 1) STORED FIRST;
+ALTER TABLE t2 DROP COLUMN gcol, ADD COLUMN gcol INT AS (d + 1) VIRTUAL FIRST;
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, RENAME COLUMN d TO e;
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, RENAME COLUMN d TO e;
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Note that error code and message are different because technically
+--echo # it is issue with new generation expression.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, RENAME COLUMN e TO f;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, RENAME COLUMN e TO f;
+DROP TABLES t1, t2;
+--echo #
+--echo # 1.4) Complex case. Renaming of columns which causes generated
+--echo #      column re-evaluation.
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 10) STORED);
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 10) VIRTUAL, KEY(gcol));
+INSERT INTO t2 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+--echo # We block simple renaming of columns even if dependent generation
+--echo # expression stays valid. This is intentional -- we want user to
+--echo # realize and explicitly confirm what is done (in most cases such
+--echo # rename is likely to be an error).
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) STORED;
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) VIRTUAL;
+--echo # Contents of generated column should be updated accordingly.
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t2 WHERE gcol = 14;
+--echo # Such ALTER TABLEs are not inplace/instant due to generated
+--echo # column re-evaluation.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) STORED, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) VIRTUAL, ALGORITHM=INPLACE;
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 2) Renaming columns on which generated default depends.
+--echo #
+--echo # 2.1) Renaming column on which generated default depends is
+--echo #      prohibited.
+CREATE TABLE t1 (a INT, def INT DEFAULT (a + 1));
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+ALTER TABLE t1 RENAME COLUMN a TO b;
+--echo # Cases when rename happens through CHANGE COLUMN are also detected.
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+--echo #
+--echo # 2.2) It is OK to rename such columns if dependent generated default
+--echo #      is dropped:
+--echo #
+--echo #      a) By dropping column
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP COLUMN def;
+--echo #      b) By dropping default using DROP DEFAULT
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (b + 1);
+ALTER TABLE t1 RENAME COLUMN b TO c, ALTER COLUMN def DROP DEFAULT;
+--echo #      c) By dropping default using CHANGE/MODIFY COLUMN
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (c + 1);
+ALTER TABLE t1 RENAME COLUMN c TO d, MODIFY COLUMN def INT;
+--echo # This works even if column with generated default comes earlier than
+--echo # renamed column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (d + 1) FIRST;
+ALTER TABLE t1 DROP COLUMN def, RENAME COLUMN d TO e;
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (e + 1) FIRST;
+ALTER TABLE t1 ALTER COLUMN def DROP DEFAULT, RENAME COLUMN e TO f;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (f + 1);
+ALTER TABLE t1 MODIFY COLUMN def INT, RENAME COLUMN f TO g;
+DROP TABLE t1;
+--echo #
+--echo # 2.3) It is also OK to rename such columns if dependent generated
+--echo #      default value is updated/redefined:
+--echo #
+--echo #      a) Using SET DEFAULT
+CREATE TABLE t1 (a INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 RENAME COLUMN a TO b, ALTER COLUMN def SET DEFAULT (b + 1);
+--echo #      b) Using MODIFY/CHANGE column
+ALTER TABLE t1 RENAME COLUMN b TO c, MODIFY COLUMN def INT DEFAULT (c + 1);
+--echo # And again this works even if generated default comes earlier than
+--echo # renamed column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (c + 1) FIRST;
+ALTER TABLE t1 ALTER COLUMN def SET DEFAULT (d + 1), RENAME COLUMN c TO d;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (e + 1), RENAME COLUMN d TO e;
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Again, error code and message are different because technically
+--echo # it is issue with new generated default.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 MODIFY def INT DEFAULT (e + 1), RENAME COLUMN e TO f;
+DROP TABLES t1;
+--echo #
+--echo # 2.4) Complex case. Swapping of columns on which generated
+--echo #      default depends.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a));
+INSERT INTO t1 (a, b) VALUES (1, 2);
+--echo # Similarly to the above we block simple renaming of columns even
+--echo # if dependent default expression stays valid. This is intentional
+--echo # -- we want user to realize and explicitly confirm what is done
+--echo # (in most cases such rename is likely to be an error).
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, ALTER COLUMN def SET DEFAULT (a);
+--echo # Old rows should stay the same, new default will only affect new rows.
+INSERT INTO t1 (a, b) VALUES (3, 4);
+SELECT * FROM t1;
+--echo # Unlike for generated columns case, such ALTER TABLE can be done
+--echo # inplace, since it doesn't affect table data.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, ALTER COLUMN def SET DEFAULT (a), ALGORITHM=INPLACE;
+DROP TABLES t1;
+
+--echo #
+--echo # 3) Renaming columns on which functional index depends.
+--echo #
+--echo # 3.1) Renaming column on which functional index depends is
+--echo #      prohibited.
+CREATE TABLE t1 (a INT, KEY fi((a + 1)));
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+ALTER TABLE t1 RENAME COLUMN a TO b;
+--echo # Cases when rename happens through CHANGE COLUMN are also detected.
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+--echo #
+--echo # 3.2) It is OK to rename such columns if dependent index is dropped.
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP KEY fi;
+--echo # This works even if hidden column for functional index processed
+--echo # earlier than renamed column.
+ALTER TABLE t1 ADD KEY fi ((b + 1));
+--echo # Move column 'b' to the table's end first.
+ALTER TABLE t1 ADD c INT;
+ALTER TABLE t1 MODIFY b INT AFTER c;
+ALTER TABLE t1 DROP KEY fi, RENAME COLUMN b TO d;
+--echo #
+--echo # Note that the only way to update/redefine functional index is to
+--echo # drop and re-create it. So the this section also covers the case
+--echo # when functional index is updated/redefined along with rename.
+--echo # Let us check such scenario for completeness.
+ALTER TABLE t1 ADD KEY fi ((d + 1));
+ALTER TABLE t1 RENAME COLUMN d TO e, DROP KEY fi, ADD KEY fi ((e + 1));
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Again, error code and message are different because technically
+--echo # it is issue with new functional index.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN e TO f, DROP KEY fi, ADD KEY fi ((e + 1));
+DROP TABLE t1;
+--echo #
+--echo # 3.3) Complex case. Swapping of columns on which functional index
+--echo #      depends.
+CREATE TABLE t1 (a INT, b INT, KEY fi ((a + 10)));
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+SELECT * FROM t1 WHERE a + 10 = 13;
+--echo # We block simple renaming of columns even if dependent functional
+--echo # index stays valid. This is intentional -- we want user to realize
+--echo # and explicitly confirm what is done (in most cases such rename is
+--echo # likely to be an error).
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, DROP KEY fi, ADD KEY fi((a + 10));
+--echo # Contents of functional index/hidden generated column should be
+--echo # updated accordingly.
+SELECT * FROM t1 WHERE a + 10 = 14;
+--echo # Such ALTER TABLEs are not inplace/instant due to re-evaluation
+--echo # (and other reasons).
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
+DROP TABLES t1;
+
+--echo #
+--echo # 4) Dropping columns on which generated columns depend.
+--echo #
+--echo # 4.1) Dropping column on which generated column depends is
+--echo #      prohibited (for both stored and virtual columns).
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 1) STORED);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 1) VIRTUAL);
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN a;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t2 DROP COLUMN a;
+--echo #
+--echo # 4.2) It is OK to drop such columns if dependent generated column
+--echo #      is dropped in the same ALTER.
+ALTER TABLE t1 DROP COLUMN a, DROP COLUMN gcol;
+ALTER TABLE t2 DROP COLUMN a, DROP COLUMN gcol;
+--echo # This works even if generated column is processed earlier than
+--echo # base column.
+ALTER TABLE t1 ADD gcol INT AS (a + 1) STORED FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN gcol, DROP COLUMN a;
+# Disabled until bug #29501324 "ADD VIRTUAL FIRST + ADD COLUMN CAUSES
+# ASSERTION FAILURE" is fixed.
+# ALTER TABLE t2 ADD gcol INT AS (a + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+# ALTER TABLE t2 DROP COLUMN gcol, DROP COLUMN a;
+--echo #
+--echo # 4.3) It is also OK to drop such columns if dependent generated
+--echo #      column expression is updated/redefined.
+ALTER TABLE t1 ADD COLUMN gcol INT AS (a + 1) STORED, ADD COLUMN a INT;
+ALTER TABLE t2 ADD COLUMN gcol INT AS (a + 1) VIRTUAL, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN a, MODIFY gcol INT AS (b + 1) STORED;
+ALTER TABLE t2 DROP COLUMN a, MODIFY gcol INT AS (b + 1) VIRTUAL;
+--echo # And again this works even if generated column is processed earlier
+--echo # than base  column.
+ALTER TABLE t1 DROP COLUMN gcol, ADD COLUMN gcol INT AS (a + 1) STORED FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 MODIFY gcol INT AS (b + 1) STORED, DROP COLUMN a;
+ALTER TABLE t2 DROP COLUMN gcol, ADD COLUMN gcol INT AS (a + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+ALTER TABLE t2 MODIFY gcol INT AS (b + 1) VIRTUAL, DROP COLUMN a;
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Note that error code and message are different because technically
+--echo # it is issue with new generation expression.
+ALTER TABLE t1 ADD COLUMN c INT;
+ALTER TABLE t2 ADD COLUMN c INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, DROP COLUMN b;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, DROP COLUMN b;
+DROP TABLES t1, t2;
+--echo #
+--echo # 4.4) Complex case. Replacement (dropping and addition) of columns
+--echo #      which causes generated column re-evaluation.
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 10) STORED);
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 10) VIRTUAL, KEY(gcol));
+INSERT INTO t2 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+--echo # We block simple replacement of columns even if dependent generation
+--echo # expression stays valid. This is intentional -- we want user to
+--echo # realize and explicitly confirm what is done (in most cases this
+--echo # is likely to be an error).
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) STORED;
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) VIRTUAL;
+--echo # Contents of generated column should be updated accordingly.
+SELECT * FROM t1;
+SELECT * FROM t2;
+SELECT * FROM t2 WHERE gcol = 10;
+--echo # Such ALTER TABLEs are not inplace/instant due to generated
+--echo # column re-evaluation.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) STORED, ALGORITHM=INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) VIRTUAL, ALGORITHM=INPLACE;
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 5) Dropping column on which generated default depends.
+--echo #
+--echo # 5.1) Dropping column on which generated default depends is
+--echo #      prohibited.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a + 1));
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+ALTER TABLE t1 DROP COLUMN a;
+--echo #
+--echo # 5.2) It is OK to drop such columns if dependent generated default
+--echo #      is dropped:
+--echo #
+--echo #      a) By dropping column
+ALTER TABLE t1 DROP COLUMN a, DROP COLUMN def;
+--echo #      b) By dropping default using DROP DEFAULT
+ALTER TABLE t1 ADD COLUMN a INT, ADD COLUMN def INT DEFAULT (a + 1);
+ALTER TABLE t1 DROP COLUMN a, ALTER COLUMN def DROP DEFAULT;
+--echo #      c) By dropping default using CHANGE/MODIFY COLUMN
+ALTER TABLE t1 ADD COLUMN a INT, MODIFY COLUMN def INT DEFAULT (a + 1);
+ALTER TABLE t1 DROP COLUMN a, MODIFY COLUMN def INT;
+--echo # This works even if column with generated default comes earlier than
+--echo # dropped column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN def, DROP COLUMN a;
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 ALTER COLUMN def DROP DEFAULT, DROP COLUMN a;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (a + 1), ADD COLUMN a INT;
+ALTER TABLE t1 MODIFY COLUMN def INT, DROP COLUMN a;
+DROP TABLE t1;
+--echo #
+--echo # 5.3) It is also OK to drop such columns if dependent generated
+--echo #      default value is updated/redefined:
+--echo #
+--echo #      a) Using SET DEFAULT
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 DROP COLUMN a, ALTER COLUMN def SET DEFAULT (b + 1);
+--echo #      b) Using MODIFY/CHANGE column
+ALTER TABLE t1 DROP COLUMN b, MODIFY COLUMN def INT DEFAULT (c + 1);
+--echo # And again this works even if generated default comes earlier than
+--echo # dropped column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT, ADD COLUMN b INT;
+ALTER TABLE t1 ALTER COLUMN def SET DEFAULT (b + 1), DROP COLUMN a;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (c + 1), DROP COLUMN b;
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Again, error code and message are different because technically
+--echo # it is issue with new generated default.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 MODIFY def INT DEFAULT (e + 1), DROP COLUMN c;
+DROP TABLES t1;
+--echo #
+--echo # 5.4) Complex case. Replacement of column on which generated
+--echo #      default depends.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a));
+INSERT INTO t1 (a, b) VALUES (1, 2);
+--echo # Similarly to the above we block simple replacement of columns even
+--echo # if dependent default expression stays valid. This is intentional
+--echo # -- we want user to realize and explicitly confirm what is done
+--echo # (in most cases such replacement is likely to be an error).
+--error ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 10, ALTER COLUMN def SET DEFAULT (a);
+--echo # Old rows should stay the same, new generated default will only affect new rows.
+INSERT INTO t1 (a, b) VALUES (3, 4);
+SELECT * FROM t1;
+--echo # Unlike for generated columns case, such ALTER TABLE can be done
+--echo # inplace, since it doesn't affect table data.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 42, ALTER COLUMN def SET DEFAULT (a), ALGORITHM=INPLACE;
+DROP TABLES t1;
+
+--echo #
+--echo # 6) Dropping column on which functional index depends.
+--echo #
+--echo # 6.1) Dropping column on which functional index depends is
+--echo #      prohibited.
+CREATE TABLE t1 (a INT, b INT, KEY fi((a + 1)));
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+ALTER TABLE t1 DROP COLUMN a;
+--echo #
+--echo # 6.2) It is OK to drop such column if dependent index is dropped.
+ALTER TABLE t1 DROP COLUMN a, DROP KEY fi;
+--echo # This works even if hidden column for functional index processed
+--echo # earlier than dropped column.
+ALTER TABLE t1 ADD KEY fi ((b + 1));
+--echo # Move column 'b' to the table's end first.
+ALTER TABLE t1 ADD c INT;
+ALTER TABLE t1 MODIFY b INT AFTER c;
+ALTER TABLE t1 DROP KEY fi, DROP COLUMN b;
+--echo #
+--echo # Note that the only way to update/redefine functional index is to
+--echo # drop and re-create it. So the this section also covers the case
+--echo # when functional index is updated/redefined along with drop of
+--echo # base column. Let us check such scenario for completeness.
+ALTER TABLE t1 ADD KEY fi ((c + 1)), ADD COLUMN d INT, ADD COLUMN e INT;
+ALTER TABLE t1 DROP COLUMN c, DROP KEY fi, ADD KEY fi ((d + 1));
+--echo # If updated expression uses wrong column name, error is reported.
+--echo # Again, error code and message are different because technically
+--echo # it is issue with new functional index.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN d, DROP KEY fi, ADD KEY fi ((f + 1));
+DROP TABLE t1;
+--echo #
+--echo # 6.3) Complex case. Replacing column on which functional index
+--echo #      depends.
+CREATE TABLE t1 (a INT, b INT, KEY fi ((a + 10)));
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+SELECT * FROM t1 WHERE a + 10 = 13;
+--echo # We block simple replacement of column even if dependent functional
+--echo # index stays valid. This is intentional -- we want user to realize
+--echo # and explicitly confirm what is done (in most cases such replacement
+--echo # is likely to be an error).
+--error ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10));
+--echo # Contents of functional index/hidden generated column should be
+--echo # updated accordingly.
+SELECT * FROM t1 WHERE a + 10 = 10;
+--echo # Such ALTER TABLEs are not inplace/instant due to re-evaluation
+--echo # (and other reasons).
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
+DROP TABLES t1;
