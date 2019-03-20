@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,8 +67,12 @@ static DEFINE_BOOL_METHOD(test1, (int a1, int a2, int *outres)) {
 /** Our own service definition: a struct of function pointers */
 static SERVICE_TYPE(test_services_plugin_registry_service) svc_def = {test1};
 
+using service_type_t =
+    SERVICE_TYPE_NO_CONST(test_services_plugin_registry_service);
+
 /** @ref svc_def converted to a @ref my_h_service */
-static my_h_service h_my_svc = (my_h_service)&svc_def;
+static my_h_service h_my_svc =
+    reinterpret_cast<my_h_service>(const_cast<service_type_t *>(&svc_def));
 
 /**
   Tests the plugin registry service

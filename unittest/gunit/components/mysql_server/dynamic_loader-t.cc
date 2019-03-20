@@ -46,7 +46,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <server_component.h>
 #include <stddef.h>
 #include <system_variable_source_imp.h>
-#include <type_traits>
 
 #include "components/mysql_server/persistent_dynamic_loader.h"
 #include "host_application_signal_imp.h"
@@ -315,8 +314,8 @@ bool check_valid_path(const char *path, size_t len) {
 
 namespace dynamic_loader_unittest {
 
-using registry_type_t = std::remove_const_t<SERVICE_TYPE(registry)>;
-using loader_type_t = std::remove_const_t<SERVICE_TYPE(dynamic_loader)>;
+using registry_type_t = SERVICE_TYPE_NO_CONST(registry);
+using loader_type_t = SERVICE_TYPE_NO_CONST(dynamic_loader);
 
 class dynamic_loader : public ::testing::Test {
  protected:

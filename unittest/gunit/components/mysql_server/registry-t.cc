@@ -31,7 +31,6 @@
 #include <mysql/components/services/psi_thread_bits.h>
 #include <mysql/mysql_lex_string.h>
 #include <stddef.h>
-#include <type_traits>
 
 #include "m_ctype.h"
 
@@ -320,7 +319,7 @@ bool check_valid_path(const char *, size_t) {
 
 namespace registry_unittest {
 
-using service_type_t = std::remove_const_t<SERVICE_TYPE(registry)>;
+using service_type_t = SERVICE_TYPE_NO_CONST(registry);
 
 class registry : public ::testing::Test {
  protected:

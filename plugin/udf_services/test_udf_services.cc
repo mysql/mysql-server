@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,6 +131,8 @@ test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 #include <mysql/components/services/udf_registration.h>
 #include <mysql/service_plugin_registry.h>
 
+using udf_registration_t = SERVICE_TYPE_NO_CONST(udf_registration);
+
 /** Sample plugin init function that registers a UDF */
 static int test_udf_registration_init(MYSQL_PLUGIN /*p */) {
   SERVICE_TYPE(registry) * reg;
@@ -142,7 +144,9 @@ static int test_udf_registration_init(MYSQL_PLUGIN /*p */) {
     ret = true;
     goto end;
   }
-  reg->acquire("udf_registration", (my_h_service *)&udf);
+  reg->acquire("udf_registration",
+               reinterpret_cast<my_h_service *>(
+                   const_cast<udf_registration_t **>(&udf)));
   if (!udf) {
     ret = true;
     goto end;
@@ -151,7 +155,8 @@ static int test_udf_registration_init(MYSQL_PLUGIN /*p */) {
                           (Udf_func_any)test_udf_services_udf,
                           test_udf_services_udf_init, NULL);
 
-  reg->release((my_h_service)udf);
+  reg->release(
+      reinterpret_cast<my_h_service>(const_cast<udf_registration_t *>(udf)));
 end:
   if (reg) mysql_plugin_registry_release(reg);
   return ret ? 1 : 0;
@@ -169,7 +174,9 @@ static int test_udf_registration_deinit(MYSQL_PLUGIN /* p */) {
     ret = true;
     goto end;
   }
-  reg->acquire("udf_registration", (my_h_service *)&udf);
+  reg->acquire("udf_registration",
+               reinterpret_cast<my_h_service *>(
+                   const_cast<udf_registration_t **>(&udf)));
   if (!udf) {
     ret = true;
     goto end;
@@ -179,7 +186,9 @@ static int test_udf_registration_deinit(MYSQL_PLUGIN /* p */) {
 
 end:
   if (reg) {
-    if (udf) reg->release((my_h_service)udf);
+    if (udf)
+      reg->release(reinterpret_cast<my_h_service>(
+          const_cast<udf_registration_t *>(udf)));
     mysql_plugin_registry_release(reg);
   }
   return ret ? 1 : 0;
