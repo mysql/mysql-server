@@ -3862,6 +3862,213 @@ SimulatedBlock::sendFragmentedSignal(NodeReceiverGroup rg,
   }
 }
 
+void
+SimulatedBlock::sendBatchedFragmentedSignal(BlockReference ref,
+                                            GlobalSignalNumber gsn,
+                                            Signal* signal,
+                                            Uint32 length,
+                                            JobBufferLevel jbuf,
+                                            SectionHandle* sections,
+                                            bool noRelease,
+                                            Callback & c,
+                                            Uint32 messageSize)
+{
+  jam();
+  bool res = true;
+  FragmentSendInfo fragSendInfo;
+
+  const Uint32 noOfSections = sections->m_cnt;
+  SegmentedSectionPtr * const ptr = sections->m_ptr;
+  const Uint32 totalSize =
+    (noOfSections >= 1 ? ptr[0].sz : 0) +
+    (noOfSections >= 2 ? ptr[1].sz : 0) +
+    (noOfSections >= 3 ? ptr[2].sz : 0);
+
+  res = sendFirstFragment(fragSendInfo,
+                          NodeReceiverGroup(ref),
+                          gsn,
+                          signal,
+                          length,
+                          jbuf,
+                          sections,
+                          noRelease,
+                          messageSize);
+  ndbrequire(res);
+
+  Uint32 guard = totalSize / messageSize + 1 + noOfSections;
+
+  while (guard > 0 && fragSendInfo.m_status != FragmentSendInfo::SendComplete)
+  {
+    jam();
+    guard--;
+    // Send remaining fragments
+    sendNextSegmentedFragment(signal, fragSendInfo);
+  }
+
+  ndbrequire(fragSendInfo.m_status == FragmentSendInfo::SendComplete);
+
+  if (c.m_callbackFunction != nullptr)
+  {
+    jam();
+    execute(signal, c, 0);
+  }
+  return;
+}
+
+void
+SimulatedBlock::sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                            GlobalSignalNumber gsn,
+                                            Signal* signal,
+                                            Uint32 length,
+                                            JobBufferLevel jbuf,
+                                            SectionHandle * sections,
+                                            bool noRelease,
+                                            Callback & c,
+                                            Uint32 messageSize)
+{
+  jam();
+  bool res = true;
+  FragmentSendInfo fragSendInfo;
+
+  const Uint32 noOfSections = sections->m_cnt;
+  SegmentedSectionPtr * const ptr = sections->m_ptr;
+  const Uint32 totalSize =
+    (noOfSections >= 1 ? ptr[0].sz : 0) +
+    (noOfSections >= 2 ? ptr[1].sz : 0) +
+    (noOfSections >= 3 ? ptr[2].sz : 0);
+
+  res = sendFirstFragment(fragSendInfo,
+                          rg,
+                          gsn,
+                          signal,
+                          length,
+                          jbuf,
+                          sections,
+                          noRelease,
+                          messageSize);
+  ndbrequire(res);
+
+  Uint32 guard = totalSize / messageSize + 1 + noOfSections;
+
+  while (guard > 0 && fragSendInfo.m_status != FragmentSendInfo::SendComplete)
+  {
+    jam();
+    guard--;
+    // Send remaining fragments
+    sendNextSegmentedFragment(signal, fragSendInfo);
+  }
+
+  ndbrequire(fragSendInfo.m_status == FragmentSendInfo::SendComplete);
+
+  if (c.m_callbackFunction != nullptr)
+  {
+    jam();
+    execute(signal, c, 0);
+  }
+  return;
+}
+
+void
+SimulatedBlock::sendBatchedFragmentedSignal(BlockReference ref,
+                                            GlobalSignalNumber gsn,
+                                            Signal* signal,
+                                            Uint32 length,
+                                            JobBufferLevel jbuf,
+                                            LinearSectionPtr ptr[3],
+                                            Uint32 noOfSections,
+                                            Callback & c,
+                                            Uint32 messageSize)
+{
+  jam();
+  bool res = true;
+  FragmentSendInfo fragSendInfo;
+
+  res = sendFirstFragment(fragSendInfo,
+                          NodeReceiverGroup(ref),
+                          gsn,
+                          signal,
+                          length,
+                          jbuf,
+                          ptr,
+                          noOfSections,
+                          messageSize);
+  ndbrequire(res);
+
+  const Uint32 totalSize =
+    (noOfSections >= 1 ? ptr[0].sz : 0) +
+    (noOfSections >= 2 ? ptr[1].sz : 0) +
+    (noOfSections >= 3 ? ptr[2].sz : 0);
+
+  Uint32 guard = totalSize / messageSize + 1 + noOfSections;
+
+  while (guard > 0 && fragSendInfo.m_status != FragmentSendInfo::SendComplete)
+  {
+    jam();
+    guard--;
+    // Send remaining fragments
+    sendNextLinearFragment(signal, fragSendInfo);
+  }
+
+  ndbrequire(fragSendInfo.m_status == FragmentSendInfo::SendComplete);
+
+  if (c.m_callbackFunction != nullptr)
+  {
+    execute(signal, c, 0);
+  }
+  return;
+}
+
+void
+SimulatedBlock::sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                            GlobalSignalNumber gsn,
+                                            Signal* signal,
+                                            Uint32 length,
+                                            JobBufferLevel jbuf,
+                                            LinearSectionPtr ptr[3],
+                                            Uint32 noOfSections,
+                                            Callback & c,
+                                            Uint32 messageSize)
+{
+  jam();
+  bool res = true;
+  FragmentSendInfo fragSendInfo;
+
+  res = sendFirstFragment(fragSendInfo,
+                          rg,
+                          gsn,
+                          signal,
+                          length,
+                          jbuf,
+                          ptr,
+                          noOfSections,
+                          messageSize);
+  ndbrequire(res);
+
+  const Uint32 totalSize =
+    (noOfSections >= 1 ? ptr[0].sz : 0) +
+    (noOfSections >= 2 ? ptr[1].sz : 0) +
+    (noOfSections >= 3 ? ptr[2].sz : 0);
+
+  Uint32 guard = totalSize / messageSize + 1 + noOfSections;
+
+  while (guard > 0 && fragSendInfo.m_status != FragmentSendInfo::SendComplete)
+  {
+    jam();
+    guard--;
+    // Send remaining fragments
+    sendNextLinearFragment(signal, fragSendInfo);
+  }
+
+  ndbrequire(fragSendInfo.m_status == FragmentSendInfo::SendComplete);
+
+  if (c.m_callbackFunction != nullptr)
+  {
+    execute(signal, c, 0);
+  }
+  return;
+}
+
+
 NodeInfo &
 SimulatedBlock::setNodeInfo(NodeId nodeId) {
   ndbrequire(nodeId > 0 && nodeId < MAX_NODES);

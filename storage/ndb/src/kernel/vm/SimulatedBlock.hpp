@@ -946,6 +946,46 @@ protected:
 			    Callback & = TheEmptyCallback,
 			    Uint32 messageSize = FRAGMENT_WORD_SIZE);
 
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                         Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   SectionHandle * sections,
+                                   bool noRelease,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(BlockReference ref,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
+  void sendBatchedFragmentedSignal(NodeReceiverGroup rg,
+                                   GlobalSignalNumber gsn,
+                                   Signal* signal,
+                                   Uint32 length,
+                                   JobBufferLevel jbuf,
+                                   LinearSectionPtr ptr[3],
+                                   Uint32 noOfSections,
+                                   Callback & = TheEmptyCallback,
+                                   Uint32 messageSize = BATCH_FRAGMENT_WORD_SIZE);
+
   /**
    * simBlockNodeFailure
    *
