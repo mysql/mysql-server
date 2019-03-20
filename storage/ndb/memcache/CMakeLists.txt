@@ -172,13 +172,13 @@ set(NDB_MEMCACHE_SOURCE_FILES
 
 # The sourced C files from storage/ndb/memcache/extra/memcached can't be built
 # with -Werror
-IF(CMAKE_C_FLAGS)
-  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
 ENDIF()
 
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99 -Wall -Wredundant-decls")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --std=gnu99")
 ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -xc99=all")
 ENDIF()

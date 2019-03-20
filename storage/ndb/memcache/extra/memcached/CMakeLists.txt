@@ -39,13 +39,12 @@ ENDIF()
 
 # This is third-party code so we reduce the compiler warnings.
 # These are numerous, so memcached cannot currently be built with -Werror.
-IF(CMAKE_C_FLAGS)
-  STRING(REPLACE "-Wextra "  " " CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  STRING(REPLACE "-Wdeclaration-after-statement" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  STRING(REPLACE "-Wvla"    "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-  STRING(REPLACE "-Werror"  "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-extra")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-declaration-after-statement")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-vla")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
 ENDIF()
-
 
 SET(LIBMEMCACHED_UTILITIES_SOURCES
                 include/memcached/config_parser.h
