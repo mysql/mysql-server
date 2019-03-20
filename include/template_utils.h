@@ -131,4 +131,17 @@ inline To implicit_cast(To x) {
   return x;
 }
 
+/**
+   Utility to allow returning values from functions which can fail
+   (until we have std::optional).
+ */
+template <class VALUE_TYPE>
+struct ReturnValueOrError {
+  /** Value returned from function in the normal case. */
+  VALUE_TYPE value;
+
+  /** True if an error occured. */
+  bool error;
+};
+
 #endif  // TEMPLATE_UTILS_INCLUDED
