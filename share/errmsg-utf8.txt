@@ -19130,6 +19130,9 @@ ER_IB_RECV_FIRST_REC_GROUP_INVALID
 ER_DD_UPGRADE_COMPLETED
   eng "Data dictionary upgrade from version '%u' to '%u' completed."
 
+ER_SSL_SERVER_CERT_VERIFY_FAILED
+  eng "Server SSL certificate doesn't verify: %s"
+
 ER_PLUGIN_NOT_EARLY_DUP
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."

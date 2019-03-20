@@ -12,6 +12,9 @@ call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: 
 call mtr.add_suppression("SSL error: Unable to get certificate from");
 call mtr.add_suppression("Failed to set up SSL because of the following SSL library error: Unable to get certificate");
 
+#echo Suppress expiration warning by the server check
+call mtr.add_suppression("Server SSL certificate doesn't verify");
+
 # Tests
 --write_file $MYSQL_TMP_DIR/expired_ssl_certs.tmp
 -->quiet
