@@ -529,9 +529,9 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   @retval non-null The text of the error from the library
 */
 #ifndef HAVE_WOLFSSL
-static const char *verify_store_cert(SSL_CTX *ctx) {
+static const char *verify_store_cert(SSL_CTX *ctx, SSL *ssl) {
   const char *result = NULL;
-  X509 *cert = SSL_CTX_get0_certificate(ctx);
+  X509 *cert = SSL_get_certificate(ssl);
   X509_STORE_CTX *sctx = X509_STORE_CTX_new();
 
   if (NULL != sctx &&
@@ -543,7 +543,7 @@ static const char *verify_store_cert(SSL_CTX *ctx) {
   return result;
 }
 #else  /* HAVE_WOLFSSL */
-static const char *verify_store_cert(SSL_CTX *) { return NULL; }
+static const char *verify_store_cert(SSL_CTX *, SSL *) { return NULL; }
 #endif /* HAVE_WOLFSSL */
 
 SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
@@ -566,14 +566,15 @@ SslAcceptorContext::SslAcceptorContext(bool use_ssl_arg, bool report_ssl_error,
     if (!ssl_acceptor_fd && report_ssl_error)
       LogErr(WARNING_LEVEL, ER_SSL_LIBRARY_ERROR, sslGetErrString(error));
 
-    if (ssl_acceptor_fd) {
-      const char *error = verify_store_cert(ssl_acceptor_fd->ssl_context);
+    if (ssl_acceptor_fd) acceptor = SSL_new(ssl_acceptor_fd->ssl_context);
+
+    if (ssl_acceptor_fd && acceptor) {
+      const char *error =
+          verify_store_cert(ssl_acceptor_fd->ssl_context, acceptor);
 
       if (error && report_ssl_error)
         LogErr(WARNING_LEVEL, ER_SSL_SERVER_CERT_VERIFY_FAILED, error);
     }
-
-    if (ssl_acceptor_fd) acceptor = SSL_new(ssl_acceptor_fd->ssl_context);
   }
   if (out_error) *out_error = error;
 }
