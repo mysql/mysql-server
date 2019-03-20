@@ -1405,6 +1405,51 @@ static int remaining_argc;
  * handle_options().*/
 static char **remaining_argv;
 
+/**
+ Holds the "original" (i.e. as on startup) set of arguments.
+
+ The argument processing goes as follows:
+ 1. At startup the "original" set of arguments is shallow-copied into
+ the read only list @ref orig_arv.
+ 2. The config file arguments are read from the config files (.cnf and
+   persisted read-only) and are appended as command line arguments.
+   In the process the argv is deep copied because of the expansion
+ 3. The result from 2 is set into @ref remaining_argv / @ref remaining_argc.
+ 4. Then remaining_argv is fed into various consumers:
+   - the server compiled in set of arguments
+   - the early plugins
+   - the rest of the plugins
+   - the error log
+   - the components from the persisted dynamic loader init.
+   All of the above "take away" the values they match from the extended
+   command line set. And vary the values of @ref my_getopt_skip_unknown
+   according to their needs (mostly keep it set).
+   As a result, when the server is done booting up the things that remain
+   in remaining_argv become less and less.
+ 5. When the bootstrap process is done a check is run:
+    my_getopt_skip_unknown is set to off and the argument parser is called
+    on remaining_argv with an empty set of argument definitions.
+    This ensures that all of the remaining argument values in remaining_argv
+    are either marked as "loose" (i.e. optional) or are "consumed" by prior
+    argument list processings.
+    The side effect of this is that all --loose arguments are also consumed
+    out of remaining_argv.
+ 6. A check is made if the remaining_argv is an empty list. If not the server
+    exits.
+ 7. At this point the server is marked as succesfully started.
+ 8. Subsequent argument processings happen when e.g. a plugin is loaded via
+    @ref mysql_install_plugin or a component registers system variables via
+    @ref mysql_component_sys_variable_imp::register_variable. However, since
+    remaining_argv is empty these need to run over the orig_argc/orig_argv.
+    But argument value assignment would normally "eat" out the values found.
+    This would mean that the orig_argv array will get shortened and if you
+    load the same plugin twice for example its system variables will not have
+    the values supplied the second time they start.
+    Thus once the server is started (@ref mysqld_server_started is on) any
+    argument value parsing should happen over a *copy* of orig_argc/orig_argv
+    that should subsequently be discarded.
+    @ref remaining_argv should not be consulted anymore at this point.
+*/
 int orig_argc;
 char **orig_argv;
 namespace {

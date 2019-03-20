@@ -1,0 +1,14 @@
+--source ../include/have_component_test_sys_var_service.inc
+
+call mtr.add_suppression("duplicate variable name");
+
+--echo # Bug #28341329: COMPONENT OPTIONS WITH --LOOSE PREFIX AREN'T CONSIDERED
+--echo   AFTER INSTALLATION
+
+INSTALL COMPONENT "file://component_test_sys_var_service";
+
+--echo # test: must correspond to the cmd line value ("abcdefgsri")
+SELECT @@test_component.str_sys_var;
+
+--echo # Cleanup
+UNINSTALL COMPONENT "file://component_test_sys_var_service";
