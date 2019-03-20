@@ -2374,8 +2374,8 @@ static const handlerton *secondary_engine_handlerton(const THD *thd) {
 */
 bool Optimize_table_order::consider_plan(uint idx,
                                          Opt_trace_object *trace_obj) {
-  double sort_cost = join->sort_cost;
   double cost = join->positions[idx].prefix_cost;
+  double sort_cost = 0;
   double windowing_cost = 0;
   /*
     We may have to make a temp table, note that this is only a
@@ -2391,10 +2391,9 @@ bool Optimize_table_order::consider_plan(uint idx,
   if (join->sort_by_table &&
       join->sort_by_table !=
           join->positions[join->const_tables].table->table()) {
-    cost += join->positions[idx].prefix_rowcount;
-    trace_obj->add("sort_cost", join->positions[idx].prefix_rowcount)
-        .add("new_cost_for_plan", cost);
     sort_cost = join->positions[idx].prefix_rowcount;
+    cost += sort_cost;
+    trace_obj->add("sort_cost", sort_cost).add("new_cost_for_plan", cost);
   }
 
   /*

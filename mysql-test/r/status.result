@@ -479,3 +479,38 @@ SHOW STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	1.098000
 DROP TABLE t1;
+#
+# Bug#28884359: LAST_QUERY_COST IS NEGATIVE AFTER ORDER BY/LIMIT QUERY
+#
+CREATE TABLE t1 (pk INTEGER PRIMARY KEY,
+i1 INTEGER,
+i2 INTEGER NOT NULL,
+INDEX k1 (i1),
+INDEX k2 (i1, i2));
+INSERT INTO t1 VALUES
+(1, NULL, 43), (11, NULL, 103), (10, 32,50), (9, 12, 43),
+(8, NULL, 13), (7, 48, 90), (6, 56, 90), (5, 87, 84),
+(4, 58, 98), (3, 30, 82), (2, 54, 57), (12, 232, 43),
+(13, 43, 103), (14, 32, 45), (15, 12, 43), (16, 89, 23),
+(17, 48, 90), (18, 56, 90), (19, 87, 84);
+CREATE TABLE t2 (pk INTEGER PRIMARY KEY,
+i1 INTEGER NOT NULL,
+INDEX k1 (i1));
+INSERT INTO t2 VALUES
+(3, 89), (4, 98), (5, 84), (6, 8), (7, 99), (8, 110),
+(9, 84), (10, 98), (11, 103), (12, 50), (13, 84),
+(14, 57), (15, 82), (16, 103), (2, 98), (1, 90);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+EXPLAIN SELECT * FROM t1, t2 WHERE t1.i1 = t2.i1 ORDER BY t1.i1 LIMIT 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	k1,k2	k2	9	NULL	10	100.00	Using where; Using index
+1	SIMPLE	t2	NULL	ref	k1	k1	4	test.t1.i1	1	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`i1` AS `i1`,`test`.`t1`.`i2` AS `i2`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`i1` = `test`.`t1`.`i1`) order by `test`.`t1`.`i1` limit 10
+SHOW STATUS LIKE 'Last_query_cost';
+Variable_name	Value
+Last_query_cost	9.664743
+DROP TABLE t1, t2;
