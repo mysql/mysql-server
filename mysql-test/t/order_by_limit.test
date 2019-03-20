@@ -199,3 +199,36 @@ eval EXPLAIN $query1;
 eval $query1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29487181 INCORRECT 'ROWS' AND 'FILTERED' ESTIMATE IN
+--echo #              'ORDER BY ... LIMIT .' QUERIES
+--echo #
+
+CREATE TABLE t1 (
+  col_int_unique INT DEFAULT NULL,
+  col_int_key INT DEFAULT NULL,
+  UNIQUE KEY col_int_unique (col_int_unique),
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t1 VALUES (49,49), (9,7), (0,1), (2,42);
+
+CREATE TABLE t2 (
+  col_int_unique INT DEFAULT NULL,
+  pk INT NOT NULL,
+  PRIMARY KEY (pk),
+  UNIQUE KEY col_int_unique (col_int_unique)
+);
+
+INSERT INTO t2 VALUES (2,8), (5,2), (6,1);
+ANALYZE TABLE t1,t2;
+
+EXPLAIN
+SELECT STRAIGHT_JOIN t1.col_int_key AS field1
+FROM t1 JOIN t2
+  ON t2.pk = t1.col_int_unique OR
+     t2.col_int_unique = t1.col_int_key
+ORDER BY field1 LIMIT 2;
+
+DROP TABLE t1,t2;

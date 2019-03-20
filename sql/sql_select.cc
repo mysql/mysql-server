@@ -4845,6 +4845,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
     for (uint jt = tab->idx() + 1; jt < join->primary_tables; jt++) {
       POSITION *pos = join->best_ref[jt]->position();
       fanout *= pos->rows_fetched * pos->filter_effect;
+      if (fanout < 0) break;  // fanout became 'unknown'
     }
   } else
     read_time = table->file->table_scan_cost().total_cost();
@@ -4927,8 +4928,9 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
           and as result we'll choose an index scan when using ref/range
           access + filesort will be cheaper.
         */
-        select_limit =
-            (ha_rows)(select_limit < fanout ? 1 : select_limit / fanout);
+        if (fanout >= 0)  // 'fanout' not unknown
+          select_limit =
+              (ha_rows)(select_limit < fanout ? 1 : select_limit / fanout);
         /*
           We assume that each of the tested indexes is not correlated
           with ref_key. Thus, to select first N records we have to scan
