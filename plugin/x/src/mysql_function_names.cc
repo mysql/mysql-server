@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,12 @@
 
 #include "plugin/x/src/mysql_function_names.h"
 
+#include <vector>
+
 namespace xpl {
 
 namespace {
+
 // list of built-in function names for MySQL
 // taken from item_create.cc
 // keep in ASC order
@@ -37,23 +40,16 @@ const char *const native_mysql_functions[] = {
     "AES_DECRYPT",
     "AES_ENCRYPT",
     "ANY_VALUE",
-    "AREA",
-    "ASBINARY",
     "ASIN",
-    "ASTEXT",
-    "ASWKB",
-    "ASWKT",
     "ATAN",
     "ATAN2",
-    "AVG",
     "BENCHMARK",
     "BIN",
+    "BIN_TO_UUID",
     "BIT_COUNT",
     "BIT_LENGTH",
-    "BUFFER",
     "CEIL",
     "CEILING",
-    "CENTROID",
     "CHARACTER_LENGTH",
     "CHAR_LENGTH",
     "COERCIBILITY",
@@ -63,75 +59,50 @@ const char *const native_mysql_functions[] = {
     "CONNECTION_ID",
     "CONV",
     "CONVERT_TZ",
-    "CONVEXHULL",
     "COS",
     "COT",
     "CRC32",
-    "CROSSES",
+    "CURRENT_ROLE",
     "DATEDIFF",
     "DATE_FORMAT",
     "DAYNAME",
     "DAYOFMONTH",
     "DAYOFWEEK",
     "DAYOFYEAR",
-    "DECODE",
     "DEGREES",
-    "DES_DECRYPT",
-    "DES_ENCRYPT",
-    "DIMENSION",
-    "DISJOINT",
-    "DISTANCE",
     "ELT",
-    "ENCODE",
-    "ENCRYPT",
-    "ENDPOINT",
-    "ENVELOPE",
-    "EQUALS",
     "EXP",
     "EXPORT_SET",
-    "EXTERIORRING",
     "EXTRACTVALUE",
     "FIELD",
     "FIND_IN_SET",
     "FLOOR",
+    "FORMAT_BYTES",
+    "FORMAT_PICO_TIME",
     "FOUND_ROWS",
     "FROM_BASE64",
     "FROM_DAYS",
     "FROM_UNIXTIME",
-    "GEOMCOLLFROMTEXT",
-    "GEOMCOLLFROMWKB",
-    "GEOMETRYCOLLECTIONFROMTEXT",
-    "GEOMETRYCOLLECTIONFROMWKB",
-    "GEOMETRYFROMTEXT",
-    "GEOMETRYFROMWKB",
-    "GEOMETRYN",
-    "GEOMETRYTYPE",
-    "GEOMFROMTEXT",
-    "GEOMFROMWKB",
     "GET_LOCK",
-    "GLENGTH",
     "GREATEST",
     "GTID_SUBSET",
     "GTID_SUBTRACT",
     "HEX",
+    "ICU_VERSION",
     "IFNULL",
     "INET6_ATON",
     "INET6_NTOA",
     "INET_ATON",
     "INET_NTOA",
     "INSTR",
-    "INTERIORRINGN",
-    "INTERSECTS",
-    "ISCLOSED",
-    "ISEMPTY",
     "ISNULL",
-    "ISSIMPLE",
     "IS_FREE_LOCK",
     "IS_IPV4",
     "IS_IPV4_COMPAT",
     "IS_IPV4_MAPPED",
     "IS_IPV6",
     "IS_USED_LOCK",
+    "IS_UUID",
     "LAST_DAY",
     "LAST_INSERT_ID",
     "LCASE",
@@ -139,10 +110,6 @@ const char *const native_mysql_functions[] = {
     "LENGTH",
     "LIKE_RANGE_MAX",
     "LIKE_RANGE_MIN",
-    "LINEFROMTEXT",
-    "LINEFROMWKB",
-    "LINESTRINGFROMTEXT",
-    "LINESTRINGFROMWKB",
     "LN",
     "LOAD_FILE",
     "LOCATE",
@@ -160,54 +127,37 @@ const char *const native_mysql_functions[] = {
     "MBRCOVEREDBY",
     "MBRCOVERS",
     "MBRDISJOINT",
-    "MBREQUAL",
     "MBREQUALS",
     "MBRINTERSECTS",
     "MBROVERLAPS",
     "MBRTOUCHES",
     "MBRWITHIN",
     "MD5",
-    "MLINEFROMTEXT",
-    "MLINEFROMWKB",
     "MONTHNAME",
-    "MPOINTFROMTEXT",
-    "MPOINTFROMWKB",
-    "MPOLYFROMTEXT",
-    "MPOLYFROMWKB",
-    "MULTILINESTRINGFROMTEXT",
-    "MULTILINESTRINGFROMWKB",
-    "MULTIPOINTFROMTEXT",
-    "MULTIPOINTFROMWKB",
-    "MULTIPOLYGONFROMTEXT",
-    "MULTIPOLYGONFROMWKB",
     "NAME_CONST",
     "NULLIF",
-    "NUMGEOMETRIES",
-    "NUMINTERIORRINGS",
-    "NUMPOINTS",
     "OCT",
     "OCTET_LENGTH",
     "ORD",
-    "OVERLAPS",
     "PERIOD_ADD",
     "PERIOD_DIFF",
     "PI",
-    "POINTFROMTEXT",
-    "POINTFROMWKB",
-    "POINTN",
-    "POLYFROMTEXT",
-    "POLYFROMWKB",
-    "POLYGONFROMTEXT",
-    "POLYGONFROMWKB",
     "POW",
     "POWER",
+    "PS_CURRENT_THREAD_ID",
+    "PS_THREAD_ID",
     "QUOTE",
     "RADIANS",
     "RAND",
     "RANDOM_BYTES",
+    "REGEXP_INSTR",
+    "REGEXP_LIKE",
+    "REGEXP_REPLACE",
+    "REGEXP_SUBSTR",
     "RELEASE_ALL_LOCKS",
     "RELEASE_LOCK",
     "REVERSE",
+    "ROLES_GRAPHML",
     "ROUND",
     "RPAD",
     "RTRIM",
@@ -221,8 +171,8 @@ const char *const native_mysql_functions[] = {
     "SOUNDEX",
     "SPACE",
     "SQRT",
-    "SRID",
-    "STARTPOINT",
+    "STATEMENT_DIGEST",
+    "STATEMENT_DIGEST_TEXT",
     "STRCMP",
     "STR_TO_DATE",
     "ST_AREA",
@@ -267,12 +217,14 @@ const char *const native_mysql_functions[] = {
     "ST_ISSIMPLE",
     "ST_ISVALID",
     "ST_LATFROMGEOHASH",
+    "ST_LATITUDE",
     "ST_LENGTH",
     "ST_LINEFROMTEXT",
     "ST_LINEFROMWKB",
     "ST_LINESTRINGFROMTEXT",
     "ST_LINESTRINGFROMWKB",
     "ST_LONGFROMGEOHASH",
+    "ST_LONGITUDE",
     "ST_MAKEENVELOPE",
     "ST_MLINEFROMTEXT",
     "ST_MLINEFROMWKB",
@@ -302,8 +254,10 @@ const char *const native_mysql_functions[] = {
     "ST_SIMPLIFY",
     "ST_SRID",
     "ST_STARTPOINT",
+    "ST_SWAPXY",
     "ST_SYMDIFFERENCE",
     "ST_TOUCHES",
+    "ST_TRANSFORM",
     "ST_UNION",
     "ST_VALIDATE",
     "ST_WITHIN",
@@ -315,7 +269,6 @@ const char *const native_mysql_functions[] = {
     "TIMEDIFF",
     "TIME_FORMAT",
     "TIME_TO_SEC",
-    "TOUCHES",
     "TO_BASE64",
     "TO_DAYS",
     "TO_SECONDS",
@@ -328,109 +281,155 @@ const char *const native_mysql_functions[] = {
     "UPPER",
     "UUID",
     "UUID_SHORT",
+    "UUID_TO_BIN",
     "VALIDATE_PASSWORD_STRENGTH",
     "VERSION",
     "WAIT_FOR_EXECUTED_GTID_SET",
     "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS",
     "WEEKDAY",
     "WEEKOFYEAR",
-    "WITHIN",
-    "X",
-    "Y",
-    "YEARWEEK"};
+    "YEARWEEK",
+};
 
-static const char *const mysql_functions_that_operate_on_json[] = {
-    "JSON_CONTAINS", "JSON_CONTAINS_PATH", "JSON_DEPTH", "JSON_LENGTH",
-    "JSON_TYPE",     "JSON_UNQUOTE",       "JSON_VALID"};
+// keep in ASC order
+const char *const mysql_functions_that_operate_on_json[] = {
+    "JSON_CONTAINS",
+    "JSON_CONTAINS_PATH",
+    "JSON_DEPTH",
+    "JSON_LENGTH",
+    "JSON_PRETTY",
+    "JSON_SCHEMA_VALID",
+    "JSON_SCHEMA_VALIDATION_REPORT",
+    "JSON_STORAGE_FREE",
+    "JSON_STORAGE_SIZE",
+    "JSON_TYPE",
+    "JSON_UNQUOTE",
+    "JSON_VALID",
+};
 
+// keep in ASC order
 const char *const mysql_functions_that_return_json[] = {
-    "JSON_ARRAY",   "JSON_ARRAY_APPEND", "JSON_ARRAY_INSERT",
-    "JSON_EXTRACT", "JSON_INSERT",       "JSON_KEYS",
-    "JSON_MERGE",   "JSON_MERGE_PATCH",  "JSON_MERGE_PRESERVE",
-    "JSON_OBJECT",  "JSON_QUOTE",        "JSON_REMOVE",
-    "JSON_REPLACE", "JSON_SEARCH",       "JSON_SET"};
+    "JSON_ARRAY",        "JSON_ARRAYAGG",
+    "JSON_ARRAY_APPEND", "JSON_ARRAY_INSERT",
+    "JSON_EXTRACT",      "JSON_INSERT",
+    "JSON_KEYS",         "JSON_MERGE",
+    "JSON_MERGE_PATCH",  "JSON_MERGE_PRESERVE",
+    "JSON_OBJECT",       "JSON_OBJECTAGG",
+    "JSON_QUOTE",        "JSON_REMOVE",
+    "JSON_REPLACE",      "JSON_SCHEMA_VALIDATION_REPORT",
+    "JSON_SEARCH",       "JSON_SET",
+};
 
 // taken from lex.h (SYM_FN)
 // keep in ASC order
 const char *const special_mysql_functions[] = {
-    "ADDDATE",   "BIT_AND",    "BIT_OR",       "BIT_XOR",      "CAST",
-    "COUNT",     "CURDATE",    "CURTIME",      "DATE_ADD",     "DATE_SUB",
-    "DISTINCT",  "EXTRACT",    "GROUP_CONCAT", "MAX",          "MID",
-    "MIN",       "NOW",        "POSITION",     "SESSION_USER", "STD",
-    "STDDEV",    "STDDEV_POP", "STDDEV_SAMP",  "SUBDATE",      "SUBSTR",
-    "SUBSTRING", "SUM",        "SYSDATE",      "SYSTEM_USER",  "TRIM",
-    "VARIANCE",  "VAR_POP",    "VAR_SAMP"};
+    "ADDDATE",    "BIT_AND",      "BIT_OR",       "BIT_XOR",  "CAST",
+    "COUNT",      "CURDATE",      "CURTIME",      "DATE_ADD", "DATE_SUB",
+    "EXTRACT",    "GROUP_CONCAT", "MAX",          "MID",      "MIN",
+    "NOW",        "POSITION",     "SESSION_USER", "STD",      "STDDEV",
+    "STDDEV_POP", "STDDEV_SAMP",  "SUBDATE",      "SUBSTR",   "SUBSTRING",
+    "SUM",        "SYSDATE",      "SYSTEM_USER",  "TRIM",     "VARIANCE",
+    "VAR_POP",    "VAR_SAMP",
+};
 
 // taken from sql_yacc.yy
 // keep in ASC order
-const char *const other_mysql_functions[] = {"ASCII",
-                                             "BINARY",
-                                             "CHAR",
-                                             "CHARSET",
-                                             "COALESCE",
-                                             "COLLATION",
-                                             "CONTAINS",
-                                             "CURDATE",
-                                             "CURRENT_USER",
-                                             "CURTIME",
-                                             "DATABASE",
-                                             "DATE",
-                                             "DATE_ADD_INTERVAL",
-                                             "DATE_SUB_INTERVAL",
-                                             "DAY",
-                                             "EXTRACT",
-                                             "FORMAT",
-                                             "GEOMETRYCOLLECTION",
-                                             "HOUR",
-                                             "IF",
-                                             "IN",
-                                             "INSERT",
-                                             "INTERVAL",
-                                             "LEFT",
-                                             "LINESTRING",
-                                             "MICROSECOND",
-                                             "MINUTE",
-                                             "MOD",
-                                             "MONTH",
-                                             "MULTILINESTRING",
-                                             "MULTIPOINT",
-                                             "MULTIPOLYGON",
-                                             "PASSWORD",
-                                             "POINT",
-                                             "POLYGON",
-                                             "POSITION",
-                                             "QUARTER",
-                                             "REPEAT",
-                                             "REPLACE",
-                                             "REVERSE",
-                                             "RIGHT",
-                                             "ROW_COUNT",
-                                             "SECOND",
-                                             "STRONGLY",
-                                             "SUBDATE",
-                                             "SUBSTRING",
-                                             "SYSDATE",
-                                             "TIME",
-                                             "TIMESTAMP",
-                                             "TIMESTAMP_ADD",
-                                             "TIMESTAMP_DIFF",
-                                             "TRIM",
-                                             "TRIM_LEADING",
-                                             "TRUNCATE",
-                                             "USER",
-                                             "USING",
-                                             "UTC_DATE",
-                                             "UTC_TIME",
-                                             "UTC_TIMESTAMP",
-                                             "WEEK",
-                                             "WEIGHT_STRING",
-                                             "YEAR"};
+const char *const other_mysql_functions[] = {
+    "ASCII",
+    "AVG",
+    "CHAR",
+    "CHARSET",
+    "COALESCE",
+    "COLLATION",
+    "CONVERT",
+    "CUME_DIST",
+    "CURDATE",
+    "CURRENT_DATE",
+    "CURRENT_TIME",
+    "CURRENT_TIMESTAMP",
+    "CURRENT_USER",
+    "CURTIME",
+    "DATABASE",
+    "DATE",
+    "DATE_ADD_INTERVAL",
+    "DATE_SUB_INTERVAL",
+    "DAY",
+    "DEFAULT",
+    "DENSE_RANK",
+    "DISTINCT",
+    "EXTRACT",
+    "FIRST_VALUE",
+    "FORMAT",
+    "GEOMCOLLECTION",
+    "GEOMETRYCOLLECTION",
+    "GET_FORMAT",
+    "GROUPING",
+    "HOUR",
+    "IF",
+    "INSERT",
+    "INTERVAL",
+    "LAG",
+    "LAST_VALUE",
+    "LEAD",
+    "LEFT",
+    "LINESTRING",
+    "LOCALTIME",
+    "LOCALTIMESTAMP",
+    "MICROSECOND",
+    "MINUTE",
+    "MOD",
+    "MONTH",
+    "MULTILINESTRING",
+    "MULTIPOINT",
+    "MULTIPOLYGON",
+    "NTH_VALUE",
+    "NTILE",
+    "PASSWORD",
+    "PERCENT_RANK",
+    "POINT",
+    "POLYGON",
+    "POSITION",
+    "QUARTER",
+    "RANK",
+    "REPEAT",
+    "REPLACE",
+    "REVERSE",
+    "RIGHT",
+    "ROW_COUNT",
+    "ROW_NUMBER",
+    "SCHEMA",
+    "SECOND",
+    "SUBDATE",
+    "SUBSTRING",
+    "SYSDATE",
+    "TIME",
+    "TIMESTAMP",
+    "TIMESTAMPADD",
+    "TIMESTAMPDIFF",
+    "TRIM",
+    "TRUNCATE",
+    "USER",
+    "UTC_DATE",
+    "UTC_TIME",
+    "UTC_TIMESTAMP",
+    "VALUES",
+    "WEEK",
+    "WEIGHT_STRING",
+    "YEAR",
+};
 
 template <typename Container, typename Value>
 bool contains(const Container &container, const Value &value) {
   return std::binary_search(std::begin(container), std::end(container),
                             value.c_str(), Is_less());
 }
+
+template <typename Container>
+void copy(const Container &container, std::vector<const char *> *result) {
+  std::copy(std::begin(container), std::end(container),
+            std::back_inserter(*result));
+}
+
 }  // namespace
 
 bool does_return_json_mysql_function(const std::string &name) {
@@ -453,4 +452,45 @@ bool is_native_mysql_function(const std::string &name) {
          contains(other_mysql_functions, source);
 }
 
+namespace mysql_function_names_test {
+
+std::vector<const char *> get_native_mysql_functions() {
+  std::vector<const char *> result;
+  copy(native_mysql_functions, &result);
+  return result;
+}
+
+std::vector<const char *> get_special_mysql_functions() {
+  std::vector<const char *> result;
+  copy(special_mysql_functions, &result);
+  return result;
+}
+std::vector<const char *> get_other_mysql_functions() {
+  std::vector<const char *> result;
+  copy(other_mysql_functions, &result);
+  return result;
+}
+
+std::vector<const char *> get_mysql_functions_that_return_json() {
+  std::vector<const char *> result;
+  copy(mysql_functions_that_return_json, &result);
+  return result;
+}
+
+std::vector<const char *> get_mysql_functions_that_operate_on_json() {
+  std::vector<const char *> result;
+  copy(mysql_functions_that_operate_on_json, &result);
+  return result;
+}
+
+std::vector<const char *> get_all_mysql_function_names() {
+  std::vector<const char *> result;
+  copy(mysql_functions_that_return_json, &result);
+  copy(mysql_functions_that_operate_on_json, &result);
+  copy(native_mysql_functions, &result);
+  copy(special_mysql_functions, &result);
+  copy(other_mysql_functions, &result);
+  return result;
+}
+}  // namespace mysql_function_names_test
 }  // namespace xpl
