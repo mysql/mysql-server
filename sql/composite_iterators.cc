@@ -285,6 +285,11 @@ int AggregateIterator::Read() {
           if (m_join->clear_fields(&m_save_nullinfo)) {
             return 1;
           }
+          // If we are outputting to a materialized table, copy the output of
+          // the aggregate functions into it.
+          if (copy_fields_and_funcs(m_temp_table_param, m_join->thd)) {
+            return 1;
+          }
           SwitchFieldList(m_original_fields);
           return 0;
         }

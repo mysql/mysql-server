@@ -903,3 +903,23 @@ GROUP BY 1, 1;
 
 DROP TABLE t0007, t0008, t0009;
 SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug #29514504: WRONG RESULT WITH CORRELATED LATERAL JOIN
+--echo #
+
+#
+# In this case, the derived table has an aggregation function that can get zero
+# input rows, _and_ is evaluated multiple times (due to LATERAL). If so,
+# we have to be careful to properly reset the value we write to the derived
+# table, or the value from the previous iteration would leak through.
+#
+CREATE TABLE t1 (id INTEGER);
+CREATE TABLE t2 (id INTEGER);
+INSERT INTO t1 VALUES (10), (20), (30);
+INSERT INTO t2 VALUES (20), (20);
+SELECT * FROM t1 JOIN LATERAL (
+  SELECT GROUP_CONCAT(t.id) AS c FROM t2 t WHERE (t.id = t1.id)
+) d0 ON (1);
+
+DROP TABLE t1, t2;
