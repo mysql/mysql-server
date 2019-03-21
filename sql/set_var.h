@@ -151,9 +151,9 @@ class sys_var {
   const char *const deprecation_substitute;
   bool is_os_charset;  ///< true if the value is in character_set_filesystem
   struct get_opt_arg_source source;
-  char user[USERNAME_CHAR_LENGTH]; /* which user  has set this variable */
-  char host[HOSTNAME_LENGTH];      /* host on which this variable is set */
-  ulonglong timestamp;             /* represents when this variable was set */
+  char user[USERNAME_CHAR_LENGTH + 1]; /* which user  has set this variable */
+  char host[HOSTNAME_LENGTH + 1];      /* host on which this variable is set */
+  ulonglong timestamp; /* represents when this variable was set */
 
  public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
