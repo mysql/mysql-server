@@ -19133,6 +19133,12 @@ ER_DD_UPGRADE_COMPLETED
 ER_SSL_SERVER_CERT_VERIFY_FAILED
   eng "Server SSL certificate doesn't verify: %s"
 
+ER_PERSIST_OPTION_USER_TRUNCATED
+  eng "Truncated a user name for %s that was too long while reading the persisted variables file"
+
+ER_PERSIST_OPTION_HOST_TRUNCATED
+  eng "Truncated a host name for %s that was too long while reading the persisted variables file"
+
 ER_PLUGIN_NOT_EARLY_DUP
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
