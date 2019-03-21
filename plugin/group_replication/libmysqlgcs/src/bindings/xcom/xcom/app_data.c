@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,13 +135,18 @@ static char *dbg_app_data_single(app_data_ptr a) {
 /* {{{ Clone app_data message list */
 
 app_data_ptr clone_app_data(app_data_ptr a) {
-  app_data_ptr retval = 0;
+  app_data_ptr retval = NULL;
   app_data_list p = &retval; /* Initialize p with empty list */
 
-  while (0 != a) {
-    follow(p, clone_app_data_single(a));
+  while (a != NULL) {
+    app_data_ptr clone = clone_app_data_single(a);
+    follow(p, clone);
     a = a->next;
     p = nextp(p);
+    if (clone == NULL && retval != NULL) {
+      XCOM_XDR_FREE(xdr_app_data, retval);
+      break;
+    }
   }
   return retval;
 }
@@ -152,6 +157,7 @@ app_data_ptr clone_app_data(app_data_ptr a) {
 app_data_ptr clone_app_data_single(app_data_ptr a) {
   char *str = NULL;
   app_data_ptr p = 0;
+
   if (0 != a) {
     bool copied = false;
 
@@ -185,7 +191,11 @@ app_data_ptr clone_app_data_single(app_data_ptr a) {
       case app_type:
         copied =
             copy_checked_data(&p->body.app_u_u.data, &a->body.app_u_u.data);
-        if (!copied) G_ERROR("Memory allocation failed.");
+        if (!copied) {
+          G_ERROR("Memory allocation failed.");
+          free(p);
+          return NULL;
+        }
         break;
       case query_type:
         break;
