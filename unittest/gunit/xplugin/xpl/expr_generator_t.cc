@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -673,6 +673,14 @@ TEST(xpl_expr_generator, cast_scalar_to_datetime) {
                                 EMPTY_SCHEMA, DM_TABLE));
 }
 
+TEST(xpl_expr_generator, cast_placeholder_to_json) {
+  Expression_generator::Prep_stmt_placeholder_list ids;
+  EXPECT_EQ("CAST(? AS JSON)",
+            generate_expression(Operator("cast", Placeholder(0), "JSON"),
+                                EMPTY_SCHEMA, DM_TABLE, &ids));
+  EXPECT_EQ(1, ids.size());
+}
+
 TEST(xpl_expr_generator, object_empty) {
   EXPECT_EQ("JSON_OBJECT()",
             generate_expression(Object(), EMPTY_SCHEMA, DM_TABLE));
@@ -1056,6 +1064,13 @@ TEST(xpl_expr_generator, cont_in_expression_placeholders) {
       generate_expression(Operator("cont_in", Placeholder(0), Placeholder(1)),
                           EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
+
+  Expression_generator::Prep_stmt_placeholder_list ids;
+  EXPECT_STREQ(
+      "JSON_CONTAINS(CAST(? AS JSON),CAST(? AS JSON))",
+      generate_expression(Operator("cont_in", Placeholder(0), Placeholder(1)),
+                          EMPTY_SCHEMA, DM_TABLE, &ids)
+          .c_str());
 }
 
 TEST(xpl_expr_generator, cont_in_expression_identifier) {
@@ -1157,7 +1172,7 @@ INSTANTIATE_TEST_CASE_P(xpl_expr_generator_function_call, Function_call_test,
 
 struct Param_placeholders {
   std::string expect;
-  Expression_generator::Placeholder_id_list expect_ids;
+  Expression_generator::Prep_stmt_placeholder_list expect_ids;
   Expression_list args;
   Array expr;
 };
@@ -1168,8 +1183,8 @@ TEST_P(Placeholders_test, placeholders) {
   const Param_placeholders &param = GetParam();
   Query_string_builder qb;
   Expression_generator gen(&qb, param.args, EMPTY_SCHEMA, DM_TABLE);
-  Expression_generator::Placeholder_id_list ids;
-  gen.set_placeholder_id_list(&ids);
+  Expression_generator::Prep_stmt_placeholder_list ids;
+  gen.set_prep_stmt_placeholder_list(&ids);
   gen.feed(param.expr);
 
   EXPECT_STREQ(param.expect.c_str(), qb.get().c_str());

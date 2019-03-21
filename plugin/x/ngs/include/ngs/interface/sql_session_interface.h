@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ class Sql_session_interface {
                                           Resultset_interface *rset) = 0;
   virtual Error_code execute_prep_stmt(const uint32_t stmt_id,
                                        const bool has_cursor,
-                                       PS_PARAM *parameters,
+                                       const PS_PARAM *parameters,
                                        const std::size_t parameter_count,
                                        Resultset_interface *rset) = 0;
   virtual Error_code attach() = 0;

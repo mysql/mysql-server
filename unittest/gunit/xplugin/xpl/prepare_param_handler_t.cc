@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
 
 #include <my_byteorder.h>
 
-#include "plugin/x/src/prepare_command_handler.h"
+#include "plugin/x/src/prepare_param_handler.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
@@ -36,23 +36,22 @@
 namespace xpl {
 namespace test {
 
-using Arg_list = Prepare_command_handler::Arg_list;
-using Param_list = Prepare_command_handler::Param_list;
-using Placeholder_id_list = Prepare_command_handler::Placeholder_id_list;
-using Param_value_list = Prepare_command_handler::Param_value_list;
+using Arg_list = Prepare_param_handler::Arg_list;
+using Param_list = Prepare_param_handler::Param_list;
+using Placeholder_list = Prepare_param_handler::Placeholder_list;
+using Param_value_list = Prepare_param_handler::Param_value_list;
+using Param_svalue_list = Prepare_param_handler::Param_svalue_list;
 
-class Prepare_command_handler_stub : public Prepare_command_handler {
+class Prepare_param_handler_base_test : public testing::Test {
  public:
-  explicit Prepare_command_handler_stub(ngs::Session_interface *session)
-      : Prepare_command_handler(session) {}
-  using Prepare_command_handler::check_argument_placeholder_consistency;
-  using Prepare_command_handler::prepare_parameters;
+  Placeholder_list m_placeholders;
+  Prepare_param_handler m_handler{m_placeholders};
 };
 
 struct Param_check_argument_placeholder_consistency {
   int expect_error_code;
   std::size_t args_size;
-  Placeholder_id_list phs;
+  Placeholder_list phs;
 };
 
 Param_check_argument_placeholder_consistency
@@ -71,24 +70,22 @@ Param_check_argument_placeholder_consistency
         {ER_X_PREPARED_EXECUTE_ARGUMENT_CONSISTENCY, 1, {2}},
 };
 
-class Prepare_command_handler_argument_consistency_test
-    : public testing::TestWithParam<
-          Param_check_argument_placeholder_consistency> {
- public:
-  testing::StrictMock<ngs::test::Mock_session> m_session;
-  Prepare_command_handler_stub m_handler{&m_session};
-};
+class Prepare_param_handler_argument_consistency_test
+    : public Prepare_param_handler_base_test,
+      public testing::WithParamInterface<
+          Param_check_argument_placeholder_consistency> {};
 
-TEST_P(Prepare_command_handler_argument_consistency_test,
+TEST_P(Prepare_param_handler_argument_consistency_test,
        check_argument_placeholder_consistency) {
   const Param_check_argument_placeholder_consistency &param = GetParam();
-  ASSERT_ERROR_CODE(param.expect_error_code,
-                    m_handler.check_argument_placeholder_consistency(
-                        param.args_size, param.phs, 0));
+  m_placeholders = param.phs;
+  ASSERT_ERROR_CODE(
+      param.expect_error_code,
+      m_handler.check_argument_placeholder_consistency(param.args_size, 0));
 }
 
 INSTANTIATE_TEST_CASE_P(
-    Prepare_command_handler, Prepare_command_handler_argument_consistency_test,
+    Prepare_command_handler, Prepare_param_handler_argument_consistency_test,
     testing::ValuesIn(check_argument_placeholder_consistency_param));
 
 namespace {
@@ -117,8 +114,9 @@ struct Param_prepare_parameters {
   int expect_error_code;
   Param_list expect_params;
   Param_value_list expect_param_values;
+  Param_svalue_list expect_param_svalues;
   Arg_list args;
-  Placeholder_id_list phs;
+  Placeholder_list phs;
 };
 
 #define NLL \
@@ -136,60 +134,105 @@ struct Param_prepare_parameters {
 #define BOL \
   { false, MYSQL_TYPE_TINY, false, nullptr, 1ul }
 
+#define RAW(id) \
+  { id, Placeholder_info::Type::k_raw }
+#define JSN(id) \
+  { id, Placeholder_info::Type::k_json }
+
 Param_prepare_parameters prepare_parameters_param[] = {
-    {ER_X_SUCCESS, {}, {}, {}, {}},
-    {ER_X_SUCCESS, {NLL}, {}, Any_list{Scalar::Null()}, {0}},
-    {ER_X_SUCCESS, {SIN}, {Value(-1)}, Any_list{Scalar(-1)}, {0}},
-    {ER_X_SUCCESS, {UIN}, {Value(1u)}, Any_list{Scalar(1u)}, {0}},
-    {ER_X_SUCCESS, {STR(3)}, {}, Any_list{Scalar::String("abc")}, {0}},
-    {ER_X_SUCCESS, {STR(3)}, {}, Any_list{Scalar::Octets("abc")}, {0}},
-    {ER_X_SUCCESS, {DBL}, {Value(1.1)}, Any_list{Scalar(1.1)}, {0}},
-    {ER_X_SUCCESS, {FLT}, {Value(1.1f)}, Any_list{Scalar(1.1f)}, {0}},
-    {ER_X_SUCCESS, {BOL}, {Value(true)}, Any_list{Scalar(true)}, {0}},
+    {ER_X_SUCCESS, {}, {}, {}, {}, {}},
+    {ER_X_SUCCESS, {NLL}, {}, {}, Any_list{Scalar::Null()}, {RAW(0)}},
+    {ER_X_SUCCESS, {STR(4)}, {}, {"null"}, Any_list{Scalar::Null()}, {JSN(0)}},
+    {ER_X_SUCCESS, {SIN}, {Value(-1)}, {}, Any_list{Scalar(-1)}, {RAW(0)}},
+    {ER_X_SUCCESS, {SIN}, {Value(-1)}, {}, Any_list{Scalar(-1)}, {JSN(0)}},
+    {ER_X_SUCCESS, {UIN}, {Value(1u)}, {}, Any_list{Scalar(1u)}, {RAW(0)}},
+    {ER_X_SUCCESS, {UIN}, {Value(1u)}, {}, Any_list{Scalar(1u)}, {JSN(0)}},
+    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{Scalar::String("abc")}, {RAW(0)}},
+    {ER_X_SUCCESS,
+     {STR(5)},
+     {},
+     {"\"abc\""},
+     Any_list{Scalar::String("abc")},
+     {JSN(0)}},
+    {ER_X_SUCCESS, {STR(3)}, {}, {}, Any_list{Scalar::Octets("abc")}, {RAW(0)}},
+    {ER_X_SUCCESS,
+     {STR(5)},
+     {},
+     {"\"abc\""},
+     Any_list{Scalar::Octets("abc")},
+     {JSN(0)}},
+    {ER_X_SUCCESS, {DBL}, {Value(1.1)}, {}, Any_list{Scalar(1.1)}, {RAW(0)}},
+    {ER_X_SUCCESS, {DBL}, {Value(1.1)}, {}, Any_list{Scalar(1.1)}, {JSN(0)}},
+    {ER_X_SUCCESS, {FLT}, {Value(1.1f)}, {}, Any_list{Scalar(1.1f)}, {RAW(0)}},
+    {ER_X_SUCCESS, {FLT}, {Value(1.1f)}, {}, Any_list{Scalar(1.1f)}, {JSN(0)}},
+    {ER_X_SUCCESS, {BOL}, {Value(true)}, {}, Any_list{Scalar(true)}, {RAW(0)}},
+    {ER_X_SUCCESS,
+     {BOL},
+     {Value(false)},
+     {},
+     Any_list{Scalar(false)},
+     {RAW(0)}},
+    {ER_X_SUCCESS, {STR(4)}, {}, {"true"}, Any_list{Scalar(true)}, {JSN(0)}},
+    {ER_X_SUCCESS, {STR(5)}, {}, {"false"}, Any_list{Scalar(false)}, {JSN(0)}},
     {ER_X_SUCCESS,
      {UIN, SIN},
      {Value(2u), Value(1)},
+     {},
      Any_list{Scalar(2u), Scalar(1)},
-     {0, 1}},
+     {RAW(0), RAW(1)}},
     {ER_X_SUCCESS,
      {SIN, UIN},
-     {Value(2u), Value(1)},
+     {Value(1), Value(2u)},
+     {},
      Any_list{Scalar(2u), Scalar(1)},
-     {1, 0}},
-    {ER_X_SUCCESS, {SIN, SIN, SIN}, {Value(1)}, Any_list{Scalar(1)}, {0, 0, 0}},
+     {RAW(1), RAW(0)}},
+    {ER_X_SUCCESS,
+     {SIN, SIN, SIN},
+     {Value(1), Value(1), Value(1)},
+     {},
+     Any_list{Scalar(1)},
+     {RAW(0), RAW(0), RAW(0)}},
     {ER_X_SUCCESS,
      {NLL, SIN, NLL},
      {Value(1)},
+     {},
      Any_list{Scalar::Null(), Scalar(1)},
-     {0, 1, 0}},
+     {RAW(0), RAW(1), RAW(0)}},
     {ER_X_SUCCESS,
      {NLL, STR(2), STR(3)},
      {},
+     {},
      Any_list{Scalar::String("ab"), Scalar::Octets("abc"), Scalar::Null()},
-     {2, 0, 1}},
+     {RAW(2), RAW(0), RAW(1)}},
     {ER_X_PREPARED_EXECUTE_ARGUMENT_NOT_SUPPORTED,
+     {},
      {},
      {},
      Any_list{Any::Object()},
-     {0}},
+     {RAW(0)}},
     {ER_X_PREPARED_EXECUTE_ARGUMENT_NOT_SUPPORTED,
+     {},
      {},
      {},
      Any_list{Any::Array()},
-     {0}},
-    {ER_X_PREPARED_EXECUTE_ARGUMENT_NOT_SUPPORTED,
-     {},
+     {RAW(0)}},
+    {ER_X_SUCCESS,
+     {SIN},
      {Value(1)},
+     {},
      Any_list{Scalar(1), Any::Array()},
-     {0}},
+     {RAW(0)}},
+    {ER_X_SUCCESS,
+     {BOL, STR(4)},
+     {Value(true)},
+     {"true"},
+     Any_list{Scalar(true)},
+     {RAW(0), JSN(0)}},
 };
 
 class Prepare_command_handler_prepare_parameters_test
-    : public testing::TestWithParam<Param_prepare_parameters> {
- public:
-  testing::StrictMock<ngs::test::Mock_session> m_session;
-  Prepare_command_handler_stub m_handler{&m_session};
-};
+    : public Prepare_param_handler_base_test,
+      public testing::WithParamInterface<Param_prepare_parameters> {};
 
 MATCHER(Eq_param, "") {
   using ::testing::get;
@@ -201,15 +244,14 @@ MATCHER(Eq_param, "") {
 }
 
 TEST_P(Prepare_command_handler_prepare_parameters_test, prepare_parameters) {
-  const Param_prepare_parameters &param = GetParam();
-  Param_list params;
-  Param_value_list param_values;
-
+  const auto &param = GetParam();
+  m_placeholders = param.phs;
   ASSERT_ERROR_CODE(param.expect_error_code,
-                    m_handler.prepare_parameters(param.args, param.phs, &params,
-                                                 &param_values));
-  EXPECT_THAT(params, testing::Pointwise(Eq_param(), param.expect_params));
-  EXPECT_EQ(param.expect_param_values, param_values);
+                    m_handler.prepare_parameters(param.args));
+  EXPECT_THAT(m_handler.get_params(),
+              testing::Pointwise(Eq_param(), param.expect_params));
+  EXPECT_EQ(param.expect_param_svalues, m_handler.get_string_values());
+  EXPECT_EQ(param.expect_param_values, m_handler.get_values());
 }
 
 INSTANTIATE_TEST_CASE_P(Prepare_command_handler,

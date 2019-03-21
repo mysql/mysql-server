@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -65,10 +65,11 @@ void Sql_statement_builder::build(const std::string &query,
 
 void Sql_statement_builder::build(const std::string &query,
                                   const Arg_list &args,
-                                  Placeholder_id_list *phs) const {
+                                  Placeholder_list *phs) const {
   build(query, args);
   auto placeholders_count = m_qb->format().count_tags();
-  for (std::size_t i = 0; i < placeholders_count; ++i) phs->push_back(i);
+  for (Placeholder_info::Id i = 0; i < placeholders_count; ++i)
+    phs->emplace_back(i, Placeholder_info::Type::k_raw);
 }
 
 }  // namespace xpl

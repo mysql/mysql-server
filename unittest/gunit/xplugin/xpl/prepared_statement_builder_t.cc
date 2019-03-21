@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -33,12 +33,12 @@
 namespace xpl {
 namespace test {
 
-using Placeholder_id_list = Expression_generator::Placeholder_id_list;
+using Placeholder_list = Expression_generator::Prep_stmt_placeholder_list;
 
 template <typename M>
 struct Param_prepared_statement_builder {
   std::string expect;
-  Placeholder_id_list expect_ids;
+  Placeholder_list expect_ids;
   M msg;
 };
 
@@ -156,7 +156,7 @@ class Prepared_statement_builder_test
  public:
   using Param = Param_prepared_statement_builder<M>;
   Query_string_builder query;
-  Expression_generator::Placeholder_id_list placeholders;
+  Expression_generator::Prep_stmt_placeholder_list placeholders;
   Prepared_statement_builder builder{&query, &placeholders};
   void assert_placeholders() {
     const Param &param = this->GetParam();

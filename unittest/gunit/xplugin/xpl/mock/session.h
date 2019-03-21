@@ -174,8 +174,8 @@ class Mock_sql_data_context : public Sql_session_interface {
   MOCK_METHOD2(deallocate_prep_stmt,
                Error_code(const uint32_t, Resultset_interface *));
   MOCK_METHOD5(execute_prep_stmt,
-               Error_code(const uint32_t, const bool, PS_PARAM *, std::size_t,
-                          Resultset_interface *));
+               Error_code(const uint32_t, const bool, const PS_PARAM *,
+                          std::size_t, Resultset_interface *));
   MOCK_METHOD0(attach, Error_code());
   MOCK_METHOD0(detach, Error_code());
   MOCK_METHOD0(reset, Error_code());

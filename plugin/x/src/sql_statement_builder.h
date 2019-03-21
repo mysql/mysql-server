@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,7 @@
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
+#include "plugin/x/src/prepare_param_handler.h"
 
 namespace xpl {
 class Query_string_builder;
@@ -37,13 +38,13 @@ class Sql_statement_builder {
   static const char *const k_sql_namespace;
 
   using Arg_list = google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
-  using Placeholder_id_list = std::vector<uint32_t>;
+  using Placeholder_list = Prepare_param_handler::Placeholder_list;
 
   explicit Sql_statement_builder(Query_string_builder *qb) : m_qb(qb) {}
 
   void build(const std::string &query, const Arg_list &args) const;
   void build(const std::string &query, const Arg_list &args,
-             Placeholder_id_list *phs) const;
+             Placeholder_list *phs) const;
 
  private:
   Query_string_builder *m_qb;

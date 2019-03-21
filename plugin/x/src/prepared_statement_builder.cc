@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,12 +37,12 @@ namespace {
 template <typename B, typename M>
 ngs::Error_code build_prepared_statement(
     const M &msg, Query_string_builder *qb,
-    Prepared_statement_builder::Placeholder_id_list *ph_ids) {
+    Prepared_statement_builder::Placeholder_list *phs) {
   qb->clear();
-  ph_ids->clear();
+  phs->clear();
   Expression_generator gen(qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
-  gen.set_placeholder_id_list(ph_ids);
+  gen.set_prep_stmt_placeholder_list(phs);
   B builder(gen);
   try {
     builder.build(msg);
@@ -58,22 +58,22 @@ ngs::Error_code build_prepared_statement(
 
 ngs::Error_code Prepared_statement_builder::build(const Find &msg) const {
   return build_prepared_statement<Find_statement_builder>(msg, m_qb,
-                                                          m_placeholder_ids);
+                                                          m_placeholders);
 }
 
 ngs::Error_code Prepared_statement_builder::build(const Delete &msg) const {
   return build_prepared_statement<Delete_statement_builder>(msg, m_qb,
-                                                            m_placeholder_ids);
+                                                            m_placeholders);
 }
 
 ngs::Error_code Prepared_statement_builder::build(const Update &msg) const {
   return build_prepared_statement<Update_statement_builder>(msg, m_qb,
-                                                            m_placeholder_ids);
+                                                            m_placeholders);
 }
 
 ngs::Error_code Prepared_statement_builder::build(const Insert &msg) const {
   return build_prepared_statement<Insert_statement_builder>(msg, m_qb,
-                                                            m_placeholder_ids);
+                                                            m_placeholders);
 }
 
 ngs::Error_code Prepared_statement_builder::build(const Stmt &msg) const {
@@ -81,10 +81,10 @@ ngs::Error_code Prepared_statement_builder::build(const Stmt &msg) const {
     return ngs::Error(ER_X_INVALID_NAMESPACE, "Expected namespace '%s'",
                       Sql_statement_builder::k_sql_namespace);
   m_qb->clear();
-  m_placeholder_ids->clear();
+  m_placeholders->clear();
   Sql_statement_builder builder(m_qb);
   try {
-    builder.build(msg.stmt(), msg.args(), m_placeholder_ids);
+    builder.build(msg.stmt(), msg.args(), m_placeholders);
   } catch (const ngs::Error_code &error) {
     return error;
   }

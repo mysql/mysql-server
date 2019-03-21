@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -49,15 +49,15 @@ class Insert_statement_builder_stub : public Insert_statement_builder {
   Document_id_aggregator m_id_agg{&mock_id_generator};
 };
 
-using Placeholder_id_list = Expression_generator::Placeholder_id_list;
+using Placeholder_list = Expression_generator::Prep_stmt_placeholder_list;
 
 class Insert_statement_builder_test : public ::testing::Test {
  public:
   Insert_statement_builder_stub &builder(
-      Expression_generator::Placeholder_id_list *ids = nullptr) {
+      Expression_generator::Prep_stmt_placeholder_list *ids = nullptr) {
     expr_gen.reset(new Expression_generator(&query, args, schema,
                                             is_table_data_model(msg)));
-    if (ids) expr_gen->set_placeholder_id_list(ids);
+    if (ids) expr_gen->set_prep_stmt_placeholder_list(ids);
     stub.reset(new Insert_statement_builder_stub(expr_gen.get()));
     EXPECT_CALL(stub->mock_id_generator, generate(_))
         .WillRepeatedly(Return("0ff0"));
@@ -70,7 +70,7 @@ class Insert_statement_builder_test : public ::testing::Test {
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
   std::unique_ptr<Insert_statement_builder_stub> stub;
-  Placeholder_id_list placeholders;
+  Placeholder_list placeholders;
 
   enum { k_dm_document = 0, k_dm_table = 1 };
 };
@@ -333,7 +333,7 @@ INSTANTIATE_TEST_CASE_P(Insert_statement_builder_add_document,
 
 struct Param_add_prep_stmt_document {
   std::string expect_query;
-  Placeholder_id_list expect_placeholders;
+  Placeholder_list expect_placeholders;
   Expr fields;
 };
 
