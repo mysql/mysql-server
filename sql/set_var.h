@@ -200,13 +200,18 @@ class sys_var {
   void set_source(enum_variable_source src) {
     option.arg_source->m_source = src;
   }
-  void set_source_name(const char *path) {
-    strcpy(option.arg_source->m_path_name, path);
+  bool set_source_name(const char *path) {
+    return set_and_truncate(option.arg_source->m_path_name, path,
+                            sizeof(option.arg_source->m_path_name));
   }
-  void set_user(const char *usr) { strcpy(user, usr); }
+  bool set_user(const char *usr) {
+    return set_and_truncate(user, usr, sizeof(user));
+  }
   const char *get_user() { return user; }
   const char *get_host() { return host; }
-  void set_host(const char *hst) { strcpy(host, hst); }
+  bool set_host(const char *hst) {
+    return set_and_truncate(host, hst, sizeof(host));
+  }
   ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD *thd);
   my_option *get_option() { return &option; }
@@ -304,6 +309,14 @@ class sys_var {
   void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
  private:
+  inline static bool set_and_truncate(char *dst, const char *string,
+                                      size_t sizeof_dst) {
+    size_t string_length = strlen(string), length;
+    length = std::min(sizeof_dst - 1, string_length);
+    memcpy(dst, string, length);
+    dst[length] = 0;
+    return length < string_length;  // truncated
+  }
   virtual bool do_check(THD *thd, set_var *var) = 0;
   /**
     save the session default value of the variable in var

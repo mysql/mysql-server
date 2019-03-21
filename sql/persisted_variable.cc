@@ -776,10 +776,18 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     if (it != m_persist_variables.end()) {
       /* persisted variable is found */
       sysvar->set_source(enum_variable_source::PERSISTED);
-      sysvar->set_source_name(m_persist_filename.c_str());
+#ifndef DBUG_OFF
+      bool source_truncated =
+#endif
+          sysvar->set_source_name(m_persist_filename.c_str());
+      DBUG_ASSERT(!source_truncated);
       sysvar->set_timestamp(it->timestamp);
-      sysvar->set_user(it->user.c_str());
-      sysvar->set_host(it->host.c_str());
+      if (sysvar->set_user(it->user.c_str()))
+        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,
+               var_name.c_str());
+      if (sysvar->set_host(it->host.c_str()))
+        LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_HOST_TRUNCATED,
+               var_name.c_str());
     }
   }
 

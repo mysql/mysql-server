@@ -426,6 +426,7 @@ bool sys_var::is_default(THD *, set_var *var) {
 
 void sys_var::set_user_host(THD *thd) {
   memset(user, 0, sizeof(user));
+  DBUG_ASSERT(thd->security_context()->user().length < sizeof(user));
   /* set client user */
   if (thd->security_context()->user().length > 0)
     strncpy(user, thd->security_context()->user().str,
@@ -433,7 +434,7 @@ void sys_var::set_user_host(THD *thd) {
   memset(host, 0, sizeof(host));
   if (thd->security_context()->host().length > 0) {
     int host_len =
-        min<size_t>(sizeof(host), thd->security_context()->host().length);
+        min<size_t>(sizeof(host) - 1, thd->security_context()->host().length);
     strncpy(host, thd->security_context()->host().str, host_len);
   }
 }

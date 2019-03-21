@@ -19125,6 +19125,11 @@ ER_DD_UPGRADE_COMPLETED
 ER_SSL_SERVER_CERT_VERIFY_FAILED
   eng "Server SSL certificate doesn't verify: %s"
 
+ER_PERSIST_OPTION_USER_TRUNCATED
+  eng "Truncated a user name for %s that was too long while reading the persisted variables file"
+
+ER_PERSIST_OPTION_HOST_TRUNCATED
+  eng "Truncated a host name for %s that was too long while reading the persisted variables file"
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
