@@ -5597,7 +5597,7 @@ bool Item_func_like::check_covering_prefix_keys(THD *thd) {
       size_t prefix_length = 0;
       String *wild_str = second_arg->val_str(&cmp.value2);
       if (thd->is_error()) return true;
-      if (second_arg->is_null()) return false;
+      if (second_arg->null_value) return false;
       if (my_is_prefixidx_cand(wild_str->charset(), wild_str->ptr(),
                                wild_str->ptr() + wild_str->length(), escape,
                                wild_many, &prefix_length))
@@ -5926,6 +5926,19 @@ Item *Item_func_le::negated_item() /* a <= b  ->  a > b */
 Item *Item_func_comparison::negated_item() {
   DBUG_ASSERT(0);
   return 0;
+}
+
+bool Item_func_comparison::is_null() {
+  DBUG_ASSERT(args[0]->cols() == args[1]->cols());
+
+  // Fast path: If the operands are scalar, the result of the comparison is NULL
+  // if and only if at least one of the operands is NULL.
+  if (args[0]->cols() == 1) return args[0]->is_null() || args[1]->is_null();
+
+  // If the operands are rows, we need to evaluate the comparison operator to
+  // find out if it is NULL. Fall back to the implementation in Item_func, which
+  // calls update_null_value() to evaluate the operator.
+  return Item_func::is_null();
 }
 
 Item_equal::Item_equal(Item_field *f1, Item_field *f2)

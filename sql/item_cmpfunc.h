@@ -564,6 +564,7 @@ class Item_func_comparison : public Item_bool_func2 {
   Item *neg_transformer(THD *thd) override;
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **) override { return true; }
+  bool is_null() override;
 };
 
 /**
