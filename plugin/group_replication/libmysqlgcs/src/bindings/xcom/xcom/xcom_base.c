@@ -339,6 +339,9 @@ static int const no_duplicate_payload = 1;
 /* Use buffered read when reading messages from the network */
 static int use_buffered_read = 1;
 
+/* Used to handle OOM errors */
+static unsigned short oom_abort = 0;
+
 /* {{{ Forward declarations */
 long xcom_unique_long(void);
 void get_host_name(char *a, char *name);
@@ -1838,6 +1841,7 @@ static inline int is_config(cargo_type x) {
 }
 
 static int wait_for_cache(pax_machine **pm, synode_no synode, double timeout);
+static void terminate_and_exit();
 
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
@@ -2000,6 +2004,14 @@ static int proposer_task(task_arg arg) {
       /* Set the client message as current proposal */
       assert(ep->client_msg->p);
       replace_pax_msg(&ep->p->proposer.msg, clone_pax_msg(ep->client_msg->p));
+      if (ep->p->proposer.msg == NULL) {
+        g_critical(
+            "Node %u has run out of memory while sending a message and "
+            "will now exit.",
+            get_nodeno(proposer_site));
+        terminate_and_exit(); /* Tell xcom to stop */
+        TERMINATE;
+      }
       assert(ep->p->proposer.msg);
       PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
 
@@ -2388,6 +2400,7 @@ static void send_value(site_def const *site, node_no to, synode_no synode) {
   pax_machine *pm = get_cache(synode);
   if (pm && pm->learner.msg) {
     pax_msg *msg = clone_pax_msg(pm->learner.msg);
+    if (msg == NULL) return;
     ref_msg(msg);
     send_server_msg(site, to, msg);
     unref_msg(&msg);
@@ -3250,7 +3263,12 @@ static void propose_noop(synode_no find, pax_machine *p) {
   assert(p->proposer.msg);
   create_noop(p->proposer.msg);
   /*  	DBGOUT(FN; SYCEXP(find););  */
-  push_msg_3p(site, p, clone_pax_msg(p->proposer.msg), find, no_op);
+  pax_msg *clone = clone_pax_msg(p->proposer.msg);
+  if (clone != NULL) {
+    push_msg_3p(site, p, clone, find, no_op);
+  } else {
+    G_DEBUG("Unable to propose NoOp due to an OOM error.");
+  }
 }
 
 static void send_read(synode_no find) {
@@ -3417,6 +3435,16 @@ void request_values(synode_no find, synode_no end) {
   reply_msg(reply); \
   replace_pax_msg(&reply, NULL)
 
+bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source) {
+  copy_app_data(&(*target)->a, source);
+  if ((*target)->a == NULL && source != NULL) {
+    oom_abort = 1;
+    replace_pax_msg(target, NULL);
+    return FALSE;
+  }
+  return TRUE;
+}
+
 static pax_msg *create_learn_msg_for_ignorant_node(pax_machine *p, pax_msg *pm,
                                                    synode_no synode) {
   CREATE_REPLY(pm);
@@ -3424,8 +3452,8 @@ static pax_msg *create_learn_msg_for_ignorant_node(pax_machine *p, pax_msg *pm,
   reply->synode = synode;
   reply->proposal = p->learner.msg->proposal;
   reply->msg_type = p->learner.msg->msg_type;
-  copy_app_data(&reply->a, p->learner.msg->a);
-  set_learn_type(reply);
+  safe_app_data_copy(&reply, p->learner.msg->a);
+  if (reply != NULL) set_learn_type(reply);
   /* set_unique_id(reply, p->learner.msg->unique_id); */
   return reply;
 }
@@ -3434,7 +3462,7 @@ static void teach_ignorant_node(site_def const *site, pax_machine *p,
                                 pax_msg *pm, synode_no synode,
                                 linkage *reply_queue) {
   pax_msg *reply = create_learn_msg_for_ignorant_node(p, pm, synode);
-  SEND_REPLY;
+  if (reply != NULL) SEND_REPLY;
 }
 
 /* Handle incoming read */
@@ -3483,9 +3511,9 @@ static pax_msg *create_ack_prepare_msg(pax_machine *p, pax_msg *pm,
   if (accepted(p)) { /* We have accepted a value */
     reply->proposal = p->acceptor.msg->proposal;
     reply->msg_type = p->acceptor.msg->msg_type;
-    copy_app_data(&reply->a, p->acceptor.msg->a);
     MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
     reply->op = ack_prepare_op;
+    safe_app_data_copy(&reply, p->acceptor.msg->a);
   } else {
     MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
     reply->op = ack_prepare_empty_op;
@@ -4064,11 +4092,13 @@ void add_to_cache(app_data_ptr a, synode_no synode) {
   pax_msg *msg = pax_msg_new_0(synode);
   ref_msg(msg);
   assert(pm);
-  copy_app_data(&msg->a, a);
-  set_learn_type(msg);
-  /* msg->unique_id = a->unique_id; */
-  do_learn(0, pm, msg);
-  unref_msg(&msg);
+  bool_t const success = safe_app_data_copy(&msg, a);
+  if (success) {
+    set_learn_type(msg);
+    /* msg->unique_id = a->unique_id; */
+    do_learn(0, pm, msg);
+    unref_msg(&msg);
+  }
 }
 /* purecov: end */
 
@@ -4672,6 +4702,11 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
     default:
       break;
   }
+  if (oom_abort) {
+    g_critical("Node %u has run out of memory and will now exit.",
+               get_nodeno(site));
+    terminate_and_exit();
+  }
   return (p);
 }
 
@@ -5265,11 +5300,13 @@ static void server_push_log(server *srv, synode_no push, node_no node) {
         pax_machine *p = get_cache_no_touch(push, FALSE);
         if (pm_finished(p)) {
           pax_msg *pm = clone_pax_msg(p->learner.msg);
-          ref_msg(pm);
-          pm->op = recover_learn_op;
-          DBGOUT(FN; PTREXP(srv); PTREXP(s););
-          send_msg(srv, s->nodeno, node, get_group_id(s), pm);
-          unref_msg(&pm);
+          if (pm != NULL) {
+            ref_msg(pm);
+            pm->op = recover_learn_op;
+            DBGOUT(FN; PTREXP(srv); PTREXP(s););
+            send_msg(srv, s->nodeno, node, get_group_id(s), pm);
+            unref_msg(&pm);
+          }
         }
       }
       push = incr_synode(push);
@@ -5439,6 +5476,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
         if (action == xa_init) {
           xcom_shutdown = 0;
           sent_alive = 0.0;
+          oom_abort = 0;
           if (state != 0) init_cache();
         }
         if (action == xa_u_boot) {
@@ -5552,6 +5590,7 @@ xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs) {
           client_boot_done = 0;
           netboot_ok = 0;
           booting = 0;
+          oom_abort = 0;
           terminate_proposers();
           init_proposers();
           task_terminate(executor);

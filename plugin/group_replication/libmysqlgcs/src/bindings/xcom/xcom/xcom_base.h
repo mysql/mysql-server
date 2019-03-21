@@ -276,6 +276,19 @@ struct pax_machine;
 typedef struct pax_machine pax_machine;
 
 /**
+  Copies app data @c source into @c target and checks if the copy
+  succeeded. Sets *target to NULL if the copy fails.
+
+  @param[in, out] target The pax_msg to which the app_data will be copied.
+  @param source The app data that will be copied.
+  @retval TRUE if the copy was successful.
+  @retval FALSE if the copy failed, in which case *target is set to NULL;
+          a failed copy means that there was an error allocating memory for
+          the copy.
+*/
+bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source);
+
+/**
  * Initializes the message @c msg to go through a 3-phase, regular Paxos.
  * Executed by Proposers.
  *
