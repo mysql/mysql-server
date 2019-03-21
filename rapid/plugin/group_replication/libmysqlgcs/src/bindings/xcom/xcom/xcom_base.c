@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -361,6 +361,9 @@ static int const no_duplicate_payload = 1;
 
 /* Use buffered read when reading messages from the network */
 static int use_buffered_read = 1;
+
+/* Used to handle OOM errors */
+static unsigned short oom_abort = 0;
 
 /* {{{ Forward declarations */
 
@@ -1609,6 +1612,7 @@ static inline int is_config(cargo_type x)
 	    x == force_config_type;
 }
 
+static void terminate_and_exit();
 
 /* Send messages by fetching from the input queue and trying to get it accepted
    by a Paxos instance */
@@ -1776,6 +1780,13 @@ retry_new:
 			/* Set the client message as current proposal */
 			assert(ep->client_msg->p);
 			replace_pax_msg(&ep->p->proposer.msg, clone_pax_msg(ep->client_msg->p));
+      if (ep->p->proposer.msg == NULL) {
+        g_critical("Node %u has run out of memory while sending a message and "
+                   "will now exit.",
+                   get_nodeno(proposer_site));
+        terminate_and_exit();
+        TERMINATE;
+      }
 			assert(ep->p->proposer.msg);
 			PAX_MSG_SANITY_CHECK(ep->p->proposer.msg);
 
@@ -2156,6 +2167,7 @@ static void	send_value(site_def const *site, node_no to, synode_no synode)
 	pax_machine * pm = get_cache(synode);
 	if (pm && pm->learner.msg) {
 		pax_msg * msg = clone_pax_msg(pm->learner.msg);
+		if (msg == NULL) return;
 		ref_msg(msg);
 		send_server_msg(site, to, msg);
 		unref_msg(&msg);
@@ -2750,12 +2762,19 @@ static void	propose_noop(synode_no find, pax_machine *p)
 {
 	/* Prepare to send a noop */
    	site_def const *site = find_site_def(find);
+  pax_msg *clone = NULL;
 	assert(! too_far(find));
 	replace_pax_msg(&p->proposer.msg, pax_msg_new(find, site));
 	assert(p->proposer.msg);
 	create_noop(p->proposer.msg);
 /*  	DBGOUT(FN; SYCEXP(find););  */
-	push_msg_3p(site, p, clone_pax_msg(p->proposer.msg), find, no_op);
+
+  clone = clone_pax_msg(p->proposer.msg);
+  if (clone != NULL) {
+    push_msg_3p(site, p, clone, find, no_op);
+  } else {
+    G_DEBUG("Unable to propose NoOp due to an OOM error.");
+  }
 }
 
 
@@ -2923,6 +2942,16 @@ void	reply_msg(site_def const * site, pax_msg *m)
 #define CREATE_REPLY(x) pax_msg *reply = NULL; CLONE_PAX_MSG(reply, x)
 #define SEND_REPLY reply_msg(reply); replace_pax_msg(&reply, NULL)
 
+bool_t safe_app_data_copy(pax_msg **target, app_data_ptr source) {
+  copy_app_data(&(*target)->a, source);
+  if ((*target)->a == NULL && source != NULL) {
+    oom_abort = 1;
+    replace_pax_msg(target, NULL);
+    return FALSE;
+  }
+  return TRUE;
+}
+
 static void	teach_ignorant_node(site_def const * site, pax_machine *p, pax_msg *pm, synode_no synode, linkage *reply_queue)
 {
 	CREATE_REPLY(pm);
@@ -2930,10 +2959,12 @@ static void	teach_ignorant_node(site_def const * site, pax_machine *p, pax_msg *
 	reply->synode = synode;
 	reply->proposal = p->learner.msg->proposal;
 	reply->msg_type =  p->learner.msg->msg_type;
-	copy_app_data(&reply->a, p->learner.msg->a);
-	set_learn_type(reply);
-	/* set_unique_id(reply, p->learner.msg->unique_id); */
-	SEND_REPLY;
+	safe_app_data_copy(&reply, p->learner.msg->a);
+	if (reply != NULL) {
+	  set_learn_type(reply);
+	  /* set_unique_id(reply, p->learner.msg->unique_id); */
+	  SEND_REPLY;
+	}
 }
 
 
@@ -2998,9 +3029,10 @@ static void	handle_simple_prepare(site_def const * site, pax_machine *p, pax_msg
 			if (accepted(p)) { /* We have accepted a value */
 				reply->proposal = p->acceptor.msg->proposal;
 				reply->msg_type =  p->acceptor.msg->msg_type;
-				copy_app_data(&reply->a, p->acceptor.msg->a);
 				MAY_DBG(FN; STRLIT(" already accepted value "); SYCEXP(synode));
 				reply->op = ack_prepare_op;
+				safe_app_data_copy(&reply, p->acceptor.msg->a);
+				if (reply == NULL) return;  // Failed to allocate memory for the copy.
 			} else {
 				MAY_DBG(FN; STRLIT(" no value synode "); SYCEXP(synode));
 				reply->op = ack_prepare_empty_op;
@@ -3422,15 +3454,17 @@ static void	update_max_synode(pax_msg *p)
 /* purecov: begin deadcode */
 void	add_to_cache(app_data_ptr a, synode_no synode)
 {
-	pax_machine * pm = get_cache(synode);
+  pax_machine * pm = get_cache(synode);
 	pax_msg * msg = pax_msg_new_0(synode);
 	ref_msg(msg);
 	assert(pm);
-	copy_app_data(&msg->a, a);
-	set_learn_type(msg);
-	/* msg->unique_id = a->unique_id; */
-	do_learn(0, pm, msg);
-	unref_msg(&msg);
+	safe_app_data_copy(&msg, a);
+	if (msg != NULL) {
+	  set_learn_type(msg);
+	  /* msg->unique_id = a->unique_id; */
+	  do_learn(0, pm, msg);
+	  unref_msg(&msg);
+	}
 }
 /* purecov: end */
 
@@ -3888,6 +3922,11 @@ learnop:
 		}
 	default:
 		break;
+	}
+	if (oom_abort) {
+	  g_critical("Node %u has run out of memory and will now exit.",
+	             get_nodeno(site));
+	  terminate_and_exit();
 	}
 	return(p);
 }
@@ -4391,10 +4430,12 @@ static void	server_push_log(server *srv, synode_no push, node_no node)
 			if (pm_finished(p)) {
 				/* Need to clone message here since pax_machine may be re-used while message is sent */
 				pax_msg * pm = clone_pax_msg(p->learner.msg);
-				ref_msg(pm);
-				pm->op = recover_learn_op;
-				send_msg(srv, s->nodeno, node, get_group_id(s), pm);
-				unref_msg(&pm);
+				if (pm != NULL) {
+				  ref_msg(pm);
+				  pm->op = recover_learn_op;
+				  send_msg(srv, s->nodeno, node, get_group_id(s), pm);
+				  unref_msg(&pm);
+				}
 			}
 		}
 		push = incr_synode(push);
@@ -4465,6 +4506,7 @@ start:
 			if (action == xa_init) {
 				xcom_shutdown = 0;
 				sent_alive = 0.0;
+				oom_abort = 0;
 			}
 			if (action == xa_u_boot) {
 /* purecov: begin deadcode */
@@ -4551,6 +4593,7 @@ run:
 				client_boot_done = 0;
 				netboot_ok = 0;
 				booting = 0;
+				oom_abort = 0;
 				terminate_proposers();
 				init_proposers();
 				task_terminate(executor);
