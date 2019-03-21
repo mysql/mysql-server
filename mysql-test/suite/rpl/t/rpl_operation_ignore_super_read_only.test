@@ -19,7 +19,8 @@
 #               MANY RPL CMDS.
 # Bug#26414532: MYSQLRPLSYNC ERRORS OUT BECAUSE SLAVE IS USING --SUPER-READ-ONLY
 #               OPTION
-#
+# Bug#27675107: SUPER_READ_ONLY WITH MASTER_INFO_REPOSITORY=TABLE BREAKS
+#               REPLICATION ON RESTART
 
 # Test in this file only makes sense in standard replication,
 # so it is skipped in group replication.
