@@ -197,26 +197,6 @@ Ndb_local_connection::truncate_table(const char* db, const char* table,
                                 NULL));
 }
 
-
-bool
-Ndb_local_connection::flush_table(const char* db, size_t db_length,
-                                  const char* table, size_t table_length)
-{
-  DBUG_ENTER("Ndb_local_connection::flush_table");
-  DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
-
-  // Create the SQL string
-  String sql_text((uint32)(db_length + table_length + 100));
-  sql_text.append(STRING_WITH_LEN("FLUSH TABLES "));
-  sql_text.append(db, (uint32)db_length);
-  sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, (uint32)table_length);
-
-  DBUG_RETURN(execute_query_iso(sql_text.lex_string(),
-                                NULL,
-                                NULL));
-}
-
 bool Ndb_local_connection::delete_rows(const std::string &db,
                                        const std::string &table,
                                        int ignore_no_such_table,

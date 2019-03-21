@@ -52,9 +52,6 @@ public:
   bool truncate_table(const char* db, const char* table,
                       bool ignore_no_such_table);
 
-  bool flush_table(const char* db, size_t db_length,
-                   const char* table, size_t table_length);
-
   bool delete_rows(const std::string &db, const std::string &table,
                    int ignore_no_such_table, const std::string &where);
 
