@@ -1,6 +1,7 @@
 #
 # Some simple test of load data
 #
+--source include/have_utf8.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -610,7 +611,7 @@ disconnect con1;
 --echo #
 
 CREATE TABLE t1(f1 INT);
-EVAL SELECT 0xE1BB30 INTO OUTFILE 't1.dat';
+EVAL SELECT 0xE1C330 INTO OUTFILE 't1.dat';
 --disable_warnings
 LOAD DATA INFILE 't1.dat' IGNORE INTO TABLE t1 CHARACTER SET utf8;
 --enable_warnings
