@@ -170,7 +170,7 @@ page_no_t Phy_reader::iterate_recs(size_t id, Phy_reader::Ctx &ctx, mtr_t *mtr,
   for (auto rec = page_cur_get_rec(&cursor); !page_rec_is_supremum(rec);
        rec = page_cur_get_rec(&cursor)) {
     if (!rec_get_deleted_flag(rec, m_is_compact)) {
-      ctx.m_err = f(id, block, rec, m_index, m_prebuilt);
+      ctx.m_err = f(id, block, rec, m_index, m_prebuilt, false);
 
       if (ctx.m_err != DB_SUCCESS) {
         return (FIL_NULL);
@@ -462,6 +462,7 @@ dberr_t Key_reader::traverse(size_t id, Key_reader::Ctx &ctx,
   PCursor pcursor(from.m_pcur, &mtr);
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
+  bool new_range = true;
 
   rec_offs_init(offsets_);
 
@@ -513,10 +514,11 @@ dberr_t Key_reader::traverse(size_t id, Key_reader::Ctx &ctx,
     }
 
     if (!skip) {
-      ctx.m_err = f(id, block, rec, ctx.m_index, ctx.m_prebuilt);
+      ctx.m_err = f(id, block, rec, ctx.m_index, ctx.m_prebuilt, new_range);
     }
 
     page_cur_move_to_next(cur);
+    new_range = false;
 
     if (ctx.m_err != DB_SUCCESS) {
       mtr.commit();

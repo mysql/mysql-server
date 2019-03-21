@@ -1214,8 +1214,9 @@ int ha_innobase::pread_adapter_parallel_scan_run(
 
   dberr_t err = parallel_reader->read([&](size_t id, const buf_block_t *block,
                                           const rec_t *rec, dict_index_t *index,
-                                          row_prebuilt_t *prebuilt) {
-    return (parallel_reader->process_rows(id, rec, index, prebuilt));
+                                          row_prebuilt_t *prebuilt,
+                                          bool new_range) {
+    return (parallel_reader->process_rows(id, rec, index, prebuilt, new_range));
   });
 
   int error = convert_error_code_to_mysql(err, 0, ha_thd());
@@ -9744,8 +9745,9 @@ int ha_innopart::pread_adapter_parallel_scan_run(
 
   dberr_t err = parallel_reader->read([&](size_t id, const buf_block_t *block,
                                           const rec_t *rec, dict_index_t *index,
-                                          row_prebuilt_t *prebuilt) {
-    return (parallel_reader->process_rows(id, rec, index, prebuilt));
+                                          row_prebuilt_t *prebuilt,
+                                          bool new_range) {
+    return (parallel_reader->process_rows(id, rec, index, prebuilt, new_range));
   });
 
   int error = convert_error_code_to_mysql(err, 0, ha_thd());

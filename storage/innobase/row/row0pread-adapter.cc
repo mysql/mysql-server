@@ -63,12 +63,13 @@ dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
     /** It's possible that we might not have sent the records in the buffer when
     we have reached the end of records and the buffer is not full. Send them
     now. */
-    if (n_recs[id] % m_send_num_recs != 0 && err == DB_SUCCESS) {
-      if (m_load_rows(m_thread_contexts[id], n_recs[id] % m_send_num_recs,
+    if (n_recs_in_buffer[id] != 0 && err == DB_SUCCESS) {
+      if (m_load_rows(m_thread_contexts[id], n_recs_in_buffer[id],
                       (void *)m_bufs[id])) {
         err = DB_INTERRUPTED;
       }
-      n_total_recs_sent.add(id, n_recs[id] % m_send_num_recs);
+      n_total_recs_sent.add(id, n_recs_in_buffer[id]);
+      n_recs_in_buffer.sub(id, n_recs_in_buffer[id]);
     }
   }
   m_load_end(m_thread_contexts[id]);
@@ -79,34 +80,35 @@ dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
 dberr_t Parallel_reader_adapter::process_rows(size_t thread_id,
                                               const rec_t *rec,
                                               dict_index_t *index,
-                                              row_prebuilt_t *prebuilt) {
+                                              row_prebuilt_t *prebuilt,
+                                              bool new_range) {
   dberr_t err = DB_ERROR;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
   mem_heap_t *heap = nullptr;
 
+  if ((new_range && n_recs_in_buffer[thread_id] != 0) ||
+      (n_recs_in_buffer[thread_id] == m_send_num_recs)) {
+    if (m_load_rows(m_thread_contexts[thread_id], n_recs_in_buffer[thread_id],
+                    (void *)m_bufs[thread_id])) {
+      return (DB_INTERRUPTED);
+    }
+    n_total_recs_sent.add(thread_id, n_recs_in_buffer[thread_id]);
+    n_recs_in_buffer.sub(thread_id, n_recs_in_buffer[thread_id]);
+  }
+
   rec_offs_init(offsets_);
 
   offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-  auto rec_offset =
-      (n_recs[thread_id] % m_send_num_recs) * prebuilt->mysql_row_len;
+  auto rec_offset = n_recs_in_buffer[thread_id] * prebuilt->mysql_row_len;
 
   if (row_sel_store_mysql_rec(m_bufs[thread_id] + rec_offset, prebuilt, rec,
                               NULL, true, index, offsets, false, nullptr)) {
     err = DB_SUCCESS;
 
     n_recs.add(thread_id, 1);
-
-    /** Call the adapter callback if we have filled the buffer with
-    ADAPTER_SEND_NUM_RECS number of records. */
-    if (n_recs[thread_id] % m_send_num_recs == 0) {
-      if (m_load_rows(m_thread_contexts[thread_id], m_send_num_recs,
-                      (void *)m_bufs[thread_id])) {
-        err = DB_INTERRUPTED;
-      }
-      n_total_recs_sent.add(thread_id, m_send_num_recs);
-    }
+    n_recs_in_buffer.add(thread_id, 1);
   }
 
   if (heap != NULL) {
