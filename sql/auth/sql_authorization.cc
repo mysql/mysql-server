@@ -2353,8 +2353,8 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 /**
-  @brief Check if the requested privileges exists in either User-, Host- or
-    Db-tables.
+  @brief Check if the requested privileges exists in either User-, DB- or,
+    tables- tables.
   @param thd          Thread context
   @param requirements Privileges requested
   @param tables       List of tables to be compared against
@@ -2364,7 +2364,7 @@ bool check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   @param number       Only the first 'number' tables in the linked list are
                       relevant.
 
-  The suppled table list contains cached privileges. This functions calls the
+  The supplied table list contains cached privileges. This functions calls the
   help functions check_access and check_grant to verify the first three steps
   in the privileges check queue:
   1. Global privileges
