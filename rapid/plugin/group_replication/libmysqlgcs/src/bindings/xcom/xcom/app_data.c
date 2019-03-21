@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,13 +129,18 @@ static char *dbg_app_data_single(app_data_ptr a)
 
 app_data_ptr clone_app_data(app_data_ptr a)
 {
-  app_data_ptr retval = 0;
+  app_data_ptr retval = NULL;
   app_data_list p = &retval; /* Initialize p with empty list */
 
-  while(0 != a){
-    follow(p, clone_app_data_single(a));
+  while(a != NULL){
+    app_data_ptr clone = clone_app_data_single(a);
+    follow(p, clone);
     a = a->next;
     p = nextp(p);
+    if (clone == NULL && retval != NULL) {
+      XCOM_XDR_FREE(xdr_app_data, retval);
+      break;
+    }
   }
   return retval;
 }
@@ -182,7 +187,8 @@ app_data_ptr clone_app_data_single(app_data_ptr a)
       {
         p->body.app_u_u.data.data_len = 0;
         G_ERROR("Memory allocation failed.");
-        break;
+        free(p);
+        return NULL;
       }
       p->body.app_u_u.data.data_len = a->body.app_u_u.data.data_len;
       memcpy(p->body.app_u_u.data.data_val, a->body.app_u_u.data.data_val, a->body.app_u_u.data.data_len);
