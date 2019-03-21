@@ -111,9 +111,11 @@ set debug='-d,skip_dd_table_access_check';
 ########################################################################
 # Restart the server against the unzipped datadir.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Verify that we can restart after upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Target schema ids for an upgrade from 80011 should hold.
 ########################################################################
@@ -214,9 +216,11 @@ set debug='-d,skip_dd_table_access_check';
 ########################################################################
 # Restart the server against the unzipped datadir.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Verify that we can restart after upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Target schema ids for an upgrade from 80012 should hold.
 ########################################################################
@@ -317,9 +321,11 @@ set debug='-d,skip_dd_table_access_check';
 ########################################################################
 # Restart the server against the unzipped datadir.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Verify that we can restart after upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Target schema ids for an upgrade from 80013 should hold.
 ########################################################################
@@ -420,9 +426,11 @@ set debug='-d,skip_dd_table_access_check';
 ########################################################################
 # Restart the server against the unzipped datadir.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Verify that we can restart after upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Target schema ids for an upgrade from 80014 should hold.
 ########################################################################
@@ -523,9 +531,11 @@ set debug='-d,skip_dd_table_access_check';
 ########################################################################
 # Restart the server against the unzipped datadir.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Verify that we can restart after upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=MYSQLD_LOG --secure-file-priv=
 ########################################################################
 # Target schema ids for an upgrade from 80015 should hold.
 ########################################################################

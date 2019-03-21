@@ -12,6 +12,7 @@
 ########################################################################
 # Restart the server to trigger upgrade.
 ########################################################################
+# restart: --datadir=MYSQLD_DATADIR_UPGRADE --log-error=MYSQLD_LOG_UPGRADE --log-error-verbosity=3
 ########################################################################
 # Verify that the entities have retained the SQL mode.
 ########################################################################
@@ -29,7 +30,7 @@ trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE I
 ########################################################################
 # Stop the server and do cleanup.
 ########################################################################
-# restart
+# restart:
 #-----------------------------------------------------------------------
 # WL#929: CHECK Constraint
 #         Test case to verify upgrade from version before check
@@ -39,8 +40,8 @@ trg	ALLOW_INVALID_DATES	CREATE DEFINER=`root`@`localhost` TRIGGER `trg` BEFORE I
 # Check that the file exists in the working folder.
 # Set different paths for --datadir
 # Check that the file exits after unzip
-# Stop DB server which was created by MTR default
-# Start the DB server
+# Stop / restart DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG
 USE test;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
 # After upgrade CHECK_CONSTRAINTS table should be present and should list
@@ -64,7 +65,7 @@ DROP TABLE t1;
 # Stop the server and do cleanup
 # Remove copied files
 # Restart the server with default options.
-# restart
+# restart:
 #
 # Bug#28901821 - AFTER UPGRADE TO 8.0.13, SYS SCHEMA VIEWS ARE LISTED AS INVALID
 #                IN I_S.TABLES
@@ -73,8 +74,8 @@ DROP TABLE t1;
 # Check that the file exists in the working folder.
 # Set different paths for --datadir
 # Check that the file exits after unzip
-# Stop DB server which was created by MTR default
-# Start the DB server
+# Stop / start DB server which was created by MTR default
+# restart: --datadir=MYSQLD_DATADIR2 --log-error=MYSQLD_LOG
 # Without fix, following views are listed as invalid.
 SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME = 'schema_auto_increment_columns' OR
@@ -92,4 +93,4 @@ x$schema_flattened_keys	VIEW
 # Stop the server and do cleanup.
 # Remove copied files
 # Restart the server with default options.
-# restart
+# restart:

@@ -425,6 +425,7 @@ End of 5.5 tests
 #                PASSWORD IS EXPIRED
 #
 # Restart server with disconnect_on_expired_password OFF;
+# restart:--disconnect_on_expired_password=0
 CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
 CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';
 GRANT PROXY ON 'employee'@'localhost' TO 'empl_external'@'localhost';

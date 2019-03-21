@@ -33,17 +33,15 @@
 --exec unzip -qo $MYSQL_TMP_DIR/data_80013_sql_modes.zip -d $MYSQL_TMP_DIR
 --let $MYSQLD_DATADIR_UPGRADE = $MYSQL_TMP_DIR/data_80013_sql_modes
 --let $MYSQLD_LOG_UPGRADE = $MYSQLTEST_VARDIR/log/save_dd_upgrade_sql_modes.log
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
 
 --echo ########################################################################
 --echo # Restart the server to trigger upgrade.
 --echo ########################################################################
---exec echo "restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error=$MYSQLD_LOG_UPGRADE --log-error-verbosity=3
+--replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG_UPGRADE MYSQLD_LOG_UPGRADE
+--source include/restart_mysqld.inc
 
 --echo ########################################################################
 --echo # Verify that the entities have retained the SQL mode.
@@ -58,13 +56,12 @@ SHOW CREATE TRIGGER trg;
 --echo ########################################################################
 --echo # Stop the server and do cleanup.
 --echo ########################################################################
+--let $shutdown_server_timeout= 300
 --source include/shutdown_mysqld.inc
---source include/wait_until_disconnected.inc
 --remove_file $MYSQL_TMP_DIR/data_80013_sql_modes.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80013_sql_modes
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
-
 
 --echo #-----------------------------------------------------------------------
 --echo # WL#929: CHECK Constraint
@@ -87,16 +84,12 @@ SHOW CREATE TRIGGER trg;
 --echo # Check that the file exits after unzip
 --file_exists $MYSQL_TMP_DIR/data_80014
 
---echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---echo # Start the DB server
---exec echo "restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--echo # Stop / restart DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $restart_parameters=  restart: --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
 
 USE test;
 CREATE TABLE t1 (f1 INT CHECK (f1 < 10));
@@ -116,8 +109,8 @@ DROP TABLE t1;
 --remove_file $MYSQL_TMP_DIR/data_80014.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80014
 --echo # Restart the server with default options.
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
 
 
 --echo #
@@ -140,16 +133,12 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data_80012/data_80012;
 --echo # Check that the file exits after unzip
 --file_exists $MYSQL_TMP_DIR/data_80012/data_80012
 
---echo # Stop DB server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
-
---echo # Start the DB server
---exec echo "restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--echo # Stop / start DB server which was created by MTR default
+--let $shutdown_server_timeout= 300
 --let $wait_counter= 3000
---source include/wait_until_connected_again.inc
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG
+--replace_result $MYSQLD_DATADIR2 MYSQLD_DATADIR2 $MYSQLD_LOG MYSQLD_LOG
+--source include/restart_mysqld.inc
 
 --echo # Without fix, following views are listed as invalid.
 SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
@@ -166,5 +155,6 @@ SELECT TABLE_NAME, TABLE_COMMENT FROM INFORMATION_SCHEMA.TABLES
 --remove_file $MYSQL_TMP_DIR/data_80012.zip
 --force-rmdir $MYSQL_TMP_DIR/data_80012
 --echo # Restart the server with default options.
+--let $restart_parameters= restart:
 --source include/start_mysqld.inc
---source include/wait_until_connected_again.inc
+

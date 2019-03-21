@@ -546,13 +546,9 @@ DROP USER bug12818542_dest@localhost;
 
 --echo # Restart server with disconnect_on_expired_password OFF;
 
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 
---source include/wait_until_disconnected.inc
---exec echo "restart:--disconnect_on_expired_password=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
+--let $restart_parameters=restart:--disconnect_on_expired_password=0
+--let $shutdown_server_timeout= 300
+--source include/restart_mysqld.inc
 
 CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
 CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';

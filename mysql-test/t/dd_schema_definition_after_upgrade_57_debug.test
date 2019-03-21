@@ -46,9 +46,8 @@
 --echo ########################################################################
 --echo # Stop the running server.
 --echo ########################################################################
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --echo ########################################################################
 --let  $VERSION = 57022
