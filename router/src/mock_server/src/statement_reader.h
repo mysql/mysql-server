@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -159,6 +159,15 @@ struct StatementResponse {
   std::chrono::microseconds exec_time;
 };
 
+struct AsyncNotice {
+  // how many milliseconds after the client connects this Notice
+  // should be sent to the client
+  std::chrono::milliseconds send_offset_ms;
+  unsigned type;
+  bool is_local;  // true = local, false = global
+  std::string payload;
+};
+
 class StatementReaderBase {
  public:
   /** @brief Returns the data about the next statement from the
@@ -178,6 +187,8 @@ class StatementReaderBase {
    *         0 microseconds is returned.
    **/
   virtual std::chrono::microseconds get_default_exec_time() = 0;
+
+  virtual std::vector<AsyncNotice> get_async_notices() = 0;
 
   virtual ~StatementReaderBase() = default;
 };

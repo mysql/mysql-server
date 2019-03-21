@@ -32,6 +32,9 @@ std::unique_ptr<xcl::XProtocol::Message> XProtocolDecoder::decode_message(
   std::unique_ptr<xcl::XProtocol::Message> ret_val;
 
   switch (static_cast<Mysqlx::ClientMessages::Type>(mid)) {
+    case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
+      ret_val.reset(new Mysqlx::Connection::CapabilitiesGet());
+      break;
     case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
       ret_val.reset(new Mysqlx::Connection::CapabilitiesSet());
       break;

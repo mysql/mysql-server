@@ -35,6 +35,7 @@
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <cassert>
 #include <cerrno>
 #include <chrono>
@@ -482,6 +483,41 @@ std::chrono::microseconds QueriesJsonReader::get_default_exec_time() {
     }
   }
   return std::chrono::microseconds(0);
+}
+
+std::vector<AsyncNotice> QueriesJsonReader::get_async_notices() {
+  std::vector<AsyncNotice> result;
+  if (!pimpl_->json_document_.HasMember("notices")) {
+    return result;
+  }
+
+  const JsonValue &notices = pimpl_->json_document_["notices"];
+  for (size_t i = 0; i < notices.Size(); ++i) {
+    auto &notice_json = notices[i];
+
+    AsyncNotice notice;
+    notice.send_offset_ms = std::chrono::milliseconds(
+        get_json_integer_field<unsigned>(notice_json, "send_offset"));
+    notice.type = get_json_integer_field<unsigned>(notice_json, "id");
+    const std::string scope = get_json_string_field(notice_json, "scope");
+    if (scope == "LOCAL") {
+      notice.is_local = true;
+    } else if (scope == "GLOBAL") {
+      notice.is_local = false;
+    } else {
+      throw std::runtime_error("scope must be LOCAL or GLOBAL wa: '" + scope +
+                               "'");
+    }
+
+    rapidjson::StringBuffer str_buff;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(str_buff);
+    notice_json["payload"].Accept(writer);
+    notice.payload = str_buff.GetString();
+
+    result.push_back(notice);
+  }
+
+  return result;
 }
 
 std::unique_ptr<ResultsetResponse> QueriesJsonReader::Pimpl::read_result_info(

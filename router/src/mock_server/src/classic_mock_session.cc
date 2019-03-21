@@ -71,6 +71,7 @@ bool MySQLServerMockSessionClassic::process_statements() {
         } catch (const std::exception &e) {
           // handling statement failed. Return the error to the client
           std::this_thread::sleep_for(json_reader_->get_default_exec_time());
+          log_error("executing statement failed: %s", e.what());
           send_error(ER_PARSE_ERROR,
                      std::string("executing statement failed: ") + e.what());
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,5 +38,6 @@ void send_packet(socket_t client_socket,
 void read_packet(socket_t client_socket, uint8_t *data, size_t size,
                  int flags = 0);
 int close_socket(socket_t sock);
+bool socket_has_data(socket_t sock, int timeout_ms);
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED

@@ -24,6 +24,7 @@
 
 #include "x_mock_session.h"
 
+#include <google/protobuf/util/json_util.h>
 #include <thread>
 
 #include "mysql/harness/logging/logging.h"
@@ -31,13 +32,17 @@ IMPORT_LOG_FUNCTIONS()
 
 #include "config.h"
 #include "mysql_protocol_utils.h"
+#include "mysqlx_error.h"
 #include "mysqlxclient/xprotocol.h"
 
 namespace server_mock {
 
 struct MySQLServerMockSessionX::Impl {
-  Impl(socket_t client_socket, const XProtocolDecoder &protocol_decoder)
-      : client_socket_(client_socket), protocol_decoder_(protocol_decoder) {}
+  Impl(socket_t client_socket, const XProtocolDecoder &protocol_decoder,
+       const std::vector<AsyncNotice> &async_notices)
+      : client_socket_(client_socket),
+        protocol_decoder_(protocol_decoder),
+        aync_notices_(async_notices) {}
 
   bool recv_header(uint8_t *out_msg_id, std::size_t *out_buffer_size) {
     union {
@@ -81,16 +86,19 @@ struct MySQLServerMockSessionX::Impl {
                                             payload_size);
   }
 
-  xcl::XError send(const xcl::XProtocol::Server_message_type_id msg_id,
-                   const xcl::XProtocol::Message &msg) {
+  bool client_socket_has_data(const std::chrono::milliseconds timeout) {
+    return socket_has_data(client_socket_, static_cast<int>(timeout.count()));
+  }
+
+  void send(const xcl::XProtocol::Server_message_type_id msg_id,
+            const xcl::XProtocol::Message &msg) {
     std::string msg_buffer;
     const std::uint8_t header_size = 5;
     const std::size_t msg_size = msg.ByteSize();
     msg_buffer.resize(msg_size + header_size);
 
     if (!msg.SerializeToArray(&msg_buffer[0] + header_size, msg_size)) {
-      return xcl::XError{CR_MALFORMED_PACKET,
-                         "Failed to serialize the message"};
+      throw std::runtime_error("Failed to serialize the message");
     }
 
     const auto msg_size_to_buffer = static_cast<std::uint32_t>(msg_size + 1);
@@ -105,13 +113,70 @@ struct MySQLServerMockSessionX::Impl {
     send_packet(client_socket_,
                 reinterpret_cast<const std::uint8_t *>(msg_buffer.data()),
                 msg_buffer.size());
+  }
 
-    return xcl::XError();
+  void send_due_async_notices(
+      const std::chrono::time_point<std::chrono::system_clock> &start_time) {
+    const auto current_time = std::chrono::system_clock::now();
+    auto ms_passed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                         current_time - start_time)
+                         .count();
+    for (auto it = aync_notices_.begin(); it != aync_notices_.end();) {
+      if (it->send_offset_ms.count() <= ms_passed) {
+        send_async_notice(*it);
+        it = aync_notices_.erase(it);
+      } else {
+        ++it;
+      }
+    }
   }
 
  private:
+  std::unique_ptr<xcl::XProtocol::Message> get_notice_message(
+      const unsigned id) {
+    std::unique_ptr<xcl::XProtocol::Message> result;
+    switch (id) {
+      case Mysqlx::Notice::Frame_Type_WARNING:
+        result.reset(new Mysqlx::Notice::Warning());
+        break;
+      case Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED:
+        result.reset(new Mysqlx::Notice::SessionVariableChanged());
+        break;
+      case Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED:
+        result.reset(new Mysqlx::Notice::SessionStateChanged());
+        break;
+      case Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED:
+        result.reset(new Mysqlx::Notice::GroupReplicationStateChanged());
+        break;
+      default:
+        throw std::runtime_error("Unsupported notice id: " +
+                                 std::to_string(id));
+    }
+
+    return result;
+  }
+
+  void send_async_notice(const AsyncNotice &async_notice) {
+    Mysqlx::Notice::Frame notice_frame;
+    notice_frame.set_type(async_notice.type);
+    notice_frame.set_scope(async_notice.is_local
+                               ? Mysqlx::Notice::Frame_Scope_LOCAL
+                               : Mysqlx::Notice::Frame_Scope_GLOBAL);
+
+    auto notice_msg = get_notice_message(async_notice.type);
+
+    google::protobuf::util::JsonStringToMessage(async_notice.payload,
+                                                notice_msg.get());
+
+    notice_frame.set_payload(notice_msg->SerializeAsString());
+
+    send(xcl::XProtocol::Server_message_type_id::ServerMessages_Type_NOTICE,
+         notice_frame);
+  }
+
   socket_t client_socket_;
   const XProtocolDecoder &protocol_decoder_;
+  std::vector<AsyncNotice> aync_notices_;
 };
 
 MySQLServerMockSessionX::MySQLServerMockSessionX(
@@ -120,8 +185,9 @@ MySQLServerMockSessionX::MySQLServerMockSessionX(
     const bool debug_mode)
     : MySQLServerMockSession(client_sock, std::move(statement_processor),
                              debug_mode),
-      impl_(new MySQLServerMockSessionX::Impl(client_sock, protocol_decoder_)) {
-}
+      impl_(new MySQLServerMockSessionX::Impl(
+          client_sock, protocol_decoder_,
+          this->json_reader_->get_async_notices())) {}
 
 MySQLServerMockSessionX::~MySQLServerMockSessionX() = default;
 
@@ -132,8 +198,30 @@ bool MySQLServerMockSessionX::process_handshake() {
     auto msg = impl_->recv_single_message(&out_msg_id);
     switch (out_msg_id) {
       case Mysqlx::ClientMessages::CON_CAPABILITIES_SET: {
-        Mysqlx::Ok ok_msg;
-        impl_->send(Mysqlx::ServerMessages::OK, ok_msg);
+        Mysqlx::Connection::CapabilitiesSet *capab_msg =
+            dynamic_cast<Mysqlx::Connection::CapabilitiesSet *>(msg.get());
+        harness_assert(capab_msg != nullptr);
+        bool tls_request = false;
+        const auto capabilities = capab_msg->capabilities();
+        for (int i = 0; i < capabilities.capabilities_size(); ++i) {
+          const auto capability = capabilities.capabilities(i);
+          if (capability.name() == "tls") tls_request = true;
+        }
+
+        // we do not support TLS so if the client requested it
+        // we need to reject it
+        if (tls_request) {
+          send_error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                     "Capability prepare failed for tls");
+        } else {
+          Mysqlx::Ok ok_msg;
+          impl_->send(Mysqlx::ServerMessages::OK, ok_msg);
+        }
+        break;
+      }
+      case Mysqlx::ClientMessages::CON_CAPABILITIES_GET: {
+        Mysqlx::Connection::Capabilities msg_capab;
+        impl_->send(Mysqlx::ServerMessages::CONN_CAPABILITIES, msg_capab);
         break;
       }
       case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START: {
@@ -162,15 +250,22 @@ bool MySQLServerMockSessionX::process_handshake() {
 }
 
 bool MySQLServerMockSessionX::process_statements() {
+  const auto kTimerResolution = std::chrono::milliseconds(10);
+  const auto start_time = std::chrono::system_clock::now();
   while (!killed_) {
+    impl_->send_due_async_notices(start_time);
+    if (!impl_->client_socket_has_data(kTimerResolution)) {
+      continue;
+    }
+
     xcl::XProtocol::Client_message_type_id out_msg_id;
     auto msg = impl_->recv_single_message(&out_msg_id);
     switch (out_msg_id) {
       case Mysqlx::ClientMessages::SQL_STMT_EXECUTE: {
         Mysqlx::Sql::StmtExecute *msg_stmt_execute =
             dynamic_cast<Mysqlx::Sql::StmtExecute *>(msg.get());
+        harness_assert(msg_stmt_execute != nullptr);
         const auto statement_received = msg_stmt_execute->stmt();
-
         try {
           handle_statement(json_reader_->handle_statement(statement_received));
         } catch (const std::exception &e) {
@@ -215,8 +310,8 @@ void MySQLServerMockSessionX::send_ok(
     const uint64_t /*affected_rows*/,  // TODO: notice with this data?
     const uint64_t /*last_insert_id*/, const uint16_t /*server_status*/,
     const uint16_t /*warning_count*/) {
-  Mysqlx::Ok ok_msg;
-  impl_->send(Mysqlx::ServerMessages::OK, ok_msg);
+  Mysqlx::Sql::StmtExecuteOk ok_msg;
+  impl_->send(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK, ok_msg);
 }
 
 void MySQLServerMockSessionX::send_resultset(
@@ -251,8 +346,7 @@ void MySQLServerMockSessionX::send_resultset(
 
   Mysqlx::Resultset::FetchDone fetch_done_msg;
   impl_->send(Mysqlx::ServerMessages::RESULTSET_FETCH_DONE, fetch_done_msg);
-  Mysqlx::Sql::StmtExecuteOk sql_ok_msg;
-  impl_->send(Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK, sql_ok_msg);
+  send_ok();
 }
 
 }  // namespace server_mock
