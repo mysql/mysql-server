@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,8 +53,8 @@
   @sa test_pfs_notification()
 */
 
-REQUIRES_SERVICE_PLACEHOLDER(pfs_notification);
-REQUIRES_SERVICE_PLACEHOLDER(pfs_resource_group);
+REQUIRES_SERVICE_PLACEHOLDER(pfs_notification_v3);
+REQUIRES_SERVICE_PLACEHOLDER(pfs_resource_group_v3);
 
 /*
   User-defined data structure.
@@ -259,8 +259,9 @@ void session_connect_callback(int handle,
         PSI_notification callbacks;
         std::memset(&callbacks, 0, sizeof(callbacks));
         callbacks.session_connect = &session_connect_internal;
-        internal_handle = mysql_service_pfs_notification->register_notification(
-            &callbacks, false);
+        internal_handle =
+            mysql_service_pfs_notification_v3->register_notification(&callbacks,
+                                                                     false);
         callback_print_log(handle, "register_notification_internal",
                            thread_attrs, internal_handle);
         internal_registration = true;
@@ -274,7 +275,7 @@ void session_connect_callback(int handle,
     */
     if (user == "PFS_MTR_UNREGISTER_INTERNAL") {
       if (internal_registration) {
-        int ret = mysql_service_pfs_notification->unregister_notification(
+        int ret = mysql_service_pfs_notification_v3->unregister_notification(
             internal_handle);
         callback_print_log(handle, "unregister_notification_internal",
                            thread_attrs, ret);
@@ -297,19 +298,19 @@ void session_connect_callback(int handle,
 
       /* Register w/ bad callbacks. */
       std::memset(&callbacks, 0, sizeof(callbacks));
-      int ret = mysql_service_pfs_notification->register_notification(
+      int ret = mysql_service_pfs_notification_v3->register_notification(
           &callbacks, true);
       callback_print_log(handle, "register_notification(bad_cb)", thread_attrs,
                          ret);
 
       /* Register w/ null callbacks. */
-      ret =
-          mysql_service_pfs_notification->register_notification(nullptr, true);
+      ret = mysql_service_pfs_notification_v3->register_notification(nullptr,
+                                                                     true);
       callback_print_log(handle, "register_notification(nullptr)", thread_attrs,
                          ret);
 
       /* Unregister w/ invalid handle. */
-      ret = mysql_service_pfs_notification->unregister_notification(handle);
+      ret = mysql_service_pfs_notification_v3->unregister_notification(handle);
       callback_print_log(handle, "unregister_notification(bad_handle)",
                          thread_attrs, ret);
       negative_tests = true;
@@ -325,7 +326,7 @@ void session_connect_callback(int handle,
     */
     PSI_thread_attrs my_thread_attrs;
 
-    if (mysql_service_pfs_resource_group->get_thread_system_attrs_by_id(
+    if (mysql_service_pfs_resource_group_v3->get_thread_system_attrs_by_id(
             NULL, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
       print_log("get_thread_resource_group_by_id failed");
     }
@@ -344,14 +345,14 @@ void session_connect_callback(int handle,
     }
 
     /* Update resource group */
-    if (mysql_service_pfs_resource_group->set_thread_resource_group_by_id(
+    if (mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
             NULL, thread_attrs->m_thread_internal_id, group.c_str(),
             (int)group.length(), (void *)user_data)) {
       print_log("set_thread_resource_group_by_id failed");
     }
 
     /* Get thread attributes again to verify changes */
-    if (mysql_service_pfs_resource_group->get_thread_system_attrs_by_id(
+    if (mysql_service_pfs_resource_group_v3->get_thread_system_attrs_by_id(
             NULL, thread_attrs->m_thread_internal_id, &my_thread_attrs)) {
       print_log("get_thread_resource_group_by_id failed");
     }
@@ -361,7 +362,7 @@ void session_connect_callback(int handle,
     /* Set resource group name. Do this once per connection. */
     if (handle == 1) {
       std::string group = "RESOURCE_GROUP_" + std::to_string(handle);
-      if (mysql_service_pfs_resource_group->set_thread_resource_group_by_id(
+      if (mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
               NULL, thread_attrs->m_thread_internal_id, group.c_str(),
               (int)group.length(), NULL)) {
         print_log("set_thread_resource_group_by_id failed");
@@ -476,8 +477,8 @@ bool test_pfs_notification() {
         break;
     }
 
-    auto handle =
-        mysql_service_pfs_notification->register_notification(&callbacks, true);
+    auto handle = mysql_service_pfs_notification_v3->register_notification(
+        &callbacks, true);
 
     if (handle == 0) {
       print_log("register_notification() failed");
@@ -508,7 +509,8 @@ mysql_service_status_t test_pfs_notification_deinit() {
   print_log(separator);
 
   for (auto reg : registrations) {
-    if (mysql_service_pfs_notification->unregister_notification(reg.m_handle))
+    if (mysql_service_pfs_notification_v3->unregister_notification(
+            reg.m_handle))
       print_log("unregister_notification failed");
     else {
       std::stringstream ss;
@@ -528,7 +530,7 @@ END_COMPONENT_PROVIDES();
 
 /* Required services for this test component. */
 BEGIN_COMPONENT_REQUIRES(test_pfs_notification)
-REQUIRES_SERVICE(pfs_notification), REQUIRES_SERVICE(pfs_resource_group),
+REQUIRES_SERVICE(pfs_notification_v3), REQUIRES_SERVICE(pfs_resource_group_v3),
     END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(test_pfs_notification)

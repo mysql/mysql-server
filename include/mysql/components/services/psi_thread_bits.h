@@ -329,13 +329,13 @@ typedef void (*get_thread_event_id_v2_t)(struct PSI_thread *psi,
 /* Duplicate definitions to avoid dependency on mysql_com.h */
 #define PSI_USERNAME_LENGTH (32 * 3)
 #define PSI_NAME_LEN (64 * 3)
-#define PSI_HOSTNAME_LENGTH (60)
+#define PSI_HOSTNAME_LENGTH (255)
 
 /**
   Performance Schema thread type: user/foreground or system/background.
   @sa get_thread_system_attrs
 */
-struct PSI_thread_attrs_v1 {
+struct PSI_thread_attrs_v3 {
   /* PFS internal thread id, unique. */
   unsigned long long m_thread_internal_id;
 
@@ -376,27 +376,27 @@ struct PSI_thread_attrs_v1 {
   bool m_system_thread;
 };
 
-typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
+typedef struct PSI_thread_attrs_v3 PSI_thread_attrs;
 
 /**
   Callback for the pfs_notification service.
   @param thread_attrs system attributes of the current thread.
 */
-typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
+typedef void (*PSI_notification_cb_v3)(const PSI_thread_attrs_v3 *thread_attrs);
 
 /**
   Registration structure for the pfs_notification service.
-  @sa register_notification_v1_t
+  @sa register_notification_v3_t
 */
-struct PSI_notification_v1 {
-  PSI_notification_cb thread_create;
-  PSI_notification_cb thread_destroy;
-  PSI_notification_cb session_connect;
-  PSI_notification_cb session_disconnect;
-  PSI_notification_cb session_change_user;
+struct PSI_notification_v3 {
+  PSI_notification_cb_v3 thread_create;
+  PSI_notification_cb_v3 thread_destroy;
+  PSI_notification_cb_v3 session_connect;
+  PSI_notification_cb_v3 session_disconnect;
+  PSI_notification_cb_v3 session_change_user;
 };
 
-typedef struct PSI_notification_v1 PSI_notification;
+typedef struct PSI_notification_v3 PSI_notification;
 
 /**
   Get system attributes for the current thread.
@@ -404,7 +404,7 @@ typedef struct PSI_notification_v1 PSI_notification;
   @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
-typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
+typedef int (*get_thread_system_attrs_v3_t)(PSI_thread_attrs_v3 *thread_attrs);
 
 /**
   Get system attributes for an instrumented thread, identified either by the
@@ -415,9 +415,10 @@ typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
   @param thread_attrs pointer to pfs_thread_attr struct
   @return 0 if successful, 1 otherwise
 */
-typedef int (*get_thread_system_attrs_by_id_v1_t)(
+typedef int (*get_thread_system_attrs_by_id_v3_t)(
     PSI_thread *thread, unsigned long long thread_id,
-    PSI_thread_attrs *thread_attrs);
+    PSI_thread_attrs_v3 *thread_attrs);
+
 /**
   Register callback functions for the Notification service.
   For best performance, set with_ref_count = false.
@@ -427,7 +428,7 @@ typedef int (*get_thread_system_attrs_by_id_v1_t)(
   @sa unregister_notification
   @return registration handle on success, 0 if failure
 */
-typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
+typedef int (*register_notification_v3_t)(const PSI_notification_v3 *callbacks,
                                           bool with_ref_count);
 
 /**

@@ -191,8 +191,10 @@ static void test_bootstrap() {
 
   psi = thread_boot->get_interface(0);
   ok(psi == NULL, "no thread version 0");
+  psi = thread_boot->get_interface(PSI_THREAD_VERSION_1);
+  ok(psi == NULL, "no thread version 1");
   psi = thread_boot->get_interface(PSI_THREAD_VERSION_2);
-  ok(psi != NULL, "thread version 1");
+  ok(psi == NULL, "no thread version 2");
 
   psi = mutex_boot->get_interface(0);
   ok(psi == NULL, "no mutex version 0");
@@ -360,8 +362,8 @@ static void load_perfschema(
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
       &data_lock_boot, &system_boot);
-  *thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
+  *thread_service = (PSI_thread_service_t *)thread_boot->get_interface(
+      PSI_CURRENT_THREAD_VERSION);
   *mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
   *rwlock_service =
@@ -1872,8 +1874,8 @@ static void test_event_name_index() {
   ok(error_boot != NULL, "error_bootstrap");
   ok(data_lock_boot != NULL, "data_lock_bootstrap");
 
-  thread_service =
-      (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_2);
+  thread_service = (PSI_thread_service_t *)thread_boot->get_interface(
+      PSI_CURRENT_THREAD_VERSION);
   ok(thread_service != NULL, "thread_service");
   mutex_service =
       (PSI_mutex_service_t *)mutex_boot->get_interface(PSI_MUTEX_VERSION_1);
@@ -2201,7 +2203,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(331);
+  plan(332);
 
   MY_INIT("pfs-t");
   do_all_tests();

@@ -95,14 +95,14 @@ typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
 typedef void (*get_thread_event_id_v2_t)(struct PSI_thread *psi,
                                          unsigned long long *thread_internal_id,
                                          unsigned long long *event_id);
-struct PSI_thread_attrs_v1 {
+struct PSI_thread_attrs_v3 {
   unsigned long long m_thread_internal_id;
   unsigned long m_processlist_id;
   unsigned long long m_thread_os_id;
   void *m_user_data;
   char m_username[(32 * 3)];
   size_t m_username_length;
-  char m_hostname[(60)];
+  char m_hostname[(255)];
   size_t m_hostname_length;
   char m_groupname[(64 * 3)];
   size_t m_groupname_length;
@@ -110,21 +110,21 @@ struct PSI_thread_attrs_v1 {
   socklen_t m_sock_addr_length;
   bool m_system_thread;
 };
-typedef struct PSI_thread_attrs_v1 PSI_thread_attrs;
-typedef void (*PSI_notification_cb)(const PSI_thread_attrs *thread_attrs);
-struct PSI_notification_v1 {
-  PSI_notification_cb thread_create;
-  PSI_notification_cb thread_destroy;
-  PSI_notification_cb session_connect;
-  PSI_notification_cb session_disconnect;
-  PSI_notification_cb session_change_user;
+typedef struct PSI_thread_attrs_v3 PSI_thread_attrs;
+typedef void (*PSI_notification_cb_v3)(const PSI_thread_attrs_v3 *thread_attrs);
+struct PSI_notification_v3 {
+  PSI_notification_cb_v3 thread_create;
+  PSI_notification_cb_v3 thread_destroy;
+  PSI_notification_cb_v3 session_connect;
+  PSI_notification_cb_v3 session_disconnect;
+  PSI_notification_cb_v3 session_change_user;
 };
-typedef struct PSI_notification_v1 PSI_notification;
-typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
-typedef int (*get_thread_system_attrs_by_id_v1_t)(
+typedef struct PSI_notification_v3 PSI_notification;
+typedef int (*get_thread_system_attrs_v3_t)(PSI_thread_attrs_v3 *thread_attrs);
+typedef int (*get_thread_system_attrs_by_id_v3_t)(
     PSI_thread *thread, unsigned long long thread_id,
-    PSI_thread_attrs *thread_attrs);
-typedef int (*register_notification_v1_t)(const PSI_notification *callbacks,
+    PSI_thread_attrs_v3 *thread_attrs);
+typedef int (*register_notification_v3_t)(const PSI_notification_v3 *callbacks,
                                           bool with_ref_count);
 typedef int (*unregister_notification_v1_t)(int handle);
 typedef void (*notify_session_connect_v1_t)(PSI_thread *thread);
@@ -135,7 +135,7 @@ struct PSI_thread_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
-struct PSI_thread_service_v2 {
+struct PSI_thread_service_v3 {
   register_thread_v1_t register_thread;
   spawn_thread_v1_t spawn_thread;
   new_thread_v1_t new_thread;
@@ -162,13 +162,13 @@ struct PSI_thread_service_v2 {
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
   get_current_thread_event_id_v2_t get_current_thread_event_id;
   get_thread_event_id_v2_t get_thread_event_id;
-  get_thread_system_attrs_v1_t get_thread_system_attrs;
-  get_thread_system_attrs_by_id_v1_t get_thread_system_attrs_by_id;
-  register_notification_v1_t register_notification;
+  get_thread_system_attrs_v3_t get_thread_system_attrs;
+  get_thread_system_attrs_by_id_v3_t get_thread_system_attrs_by_id;
+  register_notification_v3_t register_notification;
   unregister_notification_v1_t unregister_notification;
   notify_session_connect_v1_t notify_session_connect;
   notify_session_disconnect_v1_t notify_session_disconnect;
   notify_session_change_user_v1_t notify_session_change_user;
 };
-typedef struct PSI_thread_service_v2 PSI_thread_service_t;
+typedef struct PSI_thread_service_v3 PSI_thread_service_t;
 extern PSI_thread_service_t *psi_thread_service;

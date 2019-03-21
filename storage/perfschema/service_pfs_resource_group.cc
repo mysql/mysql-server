@@ -32,23 +32,23 @@
 
 #include "storage/perfschema/pfs_server.h"
 
-extern int pfs_set_thread_resource_group_v2(const char *group_name,
+extern int pfs_set_thread_resource_group_vc(const char *group_name,
                                             int group_name_len,
                                             void *user_data);
-extern int pfs_set_thread_resource_group_by_id_v2(PSI_thread *thread,
+extern int pfs_set_thread_resource_group_by_id_vc(PSI_thread *thread,
                                                   ulonglong thread_id,
                                                   const char *group_name,
                                                   int group_name_len,
                                                   void *user_data);
-extern int pfs_get_thread_system_attrs_v2(PSI_thread_attrs *thread_attrs);
+extern int pfs_get_thread_system_attrs_vc(PSI_thread_attrs *thread_attrs);
 
-extern int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
+extern int pfs_get_thread_system_attrs_by_id_vc(PSI_thread *thread,
                                                 ulonglong thread_id,
                                                 PSI_thread_attrs *thread_attrs);
 
 int impl_pfs_set_thread_resource_group(const char *group_name,
                                        int group_name_len, void *user_data) {
-  return pfs_set_thread_resource_group_v2(group_name, group_name_len,
+  return pfs_set_thread_resource_group_vc(group_name, group_name_len,
                                           user_data);
 }
 
@@ -57,22 +57,22 @@ int impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
                                              const char *group_name,
                                              int group_name_len,
                                              void *user_data) {
-  return pfs_set_thread_resource_group_by_id_v2(thread, thread_id, group_name,
+  return pfs_set_thread_resource_group_by_id_vc(thread, thread_id, group_name,
                                                 group_name_len, user_data);
 }
 
 int impl_pfs_get_thread_system_attrs(PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_v2(thread_attrs);
+  return pfs_get_thread_system_attrs_vc(thread_attrs);
 }
 
 int impl_pfs_get_thread_system_attrs_by_id(PSI_thread *thread,
                                            ulonglong thread_id,
                                            PSI_thread_attrs *thread_attrs) {
-  return pfs_get_thread_system_attrs_by_id_v2(thread, thread_id, thread_attrs);
+  return pfs_get_thread_system_attrs_by_id_vc(thread, thread_id, thread_attrs);
 }
 
-SERVICE_TYPE(pfs_resource_group)
-SERVICE_IMPLEMENTATION(mysql_server, pfs_resource_group) = {
+SERVICE_TYPE(pfs_resource_group_v3)
+SERVICE_IMPLEMENTATION(mysql_server, pfs_resource_group_v3) = {
     impl_pfs_set_thread_resource_group,
     impl_pfs_set_thread_resource_group_by_id, impl_pfs_get_thread_system_attrs,
     impl_pfs_get_thread_system_attrs_by_id};
@@ -94,9 +94,10 @@ int register_pfs_resource_group_service() {
                                                       r);
 
   if (reg->register_service(
-          "pfs_resource_group.mysql_server",
-          pointer_cast<my_h_service>(const_cast<s_mysql_pfs_resource_group *>(
-              &imp_mysql_server_pfs_resource_group)))) {
+          "pfs_resource_group_v3.mysql_server",
+          pointer_cast<my_h_service>(
+              const_cast<s_mysql_pfs_resource_group_v3 *>(
+                  &imp_mysql_server_pfs_resource_group_v3)))) {
     result = 1;
   }
 

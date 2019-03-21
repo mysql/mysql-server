@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -336,24 +336,24 @@ bool Resource_group_mgr::init() {
     DBUG_RETURN(true);
   }
 
-  if (m_registry_svc->acquire("pfs_resource_group", &m_h_res_grp_svc)) {
+  if (m_registry_svc->acquire("pfs_resource_group_v3", &m_h_res_grp_svc)) {
     LogErr(WARNING_LEVEL,
            ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
-           "pfs_resource_group");
+           "pfs_resource_group_v3");
     DBUG_RETURN(true);
   }
   m_resource_group_svc =
-      reinterpret_cast<SERVICE_TYPE(pfs_resource_group) *>(m_h_res_grp_svc);
+      reinterpret_cast<SERVICE_TYPE(pfs_resource_group_v3) *>(m_h_res_grp_svc);
 
-  if (m_registry_svc->acquire("pfs_notification", &m_h_notification_svc)) {
+  if (m_registry_svc->acquire("pfs_notification_v3", &m_h_notification_svc)) {
     LogErr(WARNING_LEVEL,
            ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
-           "pfs_notification");
+           "pfs_notification_v3");
     DBUG_RETURN(true);
   }
 
-  m_notify_svc =
-      reinterpret_cast<SERVICE_TYPE(pfs_notification) *>(m_h_notification_svc);
+  m_notify_svc = reinterpret_cast<SERVICE_TYPE(pfs_notification_v3) *>(
+      m_h_notification_svc);
 
   // Register thread creation notification callbacks.
   PSI_notification callbacks;

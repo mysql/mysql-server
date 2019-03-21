@@ -94,22 +94,19 @@ PSI_socket_locker *pfs_start_socket_wait_v1(PSI_socket_locker_state_v1 *,
 #endif
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-void pfs_delete_current_thread_v2() {}
-PSI_thread *pfs_new_thread_v2(PSI_thread_key, const void *, ulonglong) {
+void pfs_delete_current_thread_vc() {}
+PSI_thread *pfs_new_thread_vc(PSI_thread_key, const void *, ulonglong) {
   return nullptr;
 }
-void pfs_register_thread_v2(char const *, PSI_thread_info_v1 *, int) {}
-void pfs_set_thread_account_v2(char const *, int, char const *, int) {}
-void pfs_set_thread_os_id_v2(PSI_thread *) {}
-void pfs_set_thread_v2(PSI_thread *) {}
-int pfs_spawn_thread_v2(PSI_thread_key, my_thread_handle *,
+void pfs_register_thread_vc(char const *, PSI_thread_info_v1 *, int) {}
+void pfs_set_thread_account_vc(char const *, int, char const *, int) {}
+void pfs_set_thread_os_id_vc(PSI_thread *) {}
+void pfs_set_thread_vc(PSI_thread *) {}
+int pfs_spawn_thread_vc(PSI_thread_key, my_thread_handle *,
                         const my_thread_attr_t *, void *(*)(void *), void *) {
   return 0;
 }
-int pfs_set_thread_connect_attrs_v1(char const *, unsigned int, void const *) {
-  return 0;
-}
-int pfs_set_thread_connect_attrs_v2(char const *, unsigned int, void const *) {
+int pfs_set_thread_connect_attrs_vc(char const *, unsigned int, void const *) {
   return 0;
 }
 #endif

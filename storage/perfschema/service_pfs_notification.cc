@@ -36,7 +36,7 @@
 #include "pfs_thread_provider.h"
 #include "storage/perfschema/pfs_server.h"
 
-int pfs_get_thread_system_attrs_by_id_v2(PSI_thread *thread,
+int pfs_get_thread_system_attrs_by_id_vc(PSI_thread *thread,
                                          ulonglong thread_id,
                                          PSI_thread_attrs *thread_attrs);
 
@@ -344,7 +344,7 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -371,7 +371,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -397,7 +397,7 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -423,7 +423,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -449,7 +449,7 @@ void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
 
   PSI_thread_attrs thread_attrs;
 
-  if (pfs_get_thread_system_attrs_by_id_v2(thread, 0, &thread_attrs) != 0) {
+  if (pfs_get_thread_system_attrs_by_id_vc(thread, 0, &thread_attrs) != 0) {
     return;
   }
 
@@ -474,8 +474,8 @@ int impl_unregister_notification(int handle) {
   return pfs_unregister_notification(handle);
 }
 
-SERVICE_TYPE(pfs_notification)
-SERVICE_IMPLEMENTATION(mysql_server, pfs_notification) = {
+SERVICE_TYPE(pfs_notification_v3)
+SERVICE_IMPLEMENTATION(mysql_server, pfs_notification_v3) = {
     impl_register_notification, impl_unregister_notification};
 
 /**
@@ -495,9 +495,9 @@ int register_pfs_notification_service() {
                                                       r);
 
   if (reg->register_service(
-          "pfs_notification.mysql_server",
-          pointer_cast<my_h_service>(const_cast<s_mysql_pfs_notification *>(
-              &imp_mysql_server_pfs_notification)))) {
+          "pfs_notification_v3.mysql_server",
+          pointer_cast<my_h_service>(const_cast<s_mysql_pfs_notification_v3 *>(
+              &imp_mysql_server_pfs_notification_v3)))) {
     result = 1;
   }
 

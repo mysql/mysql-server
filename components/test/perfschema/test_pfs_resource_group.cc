@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,8 +53,8 @@
   @sa test_pfs_resource_group()
 */
 
-REQUIRES_SERVICE_PLACEHOLDER(pfs_notification);
-REQUIRES_SERVICE_PLACEHOLDER(pfs_resource_group);
+REQUIRES_SERVICE_PLACEHOLDER(pfs_notification_v3);
+REQUIRES_SERVICE_PLACEHOLDER(pfs_resource_group_v3);
 
 /* True if user "PFS_DEBUG_MODE" connects. */
 static bool debug_mode = false;
@@ -168,9 +168,10 @@ void session_event(const Event_info &event) {
       }
 
       /* Set the resource group name for a thread. */
-      ret = mysql_service_pfs_resource_group->set_thread_resource_group_by_id(
-          NULL, thread_id, group_name.c_str(), (int)group_name.length(),
-          (void *)attrs.m_user_data);
+      ret =
+          mysql_service_pfs_resource_group_v3->set_thread_resource_group_by_id(
+              NULL, thread_id, group_name.c_str(), (int)group_name.length(),
+              (void *)attrs.m_user_data);
 
       std::string msg("set_thread_resource_group(");
       if (debug_mode || user_name == "PFS_TEST_INVALID_THREAD_ID")
@@ -216,15 +217,15 @@ mysql_service_status_t test_pfs_resource_group_init() {
   std::string group_name("PFS_CURRENT_THREAD");
   std::string msg("set_thread_resource_group(");
 
-  handle =
-      mysql_service_pfs_notification->register_notification(&callbacks, true);
+  handle = mysql_service_pfs_notification_v3->register_notification(&callbacks,
+                                                                    true);
   if (handle == 0) {
     print_log("register_notification failed");
     goto error;
   }
 
   /* Set the resource group for the current thread. */
-  ret = mysql_service_pfs_resource_group->set_thread_resource_group(
+  ret = mysql_service_pfs_resource_group_v3->set_thread_resource_group(
       group_name.c_str(), (int)group_name.length(), nullptr);
   msg += group_name + ") returned " + std::to_string(ret);
   print_log(msg);
@@ -241,7 +242,7 @@ error:
   @return 0 for success
 */
 mysql_service_status_t test_pfs_resource_group_deinit() {
-  if (mysql_service_pfs_notification->unregister_notification(handle))
+  if (mysql_service_pfs_notification_v3->unregister_notification(handle))
     print_log("unregister_notification failed");
   log_outfile.close();
   return mysql_service_status_t(0);
@@ -253,7 +254,7 @@ END_COMPONENT_PROVIDES();
 
 /* Required services for this test component. */
 BEGIN_COMPONENT_REQUIRES(test_pfs_resource_group)
-REQUIRES_SERVICE(pfs_notification), REQUIRES_SERVICE(pfs_resource_group),
+REQUIRES_SERVICE(pfs_notification_v3), REQUIRES_SERVICE(pfs_resource_group_v3),
     END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(test_pfs_resource_group)
