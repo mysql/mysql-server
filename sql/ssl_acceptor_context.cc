@@ -525,6 +525,7 @@ bool SslAcceptorContext::singleton_init(bool use_ssl_arg) {
   present etc.
 
   @param ctx The listening SSL context with all certificates installed
+  @param ssl An SSL handle to extract the certificate from.
   @retval NULL No errors found
   @retval non-null The text of the error from the library
 */
