@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6285,34 +6285,34 @@ int read_line(char *buf, int size)
       /* Could be a multibyte character */
       /* This code is based on the code in "sql_load.cc" */
 #ifdef USE_MB
-      int charlen = my_mbcharlen(charset_info, (unsigned char) c);
+      uint charlen = my_mbcharlen(charset_info, (unsigned char) c);
+      if (charlen == 0)
+        DBUG_RETURN(1);
       /* We give up if multibyte character is started but not */
       /* completed before we pass buf_end */
       if ((charlen > 1) && (p + charlen) <= buf_end)
       {
-	int i;
-	char* mb_start = p;
+	      char* mb_start = p;
+	      *p++ = c;
 
-	*p++ = c;
-
-	for (i= 1; i < charlen; i++)
-	{
-	  c= my_getc(cur_file->file);
-	  if (feof(cur_file->file))
-	    goto found_eof;
-	  *p++ = c;
-	}
-	if (! my_ismbchar(charset_info, mb_start, p))
-	{
-	  /* It was not a multiline char, push back the characters */
-	  /* We leave first 'c', i.e. pretend it was a normal char */
-	  while (p-1 > mb_start)
-	    my_ungetc(*--p);
-	}
+	      for (uint i= 1; i < charlen; i++)
+	      {
+	        c= my_getc(cur_file->file);
+	        if (feof(cur_file->file))
+	          goto found_eof;
+	        *p++ = c;
+	      }
+	      if (! my_ismbchar(charset_info, mb_start, p))
+	      {
+	        /* It was not a multiline char, push back the characters */
+	        /* We leave first 'c', i.e. pretend it was a normal char */
+	        while (p-1 > mb_start)
+	          my_ungetc(*--p);
+	      }
       }
       else
 #endif
-	*p++= c;
+      	*p++= c;
     }
   }
   die("The input buffer is too small for this query.x\n" \
