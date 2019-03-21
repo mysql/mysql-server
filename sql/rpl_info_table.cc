@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -144,7 +144,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error= access->close_table(thd, table, &backup, error) || error;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
@@ -254,7 +254,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error= access->close_table(thd, table, &backup, error) || error;
   thd->is_operating_substatement_implicitly= false;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
@@ -310,7 +310,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error= access->close_table(thd, table, &backup, error) || error;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
@@ -423,7 +423,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error= info->access->close_table(thd, table, &backup, error) || error;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   info->access->drop_thd(thd);
@@ -598,7 +598,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error= info->access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode= saved_mode;
   info->access->drop_thd(thd);
   delete info;
@@ -792,7 +792,7 @@ bool Rpl_info_table::do_update_is_transactional()
   error= FALSE;
 
 end:
-  access->close_table(thd, table, &backup, 0);
+  error= access->close_table(thd, table, &backup, 0) || error;
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);

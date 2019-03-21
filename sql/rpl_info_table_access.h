@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ public:
     @param[in]  thd  Thread requesting to open the table
   */
   void before_open(THD* thd);
-  void close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
+  bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error);
   enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
   enum enum_return_id scan_info(TABLE *table, uint instance);
