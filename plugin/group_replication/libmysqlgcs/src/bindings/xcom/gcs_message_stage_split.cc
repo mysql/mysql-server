@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -141,13 +141,10 @@ bool Gcs_message_stage_split_v2::update_members_information(
   }
 
   /*
-   Update the sender uuid based on the newly informed member if it was not
-   previously updated.
+   Update the sender uuid based on the newly informed member.
    */
-  if (m_sender_id == 0) {
-    const Gcs_xcom_node_information *const local_node = xcom_nodes.get_node(me);
-    m_sender_id = calculate_sender_id(*local_node);
-  }
+  const Gcs_xcom_node_information *const local_node = xcom_nodes.get_node(me);
+  m_sender_id = calculate_sender_id(*local_node);
 
   /*
    Remove mapping for a node that does not belong to the group anymore.
