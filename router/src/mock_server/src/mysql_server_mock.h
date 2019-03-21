@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,73 +29,12 @@
 #include <mutex>
 #include <set>
 
+#include "mock_session.h"
 #include "mysql/harness/plugin.h"
-#include "mysql_protocol_decoder.h"
-#include "mysql_protocol_encoder.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "statement_reader.h"
 
 namespace server_mock {
-
-class MySQLServerMockSession {
- public:
-  MySQLServerMockSession(
-      socket_t client_sock,
-      std::unique_ptr<StatementReaderBase> statement_processor,
-      bool debug_mode);
-
-  ~MySQLServerMockSession();
-
-  mysql_protocol::HandshakeResponsePacket handle_handshake_response(
-      socket_t client_socket,
-      mysql_protocol::Capabilities::Flags our_capabilities);
-
-  /**
-   * process the handshake of the current connection.
-   *
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  bool process_handshake(socket_t client_socket);
-
-  /**
-   * process the statements of the current connection.
-   *
-   * @pre connection must be authenticated with process_handshake() first
-   *
-   * @returns handshake-success
-   * @retval true handshake succeeded
-   * @retval false handshake failed, close connection
-   */
-  bool process_statements(socket_t client_socket);
-
-  void handle_statement(socket_t client_socket, uint8_t seq_no,
-                        const StatementResponse &statement);
-
-  bool handle_handshake(socket_t client_socket, uint8_t seq_no,
-                        const HandshakeResponse &response);
-
-  void send_error(socket_t client_socket, uint8_t seq_no, uint16_t error_code,
-                  const std::string &error_msg,
-                  const std::string &sql_state = "HY000");
-
-  void send_ok(socket_t client_socket, uint8_t seq_no,
-               uint64_t affected_rows = 0, uint64_t last_insert_id = 0,
-               uint16_t server_status = 0, uint16_t warning_count = 0);
-
-  void run();
-
-  void kill() { killed_ = true; }
-
- private:
-  bool killed_{false};
-  socket_t client_socket_;
-  MySQLProtocolEncoder protocol_encoder_;
-  MySQLProtocolDecoder protocol_decoder_;
-  std::unique_ptr<StatementReaderBase> json_reader_;
-  bool debug_mode_;
-};
 
 /** @class MySQLServerMock
  *
@@ -113,21 +52,18 @@ class MySQLServerMock {
    * compatible module-loader
    * @param bind_port Number of the port on which the server accepts clients
    *                        connections
+   * @param protocol the protocol this mock instance speaks: "x" or "classic"
    * @param debug_mode Flag indicating if the handled queries should be printed
    * to the standard output
    */
   MySQLServerMock(const std::string &expected_queries_file,
                   const std::string &module_prefix, unsigned bind_port,
-                  bool debug_mode);
+                  const std::string &protocol, bool debug_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
    */
   void run(mysql_harness::PluginFuncEnv *env);
-
-  std::shared_ptr<MockServerGlobalScope> get_global_scope() {
-    return shared_globals_;
-  }
 
   void close_all_connections();
 
@@ -144,12 +80,23 @@ class MySQLServerMock {
   socket_t listener_{socket_t(-1)};
   std::string expected_queries_file_;
   std::string module_prefix_;
-
-  std::shared_ptr<MockServerGlobalScope> shared_globals_{
-      new MockServerGlobalScope};
+  std::string protocol_;
 
   std::mutex active_fds_mutex_;
   std::set<socket_t> active_fds_;
+};
+
+class MySQLServerSharedGlobals {
+ public:
+  static std::shared_ptr<MockServerGlobalScope> get() noexcept {
+    std::lock_guard<std::mutex> lk(mtx_);
+    if (!shared_globals_) shared_globals_.reset(new MockServerGlobalScope);
+    return shared_globals_;
+  }
+
+ private:
+  static std::mutex mtx_;
+  static std::shared_ptr<MockServerGlobalScope> shared_globals_;
 };
 
 }  // namespace server_mock

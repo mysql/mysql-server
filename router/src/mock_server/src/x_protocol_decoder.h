@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,35 +22,25 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
-#define MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
+#ifndef MYSQLD_MOCK_X_PROTOCOL_DECODER_INCLUDED
+#define MYSQLD_MOCK_X_PROTOCOL_DECODER_INCLUDED
 
-#include <memory>
+#include <stdint.h>
+#include <string>
 #include <vector>
 
-#include "mysqlrouter/mock_server_export.h"
-#include "mysqlrouter/mock_server_global_scope.h"
+#include "mysqlxclient/xprotocol.h"
 
 namespace server_mock {
-class MySQLServerMock;
-}
 
-class MOCK_SERVER_EXPORT MockServerComponent {
-  // disable copy, as we are a single-instance
-  MockServerComponent(MockServerComponent const &) = delete;
-  void operator=(MockServerComponent const &) = delete;
-
-  std::vector<std::weak_ptr<server_mock::MySQLServerMock>> srvs_;
-
-  MockServerComponent() = default;
-
+class XProtocolDecoder {
  public:
-  static MockServerComponent &get_instance();
-
-  void register_server(std::shared_ptr<server_mock::MySQLServerMock> srv);
-
-  std::shared_ptr<MockServerGlobalScope> get_global_scope();
-  void close_all_connections();
+  // throws std::runtime_error
+  std::unique_ptr<xcl::XProtocol::Message> decode_message(
+      const uint8_t mid, const uint8_t *payload,
+      const std::size_t payload_size) const;
 };
 
-#endif
+}  // namespace server_mock
+
+#endif  // MYSQLD_MOCK_X_PROTOCOL_DECODER_INCLUDED

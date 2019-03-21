@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,35 +22,37 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
-#define MYSQLROUTER_MOCK_SERVER_COMPONENT_INCLUDED
+#ifndef MYSQLD_MOCK_X_PROTOCOL_ENCODER_INCLUDED
+#define MYSQLD_MOCK_X_PROTOCOL_ENCODER_INCLUDED
 
-#include <memory>
+#include <stdint.h>
+#include <string>
 #include <vector>
 
-#include "mysqlrouter/mock_server_export.h"
-#include "mysqlrouter/mock_server_global_scope.h"
+#include "mysql_protocol_common.h"
+
+#include "mysqlxclient/xprotocol.h"
 
 namespace server_mock {
-class MySQLServerMock;
-}
 
-class MOCK_SERVER_EXPORT MockServerComponent {
-  // disable copy, as we are a single-instance
-  MockServerComponent(MockServerComponent const &) = delete;
-  void operator=(MockServerComponent const &) = delete;
-
-  std::vector<std::weak_ptr<server_mock::MySQLServerMock>> srvs_;
-
-  MockServerComponent() = default;
-
+class XProtocolEncoder {
  public:
-  static MockServerComponent &get_instance();
+  // none of those throw directly in our code
+  void encode_row_field(Mysqlx::Resultset::Row &row_msg,
+                        const Mysqlx::Resultset::ColumnMetaData_FieldType type,
+                        const std::string &value, const bool is_null);
 
-  void register_server(std::shared_ptr<server_mock::MySQLServerMock> srv);
+  void encode_metadata(Mysqlx::Resultset::ColumnMetaData &metadata_msg,
+                       const column_info_type &column);
 
-  std::shared_ptr<MockServerGlobalScope> get_global_scope();
-  void close_all_connections();
+  void encode_error(Mysqlx::Error &err_msg, const uint16_t error_code,
+                    const std::string &error_txt, const std::string &sql_state);
+
+  // throws std::runtime_error
+  Mysqlx::Resultset::ColumnMetaData_FieldType column_type_to_x(
+      const MySQLColumnType column_type);
 };
 
-#endif
+}  // namespace server_mock
+
+#endif  // MYSQLD_MOCK_X_PROTOCOL_ENCODER_INCLUDED

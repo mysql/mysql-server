@@ -122,20 +122,28 @@ add_harness_plugin(mock_server
   duktape_statement_reader.cc
   mysql_protocol_decoder.cc
   mysql_protocol_encoder.cc
+  x_protocol_decoder.cc
+  x_protocol_encoder.cc
   mysql_protocol_utils.cc
   mysql_server_mock.cc
+  mock_session.cc
+  classic_mock_session.cc
+  x_mock_session.cc
   mysql_server_mock_schema.cc
   duk_module_shim.c
   duk_node_fs.c
   mock_server_plugin.cc
   mock_server_component.cc
-  REQUIRES mysql_protocol;duktape)
+  REQUIRES mysql_protocol;duktape;${PROTOBUF_LITE_LIBRARY};mysqlxmessages_lite)
 
 TARGET_INCLUDE_DIRECTORIES(mock_server SYSTEM PUBLIC
   ${DUKTAPE_SOURCE_DIR}/src/
   ${DUKTAPE_SOURCE_DIR}/extras/logging/
   ${DUKTAPE_SOURCE_DIR}/extras/module-node/
   ${DUKTAPE_SOURCE_DIR}/extras/module-duktape/
+  ${PROTOBUF_INCLUDE_DIR}
+  ${MYSQLX_GENERATE_DIR}
+  ${CMAKE_SOURCE_DIR}/plugin/x/client
   )
 
 TARGET_INCLUDE_DIRECTORIES(mock_server PUBLIC
@@ -168,7 +176,8 @@ ADD_DEPENDENCIES(${MYSQL_ROUTER_BUILD_ALL_TARGET}
         mysql_server_mock mock_server_rest_client)
 
 
-TARGET_LINK_LIBRARIES(mysql_server_mock ${common_libraries} harness-library)
+TARGET_LINK_LIBRARIES(mysql_server_mock ${common_libraries} harness-library
+    mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 SET_TARGET_PROPERTIES(mysql_server_mock PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory)
 TARGET_COMPILE_DEFINITIONS(mysql_server_mock

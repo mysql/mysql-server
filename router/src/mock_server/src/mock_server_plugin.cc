@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -54,13 +54,15 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
   std::string module_prefix;
   std::string srv_address;
   uint16_t srv_port;
+  std::string srv_protocol;
 
   explicit PluginConfig(const mysql_harness::ConfigSection *section)
       : mysqlrouter::BasePluginConfig(section),
         trace_filename(get_option_string(section, "filename")),
         module_prefix(get_option_string(section, "module_prefix")),
         srv_address(get_option_string(section, "bind_address")),
-        srv_port(get_uint_option<uint16_t>(section, "port")) {}
+        srv_port(get_uint_option<uint16_t>(section, "port")),
+        srv_protocol(get_option_string(section, "protocol")) {}
 
   std::string get_default(const std::string &option) const override {
     char cwd[PATH_MAX];
@@ -73,6 +75,7 @@ class PluginConfig : public mysqlrouter::BasePluginConfig {
         {"bind_address", "0.0.0.0"},
         {"module_prefix", cwd},
         {"port", "3306"},
+        {"protocol", "classic"},
     };
 
     auto it = defaults.find(option);
@@ -93,7 +96,6 @@ static std::map<std::string, std::shared_ptr<server_mock::MySQLServerMock>>
 
 static void init(mysql_harness::PluginFuncEnv *env) {
   const mysql_harness::AppInfo *info = get_app_info(env);
-  bool has_started = false;
 
   try {
     if (info->config != nullptr) {
@@ -102,21 +104,16 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         if (section->name != kSectionName) {
           continue;
         }
-        if (has_started) {
-          // ignore all the other sections for now
-          break;
-        }
-
-        has_started = true;
 
         PluginConfig config{section};
-        mock_servers.emplace(std::make_pair(
-            section->name, std::make_shared<server_mock::MySQLServerMock>(
-                               config.trace_filename, config.module_prefix,
-                               config.srv_port, 0)));
+        const std::string key = section->name + ":" + section->key;
+        mock_servers.emplace(
+            std::make_pair(key, std::make_shared<server_mock::MySQLServerMock>(
+                                    config.trace_filename, config.module_prefix,
+                                    config.srv_port, config.srv_protocol, 0)));
 
-        MockServerComponent::get_instance().init(
-            mock_servers.at(section->name));
+        MockServerComponent::get_instance().register_server(
+            mock_servers.at(key));
       }
     }
   } catch (const std::invalid_argument &exc) {
@@ -139,7 +136,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 
   try {
-    auto srv = mock_servers.at(get_config_section(env)->name);
+    auto srv = mock_servers.at(name);
 
     srv->run(env);
   } catch (const std::invalid_argument &exc) {
