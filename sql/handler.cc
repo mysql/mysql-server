@@ -2681,6 +2681,11 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       error = HA_ERR_OUT_OF_MEM;
     } else
       dup_ref = ref + ALIGN_SIZE(ref_length);
+
+    // Give the table a defined starting cursor, even if it never actually seeks
+    // or writes. This is important for things like weedout on const tables
+    // (which is a nonsensical combination, but can happen).
+    memset(ref, 0, ref_length);
     cached_table_flags = table_flags();
   }
 
