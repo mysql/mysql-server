@@ -960,13 +960,14 @@ SET DEBUG = '-d, skip_sdi';
 ]
 [ERROR] ibd2sdi: Unable to create temporary file. err: Success.
 [ERROR] ibd2sdi: Invalid Dumpfile passed.
-IBD2SDI Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+
+
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
-Usage: IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
+
 See http://dev.mysql.com/doc/refman/8.0/en/ibd2sdi.html for usage hints.
   -h, --help          Display this help and exit.
   -v, --version       Display version information and exit.

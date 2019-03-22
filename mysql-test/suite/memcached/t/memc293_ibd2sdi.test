@@ -133,13 +133,12 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 --error 1
 --exec $IBD2SDI --debug=d,ib_tmp_file_fail $IBD_FILE -d $MYSQL_TMP_DIR/out.txt 2>&1
+--remove_files_wildcard $MYSQL_TMP_DIR/ ib_sdi*
 
 ## header contains version/platform information
---replace_result $IBD2SDI IBD2SDI
---replace_regex / Ver [0-9].*$// /(Copyright \(c\)) [0-9]+, [0-9]+(.*)/\1 YEAR, YEAR\2/
+--replace_regex /.*ibd2sdi.*Ver.*// /^Copyright.*// /^Usage:.*//
 --error 1
 --exec $IBD2SDI 2>&1
-
 --replace_regex /descriptor [0-9]*/descriptor X/
 --error 1
 --exec $IBD2SDI --debug=d,ib_seek_error $IBD_FILE 2>&1
