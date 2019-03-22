@@ -94,12 +94,17 @@ void Rpl_info_table_access::before_open(THD *thd) {
   committed. In this case, the changes were not done on behalf of
   any user transaction and if not finished, there would be pending
   changes.
+
+  @return
+    @retval false Success
+    @retval true  Failure
 */
-void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
+bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
                                         Open_tables_backup *backup,
                                         bool error) {
   DBUG_ENTER("Rpl_info_table_access::close_table");
-  System_table_access::close_table(thd, table, backup, error, thd_created);
+  bool res =
+      System_table_access::close_table(thd, table, backup, error, thd_created);
 
   DBUG_EXECUTE_IF("slave_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
@@ -112,7 +117,7 @@ void Rpl_info_table_access::close_table(THD *thd, TABLE *table,
     }
   });
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(res);
 }
 
 /**
@@ -355,6 +360,11 @@ THD *Rpl_info_table_access::create_thd() {
   if (!thd) {
     thd = System_table_access::create_thd();
     thd->system_thread = SYSTEM_THREAD_INFO_REPOSITORY;
+    /*
+       Set the skip_readonly_check flag as this thread should not be
+       blocked by super_read_only check during ha_commit_trans.
+    */
+    thd->set_skip_readonly_check();
     thd_created = true;
   }
 
@@ -371,6 +381,7 @@ void Rpl_info_table_access::drop_thd(THD *thd) {
   DBUG_ENTER("Rpl_info::drop_thd");
 
   if (thd_created) {
+    thd->reset_skip_readonly_check();
     System_table_access::drop_thd(thd);
     thd_created = false;
   }

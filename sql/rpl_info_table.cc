@@ -161,7 +161,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
@@ -262,7 +262,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->is_operating_substatement_implicitly = false;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
@@ -313,7 +313,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup, error);
+  error = access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
@@ -408,7 +408,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error = info->access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   info->access->drop_thd(thd);
@@ -567,7 +567,7 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  info->access->close_table(thd, table, &backup, error);
+  error = info->access->close_table(thd, table, &backup, error) || error;
   thd->variables.sql_mode = saved_mode;
   info->access->drop_thd(thd);
   delete info;
@@ -724,7 +724,7 @@ bool Rpl_info_table::do_update_is_transactional() {
   error = false;
 
 end:
-  access->close_table(thd, table, &backup, 0);
+  error = access->close_table(thd, table, &backup, 0) || error;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
