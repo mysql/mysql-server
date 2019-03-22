@@ -6651,14 +6651,16 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
   tablePtr.p->tupKeyLength = keyLength;
   tablePtr.p->noOfNullBits = nullCount + nullBits;
 
-  tabRequire(recordLength<= MAX_TUPLE_SIZE_IN_WORDS,
+  tabRequire(recordLength <= MAX_TUPLE_SIZE_IN_WORDS,
+	     CreateTableRef::RecordTooBig);
+  tabRequire(attrCount <= MAX_ATTRIBUTES_IN_TABLE,
 	     CreateTableRef::RecordTooBig);
   tabRequire(keyLength <= MAX_KEY_SIZE_IN_WORDS,
 	     CreateTableRef::InvalidPrimaryKeySize);
   tabRequire(keyLength > 0,
 	     CreateTableRef::InvalidPrimaryKeySize);
-  tabRequire(CHECK_SUMA_MESSAGE_SIZE(keyCount, keyLength, attrCount, recordLength),
-             CreateTableRef::RecordTooBig);
+  tabRequire(keyCount <= MAX_ATTRIBUTES_IN_INDEX,
+             CreateTableRef::InvalidPrimaryKeySize);
 
   /* Check that all currently running nodes data support
    * table features
