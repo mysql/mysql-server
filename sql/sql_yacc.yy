@@ -444,7 +444,7 @@ void warn_about_deprecated_national(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 104
+%expect 98
 
 /*
    MAINTAINER:
@@ -1354,7 +1354,7 @@ void warn_about_deprecated_national(THD *thd)
         table_wild simple_expr udf_expr
         expr_or_default set_expr_or_default
         geometry_function
-        signed_literal now_or_signed_literal opt_escape
+        signed_literal now_or_signed_literal
         simple_ident_nospvar simple_ident_q
         field_or_var limit_option
         function_call_keyword
@@ -9396,16 +9396,23 @@ predicate:
               MYSQL_YYABORT;
             $$= NEW_PTN Item_func_eq(@$, item1, item4);
           }
-        | bit_expr LIKE simple_expr opt_escape
+        | bit_expr LIKE simple_expr
           {
-            $$= NEW_PTN Item_func_like(@$, $1, $3, $4);
+            $$ = NEW_PTN Item_func_like(@$, $1, $3, nullptr);
           }
-        | bit_expr not LIKE simple_expr opt_escape
+        | bit_expr LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE
           {
-            Item *item= NEW_PTN Item_func_like(@$, $1, $4, $5);
-            if (item == NULL)
-              MYSQL_YYABORT;
-            $$= NEW_PTN Item_func_not(@$, item);
+            $$ = NEW_PTN Item_func_like(@$, $1, $3, $5);
+          }
+        | bit_expr not LIKE simple_expr
+          {
+            auto item = NEW_PTN Item_func_like(@$, $1, $4, nullptr);
+            $$ = NEW_PTN Item_func_not(@$, item);
+          }
+        | bit_expr not LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE
+          {
+            auto item = NEW_PTN Item_func_like(@$, $1, $4, $6);
+            $$ = NEW_PTN Item_func_not(@$, item);
           }
         | bit_expr REGEXP bit_expr
           {
@@ -11438,11 +11445,6 @@ window_definition:
               MYSQL_YYABORT; // OOM
             $$->set_name($1);
           }
-        ;
-
-opt_escape:
-          ESCAPE_SYM simple_expr { $$= $2; }
-        | /* empty */            { $$= NULL; }
         ;
 
 /*
