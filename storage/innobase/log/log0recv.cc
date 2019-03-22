@@ -1382,10 +1382,11 @@ void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
 
     if (is_encrypted) {
       *has_encrypted_log = true;
+      return;
     }
 
     if (no != log_block_convert_lsn_to_no(*scanned_lsn) ||
-        (!is_encrypted && !log_block_checksum_is_ok(log_block))) {
+        !log_block_checksum_is_ok(log_block)) {
       ib::trace_2() << "Scanned lsn: " << *scanned_lsn << " header no: " << no
                     << " converted no: "
                     << log_block_convert_lsn_to_no(*scanned_lsn)
