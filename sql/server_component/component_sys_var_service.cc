@@ -139,8 +139,11 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     my_option *opts = NULL;
     bool ret = true;
     int opt_error;
-    int *argc = get_remaining_argc();
-    char ***argv = get_remaining_argv();
+    int *argc;
+    char ***argv;
+    int argc_copy;
+    char **argv_copy;
+    char **to_free = nullptr;
     void *mem;
     get_opt_arg_source *opts_arg_source;
 
@@ -308,6 +311,32 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
     plugin_opt_set_limits(opts, opt);
     opts->value = opts->u_max_value = *(uchar ***)(opt + 1);
 
+    /*
+      This does what plugins do:
+      before the server is officially "started" the options are read
+      (and consumed) from the remaining_argv/argc.
+      The goal to that is that once the server is up all of the non-loose
+      options (component and plugin) should be consumed and there should
+      be an alarm sounded if any are remaining.
+      This is approximately what plugin_register_early_plugins() and
+      plugin_register_dynamic_and_init_all() are doing.
+      Once the server is "started" we switch to the original list of options
+      and copy them since handle_options() can modify the list.
+      This is approximately what mysql_install_plugin() does.
+      TODO: clean up the options processing code so all this is not needed.
+    */
+    if (mysqld_server_started) {
+      argc_copy = orig_argc;
+      to_free = argv_copy = (char **)my_malloc(
+          key_memory_comp_sys_var, (argc_copy + 1) * sizeof(char *), MYF(0));
+      memcpy(argv_copy, orig_argv, argc_copy * sizeof(char *));
+      argv_copy[argc_copy] = nullptr;
+      argc = &argc_copy;
+      argv = &argv_copy;
+    } else {
+      argc = get_remaining_argc();
+      argv = get_remaining_argv();
+    }
     opt_error = handle_options(argc, argv, opts, NULL);
     /* Add back the program name handle_options removes */
     (*argc)++;
@@ -352,6 +381,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
 
   end:
     my_free(mem);
+    if (to_free) my_free(to_free);
 
     return ret;
   } catch (...) {
