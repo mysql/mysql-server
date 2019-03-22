@@ -45,7 +45,7 @@ ADD_LIBRARY(client_base STATIC
 
   mutex.cc
 
-  ../get_password.cc
+  ../../sql-common/get_password.cc
 
   ../../sql-common/sql_string.cc
 )
