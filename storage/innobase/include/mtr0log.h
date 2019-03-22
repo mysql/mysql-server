@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -127,7 +127,8 @@ byte *mlog_open_metadata(mtr_t *mtr, ulint size);
 UNIV_INLINE
 void mlog_close(mtr_t *mtr, byte *ptr);
 
-/** Writes a log record about a dictionary operation.
+/** Writes a log record about a dictionary operation, which would cost
+at most 23 bytes.
 @param[in]	type		redo log record type
 @param[in]	id		table id
 @param[in]	version		table dynamic metadata version

@@ -6702,13 +6702,14 @@ void Persister::write_log(table_id_t id,
                           mtr_t *mtr) const {
   byte *log_ptr;
   ulint size = get_write_size(metadata);
+  /* Both table id and version would be written in a compressed format,
+  each of which would cost 1..11 bytes, and MLOG_TABLE_DYNAMIC_META costs
+  1 byte. Refer to mlog_write_initial_dict_log_record() as well */
+  static constexpr uint8_t metadata_log_header_size = 23;
 
   ut_ad(size > 0);
 
-  /* We will write the id in a much compressed format, which costs
-  1..11 bytes, and the MLOG_TABLE_DYNAMIC_META costs 1 byte,
-  refer to mlog_write_initial_dict_log_record() as well */
-  log_ptr = mlog_open_metadata(mtr, 12 + size);
+  log_ptr = mlog_open_metadata(mtr, metadata_log_header_size + size);
   ut_ad(log_ptr != NULL);
 
   log_ptr = mlog_write_initial_dict_log_record(
