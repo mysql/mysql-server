@@ -88,7 +88,7 @@ extern TYPELIB binlog_checksum_typelib;
       my_error(ER_MALFORMED_PACKET, MYF(0));     \
       return 1;                                  \
     }                                            \
-    len = (uint)*p++;                            \
+    len = net_field_length_ll(&p);               \
     if (p + len > p_end || len >= sizeof(obj)) { \
       errmsg = msg;                              \
       goto err;                                  \
@@ -217,9 +217,9 @@ bool show_slave_hosts(THD *thd) {
   DBUG_ENTER("show_slave_hosts");
 
   field_list.push_back(new Item_return_int("Server_id", 10, MYSQL_TYPE_LONG));
-  field_list.push_back(new Item_empty_string("Host", 20));
+  field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   if (opt_show_slave_auth_info) {
-    field_list.push_back(new Item_empty_string("User", 20));
+    field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
     field_list.push_back(new Item_empty_string("Password", 20));
   }
   field_list.push_back(new Item_return_int("Port", 7, MYSQL_TYPE_LONG));

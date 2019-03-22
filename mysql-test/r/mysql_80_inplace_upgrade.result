@@ -17,7 +17,6 @@ Pattern "Server shutting down because upgrade is required, yet prohibited by the
 # Test the --upgrade=MINIMAL option with a 8.0.11 data directory
 ###########################################################################
 # Search for the error message in the server error log.
-Pattern "The column count of mysql\.user is wrong. Expected \d+, found 49\. Created with MySQL 80011, now running \d+\." found
 Pattern "Server upgrade is required, but skipped by command line option \'--upgrade=MINIMAL\'\." found
 ###########################################################################
 # Test the --upgrade=NONE option with a 8.0.11 data directory with upgraded

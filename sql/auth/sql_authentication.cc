@@ -3312,7 +3312,7 @@ int acl_authenticate(THD *thd, enum_server_command command) {
 
       if (is_proxy_user) {
         ACL_USER *acl_proxy_user;
-        char proxy_user_buf[USERNAME_LENGTH + MAX_HOSTNAME + 5];
+        char proxy_user_buf[USERNAME_LENGTH + HOSTNAME_LENGTH + 6];
 
         /* we need to find the proxy user, but there was none */
         if (!proxy_user) {

@@ -192,7 +192,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   USER_RESOURCES tmp_user_resource;
   enum SSL_type ssl_type;
   char *ssl_cipher, *x509_issuer, *x509_subject;
-  char buff[256];
+  static const int COMMAND_BUFFER_LENGTH = 2048;
+  char buff[COMMAND_BUFFER_LENGTH];
   Item_string *field = NULL;
   List<Item> field_list;
   String sql_text(buff, sizeof(buff), system_charset_info);

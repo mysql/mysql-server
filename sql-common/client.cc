@@ -5816,6 +5816,11 @@ static mysql_state_machine_status csm_begin_connect(mysql_async_connect *ctx) {
     snprintf(port_buf, NI_MAXSERV, "%d", port);
     gai_errno = getaddrinfo(host, port_buf, &hints, &res_lst);
 
+    DBUG_EXECUTE_IF("vio_client_use_localhost", {
+      DBUG_ASSERT(strlen(host) == 255);
+      gai_errno = getaddrinfo(LOCAL_HOST, port_buf, &hints, &res_lst);
+    });
+
     if (gai_errno != 0) {
       /*
         For DBUG we are keeping the right message but for client we default to

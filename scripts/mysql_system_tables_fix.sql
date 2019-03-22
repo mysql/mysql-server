@@ -80,11 +80,9 @@ ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
 
 ALTER TABLE tables_priv
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(93) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE tables_priv
@@ -107,7 +105,6 @@ ALTER TABLE columns_priv
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE columns_priv
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
@@ -160,7 +157,9 @@ ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 #
 ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
-ALTER TABLE proxies_priv MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, ENGINE=InnoDB;
+ALTER TABLE proxies_priv MODIFY Proxied_host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db
@@ -180,7 +179,6 @@ alter table func comment='User defined functions';
 # Convert all tables to UTF-8 with binary collation
 # and reset all char columns to correct width
 ALTER TABLE user
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 ALTER TABLE user
@@ -208,7 +206,6 @@ ALTER TABLE user
   MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 ALTER TABLE db
-  MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
@@ -379,8 +376,6 @@ ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
 
-ALTER TABLE procs_priv
-  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 #
 # EVENT privilege
 #
@@ -890,6 +885,11 @@ SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.audit_log_user MODIFY COLUMN HOST VARCHAR(255) BINARY NOT NULL";
+SET @str = IF(@had_audit_log_user > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 SET @had_audit_log_filter =
   (SELECT COUNT(table_name) FROM information_schema.tables
@@ -1066,5 +1066,48 @@ ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
+
+
+# Increase host name length. We need a separate ALTER TABLE to
+# alter the CHARACTER SET to ASCII, because the syntax
+# 'CONVERT TO CHARACTER...' above changes all field charset
+# to utf8_bin.
+
+ALTER TABLE db
+  MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE user
+  MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE default_roles
+MODIFY HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY DEFAULT_ROLE_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '%' NOT NULL;
+
+ALTER TABLE role_edges
+MODIFY FROM_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY TO_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE global_grants
+MODIFY HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE password_history
+MODIFY Host CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE servers
+MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '';
+
+ALTER TABLE tables_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+
+ALTER TABLE columns_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
+
+ALTER TABLE slave_master_info
+MODIFY Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.';
+
+ALTER TABLE procs_priv
+MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
+MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
 
 SET @@session.sql_mode = @old_sql_mode;

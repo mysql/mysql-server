@@ -39,7 +39,7 @@ view_with_column_names
 SHOW CREATE TABLE mysql.user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',

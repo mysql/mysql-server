@@ -945,8 +945,6 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
   }
 }
 
-#define LIST_PROCESS_HOST_LEN 64
-
 /**
   Print "ON UPDATE" clause of a field into a string.
 
@@ -1834,6 +1832,12 @@ static const char *thread_state_info(THD *tmp) {
 }
 
 /**
+  Number of bytes required to hold "hostname:portnumber"
+*/
+static const int HOST_AND_PORT_LENGTH =
+    (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH + 1);
+
+/**
   This class implements callback function used by mysqld_list_processes() to
   list all the client process information.
 */
@@ -1889,9 +1893,8 @@ class List_process_list : public Do_THD_Impl {
     if (inspect_thd->peer_port &&
         (inspect_sctx_host.length || inspect_sctx->ip().length) &&
         m_client_thd->security_context()->host_or_ip().str[0]) {
-      if ((thd_info->host =
-               (char *)m_client_thd->alloc(LIST_PROCESS_HOST_LEN + 1)))
-        snprintf((char *)thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+      if ((thd_info->host = (char *)m_client_thd->alloc(HOST_AND_PORT_LENGTH)))
+        snprintf((char *)thd_info->host, HOST_AND_PORT_LENGTH, "%s:%u",
                  inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
     } else
       thd_info->host = m_client_thd->mem_strdup(
@@ -1964,7 +1967,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field_list.push_back(
       new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
-  field_list.push_back(new Item_empty_string("Host", LIST_PROCESS_HOST_LEN));
+  field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
   field_list.push_back(field = new Item_empty_string("db", NAME_CHAR_LEN));
   field->maybe_null = 1;
   field_list.push_back(new Item_empty_string("Command", 16));
@@ -2066,9 +2069,9 @@ class Fill_process_list : public Do_THD_Impl {
     if (inspect_thd->peer_port &&
         (inspect_sctx_host.length || inspect_sctx->ip().length) &&
         m_client_thd->security_context()->host_or_ip().str[0]) {
-      char host[LIST_PROCESS_HOST_LEN + 1];
-      snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
-               inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
+      char host[HOST_AND_PORT_LENGTH];
+      snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u", inspect_sctx_host_or_ip.str,
+               inspect_thd->peer_port);
       table->field[2]->store(host, strlen(host), system_charset_info);
     } else
       table->field[2]->store(inspect_sctx_host_or_ip.str,
@@ -3877,15 +3880,22 @@ ST_FIELD_INFO tmp_table_keys_fields_info[] = {
      0},
     {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
 
+/**
+  Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
+  single qoutes.
+*/
+static const int GRANTEE_MAX_CHAR_LENGTH =
+    USERNAME_CHAR_LENGTH + 1 + HOSTNAME_LENGTH + 4;
+
 ST_FIELD_INFO user_privileges_fields_info[] = {
-    {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+    {"GRANTEE", GRANTEE_MAX_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"IS_GRANTABLE", 3, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
 
 ST_FIELD_INFO schema_privileges_fields_info[] = {
-    {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+    {"GRANTEE", GRANTEE_MAX_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"PRIVILEGE_TYPE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
@@ -3893,7 +3903,7 @@ ST_FIELD_INFO schema_privileges_fields_info[] = {
     {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
 
 ST_FIELD_INFO table_privileges_fields_info[] = {
-    {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+    {"GRANTEE", GRANTEE_MAX_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
@@ -3902,7 +3912,7 @@ ST_FIELD_INFO table_privileges_fields_info[] = {
     {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, 0}};
 
 ST_FIELD_INFO column_privileges_fields_info[] = {
-    {"GRANTEE", 81, MYSQL_TYPE_STRING, 0, 0, 0, 0},
+    {"GRANTEE", GRANTEE_MAX_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_CATALOG", FN_REFLEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
     {"TABLE_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, 0},
@@ -3921,7 +3931,7 @@ ST_FIELD_INFO open_tables_fields_info[] = {
 ST_FIELD_INFO processlist_fields_info[] = {
     {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", 0},
     {"USER", USERNAME_CHAR_LENGTH, MYSQL_TYPE_STRING, 0, 0, "User", 0},
-    {"HOST", LIST_PROCESS_HOST_LEN, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
+    {"HOST", HOST_AND_PORT_LENGTH - 1, MYSQL_TYPE_STRING, 0, 0, "Host", 0},
     {"DB", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, "Db", 0},
     {"COMMAND", 16, MYSQL_TYPE_STRING, 0, 0, "Command", 0},
     {"TIME", 7, MYSQL_TYPE_LONG, 0, 0, "Time", 0},

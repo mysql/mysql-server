@@ -36,7 +36,7 @@ user
 show create table db;
 Table	Create Table
 db	CREATE TABLE `db` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
@@ -64,7 +64,7 @@ db	CREATE TABLE `db` (
 show create table user;
 Table	Create Table
 user	CREATE TABLE `user` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Select_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   `Insert_priv` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
@@ -129,11 +129,11 @@ func	CREATE TABLE `func` (
 show create table tables_priv;
 Table	Create Table
 tables_priv	CREATE TABLE `tables_priv` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `Grantor` char(93) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Grantor` varchar(288) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `Table_priv` set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
   `Column_priv` set('Select','Insert','Update','References') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
@@ -143,7 +143,7 @@ tables_priv	CREATE TABLE `tables_priv` (
 show create table columns_priv;
 Table	Create Table
 columns_priv	CREATE TABLE `columns_priv` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Table_name` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
@@ -155,12 +155,12 @@ columns_priv	CREATE TABLE `columns_priv` (
 show create table procs_priv;
 Table	Create Table
 procs_priv	CREATE TABLE `procs_priv` (
-  `Host` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `Db` char(64) COLLATE utf8_bin NOT NULL DEFAULT '',
   `User` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Routine_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
   `Routine_type` enum('FUNCTION','PROCEDURE') COLLATE utf8_bin NOT NULL,
-  `Grantor` char(93) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `Grantor` varchar(288) COLLATE utf8_bin NOT NULL DEFAULT '',
   `Proc_priv` set('Execute','Alter Routine','Grant') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '',
   `Timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`Host`,`Db`,`User`,`Routine_name`,`Routine_type`),
@@ -170,7 +170,7 @@ show create table servers;
 Table	Create Table
 servers	CREATE TABLE `servers` (
   `Server_name` char(64) NOT NULL DEFAULT '',
-  `Host` char(64) NOT NULL DEFAULT '',
+  `Host` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `Db` char(64) NOT NULL DEFAULT '',
   `Username` char(64) NOT NULL DEFAULT '',
   `Password` char(64) NOT NULL DEFAULT '',

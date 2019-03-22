@@ -1,0 +1,70 @@
+#
+# WL#12571: Support fully qualified hostnames longer than 60 characters
+#
+# This test case asserts that a lengthy hostname reported to the user
+# through the various interfaces, after being set through CHANGE MASTER,
+# is correctly displayed.
+#
+
+#####################################################
+#
+#  Interface Tests
+#
+#####################################################
+
+# we will configure the hostname ourselves
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+--let $lengthy_hostname=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890
+
+--source include/rpl_connection_slave.inc
+#
+# 1. Assertion: CHANGE MASTER TO (CMT) accepts a lengthy hostname
+#
+
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST="$lengthy_hostname", MASTER_PORT=$MASTER_MYPORT
+
+--let $i=3
+while($i>0)
+{
+
+  if ($i == 3)
+  {
+    #
+    # 2. Assertion: assert that the hostname saved in mysql.slave_relay_log_info is correct
+    #
+    --let $hostname_read= `SELECT host FROM mysql.slave_master_info`
+    --let $hostname_source= mysql.slave_master_info
+  }
+
+  if ($i == 2)
+  {
+    #
+    # 3. Assertion: assert that the hostname reported in P_S tables is correct
+    #
+    --let $hostname_read= `SELECT host FROM performance_schema.replication_connection_configuration`
+    --let $hostname_source= performance_schema.replication_connection_configuration
+  }
+
+  if ($i == 1)
+  {
+    #
+    # 4. Assertion: assert that the hostname reported in SHOW SLAVE STATUS is correct
+    #
+    --let $hostname_read= query_get_value(SHOW SLAVE STATUS, Master_Host, 1)
+    --let $hostname_source= SHOW SLAVE STATUS
+  }
+
+  --let $assert_cond= "$hostname_read" = "$lengthy_hostname"
+  --let $assert_text= Hostname in $hostname_source matches the one set through CHANGE MASTER TO
+  --source include/assert.inc
+
+  --dec $i
+}
+
+--eval CHANGE MASTER TO MASTER_HOST="127.0.0.1"
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -52,7 +52,7 @@ Plugin_table table_replication_connection_configuration::m_table_def(
     "replication_connection_configuration",
     /* Definition */
     "  CHANNEL_NAME CHAR(64) not null,\n"
-    "  HOST CHAR(60) collate utf8mb4_bin not null,\n"
+    "  HOST CHAR(255) CHARACTER SET ASCII not null,\n"
     "  PORT INTEGER not null,\n"
     "  USER CHAR(32) collate utf8mb4_bin not null,\n"
     "  NETWORK_INTERFACE CHAR(60) collate utf8mb4_bin not null,\n"

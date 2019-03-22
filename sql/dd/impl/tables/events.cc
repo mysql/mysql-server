@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,7 @@ Events::Events() {
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->name));
   m_target_def.add_field(FIELD_DEFINER, "FIELD_DEFINER",
-                         "definer VARCHAR(93) NOT NULL");
+                         "definer VARCHAR(288) NOT NULL");
   m_target_def.add_field(FIELD_TIME_ZONE, "FIELD_TIME_ZONE",
                          "time_zone VARCHAR(64) NOT NULL");
   m_target_def.add_field(FIELD_DEFINITION, "FIELD_DEFINITION",

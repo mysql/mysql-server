@@ -3465,6 +3465,15 @@ bool Query_log_event::write(Basic_ostream *ostream) {
 
     *start++ = Q_INVOKER;
 
+    DBUG_EXECUTE_IF("wl12571_long_invoker_host", {
+      invoker_host.str =
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      invoker_host.length = strlen(invoker_host.str);
+    });
+
     /*
       Store user length and user. The max length of use is 16, so 1 byte is
       enough to store the user's length.
@@ -3474,8 +3483,8 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     start += invoker_user.length;
 
     /*
-      Store host length and host. The max length of host is 60, so 1 byte is
-      enough to store the host's length.
+      Store host length and host. The max length of host is 255, so 1 byte
+      is enough to store the host's length.
      */
     *start++ = (uchar)invoker_host.length;
     if (invoker_host.length > 0)

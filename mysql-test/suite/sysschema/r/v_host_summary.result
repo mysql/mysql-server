@@ -1,6 +1,6 @@
 DESC sys.host_summary;
 Field	Type	Null	Key	Default	Extra
-host	varchar(60)	YES		NULL	
+host	varchar(255)	YES		NULL	
 statements	decimal(64,0)	YES		NULL	
 statement_latency	text	YES		NULL	
 statement_avg_latency	text	YES		NULL	
@@ -15,7 +15,7 @@ total_memory_allocated	text	YES		NULL
 SELECT * FROM sys.host_summary;
 DESC sys.x$host_summary;
 Field	Type	Null	Key	Default	Extra
-host	varchar(60)	YES		NULL	
+host	varchar(255)	YES		NULL	
 statements	decimal(64,0)	YES		NULL	
 statement_latency	decimal(64,0)	YES		NULL	
 statement_avg_latency	decimal(65,4)	YES		NULL	

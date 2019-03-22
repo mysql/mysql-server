@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ struct st_mysql_information_schema connection_control_failed_attempts_view = {
 
 /** Fields of information_schema.connection_control_failed_attempts */
 static ST_FIELD_INFO failed_attempts_view_fields[] = {
-    {"USERHOST", USERNAME_LENGTH + MAX_HOSTNAME + 5, MYSQL_TYPE_STRING, 0,
+    {"USERHOST", USERNAME_LENGTH + HOSTNAME_LENGTH + 6, MYSQL_TYPE_STRING, 0,
      MY_I_S_UNSIGNED, 0, 0},
     {"FAILED_ATTEMPTS", 16, MYSQL_TYPE_LONG, 0, MY_I_S_UNSIGNED, 0, 0},
     {0, 0, MYSQL_TYPE_NULL, 0, 0, 0, 0}};

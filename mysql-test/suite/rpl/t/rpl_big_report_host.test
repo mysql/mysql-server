@@ -1,0 +1,14 @@
+###########################################################
+# This test case checks output of SHOW SLAVE HOSTS using long hostname.
+
+--source include/master-slave.inc
+
+# same host name as in the slave -opt file
+--let $slave_report_host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890
+
+--let $master_show_slave_hosts= query_get_value(SHOW SLAVE HOSTS, Host, 1)
+--let $assert_cond= "$master_show_slave_hosts" = "$slave_report_host"
+--let $assert_text= Master reports slave's hostname equal to slave's report_host value
+--source include/assert.inc
+ 
+--source include/rpl_end.inc

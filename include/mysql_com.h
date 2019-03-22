@@ -51,7 +51,23 @@
 #include <stdbool.h>
 #endif
 
-#define HOSTNAME_LENGTH 60
+/*
+   Note that this is the actual length available, and that room
+   for a trailing '\0' is not included in this size.
+
+   The metadata columns storing hostname use single byte character
+   as they are using ASCII character set.
+
+   pre 8.0.17: 60 characters
+*/
+#define HOSTNAME_LENGTH 255
+
+/*
+  Number of characters that a port number can have.
+  As per rfc6335 section 6, the range is 0 to 65535.
+*/
+#define PORTNUMBER_LENGTH 5
+
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN 64 /**< Field/table name length */

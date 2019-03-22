@@ -37,7 +37,7 @@ set default_storage_engine=InnoDB;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS db
 (
-Host char(60) binary DEFAULT '' NOT NULL,
+Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 Db char(64) binary DEFAULT '' NOT NULL,
 User char(32) binary DEFAULT '' NOT NULL,
 Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -73,7 +73,7 @@ set @had_db_table= @@warning_count != 0;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS user
 (
-Host char(60) binary DEFAULT '' NOT NULL,
+Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 User char(32) binary DEFAULT '' NOT NULL,
 Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -134,9 +134,9 @@ DROP PREPARE stmt;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS default_roles
 (
-HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 USER CHAR(32) BINARY DEFAULT '' NOT NULL,
-DEFAULT_ROLE_HOST CHAR(60) BINARY DEFAULT '%' NOT NULL,
+DEFAULT_ROLE_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '%' NOT NULL,
 DEFAULT_ROLE_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 PRIMARY KEY (HOST, USER, DEFAULT_ROLE_HOST, DEFAULT_ROLE_USER)
 ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='Default roles' TABLESPACE=mysql";
@@ -148,9 +148,9 @@ DROP PREPARE stmt;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS role_edges
 (
-FROM_HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+FROM_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 FROM_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
-TO_HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+TO_HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 TO_USER CHAR(32) BINARY DEFAULT '' NOT NULL,
 WITH_ADMIN_OPTION ENUM('N', 'Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (FROM_HOST,FROM_USER,TO_HOST,TO_USER)
@@ -164,7 +164,7 @@ DROP PREPARE stmt;
 SET @cmd = "CREATE TABLE IF NOT EXISTS global_grants
 (
 USER CHAR(32) BINARY DEFAULT '' NOT NULL,
-HOST CHAR(60) BINARY DEFAULT '' NOT NULL,
+HOST CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 PRIV CHAR(32) COLLATE UTF8_GENERAL_CI DEFAULT '' NOT NULL,
 WITH_GRANT_OPTION ENUM('N','Y') COLLATE UTF8_GENERAL_CI DEFAULT 'N' NOT NULL,
 PRIMARY KEY (USER,HOST,PRIV)
@@ -180,7 +180,7 @@ set @had_user_table= @@warning_count != 0;
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS password_history
 (
-  Host CHAR(60) BINARY DEFAULT '' NOT NULL,
+  Host CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
   User CHAR(32) BINARY DEFAULT '' NOT NULL,
   Password_timestamp TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   Password TEXT,
@@ -210,29 +210,6 @@ DROP PREPARE stmt;
 
 
 
-SET @cmd = "CREATE TABLE IF NOT EXISTS servers ( Server_name char(64) NOT NULL DEFAULT '', Host char(64) NOT NULL DEFAULT '', Db char(64) NOT NULL DEFAULT '', Username char(64) NOT NULL DEFAULT '', Password char(64) NOT NULL DEFAULT '', Port INT(4) NOT NULL DEFAULT '0', Socket char(64) NOT NULL DEFAULT '', Wrapper char(64) NOT NULL DEFAULT '', Owner char(64) NOT NULL DEFAULT '', PRIMARY KEY (Server_name)) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='MySQL Foreign Servers table' TABLESPACE=mysql";
-SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-
-
-SET @cmd = "CREATE TABLE IF NOT EXISTS tables_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges' TABLESPACE=mysql";
-SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-
-SET @cmd = "CREATE TABLE IF NOT EXISTS columns_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges' TABLESPACE=mysql";
-SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-
-
 SET @cmd = "CREATE TABLE IF NOT EXISTS help_topic ( help_topic_id int unsigned not null, name char(64) not null, help_category_id smallint unsigned not null, description text not null, example text not null, url text not null, primary key (help_topic_id), unique index (name) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='help topics' TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
@@ -250,6 +227,30 @@ DROP PREPARE stmt;
 
 
 SET @cmd = "CREATE TABLE IF NOT EXISTS help_relation ( help_topic_id int unsigned not null, help_keyword_id  int unsigned not null, primary key (help_keyword_id, help_topic_id) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='keyword-topic relation' TABLESPACE=mysql";
+SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS servers ( Server_name char(64) NOT NULL DEFAULT '', Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '', Db char(64) NOT NULL DEFAULT '', Username char(64) NOT NULL DEFAULT '', Password char(64) NOT NULL DEFAULT '', Port INT(4) NOT NULL DEFAULT '0', Socket char(64) NOT NULL DEFAULT '', Wrapper char(64) NOT NULL DEFAULT '', Owner char(64) NOT NULL DEFAULT '', PRIMARY KEY (Server_name)) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 comment='MySQL Foreign Servers table' TABLESPACE=mysql";
+SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS tables_priv ( Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Grantor varchar(288) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name), KEY Grantor (Grantor) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Table privileges' TABLESPACE=mysql";
+SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
+
+SET @cmd = "CREATE TABLE IF NOT EXISTS columns_priv ( Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Table_name char(64) binary DEFAULT '' NOT NULL, Column_name char(64) binary DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, Column_priv set('Select','Insert','Update','References') COLLATE utf8_general_ci DEFAULT '' NOT NULL, PRIMARY KEY (Host,Db,User,Table_name,Column_name) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Column privileges' TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -305,7 +306,7 @@ DROP PREPARE stmt;
 
 
 
-SET @cmd = "CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges' TABLESPACE=mysql";
+SET @cmd = "CREATE TABLE IF NOT EXISTS procs_priv ( Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor varchar(288) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges' TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -353,7 +354,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Number_of_lines INTEGER UNSIGNED NOT NULL COMMENT 'Number of lines in the file.', 
   Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.', 
   Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last read event.', 
-  Host CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The host name of the master.', 
+  Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.',
   User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.', 
   User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.', 
   Port INTEGER UNSIGNED NOT NULL COMMENT 'The network port used to connect to the master.', 
@@ -481,7 +482,7 @@ INSERT IGNORE INTO engine_cost(engine_name, device_type, cost_name) VALUES
   ("default", 0, "io_block_read_cost");
 
 
-SET @cmd = "CREATE TABLE IF NOT EXISTS proxies_priv (Host char(60) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Proxied_host char(60) binary DEFAULT '' NOT NULL, Proxied_user char(32) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor char(93) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges' TABLESPACE=mysql";
+SET @cmd = "CREATE TABLE IF NOT EXISTS proxies_priv (Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Proxied_host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, Proxied_user char(32) binary DEFAULT '' NOT NULL, With_grant BOOL DEFAULT 0 NOT NULL, Grantor varchar(288) DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY Host (Host,User,Proxied_host,Proxied_user), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin comment='User proxy privileges' TABLESPACE=mysql";
 SET @str = CONCAT(@cmd, " ENCRYPTION='", @is_mysql_encrypted, "'");
 PREPARE stmt FROM @str;
 EXECUTE stmt;

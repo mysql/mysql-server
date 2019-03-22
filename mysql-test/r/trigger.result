@@ -1020,9 +1020,9 @@ CREATE TABLE t2(c INT);
 CREATE DEFINER=1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost
 TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a = 1;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X
 TRIGGER t2_bi BEFORE INSERT ON t2 FOR EACH ROW SET @a = 2;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 DROP TABLE t1;
 DROP TABLE t2;
 drop table if exists t1;

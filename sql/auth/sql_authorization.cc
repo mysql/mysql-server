@@ -5390,11 +5390,21 @@ bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   DBUG_RETURN(true);
 }
 
+/**
+  Grantee is of form 'user'@'hostname', so add +1 for '@' and +4 for the
+  single qoutes. And +1 for null byte too.
+
+  Note that we use USERNAME_LENGTH and not USERNAME_CHAR_LENGTH here
+  because the username can be utf8.
+*/
+static const int GRANTEE_MAX_BUFF_LENGTH =
+    USERNAME_LENGTH + 1 + HOSTNAME_LENGTH + 4 + 1;
+
 int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
   ACL_USER *acl_user;
   ulong want_access;
-  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
+  char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
   bool no_global_access =
       check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
@@ -5469,7 +5479,7 @@ int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
   ACL_DB *acl_db;
   ulong want_access;
-  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
+  char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
   bool no_global_access =
       check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
@@ -5527,7 +5537,7 @@ err:
 
 int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
-  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
+  char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
   bool no_global_access =
       check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);
@@ -5592,7 +5602,7 @@ err:
 
 int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *) {
   int error = 0;
-  char buff[USERNAME_LENGTH + HOSTNAME_LENGTH + 3];
+  char buff[GRANTEE_MAX_BUFF_LENGTH];
   TABLE *table = tables->table;
   bool no_global_access =
       check_access(thd, SELECT_ACL, consts::mysql.c_str(), NULL, NULL, 1, 1);

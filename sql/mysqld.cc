@@ -1263,7 +1263,7 @@ char *default_tz_name;
 static char errorlog_filename_buff[FN_REFLEN];
 const char *log_error_dest;
 const char *my_share_dir[FN_REFLEN];
-char glob_hostname[FN_REFLEN];
+char glob_hostname[HOSTNAME_LENGTH + 1];
 char mysql_real_data_home[FN_REFLEN], lc_messages_dir[FN_REFLEN],
     reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN], *opt_init_file;
 const char *opt_tc_log_file;
@@ -9987,11 +9987,12 @@ static int test_if_case_insensitive(const char *dir_name) {
   File file;
   char buff[FN_REFLEN], buff2[FN_REFLEN];
   MY_STAT stat_info;
+  const char *const tmp_file_name = "mysqld_tmp_file_case_insensitive_test";
   DBUG_ENTER("test_if_case_insensitive");
 
-  fn_format(buff, glob_hostname, dir_name, ".lower-test",
+  fn_format(buff, tmp_file_name, dir_name, ".lower-test",
             MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
-  fn_format(buff2, glob_hostname, dir_name, ".LOWER-TEST",
+  fn_format(buff2, tmp_file_name, dir_name, ".LOWER-TEST",
             MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
   mysql_file_delete(key_file_casetest, buff2, MYF(0));
   if ((file = mysql_file_create(key_file_casetest, buff, 0666, O_RDWR,

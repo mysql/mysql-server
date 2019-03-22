@@ -2,7 +2,7 @@ DESC sys.processlist;
 Field	Type	Null	Key	Default	Extra
 thd_id	bigint(20) unsigned	NO		NULL	
 conn_id	bigint(20) unsigned	YES		NULL	
-user	varchar(128)	YES		NULL	
+user	varchar(288)	YES		NULL	
 db	varchar(64)	YES		NULL	
 command	varchar(16)	YES		NULL	
 state	varchar(64)	YES		NULL	
@@ -33,7 +33,7 @@ DESC sys.x$processlist;
 Field	Type	Null	Key	Default	Extra
 thd_id	bigint(20) unsigned	NO		NULL	
 conn_id	bigint(20) unsigned	YES		NULL	
-user	varchar(128)	YES		NULL	
+user	varchar(288)	YES		NULL	
 db	varchar(64)	YES		NULL	
 command	varchar(16)	YES		NULL	
 state	varchar(64)	YES		NULL	

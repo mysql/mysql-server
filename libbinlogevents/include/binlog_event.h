@@ -124,9 +124,9 @@
    8 /* type, table_map_for_update */ + 1U +                                  \
    4 /* type, master_data_written */ + /* type, db_1, db_2, ... */            \
    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + 3U +                        \
-   /* type, microseconds */ +1U + 32 * 3 + 1 +                                \
-   60 /* type, user_len, user, host_len, host */ + 1U +                       \
-   1 /* type, explicit_def..ts*/ + 1U + 8 /* type, xid of DDL */ + 1U +       \
+   /* type, microseconds */ +1U + 32 * 3 + /* type, user_len, user */         \
+   1 + 255 /* host_len, host */ + 1U + 1 /* type, explicit_def..ts*/ + 1U +   \
+   8 /* type, xid of DDL */ + 1U +                                            \
    2 /* type, default_collation_for_utf8mb4_number */ +                       \
    1 /* sql_require_primary_key */ + 1 /* type, default_table_encryption */)
 

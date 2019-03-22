@@ -5261,12 +5261,12 @@ BEGIN
 SET @a = 1;
 END|
 ERROR HY000: String '1234567890abcdefGHIKLsdafdsjakfhkshfkshsndvkjsddngjhasdkjghskahfdksjhc' is too long for user name (should be no longer than 32)
-CREATE DEFINER=some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY
+CREATE DEFINER=some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X
 FUNCTION bug16899_f1() RETURNS INT
 BEGIN
 RETURN 1;
 END|
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 drop procedure if exists bug21416|
 create procedure bug21416() show create procedure bug21416|
 call bug21416()|

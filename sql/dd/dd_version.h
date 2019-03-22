@@ -166,7 +166,8 @@
   Changes from version 80016:
 
   - WL#12731 adds new mysql.schemata.se_private_data DD column.
-
+  - WL#12571 Support fully qualified hostnames longer than 60 characters
+    Server metadata table columns size is increased to 255.
 
   80018: Next DD version number after the previous is public.
   ----------------------------------------------------------------------------

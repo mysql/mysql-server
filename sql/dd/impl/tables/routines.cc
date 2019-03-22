@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,7 @@ Routines::Routines() {
       FIELD_SECURITY_TYPE, "FIELD_SECURITY_TYPE",
       "security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER') NOT NULL");
   m_target_def.add_field(FIELD_DEFINER, "FIELD_DEFINER",
-                         "definer VARCHAR(93) NOT NULL");
+                         "definer VARCHAR(288) NOT NULL");
   m_target_def.add_sql_mode_field(FIELD_SQL_MODE, "FIELD_SQL_MODE");
   m_target_def.add_field(FIELD_CLIENT_COLLATION_ID, "FIELD_CLIENT_COLLATION_ID",
                          "client_collation_id BIGINT UNSIGNED NOT NULL");

@@ -527,11 +527,11 @@ mysqltest	dummytable	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, RE
 mysqltest	dummyview	ALTER, CREATE, CREATE VIEW, DELETE, DROP, INDEX, INSERT, REFERENCES, SELECT, SHOW VIEW, TRIGGER, UPDATE
 SHOW FIELDS FROM mysql.tables_priv;
 Field	Type	Null	Key	Default	Extra
-Host	char(60)	NO	PRI		
+Host	char(255)	NO	PRI		
 Db	char(64)	NO	PRI		
 User	char(32)	NO	PRI		
 Table_name	char(64)	NO	PRI		
-Grantor	char(93)	NO	MUL		
+Grantor	varchar(288)	NO	MUL		
 Timestamp	timestamp	NO		CURRENT_TIMESTAMP	DEFAULT_GENERATED on update CURRENT_TIMESTAMP
 Table_priv	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')	NO			
 Column_priv	set('Select','Insert','Update','References')	NO			
@@ -1040,28 +1040,28 @@ DROP DATABASE mysqltest1;
 USE test;
 GRANT CREATE ON mysqltest.* TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-GRANT CREATE ON mysqltest.* TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+GRANT CREATE ON mysqltest.* TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 REVOKE CREATE ON mysqltest.* FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-REVOKE CREATE ON mysqltest.* FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE CREATE ON mysqltest.* FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 GRANT CREATE ON t1 TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-GRANT CREATE ON t1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+GRANT CREATE ON t1 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 REVOKE CREATE ON t1 FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-REVOKE CREATE ON t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE CREATE ON t1 FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 GRANT EXECUTE ON PROCEDURE p1 TO 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+GRANT EXECUTE ON PROCEDURE p1 TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 REVOKE EXECUTE ON PROCEDURE p1 FROM 1234567890abcdefGHIKL1234567890abcdefGHIKL@localhost;
 ERROR HY000: String '1234567890abcdefGHIKL1234567890abcdefGHIKL' is too long for user name (should be no longer than 32)
-REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY;
-ERROR HY000: String '1234567890abcdefghij1234567890abcdefghij1234567890abcdefghijQWERTY' is too long for host name (should be no longer than 60)
+REVOKE EXECUTE ON PROCEDURE t1 FROM some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890X;
+ERROR HY000: String 'host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij12345' is too long for host name (should be no longer than 255)
 CREATE USER bug23556@localhost;
 CREATE DATABASE bug23556;
 GRANT SELECT ON bug23556.* TO bug23556@localhost;

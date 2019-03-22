@@ -91,7 +91,7 @@
 #include "violite.h"
 
 static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
-    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+    {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
     {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
     {{STRING_WITH_LEN("User")},
      {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -155,7 +155,7 @@ static const TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
      {STRING_WITH_LEN("utf8")}}};
 
 static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
-    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+    {{{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
      {{STRING_WITH_LEN("User")},
       {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
       {NULL, 0}},
@@ -301,12 +301,12 @@ static const TABLE_FIELD_TYPE mysql_user_table_fields[MYSQL_USER_FIELD_COUNT] =
 
 static const TABLE_FIELD_TYPE
     mysql_proxies_priv_table_fields[MYSQL_PROXIES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Proxied_host")},
-         {STRING_WITH_LEN("char(60)")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Proxied_user")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -315,7 +315,7 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("tinyint(1)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Grantor")},
-         {STRING_WITH_LEN("char(93)")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
@@ -323,7 +323,7 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_procs_priv_table_fields[MYSQL_PROCS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -335,7 +335,7 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("enum('FUNCTION','PROCEDURE')")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Grantor")},
-         {STRING_WITH_LEN("char(93)")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Proc_priv")},
          {STRING_WITH_LEN("set('Execute','Alter Routine','Grant')")},
@@ -346,7 +346,7 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_columns_priv_table_fields[MYSQL_COLUMNS_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -366,7 +366,7 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_tables_priv_table_fields[MYSQL_TABLES_PRIV_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("Db")}, {STRING_WITH_LEN("char(64)")}, {NULL, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -375,7 +375,7 @@ static const TABLE_FIELD_TYPE
          {STRING_WITH_LEN("char(64)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Grantor")},
-         {STRING_WITH_LEN("char(93)")},
+         {STRING_WITH_LEN("varchar(288)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("Timestamp")},
          {STRING_WITH_LEN("timestamp")},
@@ -392,13 +392,13 @@ static const TABLE_FIELD_TYPE
 static const TABLE_FIELD_TYPE
     mysql_role_edges_table_fields[MYSQL_ROLE_EDGES_FIELD_COUNT] = {
         {{STRING_WITH_LEN("FROM_HOST")},
-         {STRING_WITH_LEN("char(60)")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("FROM_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
         {{STRING_WITH_LEN("TO_HOST")},
-         {STRING_WITH_LEN("char(60)")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("TO_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -409,12 +409,12 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_default_roles_table_fields[MYSQL_DEFAULT_ROLES_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_HOST")},
-         {STRING_WITH_LEN("char(60)")},
+         {STRING_WITH_LEN("char(255)")},
          {NULL, 0}},
         {{STRING_WITH_LEN("DEFAULT_ROLE_USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
@@ -422,7 +422,7 @@ static const TABLE_FIELD_TYPE
 
 static const TABLE_FIELD_TYPE
     mysql_password_history_table_fields[MYSQL_PASSWORD_HISTORY_FIELD_COUNT] = {
-        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("Host")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("User")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
@@ -436,7 +436,7 @@ static const TABLE_FIELD_TYPE
         {{STRING_WITH_LEN("USER")},
          {STRING_WITH_LEN("char(" USERNAME_CHAR_LENGTH_STR ")")},
          {NULL, 0}},
-        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(60)")}, {NULL, 0}},
+        {{STRING_WITH_LEN("HOST")}, {STRING_WITH_LEN("char(255)")}, {NULL, 0}},
         {{STRING_WITH_LEN("PRIV")}, {STRING_WITH_LEN("char(32)")}, {NULL, 0}},
         {{STRING_WITH_LEN("WITH_GRANT_OPTION")},
          {STRING_WITH_LEN("enum('N','Y')")},

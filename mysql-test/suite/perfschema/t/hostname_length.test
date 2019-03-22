@@ -1,0 +1,40 @@
+--source include/have_debug.inc
+--source include/mysql_have_debug.inc
+
+--echo #
+--echo # These tests verify that MySQL supports hostname with maximum of 255
+--echo # char length in various performance schema tables.
+--echo #
+
+--echo # Setup
+CREATE USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+GRANT ALL ON *.* TO some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;
+
+SET GLOBAL DEBUG='+d,vio_peer_addr_fake_hostname1';
+--echo # Execute test with long hostname in GRANTOR.
+--exec $MYSQL --user=some_user_name --ssl-mode=DISABLED --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 -#d,vio_client_use_localhost -v test  < $MYSQL_TEST_DIR/std_data/hostname_in_perfschema.sql
+
+#
+# Verify that Host column shows 255 character in SHOW PROCESSLIST output.
+#
+
+let MYSQL_LOG= $MYSQL_TMP_DIR/mysql.log;
+--exec $MYSQL --user=some_user_name --ssl-mode=DISABLED --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 -#d,vio_client_use_localhost -v test -e "SHOW PROCESSLIST;" > $MYSQL_LOG
+--let SEARCH_FILE= $MYSQL_LOG
+--let SEARCH_PATTERN= host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij123456789
+--source include/search_pattern.inc
+--remove_file $MYSQL_LOG
+
+#
+# Verify that Host column shows 255 character in INFORMATION_SCHEMA.PROCESSLIST output.
+#
+
+--exec $MYSQL --user=some_user_name --ssl-mode=DISABLED --host=host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890 -#d,vio_client_use_localhost -v test -e "SELECT Host FROM INFORMATION_SCHEMA.PROCESSLIST WHERE User='some_user_name';" > $MYSQL_LOG
+--source include/search_pattern.inc
+--remove_file $MYSQL_LOG
+
+SET GLOBAL DEBUG='-d,vio_peer_addr_fake_hostname1';
+
+--echo # Cleanup
+--source ../../sysschema/include/ps_setup_actors_cleanup.inc
+DROP USER some_user_name@host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890;

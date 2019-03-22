@@ -21,9 +21,9 @@ ERROR 42S02: Table 'mysql.role_edges' doesn't exist
 SHOW CREATE TABLE mysql.role_edges;
 Table	Create Table
 role_edges	CREATE TABLE `role_edges` (
-  `FROM_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `FROM_HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `FROM_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `TO_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `TO_HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `TO_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   `WITH_ADMIN_OPTION` enum('N','Y') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'N',
   PRIMARY KEY (`FROM_HOST`,`FROM_USER`,`TO_HOST`,`TO_USER`)
@@ -31,9 +31,9 @@ role_edges	CREATE TABLE `role_edges` (
 SHOW CREATE TABLE mysql.default_roles;
 Table	Create Table
 default_roles	CREATE TABLE `default_roles` (
-  `HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '',
+  `HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '',
   `USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
-  `DEFAULT_ROLE_HOST` char(60) COLLATE utf8_bin NOT NULL DEFAULT '%',
+  `DEFAULT_ROLE_HOST` char(255) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL DEFAULT '%',
   `DEFAULT_ROLE_USER` char(32) COLLATE utf8_bin NOT NULL DEFAULT '',
   PRIMARY KEY (`HOST`,`USER`,`DEFAULT_ROLE_HOST`,`DEFAULT_ROLE_USER`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Default roles'

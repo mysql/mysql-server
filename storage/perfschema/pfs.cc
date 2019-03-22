@@ -3295,9 +3295,7 @@ int get_thread_attributes(PFS_thread *pfs, bool current_thread,
 
   static_assert(PSI_NAME_LEN == NAME_LEN, "");
   static_assert(PSI_USERNAME_LENGTH == USERNAME_LENGTH, "");
-
-  static_assert(PSI_HOSTNAME_LENGTH > HOSTNAME_LENGTH,
-                "Will be equal after WL#12571");
+  static_assert(PSI_HOSTNAME_LENGTH == HOSTNAME_LENGTH, "");
 
   if (unlikely(pfs == NULL)) {
     return 1;

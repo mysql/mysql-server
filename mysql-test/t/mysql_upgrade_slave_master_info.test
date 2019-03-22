@@ -126,7 +126,7 @@ TRUNCATE TABLE mysql.slave_master_info;
 INSERT INTO mysql.slave_master_info SELECT * FROM test.slave_master_info_backup;
 
 ALTER TABLE mysql.slave_master_info
-  MODIFY Host CHAR(64) CHARACTER SET utf8 COLLATE utf8_bin NULL COMMENT 'The host name of the master.',
+  MODIFY Host CHAR(255) CHARACTER SET ASCII NULL COMMENT 'The host name of the master.',
   ALTER COLUMN Channel_name DROP DEFAULT;
 
 DROP TABLE test.slave_master_info_backup;

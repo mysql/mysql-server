@@ -53,7 +53,7 @@ struct row_host_cache {
   char m_ip[64];
   uint m_ip_length;
   /** Column HOST. */
-  char m_hostname[255];
+  char m_hostname[PSI_HOSTNAME_LENGTH];
   uint m_hostname_length;
   /** Column HOST_VALIDATED. */
   bool m_host_validated;

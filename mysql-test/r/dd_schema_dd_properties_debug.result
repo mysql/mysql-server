@@ -778,7 +778,7 @@ events=
       elem3=def=created TIMESTAMP NOT NULL
             lbl=FIELD_CREATED
             pos=15
-      elem4=def=definer VARCHAR(93) NOT NULL
+      elem4=def=definer VARCHAR(288) NOT NULL
             lbl=FIELD_DEFINER
             pos=3
       elem5=def=definition LONGBLOB NOT NULL
@@ -2089,7 +2089,7 @@ routines=
       elem3=def=created TIMESTAMP NOT NULL
             lbl=FIELD_CREATED
             pos=24
-      elem4=def=definer VARCHAR(93) NOT NULL
+      elem4=def=definer VARCHAR(288) NOT NULL
             lbl=FIELD_DEFINER
             pos=19
       elem5=def=definition LONGBLOB
@@ -2813,7 +2813,7 @@ tables=
       elem3=def=default_partitioning ENUM('NO', 'YES', 'NUMBER')
             lbl=FIELD_DEFAULT_PARTITIONING
             pos=17
-      elem30=def=view_definer VARCHAR(93)
+      elem30=def=view_definer VARCHAR(288)
             lbl=FIELD_VIEW_DEFINER
             pos=30
       elem31=def=view_definition LONGBLOB
@@ -3159,7 +3159,7 @@ triggers=
       elem6=def=created TIMESTAMP(2) NOT NULL
             lbl=FIELD_CREATED
             pos=9
-      elem7=def=definer VARCHAR(93) NOT NULL
+      elem7=def=definer VARCHAR(288) NOT NULL
             lbl=FIELD_DEFINER
             pos=12
       elem8=def=event_type ENUM('INSERT', 'UPDATE', 'DELETE') NOT NULL
