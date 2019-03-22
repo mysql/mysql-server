@@ -1099,10 +1099,10 @@ has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
 
   channel_map.unlock();
 
-  if (is_applier_running)
-    DBUG_RETURN(SLAVE_CHANNEL_APPLIER_IS_RUNNING);
-  else if (has_open_temp_tables)
+  if (has_open_temp_tables)
     DBUG_RETURN(SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE);
+  else if (is_applier_running)
+    DBUG_RETURN(SLAVE_CHANNEL_APPLIER_IS_RUNNING);
 
   DBUG_RETURN(SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE);
 }
