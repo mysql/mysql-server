@@ -79,7 +79,7 @@ if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
 }
-if (`SELECT (@fs < @fs_limit) > 0`)
+if (`SELECT (@fs <= @fs_limit) > 0`)
 {
    --echo The test/t1.ibd file size is not growing.
 }
@@ -113,7 +113,7 @@ if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
 }
-if (`SELECT (@fs < @fs_limit) > 0`)
+if (`SELECT (@fs <= @fs_limit) > 0`)
 {
    --echo The test/t1.ibd file size is not growing.
 }
