@@ -55,7 +55,7 @@ Column::Column(const unsigned char *mysql_row,
   m_is_blob = ((mysql_field.flags & BLOB_FLAG) != 0);
 
   if (m_is_blob) {
-    auto blob_field = static_cast<const Field_blob &>(mysql_field);
+    auto &blob_field = static_cast<const Field_blob &>(mysql_field);
 
     DBUG_ASSERT(blob_field.pack_length_no_ptr() <=
                 std::numeric_limits<decltype(m_length_bytes_size)>::max());
