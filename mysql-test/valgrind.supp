@@ -1599,6 +1599,18 @@
   obj:*
 }
 
+{
+   TPL leak 23
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:_ZL13my_raw_mallocmi
+   fun:_Z9my_mallocjmi
+   fun:_ZL17my_openssl_mallocm
+   fun:CRYPTO_malloc
+   ...
+}
+
 # Workarounds for
 #
 # Bug#26116237 SYSCALL PARAM PPOLL(SIGMASK) POINTS TO UNADDRESSABLE BYTE
