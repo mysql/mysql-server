@@ -27454,9 +27454,16 @@ Dbdih::sendREDO_STATE_REP_to_all(Signal *signal,
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     if (nodePtr.p->copyCompleted || send_to_all)
     {
-      jamLine(nodePtr.i);
       BlockReference ref = numberToRef(block, nodePtr.i);
-      sendSignal(ref, GSN_REDO_STATE_REP, signal, 2, JBB);
+      if (ndbd_enable_redo_control(getNodeInfo(nodePtr.i).m_version))
+      {
+        jamLine(nodePtr.i);
+        sendSignal(ref, GSN_REDO_STATE_REP, signal, 2, JBB);
+      }
+      else
+      {
+        jamLine(nodePtr.i);
+      }
     }
     nodePtr.i = nodePtr.p->nextNode;
   } while (nodePtr.i != RNIL);
