@@ -1024,7 +1024,7 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
   return URIParser::parse(uri, allow_path_rootless);
 }
 
-URI URIParser::parse(const string &uri, bool allow_path_rootless) {
+/*static*/ URI URIParser::parse(const string &uri, bool allow_path_rootless) {
   size_t pos = 0;
 
   // stage: match and extract fields

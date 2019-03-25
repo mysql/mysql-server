@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -156,6 +156,8 @@ static void start_and_detach_signal_handler_thread() {
   std::promise<void> signal_handler_thread_setup_done;
 
   std::thread signal_thread([&signal_handler_thread_setup_done] {
+    mysql_harness::rename_thread("sig handler");
+
     sigset_t ss;
     sigemptyset(&ss);
     sigaddset(&ss, SIGINT);

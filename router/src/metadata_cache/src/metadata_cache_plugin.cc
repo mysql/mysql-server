@@ -139,6 +139,8 @@ class MetadataServersStateListener
  * @param env plugin's environment
  */
 static void start(mysql_harness::PluginFuncEnv *env) {
+  mysql_harness::rename_thread("MDC Main");
+
   mysqlrouter::MySQLClientThreadToken api_token;
 
   const mysql_harness::ConfigSection *section = get_config_section(env);
