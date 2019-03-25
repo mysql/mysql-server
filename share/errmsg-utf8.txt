@@ -19159,6 +19159,9 @@ ER_WARN_DEPRECATED_FOUND_ROWS
 ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
   eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
 
+ER_NET_WAIT_ERROR
+  eng "The wait_timeout period was exceeded, the idle time since last command was too long."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
