@@ -1001,10 +1001,17 @@ class Auth_id {
   const std::string &host() const;
 
  private:
+  void create_key();
   /** User part */
   std::string m_user;
   /** Host part */
   std::string m_host;
+  /**
+    Key: Internal representation mainly to facilitate use of
+         Auth_id class in standard container.
+         Format: 'user\0host\0'
+  */
+  std::string m_key;
 };
 
 /*

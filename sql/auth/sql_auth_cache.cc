@@ -1551,6 +1551,7 @@ bool acl_init(bool dont_read_acl_tables) {
     to avoid hash searches and a global mutex lock on every connect
   */
   g_cached_authentication_plugins = new Cached_authentication_plugins();
+  unknown_accounts = new Map_with_rw_lock<Auth_id, uint>(0);
   if (!g_cached_authentication_plugins->is_valid()) DBUG_RETURN(1);
 
   if (dont_read_acl_tables) {
@@ -1780,6 +1781,8 @@ void acl_free(bool end /*= false*/) {
       db_cache.clear();
       delete g_cached_authentication_plugins;
       g_cached_authentication_plugins = 0;
+      delete unknown_accounts;
+      unknown_accounts = 0;
       acl_cache_initialized = false;
     }
   }

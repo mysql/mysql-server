@@ -104,6 +104,10 @@ extern char *caching_sha2_rsa_public_key_path;
 #if !defined(HAVE_WOLFSSL)
 extern bool caching_sha2_auto_generate_rsa_keys;
 #endif
+class Auth_id;
+template <typename K, typename V>
+class Map_with_rw_lock;
+extern Map_with_rw_lock<Auth_id, uint> *unknown_accounts;
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name);
 bool auth_plugin_is_built_in(const char *plugin_name);

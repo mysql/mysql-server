@@ -234,6 +234,9 @@ class Cached_authentication_plugins {
 
 extern Cached_authentication_plugins *g_cached_authentication_plugins;
 
+ACL_USER *decoy_user(const LEX_STRING &username, const LEX_STRING &hostname,
+                     MEM_ROOT *mem, struct rand_struct *rand,
+                     bool is_initialized);
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
 

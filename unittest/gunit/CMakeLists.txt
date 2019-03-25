@@ -431,6 +431,7 @@ SET(SERVER_TESTS
   value_map
   wild_case_compare
   sha2_password
+  decoy_user
 )
 
 SET(ALL_LARGE_TESTS)
