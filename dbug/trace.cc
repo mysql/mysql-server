@@ -40,29 +40,7 @@ using std::chrono::high_resolution_clock;
 using std::chrono::nanoseconds;
 using std::chrono::time_point;
 
-void log_prefix(std::ostream &out) {
-  time_point<high_resolution_clock> tp1;
-  tp1 = high_resolution_clock::now();
-  std::chrono::nanoseconds ns =
-      duration_cast<nanoseconds>(tp1.time_since_epoch());
-  std::thread::id thread_id = std::this_thread::get_id();
-
-  out << "ts=" << ns.count() << ", thread=" << thread_id << ": ";
-}
-
-static std::mutex g_mutex;
 static std::list<std::string> g_debug_lst;
-static const unsigned int MAX_NOTES = 20000;
-
-void trace(const std::string &note) {
-  std::lock_guard<std::mutex> guard(g_mutex);
-
-  g_debug_lst.push_back(note);
-
-  if (g_debug_lst.size() > MAX_NOTES) {
-    g_debug_lst.pop_front();
-  }
-}
 
 void fn_print_string(const std::string &m) { std::cout << m << std::endl; }
 

@@ -725,7 +725,7 @@ class JOIN {
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  int optimize();
+  bool optimize();
   void reset();
   void exec();
   bool prepare_result();

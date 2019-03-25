@@ -215,6 +215,7 @@ static const char *db_process = 0; /* Pointer to process name; argv[0] */
 struct CODE_STATE {
   const char *process; /* Pointer to process name; usually argv[0] */
   const char *func;    /* Name of current user function            */
+  int func_len;        /* How many bytes to print from func        */
   const char *file;    /* Name of current user file                */
   struct _db_stack_frame_ *framep; /* Pointer to current frame              */
   struct settings *stack; /* debugging settings                       */
@@ -1088,8 +1089,9 @@ int _db_explain_init_(char *buf, size_t len) {
  *
  *  SYNOPSIS
  *
- *      VOID _db_enter_(_func_, _file_, _line_, _stack_frame_)
+ *      VOID _db_enter_(_func_, func_len, _file_, _line_, _stack_frame_)
  *      char *_func_;           points to current function name
+ *      int func_len;           how many bytes from _func_ to print
  *      char *_file_;           points to current file name
  *      int _line_;             called from source line number
  *      struct _db_stack_frame_ allocated on the caller's stack
@@ -1115,8 +1117,8 @@ int _db_explain_init_(char *buf, size_t len) {
  *
  */
 
-void _db_enter_(const char *_func_, const char *_file_, uint _line_,
-                struct _db_stack_frame_ *_stack_frame_) {
+void _db_enter_(const char *_func_, int func_len, const char *_file_,
+                uint _line_, struct _db_stack_frame_ *_stack_frame_) {
   int save_errno;
   CODE_STATE *cs;
   if (!((cs = code_state()))) {
@@ -1130,8 +1132,10 @@ void _db_enter_(const char *_func_, const char *_file_, uint _line_,
   read_lock_stack(cs);
 
   _stack_frame_->func = cs->func;
+  _stack_frame_->func_len = cs->func_len;
   _stack_frame_->file = cs->file;
   cs->func = _func_;
+  cs->func_len = func_len;
   cs->file = _file_;
   _stack_frame_->prev = cs->framep;
   _stack_frame_->level = ++cs->level | framep_trace_flag(cs, cs->framep);
@@ -1147,7 +1151,7 @@ void _db_enter_(const char *_func_, const char *_file_, uint _line_,
         if (!cs->locked) native_mutex_lock(&THR_LOCK_dbug);
         DoPrefix(cs, _line_);
         Indent(cs, cs->level);
-        (void)fprintf(cs->stack->out_file, ">%s\n", cs->func);
+        (void)fprintf(cs->stack->out_file, ">%.*s\n", cs->func_len, cs->func);
         DbugFlush(cs); /* This does a unlock */
       }
       break;
@@ -1201,7 +1205,12 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_) {
       if (!cs->locked) native_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void)fprintf(cs->stack->out_file, "<%s %u\n", cs->func, _line_);
+      if (_line_ == 0) {
+        (void)fprintf(cs->stack->out_file, "<%.*s\n", cs->func_len, cs->func);
+      } else {
+        (void)fprintf(cs->stack->out_file, "<%.*s %u\n", cs->func_len, cs->func,
+                      _line_);
+      }
       DbugFlush(cs);
     }
   }
@@ -1211,6 +1220,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_) {
   */
   cs->level = _slevel_ != 0 ? _slevel_ - 1 : 0;
   cs->func = _stack_frame_->func;
+  cs->func_len = _stack_frame_->func_len;
   cs->file = _stack_frame_->file;
   if (cs->framep != NULL) cs->framep = cs->framep->prev;
   errno = save_errno;
@@ -1317,7 +1327,7 @@ void _db_doprnt_(const char *format, ...) {
   if (TRACING)
     Indent(cs, cs->level + 1);
   else
-    (void)fprintf(cs->stack->out_file, "%s: ", cs->func);
+    (void)fprintf(cs->stack->out_file, "%.*s: ", cs->func_len, cs->func);
   (void)fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
   DbugVfprintf(cs->stack->out_file, format, args);
   DbugFlush(cs);
@@ -1374,7 +1384,7 @@ void _db_dump_(uint _line_, const char *keyword, const unsigned char *memory,
       Indent(cs, cs->level + 1);
       pos = MY_MIN(MY_MAX(cs->level - cs->stack->sub_level, 0) * INDENT, 80);
     } else {
-      fprintf(cs->stack->out_file, "%s: ", cs->func);
+      fprintf(cs->stack->out_file, "%.*s: ", cs->func_len, cs->func);
     }
     (void)fprintf(cs->stack->out_file, "%s: Memory: %p  Bytes: (%ld)\n",
                   keyword, memory, (long)length);
@@ -1881,7 +1891,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_) {
     (void)fprintf(cs->stack->out_file, "%s: ", cs->process);
   if (cs->stack->flags & FILE_ON)
     (void)fprintf(cs->stack->out_file, "%14s: ", BaseName(cs->file));
-  if (cs->stack->flags & LINE_ON)
+  if (_line_ != 0 && (cs->stack->flags & LINE_ON))
     (void)fprintf(cs->stack->out_file, "%5d: ", _line_);
   if (cs->stack->flags & DEPTH_ON)
     (void)fprintf(cs->stack->out_file, "%4d: ", cs->level);

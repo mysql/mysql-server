@@ -37,12 +37,14 @@
 #if !defined(DBUG_OFF)
 #include <assert.h>  // IWYU pragma: keep
 #include <stdio.h>
+#include <string.h>
 #endif
 
 #if !defined(DBUG_OFF)
 
 struct _db_stack_frame_ {
   const char *func;   /* function name of the previous stack frame       */
+  int func_len;       /* how much to print from func */
   const char *file;   /* filename of the function of previous frame      */
   unsigned int level; /* this nesting level, highest bit enables tracing */
   struct _db_stack_frame_ *prev; /* pointer to the previous frame */
@@ -59,7 +61,7 @@ extern void _db_push_(const char *control);
 extern void _db_pop_(void);
 extern void _db_set_(const char *control);
 extern void _db_set_init_(const char *control);
-extern void _db_enter_(const char *_func_, const char *_file_,
+extern void _db_enter_(const char *_func_, int func_len, const char *_file_,
                        unsigned int _line_,
                        struct _db_stack_frame_ *_stack_frame_);
 extern void _db_return_(unsigned int _line_,
@@ -77,9 +79,62 @@ extern FILE *_db_fp_(void);
 extern void _db_flush_();
 extern const char *_db_get_func_(void);
 
+#ifdef __cplusplus
+
+#if defined(__GNUC__)
+// GCC, Clang, and compatible compilers.
+#define DBUG_PRETTY_FUNCTION __PRETTY_FUNCTION__
+#elif defined(__FUNCSIG__)
+// For MSVC; skips the __cdecl. (__PRETTY_FUNCTION__ in GCC is not a
+// preprocessor constant, but __FUNCSIG__ in MSVC is.)
+#define DBUG_PRETTY_FUNCTION strchr(__FUNCSIG__, ' ') + 1
+#else
+// Standard C++; does not include the class name.
+#define DBUG_PRETTY_FUNCTION __func__
+#endif
+
+/**
+  A RAII helper to do DBUG_ENTER / DBUG_RETURN for you automatically. Use like
+  this:
+
+   int foo() {
+     DBUG_TRACE;
+     return 42;
+   }
+ */
+class AutoDebugTrace {
+ public:
+  AutoDebugTrace(const char *function, const char *filename, int line) {
+    // Remove the return type, if it's there.
+    const char *begin = strchr(function, ' ');
+    if (begin != nullptr) {
+      function = begin + 1;
+    }
+
+    // Cut it off at the first parenthesis; the argument list is
+    // often too long to be interesting.
+    const char *end = strchr(function, '(');
+
+    if (end == nullptr) {
+      _db_enter_(function, strlen(function), filename, line, &m_stack_frame);
+    } else {
+      _db_enter_(function, end - function, filename, line, &m_stack_frame);
+    }
+  }
+
+  ~AutoDebugTrace() { _db_return_(0, &m_stack_frame); }
+
+ private:
+  _db_stack_frame_ m_stack_frame;
+};
+
+#define DBUG_TRACE \
+  AutoDebugTrace _db_trace(DBUG_PRETTY_FUNCTION, __FILE__, __LINE__)
+#endif
+
 #define DBUG_ENTER(a)                       \
   struct _db_stack_frame_ _db_stack_frame_; \
-  _db_enter_(a, __FILE__, __LINE__, &_db_stack_frame_)
+  _db_enter_(a, ::strlen(a), __FILE__, __LINE__, &_db_stack_frame_)
 #define DBUG_LEAVE _db_return_(__LINE__, &_db_stack_frame_)
 #define DBUG_RETURN(a1) \
   do {                  \
@@ -160,6 +215,11 @@ extern void _db_flush_gcov_();
 
 #else /* No debugger */
 
+#ifdef __cplusplus
+#define DBUG_TRACE \
+  do {             \
+  } while (false)
+#endif
 #define DBUG_ENTER(a1)
 #define DBUG_LEAVE
 #define DBUG_RETURN(a1) \
@@ -248,24 +308,11 @@ extern void _db_flush_gcov_();
     DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
   } while (0)
 
-void log_prefix(std::ostream &out);
-void trace(const std::string &note);
 void dump_trace();
-
-#define DBUG_TRACE(x)        \
-  do {                       \
-    std::ostringstream sout; \
-    log_prefix(sout);        \
-    sout << x;               \
-    trace(sout.str());       \
-  } while (false)
 
 #else /* DBUG_OFF */
 #define DBUG_LOG(keyword, v) \
   do {                       \
-  } while (0)
-#define DBUG_TRACE(x) \
-  do {                \
   } while (0)
 #endif /* DBUG_OFF */
 #endif /* __cplusplus */
