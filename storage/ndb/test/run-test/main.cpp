@@ -38,6 +38,7 @@
 #include "my_alloc.h"  // MEM_ROOT
 #include <ndb_version.h>
 #include <vector>
+#include <ndb_version.h>
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 #define TESTCASE_RETRIES_THRESHOLD_WARNING 5
