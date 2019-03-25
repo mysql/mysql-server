@@ -622,6 +622,7 @@ struct MEM_ROOT;
   @enduml
 
   @sa group_cs_capabilities_flags
+  @sa unknown_accounts
   @subpage page_protocol_connection_phase_packets
   @subpage page_protocol_connection_phase_authentication_methods
 */
@@ -781,6 +782,29 @@ struct MEM_ROOT;
   @subpage page_protocol_connection_phase_packets_protocol_auth_more_data
 */
 /* clang-format on */
+
+const uint MAX_UNKNOWN_ACCOUNTS = 1000;
+/**
+  Hash to map unknown accounts to an authentication plugin.
+
+  If unknown accounts always map to default authentication plugin,
+  server's reply to switch authentication plugin would indicate that
+  user in question is indeed a valid user.
+
+  To counter this, one of the built-in authentication plugins is chosen
+  at random. Thus, a request to switch authentication plugin is not and
+  indicator of a valid user account.
+
+  For same unknown account, if different plugin is chosen everytime,
+  that again is an indicator. To resolve this, a hashmap is  used to
+  store information about unknown account => authentication plugin.
+  This way, if same unknown account appears again, same authentication
+  plugin is chosen again.
+
+  However, size of such a hash has to be kept under control. Hence,
+  once MAX_UNKNOWN_ACCOUNTS lim
+*/
+Map_with_rw_lock<Auth_id, uint> *unknown_accounts = nullptr;
 
 LEX_CSTRING validate_password_plugin_name = {
     STRING_WITH_LEN("validate_password")};
@@ -1650,14 +1674,17 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
   This is done to decrease the cost of enumerating user accounts based on
   authentication protocol.
 
-  @param [in] username  A dummy user to be created.
-  @param [in] hostname  Host of the dummy user.
-  @param [in] mem       Memory in which the dummy ACL user will be created.
+  @param [in] username       A dummy user to be created.
+  @param [in] hostname       Host of the dummy user.
+  @param [in] mem            Memory in which the dummy ACL user will be created.
+  @param [in] rand           Seed value to generate random data
+  @param [in] is_initialized State of ACL caches
 
   @retval A dummy ACL USER
 */
-static ACL_USER *decoy_user(const LEX_STRING &username,
-                            const LEX_CSTRING &hostname, MEM_ROOT *mem) {
+ACL_USER *decoy_user(const LEX_STRING &username, const LEX_CSTRING &hostname,
+                     MEM_ROOT *mem, struct rand_struct *rand,
+                     bool is_initialized) {
   ACL_USER *user = (ACL_USER *)mem->Alloc(sizeof(ACL_USER));
   user->can_authenticate = !initialized;
   user->user = strdup_root(mem, username.str);
@@ -1676,12 +1703,39 @@ static ACL_USER *decoy_user(const LEX_STRING &username,
   user->password_history_length = 0;
   user->password_require_current = Lex_acl_attrib_udyn::DEFAULT;
 
-  /*
-    For now the common default account is used. Improvements might involve
-    mapping a consistent hash of a username to a range of plugins.
-  */
-  user->plugin = default_auth_plugin_name;
+  if (is_initialized) {
+    Auth_id key(user);
+
+    uint value;
+    if (unknown_accounts->find(key, value)) {
+      user->plugin = Cached_authentication_plugins::cached_plugins_names[value];
+    } else {
+      const int DECIMAL_SHIFT = 1000;
+      const int random_number = static_cast<int>(my_rnd(rand) * DECIMAL_SHIFT);
+      uint plugin_num = (uint)(random_number % ((uint)PLUGIN_LAST));
+      user->plugin =
+          Cached_authentication_plugins::cached_plugins_names[plugin_num];
+      unknown_accounts->clear_if_greater(MAX_UNKNOWN_ACCOUNTS);
+
+      /*
+        If we fail to insert, someone already did it.
+        So try to retrive it. If we fail (e.g. map was cleared),
+        just use the default and move on.
+      */
+      if (!unknown_accounts->insert(key, plugin_num)) {
+        if (!unknown_accounts->find(key, plugin_num))
+          user->plugin = default_auth_plugin_name;
+        else
+          user->plugin =
+              Cached_authentication_plugins::cached_plugins_names[plugin_num];
+      }
+    }
+  } else
+    user->plugin = default_auth_plugin_name;
+
   for (int i = 0; i < NUM_CREDENTIALS; ++i) {
+    memset(user->credentials[i].m_salt, 0, SCRAMBLE_LENGTH + 1);
+    user->credentials[i].m_salt_len = 0;
     user->credentials[i].m_auth_string = empty_lex_str;
   }
   return user;
@@ -1747,7 +1801,8 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
                       mpvio->auth_info.user_name_length};
     LEX_CSTRING hst = {mpvio->host ? mpvio->host : mpvio->ip,
                        mpvio->host ? strlen(mpvio->host) : strlen(mpvio->ip)};
-    mpvio->acl_user = decoy_user(usr, hst, mpvio->mem_root);
+    mpvio->acl_user =
+        decoy_user(usr, hst, mpvio->mem_root, mpvio->rand, initialized);
     mpvio->acl_user_plugin = mpvio->acl_user->plugin;
   }
 
@@ -2546,13 +2601,6 @@ skip_to_ssl:
     if (db == NULL) return packet_error;
   }
 
-  /*
-    Set the default for the password supplied flag for non-existing users
-    as the default plugin (native passsword authentication) would do it
-    for compatibility reasons.
-  */
-  if (passwd_len) mpvio->auth_info.password_used = PASSWORD_USED_YES;
-
   size_t client_plugin_len = 0;
   const char *client_plugin =
       get_string(&end, &bytes_remaining_in_packet, &client_plugin_len);
@@ -2899,6 +2947,7 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.user_name_length = 0;
   mpvio->auth_info.host_or_ip = sctx_host_or_ip.str;
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
+  mpvio->auth_info.password_used = PASSWORD_USED_NO;
 
 #if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
@@ -3780,12 +3829,13 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     DBUG_PRINT("info", ("mysql_native_authentication_proxy_users is enabled, "
                         "setting authenticated_as to NULL"));
   }
-  if (pkt_len == 0) /* no password */
+  if (pkt_len == 0) {
+    info->password_used = PASSWORD_USED_NO;
     DBUG_RETURN(mpvio->acl_user->credentials[PRIMARY_CRED].m_salt_len != 0
                     ? CR_AUTH_USER_CREDENTIALS
                     : CR_OK);
-
-  info->password_used = PASSWORD_USED_YES;
+  } else
+    info->password_used = PASSWORD_USED_YES;
   bool second = false;
   if (pkt_len == SCRAMBLE_LENGTH) {
     if (!mpvio->acl_user->credentials[PRIMARY_CRED].m_salt_len ||

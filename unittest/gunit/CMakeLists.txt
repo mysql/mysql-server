@@ -434,6 +434,7 @@ SET(SERVER_TESTS
   value_map
   wild_case_compare
   sha2_password
+  decoy_user
 )
 
 # Suppress -Wformat-overflow= for my_safe_snprintf(" %s ", nullptr)
