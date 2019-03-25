@@ -3292,8 +3292,8 @@ static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
 
-  ulonglong in_val = *static_cast<const ulonglong *>(save);
-  *static_cast<ulonglong *>(var_ptr) = in_val;
+  ulong in_val = *static_cast<const ulong *>(save);
+  *static_cast<ulong *>(var_ptr) = in_val;
 
   if (gcs_module != NULL) {
     gcs_module->set_xcom_cache_size(in_val);
