@@ -57,14 +57,6 @@ string deprecation_msg =
     "executing the upgrade sequence, thus allowing users to manually rectify "
     "the problem.";
 
-enum exit_codes {
-  EXIT_INIT_ERROR = 1,
-  EXIT_ALREADY_UPGRADED = 2,
-  EXIT_BAD_VERSION = 3,
-  EXIT_MYSQL_CHECK_ERROR = 4,
-  EXIT_UPGRADING_QUERIES_ERROR = 5
-};
-
 class Program : public Base::Abstract_connection_program {
  public:
   Program()
@@ -89,16 +81,12 @@ class Program : public Base::Abstract_connection_program {
   int get_error_code() { return 0; }
 
   /**
-    Error codes:
-    EXIT_INIT_ERROR - Initialization error.
-    EXIT_ALREADY_UPGRADED - Server already upgraded.
-    EXIT_BAD_VERSION - Bad server version.
-    EXIT_MYSQL_CHECK_ERROR - Error during calling mysql_check functionality.
-    EXIT_UPGRADING_QUERIES_ERROR - Error during execution of upgrading queries.
+    Returns 0 (success) unconditionally, along with a deprecation message.
+
+    @return 0 (success)
    */
   int execute(vector<string> positional_options MY_ATTRIBUTE((unused))) {
-    return this->print_message(
-        this->m_ignore_errors ? 0 : EXIT_ALREADY_UPGRADED, deprecation_msg);
+    return this->print_message(0, deprecation_msg);
   }
 
   void create_options() {
