@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
 
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::string_format;
@@ -89,8 +90,15 @@ MetadataCachePluginConfig::get_metadata_servers(
     if (bind_info.second == 0) {
       bind_info.second = default_port;
     }
+
+    // push_back calls TCPAddress ctor, which queries DNS in order to determine
+    // IP address familiy (IPv4 or IPv6)
+    log_debug("Adding metadata server '%s:%u', also querying DNS ...",
+              bind_info.first.c_str(), bind_info.second);
     address_vector.push_back(
         mysql_harness::TCPAddress(bind_info.first, bind_info.second));
+    log_debug("Done adding metadata server '%s:%u'", bind_info.first.c_str(),
+              bind_info.second);
   };
 
   if (metadata_cache_dynamic_state) {

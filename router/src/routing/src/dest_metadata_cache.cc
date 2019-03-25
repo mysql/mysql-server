@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -471,15 +471,8 @@ void DestMetadataCacheGroup::notify(
 }
 
 void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
-  // before using metadata-cache we need to make sure it is initialized
-  // we probe for it max 1000 times each millisecond here, if that's not enough
-  // error out with an exception
-  unsigned count = 0;
+  // before using metadata-cache we need to wait for it to be initialized
   while (!cache_api_->is_initialized() && (!env || is_running(env))) {
-    if (count++ > 1000) {
-      throw std::runtime_error(
-          "Timed out waiting for metadata-cache to initialize.");
-    }
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
