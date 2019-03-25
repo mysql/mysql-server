@@ -10,12 +10,10 @@
 
 --echo # Running mysql_upgrade with --skip-write-binlog..
 --replace_result $MYSQLTEST_VARDIR var
---error 2
 --exec $MYSQL_UPGRADE --skip-verbose --skip-write-binlog
 
 --echo # Running mysql_upgrade with --write-binlog..
 --replace_result $MYSQLTEST_VARDIR var
---error 2
 --exec $MYSQL_UPGRADE --skip-verbose --write-binlog
 
 --echo # Running mysql_upgrade with --max-allowed-packet=4096..
