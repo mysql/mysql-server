@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,8 @@
 #include <openssl/evp.h>
 #include <sql/basic_istream.h>
 #include <sql/basic_ostream.h>
-#include <sql/rpl_cipher.h>
 #include <sql/sql_class.h>
+#include <sql/stream_cipher.h>
 #include <map>
 #include <string>
 
@@ -626,15 +626,15 @@ class Rpl_encryption_header {
   /**
     Factory to generate ciphers to encrypt streams based on current header.
 
-    @return A Rpl_cipher for this header version or nullptr on failure.
+    @return A Stream_cipher for this header version or nullptr on failure.
   */
-  virtual std::unique_ptr<Rpl_cipher> get_encryptor() = 0;
+  virtual std::unique_ptr<Stream_cipher> get_encryptor() = 0;
   /**
     Factory to generate ciphers to decrypt streams based on current header.
 
-    @return A Rpl_cipher for this header version or nullptr on failure.
+    @return A Stream_cipher for this header version or nullptr on failure.
   */
-  virtual std::unique_ptr<Rpl_cipher> get_decryptor() = 0;
+  virtual std::unique_ptr<Stream_cipher> get_decryptor() = 0;
   /**
     Setup the header with current master key and generates a new random file
     password. This function shall be called when creating new replication
@@ -776,8 +776,8 @@ class Rpl_encryption_header_v1 : public Rpl_encryption_header {
   char get_version() const override;
   int get_header_size() override;
   Key_string decrypt_file_password() override;
-  std::unique_ptr<Rpl_cipher> get_encryptor() override;
-  std::unique_ptr<Rpl_cipher> get_decryptor() override;
+  std::unique_ptr<Stream_cipher> get_encryptor() override;
+  std::unique_ptr<Stream_cipher> get_decryptor() override;
   Key_string generate_new_file_password() override;
 #ifdef MYSQL_SERVER
   bool encrypt_file_password(Key_string password_str) override;

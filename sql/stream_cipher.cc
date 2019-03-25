@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/rpl_cipher.h"
+#include "sql/stream_cipher.h"
 #include <algorithm>
 #include "my_byteorder.h"
 
@@ -32,15 +32,15 @@
 #undef HAVE_DECRYPTION_INTO_SAME_SOURCE_BUFFER
 #endif
 
-int Rpl_cipher::get_header_size() { return m_header_size; }
+int Stream_cipher::get_header_size() { return m_header_size; }
 
-std::unique_ptr<Rpl_cipher> Aes_ctr::get_encryptor() {
-  std::unique_ptr<Rpl_cipher> cipher(new Aes_ctr_encryptor);
+std::unique_ptr<Stream_cipher> Aes_ctr::get_encryptor() {
+  std::unique_ptr<Stream_cipher> cipher(new Aes_ctr_encryptor);
   return cipher;
 }
 
-std::unique_ptr<Rpl_cipher> Aes_ctr::get_decryptor() {
-  std::unique_ptr<Rpl_cipher> cipher(new Aes_ctr_decryptor);
+std::unique_ptr<Stream_cipher> Aes_ctr::get_decryptor() {
+  std::unique_ptr<Stream_cipher> cipher(new Aes_ctr_decryptor);
   return cipher;
 }
 
@@ -129,7 +129,8 @@ bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
   const EVP_CIPHER *cipher_type = Aes_ctr::get_evp_cipher();
 
   /* EVP_CipherInit() returns 1 for success and 0 for failure */
-  res = EVP_CipherInit(m_ctx, cipher_type, m_file_key, m_iv, TYPE);
+  res = EVP_CipherInit(m_ctx, cipher_type, m_file_key, m_iv,
+                       static_cast<int>(TYPE));
 
   DBUG_RETURN(res == 0);
 }

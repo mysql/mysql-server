@@ -14,10 +14,20 @@
 #	2.3 Check that M2 is in ERROR state.
 #	2.4 Stop GR, Install keyring plugin and start GR on M2.
 #	2.5 Check that t3 exists and has same values on both the servers.
-# 3. Clean Up.
+# 3. Verify that the temporary file of binlog cache is encrypted when
+#    the binlog cache spills to disk if binlog_encryption is on.
+#       3.1 Enable binlog_encryption on M1.
+#       3.2 Create a table t4 with TEXT column.
+#       3.3 Execute a trx to insert a big text into the table to make
+#           binlog cache spill to disk and ensure that the temporary
+#           file of binlog cache is encrypted.
+#       3.4 Check that t4 exists and has same values on both the servers.
+# 4. Clean Up.
 ###############################################################################
 
 --source include/big_test.inc
+# Restrict the test runs to only debug builds, since we set DEBUG point in the test.
+--source include/have_debug.inc
 # Ensure that plugin is installed.
 --source include/have_group_replication_plugin_base.inc
 
@@ -176,9 +186,38 @@ DELETE FROM t1 WHERE c1=1;
 --echo # check that t3 exists and has same values in both servers
 --let $diff_tables=server1:t3, server2:t3
 
-# Clean Up
+# Scenario 3
+
+# 3.1 Enable binlog_encryption on M1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET GLOBAL binlog_encryption=ON;
+
+# 3.2 Create a table t4 with TEXT column.
+--let $data_size= `select 0.5 * @@global.binlog_cache_size`
+
+CREATE TABLE t4 (c1 TEXT,c2 INT AUTO_INCREMENT PRIMARY KEY);
+
+# 3.3 Execute a trx to insert a big text into the table to make binlog cache spill to disk
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/add_debug_point.inc
+
+eval INSERT INTO t4(c1) VALUES (REPEAT('123', $data_size));
+
+--let $debug_point= ensure_binlog_cache_temporary_file_is_encrypted
+--source include/remove_debug_point.inc
+
+SET GLOBAL binlog_encryption = OFF;
+
+# 3.4 Check that t4 exists and has same values on both the servers.
+--source include/rpl_sync.inc
+--echo # check that t4 exists and has same values in both servers
+--let $diff_tables=server1:t4, server2:t4
 
 # Uninstall keyring plugin and remove dummy keyring file on server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 UNINSTALL PLUGIN keyring_file;
 --remove_file $MYSQL_TMP_DIR/mydummy_key2
 
@@ -191,6 +230,7 @@ UNINSTALL PLUGIN keyring_file;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t1;
+DROP TABLE t4;
 
 --source include/force_restart.inc
 --source include/group_replication_end.inc

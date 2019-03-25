@@ -743,7 +743,7 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc binlog.cc sql_binlog.cc basic_ostream.cc
                    binlog_ostream.cc basic_istream.cc binlog_istream.cc
-                   binlog_reader.cc rpl_log_encryption.cc rpl_cipher.cc
+                   binlog_reader.cc rpl_log_encryption.cc stream_cipher.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})

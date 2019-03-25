@@ -1185,11 +1185,11 @@ Key_string Rpl_encryption_header_v1::decrypt_file_password() {
   DBUG_RETURN(file_password);
 }
 
-std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_encryptor() {
+std::unique_ptr<Stream_cipher> Rpl_encryption_header_v1::get_encryptor() {
   return Aes_ctr::get_encryptor();
 }
 
-std::unique_ptr<Rpl_cipher> Rpl_encryption_header_v1::get_decryptor() {
+std::unique_ptr<Stream_cipher> Rpl_encryption_header_v1::get_decryptor() {
   return Aes_ctr::get_decryptor();
 }
 

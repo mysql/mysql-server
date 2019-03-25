@@ -2569,6 +2569,12 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
         rolled back, the trx-cache's content is truncated.
       */
       error = cache_mngr->trx_cache.truncate(thd, all);
+
+      DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
+        /* Assert that binlog cache is reset at rollback time. */
+        DBUG_ASSERT(binlog_cache_is_reset);
+        binlog_cache_is_reset = false;
+      };);
     }
   } else {
     /*
@@ -8076,6 +8082,12 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     }
 
     if (ordered_commit(thd, all, skip_commit)) DBUG_RETURN(RESULT_INCONSISTENT);
+
+    DBUG_EXECUTE_IF("ensure_binlog_cache_is_reset", {
+      /* Assert that binlog cache is reset at commit time. */
+      DBUG_ASSERT(binlog_cache_is_reset);
+      binlog_cache_is_reset = false;
+    };);
 
     /*
       Mark the flag m_is_binlogged to true only after we are done

@@ -86,7 +86,7 @@ SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/sql/basic_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_istream.cc
   ${CMAKE_SOURCE_DIR}/sql/binlog_reader.cc
-  ${CMAKE_SOURCE_DIR}/sql/rpl_cipher.cc
+  ${CMAKE_SOURCE_DIR}/sql/stream_cipher.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_log_encryption.cc
 )
 ADD_LIBRARY(mysqlbinlog_lib STATIC ${MYSQLBINLOG_LIB_SOURCES})

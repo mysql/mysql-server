@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,11 @@
 #include <openssl/evp.h>
 #include "sql/basic_ostream.h"
 #include "sql/rpl_log_encryption.h"
+
+// True if binlog cache is reset.
+#ifndef DBUG_OFF
+extern bool binlog_cache_is_reset;
+#endif
 
 /**
    Copy data from an input stream to an output stream.
@@ -134,6 +139,29 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
  private:
   IO_CACHE m_io_cache;
   my_off_t m_max_cache_size = 0;
+  /**
+    Enable IO Cache temporary file encryption.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool enable_encryption();
+  /**
+    Disable IO Cache temporary file encryption.
+  */
+  void disable_encryption();
+  /**
+    Generate a new password for the temporary file encryption.
+
+    This function is called by reset() that is called every time a transaction
+    commits to cleanup the binary log cache. The file password shall vary not
+    only per temporary file, but also per transaction being committed within a
+    single client connection.
+
+    @retval false Success.
+    @retval true Error.
+  */
+  bool setup_ciphers_password();
 };
 
 /**
@@ -268,6 +296,6 @@ class Binlog_encryption_ostream : public Truncatable_ostream {
  private:
   std::unique_ptr<Truncatable_ostream> m_down_ostream;
   std::unique_ptr<Rpl_encryption_header> m_header;
-  std::unique_ptr<Rpl_cipher> m_encryptor;
+  std::unique_ptr<Stream_cipher> m_encryptor;
 };
 #endif  // BINLOG_OSTREAM_INCLUDED

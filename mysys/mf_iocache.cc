@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -69,6 +69,7 @@ TODO:
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <algorithm>
 
 #include "m_string.h"
 #include "my_byteorder.h"
@@ -88,6 +89,9 @@ TODO:
 #include "thr_mutex.h"
 
 PSI_file_key key_file_io_cache;
+#ifndef DBUG_OFF
+bool binlog_cache_temporary_file_is_encrypted = false;
+#endif
 
 #define lock_append_buffer(info) mysql_mutex_lock(&(info)->append_buffer_lock)
 #define unlock_append_buffer(info) \
@@ -219,7 +223,7 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
       type == SEQ_READ_APPEND) { /* Assume file isn't growing */
     if (!(cache_myflags & MY_DONT_CHECK_FILESIZE)) {
       /* Calculate end of file to avoid allocating oversized buffers */
-      end_of_file = mysql_file_seek(file, 0L, MY_SEEK_END, MYF(0));
+      end_of_file = mysql_encryption_file_seek(info, 0L, MY_SEEK_END, MYF(0));
       /* Need to reset seek_not_done now that we just did a seek. */
       info->seek_not_done = !(end_of_file == seek_offset);
       if (end_of_file < seek_offset) end_of_file = seek_offset;
@@ -434,7 +438,7 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
     on the IO_CACHE.
   */
   if (info->seek_not_done) {
-    if ((mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) !=
+    if ((mysql_encryption_file_seek(info, pos_in_file, MY_SEEK_SET, MYF(0)) !=
          MY_FILEPOS_ERROR)) {
       /* No error, reset seek_not_done flag. */
       info->seek_not_done = false;
@@ -475,8 +479,8 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
       end aligned with a block.
     */
     length = (Count & (size_t) ~(IO_SIZE - 1)) - diff_length;
-    if ((read_length = mysql_file_read(info->file, Buffer, length,
-                                       info->myflags)) != length) {
+    if ((read_length = mysql_encryption_file_read(info, Buffer, length,
+                                                  info->myflags)) != length) {
       /*
         If we didn't get, what we wanted, we either return -1 for a read
         error, or (it's end of file), how much we got in total.
@@ -513,8 +517,8 @@ int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
       DBUG_RETURN(1);
     }
     length = 0; /* Didn't read any chars */
-  } else if ((length = mysql_file_read(info->file, info->buffer, max_length,
-                                       info->myflags)) < Count ||
+  } else if ((length = mysql_encryption_file_read(
+                  info, info->buffer, max_length, info->myflags)) < Count ||
              length == (size_t)-1) {
     /*
       We got an read error, or less than requested (end of file).
@@ -961,15 +965,15 @@ int _my_b_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count) {
           on the IO_CACHE.
         */
         if (cache->seek_not_done) {
-          if (mysql_file_seek(cache->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
-              MY_FILEPOS_ERROR) {
+          if (mysql_encryption_file_seek(cache, pos_in_file, MY_SEEK_SET,
+                                         MYF(0)) == MY_FILEPOS_ERROR) {
             cache->error = -1;
             unlock_io_cache(cache);
             DBUG_RETURN(1);
           }
         }
-        len =
-            mysql_file_read(cache->file, cache->buffer, length, cache->myflags);
+        len = mysql_encryption_file_read(cache, cache->buffer, length,
+                                         cache->myflags);
       }
       DBUG_PRINT("io_cache_share", ("read %lu bytes", (ulong)len));
 
@@ -1100,7 +1104,7 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
     With read-append cache we must always do a seek before we read,
     because the write could have moved the file pointer astray
   */
-  if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
+  if (mysql_encryption_file_seek(info, pos_in_file, MY_SEEK_SET, MYF(0)) ==
       MY_FILEPOS_ERROR) {
     info->error = -1;
     unlock_append_buffer(info);
@@ -1116,8 +1120,8 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
     size_t read_length;
 
     length = (Count & (size_t) ~(IO_SIZE - 1)) - diff_length;
-    if ((read_length = mysql_file_read(info->file, Buffer, length,
-                                       info->myflags)) == (size_t)-1) {
+    if ((read_length = mysql_encryption_file_read(
+             info, Buffer, length, info->myflags)) == (size_t)-1) {
       info->error = -1;
       unlock_append_buffer(info);
       return 1;
@@ -1144,8 +1148,8 @@ int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count) {
     if (Count) goto read_append_buffer;
     length = 0; /* Didn't read any more chars */
   } else {
-    length =
-        mysql_file_read(info->file, info->buffer, max_length, info->myflags);
+    length = mysql_encryption_file_read(info, info->buffer, max_length,
+                                        info->myflags);
     if (length == (size_t)-1) {
       info->error = -1;
       unlock_append_buffer(info);
@@ -1258,14 +1262,30 @@ int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count) {
         "seek_not_done" to indicate this to other functions operating
         on the IO_CACHE.
       */
-      if (mysql_file_seek(info->file, info->pos_in_file, MY_SEEK_SET, MYF(0))) {
+      if (mysql_encryption_file_seek(info, info->pos_in_file, MY_SEEK_SET,
+                                     MYF(0))) {
         info->error = -1;
         return (1);
       }
       info->seek_not_done = false;
     }
-    if (mysql_file_write(info->file, Buffer, length, info->myflags | MY_NABP))
-      return info->error = -1;
+
+    /*
+      Verify that the correct number of bytes are written by
+      mysql_encryption_file_write(...) if both MY_NABP and
+      MY_FNABP are not set.
+    */
+    DBUG_EXECUTE_IF("verify_mysql_encryption_file_write_bytes",
+                    size_t write_bytes = mysql_encryption_file_write(
+                        info, Buffer, length, info->myflags);
+                    DBUG_ASSERT(write_bytes == length););
+
+    if (DBUG_EVALUATE_IF("verify_mysql_encryption_file_write_bytes", false,
+                         true)) {
+      if (mysql_encryption_file_write(info, Buffer, length,
+                                      info->myflags | MY_NABP))
+        return info->error = -1;
+    }
 
     /*
       In case of a shared I/O cache with a writer we normally do direct
@@ -1317,7 +1337,8 @@ int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count) {
   }
   if (Count >= IO_SIZE) { /* Fill first intern buffer */
     length = Count & (size_t) ~(IO_SIZE - 1);
-    if (mysql_file_write(info->file, Buffer, length, info->myflags | MY_NABP)) {
+    if (mysql_encryption_file_write(info, Buffer, length,
+                                    info->myflags | MY_NABP)) {
       unlock_append_buffer(info);
       return info->error = -1;
     }
@@ -1437,8 +1458,8 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
         O_APPEND which moves the pos to EOF automatically on every write
       */
       if (!append_cache && info->seek_not_done) { /* File touched, do seek */
-        if (mysql_file_seek(info->file, pos_in_file, MY_SEEK_SET, MYF(0)) ==
-            MY_FILEPOS_ERROR) {
+        if (mysql_encryption_file_seek(info, pos_in_file, MY_SEEK_SET,
+                                       MYF(0)) == MY_FILEPOS_ERROR) {
           UNLOCK_APPEND_BUFFER;
           DBUG_RETURN((info->error = -1));
         }
@@ -1448,8 +1469,8 @@ int my_b_flush_io_cache(IO_CACHE *info, int need_append_buffer_lock) {
       info->write_end = (info->write_buffer + info->buffer_length -
                          ((pos_in_file + length) & (IO_SIZE - 1)));
 
-      if (mysql_file_write(info->file, info->write_buffer, length,
-                           info->myflags | MY_NABP))
+      if (mysql_encryption_file_write(info, info->write_buffer, length,
+                                      info->myflags | MY_NABP))
         info->error = -1;
       else
         info->error = 0;
@@ -1510,6 +1531,8 @@ int end_io_cache(IO_CACHE *info) {
     my_free(info->buffer);
     info->buffer = info->read_pos = (uchar *)0;
   }
+  if (info->m_encryptor != nullptr) delete info->m_encryptor;
+  if (info->m_decryptor != nullptr) delete info->m_decryptor;
   if (info->type == SEQ_READ_APPEND) {
     /* Destroy allocated mutex */
     info->type = TYPE_NOT_SET;
@@ -1604,3 +1627,58 @@ supposedly written\n");
   return 0;
 }
 #endif
+
+my_off_t mysql_encryption_file_seek(IO_CACHE *cache, my_off_t pos, int whence,
+                                    myf flags) {
+  if (cache->m_encryptor != nullptr) cache->m_encryptor->set_stream_offset(pos);
+  if (cache->m_decryptor != nullptr) cache->m_decryptor->set_stream_offset(pos);
+  return mysql_file_seek(cache->file, pos, whence, flags);
+}
+
+size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
+                                  myf flags) {
+  size_t ret = mysql_file_read(cache->file, buffer, count, flags);
+  if (ret != MY_FILE_ERROR && cache->m_decryptor != nullptr)
+    cache->m_decryptor->decrypt(buffer, buffer, ret ? ret : count);
+  return ret;
+}
+
+size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
+                                   size_t count, myf flags) {
+  size_t ret = 0;
+  if (cache->m_encryptor != nullptr) {
+    size_t written = 0;
+    const int ENCRYPT_BUFFER_SIZE = IO_SIZE * 2;
+    unsigned char encrypt_buffer[ENCRYPT_BUFFER_SIZE];
+    const unsigned char *ptr = buffer;
+
+    /*
+      Split the data in 'buffer' to ENCRYPT_BUFFER_SIZE bytes chunks and
+      encrypt them one by one.
+    */
+    while (count > 0) {
+      int encrypt_len =
+          std::min(count, static_cast<size_t>(ENCRYPT_BUFFER_SIZE));
+
+      if (cache->m_encryptor->encrypt(encrypt_buffer, ptr, encrypt_len) ||
+          DBUG_EVALUATE_IF("simulate_binlog_cache_temp_file_encrypt_fail", true,
+                           false))
+        return MY_FILE_ERROR;
+      ret = mysql_file_write(cache->file, encrypt_buffer, encrypt_len, flags);
+
+      if (ret == MY_FILE_ERROR) return ret;
+
+      DBUG_EXECUTE_IF("ensure_binlog_cache_temporary_file_is_encrypted",
+                      { binlog_cache_temporary_file_is_encrypted = true; };);
+
+      if (!(flags & (MY_NABP | MY_FNABP))) {
+        written = written + ret;
+      }
+      ptr += encrypt_len;
+      count -= encrypt_len;
+    }
+    ret = written;
+  } else
+    ret = mysql_file_write(cache->file, buffer, count, flags);
+  return ret;
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,13 +24,13 @@
 #include <memory>
 #include <string>
 #include "include/my_rnd.h"
-#include "sql/rpl_cipher.h"
+#include "sql/stream_cipher.h"
 
 /*
   Tests of replication ciphers used in binary log encryption.
 */
 
-namespace rpl_cipher_unittest {
+namespace stream_cipher_unittest {
 
 /**
   A test data set that is passed to the test functions.
@@ -277,8 +277,8 @@ void Binlog(Test_data_set ds) {
   unsigned char *encrypted = buffer.get();
   unsigned char *decrypted = buffer.get();
 
-  std::unique_ptr<Rpl_cipher> encryptor = T::get_encryptor();
-  std::unique_ptr<Rpl_cipher> decryptor = T::get_decryptor();
+  std::unique_ptr<Stream_cipher> encryptor = T::get_encryptor();
+  std::unique_ptr<Stream_cipher> decryptor = T::get_decryptor();
 
   /* Encrypt all and compare with encrypted reference if provided */
   EXPECT_FALSE(encryptor->open(key_str, 0));
@@ -314,8 +314,8 @@ void EncryptAndDecrypt(Test_data_set ds) {
   unsigned char *encrypted = buffer.get();
   unsigned char *decrypted = buffer.get();
 
-  std::unique_ptr<Rpl_cipher> encryptor = T::get_encryptor();
-  std::unique_ptr<Rpl_cipher> decryptor = T::get_decryptor();
+  std::unique_ptr<Stream_cipher> encryptor = T::get_encryptor();
+  std::unique_ptr<Stream_cipher> decryptor = T::get_decryptor();
 
   /* Encrypt all and compare with encrypted reference if provided */
   EXPECT_FALSE(encryptor->open(key_str, 0));
@@ -357,8 +357,8 @@ void SequentialEncryptAndDecrypt(Test_data_set ds) {
   my_rand_buffer(full_encrypted_buffer.get(), ds.stream_size);
   unsigned char *full_encrypted = full_encrypted_buffer.get();
 
-  std::unique_ptr<Rpl_cipher> encryptor = T::get_encryptor();
-  std::unique_ptr<Rpl_cipher> decryptor = T::get_decryptor();
+  std::unique_ptr<Stream_cipher> encryptor = T::get_encryptor();
+  std::unique_ptr<Stream_cipher> decryptor = T::get_decryptor();
 
   /* Encrypt all and compare with encrypted reference if provided */
   EXPECT_FALSE(encryptor->open(key_str, 0));
@@ -419,8 +419,8 @@ void MultiLengthEncryptAndDecrypt(Test_data_set ds) {
   my_rand_buffer(full_encrypted_buffer.get(), ds.stream_size);
   unsigned char *full_encrypted = full_encrypted_buffer.get();
 
-  std::unique_ptr<Rpl_cipher> encryptor = T::get_encryptor();
-  std::unique_ptr<Rpl_cipher> decryptor = T::get_decryptor();
+  std::unique_ptr<Stream_cipher> encryptor = T::get_encryptor();
+  std::unique_ptr<Stream_cipher> decryptor = T::get_decryptor();
 
   /* Encrypt all and compare with encrypted reference if provided */
   EXPECT_FALSE(encryptor->open(key_str, 0));
@@ -478,8 +478,8 @@ void SeekAndEncryptAndDecrypt(Test_data_set ds) {
       new unsigned char[ds.stream_size]);
   unsigned char *source = source_buffer.get();
 
-  std::unique_ptr<Rpl_cipher> encryptor = T::get_encryptor();
-  std::unique_ptr<Rpl_cipher> decryptor = T::get_decryptor();
+  std::unique_ptr<Stream_cipher> encryptor = T::get_encryptor();
+  std::unique_ptr<Stream_cipher> decryptor = T::get_decryptor();
 
   /* Encrypt all and compare with encrypted reference if provided */
   EXPECT_FALSE(encryptor->open(key_str, 0));
@@ -571,4 +571,4 @@ TEST(Aes_ctr, MaxSeekAndEncryptAndDecrypt) {
   SeekAndEncryptAndDecrypt<Aes_ctr>(max);
 }
 
-}  // namespace rpl_cipher_unittest
+}  // namespace stream_cipher_unittest

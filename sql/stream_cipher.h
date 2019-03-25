@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef RPL_CIPHER_INCLUDED
-#define RPL_CIPHER_INCLUDED
+#ifndef STREAM_CIPHER_INCLUDED
+#define STREAM_CIPHER_INCLUDED
 
 #include <openssl/evp.h>
 #include <memory>
 #include <string>
 
 /**
-  @file rpl_cipher.h
+  @file stream_cipher.h
 
   @brief This file includes core components for encrypting/decrypting
          binary log files.
@@ -37,7 +37,7 @@
 typedef std::basic_string<unsigned char> Key_string;
 
 /**
-  @class Rpl_cipher
+  @class Stream_cipher
 
   This abstract class represents the interface of a replication logs encryption
   cipher that can be used to encrypt/decrypt a given stream content in both
@@ -74,9 +74,9 @@ typedef std::basic_string<unsigned char> Key_string;
 
       close();
 */
-class Rpl_cipher {
+class Stream_cipher {
  public:
-  virtual ~Rpl_cipher() {}
+  virtual ~Stream_cipher() {}
 
   /**
     Open the cipher with given password.
@@ -165,20 +165,20 @@ class Aes_ctr {
   */
   static const EVP_CIPHER *get_evp_cipher() { return EVP_aes_256_ctr(); }
   /**
-    Returns a new unique Rpl_cipher encryptor.
+    Returns a new unique Stream_cipher encryptor.
 
-    @return A new Rpl_cipher encryptor.
+    @return A new Stream_cipher encryptor.
   */
-  static std::unique_ptr<Rpl_cipher> get_encryptor();
+  static std::unique_ptr<Stream_cipher> get_encryptor();
   /**
-    Returns a new unique Rpl_cipher decryptor.
+    Returns a new unique Stream_cipher decryptor.
 
-    @return A new Rpl_cipher decryptor.
+    @return A new Stream_cipher decryptor.
   */
-  static std::unique_ptr<Rpl_cipher> get_decryptor();
+  static std::unique_ptr<Stream_cipher> get_decryptor();
 };
 
-enum Cipher_type { ENCRYPT, DECRYPT };
+enum class Cipher_type : int { ENCRYPT = 0, DECRYPT = 1 };
 
 /**
   @class Aes_ctr_cipher
@@ -187,7 +187,7 @@ enum Cipher_type { ENCRYPT, DECRYPT };
   encrypt/decrypt a stream in both sequential and random way.
 */
 template <Cipher_type TYPE>
-class Aes_ctr_cipher : public Rpl_cipher {
+class Aes_ctr_cipher : public Stream_cipher {
  public:
   static const int PASSWORD_LENGTH = Aes_ctr::PASSWORD_LENGTH;
   static const int AES_BLOCK_SIZE = Aes_ctr::AES_BLOCK_SIZE;
@@ -228,4 +228,4 @@ class Aes_ctr_cipher : public Rpl_cipher {
 
 typedef class Aes_ctr_cipher<Cipher_type::ENCRYPT> Aes_ctr_encryptor;
 typedef class Aes_ctr_cipher<Cipher_type::DECRYPT> Aes_ctr_decryptor;
-#endif  // RPL_CIPHER_INCLUDED
+#endif  // STREAM_CIPHER_INCLUDED
