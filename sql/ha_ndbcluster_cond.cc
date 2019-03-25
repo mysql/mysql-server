@@ -237,8 +237,13 @@ public:
   {
     Field *field= get_field();
     if (field)
-      return field->val_str(str);
-
+    {
+      my_bitmap_map *old_map=
+        dbug_tmp_use_all_columns(field->table, field->table->read_set);
+      String *s = field->val_str(str);
+      dbug_tmp_restore_column_map(field->table->read_set, old_map);
+      return s;
+    }
     return NULL;
   }
 
