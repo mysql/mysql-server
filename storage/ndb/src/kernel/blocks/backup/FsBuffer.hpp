@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,6 +363,8 @@ FsBuffer::updateWritePtr(Uint32 sz){
   const Uint32 Ts = m_size;
   
   const Uint32 Tnew = (Tw + sz);
+
+  require(m_free >= sz);
   m_free -= sz;
   m_freeLwm = MIN(m_free, m_freeLwm);
 

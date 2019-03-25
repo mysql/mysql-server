@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef BACKUP_FORMAT_HPP
 #define BACKUP_FORMAT_HPP
 
+#include <ndb_limits.h>
 #include <ndb_types.h>
 
 #define JAM_FILE_ID 473
@@ -42,6 +43,9 @@ struct BackupFormat {
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_SMALL = 4096;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
   static const Uint32 BYTES_PER_PART_ON_DISK = 3;
+  static constexpr Uint32 MAX_BACKUP_FILE_LOG_DATA_SIZE =
+    MAX_ATTRIBUTES_IN_INDEX + MAX_KEY_SIZE_IN_WORDS +
+    MAX_ATTRIBUTES_IN_TABLE + MAX_TUPLE_SIZE_IN_WORDS;
 
   enum RecordType
   {
@@ -277,7 +281,7 @@ struct BackupFormat {
   };
 
   /**
-   * LOG file format
+   * LOG file format (since 5.1.6 but not drop6 (5.2.x))
    */
   struct LogFile {
 
@@ -285,6 +289,17 @@ struct BackupFormat {
      * Log Entry
      */
     struct LogEntry {
+      // Header length excluding leading Length word.
+      static constexpr Uint32 HEADER_LENGTH_WORDS = 3;
+      static constexpr Uint32 FRAGID_OFFSET = 3;
+      // Add one word for leading Length word for data offset
+      static constexpr Uint32 DATA_OFFSET = 1 + HEADER_LENGTH_WORDS;
+      static constexpr Uint32 MAX_SIZE = 1 /* length word */ +
+                                         HEADER_LENGTH_WORDS +
+                                         MAX_BACKUP_FILE_LOG_DATA_SIZE +
+                                         1 /* gci */ +
+                                         1 /* trailing length word for undo */;
+
       Uint32 Length;
       Uint32 TableId;
       // If TriggerEvent & 0x10000 == true then GCI is right after data
@@ -292,17 +307,31 @@ struct BackupFormat {
       Uint32 FragId;
       Uint32 Data[1]; // Len = Length - 3
     };
+    static_assert(offsetof(LogEntry, FragId) ==
+                    LogEntry::FRAGID_OFFSET * sizeof(Uint32),
+                  "");
+    static_assert(offsetof(LogEntry, Data) ==
+                    LogEntry::DATA_OFFSET * sizeof(Uint32),
+                  "");
 
     /**
-     * Log Entry pre NDBD_FRAGID_VERSION
+     * Log Entry pre NDBD_FRAGID_VERSION (<5.1.6) and drop6 (5.2.x)
      */
     struct LogEntry_no_fragid {
+      // Header length excluding leading Length word.
+      static constexpr Uint32 HEADER_LENGTH_WORDS = 2;
+      // Add one word for leadng Length word for data offset
+      static constexpr Uint32 DATA_OFFSET = 1 + HEADER_LENGTH_WORDS;
+
       Uint32 Length;
       Uint32 TableId;
       // If TriggerEvent & 0x10000 == true then GCI is right after data
       Uint32 TriggerEvent;
       Uint32 Data[1]; // Len = Length - 2
     };
+    static_assert(offsetof(LogEntry_no_fragid, Data) ==
+                    LogEntry_no_fragid::DATA_OFFSET * sizeof(Uint32),
+                  "");
   };
 
   /**

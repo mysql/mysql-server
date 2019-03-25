@@ -33,6 +33,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
 #include <NdbAutoPtr.hpp>
+#include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 
 #include "sql/ha_ndbcluster_tables.h"
@@ -422,7 +423,7 @@ RestoreMetaData::readMetaTableDesc() {
   // Read section header 
   Uint32 sz = sizeof(sectionInfo) >> 2;
   if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION ||
-      isDrop6(m_fileHeader.NdbVersion))
+      ndbd_drop6(m_fileHeader.NdbVersion))
   {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
@@ -840,7 +841,7 @@ RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
   NdbTableImpl* tableImpl = 0;
   int ret = NdbDictInterface::parseTableInfo
     (&tableImpl, data, len, false,
-     isDrop6(m_fileHeader.NdbVersion) ? MAKE_VERSION(5,1,2) :
+     ndbd_drop6(m_fileHeader.NdbVersion) ? MAKE_VERSION(5,1,2) :
      m_fileHeader.NdbVersion);
   
   if (ret != 0) {
@@ -1296,7 +1297,7 @@ RestoreDataIterator::readTupleData_old(Uint32 *buf_ptr,
   }
 
   int res;
-  if (!isDrop6(m_currentTable->backupVersion))
+  if (!ndbd_drop6(m_currentTable->backupVersion))
   {
     if ((res = readVarData(buf_ptr, ptr, dataLength)))
       return res;
@@ -1960,7 +1961,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,3) || isDrop6(backupVersion))
+  if (backupVersion < MAKE_VERSION(5,1,3) || ndbd_drop6(backupVersion))
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
@@ -2091,8 +2092,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       return 0;
     }
 
-    if (unlikely(m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION ||
-                 isDrop6(m_metaData.getFileHeader().NdbVersion)))
+    const Uint32 backup_file_version = m_metaData.getFileHeader().NdbVersion;
+    if (unlikely(!ndbd_backup_file_fragid(backup_file_version)))
     {
       /*
         FragId was introduced in LogEntry in version
@@ -2107,7 +2108,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE_no_fragid->TriggerEvent);
       frag_id= 0;
       attr_data= &logE_no_fragid->Data[0];
-      attr_data_len= len - ((offsetof(LogE_no_fragid, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry_no_fragid::HEADER_LENGTH_WORDS;
     }
     else /* normal case */
     {
@@ -2117,7 +2119,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       triggerEvent= ntohl(logE->TriggerEvent);
       frag_id= ntohl(logE->FragId);
       attr_data= &logE->Data[0];
-      attr_data_len= len - ((offsetof(LogE, Data) >> 2) - 1);
+      attr_data_len=
+        len - BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
     }
     
     const bool hasGcp= (triggerEvent & 0x10000) != 0;

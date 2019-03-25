@@ -4727,7 +4727,7 @@ Backup::sendCreateTrig(Signal* signal,
     trigPtr.p->tab_ptr_i = tabPtr.i;
     trigPtr.p->logEntry = 0;
     trigPtr.p->event = j;
-    trigPtr.p->maxRecordSize = 4096;
+    trigPtr.p->maxRecordSize = tabPtr.p->maxRecordSize;
     trigPtr.p->operation =
       &ptr.p->files.getPtr(ptr.p->logFilePtr)->operation;
     trigPtr.p->operation->noOfBytes = 0;
@@ -6098,11 +6098,14 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
     2,   // 32k
     0    // 3M
   };
-  const Uint32 maxInsert[] = {
-    MAX_WORDS_META_FILE,
-    4096,    // 16k
-    BACKUP_MIN_BUFF_WORDS
+
+  constexpr Uint32 maxInsert[] =
+  {
+    MAX_WORDS_META_FILE,                       // control files
+    BackupFormat::LogFile::LogEntry::MAX_SIZE, // redo/undo log files
+    BACKUP_MIN_BUFF_WORDS                      // data files
   };
+
   Uint32 minWrite[] = {
     8192,
     8192,
@@ -10305,7 +10308,19 @@ Backup::execTRIG_ATTRINFO(Signal* signal) {
   {
     jam();
     Uint32 sz = trigPtr.p->maxRecordSize;
-    logEntry = trigPtr.p->logEntry = get_log_buffer(signal, trigPtr, sz);
+    /* For both UNDO and REDO logging add an extra word for potential gci
+     * stored at end.
+     * If backup is doing UNDO logging add an extra word for logEntry length
+     * info stored at end.
+     * See processing of long GSN_FIRE_TRIG_ORD.
+     */
+    const Uint32 log_entry_words =
+        1 /* length word */ +
+        BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS +
+        1 /* gci_word */ +
+        (ptr.p->flags & BackupReq::USE_UNDO_LOG ? 1 : 0) /* tail length */;
+    logEntry = get_log_buffer(signal, trigPtr, log_entry_words + sz);
+    trigPtr.p->logEntry = logEntry;
     if (unlikely(logEntry == 0))
     {
       jam();
@@ -10382,12 +10397,23 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
      * dataPtr[2] : After values
      */
 
-    /* Backup is doing UNDO logging and need before values
-     * Add 2 extra words to get_log_buffer for potential gci and logEntry length info stored at end.
-     */
-    if(ptr.p->flags & BackupReq::USE_UNDO_LOG) {
+    // Add one word to get_log_buffer for potential gci info stored at end.
+    const Uint32 log_entry_words =
+        1 /* length word */ +
+        BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS +
+        1 /* gci_word */;
+
+    // Backup is doing UNDO logging and need before values
+    if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
+    {
+      jam();
+      // Add one word to get_log_buffer for logEntry length info stored at end.
       trigPtr.p->logEntry = get_log_buffer(signal,
-                                           trigPtr, dataPtr[0].sz + dataPtr[1].sz + 2);
+                                           trigPtr,
+                                           log_entry_words +
+                                             dataPtr[0].sz +
+                                             dataPtr[1].sz +
+                                             1);
       if (unlikely(trigPtr.p->logEntry == 0))
       {
         jam();
@@ -10399,9 +10425,14 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
       trigPtr.p->logEntry->Length = dataPtr[0].sz + dataPtr[1].sz;
     }
     //  Backup is doing REDO logging and need after values
-    else {
+    else
+    {
+      jam();
       trigPtr.p->logEntry = get_log_buffer(signal,
-                                           trigPtr, dataPtr[0].sz + dataPtr[2].sz + 1);
+                                           trigPtr,
+                                           log_entry_words +
+                                             dataPtr[0].sz +
+                                             dataPtr[2].sz);
       if (unlikely(trigPtr.p->logEntry == 0))
       {
         jam();
@@ -10430,20 +10461,24 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
   }
 
   Uint32 datalen = len;
-  len += (sizeof(BackupFormat::LogFile::LogEntry) >> 2) - 2;
+  len += BackupFormat::LogFile::LogEntry::HEADER_LENGTH_WORDS;
   trigPtr.p->logEntry->Length = htonl(len);
 
   if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
   {
+    jam();
     /* keep the length at both the end of logEntry and ->logEntry variable
        The total length of logEntry is len + 2
     */
     trigPtr.p->logEntry->Data[datalen] = htonl(len);
   }
 
-  Uint32 entryLength = len +1;
-  if(ptr.p->flags & BackupReq::USE_UNDO_LOG)
-    entryLength ++;
+  Uint32 entryLength = len + 1;
+  if (ptr.p->flags & BackupReq::USE_UNDO_LOG)
+  {
+    jam();
+    entryLength++;
+  }
 
   ndbrequire(entryLength <= trigPtr.p->operation->dataBuffer.getMaxWrite());
   trigPtr.p->operation->dataBuffer.updateWritePtr(entryLength);

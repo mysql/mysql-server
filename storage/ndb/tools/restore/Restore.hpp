@@ -62,13 +62,6 @@ enum TableChangesMask
   TCM_ATTRIBUTE_DEMOTION = 0x4
 };
 
-inline
-bool
-isDrop6(Uint32 version)
-{
-  return (getMajor(version) == 5 && getMinor(version) == 2);
-}
-
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Column NDBCOL;
 typedef  void* (*AttrConvertFunc)(const void *old_data, 
@@ -514,6 +507,13 @@ public:
 };
 
 class RestoreLogIterator : public BackupFile {
+  /* The BackupFile buffer need to be big enough for biggest log entry data,
+   * not including log entry header.
+   * No harm in require space for a few extra words to header too.
+   */
+  static_assert(BackupFile::BUFFER_SIZE >=
+                  BackupFormat::LogFile::LogEntry::MAX_SIZE,
+                "");
 private:
   const RestoreMetaData & m_metaData;
 

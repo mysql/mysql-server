@@ -1154,4 +1154,27 @@ ndbd_enable_redo_control(Uint32 x)
   }
   return x >= NDBD_ENABLE_REDO_CONTROL_80;
 }
+
+/**
+ * Drop6 version, have impact on some file formats.
+ */
+
+static
+inline
+int
+ndbd_drop6(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  return (major == 5) && (minor == 2);
+}
+
+static
+inline
+int
+ndbd_backup_file_fragid(Uint32 x)
+{
+  return (x >= NDBD_FRAGID_VERSION) && !ndbd_drop6(x);
+}
+
 #endif
