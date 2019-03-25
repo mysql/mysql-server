@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,13 +41,17 @@ std::shared_ptr<MetaData> meta_data{nullptr};
  *                            attempt fails.
  * @param ttl The TTL of the cached data (in milliseconds).
  * @param ssl_options SSL related options to be used for connection
+ * @param use_gr_notifications Flag indicating if the metadata cache should
+ *                             use GR notifications as an additional trigger
+ *                             for metadata refresh
  */
 std::shared_ptr<MetaData> get_instance(
     const std::string &user, const std::string &password, int connect_timeout,
     int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options) {
+    const mysqlrouter::SSLOptions &ssl_options,
+    const bool use_gr_notifications) {
   meta_data.reset(new ClusterMetadata(user, password, connect_timeout,
                                       read_timeout, connection_attempts, ttl,
-                                      ssl_options));
+                                      ssl_options, use_gr_notifications));
   return meta_data;
 }

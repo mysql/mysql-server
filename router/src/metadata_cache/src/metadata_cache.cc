@@ -495,15 +495,16 @@ MetadataCache::MetadataCache(
     std::shared_ptr<MetaData>
         cluster_metadata,  // this could be changed to UniquePtr
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
-    const std::string &cluster, size_t thread_stack_size)
+    const std::string &cluster, size_t thread_stack_size,
+    bool use_gr_notifications)
     : group_replication_id_(group_replication_id),
-      refresh_thread_(thread_stack_size) {
+      refresh_thread_(thread_stack_size),
+      use_gr_notifications_(use_gr_notifications) {
   for (const auto &s : metadata_servers) {
     metadata_servers_.emplace_back(s);
   }
   ttl_ = ttl;
   cluster_name_ = cluster;
-  terminated_ = terminator_.get_future();
   meta_data_ = cluster_metadata;
   ssl_options_ = ssl_options;
 }
@@ -526,8 +527,7 @@ void MetadataCache::refresh_thread() {
   const std::chrono::milliseconds kTerminateOrForcedRefreshCheckInterval =
       std::chrono::seconds(1);
 
-  while (terminated_.wait_for(std::chrono::seconds(0)) !=
-         std::future_status::ready) {
+  while (!terminated_) {
     refresh();
 
     auto ttl_left = ttl_;
@@ -538,7 +538,15 @@ void MetadataCache::refresh_thread() {
       auto sleep_for =
           std::min(ttl_left, kTerminateOrForcedRefreshCheckInterval);
 
-      if (terminated_.wait_for(sleep_for) == std::future_status::ready) return;
+      {
+        std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
+        refresh_wait_.wait_for(lock, sleep_for);
+        if (terminated_) return;
+        if (refresh_requested_) {
+          refresh_requested_ = false;
+          break;  // go to the refresh() in the outer loop
+        }
+      }
 
       ttl_left -= sleep_for;
       {
@@ -556,13 +564,17 @@ void MetadataCache::refresh_thread() {
  * Connect to the metadata servers and refresh the metadata information in the
  * cache.
  */
-void MetadataCache::start() { refresh_thread_.run(&run_thread, this); }
+void MetadataCache::start() {
+  // start refresh thread that uses classic protocol
+  refresh_thread_.run(&run_thread, this);
+}
 
 /**
  * Stop the refresh thread.
  */
 void MetadataCache::stop() noexcept {
-  terminator_.set_value(0);
+  terminated_ = true;
+  refresh_wait_.notify_one();
   refresh_thread_.join();
 }
 
@@ -603,8 +615,7 @@ metadata_cache::ManagedInstance::ManagedInstance(
     const std::string &p_mysql_server_uuid, const std::string &p_role,
     const ServerMode p_mode, const float p_weight,
     const unsigned int p_version_token, const std::string &p_location,
-    const std::string &p_host, const unsigned int p_port,
-    const unsigned int p_xport)
+    const std::string &p_host, const uint16_t p_port, const uint16_t p_xport)
     : replicaset_name(p_replicaset_name),
       mysql_server_uuid(p_mysql_server_uuid),
       role(p_role),
@@ -666,8 +677,7 @@ void MetadataCache::refresh() {
   // fetch metadata
   bool broke_loop = false;
   for (auto &metadata_server : metadata_servers_) {
-    if (terminated_.wait_for(std::chrono::seconds(0)) ==
-        std::future_status::ready) {
+    if (terminated_) {
       broke_loop = true;
       break;
     }
@@ -803,17 +813,30 @@ bool MetadataCache::fetch_metadata_from_connected_instance(
 }
 
 void MetadataCache::on_instances_changed(const bool md_servers_reachable) {
-  std::lock_guard<std::mutex> lock(replicaset_instances_change_callbacks_mtx_);
-
   auto instances = replicaset_lookup("" /*cluster_name_*/);
+  {
+    std::lock_guard<std::mutex> lock(
+        replicaset_instances_change_callbacks_mtx_);
 
-  for (auto &replicaset_clb : listeners_) {
-    const std::string replicaset_name = replicaset_clb.first;
+    for (auto &replicaset_clb : listeners_) {
+      const std::string replicaset_name = replicaset_clb.first;
 
-    for (auto each : listeners_[replicaset_name]) {
-      each->notify(instances, md_servers_reachable);
+      for (auto each : listeners_[replicaset_name]) {
+        each->notify(instances, md_servers_reachable);
+      }
     }
   }
+
+  if (use_gr_notifications_) {
+    meta_data_->setup_gr_notifications_listener(
+        instances, [this]() { on_refresh_requested(); });
+  }
+}
+
+void MetadataCache::on_refresh_requested() {
+  std::unique_lock<std::mutex> lock(refresh_wait_mtx_);
+  refresh_requested_ = true;
+  refresh_wait_.notify_one();
 }
 
 void MetadataCache::mark_instance_reachability(

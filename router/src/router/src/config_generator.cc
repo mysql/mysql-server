@@ -88,6 +88,8 @@ static const char *kKeyringAttributePassword = "password";
 
 static const std::chrono::milliseconds kDefaultMetadataTTL =
     std::chrono::milliseconds(500);
+static const std::chrono::milliseconds kDefaultMetadataTTLGRNotificationsON =
+    std::chrono::milliseconds(60 * 1000);
 static constexpr uint32_t kMaxRouterId =
     999999;  // max router id is 6 digits due to username size constraints
 static constexpr unsigned kNumRandomChars = 12;
@@ -904,6 +906,9 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
   options.ssl_options.capath = get_opt(user_options, "ssl_capath", "");
   options.ssl_options.crl = get_opt(user_options, "ssl_crl", "");
   options.ssl_options.crlpath = get_opt(user_options, "ssl_crlpath", "");
+
+  options.use_gr_notifications =
+      user_options.find("use-gr-notifications") != user_options.end();
 
   return options;
 }
@@ -1725,12 +1730,15 @@ void ConfigGenerator::create_config(
               << "\n";
 
   const auto &metadata_key = metadata_cluster;
+  auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
+                                          : kDefaultMetadataTTL;
   config_file << "[metadata_cache:" << metadata_key << "]\n"
               << "router_id=" << router_id << "\n"
               << "user=" << username << "\n"
               << "metadata_cluster=" << metadata_cluster << "\n"
-              << "ttl="
-              << mysqlrouter::ms_to_seconds_string(kDefaultMetadataTTL) << "\n";
+              << "ttl=" << mysqlrouter::ms_to_seconds_string(ttl) << "\n"
+              << "use_gr_notifications="
+              << (options.use_gr_notifications ? "1" : "0") << "\n";
 
   // SSL options
   config_file << option_line("ssl_mode", options.ssl_options.mode);

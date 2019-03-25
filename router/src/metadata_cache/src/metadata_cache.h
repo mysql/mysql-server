@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_INCLUDED
 
+#include "gr_notifications_listener.h"
 #include "metadata.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/metadata_cache.h"
@@ -63,6 +64,9 @@ class METADATA_API MetadataCache
    * @param ssl_options SSL related options for connection
    * @param cluster_name The name of the desired cluster in the metadata server
    * @param thread_stack_size The maximum memory allocated for thread's stack
+   * @param use_gr_notifications Flag indicating if the metadata cache should
+   *                             use GR notifications as an additional trigger
+   *                             for metadata refresh
    */
   MetadataCache(
       const std::string &group_replication_id,
@@ -70,7 +74,8 @@ class METADATA_API MetadataCache
       std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
       const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name,
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
+      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
+      bool use_gr_notifications = false);
 
   /** @brief Starts the Metadata Cache
    *
@@ -172,6 +177,9 @@ class METADATA_API MetadataCache
   // the subscribed observers
   void on_instances_changed(const bool md_servers_reachable);
 
+  // Called each time we were requested to refresh the metadata
+  void on_refresh_requested();
+
   // Stores the list replicasets and their server instances.
   // Keyed by replicaset name
   std::map<std::string, metadata_cache::ManagedReplicaSet> replicaset_data_;
@@ -200,6 +208,9 @@ class METADATA_API MetadataCache
   /** @brief refresh thread facade */
   mysql_harness::MySQLRouterThread refresh_thread_;
 
+  /** @brief notification thread facade */
+  mysql_harness::MySQLRouterThread notification_thread_;
+
   // This mutex is used to ensure that a lookup of the metadata is consistent
   // with the changes in the metadata due to a cache refresh.
   std::mutex cache_refreshing_mutex_;
@@ -215,11 +226,14 @@ class METADATA_API MetadataCache
   std::mutex replicasets_with_unreachable_nodes_mtx_;
 
   // Flag used to terminate the refresh thread.
-  //
-  // note: should be <void> as no value is needed, but sun-cc 12.5 fails to link
-  // as it can't find the move-constructor of std::future<void> in that case.
-  std::promise<int> terminator_;
-  std::future<int> terminated_;
+  std::atomic<bool> terminated_{false};
+
+  bool refresh_requested_{false};
+
+  bool use_gr_notifications_;
+
+  std::condition_variable refresh_wait_;
+  std::mutex refresh_wait_mtx_;
 
   // map of lists (per each replicaset name) of registered callbacks to be
   // called on selected replicaset instances change event

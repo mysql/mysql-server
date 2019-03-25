@@ -52,7 +52,8 @@ std::string MetadataCachePluginConfig::get_default(
       {"connect_timeout", to_string(metadata_cache::kDefaultConnectTimeout)},
       {"read_timeout", to_string(metadata_cache::kDefaultReadTimeout)},
       {"thread_stack_size",
-       to_string(mysql_harness::kDefaultStackSizeInKiloBytes)}};
+       to_string(mysql_harness::kDefaultStackSizeInKiloBytes)},
+      {"use_gr_notifications", "0"}};
   auto it = defaults.find(option);
   if (it == defaults.end()) {
     return std::string();

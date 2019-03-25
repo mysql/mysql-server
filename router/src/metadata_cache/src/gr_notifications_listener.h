@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,23 +22,34 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef METADATA_CACHE_METADATA_FACTORY_INCLUDED
-#define METADATA_CACHE_METADATA_FACTORY_INCLUDED
+#ifndef METADATA_CACHE_GR_NOTIFICATION_LISTENER_INCLUDED
+#define METADATA_CACHE_GR_NOTIFICATION_LISTENER_INCLUDED
 
+#include <functional>
 #include <memory>
+#include <vector>
 
-#include "metadata.h"
-#include "tcp_address.h"
+#include "mysqlrouter/metadata_cache.h"
 
-// This provides a factory method that returns a pluggable instance
-// to the underlying transport layer implementation. The transport
-// layer provides the means from which the metadata is
-// fetched.
+class GRNotificationListener {
+ public:
+  GRNotificationListener(const std::string &user_name,
+                         const std::string &password);
 
-std::shared_ptr<MetaData> get_instance(
-    const std::string &user, const std::string &password, int connect_timeout,
-    int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-    const mysqlrouter::SSLOptions &ssl_options,
-    const bool use_gr_notifications);
+  ~GRNotificationListener();
+  GRNotificationListener(GRNotificationListener &) = delete;
+  GRNotificationListener &operator=(GRNotificationListener &) = delete;
 
-#endif  // METADATA_CACHE_METADATA_FACTORY_INCLUDED
+  using NotificationClb = std::function<void()>;
+
+  void setup(const std::vector<metadata_cache::ManagedInstance> &instances,
+             const NotificationClb &notification_clb);
+
+ private:
+  // let's hide the x-client stuff in the pimpl so that those including us
+  // didn't need to inclde that too
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+#endif  // METADATA_CACHE_GR_NOTIFICATION_LISTENER_INCLUDED

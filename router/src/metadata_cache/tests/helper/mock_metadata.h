@@ -90,11 +90,15 @@ class METADATA_TESTS_API MockNG : public ClusterMetadata {
    *                            server must be attempted, when a connection
    *                            attempt fails.
    * @param ttl The time to live of the data in the cache.
+   * @param use_gr_notifications Flag indicating if the metadata cache should
+   *                             use GR notifications as an additional trigger
+   *                             for metadata refresh
    */
-  MockNG(
-      const std::string &user, const std::string &password, int connect_timeout,
-      int read_timeout, int connection_attempts, std::chrono::milliseconds ttl,
-      const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions());
+  MockNG(const std::string &user, const std::string &password,
+         int connect_timeout, int read_timeout, int connection_attempts,
+         std::chrono::milliseconds ttl,
+         const mysqlrouter::SSLOptions &ssl_options = mysqlrouter::SSLOptions(),
+         const bool use_gr_notifications = false);
 
   /** @brief Destructor
    *

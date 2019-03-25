@@ -898,7 +898,7 @@ std::vector<AsyncNotice> DuktapeStatementReader::get_async_notices() {
       }
 
       const std::string scope = duk_get_string(ctx, -1);
-      if (scope == "LOCAL") {
+      if (scope == "LOCAL" || scope == "") {
         notice.is_local = true;
       } else if (scope == "GLOBAL") {
         notice.is_local = false;

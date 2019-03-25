@@ -106,23 +106,6 @@ class StateFileTest : public RouterComponentTest {
     return result;
   }
 
-  // returns full path to the file
-  std::string create_state_file(const std::string &dir_name,
-                                const std::string &content) {
-    Path file_path = Path(dir_name).join("state.json");
-    std::ofstream ofs_config(file_path.str());
-
-    if (!ofs_config.good()) {
-      throw(
-          std::runtime_error("Could not create state file " + file_path.str()));
-    }
-
-    ofs_config << content;
-    ofs_config.close();
-
-    return file_path.str();
-  }
-
   RouterComponentTest::CommandHandle launch_router(
       const std::string &temp_test_dir,
       const std::string &metadata_cache_section,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class MetadataCacheTest : public ::testing::Test {
       : mf("admin", "admin", 1, 1, 1, std::chrono::seconds(10)),
         cache("0000-0001", {TCPAddress("localhost", 32275)},
               get_instance("admin", "admin", 1, 1, 1, std::chrono::seconds(10),
-                           mysqlrouter::SSLOptions()),
+                           mysqlrouter::SSLOptions(), false),
               std::chrono::seconds(10), mysqlrouter::SSLOptions(),
               "replicaset-1") {
     cache.refresh();

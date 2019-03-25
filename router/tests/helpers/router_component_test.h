@@ -298,13 +298,16 @@ class RouterComponentTest {
    *                     standard output
    * @param   http_port  port number where the http_server module of the mock
    * server will accept REST client requests
+   * @param   x_port  port number where the mock server will accept x client
+   *                  connections
    * @param   module_prefix base-path for javascript modules used by the tests
    *
    * @returns handle to the launched proccess
    */
   CommandHandle launch_mysql_server_mock(
       const std::string &json_file, unsigned port, bool debug_mode = false,
-      uint16_t http_port = 0, const std::string &module_prefix = "") const;
+      uint16_t http_port = 0, uint16_t x_port = 0,
+      const std::string &module_prefix = "") const;
 
   /** @brief Launches a process.
    *
@@ -408,6 +411,10 @@ class RouterComponentTest {
       const std::string &directory, const std::string &sections = "",
       const std::map<std::string, std::string> *default_section = nullptr,
       const std::string &name = "mysqlrouter.conf") const;
+
+  // returns full path to the file
+  std::string create_state_file(const std::string &dir_name,
+                                const std::string &content);
 
   void set_origin(const Path &origin) { origin_dir_ = origin; }
 

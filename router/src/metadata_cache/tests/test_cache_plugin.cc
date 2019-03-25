@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -73,8 +73,8 @@ class MetadataCachePluginTest : public ::testing::Test {
   void SetUp() override {
     std::vector<ManagedInstance> instance_vector_1;
     metadata_cache::MetadataCacheAPI::instance()->cache_init(
-        replication_group_id, metadata_server_vector, kDefaultMetadataUser,
-        kDefaultMetadataPassword, kDefaultMetadataTTL,
+        replication_group_id, metadata_server_vector,
+        {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
         mysqlrouter::SSLOptions(), kDefaultMetadataReplicaset, 1, 1);
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;

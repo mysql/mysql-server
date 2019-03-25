@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ SET(METADATA_CACHE_TESTS_HELPER
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/cache_api.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/plugin_config.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/group_replication_metadata.cc
+  ${PROJECT_SOURCE_DIR}/src/metadata_cache/src/gr_notifications_listener.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata.cc
   ${PROJECT_SOURCE_DIR}/src/metadata_cache/tests/helper/mock_metadata_factory.cc
 )
@@ -48,11 +49,11 @@ SET(include_dirs
 # already built as part of the test libraries.
 IF(NOT WIN32)
   ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-  TARGET_LINK_LIBRARIES(metadata_cache_tests router_lib ${MySQL_CLIENT_LIB})
+  TARGET_LINK_LIBRARIES(metadata_cache_tests router_lib ${MySQL_CLIENT_LIB} mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 ELSE()
   ADD_LIBRARY(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
   TARGET_LINK_LIBRARIES(metadata_cache_tests router_lib metadata_cache
-                        ${MySQL_CLIENT_LIB})
+                        ${MySQL_CLIENT_LIB} mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LIBRARY}-lite)
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
                              PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests

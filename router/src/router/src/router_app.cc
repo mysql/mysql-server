@@ -827,6 +827,15 @@ void MySQLRouter::prepare_command_options() noexcept {
       });
 
   arg_handler_.add_option(
+      OptionNames({"--conf-use-gr-notifications"}),
+      "Whether to enable handling of cluster state change GR notifications.",
+      CmdOptionValueReq::none, "",
+      [this](const string &) {
+        this->bootstrap_options_["use-gr-notifications"] = "1";
+      },
+      [this] { this->assert_bootstrap_mode("--conf-use-gr-notifications"); });
+
+  arg_handler_.add_option(
       OptionNames({"-d", "--directory"}),
       "Creates a self-contained directory for a new instance of the Router. "
       "(bootstrap)",
@@ -1291,6 +1300,7 @@ void MySQLRouter::show_usage(bool include_options) noexcept {
         "--conf-use-sockets",
         "--conf-skip-tcp",
         "--conf-base-port",
+        "--conf-use-gr-notifications",
         "--connect-timeout",
         "--directory",
         "--force",

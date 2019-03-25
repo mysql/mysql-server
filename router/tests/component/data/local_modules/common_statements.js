@@ -9,6 +9,7 @@ var defaults = {
   // - hostname
   // - port
   // - state
+  // - xport (if available and needed)
   group_replication_membership: [],
   port: mysqld.session.port,
   innodb_cluster_name: "test",
@@ -141,7 +142,12 @@ exports.get = function get(stmt_key, options) {
           }
         ],
         rows: options["group_replication_membership"].map(function(currentValue) {
-          return currentValue.concat([ options["group_replication_single_primary_mode"] ]);
+          var result = currentValue.slice();
+          // if group_replication_membership contains x port we need to remove it
+          // as this query does not want it
+          if (result.length === 5)
+              result.splice(-1,1);
+          return result.concat([ options["group_replication_single_primary_mode"] ]);
         }),
       }
     },
@@ -215,8 +221,7 @@ exports.get = function get(stmt_key, options) {
             null,
             "",
             currentValue[1] + ":" + currentValue[2],
-            // we don't actually know the xplugin port yet, but on the other side it is also currently unused.
-            currentValue[1] + ":" + (parseInt(currentValue[2]) + 10)
+            currentValue[1] + ":" +  currentValue[4]
           ]
         }),
       }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -76,9 +76,9 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   MOCK_METHOD10(cache_init,
                 void(const std::string &,
                      const std::vector<mysql_harness::TCPAddress> &,
-                     const std::string &, const std::string &,
+                     const mysqlrouter::UserCredentials &,
                      std::chrono::milliseconds, const mysqlrouter::SSLOptions &,
-                     const std::string &, int, int, size_t));
+                     const std::string &, int, int, size_t, bool));
   MOCK_METHOD0(cache_start, void());
 
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method

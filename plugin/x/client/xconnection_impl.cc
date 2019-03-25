@@ -124,6 +124,13 @@ class Connection_state : public XConnection::State {
     return m_connection_type;
   }
 
+  bool has_data() const override {
+    bool res = m_vio->has_data(m_vio);
+    if (res) return true;
+
+    return vio_io_wait(m_vio, VIO_IO_EVENT_READ, 0) != 0;
+  }
+
   Vio *m_vio;
   bool m_is_ssl_configured;
   bool m_is_ssl_active;

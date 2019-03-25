@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,12 @@ class METADATA_API MetaData {
 
   virtual bool connect(
       const metadata_cache::ManagedInstance &metadata_server) = 0;
+
   virtual void disconnect() = 0;
+
+  virtual void setup_gr_notifications_listener(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const std::function<void()> &callback) = 0;
 
   MetaData() = default;
   // disable copy as it isn't needed right now. Feel free to enable

@@ -235,13 +235,15 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_router(
 RouterComponentTest::CommandHandle
 RouterComponentTest::launch_mysql_server_mock(
     const std::string &json_file, unsigned port, bool debug_mode,
-    uint16_t http_port, const std::string &module_prefix /* = "" */
+    uint16_t http_port, uint16_t x_port,
+    const std::string &module_prefix /* = "" */
     ) const {
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
   return launch_command(
       mysqlserver_mock_exec_.str(),
       "--filename=" + json_file + " --port=" + std::to_string(port) +
+          ((x_port > 0) ? " --xport=" + std::to_string(x_port) : "") +
           " --http-port=" + std::to_string(http_port) + " --module-prefix=" +
           (!module_prefix.empty() ? module_prefix : get_data_dir().str()) +
           (debug_mode ? " --verbose" : ""),
@@ -607,6 +609,21 @@ std::string RouterComponentTest::create_config_file(
 
   ofs_config << make_DEFAULT_section(default_section);
   ofs_config << sections << std::endl;
+  ofs_config.close();
+
+  return file_path.str();
+}
+
+std::string RouterComponentTest::create_state_file(const std::string &dir_name,
+                                                   const std::string &content) {
+  Path file_path = Path(dir_name).join("state.json");
+  std::ofstream ofs_config(file_path.str());
+
+  if (!ofs_config.good()) {
+    throw(std::runtime_error("Could not create state file " + file_path.str()));
+  }
+
+  ofs_config << content;
   ofs_config.close();
 
   return file_path.str();

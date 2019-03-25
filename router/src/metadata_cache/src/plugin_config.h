@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -59,8 +59,10 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
         connect_timeout(
             get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
-        thread_stack_size(get_uint_option<uint32_t>(
-            section, "thread_stack_size", 1, 65535)) {}
+        thread_stack_size(
+            get_uint_option<uint32_t>(section, "thread_stack_size", 1, 65535)),
+        use_gr_notifications(get_uint_option<uint16_t>(
+                                 section, "use_gr_notifications", 0, 1) == 1) {}
 
   /**
    * @param option name of the option
@@ -86,6 +88,9 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   const unsigned int read_timeout;
   /** @brief memory in kilobytes allocated for thread's stack */
   const unsigned int thread_stack_size;
+  /** @brief  Whether we should listen to GR notifications from the cluster
+   * nodes. */
+  const bool use_gr_notifications;
 
   /** @brief Gets Replication Group ID if preset in the dynamic configuration.
    *

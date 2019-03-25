@@ -1051,6 +1051,123 @@ TEST_F(RouterBootstrapTest, MasterKeyFileNotChangedAfterSecondBootstrap) {
   }
 }
 
+/**
+ * @test
+ *       verify that using --conf-use-gr-notifications creates proper config
+ * file entry.
+ */
+TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
+  const std::string bootstrap_directory = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
+  const unsigned server_port = port_pool_.get_next_available();
+  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  auto router = launch_router(
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " -d " +
+      bootstrap_directory + " --conf-use-gr-notifications");
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           "fake-pass\n");
+
+  EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
+
+  // check if the valid config option was added to the file
+  EXPECT_TRUE(find_in_file(bootstrap_directory + "/mysqlrouter.conf",
+                           [](const std::string &line) -> bool {
+                             return line == "use_gr_notifications=1";
+                           },
+                           std::chrono::milliseconds(0)));
+
+  // check if valid TTL is set (with GR notifications it should be increased to
+  // 60s)
+  EXPECT_TRUE(find_in_file(
+      bootstrap_directory + "/mysqlrouter.conf",
+      [](const std::string &line) -> bool { return line == "ttl=60"; },
+      std::chrono::milliseconds(0)));
+}
+
+/**
+ * @test
+ *       verify that NOT using --conf-use-gr-notifications
+ *       creates a proper config file entry.
+ */
+TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
+  const std::string bootstrap_directory = get_tmp_dir();
+  std::shared_ptr<void> exit_guard(
+      nullptr, [&](void *) { purge_dir(bootstrap_directory); });
+  const unsigned server_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap.js").str();
+
+  // launch mock server and wait for it to start accepting connections
+  auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
+  bool ready = wait_for_port_ready(server_port, 1000);
+  EXPECT_TRUE(ready) << server_mock.get_full_output();
+
+  // launch the router in bootstrap mode
+  auto router =
+      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
+                    " -d " + bootstrap_directory);
+
+  // add login hook
+  router.register_response("Please enter MySQL password for root: ",
+                           "fake-pass\n");
+
+  EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
+
+  // check if valid config option was added to the file
+  EXPECT_TRUE(find_in_file(bootstrap_directory + "/mysqlrouter.conf",
+                           [](const std::string &line) -> bool {
+                             return line == "use_gr_notifications=0";
+                           },
+                           std::chrono::milliseconds(0)));
+
+  // check if valid TTL is set (with no GR notifications it should be 0.5s)
+  EXPECT_TRUE(find_in_file(
+      bootstrap_directory + "/mysqlrouter.conf",
+      [](const std::string &line) -> bool { return line == "ttl=0.5"; },
+      std::chrono::milliseconds(0)));
+}
+
+/**
+ * @test
+ *        verify that --conf-use-gr-notifications used with no bootstrap
+ *        causes proper error report
+ */
+TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
+  auto router = launch_router("--conf-use-gr-notifications");
+
+  EXPECT_TRUE(
+      router.expect_output("Error: Option --conf-use-gr-notifications can only "
+                           "be used together with -B/--bootstrap"))
+      << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
+/**
+ * @test
+ *        verify that --conf-use-gr-notifications used with some value
+ *        causes proper error report
+ */
+TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
+  auto router =
+      launch_router("-B somehost:12345 --conf-use-gr-notifications=some");
+
+  EXPECT_TRUE(
+      router.expect_output("Error: option '--conf-use-gr-notifications' does "
+                           "not expect a value, but got a value"))
+      << router.get_full_output() << std::endl;
+  EXPECT_EQ(router.wait_for_exit(), 1);
+}
+
 class ErrorReportTest : public CommonBootstrapTest {};
 
 /**

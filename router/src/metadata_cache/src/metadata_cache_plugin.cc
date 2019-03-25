@@ -177,9 +177,10 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     const std::string replicaset_id = config.get_group_replication_id();
 
     md_cache->cache_init(replicaset_id, config.metadata_servers_addresses,
-                         config.user, password, ttl, make_ssl_options(section),
-                         metadata_cluster, config.connect_timeout,
-                         config.read_timeout, config.thread_stack_size);
+                         {config.user, password}, ttl,
+                         make_ssl_options(section), metadata_cluster,
+                         config.connect_timeout, config.read_timeout,
+                         config.thread_stack_size, config.use_gr_notifications);
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);

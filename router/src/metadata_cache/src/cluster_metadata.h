@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #ifndef METADATA_CACHE_METADATA_INCLUDED
 #define METADATA_CACHE_METADATA_INCLUDED
 
+#include "gr_notifications_listener.h"
 #include "metadata.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/mysql_session.h"
@@ -41,6 +42,9 @@ struct GroupReplicationMember;
 
 namespace mysqlrouter {
 class MySQLSession;
+}
+namespace xcl {
+class XSession;
 }
 
 /** @class ClusterMetadata
@@ -64,11 +68,15 @@ class METADATA_API ClusterMetadata : public MetaData {
    *                            fails.  NOTE: not used so far
    * @param ttl The time to live of the data in the cache (in milliseconds).
    * @param ssl_options SSL related options to use for MySQL connections
+   * @param use_gr_notifications Flag indicating if the metadata cache should
+   *                             use GR notifications as an additional trigger
+   *                             for metadata refresh
    */
   ClusterMetadata(const std::string &user, const std::string &password,
                   int connect_timeout, int read_timeout,
                   int connection_attempts, std::chrono::milliseconds ttl,
-                  const mysqlrouter::SSLOptions &ssl_options);
+                  const mysqlrouter::SSLOptions &ssl_options,
+                  const bool use_gr_notifications = false);
 
   // disable copy as it isn't needed right now. Feel free to enable
   // must be explicitly defined though.
@@ -94,6 +102,16 @@ class METADATA_API ClusterMetadata : public MetaData {
   ReplicaSetsByName fetch_instances(const std::string &cluster_name,
                                     const std::string &group_replication_id)
       override;  // throws metadata_cache::metadata_error
+
+  /** @brief Initializes the GR notifications listener thread
+   *
+   * @param instances vector of the current cluster nodes
+   * @param callback  callback function to get called when the GR notification
+   *                  was received
+   */
+  void setup_gr_notifications_listener(
+      const std::vector<metadata_cache::ManagedInstance> &instances,
+      const GRNotificationListener::NotificationClb &callback) override;
 
 #if 0  // not used so far
   /** @brief Returns the refresh interval provided by the metadata server.
@@ -166,6 +184,8 @@ class METADATA_API ClusterMetadata : public MetaData {
       std::vector<metadata_cache::ManagedInstance> &instances,
       const std::map<std::string, GroupReplicationMember> &member_status) const
       noexcept;
+
+  std::unique_ptr<GRNotificationListener> gr_notifications_listener_;
 
   // Metadata node connection information
   std::string user_;

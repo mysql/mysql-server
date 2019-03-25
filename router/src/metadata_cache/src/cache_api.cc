@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,8 +70,8 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  *
  * @param group_replication_id id of the replication group
  * @param metadata_servers The list of cluster metadata servers
- * @param user The user name used to connect to the metadata servers.
- * @param password The password used to connect to the metadata servers.
+ * @param user_credentials The user name and password used to connect to the
+ * metadata servers.
  * @param ttl The ttl for the contents of the cache
  * @param ssl_options SSL related options for connections
  * @param cluster_name The name of the cluster from the metadata schema
@@ -80,21 +80,25 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param read_timeout The time in seconds after which read from metadata
  *                     server should timeout.
  * @param thread_stack_size memory in kilobytes allocated for thread's stack
+ * @param use_gr_notifications Flag indicating if the metadata cache should
+ *                             use GR notifications as an additional trigger
+ *                             for metadata refresh
  */
 void MetadataCacheAPI::cache_init(
     const std::string &group_replication_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-    const std::string &user, const std::string &password,
+    const mysqlrouter::UserCredentials &user_credentials,
     std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
     const std::string &cluster_name, int connect_timeout, int read_timeout,
-    size_t thread_stack_size) {
+    size_t thread_stack_size, bool use_gr_notifications) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  g_metadata_cache.reset(
-      new MetadataCache(group_replication_id, metadata_servers,
-                        get_instance(user, password, connect_timeout,
-                                     read_timeout, 1, ttl, ssl_options),
-                        ttl, ssl_options, cluster_name, thread_stack_size));
+  g_metadata_cache.reset(new MetadataCache(
+      group_replication_id, metadata_servers,
+      get_instance(user_credentials.username, user_credentials.password,
+                   connect_timeout, read_timeout, 1, ttl, ssl_options,
+                   use_gr_notifications),
+      ttl, ssl_options, cluster_name, thread_stack_size, use_gr_notifications));
 
   is_initialized_ = true;
 }

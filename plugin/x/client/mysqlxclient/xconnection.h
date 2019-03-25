@@ -85,6 +85,9 @@ class XConnection {
 
     /** Get connection type */
     virtual Connection_type get_connection_type() const = 0;
+
+    /** Returns true if there is more data in TCP or SSL layers pending */
+    virtual bool has_data() const = 0;
   };
 
  public:

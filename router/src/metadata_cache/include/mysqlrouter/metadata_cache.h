@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -91,7 +91,7 @@ class METADATA_API ManagedInstance {
                   const std::string &p_role, const ServerMode p_mode,
                   const float p_weight, const unsigned int p_version_token,
                   const std::string &p_location, const std::string &p_host,
-                  const unsigned int p_port, const unsigned int p_xport);
+                  const uint16_t p_port, const uint16_t p_xport);
 
   using TCPAddress = mysql_harness::TCPAddress;
   explicit ManagedInstance(const TCPAddress &addr);
@@ -115,9 +115,9 @@ class METADATA_API ManagedInstance {
   /** @brief The host name on which the server is running */
   std::string host;
   /** The port number in which the server is running */
-  unsigned int port;
+  uint16_t port;
   /** The X protocol port number in which the server is running */
-  unsigned int xport;
+  uint16_t xport;
 };
 
 /** @class ManagedReplicaSet
@@ -272,8 +272,7 @@ class METADATA_API MetadataCacheAPIBase
    *
    * @param group_replication_id id of the replication group
    * @param metadata_servers The list of cluster metadata servers
-   * @param user MySQL Metadata username
-   * @param password MySQL Metadata password
+   * @param user_credentials MySQL Metadata username and password
    * @param ttl The time to live for the cached data
    * @param ssl_options SSL relatd options for connection
    * @param cluster_name The name of the cluster to be used.
@@ -282,15 +281,18 @@ class METADATA_API MetadataCacheAPIBase
    * @param read_timeout The time in seconds after which read from metadata
    *                     server should time out.
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
+   * @param use_gr_notifications Flag indicating if the metadata cache should
+   *                             use GR notifications as an additional trigger
+   *                             for metadata refresh
    */
   virtual void cache_init(
       const std::string &group_replication_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-      const std::string &user, const std::string &password,
+      const mysqlrouter::UserCredentials &user_credentials,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
-      size_t thread_stack_size =
-          mysql_harness::kDefaultStackSizeInKiloBytes) = 0;
+      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
+      bool use_gr_notifications = false) = 0;
 
   virtual bool is_initialized() noexcept = 0;
 
@@ -376,10 +378,10 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void cache_init(
       const std::string &group_replication_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-      const std::string &user, const std::string &password,
+      const mysqlrouter::UserCredentials &user_credentials,
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
-      size_t thread_stack_size) override;
+      size_t thread_stack_size, bool use_gr_notifications) override;
 
   bool is_initialized() noexcept override { return is_initialized_; }
   void cache_start() override;
