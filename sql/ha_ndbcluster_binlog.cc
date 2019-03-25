@@ -2908,6 +2908,10 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
 class Ndb_schema_dist_data {
   uint m_own_nodeid;
   uint m_max_subscribers{0};
+  // Counter telling how many active schema operations are going on in this
+  // coordinator. Having an active schema operation means it need to be checked
+  // for timeout or request to be killed regularly
+  uint m_schema_ops_active{0};
 
   // Keeps track of subscribers as reported by one data node
   class Node_subscribers {
@@ -2987,6 +2991,10 @@ public:
   Ndb_schema_dist_data() :
     m_prepared_rename_key(NULL)
   {}
+  ~Ndb_schema_dist_data() {
+    // There should be no schema operations active
+    DBUG_ASSERT(m_schema_ops_active == 0);
+  }
 
   void init(Ndb_cluster_connection *cluster_connection, uint max_subscribers) {
     m_own_nodeid = cluster_connection->node_id();
@@ -3106,6 +3114,21 @@ public:
   {
     return m_inplace_alter_event_data;
   }
+
+  void add_active_schema_op() {
+    // Current assumption is that as long as all users of schema distribution
+    // hold the GSL, there will ever only be one active schema operation at a
+    // time. This assumption will probably change soon, but until then it can
+    // be verifed with an assert.
+    DBUG_ASSERT(m_schema_ops_active == 0);
+    m_schema_ops_active++;
+  }
+  void remove_active_schema_op() {
+    // Need to have active schema op for decrement
+    ndbcluster::ndbrequire(m_schema_ops_active > 0);
+    m_schema_ops_active--;
+  }
+  uint active_schema_ops() const { return m_schema_ops_active; }
 
 }; //class Ndb_schema_dist_data
 
@@ -4041,8 +4064,12 @@ class Ndb_schema_event_handler {
     const bool coordinator_completed =
         ndb_schema_object->check_coordinator_completed();
 
-    if (coordinator_completed)
+    if (coordinator_completed) {
       remove_schema_result_rows(ndb_schema_object->schema_op_id());
+
+      // Remove active schema operation
+      m_schema_dist_data.remove_active_schema_op();
+    }
 
     /**
      * There is a possible race condition between this binlog-thread,
@@ -5376,6 +5403,9 @@ class Ndb_schema_event_handler {
         ndb_log_verbose(
             19, "Participants: %s",
             ndb_schema_object->waiting_participants_to_string().c_str());
+
+        // Add active schema operation
+        m_schema_dist_data.add_active_schema_op();
       }
 
       Ndb_schema_op_result schema_op_result;
@@ -5746,6 +5776,13 @@ class Ndb_schema_event_handler {
         }
       }
     }
+
+    const uint active_ops = m_schema_dist_data.active_schema_ops();
+    if (unlikely(active_ops)) {
+      ndb_log_verbose(50, "Coordinator: %d schema operation(s) active",
+                      active_ops);
+    }
+
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
   }
