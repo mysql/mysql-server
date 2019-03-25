@@ -122,7 +122,7 @@ int unregister_pfs_resource_group_service() {
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
-  if (reg->unregister("pfs_resource_group.mysql_server")) {
+  if (reg->unregister("pfs_resource_group_v3.mysql_server")) {
     result = 1;
   }
 
