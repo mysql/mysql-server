@@ -4028,6 +4028,31 @@ SELECT JSON_MERGE_PATCH('{', '[1,2,3]');
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT JSON_MERGE_PATCH('{"a":"b"}', '[1,');
 
+--echo #
+--echo # Bug#28947381: MAX TREATING NUMBERS AS STRINGS WHEN USED
+--echo #               IN GROUP BY AND JSON_UNQUOTE
+--echo #
+
+CREATE TABLE t(j JSON);
+INSERT INTO t VALUES
+('{"group": 1, "value": 20}'),
+('{"group": 1, "value": 100}'),
+(NULL),
+('{"group": 2, "value": "abc"}'),
+('{"group": 3, "value": "xyz"}'),
+('{"group": 2, "value": "def"}'),
+('{"group": 3, "value": "xyzw"}'),
+('{"group": 1, "value": 3}'),
+('{"group": 1}');
+--sorted_result
+SELECT j->>'$.group' AS group_name,
+       MIN(j->'$.value') AS min_json,
+       MAX(j->'$.value') AS max_json,
+       MIN(j->>'$.value') AS min_string,
+       MAX(j->>'$.value') AS max_string
+FROM t GROUP BY j->>'$.group';
+DROP TABLE t;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

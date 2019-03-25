@@ -1481,6 +1481,9 @@ class Item_sum_std : public Item_sum_variance {
 // This class is a string or number function depending on num_func
 class Arg_comparator;
 
+/**
+  Abstract base class for the MIN and MAX aggregate functions.
+*/
 class Item_sum_hybrid : public Item_sum {
   typedef Item_sum super;
 
@@ -1588,7 +1591,6 @@ class Item_sum_hybrid : public Item_sum {
         m_saved_last_value_at(0) {}
 
   bool fix_fields(THD *, Item **) override;
-  bool setup_hybrid(Item *item, Item *value_arg);
   void clear() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
@@ -1605,16 +1607,27 @@ class Item_sum_hybrid : public Item_sum {
   bool keep_field_type() const override { return 1; }
   enum Item_result result_type() const override { return hybrid_type; }
   void update_field() override;
-  void min_max_update_str_field();
-  void min_max_update_temporal_field();
-  void min_max_update_real_field();
-  void min_max_update_int_field();
-  void min_max_update_decimal_field();
   void cleanup() override;
   bool any_value() { return was_values; }
   void no_rows_in_result() override;
   Field *create_tmp_field(bool group, TABLE *table) override;
   bool uses_only_one_row() const override { return m_optimize; }
+
+ protected:
+  bool setup_hybrid(Item *item, Item *value_arg);
+
+ private:
+  /*
+    These functions check if the value on the current row exceeds the maximum or
+    minimum value seen so far, and update the current max/min stored in
+    result_field, if needed.
+  */
+  void min_max_update_str_field();
+  void min_max_update_temporal_field();
+  void min_max_update_json_field();
+  void min_max_update_real_field();
+  void min_max_update_int_field();
+  void min_max_update_decimal_field();
 };
 
 class Item_sum_min final : public Item_sum_hybrid {

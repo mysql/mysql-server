@@ -1639,6 +1639,8 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
   item = item->real_item();
   if (item->type() == Item::FIELD_ITEM)
     set_data_type(item->data_type());
+  else if (item->data_type() == MYSQL_TYPE_JSON)
+    set_data_type_json();
   else
     set_data_type_from_result(hybrid_type, max_length);
 
@@ -3363,6 +3365,8 @@ void Item_sum_hybrid::update_field() {
     case STRING_RESULT:
       if (args[0]->is_temporal())
         min_max_update_temporal_field();
+      else if (data_type() == MYSQL_TYPE_JSON)
+        min_max_update_json_field();
       else
         min_max_update_str_field();
       break;
@@ -3393,6 +3397,21 @@ void Item_sum_hybrid::min_max_update_temporal_field() {
   } else if (result_field->is_null())
     result_field->set_null();
   result_field->store_packed(old_nr);
+}
+
+void Item_sum_hybrid::min_max_update_json_field() {
+  Json_wrapper json1;
+  if (args[0]->val_json(&json1)) return;
+  if (args[0]->null_value) return;
+
+  Field_json *json_field = down_cast<Field_json *>(result_field);
+  Json_wrapper json2;
+
+  if (json_field->is_null() ||
+      (!json_field->val_json(&json2) && cmp_sign * json1.compare(json2) < 0)) {
+    json_field->set_notnull();
+    json_field->store_json(&json1);
+  }
 }
 
 void Item_sum_hybrid::min_max_update_str_field() {
