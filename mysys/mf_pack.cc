@@ -32,8 +32,6 @@
 
 #include "my_config.h"
 
-#include <string>
-
 #include <string.h>
 
 #ifdef _WIN32
@@ -41,13 +39,15 @@
 #endif
 #include "m_string.h"
 #include "my_dbug.h"
-#include "my_getpwnam.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_sys.h"
 #include "mysys/my_static.h"
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
 
-static std::string expand_tilde(char **path);
+static char *expand_tilde(char **path);
 
 /**
   Remove unwanted chars from dirname.
@@ -250,21 +250,21 @@ size_t normalize_dirname(char *to, const char *from) {
 
 size_t unpack_dirname(char *to, const char *from) {
   size_t length, h_length;
-  char buff[FN_REFLEN + 1 + 4], *suffix;
+  char buff[FN_REFLEN + 1 + 4], *suffix, *tilde_expansion;
   DBUG_ENTER("unpack_dirname");
 
   length = normalize_dirname(buff, from);
 
   if (buff[0] == FN_HOMELIB) {
     suffix = buff + 1;
-    std::string tilde_expansion = expand_tilde(&suffix);
-    if (!tilde_expansion.empty()) {
+    tilde_expansion = expand_tilde(&suffix);
+    if (tilde_expansion) {
       length -= (size_t)(suffix - buff) - 1;
-      if (length + (h_length = tilde_expansion.length()) <= FN_REFLEN) {
-        if ((h_length > 0) && (tilde_expansion.back() == FN_LIBCHAR))
+      if (length + (h_length = strlen(tilde_expansion)) <= FN_REFLEN) {
+        if ((h_length > 0) && (tilde_expansion[h_length - 1] == FN_LIBCHAR))
           h_length--;
         memmove(buff + h_length, suffix, length);
-        memmove(buff, tilde_expansion.c_str(), h_length);
+        memmove(buff, tilde_expansion, h_length);
       }
     }
   }
@@ -278,27 +278,27 @@ size_t unpack_dirname(char *to, const char *from) {
   @return home directory.
 */
 
-static std::string expand_tilde(char **path) {
-  if (path[0][0] == FN_LIBCHAR)
-    return (home_dir ? std::string{home_dir}
-                     : std::string{}); /* ~/ expanded to home */
+static char *expand_tilde(char **path) {
+  if (path[0][0] == FN_LIBCHAR) return home_dir; /* ~/ expanded to home */
 
 #ifdef HAVE_GETPWNAM
   {
     char *str, save;
+    struct passwd *user_entry;
 
     if (!(str = strchr(*path, FN_LIBCHAR))) str = strend(*path);
     save = *str;
     *str = '\0';
-    PasswdValue user_entry = my_getpwnam(*path);
+    user_entry = getpwnam(*path);
     *str = save;
-    if (!user_entry.pw_dir.empty()) {
+    endpwent();
+    if (user_entry) {
       *path = str;
-      return user_entry.pw_dir;
+      return user_entry->pw_dir;
     }
   }
 #endif
-  return std::string{};
+  return (char *)0;
 }
 
 /**
