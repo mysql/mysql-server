@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -576,7 +576,7 @@ extern my_bool my_parse_charset_xml(const char *bug, size_t len,
 extern char *my_strchr(CHARSET_INFO *cs, const char *str, const char *end,
                        pchar c);
 extern size_t my_strcspn(CHARSET_INFO *cs, const char *str, const char *end,
-                         const char *accept);
+                         const char *reject, int reject_length);
 
 my_bool my_propagate_simple(CHARSET_INFO *cs, const uchar *str, size_t len);
 my_bool my_propagate_complex(CHARSET_INFO *cs, const uchar *str, size_t len);
