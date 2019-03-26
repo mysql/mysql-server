@@ -19139,6 +19139,12 @@ ER_PERSIST_OPTION_USER_TRUNCATED
 ER_PERSIST_OPTION_HOST_TRUNCATED
   eng "Truncated a host name for %s that was too long while reading the persisted variables file"
 
+ER_NET_WAIT_ERROR
+  eng "The wait_timeout period was exceeded, the idle time since last command was too long."
+
+ER_IB_MSG_1285
+  eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
+
 ER_PLUGIN_NOT_EARLY_DUP
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
@@ -19158,12 +19164,6 @@ ER_WARN_DEPRECATED_FOUND_ROWS
 
 ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
   eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
-
-ER_NET_WAIT_ERROR
-  eng "The wait_timeout period was exceeded, the idle time since last command was too long."
-
-ER_IB_MSG_1285
-  eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.
