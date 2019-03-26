@@ -874,8 +874,19 @@ void srv_worker_thread();
 /** Rotate default master key for UNDO tablespace. */
 void undo_rotate_default_master_key();
 
-/** Enable UNDO tablespace encryption */
-bool srv_enable_undo_encryption();
+/** Enable UNDO tablespace encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
+                        rotated later with actual master key from kyering.
+@return false for success, true otherwise. */
+bool srv_enable_undo_encryption(bool is_boot);
+
+/** Enable REDO tablespace encryption.
+@param[in] is_boot	true if it is called during server start up. In this
+                        case, default master key will be used which will be
+                        rotated later with actual master key from kyering.
+@return false for success, true otherwise. */
+bool srv_enable_redo_encryption(bool is_boot);
 
 /** Get count of tasks in the queue.
  @return number of tasks in queue */

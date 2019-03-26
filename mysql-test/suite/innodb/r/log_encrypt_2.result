@@ -1,5 +1,11 @@
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	OFF
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
 DROP TABLE t1;
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -40,6 +46,9 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -66,6 +75,9 @@ INSERT INTO t1 VALUES(7, "hhhhh");
 INSERT INTO t1 VALUES(8, "iiiii");
 INSERT INTO t1 VALUES(9, "jjjjj");
 # Kill the server
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
 SELECT * FROM t1 LIMIT 10;
 c1	c2
 0	aaaaa
@@ -79,7 +91,10 @@ c1	c2
 8	iiiii
 9	jjjjj
 DROP TABLE t1;
-# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH 
+# restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring2 --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH --innodb_redo_log_encrypt=ON
+SHOW VARIABLES LIKE "%innodb_redo_log_encrypt%";
+Variable_name	Value
+innodb_redo_log_encrypt	ON
 SET block_encryption_mode = 'aes-256-cbc';
 DROP DATABASE IF EXISTS tde_db;
 CREATE DATABASE tde_db;

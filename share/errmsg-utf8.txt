@@ -19134,6 +19134,9 @@ ER_PERSIST_OPTION_HOST_TRUNCATED
 ER_NET_WAIT_ERROR
   eng "The wait_timeout period was exceeded, the idle time since last command was too long."
 
+ER_IB_MSG_1285
+  eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
