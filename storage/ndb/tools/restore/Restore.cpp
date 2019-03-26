@@ -689,7 +689,12 @@ RestoreMetaData::readGCPEntry() {
   dst.StopGCP = ntohl(dst.StopGCP);
   
   m_startGCP = dst.StartGCP;
-  m_stopGCP = dst.StopGCP;
+  /**
+   * Stop GCP is recorded as StopGCP -1 by Backup.cpp
+   * We correct this here
+   * Backup format not changed
+   */
+  m_stopGCP = dst.StopGCP + 1;
   return true;
 }
 
@@ -2046,8 +2051,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
     }
     else
     {
-      // Do not apply anything after stopGCP + 1
-      skip_entry = (m_last_gci > stopGCP + 1);
+      // Do not apply anything after stopGCP
+      skip_entry = (m_last_gci > stopGCP);
     }
     // Skip entries instead of stopping scan since entries are not ordered
     // by GCP. Entries from different GCPs may be interleaved, so scan till
