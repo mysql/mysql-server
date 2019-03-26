@@ -3658,6 +3658,41 @@ static void innobase_post_recover() {
 
   fil_free_scanned_files();
 
+  /* If undo tablespaces are to be encrypted, encrypt them now */
+  if (srv_undo_log_encrypt) {
+    ut_ad(Encryption::check_keyring());
+
+    /* There would be at least 2 UNDO tablespaces */
+    ut_ad(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
+
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_1051);
+      srv_undo_log_encrypt = false;
+    } else {
+      /* Enable encryption for UNDO tablespaces */
+      if (srv_enable_undo_encryption(true)) {
+        ut_ad(false);
+        srv_undo_log_encrypt = false;
+      }
+    }
+  }
+
+  /* If redo log is to be encrypted, encrypt it now */
+  if (srv_redo_log_encrypt) {
+    ut_ad(Encryption::check_keyring());
+
+    if (srv_read_only_mode) {
+      ib::error(ER_IB_MSG_1242);
+      srv_redo_log_encrypt = false;
+    } else {
+      /* Enable encryption for REDO log */
+      if (srv_enable_redo_encryption(true)) {
+        ut_ad(false);
+        srv_redo_log_encrypt = false;
+      }
+    }
+  }
+
   if (srv_read_only_mode || srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
     purge_sys->state = PURGE_STATE_DISABLED;
     return;
@@ -4836,9 +4871,9 @@ static int innodb_init(void *p) {
   if (ut_win_init_time()) DBUG_RETURN(innodb_init_abort());
 #endif /* _WIN32 */
 
-  /* Make sure keyring plugin is loaded if UNDO logs are intended to be
-  encrypted*/
-  if (srv_undo_log_encrypt && Encryption::check_keyring() == false) {
+  /* Check for keyring plugin if UNDO/REDO logs are intended to be encrypted */
+  if ((srv_undo_log_encrypt || srv_redo_log_encrypt) &&
+      Encryption::check_keyring() == false) {
     DBUG_RETURN(innodb_init_abort());
   }
 
@@ -19998,7 +20033,7 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
   }
 
   /* There would be at least 2 UNDO tablespaces */
-  ut_ad(!undo::spaces->empty());
+  ut_ad(undo::spaces->size() >= FSP_IMPLICIT_UNDO_TABLESPACES);
 
   if (srv_read_only_mode) {
     ib::error(ER_IB_MSG_1051);
@@ -20006,7 +20041,7 @@ static void update_innodb_undo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
   }
 
   /* Enable encryption for UNDO tablespaces */
-  bool ret = srv_enable_undo_encryption();
+  bool ret = srv_enable_undo_encryption(false);
 
   if (ret == false) {
     /* At this point, all UNDO tablespaces have been encrypted. */
@@ -20032,45 +20067,26 @@ static void update_innodb_redo_log_encrypt(THD *thd MY_ATTRIBUTE((unused)),
     return;
   }
 
+  /* If encryption is to be disabled. This will just make sure I/O doesn't
+  write REDO encrypted from now on. */
   if (srv_redo_log_encrypt == true) {
     srv_redo_log_encrypt = false;
     return;
   }
 
-  /* Check encryption for redo log is enabled or not. If it's
-  enabled, we will start to encrypt the redo log block from now on.
-  Note: We need the server_uuid initialized, otherwise, the keyname will
-  not contains server uuid. */
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-  if (!FSP_FLAGS_GET_ENCRYPTION(space->flags) && strlen(server_uuid) > 0) {
-    dberr_t err;
-    byte key[ENCRYPTION_KEY_LEN];
-    byte iv[ENCRYPTION_KEY_LEN];
-
-    if (srv_read_only_mode) {
-      ib::error(ER_IB_MSG_1242);
-      return;
-    }
-
-    Encryption::random_value(key);
-    Encryption::random_value(iv);
-    if (!log_write_encryption(key, iv, false)) {
-      ib::error(ER_IB_MSG_1243);
-      return;
-    } else {
-      fsp_flags_set_encryption(space->flags);
-      err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-      if (err != DB_SUCCESS) {
-        ib::warn(ER_IB_MSG_1244);
-        return;
-      } else {
-        ib::info(ER_IB_MSG_1245);
-      }
-    }
+  if (srv_read_only_mode) {
+    ib::error(ER_IB_MSG_1242);
+    return;
   }
 
-  /* At this point, REDO log is set to be encrypted. */
-  srv_redo_log_encrypt = true;
+  /* Enable encryption for REDO tablespaces */
+  bool ret = srv_enable_redo_encryption(false);
+
+  if (ret == false) {
+    /* At this point, REDO log has been encrypted. */
+    srv_redo_log_encrypt = true;
+  }
+
   return;
 }
 

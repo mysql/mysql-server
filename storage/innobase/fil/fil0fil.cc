@@ -4224,6 +4224,7 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
   fil_space_t *space = fil_space_get(old_space_id);
   std::string space_name(space->name);
   std::string file_name(space->files.front().name);
+  bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
 
   /* Delete the old file and space object. */
   dberr_t err = fil_delete_tablespace(old_space_id, BUF_REMOVE_ALL_NO_WRITE);
@@ -4253,7 +4254,8 @@ bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
 
   os_file_close(fh);
 
-  uint32_t flags = fsp_flags_init(univ_page_size, false, false, false, false);
+  uint32_t flags =
+      fsp_flags_init(univ_page_size, false, false, false, false, is_encrypted);
 
   /* Delete the fil_space_t object for the new_space_id if it exists. */
   if (fil_space_get(new_space_id) != nullptr) {
