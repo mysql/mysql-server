@@ -156,6 +156,8 @@ static void start_and_detach_signal_handler_thread() {
   std::promise<void> signal_handler_thread_setup_done;
 
   std::thread signal_thread([&signal_handler_thread_setup_done] {
+    mysql_harness::rename_thread("sig handler");
+
     sigset_t ss;
     sigemptyset(&ss);
     sigaddset(&ss, SIGINT);

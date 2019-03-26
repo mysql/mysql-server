@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 
 #include "dim.h"
 #include "mysql/harness/logging/logging.h"
+IMPORT_LOG_FUNCTIONS()
 
 using mysqlrouter::ms_to_seconds_string;
 using mysqlrouter::string_format;
@@ -82,15 +83,15 @@ MetadataCachePluginConfig::get_metadata_servers(
   std::vector<mysql_harness::TCPAddress> address_vector;
 
   auto add_metadata_server = [&](const std::string &address) {
-    std::pair<std::string, uint16_t> bind_info;
     mysqlrouter::URI u(address);
-    bind_info.first = u.host;
-    bind_info.second = u.port;
-    if (bind_info.second == 0) {
-      bind_info.second = default_port;
-    }
-    address_vector.push_back(
-        mysql_harness::TCPAddress(bind_info.first, bind_info.second));
+    if (u.port == 0) u.port = default_port;
+
+    // push_back calls TCPAddress ctor, which queries DNS in order to determine
+    // IP address familiy (IPv4 or IPv6)
+    log_debug("Adding metadata server '%s:%u', also querying DNS ...",
+              u.host.c_str(), u.port);
+    address_vector.push_back(mysql_harness::TCPAddress(u.host, u.port));
+    log_debug("Done adding metadata server '%s:%u'", u.host.c_str(), u.port);
   };
 
   if (metadata_cache_dynamic_state) {
@@ -108,7 +109,6 @@ MetadataCachePluginConfig::get_metadata_servers(
 
     auto metadata_servers =
         metadata_cache_dynamic_state->get_metadata_servers();
-    std::pair<std::string, uint16_t> bind_info;
 
     for (const auto &address : metadata_servers) {
       try {
