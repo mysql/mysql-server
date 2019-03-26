@@ -2589,6 +2589,7 @@ TEST(StrmxfrmHashTest, HashStability) {
       {"utf8mb4_0900_ai_ci", {{0x3329a425d0f7f8d3LL, 0x00000001LL}}},
       {"utf8mb4_0900_as_ci", {{0xfc978781d49d0d9bLL, 0x00000001LL}}},
       {"utf8mb4_0900_as_cs", {{0xcfb3e3073c9f5a19LL, 0x00000001LL}}},
+      {"utf8mb4_0900_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
       {"utf8mb4_bin", {{0xb6240d9a0a0f7efcLL, 0x000002b0LL}}},
       {"utf8mb4_croatian_ci", {{0x3acdfaa93364f55cLL, 0x0000055fLL}}},
       {"utf8mb4_cs_0900_ai_ci", {{0x36582be4fafa0bbbLL, 0x00000001LL}}},
