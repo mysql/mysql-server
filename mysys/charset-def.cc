@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,6 +249,7 @@ extern CHARSET_INFO my_charset_utf8mb4_ja_0900_as_cs_ks;
 extern CHARSET_INFO my_charset_utf8mb4_0900_as_ci;
 extern CHARSET_INFO my_charset_utf8mb4_ru_0900_as_cs;
 extern CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs;
+extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
@@ -427,6 +428,7 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused))) {
   add_compiled_collation(&my_charset_utf8mb4_0900_as_ci);
   add_compiled_collation(&my_charset_utf8mb4_ru_0900_as_cs);
   add_compiled_collation(&my_charset_utf8mb4_zh_0900_as_cs);
+  add_compiled_collation(&my_charset_utf8mb4_0900_bin);
 
   add_compiled_collation(&my_charset_utf16_general_ci);
   add_compiled_collation(&my_charset_utf16_bin);

@@ -1863,3 +1863,34 @@ SET NAMES utf8mb4;
 --echo #
 --echo # End of 5.6 tests
 --echo #
+
+--echo #
+--echo # WL#13054: Add utf8mb4 binary no-pad collation
+--echo #
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_bin;
+
+SET @test_character_set= 'utf8mb4';
+SET @test_collation= 'utf8mb4_0900_bin';
+-- source include/ctype_common.inc
+
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_bin;
+--source include/ctype_filesort.inc
+--source include/ctype_innodb_like.inc
+--source include/ctype_like_escape.inc
+--source include/ctype_ascii_order.inc
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/ctype_unicode800.inc
+
+# NO PAD collation treats trailing spaces as usual character.
+CREATE TABLE t1(a CHAR(10)) COLLATE utf8mb4_0900_bin;
+INSERT INTO t1 VALUES('aaa'), ('aaaa'), ('aaaaa');
+# Empty result expected.
+SELECT a FROM t1 WHERE a = 'aaa ';
+DROP TABLE t1;
+# PAD_SPACE collation ignores trailing spaces.
+CREATE TABLE t1(a CHAR(10)) COLLATE latin1_swedish_ci;
+INSERT INTO t1 VALUES('aaa'), ('aaaa'), ('aaaaa');
+# One row expected.
+SELECT a FROM t1 WHERE a = 'aaa ';
+DROP TABLE t1;

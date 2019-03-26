@@ -11395,3 +11395,80 @@ CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs = {
     &my_charset_utf8mb4_handler,
     &my_collation_uca_900_handler,
     NO_PAD};
+
+/*
+  Comparing the UTF-8 representation automatically yields codepoint order,
+  so we can just do a binary comparison. Note that
+  my_strnxfrm_unicode_full_bin() chooses to transform to UCS before collation;
+  this is purely for legacy reasons and is not needed here.
+ */
+static size_t my_strnxfrm_utf8mb4_0900_bin(
+    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uchar *dst, size_t dstlen,
+    uint nweights MY_ATTRIBUTE((unused)), const uchar *src, size_t srclen,
+    uint flags) {
+  DBUG_ASSERT(src);
+
+  size_t weight_len = std::min<size_t>(srclen, dstlen);
+  memcpy(dst, src, weight_len);
+  if (flags & MY_STRXFRM_PAD_TO_MAXLEN) {
+    memset(dst + weight_len, 0, dstlen - weight_len);
+    return dstlen;
+  } else {
+    return weight_len;
+  }
+}
+
+static int my_strnncollsp_utf8mb4_0900_bin(const CHARSET_INFO *cs,
+                                           const uchar *s, size_t slen,
+                                           const uchar *t, size_t tlen) {
+  return my_strnncoll_mb_bin(cs, s, slen, t, tlen, false);
+}
+
+static MY_COLLATION_HANDLER my_collation_utf8mb4_0900_bin_handler = {
+    nullptr, /* init */
+    nullptr,
+    my_strnncoll_mb_bin,
+    my_strnncollsp_utf8mb4_0900_bin,
+    my_strnxfrm_utf8mb4_0900_bin,
+    my_strnxfrmlen_simple,
+    my_like_range_mb,
+    my_wildcmp_mb_bin,
+    my_strcasecmp_mb_bin,
+    my_instr_mb,
+    my_hash_sort_mb_bin,
+    my_propagate_simple};
+
+CHARSET_INFO my_charset_utf8mb4_0900_bin = {
+    309,
+    0,
+    0,                       /* number       */
+    MY_CS_UTF8MB4_UCA_FLAGS, /* state  */
+    MY_UTF8MB4,              /* cs name      */
+    MY_UTF8MB4 "_0900_bin",  /* name         */
+    "",                      /* comment      */
+    NULL,                    /* tailoring    */
+    NULL,                    /* coll_param   */
+    ctype_utf8,              /* ctype        */
+    NULL,                    /* to_lower     */
+    NULL,                    /* to_upper     */
+    NULL,                    /* sort_order   */
+    NULL,                    /* uca          */
+    NULL,                    /* tab_to_uni   */
+    NULL,                    /* tab_from_uni */
+    &my_unicase_unicode900,  /* caseinfo     */
+    NULL,                    /* state_map    */
+    NULL,                    /* ident_map    */
+    1,                       /* strxfrm_multiply */
+    1,                       /* caseup_multiply  */
+    1,                       /* casedn_multiply  */
+    1,                       /* mbminlen     */
+    4,                       /* mbmaxlen     */
+    1,                       /* mbmaxlenlen  */
+    0,                       /* min_sort_char */
+    0x10FFFF,                /* max_sort_char */
+    ' ',                     /* pad char      */
+    0,                       /* escape_with_backslash_is_dangerous */
+    1,                       /* levels_for_compare */
+    &my_charset_utf8mb4_handler,
+    &my_collation_utf8mb4_0900_bin_handler,
+    NO_PAD};

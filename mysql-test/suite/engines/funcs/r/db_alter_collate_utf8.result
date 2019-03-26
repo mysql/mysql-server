@@ -173,6 +173,7 @@ utf32_vietnamese_ci	utf32	183		#	#	PAD SPACE
 utf8mb4_0900_ai_ci	utf8mb4	255	Yes	#	#	NO PAD
 utf8mb4_0900_as_ci	utf8mb4	305		#	#	NO PAD
 utf8mb4_0900_as_cs	utf8mb4	278		#	#	NO PAD
+utf8mb4_0900_bin	utf8mb4	309		#	#	NO PAD
 utf8mb4_bin	utf8mb4	46		#	#	PAD SPACE
 utf8mb4_croatian_ci	utf8mb4	245		#	#	PAD SPACE
 utf8mb4_cs_0900_ai_ci	utf8mb4	266		#	#	NO PAD
