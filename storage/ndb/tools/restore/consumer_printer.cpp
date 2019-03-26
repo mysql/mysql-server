@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2004-2007 MySQL AB, 2009 Sun Microsystems, Inc.
+    Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -72,7 +72,7 @@ BackupPrinter::endOfLogEntrys()
   }
 }
 bool
-BackupPrinter::update_apply_status(const RestoreMetaData &metaData)
+BackupPrinter::update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
 {
   if (m_print)
   {

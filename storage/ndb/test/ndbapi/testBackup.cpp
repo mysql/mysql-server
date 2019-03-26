@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1504,8 +1504,39 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
   return (verifyOk? NDBT_OK : NDBT_FAILED);
 }
   
-  
+int
+runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 stepNo = step->getStepNo();
+  NdbRestarter restarter;
+  NdbBackup backup;
 
+  g_err << stepNo << " : runGCPStallDuringBackupStart" << endl;
+
+  /**
+   * Plan is stall GCP during backup start so that
+   * the difference between a GCP transition
+   * starting (further commits in new GCP) and
+   * completing (all commits from old GCP
+   * completed) is widened and we get better
+   * coverage of the logic enforcing a consistent
+   * restore point to the start GCP.
+   */
+
+  g_err << stepNo << " : stalling GCP" << endl;
+  const Uint32 StallGCPSaveCode = 7237;  // DIH
+  restarter.insertErrorInAllNodes(StallGCPSaveCode);
+
+  g_err << stepNo << " : waiting a while" << endl;
+  
+  const Uint32 delay2Secs = 2 * 3;
+  NdbSleep_SecSleep(delay2Secs);
+
+  g_err << stepNo << " : Clearing error inserts" << endl;
+  restarter.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
 
 int
 runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
@@ -1753,17 +1784,50 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
   FINALIZER(runClearTable);
 }
 
+TESTCASE("ConsistencyUnderLoadSnapshotStart",
+         "Test backup SNAPSHOTSTART consistency under load")
+{
+  TC_PROPERTY("SnapshotStart", Uint32(1));
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(100));
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
 
-// Disabled pending fix for  Bug #27566346 NDB : BACKUP WITH SNAPSHOTSTART CONSISTENCY ISSUES
-// TESTCASE("ConsistencyUnderLoadSnapshotStart",
-//          "Test backup SNAPSHOTSTART consistency under load")
-// {
-// }
-// TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
-//          "Test backup consistency under load with GCP stall")
-// {
-// }
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
 
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  FINALIZER(clearHistoryList);
+}
+
+TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
+         "Test backup consistency under load with GCP stall")
+{
+  TC_PROPERTY("SnapshotStart", Uint32(1));
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
+  TC_PROPERTY("DelayUpdates", Uint32(5)); // Millis to sleep between updates, reducing runtime
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
+
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
+  STEP(runGCPStallDuringBackupStart);  // Backup adversary
+
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  FINALIZER(clearHistoryList);
+  FINALIZER(runClearTable);
+}
 
 
 NDBT_TESTSUITE_END(testBackup);
