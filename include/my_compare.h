@@ -117,4 +117,17 @@ extern int ha_compare_text(const CHARSET_INFO *, const uchar *, uint,
 extern int ha_key_cmp(const HA_KEYSEG *keyseg, const uchar *a, const uchar *b,
                       uint key_length, uint nextflag, uint *diff_pos);
 
+/**
+  Compare two numbers of the same type.
+  @param val1 the first number
+  @param val2 the second number
+  @retval -1 if val1 is less than val2,
+  @retval 0 if val1 is equal to val2,
+  @retval 1 if val1 is greater than val2
+*/
+template <class T>
+int compare_numbers(T val1, T val2) {
+  return val1 < val2 ? -1 : (val1 == val2 ? 0 : 1);
+}
+
 #endif /* _my_compare_h */

@@ -554,7 +554,7 @@ class Item_sum : public Item_result_field {
   Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w);
 
   /// Copy constructor, need to perform subqueries with temporary tables
-  Item_sum(THD *thd, Item_sum *item);
+  Item_sum(THD *thd, const Item_sum *item);
 
   bool itemize(Parse_context *pc, Item **res) override;
   Type type() const override { return SUM_FUNC_ITEM; }
@@ -1487,7 +1487,11 @@ class Arg_comparator;
 class Item_sum_hybrid : public Item_sum {
   typedef Item_sum super;
 
- protected:
+ private:
+  /**
+    Tells if this is the MIN function (true) or the MAX function (false).
+  */
+  const bool m_is_min;
   /*
     For window functions MIN/MAX with optimized code path, no comparisons
     are needed beyond NULL detection: MIN/MAX are then roughly equivalent to
@@ -1499,7 +1503,6 @@ class Item_sum_hybrid : public Item_sum {
   Item_cache *value, *arg_cache;
   Arg_comparator *cmp;
   Item_result hybrid_type;
-  int cmp_sign;
   bool was_values;  // Set if we have found at least one row (for max/min only)
   /**
     Set to true if the window is ordered ascending.
@@ -1530,8 +1533,6 @@ class Item_sum_hybrid : public Item_sum {
   */
   int64 m_saved_last_value_at;
 
-  bool wf_semantics(THD *thd, SELECT_LEX *select,
-                    Window::Evaluation_requirements *r, bool min);
   /**
     This function implements the optimized version of retrieving min/max
     value. When we have "ordered ASC" results in a window, min will always
@@ -1544,14 +1545,31 @@ class Item_sum_hybrid : public Item_sum {
   */
   bool compute();
 
- public:
-  Item_sum_hybrid(Item *item_par, int sign)
+  /**
+    MIN/MAX function setup.
+
+    Setup cache/comparator of MIN/MAX functions. When called by the
+    copy_or_same() function, the value_arg parameter contains the calculated
+    value of the original MIN/MAX object, and it is saved in this object's
+    cache.
+
+    @param item       the argument of the MIN/MAX function
+    @param value_arg  the calculated value of the MIN/MAX function
+    @return false on success, true on error
+  */
+  bool setup_hybrid(Item *item, Item *value_arg);
+
+  /** Create a clone of this object. */
+  virtual Item_sum_hybrid *clone_hybrid(THD *thd) const = 0;
+
+ protected:
+  Item_sum_hybrid(Item *item_par, bool is_min)
       : Item_sum(item_par),
+        m_is_min(is_min),
         value(0),
         arg_cache(0),
         cmp(0),
         hybrid_type(INT_RESULT),
-        cmp_sign(sign),
         was_values(true),
         m_nulls_first(false),
         m_optimize(false),
@@ -1561,13 +1579,13 @@ class Item_sum_hybrid : public Item_sum {
     collation.set(&my_charset_bin);
   }
 
-  Item_sum_hybrid(const POS &pos, Item *item_par, int sign, PT_window *w)
+  Item_sum_hybrid(const POS &pos, Item *item_par, bool is_min, PT_window *w)
       : Item_sum(pos, item_par, w),
+        m_is_min(is_min),
         value(0),
         arg_cache(0),
         cmp(0),
         hybrid_type(INT_RESULT),
-        cmp_sign(sign),
         was_values(true),
         m_nulls_first(false),
         m_optimize(false),
@@ -1577,12 +1595,12 @@ class Item_sum_hybrid : public Item_sum {
     collation.set(&my_charset_bin);
   }
 
-  Item_sum_hybrid(THD *thd, Item_sum_hybrid *item)
+  Item_sum_hybrid(THD *thd, const Item_sum_hybrid *item)
       : Item_sum(thd, item),
+        m_is_min(item->m_is_min),
         value(item->value),
         arg_cache(0),
         hybrid_type(item->hybrid_type),
-        cmp_sign(item->cmp_sign),
         was_values(item->was_values),
         m_nulls_first(item->m_nulls_first),
         m_optimize(item->m_optimize),
@@ -1590,6 +1608,7 @@ class Item_sum_hybrid : public Item_sum {
         m_cnt(item->m_cnt),
         m_saved_last_value_at(0) {}
 
+ public:
   bool fix_fields(THD *, Item **) override;
   void clear() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
@@ -1612,9 +1631,10 @@ class Item_sum_hybrid : public Item_sum {
   void no_rows_in_result() override;
   Field *create_tmp_field(bool group, TABLE *table) override;
   bool uses_only_one_row() const override { return m_optimize; }
-
- protected:
-  bool setup_hybrid(Item *item, Item *value_arg);
+  bool add() override;
+  Item *copy_or_same(THD *thd) override;
+  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
+                          Window::Evaluation_requirements *r) override;
 
  private:
   /*
@@ -1632,34 +1652,30 @@ class Item_sum_hybrid : public Item_sum {
 
 class Item_sum_min final : public Item_sum_hybrid {
  public:
-  Item_sum_min(Item *item_par) : Item_sum_hybrid(item_par, 1) {}
+  Item_sum_min(Item *item_par) : Item_sum_hybrid(item_par, true) {}
   Item_sum_min(const POS &pos, Item *item_par, PT_window *w)
-      : Item_sum_hybrid(pos, item_par, 1, w) {}
-
-  Item_sum_min(THD *thd, Item_sum_min *item) : Item_sum_hybrid(thd, item) {}
+      : Item_sum_hybrid(pos, item_par, true, w) {}
+  Item_sum_min(THD *thd, const Item_sum_min *item)
+      : Item_sum_hybrid(thd, item) {}
   enum Sumfunctype sum_func() const override { return MIN_FUNC; }
-
-  bool add() override;
   const char *func_name() const override { return "min"; }
-  Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window::Evaluation_requirements *reqs) override;
+
+ private:
+  Item_sum_min *clone_hybrid(THD *thd) const override;
 };
 
 class Item_sum_max final : public Item_sum_hybrid {
  public:
-  Item_sum_max(Item *item_par) : Item_sum_hybrid(item_par, -1) {}
+  Item_sum_max(Item *item_par) : Item_sum_hybrid(item_par, false) {}
   Item_sum_max(const POS &pos, Item *item_par, PT_window *w)
-      : Item_sum_hybrid(pos, item_par, -1, w) {}
-
-  Item_sum_max(THD *thd, Item_sum_max *item) : Item_sum_hybrid(thd, item) {}
+      : Item_sum_hybrid(pos, item_par, false, w) {}
+  Item_sum_max(THD *thd, const Item_sum_max *item)
+      : Item_sum_hybrid(thd, item) {}
   enum Sumfunctype sum_func() const override { return MAX_FUNC; }
-
-  bool add() override;
   const char *func_name() const override { return "max"; }
-  Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics(THD *thd, SELECT_LEX *select,
-                          Window::Evaluation_requirements *reqs) override;
+
+ private:
+  Item_sum_max *clone_hybrid(THD *thd) const override;
 };
 
 /**

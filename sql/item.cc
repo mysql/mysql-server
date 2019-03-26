@@ -141,7 +141,7 @@ Item::Item()
   current_thd->add_item(this);
 }
 
-Item::Item(THD *thd, Item *item)
+Item::Item(THD *thd, const Item *item)
     : next_free(nullptr),
       str_value(item->str_value),
       collation(item->collation),

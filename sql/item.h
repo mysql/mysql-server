@@ -824,7 +824,7 @@ class Item : public Parse_tree_node {
     Also used for Item_cond_and/Item_cond_or for creating top AND/OR structure
     of WHERE clause to protect it of optimisation changes in prepared statements
   */
-  Item(THD *thd, Item *item);
+  Item(THD *thd, const Item *item);
 
   /**
     Parse-time context-independent constructor.
@@ -4562,7 +4562,7 @@ class Item_result_field : public Item {
   explicit Item_result_field(const POS &pos) : Item(pos), result_field(0) {}
 
   // Constructor used for Item_sum/Item_cond_and/or (see Item comment)
-  Item_result_field(THD *thd, Item_result_field *item)
+  Item_result_field(THD *thd, const Item_result_field *item)
       : Item(thd, item), result_field(item->result_field) {}
   ~Item_result_field() override {} /* Required with gcc 2.95 */
   Field *get_tmp_table_field() override { return result_field; }

@@ -40,6 +40,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_byteorder.h"
+#include "my_compare.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
 #include "my_sys.h"
@@ -421,7 +422,7 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w)
   Constructor used in processing select with temporary tebles.
 */
 
-Item_sum::Item_sum(THD *thd, Item_sum *item)
+Item_sum::Item_sum(THD *thd, const Item_sum *item)
     : Item_result_field(thd, item),
       m_window(item->m_window),
       m_window_resolved(false),
@@ -1648,18 +1649,6 @@ bool Item_sum_hybrid::fix_fields(THD *thd, Item **ref) {
   return false;
 }
 
-/**
-  MIN/MAX function setup.
-
-  @param item       argument of MIN/MAX function
-  @param value_arg  calculated value of MIN/MAX function
-
-  @details
-    Setup cache/comparator of MIN/MAX functions. When called by the
-    copy_or_same function value_arg parameter contains calculated value
-    of the original MIN/MAX object and it is saved in this object's cache.
-*/
-
 bool Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg) {
   value = Item_cache::get_cache(item);
   value->setup(item);
@@ -2630,9 +2619,8 @@ void Item_sum_hybrid::clear() {
   m_saved_last_value_at = 0;
 }
 
-bool Item_sum_hybrid::wf_semantics(THD *thd, SELECT_LEX *select,
-                                   Window::Evaluation_requirements *r,
-                                   bool min) {
+bool Item_sum_hybrid::check_wf_semantics(THD *thd, SELECT_LEX *select,
+                                         Window::Evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics(thd, select, r);
 
   const PT_order_list *order = m_window->effective_order_by();
@@ -2645,14 +2633,14 @@ bool Item_sum_hybrid::wf_semantics(THD *thd, SELECT_LEX *select,
         m_optimize = true;
         value->setup(args[0]);  // no comparisons needed
         if (o->direction == ORDER_ASC) {
-          r->opt_first_row = min ? true : r->opt_first_row;
-          r->opt_last_row = !min ? true : r->opt_last_row;
-          m_want_first = min;
+          r->opt_first_row = m_is_min ? true : r->opt_first_row;
+          r->opt_last_row = !m_is_min ? true : r->opt_last_row;
+          m_want_first = m_is_min;
           m_nulls_first = true;
         } else {
-          r->opt_last_row = min ? true : r->opt_last_row;
-          r->opt_first_row = !min ? true : r->opt_first_row;
-          m_want_first = !min;
+          r->opt_last_row = m_is_min ? true : r->opt_last_row;
+          r->opt_first_row = !m_is_min ? true : r->opt_first_row;
+          m_want_first = !m_is_min;
           m_nulls_first = false;
         }
       }
@@ -2902,47 +2890,40 @@ void Item_sum_hybrid::no_rows_in_result() {
   clear();
 }
 
-Item *Item_sum_min::copy_or_same(THD *thd) {
+Item *Item_sum_hybrid::copy_or_same(THD *thd) {
   if (m_is_window_function) return this;
-  Item_sum_min *item = new (thd->mem_root) Item_sum_min(thd, this);
-  if (item == NULL) return NULL;
-  if (item->setup_hybrid(args[0], value)) return NULL;
+  Item_sum_hybrid *item = clone_hybrid(thd);
+  if (item == nullptr || item->setup_hybrid(args[0], value)) return nullptr;
   return item;
 }
 
-bool Item_sum_min::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                      Window::Evaluation_requirements *r) {
-  return Item_sum_hybrid::wf_semantics(thd, select, r, true);
+Item_sum_min *Item_sum_min::clone_hybrid(THD *thd) const {
+  return new (thd->mem_root) Item_sum_min(thd, this);
 }
 
-bool Item_sum_min::add() {
-  /* args[0] < value */
+Item_sum_max *Item_sum_max::clone_hybrid(THD *thd) const {
+  return new (thd->mem_root) Item_sum_max(thd, this);
+}
+
+/**
+  Checks if a value should replace the minimum or maximum value seen so far in
+  the MIN and MAX aggregate functions.
+
+  @param comparison_result  the result of comparing the current value with the
+                            min/max value seen so far (negative if it's
+                            smaller, 0 if it's equal, positive if it's greater)
+  @param is_min  true if called by MIN, false if called by MAX
+
+  @return true if the current value should replace the min/max value seen so far
+*/
+static bool min_max_best_so_far(int comparison_result, bool is_min) {
+  return is_min ? comparison_result < 0 : comparison_result > 0;
+}
+
+bool Item_sum_hybrid::add() {
   arg_cache->cache_value();
-  if (!arg_cache->null_value && (null_value || cmp->compare() < 0)) {
-    value->store(arg_cache);
-    value->cache_value();
-    null_value = false;
-  }
-  return 0;
-}
-
-Item *Item_sum_max::copy_or_same(THD *thd) {
-  if (m_is_window_function) return this;
-  Item_sum_max *item = new (thd->mem_root) Item_sum_max(thd, this);
-  if (item == NULL) return NULL;
-  if (item->setup_hybrid(args[0], value)) return NULL;
-  return item;
-}
-
-bool Item_sum_max::check_wf_semantics(THD *thd, SELECT_LEX *select,
-                                      Window::Evaluation_requirements *r) {
-  return Item_sum_hybrid::wf_semantics(thd, select, r, false);
-}
-
-bool Item_sum_max::add() {
-  /* args[0] > value */
-  arg_cache->cache_value();
-  if (!arg_cache->null_value && (null_value || cmp->compare() > 0)) {
+  if (!arg_cache->null_value &&
+      (null_value || min_max_best_so_far(cmp->compare(), m_is_min))) {
     value->store(arg_cache);
     value->cache_value();
     null_value = false;
@@ -3377,21 +3358,21 @@ void Item_sum_hybrid::update_field() {
 }
 
 void Item_sum_hybrid::min_max_update_temporal_field() {
-  longlong nr, old_nr;
-  old_nr = result_field->val_temporal_by_field_type();
-  nr = args[0]->val_temporal_by_field_type();
-  if (!args[0]->null_value) {
-    if (result_field->is_null())
-      old_nr = nr;
-    else {
-      bool res =
-          unsigned_flag ? (ulonglong)old_nr > (ulonglong)nr : old_nr > nr;
-      if ((cmp_sign > 0) ^ (!res)) old_nr = nr;
-    }
+  const longlong nr = args[0]->val_temporal_by_field_type();
+  if (args[0]->null_value) return;
+
+  if (result_field->is_null()) {
     result_field->set_notnull();
-  } else if (result_field->is_null())
-    result_field->set_null();
-  result_field->store_packed(old_nr);
+  } else {
+    const longlong old_nr = result_field->val_temporal_by_field_type();
+    if (!min_max_best_so_far(
+            unsigned_flag ? compare_numbers(ulonglong(nr), ulonglong(old_nr))
+                          : compare_numbers(nr, old_nr),
+            m_is_min))
+      return;
+  }
+
+  result_field->store_packed(nr);
 }
 
 void Item_sum_hybrid::min_max_update_json_field() {
@@ -3399,86 +3380,80 @@ void Item_sum_hybrid::min_max_update_json_field() {
   if (args[0]->val_json(&json1)) return;
   if (args[0]->null_value) return;
 
-  Field_json *json_field = down_cast<Field_json *>(result_field);
-  Json_wrapper json2;
-
-  if (json_field->is_null() ||
-      (!json_field->val_json(&json2) && cmp_sign * json1.compare(json2) < 0)) {
+  Field_json *const json_field = down_cast<Field_json *>(result_field);
+  if (json_field->is_null()) {
     json_field->set_notnull();
-    json_field->store_json(&json1);
+  } else {
+    Json_wrapper json2;
+    if (json_field->val_json(&json2) ||
+        !min_max_best_so_far(json1.compare(json2), m_is_min))
+      return;
   }
+
+  json_field->store_json(&json1);
 }
 
 void Item_sum_hybrid::min_max_update_str_field() {
   DBUG_ASSERT(cmp);
-  String *res_str = args[0]->val_str(&cmp->value1);
+  const String *const res_str = args[0]->val_str(&cmp->value1);
+  if (args[0]->null_value) return;
 
-  if (!args[0]->null_value) {
-    result_field->val_str(&cmp->value2);
-
-    if (result_field->is_null() ||
-        (cmp_sign * sortcmp(res_str, &cmp->value2, collation.collation)) < 0)
-      result_field->store(res_str->ptr(), res_str->length(),
-                          res_str->charset());
+  if (result_field->is_null())
     result_field->set_notnull();
-  }
+  else if (!min_max_best_so_far(
+               sortcmp(res_str, result_field->val_str(&cmp->value2),
+                       collation.collation),
+               m_is_min))
+    return;
+
+  result_field->store(res_str->ptr(), res_str->length(), res_str->charset());
 }
 
 void Item_sum_hybrid::min_max_update_real_field() {
-  double nr, old_nr;
+  const double nr = args[0]->val_real();
+  if (args[0]->null_value) return;
 
-  old_nr = result_field->val_real();
-  nr = args[0]->val_real();
-  if (!args[0]->null_value) {
-    if (result_field->is_null() || (cmp_sign > 0 ? old_nr > nr : old_nr < nr))
-      old_nr = nr;
+  if (result_field->is_null())
     result_field->set_notnull();
-  } else if (result_field->is_null())
-    result_field->set_null();
-  result_field->store(old_nr);
+  else if (!min_max_best_so_far(compare_numbers(nr, result_field->val_real()),
+                                m_is_min))
+    return;
+
+  result_field->store(nr);
 }
 
 void Item_sum_hybrid::min_max_update_int_field() {
-  longlong nr, old_nr;
+  const longlong nr = args[0]->val_int();
+  if (args[0]->null_value) return;
 
-  old_nr = result_field->val_int();
-  nr = args[0]->val_int();
-  if (!args[0]->null_value) {
-    if (result_field->is_null())
-      old_nr = nr;
-    else {
-      bool res =
-          (unsigned_flag ? (ulonglong)old_nr > (ulonglong)nr : old_nr > nr);
-      /* (cmp_sign > 0 && res) || (!(cmp_sign > 0) && !res) */
-      if ((cmp_sign > 0) ^ (!res)) old_nr = nr;
-    }
+  if (result_field->is_null()) {
     result_field->set_notnull();
-  } else if (result_field->is_null())
-    result_field->set_null();
-  result_field->store(old_nr, unsigned_flag);
+  } else {
+    const longlong old_nr = result_field->val_int();
+    if (!min_max_best_so_far(
+            unsigned_flag ? compare_numbers(ulonglong(nr), ulonglong(old_nr))
+                          : compare_numbers(nr, old_nr),
+            m_is_min))
+      return;
+  }
+
+  result_field->store(nr, unsigned_flag);
 }
 
-/**
-  @todo
-  optimize: do not get result_field in case of args[0] is NULL
-*/
 void Item_sum_hybrid::min_max_update_decimal_field() {
-  /* TODO: optimize: do not get result_field in case of args[0] is NULL */
-  my_decimal old_val, nr_val;
-  const my_decimal *old_nr = result_field->val_decimal(&old_val);
-  const my_decimal *nr = args[0]->val_decimal(&nr_val);
-  if (!args[0]->null_value) {
-    if (result_field->is_null())
-      old_nr = nr;
-    else {
-      bool res = my_decimal_cmp(old_nr, nr) > 0;
-      /* (cmp_sign > 0 && res) || (!(cmp_sign > 0) && !res) */
-      if ((cmp_sign > 0) ^ (!res)) old_nr = nr;
-    }
+  my_decimal nr_val;
+  const my_decimal *const nr = args[0]->val_decimal(&nr_val);
+  if (args[0]->null_value) return;
+
+  if (result_field->is_null()) {
     result_field->set_notnull();
-  } else if (result_field->is_null())
-    result_field->set_null();
-  result_field->store_decimal(old_nr);
+  } else {
+    my_decimal old_val;
+    const my_decimal *const old_nr = result_field->val_decimal(&old_val);
+    if (!min_max_best_so_far(my_decimal_cmp(nr, old_nr), m_is_min)) return;
+  }
+
+  result_field->store_decimal(nr);
 }
 
 Item_avg_field::Item_avg_field(Item_result res_type, Item_sum_avg *item) {
