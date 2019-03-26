@@ -273,6 +273,25 @@ int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_FAILED;
 }
 
+int runRestoreEpochFailOk(NDBT_Context* ctx, NDBT_Step* step){
+  NdbBackup backup;
+  unsigned backupId = ctx->getProperty("BackupId");
+
+  ndbout << "Restoring epoch from backup " << backupId << endl;
+
+  if (backup.restore(backupId, false, false, 0, true) == -1)
+  {
+    ndbout << "Restoring epoch failed" << endl;
+    // Ignore, presumably table does not exist
+  }
+  else
+  {
+    ndbout << "Restoring epoch succeeded" << endl;
+  }
+
+  return NDBT_OK;
+}
+
 int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
@@ -1042,10 +1061,6 @@ int readVersionForRange(Ndb* pNdb,
 
 
 // TODO 
-//   Test restore epoch
-//     Currently seems atrt has a problem with
-//     ndb_apply_status not existing
-//
 //   Error insert for stalled GCI
 //     Improve from timing-based testing
 //
@@ -1313,6 +1328,86 @@ runDelayedBackup(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static Uint64 ndb_apply_status_epoch = 0; // 0 means unknown
+
+int
+getApplyStatusEpoch(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ndb_apply_status_epoch = 0;
+
+  Ndb* pNdb = GETNDB(step);
+  const char* saveDb = pNdb->getDatabaseName();
+  pNdb->setDatabaseName("mysql");
+  const NdbDictionary::Table* apply_status_table =
+    pNdb->getDictionary()->getTable("ndb_apply_status");
+  pNdb->setDatabaseName(saveDb);
+
+  if (!apply_status_table)
+  {
+    g_err << "No mysql.ndb_apply_status table on this system"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  if (!pTrans)
+  {
+    g_err << "Failed to start transaction "
+          << pNdb->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbOperation* readOp = pTrans->getNdbOperation(apply_status_table);
+  if (!readOp)
+  {
+    g_err << "Failed to get operation "
+          << pTrans->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  NdbRecAttr* epochRecAttr = NULL;
+  if ((readOp->readTuple() != 0) ||
+      (readOp->equal("server_id", Uint32(0)) != 0) ||
+      ((epochRecAttr = readOp->getValue("epoch")) == NULL))
+  {
+    g_err << "Failed to define operation "
+          << readOp->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(NoCommit) != 0 ||
+      readOp->getNdbError().code != 0)
+  {
+    g_err << "Error executing operation "
+          << readOp->getNdbError()
+          << " "
+          << pTrans->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  ndb_apply_status_epoch = epochRecAttr->u_64_value();
+  pTrans->close();
+
+  g_err << "Restored epoch is " << ndb_apply_status_epoch
+        << " (" << (ndb_apply_status_epoch >> 32)
+        << "/" << (ndb_apply_status_epoch & 0xffffffff)
+        << ")" << endl;
+
+  return NDBT_OK;
+}
+
+int getApplyStatusEpochFailOk(NDBT_Context* ctx, NDBT_Step* step)
+{
+  getApplyStatusEpoch(ctx,step);
+  return NDBT_OK;
+}
 
 int
 verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
@@ -1480,6 +1575,18 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
     
     commonRanges.dump();
 
+    bool found_apply_status_match = false;
+    if (ndb_apply_status_epoch == 0)
+    {
+      g_err << " : no ndb_apply_status table content to check, skipping"
+            << endl;
+      found_apply_status_match = true;
+    }
+
+    EpochRange restorePoint;
+    restorePoint.m_start = ndb_apply_status_epoch;
+    restorePoint.m_end = ndb_apply_status_epoch + 1;
+
     g_err << " : checking that common range[s] span a GCI boundary" << endl;
     
     bool foundGciBoundary = false;
@@ -1491,12 +1598,28 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
         ndbout_c("  OK - found range spanning GCI boundary");
         er.dump();
         foundGciBoundary = true;
+        if (ndb_apply_status_epoch != 0)
+        {
+          /* Check this range against the apply status epoch */
+          if (!restorePoint.intersect(er).isEmpty())
+          {
+            g_err << "  OK - apply status epoch contained in range" << endl;
+            restorePoint.dump();
+            found_apply_status_match = true;
+          }
+        }
       }
     }
     
     if (!foundGciBoundary)
     {
       g_err << "ERROR : No common GCI boundary span found" << endl;
+      verifyOk = false;
+    }
+    else if (!found_apply_status_match)
+    {
+      g_err << "ERROR : No ndb_apply_status match found with apply status epoch" << endl;
+      restorePoint.dump();
       verifyOk = false;
     }
   }
@@ -1754,8 +1877,9 @@ TESTCASE("ConsistencyUnderLoad",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
-// TODO : Check restore-epoch
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
@@ -1779,6 +1903,8 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
@@ -1801,6 +1927,8 @@ TESTCASE("ConsistencyUnderLoadSnapshotStart",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
 }
@@ -1824,6 +1952,8 @@ TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
