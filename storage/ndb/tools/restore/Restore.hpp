@@ -414,6 +414,7 @@ public:
   Uint32 getObjType(Uint32 i) const { return m_objects[i].m_objType; }
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
+  Uint32 getStartGCP() const;
   Uint32 getStopGCP() const;
   Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; }
 }; // RestoreMetaData
@@ -524,6 +525,10 @@ public:
   RestoreLogIterator(const RestoreMetaData &);
   virtual ~RestoreLogIterator() {}
 
+  bool isSnapshotstartBackup()
+  {
+    return m_is_undolog;
+  }
   const LogEntry * getNextLogEntry(int & res);
 };
 

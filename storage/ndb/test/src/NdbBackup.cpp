@@ -246,20 +246,27 @@ NdbBackup::getNdbRestoreBinaryPath(){
   ndb_restore_bin_path.assfmt("%s/bin/ndb_restore", mysql_install_path);
   if (!File_class::exists(ndb_restore_bin_path.c_str()))
   {
-    g_err << "Failed to find ndb_restore in either $MYSQL_BASE_DIR "
-          << "or $MYSQL_BINDIR paths" << endl;
-    return "";
+    ndb_restore_bin_path.assfmt("%s/storage/ndb/tools/ndb_restore", mysql_install_path);
+    if (!File_class::exists(ndb_restore_bin_path.c_str()))
+    {
+      g_err << "Failed to find ndb_restore in either $MYSQL_BASE_DIR "
+            << "or $MYSQL_BINDIR paths " <<  ndb_restore_bin_path.c_str() << endl;
+      return "";
+    }
+    else
+      return ndb_restore_bin_path;
   }
-
   return ndb_restore_bin_path;
 }
 
 int  
 NdbBackup::execRestore(bool _restore_data,
 		       bool _restore_meta,
-		       int _node_id,
+		       bool _restore_epoch,
+                       int _node_id,
 		       unsigned _backup_id,
-                       unsigned _error_insert){
+                       unsigned _error_insert)
+{
   ndbout << "getBackupDataDir "<< _node_id <<endl;
 
   const char* path = getBackupDataDirForNode(_node_id);
@@ -358,6 +365,28 @@ NdbBackup::execRestore(bool _restore_data,
     ndbout << "buf: "<< tmp.c_str() <<endl;
     res = system(tmp.c_str());
   }
+
+  if (res == 0 && _restore_epoch)
+  {
+    tmp.assfmt("%s%s -c \"%s:%d\" -n %d -b %d -e .",
+#if 1
+               "",
+#else
+               "valgrind --leak-check=yes -v "
+#endif
+               ndb_restore_bin_path.c_str(),
+               ndb_mgm_get_connected_host(handle),
+               ndb_mgm_get_connected_port(handle),
+               _node_id,
+               _backup_id);
+#ifdef ERROR_INSERT
+    if(_error_insert > 0)
+      tmp.appfmt(" --error-insert=%u", _error_insert);
+#endif
+
+    ndbout << "buf: "<< tmp.c_str() <<endl;
+    res = system(tmp.c_str());
+  }
   
   ndbout << "ndb_restore res: " << res << endl;
 
@@ -365,7 +394,12 @@ NdbBackup::execRestore(bool _restore_data,
 }
 
 int 
-NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, unsigned error_insert){
+NdbBackup::restore(unsigned _backup_id,
+                   bool restore_meta,
+                   bool restore_data,
+                   unsigned error_insert,
+                   bool restore_epoch)
+{
   
   if (!isConnected())
     return -1;
@@ -373,13 +407,13 @@ NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, un
   if (getStatus() != 0)
     return -1;
 
-  if(!restore_meta && !restore_data &&
+  if(!restore_meta && !restore_data && !restore_epoch &&
     (execRestore(false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   if(restore_meta && // if metadata restore enabled 
     // restore metadata for first node
-    (execRestore(false, true, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
+    (execRestore(false, true, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   // Restore data once for each node
@@ -387,8 +421,17 @@ NdbBackup::restore(unsigned _backup_id, bool restore_meta, bool restore_data, un
   {
     for(unsigned i = 0; i < ndbNodes.size(); i++)
     {
-      if(execRestore(true, false, ndbNodes[i].node_id, _backup_id, error_insert) != 0)
+      if(execRestore(true, false, false, ndbNodes[i].node_id, _backup_id, error_insert) != 0)
         return -1;
+    }
+  }
+
+  // Restore epoch from first node
+  if (restore_epoch)
+  {
+    if (execRestore(false, false, true, ndbNodes[0].node_id, _backup_id, error_insert) !=0)
+    {
+      return -1;
     }
   }
   return 0;

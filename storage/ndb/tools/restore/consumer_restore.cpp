@@ -1893,7 +1893,7 @@ BackupRestore::has_temp_error(){
 }
 
 bool
-BackupRestore::update_apply_status(const RestoreMetaData &metaData)
+BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
 {
   if (!m_restore_epoch)
     return true;
@@ -1933,13 +1933,17 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData)
   }
 
   Uint32 server_id= 0;
-  Uint64 epoch= Uint64(metaData.getStopGCP());
   Uint32 version= metaData.getNdbVersion();
 
-  /**
-   * Bug#XXX, stopGCP is not really stop GCP, but stopGCP - 1
-   */
-  epoch += 1;
+  Uint64 epoch= 0;
+  if (snapshotstart)
+  {
+    epoch = Uint64(metaData.getStartGCP());
+  }
+  else
+  {
+    epoch = Uint64(metaData.getStopGCP());
+  }
 
   if (version >= NDBD_MICRO_GCP_63 ||
       (version >= NDBD_MICRO_GCP_62 && getMinor(version) == 2))

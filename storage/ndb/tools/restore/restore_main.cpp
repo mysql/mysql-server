@@ -1458,6 +1458,7 @@ int do_restore(RestoreThreadData *thrdata)
   int res  = metaData.loadContent();
 
   restoreLogger.log_info("Stop GCP of Backup: %u", metaData.getStopGCP());
+  restoreLogger.log_info("Start GCP of Backup: %u", metaData.getStartGCP());
   
   if (res == 0)
   {
@@ -1937,9 +1938,16 @@ int do_restore(RestoreThreadData *thrdata)
   {
     Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));
     restoreLogger.log_info("%s [restore_epoch] Restoring epoch", timestamp);
+    RestoreLogIterator logIter(metaData);
 
+    if (!logIter.readHeader())
+    {
+      err << "Failed to read snapshot info from log file. Exiting..." << endl;
+      return NDBT_FAILED;
+    }
+    bool snapshotstart = logIter.isSnapshotstartBackup();
     for (i= 0; i < g_consumers.size(); i++)
-      if (!g_consumers[i]->update_apply_status(metaData))
+      if (!g_consumers[i]->update_apply_status(metaData, snapshotstart))
       {
         restoreLogger.log_error("Restore: Failed to restore epoch");
         return NDBT_FAILED;

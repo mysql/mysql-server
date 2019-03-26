@@ -5046,7 +5046,14 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3+NdbNodeBitmask::Size, JBB);
 
   /**
-   * Wait for GCP
+   * Wait for startGCP to a establish a consistent point at backup start.
+   * This point is consistent since backup logging has started but scans
+   * have not yet started, so it needs to be identified by a GCP. Wait till
+   * the existing GCP has completed and capture the GCI as the startGCP of
+   * this backup.
+   * This is needed for SNAPSHOTSTART backups, which are restored to a
+   * consistent point at backup start by replaying the backup undo logs up
+   * till the end of startGCP.
    */
   ptr.p->masterData.gsn = GSN_WAIT_GCP_REQ;
   ptr.p->masterData.waitGCP.startBackup = true;
@@ -5217,6 +5224,16 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
    * Finished with all tables
    */
   {
+    /**
+     * Wait for stopGCP to a establish a consistent point at backup stop.
+     * This point is consistent since backup logging has stopped and scans
+     * have completed, so it needs to be identified by a GCP. Wait till
+     * the existing GCP has completed and capture the GCI as the stopGCP of
+     * this backup.
+     * This is needed for SNAPSHOTEND backups, which are restored to a
+     * consistent point at backup stop by replaying the backup redo logs up
+     * till the end of stopGCP.
+     */
     ptr.p->masterData.gsn = GSN_WAIT_GCP_REQ;
     ptr.p->masterData.waitGCP.startBackup = false;
     
@@ -7336,8 +7353,22 @@ Backup::execSTART_BACKUP_REQ(Signal* signal)
     }//if
   }//for
 
-  /**
-   * Tell DBTUP to create triggers
+  /* A backup needs to be restored to a consistent point, for
+   * which it uses a fuzzy scan and a log.
+   *
+   * The fuzzy scan is restored, and then the log is replayed
+   * idempotently up to some consistent point which is after
+   * (SNAPSHOTEND) or before (SNAPSHOTSTART) any of the states
+   * captured in the scan.
+   *
+   * This requires that the backup is captured in order :
+   * 1) Start recording logs of all committed transactions
+   * 2) Choose SNAPSHOTSTART consistent point
+   * 3) Perform data scan
+   * 4) Choose SNAPSHOTEND consistent point
+   * 5) Stop recording logs
+   *
+   * Tell DBTUP to create triggers to start recording logs
    */
   TablePtr tabPtr;
   ndbrequire(ptr.p->tables.first(tabPtr));
@@ -10451,7 +10482,16 @@ Backup::execFIRE_TRIG_ORD(Signal* signal)
   Uint32 len = trigPtr.p->logEntry->Length;
   trigPtr.p->logEntry->FragId = htonl(fragId);
 
-  if(gci != ptr.p->currGCP)
+  /* Redo logs are always read from file start to file end, so
+   * GCI content can be optimised out. If a set of N consecutive
+   * log entries have the same GCI, the GCI is written only in the
+   * first log entry of the set, while the remaining entries do
+   * not contain a GCP. So an entry is written with a GCP only
+   * when its GCP differs from the previous entry.
+   * This cannot be done for undo logs since undo logs are read in
+   * reverse, from file end to file start.
+   */
+  if ((ptr.p->flags & BackupReq::USE_UNDO_LOG) || (gci != ptr.p->currGCP))
   {
     jam();
     trigPtr.p->logEntry->TriggerEvent|= htonl(0x10000);
