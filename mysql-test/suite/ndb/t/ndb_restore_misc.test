@@ -554,7 +554,7 @@ drop table ndb_show_tables_results;
 #
 # Bug#51432
 #
---exec $NDB_RESTORE --core-file=0 -e -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=0 -b 1 -n 2 -m $NDB_SAVED_BACKUPS/hashmap >> $NDB_TOOLS_OUTPUT
 
 #
 # Bug#56285

@@ -1,0 +1,8 @@
+Verify that backup is restored to stopGCP
+Check that restored data and epochs match
+Running command
+Result of command: 0
+Verify that SNAPSHOTSTART backup is restored to startGCP
+Check that restored data and epochs match
+Running command
+Result of command: 0
