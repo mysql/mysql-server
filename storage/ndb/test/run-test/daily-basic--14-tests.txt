@@ -89,3 +89,11 @@ max-time: 600
 cmd: testDict
 args: -n DropWithTakeover T1 T2
 max-time: 1800
+
+cmd: testBackup
+args: -n ConsistencyUnderLoadStallGCP T1
+max-time: 900
+
+cmd: testBackup
+args: -n ConsistencyUnderLoadSnapshotStartStallGCP T1
+max-time: 900

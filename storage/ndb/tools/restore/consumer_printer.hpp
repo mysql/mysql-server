@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
+    Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -47,7 +47,7 @@ public:
   virtual void logEntry(const LogEntry &);
   virtual void endOfTuples() {};
   virtual void endOfLogEntrys();
-  virtual bool update_apply_status(const RestoreMetaData &metaData);
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
   bool m_print;
   bool m_print_log;
   bool m_print_data;

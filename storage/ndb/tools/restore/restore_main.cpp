@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1365,6 +1365,7 @@ main(int argc, char** argv)
   debug << "Load content" << endl;
   int res  = metaData.loadContent();
 
+  info << "Start GCP of Backup: " << metaData.getStartGCP() << endl;
   info << "Stop GCP of Backup: " << metaData.getStopGCP() << endl;
   
   if (res == 0)
@@ -1731,8 +1732,17 @@ main(int argc, char** argv)
   }
   if (ga_restore_epoch)
   {
+    RestoreLogIterator logIter(metaData);
+
+    if (!logIter.readHeader())
+    {
+      err << "Failed to read snapshot info from log file. Exiting..." << endl;
+      return NDBT_FAILED;
+    }
+    bool snapshotstart = logIter.isSnapshotstartBackup();
+
     for (i= 0; i < g_consumers.size(); i++)
-      if (!g_consumers[i]->update_apply_status(metaData))
+      if (!g_consumers[i]->update_apply_status(metaData, snapshotstart))
       {
         err << "Restore: Failed to restore epoch" << endl;
         return -1;

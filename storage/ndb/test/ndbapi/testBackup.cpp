@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -553,6 +553,25 @@ int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
   }
 
   return NDBT_FAILED;
+}
+
+int runRestoreEpochFailOk(NDBT_Context* ctx, NDBT_Step* step){
+  NdbBackup backup;
+  unsigned backupId = ctx->getProperty("BackupId");
+
+  ndbout << "Restoring epoch from backup " << backupId << endl;
+
+  if (backup.restore(backupId, false, false, 0, true) == -1)
+  {
+    ndbout << "Restoring epoch failed" << endl;
+    // Ignore, presumably table does not exist
+  }
+  else
+  {
+    ndbout << "Restoring epoch succeeded" << endl;
+  }
+
+  return NDBT_OK;
 }
 
 int runVerifyOne(NDBT_Context* ctx, NDBT_Step* step){
@@ -1324,10 +1343,6 @@ int readVersionForRange(Ndb* pNdb,
 
 
 // TODO 
-//   Test restore epoch
-//     Currently seems atrt has a problem with
-//     ndb_apply_status not existing
-//
 //   Error insert for stalled GCI
 //     Improve from timing-based testing
 //
@@ -1595,6 +1610,86 @@ runDelayedBackup(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static Uint64 ndb_apply_status_epoch = 0; // 0 means unknown
+
+int
+getApplyStatusEpoch(NDBT_Context* ctx, NDBT_Step* step)
+{
+  ndb_apply_status_epoch = 0;
+
+  Ndb* pNdb = GETNDB(step);
+  const char* saveDb = pNdb->getDatabaseName();
+  pNdb->setDatabaseName("mysql");
+  const NdbDictionary::Table* apply_status_table =
+    pNdb->getDictionary()->getTable("ndb_apply_status");
+  pNdb->setDatabaseName(saveDb);
+
+  if (!apply_status_table)
+  {
+    g_err << "No mysql.ndb_apply_status table on this system"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbTransaction* pTrans = pNdb->startTransaction();
+  if (!pTrans)
+  {
+    g_err << "Failed to start transaction "
+          << pNdb->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbOperation* readOp = pTrans->getNdbOperation(apply_status_table);
+  if (!readOp)
+  {
+    g_err << "Failed to get operation "
+          << pTrans->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  NdbRecAttr* epochRecAttr = NULL;
+  if ((readOp->readTuple() != 0) ||
+      (readOp->equal("server_id", Uint32(0)) != 0) ||
+      ((epochRecAttr = readOp->getValue("epoch")) == NULL))
+  {
+    g_err << "Failed to define operation "
+          << readOp->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  if (pTrans->execute(NoCommit) != 0 ||
+      readOp->getNdbError().code != 0)
+  {
+    g_err << "Error executing operation "
+          << readOp->getNdbError()
+          << " "
+          << pTrans->getNdbError()
+          << endl;
+    pTrans->close();
+    return NDBT_FAILED;
+  }
+
+  ndb_apply_status_epoch = epochRecAttr->u_64_value();
+  pTrans->close();
+
+  g_err << "Restored epoch is " << ndb_apply_status_epoch
+        << " (" << (ndb_apply_status_epoch >> 32)
+        << "/" << (ndb_apply_status_epoch & 0xffffffff)
+        << ")" << endl;
+
+  return NDBT_OK;
+}
+
+int getApplyStatusEpochFailOk(NDBT_Context* ctx, NDBT_Step* step)
+{
+  getApplyStatusEpoch(ctx,step);
+  return NDBT_OK;
+}
 
 int
 verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
@@ -1762,6 +1857,18 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
     
     commonRanges.dump();
 
+    bool found_apply_status_match = false;
+    if (ndb_apply_status_epoch == 0)
+    {
+      g_err << " : no ndb_apply_status table content to check, skipping"
+            << endl;
+      found_apply_status_match = true;
+    }
+
+    EpochRange restorePoint;
+    restorePoint.m_start = ndb_apply_status_epoch;
+    restorePoint.m_end = ndb_apply_status_epoch + 1;
+
     g_err << " : checking that common range[s] span a GCI boundary" << endl;
     
     bool foundGciBoundary = false;
@@ -1773,6 +1880,16 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
         ndbout_c("  OK - found range spanning GCI boundary");
         er.dump();
         foundGciBoundary = true;
+        if (ndb_apply_status_epoch != 0)
+        {
+          /* Check this range against the apply status epoch */
+          if (!restorePoint.intersect(er).isEmpty())
+          {
+            g_err << "  OK - apply status epoch contained in range" << endl;
+            restorePoint.dump();
+            found_apply_status_match = true;
+          }
+        }
       }
     }
     
@@ -1781,13 +1898,50 @@ verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "ERROR : No common GCI boundary span found" << endl;
       verifyOk = false;
     }
+    else if (!found_apply_status_match)
+    {
+      g_err << "ERROR : No ndb_apply_status match found with apply status epoch" << endl;
+      restorePoint.dump();
+      verifyOk = false;
+    }
   }
 
   return (verifyOk? NDBT_OK : NDBT_FAILED);
 }
   
-  
+int
+runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 stepNo = step->getStepNo();
+  NdbRestarter restarter;
+  NdbBackup backup;
 
+  g_err << stepNo << " : runGCPStallDuringBackupStart" << endl;
+
+  /**
+   * Plan is stall GCP during backup start so that
+   * the difference between a GCP transition
+   * starting (further commits in new GCP) and
+   * completing (all commits from old GCP
+   * completed) is widened and we get better
+   * coverage of the logic enforcing a consistent
+   * restore point to the start GCP.
+   */
+
+  g_err << stepNo << " : stalling GCP" << endl;
+  const Uint32 StallGCPSaveCode = 7237;  // DIH
+  restarter.insertErrorInAllNodes(StallGCPSaveCode);
+
+  g_err << stepNo << " : waiting a while" << endl;
+  
+  const Uint32 delay2Secs = 2 * 3;
+  NdbSleep_SecSleep(delay2Secs);
+
+  g_err << stepNo << " : Clearing error inserts" << endl;
+  restarter.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
 
 int
 runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
@@ -2018,8 +2172,9 @@ TESTCASE("ConsistencyUnderLoad",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
-// TODO : Check restore-epoch
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
@@ -2043,22 +2198,61 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
 
   VERIFIER(runDropTablesRestart);   // Drop tables
   VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
   VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
   FINALIZER(clearHistoryList);
   FINALIZER(runClearTable);
 }
 
+TESTCASE("ConsistencyUnderLoadSnapshotStart",
+         "Test backup SNAPSHOTSTART consistency under load")
+{
+  TC_PROPERTY("SnapshotStart", Uint32(1));
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(100));
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
 
-// Disabled pending fix for  Bug #27566346 NDB : BACKUP WITH SNAPSHOTSTART CONSISTENCY ISSUES
-// TESTCASE("ConsistencyUnderLoadSnapshotStart",
-//          "Test backup SNAPSHOTSTART consistency under load")
-// {
-// }
-// TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
-//          "Test backup consistency under load with GCP stall")
-// {
-// }
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
 
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  FINALIZER(clearHistoryList);
+}
+
+TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
+         "Test backup consistency under load with GCP stall")
+{
+  TC_PROPERTY("SnapshotStart", Uint32(1));
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
+  TC_PROPERTY("DelayUpdates", Uint32(5)); // Millis to sleep between updates, reducing runtime
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
+
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
+  STEP(runGCPStallDuringBackupStart);  // Backup adversary
+
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(runRestoreEpochFailOk);     // Restore epoch
+  VERIFIER(getApplyStatusEpochFailOk); // Retrieve epoch restored to ndb_apply_status
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  FINALIZER(clearHistoryList);
+  FINALIZER(runClearTable);
+}
 
 
 NDBT_TESTSUITE_END(testBackup);
