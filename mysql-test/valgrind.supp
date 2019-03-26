@@ -1972,6 +1972,403 @@
    fun:*
 }
 
+{
+   LDAP_1
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PORT_Alloc_Util
+   obj:/usr/lib64/libnss3.so
+   obj:/usr/lib64/libnss3.so
+   fun:SECMOD_LoadModule
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   ...
+}
+
+
+{
+   LDAP_2
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:NSSRWLock_New_Util
+   fun:SECOID_Init
+   obj:/usr/lib64/libsoftokn3.so
+   ...
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   ...
+}
+
+
+{
+   LDAP_3
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:strdup
+   fun:PR_LoadLibraryWithFlags
+   ...
+   fun:tlsmc_open_nssdb
+   fun:tlsmc_convert
+   fun:tlsmc_intercept_initialization
+   obj:/usr/lib64/libldap-2.4.so.2.10.7
+   ...
+}
+
+{
+   LDAP_4
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:strdup
+   fun:_dl_load_cache_lookup
+   fun:_dl_map_object
+   fun:openaux
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+}
+
+{
+   LDAP_5
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PR_LoadLibraryWithFlags
+   ...
+   obj:/usr/lib64/libnss3.so
+   ...
+   fun:tlsmc_open_nssdb
+   fun:tlsmc_convert
+   fun:tlsmc_intercept_initialization
+   obj:/usr/lib64/libldap-2.4.so.2.10.7
+   ...
+}
+
+{
+   LDAP_6
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PL_NewHashTable
+   fun:SECOID_Init
+   obj:/usr/lib64/libsoftokn3.so
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   fun:PORT_LoadLibraryFromOrigin
+   ...
+}
+
+{
+   LDAP_7
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PL_HashTableRawAdd
+   fun:SECOID_Init
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   fun:PORT_LoadLibraryFromOrigin
+   ...
+}
+
+{
+   LDAP_8
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   ...
+   obj:*
+   fun:_ZL35authsm_run_second_authenticate_userP16mysql_async_auth
+   fun:run_plugin_auth
+   ...
+}
+
+{
+   LDAP_9
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:NSSRWLock_New_Util
+   fun:SECOID_Init
+   ...
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   ...
+}
+
+{
+   LDAP_10
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PR_NewCondVar
+   ...
+   fun:SECMOD_LoadModule
+   obj:/usr/lib64/libnss3.so
+   ...
+   obj:/usr/lib64/libldap-2.4.so.2.10.7
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   fun:_ZN23Ldap_connection_creator13establish_tlsER9Ldap_info
+}
+
+{
+   LDAP_11
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PORT_ZAlloc_Util
+   obj:/usr/lib64/libfreeblpriv3.so
+   ...
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:PR_LoadLibraryWithFlags
+   ...
+}
+
+{
+   LDAP_12
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PR_NewLock
+   fun:NSSRWLock_New_Util
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   ...
+}
+
+{
+   LDAP_13
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PORT_Alloc_Util
+   fun:SECITEM_CopyItem_Util
+   obj:/usr/lib64/libfreeblpriv3.so
+   ...
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   ...
+}
+
+{
+   LDAP_14
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   obj:/usr/lib64/libfreeblpriv3.so
+   ...
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:PR_LoadLibraryWithFlags
+   ...
+}
+
+{
+   LDAP_15
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:PL_ArenaAllocate
+   fun:PORT_ArenaAlloc_Util
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   ...
+}
+
+{
+   LDAP_16
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:PORT_ZAlloc_Util
+   ...
+   fun:SECOID_Init
+   obj:/usr/lib64/libsoftokn3.so
+   fun:_dl_init
+   fun:dl_open_worker
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   ...
+}
+
+{
+   LDAP_17
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:PR_NewLock
+   ...
+   fun:SECMOD_LoadModule
+   obj:/usr/lib64/libnss3.so
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   ...
+}
+
+{
+   LDAP_18
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PR_NewCondVar
+   fun:NSSRWLock_New_Util
+   ...
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   fun:PORT_LoadLibraryFromOrigin
+}
+
+{
+   LDAP_19
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PR_NewCondVar
+   ...
+   fun:PR_CallOnce
+   ...
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:PR_LoadLibraryWithFlags
+}
+
+{
+   LDAP_20
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   fun:PORT_ZAlloc_Util
+   ...
+   fun:SECMOD_CreateModuleEx
+   fun:SECMOD_LoadModule
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   ...
+}
+
+{
+   LDAP_21
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PR_NewLock
+   ...
+   fun:SECOID_Init
+   ...
+   fun:PR_LoadLibraryWithFlags
+   obj:/usr/lib64/libnssutil3.so
+   fun:PORT_LoadLibraryFromOrigin
+   ...
+}
+
+{
+   LDAP_22
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PR_NewLock
+   obj:/usr/lib64/libfreeblpriv3.so
+   fun:PR_CallOnce
+   ...
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:PR_LoadLibraryWithFlags
+   ...
+}
+
+{
+   LDAP_23
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PR_NewLock
+   obj:/usr/lib64/libnssdbm3.so
+   ...
+   fun:legacy_Open
+   ...
+   fun:SECMOD_LoadModule
+   fun:SECMOD_LoadModule
+   ...
+}
+
+{
+   LDAP_24
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:PL_ArenaAllocate
+   fun:PORT_ArenaAlloc_Util
+   ...
+   fun:tlsmc_convert
+   fun:tlsmc_intercept_initialization
+   obj:/usr/lib64/libldap-2.4.so.2.10.7
+   ...
+}
+
+{
+   LDAP_25
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_close
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlclose
+   fun:mysql_client_plugin_deinit
+   fun:_ZL8clean_upb
+   fun:_Z11mysqld_mainiPPc
+   fun:main
+}
+
+{
+   LDAP_26
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:PORT_ZAlloc_Util
+   fun:PORT_NewArena_Util
+   fun:SECOID_Init
+   ...
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   ...
+   obj:/usr/lib64/libnssutil3.so
+   fun:PORT_LoadLibraryFromOrigin
+   ...
+}
+
 # Suppress all issues related to libcrypto library
 {
    Conditional jump or move in BN_bin2bn
