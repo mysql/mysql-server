@@ -1,0 +1,127 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+Test to show that combination of Backup + Restore and
+Binlog positioning correctly recovers a slave
+stop slave;
+use test;
+create table ticker (a int primary key) engine=ndb;
+reset master;
+use test;
+create procedure tick(times int)
+begin
+set @x = 1;
+repeat
+insert into test.ticker values (@x);
+select sleep(0.1);
+set @x = @x + 1;
+until @x > times
+end repeat;
+end %
+Insert ticks into the table every 100 millis for 20s
+call tick(200);;
+select sleep(2);
+sleep(2)
+0
+Run backup snapshotend
+Starting backup
+Backup started
+Waiting for backup to complete
+Backup completed
+select sleep(2);
+sleep(2)
+0
+Run backup snapshotstart
+Starting backup
+Backup started
+Waiting for backup to complete
+Backup completed
+Wait for ticker to stop
+Expect 200 entries on Master
+select count(1) from test.ticker;
+count(1)
+200
+select max(a) from test.ticker;
+max(a)
+200
+Replicate as normal
+use test;
+create table ticker (a int primary key) engine=ndb;
+start slave;
+Expect 200 entries on Slave
+select count(1) from test.ticker;
+count(1)
+200
+select max(a) from test.ticker;
+max(a)
+200
+Verify backup restoration is correct wrt binlog positions
+Restore backup on the slave
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+select @backup_rows:=count(1) from test.ticker;
+select @backup_max_val:=max(a) from test.ticker;
+select @backup_rows - @backup_max_val;
+@backup_rows - @backup_max_val
+0
+start slave;
+Expect 200 rows when backup and binlog subset combined on slave
+select count(1) from test.ticker;
+count(1)
+200
+select max(a) from test.ticker;
+max(a)
+200
+Now check Binlog apply alone
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+start slave;
+select @log_rows:=count(1) from test.ticker;
+select @log_max_val:=max(a) from test.ticker;
+Expect 200 when adding backup and log rows
+select @backup_rows + @log_rows;
+@backup_rows + @log_rows
+200
+select @log_max_val;
+@log_max_val
+200
+Restore backup on the slave
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+select @backup_rows:=count(1) from test.ticker;
+select @backup_max_val:=max(a) from test.ticker;
+select @backup_rows - @backup_max_val;
+@backup_rows - @backup_max_val
+0
+start slave;
+Expect 200 rows when backup and binlog subset combined on slave
+select count(1) from test.ticker;
+count(1)
+200
+select max(a) from test.ticker;
+max(a)
+200
+Now check Binlog apply alone
+stop slave;
+truncate table test.ticker;
+delete from mysql.ndb_apply_status;
+start slave;
+select @log_rows:=count(1) from test.ticker;
+select @log_max_val:=max(a) from test.ticker;
+Expect 200 when adding backup and log rows
+select @backup_rows + @log_rows;
+@backup_rows + @log_rows
+200
+select @log_max_val;
+@log_max_val
+200
+Cleanup
+drop procedure tick;
+drop table ticker;
+reset master;
+include/rpl_end.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -274,6 +274,11 @@ RestoreMetaData::getTable(Uint32 tableId) const {
     if(allTables[i]->getTableId() == tableId)
       return allTables[i];
   return NULL;
+}
+
+Uint32
+RestoreMetaData::getStartGCP() const {
+  return m_startGCP;
 }
 
 Uint32
@@ -683,7 +688,12 @@ RestoreMetaData::readGCPEntry() {
   dst.StopGCP = ntohl(dst.StopGCP);
   
   m_startGCP = dst.StartGCP;
-  m_stopGCP = dst.StopGCP;
+  /**
+   * Stop GCP is recorded as StopGCP -1 by Backup.cpp
+   * We correct this here
+   * Backup format not changed
+   */
+  m_stopGCP = dst.StopGCP + 1;
   return true;
 }
 
@@ -1952,12 +1962,14 @@ RestoreLogIterator::RestoreLogIterator(const RestoreMetaData & md)
 const LogEntry *
 RestoreLogIterator::getNextLogEntry(int & res) {
   // Read record length
+  const Uint32 startGCP = m_metaData.getStartGCP();
   const Uint32 stopGCP = m_metaData.getStopGCP();
   Uint32 tableId;
   Uint32 triggerEvent;
   Uint32 frag_id;
   Uint32 *attr_data;
   Uint32 attr_data_len;
+  bool skip_entry = false;
   do {
     Uint32 len;
     Uint32 *logEntryPtr;
@@ -2030,7 +2042,20 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       attr_data_len--;
       m_last_gci = ntohl(*(attr_data + attr_data_len));
     }
-  } while(m_last_gci > stopGCP + 1);
+    if (m_is_undolog)
+    {
+      // Do not apply anything from startGCP or lower
+      skip_entry = (m_last_gci <= startGCP);
+    }
+    else
+    {
+      // Do not apply anything after stopGCP
+      skip_entry = (m_last_gci > stopGCP);
+    }
+    // Skip entries instead of stopping scan since entries are not ordered
+    // by GCP. Entries from different GCPs may be interleaved, so scan till
+    // EOF to read all matching entries.
+  } while (skip_entry);
 
   m_logEntry.m_table = m_metaData.getTable(tableId);
   /* We should 'invert' the operation type when we restore an Undo log.
