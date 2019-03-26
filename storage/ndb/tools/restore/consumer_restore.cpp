@@ -1883,10 +1883,6 @@ BackupRestore::update_apply_status(const RestoreMetaData &metaData, bool snapsho
   else
   {
     epoch = Uint64(metaData.getStopGCP());
-    /**
-     * Bug#XXX, stopGCP is not really stop GCP, but stopGCP - 1
-     */
-    epoch += 1;
   }
 
   if (version >= NDBD_MICRO_GCP_63 ||
