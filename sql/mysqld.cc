@@ -1431,7 +1431,7 @@ static char **remaining_argv;
 
  The argument processing goes as follows:
  1. At startup the "original" set of arguments is shallow-copied into
- the read only list @ref orig_arv.
+ the read only list @ref orig_argv.
  2. The config file arguments are read from the config files (.cnf and
    persisted read-only) and are appended as command line arguments.
    In the process the argv is deep copied because of the expansion
