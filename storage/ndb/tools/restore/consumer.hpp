@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,8 @@ public:
   virtual bool finalize_table(const TableS &){return true;}
   virtual bool rebuild_indexes(const TableS &) { return true;}
   virtual bool createSystable(const TableS &){ return true;}
-  virtual bool update_apply_status(const RestoreMetaData &metaData){return true;}
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart)
+    {return true;}
   virtual bool report_started(unsigned backup_id, unsigned node_id)
     {return true;}
   virtual bool report_meta_data(unsigned backup_id, unsigned node_id)

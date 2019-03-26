@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,6 +431,7 @@ public:
   Uint32 getObjType(Uint32 i) const { return m_objects[i].m_objType; }
   void* getObjPtr(Uint32 i) const { return m_objects[i].m_objPtr; }
   
+  Uint32 getStartGCP() const;
   Uint32 getStopGCP() const;
   Uint32 getNdbVersion() const { return m_fileHeader.NdbVersion; };
 }; // RestoreMetaData
@@ -533,6 +534,10 @@ public:
   RestoreLogIterator(const RestoreMetaData &);
   virtual ~RestoreLogIterator() {};
 
+  bool isSnapshotstartBackup()
+  {
+    return m_is_undolog;
+  }
   const LogEntry * getNextLogEntry(int & res);
 };
 

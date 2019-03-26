@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ public:
   virtual bool column_compatible_check(const char* tableName,
                                        const NDBCOL* backupCol, 
                                        const NDBCOL* dbCol);
-  virtual bool update_apply_status(const RestoreMetaData &metaData);
+  virtual bool update_apply_status(const RestoreMetaData &metaData, bool snapshotstart);
   virtual bool report_started(unsigned node_id, unsigned backup_id);
   virtual bool report_meta_data(unsigned node_id, unsigned backup_id);
   virtual bool report_data(unsigned node_id, unsigned backup_id);
