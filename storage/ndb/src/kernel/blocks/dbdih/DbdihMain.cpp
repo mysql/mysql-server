@@ -11952,9 +11952,11 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   ndbrequire(found);
 
   bool ok = false;
+  bool current_lcp_completed = false;
   switch(lcpState){
   case MasterLCPConf::LCP_STATUS_IDLE:
     ok = true;
+    current_lcp_completed = true;
     break;
   case MasterLCPConf::LCP_STATUS_ACTIVE:
   case MasterLCPConf::LCP_TAB_COMPLETED:
@@ -11970,7 +11972,7 @@ void Dbdih::execMASTER_LCPCONF(Signal* signal)
   // We have now received all responses and are ready to take over the LCP
   // protocol as master.
   /*-------------------------------------------------------------------------*/
-  MASTER_LCPhandling(signal, failedNodeId);
+  MASTER_LCPhandling(signal, failedNodeId, current_lcp_completed);
 }//Dbdih::execMASTER_LCPCONF()
 
 void Dbdih::execMASTER_LCPREF(Signal* signal) 
@@ -11995,7 +11997,8 @@ void Dbdih::execMASTER_LCPREF(Signal* signal)
   MASTER_LCPhandling(signal, failedNodeId);
 }//Dbdih::execMASTER_LCPREF()
 
-void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId) 
+void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId,
+                               bool lcp_already_completed) 
 {
   /*-------------------------------------------------------------------------
    *
@@ -12105,7 +12108,21 @@ void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId)
       // change state due to table write completion during state 
       // collection phase.
       /* ------------------------------------------------------------------- */
-      ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
+
+      /**
+       * During master takeover, some participant nodes could have
+       * been in IDLE state since they have already completed the
+       * lcpId under the old master before it failed.
+
+       * When I, the new master, take over and send MASTER_LCP_REQ and
+       * execute MASTER_LCPCONF from participants, excempt the
+       * already-completed participants from the requirement to be
+       * "not in IDLE state". Those who sent MASTER_LCPREF had not
+       * completed the current LCP under the old master and thus
+       * cannot be in IDLE state.
+       */
+      ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE ||
+                 lcp_already_completed);
 
       c_lcp_runs_with_pause_support = check_if_pause_lcp_possible();
       if (!c_lcp_runs_with_pause_support)

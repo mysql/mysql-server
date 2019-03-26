@@ -1565,7 +1565,8 @@ private:
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
-  void MASTER_LCPhandling(Signal *, Uint32 failedNodeId);
+  void MASTER_LCPhandling(Signal *, Uint32 failedNodeId,
+                          bool lcp_already_completed = false);
   void rnfTableNotReadyLab(Signal *, TabRecordPtr regTabPtr, Uint32 removeNodeId);
   void startLcpTakeOverLab(Signal *, Uint32 failedNodeId);
 
@@ -2358,7 +2359,7 @@ private:
 
     // Whether the 'lcp' is already completed under the
     // coordination of the failed master
-    bool already_completed_lcp(Uint32 lcp, Uint32 current_master)
+    bool already_completed_lcp(Uint32 lcp, Uint32 current_master) const
     {
       const Uint32 last_completed_master_node =
         refToNode(m_lastLCP_COMPLETE_REP_ref);
