@@ -1236,8 +1236,6 @@ static bool net_read_raw_loop(NET *net, size_t count) {
     if (net->pkt_nr == 0 && vio_was_timeout(net->vio)) {
       net->last_errno = ER_NET_WAIT_ERROR;
       /* Socket should be closed after trying to write/send error. */
-      char ebuff[512];
-      my_message(net->last_errno, ebuff, MYF(0));
       LogErr(INFORMATION_LEVEL, net->last_errno);
     }
 #endif
