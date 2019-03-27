@@ -873,3 +873,22 @@ SET sql_mode = 'PIPES_AS_CONCAT';
 SELECT statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
                          "SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" );
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug #29512067: STATEMENT_DIGEST() AND STATEMENT_DIGEST_TEXT() CORRUPT
+--echo # OUTER STATEMENT DIGEST
+--echo #
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+
+SELECT 1;
+
+SELECT DIGEST_TEXT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE DIGEST_TEXT LIKE 'SELECT ?%';
+
+SELECT statement_digest_text('SELECT 1 + 1');
+
+--echo # "SELECT ? + ?" should not be here
+SELECT DIGEST_TEXT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE DIGEST_TEXT LIKE 'SELECT ?%';

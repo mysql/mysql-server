@@ -1943,3 +1943,25 @@ statement_digest( " CREATE ALGORITHM = MERGE VIEW v1 AS " ||
 "SELECT a FROM ( SELECT a1 FROM v2 ) AS SELECT1" )
 X
 SET sql_mode = DEFAULT;
+#
+# Bug #29512067: STATEMENT_DIGEST() AND STATEMENT_DIGEST_TEXT() CORRUPT
+# OUTER STATEMENT DIGEST
+#
+TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
+SELECT 1;
+1
+1
+SELECT DIGEST_TEXT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE DIGEST_TEXT LIKE 'SELECT ?%';
+DIGEST_TEXT
+SELECT ?
+SELECT statement_digest_text('SELECT 1 + 1');
+statement_digest_text('SELECT 1 + 1')
+SELECT ? + ?
+# "SELECT ? + ?" should not be here
+SELECT DIGEST_TEXT
+FROM performance_schema.events_statements_summary_by_digest
+WHERE DIGEST_TEXT LIKE 'SELECT ?%';
+DIGEST_TEXT
+SELECT ?

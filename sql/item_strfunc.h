@@ -241,12 +241,12 @@ class Item_func_statement_digest final : public Item_str_ascii_func {
     return (func_arg->source == VGS_GENERATED_COLUMN);
   }
 
-  bool resolve_type(THD *) override {
-    set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 
   String *val_str_ascii(String *) override;
+
+ private:
+  uchar *m_token_buffer{nullptr};
 };
 
 class Item_func_statement_digest_text final : public Item_str_func {
@@ -260,10 +260,7 @@ class Item_func_statement_digest_text final : public Item_str_func {
     The type is always LONGTEXT, just like the digest_text columns in
     Performance Schema
   */
-  bool resolve_type(THD *) override {
-    set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
-    return false;
-  }
+  bool resolve_type(THD *thd) override;
 
   bool check_function_as_value_generator(uchar *checker_args) override {
     Check_function_as_value_generator_parameters *func_arg =
@@ -273,6 +270,9 @@ class Item_func_statement_digest_text final : public Item_str_func {
     return (func_arg->source == VGS_GENERATED_COLUMN);
   }
   String *val_str(String *) override;
+
+ private:
+  uchar *m_token_buffer{nullptr};
 };
 
 class Item_func_from_base64 final : public Item_str_func {

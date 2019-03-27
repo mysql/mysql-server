@@ -718,18 +718,14 @@ namespace {
 */
 class Thd_parse_modifier {
  public:
-  Thd_parse_modifier(THD *thd)
+  Thd_parse_modifier(THD *thd, uchar *token_buffer)
       : m_thd(thd),
         m_arena(&m_mem_root, Query_arena::STMT_REGULAR_EXECUTION),
         m_backed_up_lex(thd->lex),
         m_saved_parser_state(thd->m_parser_state),
         m_saved_digest(thd->m_digest) {
     thd->m_digest = &m_digest_state;
-    // We 'borrow' the THD's token array here, but that should be safe as
-    // performance_schema has picked up the digest in parse_sql(), so for the
-    // remainder of the execution of the statement the buffer should be free
-    // to use.
-    m_digest_state.reset(thd->m_token_array, get_max_digest_length());
+    m_digest_state.reset(token_buffer, get_max_digest_length());
     m_arena.set_query_arena(*thd);
     thd->lex = &m_lex;
     lex_start(thd);
@@ -872,6 +868,13 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
 
 }  // namespace
 
+bool Item_func_statement_digest::resolve_type(THD *thd) {
+  set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
+  m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
+  if (m_token_buffer == nullptr) return true;
+  return false;
+}
+
 /**
   Implementation of the STATEMENT_DIGEST() native function.
 
@@ -892,7 +895,7 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
   uchar digest[DIGEST_HASH_SIZE];
   {
     THD *thd = current_thd;
-    Thd_parse_modifier thd_mod(thd);
+    Thd_parse_modifier thd_mod(thd, m_token_buffer);
 
     if (parse(thd, args[0], statement_string)) DBUG_RETURN(error_str());
     compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
@@ -902,6 +905,13 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
   buf->length(DIGEST_HASH_TO_STRING_LENGTH);
   DIGEST_HASH_TO_STRING(digest, buf->c_ptr_quick());
   DBUG_RETURN(buf);
+}
+
+bool Item_func_statement_digest_text::resolve_type(THD *thd) {
+  set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
+  m_token_buffer = static_cast<uchar *>(thd->alloc(get_max_digest_length()));
+  if (m_token_buffer == nullptr) return true;
+  return false;
 }
 
 String *Item_func_statement_digest_text::val_str(String *buf) {
@@ -915,7 +925,7 @@ String *Item_func_statement_digest_text::val_str(String *buf) {
   null_value = false;
 
   THD *thd = current_thd;
-  Thd_parse_modifier thd_mod(thd);
+  Thd_parse_modifier thd_mod(thd, m_token_buffer);
 
   if (parse(thd, args[0], statement_string)) DBUG_RETURN(error_str());
 
