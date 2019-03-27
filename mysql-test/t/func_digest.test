@@ -880,8 +880,6 @@ SET sql_mode = DEFAULT;
 --echo #
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 
-SELECT 1;
-
 SELECT DIGEST_TEXT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE DIGEST_TEXT LIKE 'SELECT ?%';
