@@ -6940,6 +6940,41 @@ user_id	node_id	sort_number	name
 1	68	549053	Shawn
 1	68	1398029	Shawn
 DROP TABLE ndb_order_test, ndb_user_test;
+##################
+#
+# Bug #29501263 CRASH IN SPJ BLOCK, ILLEGAL ACCESS
+#               TO ARRAYPOOL<T>::GETPTR
+#
+##################
+create table t1 (
+pk int primary key,
+i1 int
+) engine = ndb;
+insert into t1 values (1,1),(2,2),(3,3);
+alter table t1 add column (i2 int, i3 int, i4 int, i5 int);
+Warnings:
+Warning	1478	Converted FIXED field 'i2' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'i3' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'i4' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'i5' to DYNAMIC to enable online ADD COLUMN
+update t1 set i2=i1, i3=i1, i4=i1, i5=i1;
+alter table t1 add index ix1(i1);
+alter table t1 add index ix2(i2);
+alter table t1 add index ix3(i3);
+alter table t1 add index ix4(i4);
+alter table t1 add index ix5(i5);
+alter table t1 add unique index uix(i4,i5);
+select straight_join * from
+t1
+join t1 as t2 on t2.i1 = t1.i1
+join t1 as t3 on t3.pk = t2.i2
+left join t1 as t4 on t4.pk = t3.i3
+left join t1 as t5 on t5.i4 = t2.i4 and t5.i5 = t1.i5;
+pk	i1	i2	i3	i4	i5	pk	i1	i2	i3	i4	i5	pk	i1	i2	i3	i4	i5	pk	i1	i2	i3	i4	i5	pk	i1	i2	i3	i4	i5
+1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1
+2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2	2
+3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3	3
+drop table t1;
 select new.variable_name, new.variable_value - old.variable_value
 from server_counts_at_startup as old,
 performance_schema.global_status as new
