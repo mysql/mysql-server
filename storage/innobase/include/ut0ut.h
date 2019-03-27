@@ -82,6 +82,18 @@ const char *srv_get_server_errmsgs(int errcode);
 /** Time stamp */
 typedef time_t ib_time_t;
 
+/** Time stamp read from the monotonic clock (returned by ut_time_monotonic()).
+ */
+typedef int64_t ib_time_monotonic_t;
+
+/** Number of milliseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_ms()). */
+typedef int64_t ib_time_monotonic_ms_t;
+
+/** Number of microseconds read from the monotonic clock (returned by
+ * ut_time_monotonic_us()). */
+typedef int64_t ib_time_monotonic_us_t;
+
 #ifndef UNIV_HOTBACKUP
 #if defined(HAVE_PAUSE_INSTRUCTION)
 /* According to the gcc info page, asm volatile means that the
@@ -117,13 +129,17 @@ independent way by using YieldProcessor. */
  if cond becomes true.
  @param cond in: condition to wait for; evaluated every 2 ms
  @param max_wait_us in: maximum delay to wait, in microseconds */
-#define UT_WAIT_FOR(cond, max_wait_us)                               \
-  do {                                                               \
-    uintmax_t start_us;                                              \
-    start_us = ut_time_us(NULL);                                     \
-    while (!(cond) && ut_time_us(NULL) - start_us < (max_wait_us)) { \
-      os_thread_sleep(2000 /* 2 ms */);                              \
-    }                                                                \
+#define UT_WAIT_FOR(cond, max_wait_us)                                        \
+  do {                                                                        \
+    const auto start_us = ut_time_monotonic_us();                             \
+    while (!(cond)) {                                                         \
+      const auto diff = ut_time_monotonic_us() - start_us;                    \
+      const auto limit = max_wait_us;                                         \
+      if (limit <= 0 || (diff > 0 && ((uint64_t)diff) > ((uint64_t)limit))) { \
+        break;                                                                \
+      }                                                                       \
+      os_thread_sleep(2000 /* 2 ms */);                                       \
+    }                                                                         \
   } while (0)
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
@@ -212,37 +228,18 @@ store the given number of bits.
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
 ib_time_t ut_time(void);
-/** Returns system time.
- Upon successful completion, the value 0 is returned; otherwise the
- value -1 is returned and the global variable errno is set to indicate the
- error.
- @return 0 on success, -1 otherwise */
-int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
-                ulint *ms); /*!< out: microseconds since the Epoch+*sec */
 
-/** Returns the number of microseconds since epoch. Similar to
- time(3), the return value is also stored in *tloc, provided
- that tloc is non-NULL.
- @return us since epoch */
-uintmax_t ut_time_us(uintmax_t *tloc); /*!< out: us since epoch, if non-NULL */
-/** Returns the number of milliseconds since some epoch.  The
- value may wrap around.  It should only be used for heuristic
- purposes.
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void);
+
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
  @return ms since epoch */
-ulint ut_time_ms(void);
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void);
 
-#ifdef _WIN32
-/** Initialise highest available time resolution API on Windows
- @return false if all OK else true */
-bool ut_win_init_time();
-
-#endif /* _WIN32 */
-
-/** Returns the number of milliseconds since some epoch.  The
- value may wrap around.  It should only be used for heuristic
- purposes.
- @return ms since epoch */
-ulint ut_time_ms(void);
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void);
 
 /** Returns the difference of two times in seconds.
  @return time2 - time1 expressed in seconds */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,7 +59,7 @@ static void lock_wait_table_print(void) {
             " in use %lu, susp %lu, timeout %lu, time %lu\n",
             (ulong)i, (ulong)slot->type, (ulong)slot->in_use,
             (ulong)slot->suspended, slot->wait_timeout,
-            (ulong)difftime(ut_time(), slot->suspend_time));
+            (ulong)(ut_time_monotonic() - slot->suspend_time));
   }
 }
 
@@ -148,7 +148,7 @@ static srv_slot_t *lock_wait_table_reserve_slot(
 
       os_event_reset(slot->event);
       slot->suspended = TRUE;
-      slot->suspend_time = ut_time();
+      slot->suspend_time = ut_time_monotonic();
       slot->wait_timeout = wait_timeout;
 
       if (slot == lock_sys->last_slot) {
@@ -183,13 +183,9 @@ void lock_wait_suspend_thread(
                     user OS thread */
 {
   srv_slot_t *slot;
-  double wait_time;
   trx_t *trx;
   ibool was_declared_inside_innodb;
-  int64_t start_time = 0;
-  int64_t finish_time;
-  ulint sec;
-  ulint ms;
+  ib_time_monotonic_ms_t start_time = 0;
   ulong lock_wait_timeout;
 
   trx = thr_get_trx(thr);
@@ -236,11 +232,7 @@ void lock_wait_suspend_thread(
     srv_stats.n_lock_wait_count.inc();
     srv_stats.n_lock_wait_current_count.inc();
 
-    if (ut_usectime(&sec, &ms) == -1) {
-      start_time = -1;
-    } else {
-      start_time = static_cast<int64_t>(sec) * 1000000 + ms;
-    }
+    start_time = ut_time_monotonic_us();
   }
 
   lock_wait_mutex_exit();
@@ -320,31 +312,24 @@ void lock_wait_suspend_thread(
     rw_lock_x_lock(dict_operation_lock);
   }
 
-  wait_time = ut_difftime(ut_time(), slot->suspend_time);
+  const auto wait_time = ut_time_monotonic() - slot->suspend_time;
 
   /* Release the slot for others to use */
 
   lock_wait_table_release_slot(slot);
 
   if (thr->lock_state == QUE_THR_LOCK_ROW) {
-    ulint diff_time;
+    const auto finish_time = ut_time_monotonic_us();
 
-    if (ut_usectime(&sec, &ms) == -1) {
-      finish_time = -1;
-    } else {
-      finish_time = static_cast<int64_t>(sec) * 1000000 + ms;
-    }
-
-    diff_time =
-        (finish_time > start_time) ? (ulint)(finish_time - start_time) : 0;
+    const uint64_t diff_time =
+        (finish_time > start_time) ? (uint64_t)(finish_time - start_time) : 0;
 
     srv_stats.n_lock_wait_current_count.dec();
     srv_stats.n_lock_wait_time.add(diff_time);
 
     /* Only update the variable if we successfully
     retrieved the start and finish times. See Bug#36819. */
-    if (diff_time > lock_sys->n_lock_max_wait_time && start_time != -1 &&
-        finish_time != -1) {
+    if (diff_time > lock_sys->n_lock_max_wait_time && start_time != 0) {
       lock_sys->n_lock_max_wait_time = diff_time;
     }
 
@@ -432,8 +417,8 @@ static void lock_wait_check_and_cancel(
                             thread when the wait started */
 {
   trx_t *trx;
-  double wait_time;
-  ib_time_t suspend_time = slot->suspend_time;
+
+  const auto suspend_time = slot->suspend_time;
 
   ut_ad(lock_wait_mutex_own());
 
@@ -441,13 +426,13 @@ static void lock_wait_check_and_cancel(
 
   ut_ad(slot->suspended);
 
-  wait_time = ut_difftime(ut_time(), suspend_time);
+  const auto wait_time = ut_time_monotonic() - suspend_time;
 
   trx = thr_get_trx(slot->thr);
 
   if (trx_is_interrupted(trx) ||
       (slot->wait_timeout < 100000000 &&
-       (wait_time > (double)slot->wait_timeout || wait_time < 0))) {
+       (wait_time > (int64_t)slot->wait_timeout || wait_time < 0))) {
     /* Timeout exceeded or a wrap-around in system
     time counter: cancel the lock request queued
     by the transaction and release possible

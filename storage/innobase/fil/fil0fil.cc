@@ -2624,16 +2624,17 @@ void Fil_shard::wait_for_io_to_stop(const fil_space_t *space) {
   cover of the Fil_shard::mutex. We incremented the in_use counter
   before waiting for IO to stop. */
 
-  auto begin_time = ut_time();
+  auto begin_time = ut_time_monotonic();
   auto start_time = begin_time;
 
   /* Spam the log after every minute. Ignore any race here. */
 
   while (space->stop_ios) {
-    if ((ut_time() - start_time) == PRINT_INTERVAL_SECS) {
-      start_time = ut_time();
+    if ((ut_time_monotonic() - start_time) >= PRINT_INTERVAL_SECS) {
+      start_time = ut_time_monotonic();
 
-      ib::warn(ER_IB_MSG_278, space->name, longlong{ut_time() - begin_time});
+      ib::warn(ER_IB_MSG_278, space->name,
+               (long long)(ut_time_monotonic() - begin_time));
     }
 
 #ifndef UNIV_HOTBACKUP
@@ -2725,7 +2726,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
     os_thread_yield();
   }
 
-  auto begin_time = ut_time();
+  auto begin_time = ut_time_monotonic();
   auto start_time = begin_time;
 
   for (size_t i = 0; i < 3; ++i) {
@@ -2743,11 +2744,11 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
 
     while (fil_system->m_max_n_open <= s_n_open &&
            !fil_system->close_file_in_all_LRU(i > 1)) {
-      if (ut_time() - start_time == PRINT_INTERVAL_SECS) {
-        start_time = ut_time();
+      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
+        start_time = ut_time_monotonic();
 
         ib::warn(ER_IB_MSG_279) << "Trying to close a file for "
-                                << ut_time() - begin_time << " seconds"
+                                << start_time - begin_time << " seconds"
                                 << ". Configuration only allows for "
                                 << fil_system->m_max_n_open << " open files.";
       }
@@ -4612,7 +4613,7 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
   ulint count = 0;
   fil_node_t *file = nullptr;
   bool write_ddl_log = true;
-  auto start_time = ut_time();
+  auto start_time = ut_time_monotonic();
 
 #ifdef UNIV_DEBUG
   static uint32_t crash_injection_rename_tablespace_counter = 1;
@@ -4650,10 +4651,10 @@ dberr_t Fil_shard::space_rename(space_id_t space_id, const char *old_path,
        wait for the other thread to complete its operation. */
       mutex_release();
 
-      if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
         ib::warn(ER_IB_MSG_297);
 
-        start_time = ut_time();
+        start_time = ut_time_monotonic();
       }
 
       os_thread_sleep(1000000);
@@ -6913,7 +6914,7 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
 
   if (s_n_open > fil_system->m_max_n_open + 5) {
     static ulint prev_time;
-    auto curr_time = ut_time();
+    auto curr_time = ut_time_monotonic();
 
     /* Spam the log after every minute. Ignore any race here. */
 
@@ -9124,7 +9125,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
   size_t failed = 0;
   size_t batch_size = 0;
   bool print_msg = false;
-  auto start_time = ut_time();
+  auto start_time = ut_time_monotonic();
 
   /* If some file paths have changed then update the DD */
   for (auto &tablespace : m_moved) {
@@ -9150,11 +9151,11 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
 
     ++count;
 
-    if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
       ib::info(ER_IB_MSG_346) << "Processed " << count << "/" << m_moved.size()
                               << " tablespace paths. Failures " << failed;
 
-      start_time = ut_time();
+      start_time = ut_time_monotonic();
       print_msg = true;
     }
 
@@ -10355,7 +10356,7 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
                                       Space_id_set *duplicates) {
   size_t count = 0;
   bool printed_msg = false;
-  auto start_time = ut_time();
+  auto start_time = ut_time_monotonic();
 
   for (auto it = start; it != end; ++it, ++m_checked) {
     const std::string filename = it->second;
@@ -10392,11 +10393,11 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
 
     ++count;
 
-    if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
       ib::info(ER_IB_MSG_375) << "Thread# " << thread_id << " - Checked "
                               << count << "/" << (end - start) << " files";
 
-      start_time = ut_time();
+      start_time = ut_time_monotonic();
 
       printed_msg = true;
     }
@@ -10470,7 +10471,7 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 
   uint16_t count = 0;
   bool print_msg = false;
-  auto start_time = ut_time();
+  auto start_time = ut_time_monotonic();
 
   /* Should be trivial to parallelize the scan and ID check. */
   for (const auto &dir : m_dirs) {
@@ -10508,12 +10509,12 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
         undo_files.push_back(value{count, file});
       }
 
-      if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+      if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
         ib::info(ER_IB_MSG_380)
             << "Files found so far: " << ibd_files.size() << " data files"
             << " and " << undo_files.size() << " undo files";
 
-        start_time = ut_time();
+        start_time = ut_time_monotonic();
         print_msg = true;
       }
     });

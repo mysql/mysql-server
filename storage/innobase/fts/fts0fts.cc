@@ -3939,7 +3939,6 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
   pars_info_t *info;
   dberr_t error;
   ib_uint32_t doc_count;
-  ib_time_t start_time;
   doc_id_t last_doc_id;
   doc_id_t first_doc_id;
   char table_name[MAX_FULL_NAME_LEN];
@@ -3984,9 +3983,9 @@ dberr_t fts_write_node(trx_t *trx,             /*!< in: transaction */
                            "  :last_doc_id, :doc_count, :ilist);");
   }
 
-  start_time = ut_time();
+  const auto start_time = ut_time_monotonic();
   error = fts_eval_sql(trx, *graph);
-  elapsed_time += ut_time() - start_time;
+  elapsed_time += ut_time_monotonic() - start_time;
   ++n_nodes;
 
   return (error);
@@ -4134,7 +4133,7 @@ static void fts_sync_begin(fts_sync_t *sync) /*!< in: sync state */
   n_nodes = 0;
   elapsed_time = 0;
 
-  sync->start_time = ut_time();
+  sync->start_time = ut_time_monotonic();
 
   sync->trx = trx_allocate_for_background();
 
@@ -4249,7 +4248,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   if (fts_enable_diag_print && elapsed_time) {
     ib::info(ER_IB_MSG_477)
         << "SYNC for table " << sync->table->name
-        << ": SYNC time: " << (ut_time() - sync->start_time)
+        << ": SYNC time: " << (ut_time_monotonic() - sync->start_time)
         << " secs: elapsed " << (double)n_nodes / elapsed_time << " ins/sec";
   }
 

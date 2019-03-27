@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify
@@ -753,7 +753,7 @@ monitor counter
   MONITOR_CHECK_DEFINED(value);                               \
   if (MONITOR_IS_ON(monitor)) {                               \
     uintmax_t old_time = (value);                             \
-    value = ut_time_us(NULL);                                 \
+    value = ut_time_monotonic_us();                           \
     MONITOR_VALUE(monitor) += (mon_type_t)(value - old_time); \
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -789,8 +789,9 @@ int Clone_Handle::send_data(Clone_Task *task, Clone_File_Meta *file_meta,
 }
 
 void Clone_Handle::display_progress(uint32_t cur_chunk, uint32_t max_chunk,
-                                    uint32_t &percent_done, ulint &disp_time) {
-  auto current_time = ut_time_ms();
+                                    uint32_t &percent_done,
+                                    ib_time_monotonic_ms_t &disp_time) {
+  auto current_time = ut_time_monotonic_ms();
   auto current_percent = (cur_chunk * 100) / max_chunk;
 
   if (current_percent >= percent_done + 20 ||
@@ -852,7 +853,7 @@ int Clone_Handle::copy(THD *thd, uint task_id, Ha_clone_cbk *callback) {
 
   /* Set time values for tracking stage progress. */
 
-  auto disp_time = ut_time_ms();
+  auto disp_time = ut_time_monotonic_ms();
 
   /* Loop and process data until snapshot is moved to DONE state. */
   uint32_t percent_done = 0;
@@ -909,7 +910,7 @@ int Clone_Handle::copy(THD *thd, uint task_id, Ha_clone_cbk *callback) {
 
       max_chunks = snapshot->get_num_chunks();
       percent_done = 0;
-      disp_time = ut_time_ms();
+      disp_time = ut_time_monotonic_ms();
 
       /* Send state metadata before processing chunks. */
       err = send_state_metadata(task, callback, true);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -307,14 +307,14 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
 
   mutex_exit(&dict_sys->mutex);
 
-  /* ut_time() could be expensive, the current function
+  /* ut_time_monotonic() could be expensive, the current function
   is called once every time a table has been changed more than 10% and
   on a system with lots of small tables, this could become hot. If we
   find out that this is a problem, then the check below could eventually
   be replaced with something else, though a time interval is the natural
   approach. */
 
-  if (ut_difftime(ut_time(), table->stats_last_recalc) < MIN_RECALC_INTERVAL) {
+  if (ut_time_monotonic() - table->stats_last_recalc < MIN_RECALC_INTERVAL) {
     /* Stats were (re)calculated not long ago. To avoid
     too frequent stats updates we put back the table on
     the auto recalc list and do nothing. */

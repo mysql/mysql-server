@@ -298,7 +298,7 @@ struct Slot {
   bool is_reserved{false};
 
   /** time when reserved */
-  time_t reservation_time{0};
+  ib_time_monotonic_t reservation_time{0};
 
   /** buffer used in i/o */
   byte *buf{nullptr};
@@ -798,7 +798,7 @@ ulint os_n_pending_writes = 0;
 /** Number of pending read operations */
 ulint os_n_pending_reads = 0;
 
-static time_t os_last_printout;
+static ib_time_monotonic_t os_last_printout;
 bool os_has_said_disk_full = false;
 
 /** Default Zip compression level */
@@ -6179,7 +6179,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
     os_aio_segment_wait_events[i] = os_event_create(0);
   }
 
-  os_last_printout = ut_time();
+  os_last_printout = ut_time_monotonic();
 
   return (true);
 }
@@ -6544,7 +6544,7 @@ Slot *AIO::reserve_slot(IORequest &type, fil_node_t *m1, void *m2,
   }
 
   slot->is_reserved = true;
-  slot->reservation_time = ut_time();
+  slot->reservation_time = ut_time_monotonic();
   slot->m1 = m1;
   slot->m2 = m2;
   slot->file = file;
@@ -7377,9 +7377,9 @@ class SimulatedAIOHandler {
   /** Select the slot if it is older than the current oldest slot.
   @param[in]	slot		The slot to check */
   void select_if_older(Slot *slot) {
-    ulint age;
+    const auto time_diff = ut_time_monotonic() - slot->reservation_time;
 
-    age = (ulint)difftime(ut_time(), slot->reservation_time);
+    const uint64_t age = time_diff > 0 ? (uint64_t)time_diff : 0;
 
     if ((age >= 2 && age > m_oldest) ||
         (age >= 2 && age == m_oldest && slot->offset < m_lowest_offset)) {
@@ -7722,8 +7722,6 @@ void AIO::print_all(FILE *file) {
 /** Prints info of the aio arrays.
 @param[in,out]	file		file where to print */
 void os_aio_print(FILE *file) {
-  time_t current_time;
-  double time_elapsed;
   double avg_bytes_read;
 
 #ifndef UNIV_HOTBACKUP
@@ -7746,8 +7744,8 @@ void os_aio_print(FILE *file) {
   AIO::print_all(file);
 
   putc('\n', file);
-  current_time = ut_time();
-  time_elapsed = 0.001 + difftime(current_time, os_last_printout);
+  const auto current_time = ut_time_monotonic();
+  const auto time_elapsed = 0.001 + (current_time - os_last_printout);
 
   fprintf(file,
           "Pending flushes (fsync) log: " ULINTPF
@@ -7799,7 +7797,7 @@ void os_aio_refresh_stats() {
 
   os_bytes_read_since_printout = 0;
 
-  os_last_printout = ut_time();
+  os_last_printout = ut_time_monotonic();
 }
 
 /** Checks that all slots in the system have been freed, that is, there are

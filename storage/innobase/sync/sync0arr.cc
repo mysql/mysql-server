@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -123,8 +123,9 @@ struct sync_cell_t {
                             has not been signalled in the
                             period between the reset and
                             wait call. */
-  time_t reservation_time;  /*!< time when the thread reserved
-                           the wait cell */
+
+  /** Time when the thread reserved the wait cell. */
+  ib_time_monotonic_t reservation_time;
 };
 
 /* NOTE: It is allowed for a thread to wait for an event allocated for
@@ -351,7 +352,7 @@ sync_cell_t *sync_array_reserve_cell(
 
   cell->thread_id = os_thread_get_curr_id();
 
-  cell->reservation_time = ut_time();
+  cell->reservation_time = ut_time_monotonic();
 
   /* Make sure the event is reset and also store the value of
   signal_count at which the event was reset. */
@@ -459,9 +460,9 @@ static void sync_array_cell_print(FILE *file, /*!< in: file where to print */
 
   fprintf(file,
           "--Thread " UINT64PF " has waited at %s line " ULINTPF
-          " for %.2f seconds the semaphore:\n",
+          " for " UINT64PF " seconds the semaphore:\n",
           (uint64_t)(cell->thread_id), innobase_basename(cell->file),
-          cell->line, difftime(time(NULL), cell->reservation_time));
+          cell->line, (uint64_t)(ut_time_monotonic() - cell->reservation_time));
 
   if (type == SYNC_MUTEX) {
     WaitMutex *mutex = cell->latch.mutex;
@@ -1015,7 +1016,9 @@ static bool sync_array_print_long_waits_low(
       continue;
     }
 
-    double diff = difftime(time(NULL), cell->reservation_time);
+    const auto time_diff = ut_time_monotonic() - cell->reservation_time;
+
+    const uint64_t diff = time_diff > 0 ? (uint64_t)time_diff : 0;
 
     if (diff > SYNC_ARRAY_TIMEOUT) {
 #ifdef UNIV_NO_ERR_MSGS
