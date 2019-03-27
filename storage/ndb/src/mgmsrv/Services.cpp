@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1017,6 +1017,7 @@ printNodeStatus(OutputStream *output,
       nodeGroup = 0,
       connectCount = 0;
     bool system;
+    bool is_single_user = false;
     const char *address= NULL;
     char addr_buf[NDB_ADDR_STRLEN];
 
@@ -1024,7 +1025,7 @@ printNodeStatus(OutputStream *output,
 		  &system, &dynamicId, &nodeGroup, &connectCount,
 		  &address,
                   addr_buf,
-                  sizeof(addr_buf));
+                  sizeof(addr_buf), &is_single_user);
     output->println("node.%d.type: %s",
 		      nodeId,
 		      ndb_mgm_get_node_type_string(type));
@@ -1038,6 +1039,7 @@ printNodeStatus(OutputStream *output,
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
     output->println("node.%d.connect_count: %d", nodeId, connectCount);
     output->println("node.%d.address: %s", nodeId, address ? address : "");
+    output->println("node.%d.is_single_user: %d", nodeId, is_single_user);
   }
 }
 

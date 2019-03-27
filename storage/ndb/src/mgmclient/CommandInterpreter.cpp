@@ -1819,6 +1819,13 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	    if (master_id && node_state->dynamic_id == master_id)
 	      ndbout << ", *";
         }
+        else
+        {
+          if (node_state->is_single_user)
+          {
+            ndbout << ", allowed single user";
+          }
+        }
 	ndbout << ")" << endl;
       } else {
 	ndb_mgm_first(it);
@@ -1827,8 +1834,16 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	  ndb_mgm_get_string_parameter(it, CFG_NODE_HOST, &config_hostname);
 	  if (config_hostname == 0 || config_hostname[0] == 0)
 	    config_hostname= "any host";
-	  ndbout_c(" (not connected, accepting connect from %s)",
-		   config_hostname);
+          if (type == NDB_MGM_NODE_TYPE_API && node_state->is_single_user)
+          {
+            ndbout_c(" (not connected, accepting connect from %s, "
+              "allowed single user)", config_hostname);
+          }
+          else
+          {
+            ndbout_c(" (not connected, accepting connect from %s)",
+              config_hostname);
+          }
 	}
 	else
 	{

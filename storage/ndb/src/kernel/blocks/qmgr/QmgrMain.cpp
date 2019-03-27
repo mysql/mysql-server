@@ -4053,7 +4053,7 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
     conf->m_inet_addr= 0;
   }
   conf->nodeId = nodeId;
-
+  conf->isSingleUser = (nodeId == getNodeState().getSingleUserApi());
   sendSignal(senderRef,
 	     GSN_API_VERSION_CONF,
 	     signal,
