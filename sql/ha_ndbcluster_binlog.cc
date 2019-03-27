@@ -2799,11 +2799,16 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   ndb_log_verbose(19, "Distribution of '%s' type: %u, query: '%s' - completed!",
                   op_name.c_str(), type, query);
 
-  // Copy results from the NDB_SCHEMA_OBJECT before it is released
+  // Inspect results in NDB_SCHEMA_OBJECT before it's released
   std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
   ndb_schema_object->client_get_schema_op_results(participant_results);
-  for (auto it : participant_results)
+  for (auto& it : participant_results) {
+    // Save result for later
     m_schema_op_results.push_back({it.nodeid, it.result, it.message});
+    // Push the result as warning
+    m_thd_ndb->push_warning("Node %d: '%u %s", it.nodeid, it.result,
+                            it.message.c_str());
+  }
 
   DBUG_RETURN(0);
 }
@@ -5361,6 +5366,8 @@ class Ndb_schema_event_handler {
                       schema->slock.bitmap[1],
                       schema->slock.bitmap[0]);
 
+      DBUG_EXECUTE_IF("ndb_schema_op_start_crash", DBUG_SUICIDE(););
+
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
       {
         /**
@@ -5731,7 +5738,7 @@ class Ndb_schema_event_handler {
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      check_wakeup_clients(Ndb_schema_dist::NODE_FAILURE, "Node failure");
+      check_wakeup_clients(Ndb_schema_dist::NODE_FAILURE, "Data node failed");
       break;
     }
 
@@ -5800,7 +5807,7 @@ class Ndb_schema_event_handler {
 
     const uint active_ops = m_schema_dist_data.active_schema_ops();
     if (unlikely(active_ops)) {
-      ndb_log_verbose(50, "Coordinator: %d schema operation(s) active",
+      ndb_log_verbose(99, "Coordinator: %d schema operation(s) active",
                       active_ops);
     }
 
