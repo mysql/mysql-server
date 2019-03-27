@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -385,6 +385,10 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
          blockNumber == DBLQH ||
          blockNumber == SUMA))
     {
+      static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
+                      NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
+                    "");
+      ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <= NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
                      TransIdAI::HeaderLength + ToutBufIndex);
       jamEntryDebug();
