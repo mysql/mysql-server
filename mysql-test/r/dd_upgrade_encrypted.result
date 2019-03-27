@@ -9,6 +9,7 @@
 # Copy and unzip the datadir
 # Set different datadir path
 # Start the server
+# restart: --early-plugin-load=keyring_file=keyring_file.so --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --loose-keyring_file_data=MYSQLD_DATADIR/mysecret_keyring KEYRING_PLUGIN_OPT
 SET debug='+d,skip_dd_table_access_check';
 # The mysql tablespace should be encrypted
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
@@ -26,6 +27,7 @@ SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 NAME	OPTIONS
 mysql	encryption=N;
 # Restart the server
+# restart: --early-plugin-load=keyring_file=keyring_file.so --datadir=MYSQLD_DATADIR --log-error=MYSQLD_LOG --loose-keyring_file_data=MYSQLD_DATADIR/mysecret_keyring KEYRING_PLUGIN_OPT
 SET debug='+d,skip_dd_table_access_check';
 # The mysql tablespace should now be be un-encrypted
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
@@ -36,3 +38,4 @@ NAME	OPTIONS
 mysql	encryption=N;
 # Shutdown the server, remove the files, and restart with default options
 # Restart the server with default options
+# restart;

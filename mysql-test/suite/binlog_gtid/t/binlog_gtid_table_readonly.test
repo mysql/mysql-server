@@ -71,6 +71,7 @@
 # BUG#29111514 FLUSHING BINARY LOGS WITH GTID LEADS TO AN OOM ERROR
 #
 
+--source include/not_valgrind.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_log_bin.inc

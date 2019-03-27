@@ -11,9 +11,8 @@
 --source include/have_debug.inc
 
 --echo # Stop the mysqld server which was created by MTR default
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --echo # Copy and unzip the datadir
 --copy_file $MYSQLTEST_VARDIR/std_data/upgrade/data_encrypted_80016.zip $MYSQL_TMP_DIR/data_encrypted_80016.zip
@@ -25,10 +24,11 @@
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/upgrade_encrypted.log
 
 --echo # Start the server
---exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --loose-keyring_file_data=$MYSQLD_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $restart_parameters= restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --loose-keyring_file_data=$MYSQLD_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $shutdown_server_timeout= 300
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
+--source include/start_mysqld.inc
 
 SET debug='+d,skip_dd_table_access_check';
 
@@ -42,10 +42,11 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='m
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 
 --echo # Restart the server
---exec echo "restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --loose-keyring_file_data=$MYSQLD_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $restart_parameters= restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_LOG --loose-keyring_file_data=$MYSQLD_DATADIR/mysecret_keyring $KEYRING_PLUGIN_OPT
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--let $shutdown_server_timeout= 300
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLD_LOG MYSQLD_LOG $KEYRING_PLUGIN_OPT KEYRING_PLUGIN_OPT
+--source include/restart_mysqld.inc
 
 SET debug='+d,skip_dd_table_access_check';
 
@@ -54,15 +55,14 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='m
 SELECT NAME,OPTIONS FROM mysql.tablespaces WHERE NAME='mysql';
 
 --echo # Shutdown the server, remove the files, and restart with default options
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server
---source include/wait_until_disconnected.inc
+--let $wait_counter= 10000
+--let $shutdown_server_timeout= 300
+--source include/shutdown_mysqld.inc
 
 --remove_file $MYSQL_TMP_DIR/data_encrypted_80016.zip
 --force-rmdir $MYSQL_TMP_DIR/data_encrypted
 
 --echo # Restart the server with default options
---exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
+--let $restart_parameters= restart;
 --let $wait_counter= 10000
---source include/wait_until_connected_again.inc
+--source include/start_mysqld.inc
