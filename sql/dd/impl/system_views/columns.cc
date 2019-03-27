@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,15 +108,9 @@ Columns::Columns() {
   m_target_def.add_field(FIELD_COLUMN_KEY, "COLUMN_KEY", "col.column_key");
   m_target_def.add_field(
       FIELD_EXTRA, "EXTRA",
-      "IF(IFNULL(col.generation_expression_utf8,'IS_NOT_GC')='IS_NOT_GC',"
-      "   IF (col.is_auto_increment=TRUE,"
-      "        CONCAT(IFNULL(CONCAT('on update ', col.update_option, ' '),''),"
-      "                'auto_increment'),"
-      "       CONCAT_WS(' ',"
-      "                 IF(LENGTH(col.default_option), 'DEFAULT_GENERATED', "
-      "                    NULL),"
-      "                 CONCAT('on update ', col.update_option))),"
-      "  IF(col.is_virtual, 'VIRTUAL GENERATED', 'STORED GENERATED'))");
+      "INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),"
+      "  col.is_virtual, col.is_auto_increment, col.update_option, "
+      "  IF(LENGTH(col.default_option), TRUE, FALSE), col.options)");
   m_target_def.add_field(
       FIELD_PRIVILEGES, "PRIVILEGES",
       "GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name)");

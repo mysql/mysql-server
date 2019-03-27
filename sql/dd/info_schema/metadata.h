@@ -96,7 +96,7 @@ namespace info_schema {
   There are no changes from version 80014. Hence server version 80015 used
   I_S version 80013.
 
-  80016: Current
+  80016: Published in 8.0.14
   ------------------------------------
   Changes from version 80015.
 
@@ -110,14 +110,23 @@ namespace info_schema {
     - information_schema.tables.options UDF definition is changed to pass
       schema default encryption.
 
-  80017: Next IS version number after the previous is public.
+  80017: Current
+  ----------------------------------------------------------------------------
+  Changes from version 80016:
+
+  - WL#12984 INFORMATION_SCHEMA and metadata related to secondary engine.
+    Changes system view definitions of
+    INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS and
+  INFORMATION_SCHEMA.COLUMNS.EXTRA.
+
+  80018: Next IS version number after the previous is public.
   ----------------------------------------------------------------------------
   Changes from version 80016:
   - No changes, this version number is not active yet.
 
 */
 
-static const uint IS_DD_VERSION = 80016;
+static const uint IS_DD_VERSION = 80017;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

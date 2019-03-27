@@ -4292,6 +4292,16 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
   bool is_partitioned = args[1]->val_int();
   if (is_partitioned) ptr = my_stpcpy(ptr, " partitioned");
 
+  if (p->exists("secondary_engine")) {
+    dd::String_type opt_value;
+    p->get("secondary_engine", &opt_value);
+    if (!opt_value.empty()) {
+      ptr = my_stpcpy(ptr, " SECONDARY_ENGINE=\"");
+      ptr = my_stpcpy(ptr, opt_value.c_str());
+      ptr = my_stpcpy(ptr, "\"");
+    }
+  }
+
   if (ptr == option_buff)
     oss << "";
   else
@@ -4896,4 +4906,81 @@ String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
   }
   null_value = true;
   return nullptr;
+}
+
+/**
+  @brief
+    This function prepares string representing EXTRA column for I_S.COLUMNS.
+
+  @param str   A String object that we can write to.
+
+    Syntax:
+      string internal_get_dd_column_extra(dd.table.options)
+
+  @return returns a pointer to the string containing column options.
+ */
+String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
+  DBUG_ENTER("Item_func_internal_get_dd_column_extra::val_str");
+
+  std::ostringstream oss("");
+  null_value = false;
+
+  // Create UPDATE_OPTION. This can be null.
+  String update_option;
+  String *update_option_ptr = args[3]->val_str(&update_option);
+
+  // Create COLUMNS.OPTIONS. This can not be null.
+  String properties;
+  String *properties_ptr = args[5]->val_str(&properties);
+
+  // Stop if any of required argument is not supplied.
+  if (args[0]->is_null() || args[1]->is_null() || args[2]->is_null() ||
+      args[4]->is_null()) {
+    null_value = true;
+    DBUG_RETURN(nullptr);
+  }
+
+  bool is_not_generated_column = args[0]->val_int();
+  bool is_virtual = args[1]->val_int();
+  bool is_auto_increment = args[2]->val_int();
+  bool has_update_option = update_option_ptr != nullptr;
+  bool is_default_option = args[4]->val_int();
+
+  if (is_not_generated_column) {
+    if (is_default_option) oss << "DEFAULT_GENERATED";
+    if (has_update_option) {
+      if (oss.str().length()) oss << " ";
+      oss << "on update " << update_option_ptr->c_ptr_safe();
+    }
+    if (is_auto_increment) {
+      if (oss.str().length()) oss << " ";
+      oss << "auto_increment";
+    }
+  } else {
+    oss << (is_virtual ? "VIRTUAL GENERATED" : "STORED GENERATED");
+  }
+
+  // Print the column property 'NOT SECONDARY'.
+  if (properties_ptr != nullptr) {
+    // Read required values from properties
+    std::unique_ptr<dd::Properties> p(
+        dd::Properties::parse_properties(properties_ptr->c_ptr_safe()));
+
+    // Warn if the property string is corrupt.
+    if (!p.get()) {
+      LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
+             properties_ptr->c_ptr_safe());
+      str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+      DBUG_RETURN(str);
+    }
+
+    if (p->exists("not_secondary")) {
+      if (oss.str().length()) oss << " ";
+      oss << "NOT SECONDARY";
+    }
+  }
+
+  str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
+
+  DBUG_RETURN(str);
 }
