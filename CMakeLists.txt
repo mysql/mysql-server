@@ -1033,7 +1033,12 @@ IF(WITH_LTO)
 ENDIF()
 
 # Explicit list of all -DWITH_XXX=system possibilities
-# *except* boost, which requires one specific version to be downloaded
+# *except* boost, which requires one specific version to be downloaded.
+# RapidJSON is also excluded, since the latest released version does not
+# fully support the use of std::regex as the regular expression engine. It
+# is required by JSON_SCHEMA_VALID, so don't add it automatically until an
+# official version with full support for std::regex is released. The bundled
+# version has the necessary patches to make it work.
 SET(SYSTEM_LIBRARIES
   CURL
   EDITLINE
@@ -1041,7 +1046,6 @@ SET(SYSTEM_LIBRARIES
   LIBEVENT
   LZ4
   PROTOBUF
-  RAPIDJSON
   RE2
   SSL
   ZLIB

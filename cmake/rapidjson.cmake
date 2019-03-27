@@ -35,6 +35,21 @@ MACRO(WRONG_RAPIDJSON_VERSION)
   MESSAGE(FATAL_ERROR "rapidjson version 1.1.0 or higher is required.")
 ENDMACRO()
 
+SET(rapidjson_regex_check_code "
+#include <rapidjson/document.h>
+#include <rapidjson/schema.h>
+int main() {
+  using namespace rapidjson;
+  Document schema_doc;
+  schema_doc.Parse(\"{\\\\\"type\\\\\":\\\\\"string\\\\\",\\\\\"pattern\\\\\":\\\\\"a\\\\\"}\");
+  SchemaDocument schema(schema_doc);
+  SchemaValidator validator(schema);
+  Document doc;
+  doc.Parse(\"\\\\\"b\\\\\"\");
+  return doc.Accept(validator) ? 1 : 0;
+}"
+)
+
 MACRO (CHECK_RAPIDJSON_VERSION)
   FILE(STRINGS "${RAPIDJSON_INCLUDE_DIR}/rapidjson/rapidjson.h"
     RAPIDJSON_MAJOR_VERSION_NUMBER
@@ -88,6 +103,19 @@ MACRO (MYSQL_CHECK_RAPIDJSON)
         "  SuSE:                       zypper install rapidjson\n"
         "You can also use the bundled version by specifyng "
         "-DWITH_RAPIDJSON=bundled.")
+    ENDIF()
+    # Check if the system version includes the necessary fixes for std::regex.
+    CMAKE_PUSH_CHECK_STATE()
+    SET(CMAKE_REQUIRED_INCLUDES ${RAPIDJSON_INCLUDE_DIR})
+    SET(CMAKE_REQUIRED_DEFINITIONS "-DRAPIDJSON_SCHEMA_USE_INTERNALREGEX=0 "
+                                   "-DRAPIDJSON_SCHEMA_USE_STDREGEX=1")
+    CHECK_CXX_SOURCE_RUNS("${rapidjson_regex_check_code}"
+                          HAVE_RAPIDJSON_WITH_STD_REGEX)
+    CMAKE_POP_CHECK_STATE()
+    IF (NOT HAVE_RAPIDJSON_WITH_STD_REGEX)
+      MESSAGE(FATAL_ERROR "System rapidjson lacks some fixes required for "
+              "support of regular expressions. See extra/RAPIDJSON-README "
+              "for details.")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "WITH_RAPIDJSON must be bundled or system")
