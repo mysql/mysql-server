@@ -5627,7 +5627,8 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
-  void handle_schema_result_event(NdbDictionary::Event::TableEvent event_type,
+  void handle_schema_result_event(Ndb *s_ndb, NdbEventOperation *pOp,
+                                  NdbDictionary::Event::TableEvent event_type,
                                   const Ndb_event_data *event_data) {
     switch (event_type) {
       case NdbDictionary::Event::TE_INSERT:
@@ -5636,6 +5637,26 @@ class Ndb_schema_event_handler {
             event_data->unpack_uint32(2), event_data->unpack_uint32(3),
             event_data->unpack_string(4));
         break;
+
+    case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+      // fall through
+    case NdbDictionary::Event::TE_DROP:
+      // Cluster failure or ndb_schema_result table dropped
+      if (ndb_binlog_tables_inited && ndb_binlog_running)
+        ndb_log_verbose(
+            1, "NDB Binlog: NDB tables initially readonly on reconnect.");
+
+      // Indicate util tables not ready
+      mysql_mutex_lock(&injector_data_mutex);
+      ndb_binlog_tables_inited= false;
+      ndb_binlog_is_ready= false;
+      mysql_mutex_unlock(&injector_data_mutex);
+
+      ndb_tdc_close_cached_tables();
+
+      // Tear down the event subscription on ndb_schema_result
+      ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+      break;
 
       default:
         // Ignore other event types
@@ -5653,7 +5674,7 @@ class Ndb_schema_event_handler {
     if (Ndb_schema_dist_client::is_schema_dist_result_table(
             event_data->share->db, event_data->share->table_name)) {
       // Received event on ndb_schema_result table
-      handle_schema_result_event(pOp->getEventType(), event_data);
+      handle_schema_result_event(s_ndb, pOp, pOp->getEventType(), event_data);
       DBUG_VOID_RETURN;
     }
 

@@ -16,6 +16,11 @@ let $check_event_dbname = mysql;
 let $check_event_tabname = ndb_schema;
 --source check_event_for_table.inc
 
+# Check that event have been created for mysql.ndb_schema_result
+let $check_event_dbname = mysql;
+let $check_event_tabname = ndb_schema_result;
+--source check_event_for_table.inc
+
 # Check events for the standard test tables
 let $counter = 1;
 while ($counter <= $num_tables)

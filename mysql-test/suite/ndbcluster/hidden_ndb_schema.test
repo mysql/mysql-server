@@ -72,3 +72,30 @@ ALTER TABLE mysql.ndb_schema ALGORITHM=inplace, add column b int null;
 
 --error ER_NO_SUCH_TABLE
 DROP TABLE mysql.ndb_schema;
+
+#
+# WL#10162 adds another schema distribution table called ndb_schema_result. It
+# should be hidden in the same way as ndb_schema. Run some selected checks to
+# verify that ndb_schema_result is also hidden.
+#
+
+--echo # Check that mysql.ndb_schema_result does not show up in
+--echo # information_schema queries
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema_result';
+
+--echo # No reading or modifying data
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysql.ndb_schema_result;
+
+--error ER_NO_SUCH_TABLE
+DELETE FROM mysql.ndb_schema_result
+  WHERE nodeid=0;
+
+--echo # No DDL
+--error ER_NO_SUCH_TABLE
+ALTER TABLE mysql.ndb_schema_result ALGORITHM=copy, add column b int null;
+
+--error ER_NO_SUCH_TABLE
+DROP TABLE mysql.ndb_schema_result;
+
