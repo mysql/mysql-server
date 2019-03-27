@@ -918,3 +918,491 @@ SELECT * FROM t;
 a	b	c	g
 0	0	13	0
 DROP TABLE t;
+#
+# Bug #28772251 "SWAPPING COLUMN BY ALTER TABLE RENAME COLUMN BREAKS
+#                STORED GENERATED COLUMN".
+#
+#
+# 0) Original test case.
+#
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 1) STORED);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 (a, b) VALUES (1, 2);
+SELECT * FROM t1;
+a	b	gcol
+1	2	2
+# We block renaming of columns on which generated columns depend.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ERROR HY000: Column 'a' has a generated column dependency.
+# However, it is OK to rename such column in dependent expression
+# is redefined in the same ALTER TABLE.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 1) STORED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) DEFAULT NULL,
+  `a` int(11) DEFAULT NULL,
+  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Check that generated column value reflect the fact that columns
+# were swapped.
+SELECT * FROM t1;
+b	a	gcol
+1	2	3
+# Similarly, we disallow replacement (via DROP + ADD) of columns on
+# which generated columns depend. Replacement is allowed if
+# dependent expression is updated within the same ALTER.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 3;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 3, MODIFY gcol INT AS (a + 1) STORED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int(11) DEFAULT NULL,
+  `gcol` int(11) GENERATED ALWAYS AS ((`a` + 1)) STORED,
+  `a` int(11) DEFAULT '3'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Check that generated column value reflect the fact that column
+# was replaced.
+SELECT * FROM t1;
+b	gcol	a
+1	4	3
+DROP TABLE t1;
+#
+# More systematic test coverage.
+#
+# 1) Renaming columns on which generated columns depend.
+#
+# 1.1) Renaming column on which generated column depends is
+#      prohibited (for both stored and virtual columns).
+CREATE TABLE t1 (a INT, gcol INT AS (a + 1) STORED);
+CREATE TABLE t2 (a INT, gcol INT AS (a + 1) VIRTUAL);
+ALTER TABLE t1 RENAME COLUMN a TO b;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t2 RENAME COLUMN a TO b;
+ERROR HY000: Column 'a' has a generated column dependency.
+# Cases when rename happens through CHANGE COLUMN are also detected.
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t2 CHANGE COLUMN a b INT;
+ERROR HY000: Column 'a' has a generated column dependency.
+#
+# 1.2) It is OK to rename such columns if dependent generated column
+#      is dropped in the same ALTER.
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP COLUMN gcol;
+ALTER TABLE t2 RENAME COLUMN a TO b, DROP COLUMN gcol;
+# This works even if dropped column comes earlier than renamed column.
+ALTER TABLE t1 ADD gcol INT AS (b + 1) STORED FIRST;
+ALTER TABLE t2 ADD gcol INT AS (b + 1) VIRTUAL FIRST;
+ALTER TABLE t1 DROP COLUMN gcol, RENAME COLUMN b TO c;
+ALTER TABLE t2 DROP COLUMN gcol, RENAME COLUMN b TO c;
+#
+# 1.3) It is also OK to rename such columns if dependent generated
+#      column expression is updated/redefined.
+ALTER TABLE t1 ADD COLUMN gcol INT AS (c + 1) STORED;
+ALTER TABLE t2 ADD COLUMN gcol INT AS (c + 1) VIRTUAL;
+ALTER TABLE t1 RENAME COLUMN c TO d, MODIFY gcol INT AS (d + 1) STORED;
+ALTER TABLE t2 RENAME COLUMN c TO d, MODIFY gcol INT AS (d + 1) VIRTUAL;
+# And again this works even if generated column comes earlier than
+# renamed column.
+ALTER TABLE t1 DROP COLUMN gcol, ADD COLUMN gcol INT AS (d + 1) STORED FIRST;
+ALTER TABLE t2 DROP COLUMN gcol, ADD COLUMN gcol INT AS (d + 1) VIRTUAL FIRST;
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, RENAME COLUMN d TO e;
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, RENAME COLUMN d TO e;
+# If updated expression uses wrong column name, error is reported.
+# Note that error code and message are different because technically
+# it is issue with new generation expression.
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, RENAME COLUMN e TO f;
+ERROR 42S22: Unknown column 'e' in 'generated column function'
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, RENAME COLUMN e TO f;
+ERROR 42S22: Unknown column 'e' in 'generated column function'
+DROP TABLES t1, t2;
+#
+# 1.4) Complex case. Renaming of columns which causes generated
+#      column re-evaluation.
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 10) STORED);
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 10) VIRTUAL, KEY(gcol));
+INSERT INTO t2 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+# We block simple renaming of columns even if dependent generation
+# expression stays valid. This is intentional -- we want user to
+# realize and explicitly confirm what is done (in most cases such
+# rename is likely to be an error).
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) STORED;
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) VIRTUAL;
+# Contents of generated column should be updated accordingly.
+SELECT * FROM t1;
+b	a	gcol
+1	2	12
+3	4	14
+5	6	16
+SELECT * FROM t2;
+b	a	gcol
+1	2	12
+3	4	14
+5	6	16
+SELECT * FROM t2 WHERE gcol = 14;
+b	a	gcol
+3	4	14
+# Such ALTER TABLEs are not inplace/instant due to generated
+# column re-evaluation.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) STORED, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t2 RENAME COLUMN a TO b, RENAME COLUMN b TO a, MODIFY gcol INT AS (a + 10) VIRTUAL, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+DROP TABLES t1, t2;
+#
+# 2) Renaming columns on which generated default depends.
+#
+# 2.1) Renaming column on which generated default depends is
+#      prohibited.
+CREATE TABLE t1 (a INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 RENAME COLUMN a TO b;
+ERROR HY000: Column 'a' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
+# Cases when rename happens through CHANGE COLUMN are also detected.
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+ERROR HY000: Column 'a' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
+#
+# 2.2) It is OK to rename such columns if dependent generated default
+#      is dropped:
+#
+#      a) By dropping column
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP COLUMN def;
+#      b) By dropping default using DROP DEFAULT
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (b + 1);
+ALTER TABLE t1 RENAME COLUMN b TO c, ALTER COLUMN def DROP DEFAULT;
+#      c) By dropping default using CHANGE/MODIFY COLUMN
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (c + 1);
+ALTER TABLE t1 RENAME COLUMN c TO d, MODIFY COLUMN def INT;
+# This works even if column with generated default comes earlier than
+# renamed column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (d + 1) FIRST;
+ALTER TABLE t1 DROP COLUMN def, RENAME COLUMN d TO e;
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (e + 1) FIRST;
+ALTER TABLE t1 ALTER COLUMN def DROP DEFAULT, RENAME COLUMN e TO f;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (f + 1);
+ALTER TABLE t1 MODIFY COLUMN def INT, RENAME COLUMN f TO g;
+DROP TABLE t1;
+#
+# 2.3) It is also OK to rename such columns if dependent generated
+#      default value is updated/redefined:
+#
+#      a) Using SET DEFAULT
+CREATE TABLE t1 (a INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 RENAME COLUMN a TO b, ALTER COLUMN def SET DEFAULT (b + 1);
+#      b) Using MODIFY/CHANGE column
+ALTER TABLE t1 RENAME COLUMN b TO c, MODIFY COLUMN def INT DEFAULT (c + 1);
+# And again this works even if generated default comes earlier than
+# renamed column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (c + 1) FIRST;
+ALTER TABLE t1 ALTER COLUMN def SET DEFAULT (d + 1), RENAME COLUMN c TO d;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (e + 1), RENAME COLUMN d TO e;
+# If updated expression uses wrong column name, error is reported.
+# Again, error code and message are different because technically
+# it is issue with new generated default.
+ALTER TABLE t1 MODIFY def INT DEFAULT (e + 1), RENAME COLUMN e TO f;
+ERROR 42S22: Unknown column 'e' in 'default value expression'
+DROP TABLES t1;
+#
+# 2.4) Complex case. Swapping of columns on which generated
+#      default depends.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a));
+INSERT INTO t1 (a, b) VALUES (1, 2);
+# Similarly to the above we block simple renaming of columns even
+# if dependent default expression stays valid. This is intentional
+# -- we want user to realize and explicitly confirm what is done
+# (in most cases such rename is likely to be an error).
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ERROR HY000: Column 'a' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, ALTER COLUMN def SET DEFAULT (a);
+# Old rows should stay the same, new default will only affect new rows.
+INSERT INTO t1 (a, b) VALUES (3, 4);
+SELECT * FROM t1;
+b	a	def
+1	2	1
+4	3	3
+# Unlike for generated columns case, such ALTER TABLE can be done
+# inplace, since it doesn't affect table data.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, ALTER COLUMN def SET DEFAULT (a), ALGORITHM=INPLACE;
+DROP TABLES t1;
+#
+# 3) Renaming columns on which functional index depends.
+#
+# 3.1) Renaming column on which functional index depends is
+#      prohibited.
+CREATE TABLE t1 (a INT, KEY fi((a + 1)));
+ALTER TABLE t1 RENAME COLUMN a TO b;
+ERROR HY000: Column 'a' has a functional index dependency and cannot be dropped or renamed.
+# Cases when rename happens through CHANGE COLUMN are also detected.
+ALTER TABLE t1 CHANGE COLUMN a b INT;
+ERROR HY000: Column 'a' has a functional index dependency and cannot be dropped or renamed.
+#
+# 3.2) It is OK to rename such columns if dependent index is dropped.
+ALTER TABLE t1 RENAME COLUMN a TO b, DROP KEY fi;
+# This works even if hidden column for functional index processed
+# earlier than renamed column.
+ALTER TABLE t1 ADD KEY fi ((b + 1));
+# Move column 'b' to the table's end first.
+ALTER TABLE t1 ADD c INT;
+ALTER TABLE t1 MODIFY b INT AFTER c;
+ALTER TABLE t1 DROP KEY fi, RENAME COLUMN b TO d;
+#
+# Note that the only way to update/redefine functional index is to
+# drop and re-create it. So the this section also covers the case
+# when functional index is updated/redefined along with rename.
+# Let us check such scenario for completeness.
+ALTER TABLE t1 ADD KEY fi ((d + 1));
+ALTER TABLE t1 RENAME COLUMN d TO e, DROP KEY fi, ADD KEY fi ((e + 1));
+# If updated expression uses wrong column name, error is reported.
+# Again, error code and message are different because technically
+# it is issue with new functional index.
+ALTER TABLE t1 RENAME COLUMN e TO f, DROP KEY fi, ADD KEY fi ((e + 1));
+ERROR 42S22: Unknown column 'e' in 'functional index'
+DROP TABLE t1;
+#
+# 3.3) Complex case. Swapping of columns on which functional index
+#      depends.
+CREATE TABLE t1 (a INT, b INT, KEY fi ((a + 10)));
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+SELECT * FROM t1 WHERE a + 10 = 13;
+a	b
+3	4
+# We block simple renaming of columns even if dependent functional
+# index stays valid. This is intentional -- we want user to realize
+# and explicitly confirm what is done (in most cases such rename is
+# likely to be an error).
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a;
+ERROR HY000: Column 'a' has a functional index dependency and cannot be dropped or renamed.
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, DROP KEY fi, ADD KEY fi((a + 10));
+# Contents of functional index/hidden generated column should be
+# updated accordingly.
+SELECT * FROM t1 WHERE a + 10 = 14;
+b	a
+3	4
+# Such ALTER TABLEs are not inplace/instant due to re-evaluation
+# (and other reasons).
+ALTER TABLE t1 RENAME COLUMN a TO b, RENAME COLUMN b TO a, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+DROP TABLES t1;
+#
+# 4) Dropping columns on which generated columns depend.
+#
+# 4.1) Dropping column on which generated column depends is
+#      prohibited (for both stored and virtual columns).
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 1) STORED);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 1) VIRTUAL);
+ALTER TABLE t1 DROP COLUMN a;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t2 DROP COLUMN a;
+ERROR HY000: Column 'a' has a generated column dependency.
+#
+# 4.2) It is OK to drop such columns if dependent generated column
+#      is dropped in the same ALTER.
+ALTER TABLE t1 DROP COLUMN a, DROP COLUMN gcol;
+ALTER TABLE t2 DROP COLUMN a, DROP COLUMN gcol;
+# This works even if generated column is processed earlier than
+# base column.
+ALTER TABLE t1 ADD gcol INT AS (a + 1) STORED FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN gcol, DROP COLUMN a;
+#
+# 4.3) It is also OK to drop such columns if dependent generated
+#      column expression is updated/redefined.
+ALTER TABLE t1 ADD COLUMN gcol INT AS (a + 1) STORED, ADD COLUMN a INT;
+ALTER TABLE t2 ADD COLUMN gcol INT AS (a + 1) VIRTUAL, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN a, MODIFY gcol INT AS (b + 1) STORED;
+ALTER TABLE t2 DROP COLUMN a, MODIFY gcol INT AS (b + 1) VIRTUAL;
+# And again this works even if generated column is processed earlier
+# than base  column.
+ALTER TABLE t1 DROP COLUMN gcol, ADD COLUMN gcol INT AS (a + 1) STORED FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 MODIFY gcol INT AS (b + 1) STORED, DROP COLUMN a;
+ALTER TABLE t2 DROP COLUMN gcol, ADD COLUMN gcol INT AS (a + 1) VIRTUAL FIRST, ADD COLUMN a INT;
+ALTER TABLE t2 MODIFY gcol INT AS (b + 1) VIRTUAL, DROP COLUMN a;
+# If updated expression uses wrong column name, error is reported.
+# Note that error code and message are different because technically
+# it is issue with new generation expression.
+ALTER TABLE t1 ADD COLUMN c INT;
+ALTER TABLE t2 ADD COLUMN c INT;
+ALTER TABLE t1 MODIFY gcol INT AS (e + 1) STORED, DROP COLUMN b;
+ERROR 42S22: Unknown column 'e' in 'generated column function'
+ALTER TABLE t2 MODIFY gcol INT AS (e + 1) VIRTUAL, DROP COLUMN b;
+ERROR 42S22: Unknown column 'e' in 'generated column function'
+DROP TABLES t1, t2;
+#
+# 4.4) Complex case. Replacement (dropping and addition) of columns
+#      which causes generated column re-evaluation.
+CREATE TABLE t1 (a INT, b INT, gcol INT AS (a + 10) STORED);
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+CREATE TABLE t2 (a INT, b INT, gcol INT AS (a + 10) VIRTUAL, KEY(gcol));
+INSERT INTO t2 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+# We block simple replacement of columns even if dependent generation
+# expression stays valid. This is intentional -- we want user to
+# realize and explicitly confirm what is done (in most cases this
+# is likely to be an error).
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) STORED;
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) VIRTUAL;
+# Contents of generated column should be updated accordingly.
+SELECT * FROM t1;
+b	gcol	a
+2	10	0
+4	10	0
+6	10	0
+SELECT * FROM t2;
+b	gcol	a
+2	10	0
+4	10	0
+6	10	0
+SELECT * FROM t2 WHERE gcol = 10;
+b	gcol	a
+2	10	0
+4	10	0
+6	10	0
+# Such ALTER TABLEs are not inplace/instant due to generated
+# column re-evaluation.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) STORED, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t2 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, MODIFY gcol INT AS (a + 10) VIRTUAL, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+DROP TABLES t1, t2;
+#
+# 5) Dropping column on which generated default depends.
+#
+# 5.1) Dropping column on which generated default depends is
+#      prohibited.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 DROP COLUMN a;
+ERROR HY000: Column 'a' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
+#
+# 5.2) It is OK to drop such columns if dependent generated default
+#      is dropped:
+#
+#      a) By dropping column
+ALTER TABLE t1 DROP COLUMN a, DROP COLUMN def;
+#      b) By dropping default using DROP DEFAULT
+ALTER TABLE t1 ADD COLUMN a INT, ADD COLUMN def INT DEFAULT (a + 1);
+ALTER TABLE t1 DROP COLUMN a, ALTER COLUMN def DROP DEFAULT;
+#      c) By dropping default using CHANGE/MODIFY COLUMN
+ALTER TABLE t1 ADD COLUMN a INT, MODIFY COLUMN def INT DEFAULT (a + 1);
+ALTER TABLE t1 DROP COLUMN a, MODIFY COLUMN def INT;
+# This works even if column with generated default comes earlier than
+# dropped column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 DROP COLUMN def, DROP COLUMN a;
+ALTER TABLE t1 ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT;
+ALTER TABLE t1 ALTER COLUMN def DROP DEFAULT, DROP COLUMN a;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (a + 1), ADD COLUMN a INT;
+ALTER TABLE t1 MODIFY COLUMN def INT, DROP COLUMN a;
+DROP TABLE t1;
+#
+# 5.3) It is also OK to drop such columns if dependent generated
+#      default value is updated/redefined:
+#
+#      a) Using SET DEFAULT
+CREATE TABLE t1 (a INT, b INT, c INT, d INT, def INT DEFAULT (a + 1));
+ALTER TABLE t1 DROP COLUMN a, ALTER COLUMN def SET DEFAULT (b + 1);
+#      b) Using MODIFY/CHANGE column
+ALTER TABLE t1 DROP COLUMN b, MODIFY COLUMN def INT DEFAULT (c + 1);
+# And again this works even if generated default comes earlier than
+# dropped column.
+ALTER TABLE t1 DROP COLUMN def, ADD COLUMN def INT DEFAULT (a + 1) FIRST, ADD COLUMN a INT, ADD COLUMN b INT;
+ALTER TABLE t1 ALTER COLUMN def SET DEFAULT (b + 1), DROP COLUMN a;
+ALTER TABLE t1 MODIFY COLUMN def INT DEFAULT (c + 1), DROP COLUMN b;
+# If updated expression uses wrong column name, error is reported.
+# Again, error code and message are different because technically
+# it is issue with new generated default.
+ALTER TABLE t1 MODIFY def INT DEFAULT (e + 1), DROP COLUMN c;
+ERROR 42S22: Unknown column 'e' in 'default value expression'
+DROP TABLES t1;
+#
+# 5.4) Complex case. Replacement of column on which generated
+#      default depends.
+CREATE TABLE t1 (a INT, b INT, def INT DEFAULT (a));
+INSERT INTO t1 (a, b) VALUES (1, 2);
+# Similarly to the above we block simple replacement of columns even
+# if dependent default expression stays valid. This is intentional
+# -- we want user to realize and explicitly confirm what is done
+# (in most cases such replacement is likely to be an error).
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT;
+ERROR HY000: Column 'a' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 10, ALTER COLUMN def SET DEFAULT (a);
+# Old rows should stay the same, new generated default will only affect new rows.
+INSERT INTO t1 (a, b) VALUES (3, 4);
+SELECT * FROM t1;
+b	def	a
+2	1	10
+4	3	3
+# Unlike for generated columns case, such ALTER TABLE can be done
+# inplace, since it doesn't affect table data.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 42, ALTER COLUMN def SET DEFAULT (a), ALGORITHM=INPLACE;
+DROP TABLES t1;
+#
+# 6) Dropping column on which functional index depends.
+#
+# 6.1) Dropping column on which functional index depends is
+#      prohibited.
+CREATE TABLE t1 (a INT, b INT, KEY fi((a + 1)));
+ALTER TABLE t1 DROP COLUMN a;
+ERROR HY000: Column 'a' has a functional index dependency and cannot be dropped or renamed.
+#
+# 6.2) It is OK to drop such column if dependent index is dropped.
+ALTER TABLE t1 DROP COLUMN a, DROP KEY fi;
+# This works even if hidden column for functional index processed
+# earlier than dropped column.
+ALTER TABLE t1 ADD KEY fi ((b + 1));
+# Move column 'b' to the table's end first.
+ALTER TABLE t1 ADD c INT;
+ALTER TABLE t1 MODIFY b INT AFTER c;
+ALTER TABLE t1 DROP KEY fi, DROP COLUMN b;
+#
+# Note that the only way to update/redefine functional index is to
+# drop and re-create it. So the this section also covers the case
+# when functional index is updated/redefined along with drop of
+# base column. Let us check such scenario for completeness.
+ALTER TABLE t1 ADD KEY fi ((c + 1)), ADD COLUMN d INT, ADD COLUMN e INT;
+ALTER TABLE t1 DROP COLUMN c, DROP KEY fi, ADD KEY fi ((d + 1));
+# If updated expression uses wrong column name, error is reported.
+# Again, error code and message are different because technically
+# it is issue with new functional index.
+ALTER TABLE t1 DROP COLUMN d, DROP KEY fi, ADD KEY fi ((f + 1));
+ERROR 42S22: Unknown column 'f' in 'functional index'
+DROP TABLE t1;
+#
+# 6.3) Complex case. Replacing column on which functional index
+#      depends.
+CREATE TABLE t1 (a INT, b INT, KEY fi ((a + 10)));
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (5, 6);
+SELECT * FROM t1 WHERE a + 10 = 13;
+a	b
+3	4
+# We block simple replacement of column even if dependent functional
+# index stays valid. This is intentional -- we want user to realize
+# and explicitly confirm what is done (in most cases such replacement
+# is likely to be an error).
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0;
+ERROR HY000: Column 'a' has a functional index dependency and cannot be dropped or renamed.
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10));
+# Contents of functional index/hidden generated column should be
+# updated accordingly.
+SELECT * FROM t1 WHERE a + 10 = 10;
+b	a
+2	0
+4	0
+6	0
+# Such ALTER TABLEs are not inplace/instant due to re-evaluation
+# (and other reasons).
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN a INT DEFAULT 0, DROP KEY fi, ADD KEY fi((a + 10)), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+DROP TABLES t1;

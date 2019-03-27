@@ -8632,7 +8632,7 @@ ER_GENERATED_COLUMN_VARIABLES
   eng "Expression of generated column '%s' cannot refer user or system variables."
 
 ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE
-  eng "Column '%s' of table '%s' has a default value expression dependency and cannot be dropped."
+  eng "Column '%s' of table '%s' has a default value expression dependency and cannot be dropped or renamed."
 
 ER_DEFAULT_VAL_GENERATED_NON_PRIOR
   eng "Default value expression of column '%s' cannot refer to a column defined after it if that column is a generated column or has an expression as default value."
@@ -8846,6 +8846,9 @@ ER_UNSUPPORTED_USE_OF_GRANT_AS
 
 ER_UKNOWN_AUTH_ID_OR_ACCESS_DENIED_FOR_GRANT_AS
   eng "Either some of the authorization IDs in the AS clause are invalid or the current user lacks privileges to execute the statement."
+
+ER_DEPENDENT_BY_FUNCTIONAL_INDEX
+  eng "Column '%s' has a functional index dependency and cannot be dropped or renamed."
 
 ER_PLUGIN_NOT_EARLY
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."

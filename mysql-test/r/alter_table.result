@@ -3487,9 +3487,9 @@ t_gen	CREATE TABLE `t_gen` (
   `b` double GENERATED ALWAYS AS (sqrt(`c`)) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_gen CHANGE COLUMN c a INT;
-ERROR 42S22: Unknown column 'c' in 'generated column function'
+ERROR HY000: Column 'c' has a generated column dependency.
 ALTER TABLE t_gen RENAME COLUMN c TO a;
-ERROR 42S22: Unknown column 'c' in 'generated column function'
+ERROR HY000: Column 'c' has a generated column dependency.
 DROP TABLE t_gen;
 CREATE TABLE foo (col1 INT);
 INSERT INTO foo VALUES (1), (2);

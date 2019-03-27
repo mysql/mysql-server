@@ -6183,47 +6183,6 @@ void TABLE::mark_generated_columns(bool is_update) {
   if (bitmap_updated) file->column_bitmaps_signal();
 }
 
-/*
-  Check whether a base field is dependent on any generated columns.
-
-  @return
-    true     The field is dependent by some GC.
-
-*/
-bool TABLE::is_field_used_by_generated_columns(uint field_index,
-                                               int *error_no) {
-  MY_BITMAP dependent_fields;
-  my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
-  bitmap_init(&dependent_fields, bitbuf, s->fields, 0);
-  MY_BITMAP *save_old_read_set = read_set;
-  read_set = &dependent_fields;
-
-  for (Field **vfield_ptr = field; *vfield_ptr; vfield_ptr++) {
-    Field *tmp_vfield = *vfield_ptr;
-    if (tmp_vfield->is_gcol() ||
-        tmp_vfield->has_insert_default_general_value_expression()) {
-      DBUG_ASSERT((tmp_vfield->gcol_info && tmp_vfield->gcol_info->expr_item) ||
-                  (tmp_vfield->m_default_val_expr &&
-                   tmp_vfield->m_default_val_expr->expr_item));
-      Mark_field mark_fld(MARK_COLUMNS_TEMP);
-      Item *expr = tmp_vfield->is_gcol()
-                       ? tmp_vfield->gcol_info->expr_item
-                       : tmp_vfield->m_default_val_expr->expr_item;
-      expr->walk(&Item::mark_field_in_map, enum_walk::PREFIX,
-                 (uchar *)&mark_fld);
-      if (bitmap_is_set(read_set, field_index)) {
-        *error_no = tmp_vfield->is_gcol()
-                        ? ER_DEPENDENT_BY_GENERATED_COLUMN
-                        : ER_DEPENDENT_BY_DEFAULT_GENERATED_VALUE;
-        read_set = save_old_read_set;
-        return true;
-      }
-    }
-  }
-  read_set = save_old_read_set;
-  return false;
-}
-
 /**
   Cleanup this table for re-execution.
 

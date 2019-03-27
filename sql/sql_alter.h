@@ -365,10 +365,7 @@ class Alter_info {
   };
 
   /**
-     Columns and keys to be dropped.
-     After mysql_prepare_alter_table() it contains only foreign keys and
-     virtual generated columns to be dropped. This information is necessary
-     for the storage engine to do in-place alter.
+     Columns, keys and constraints to be dropped.
   */
   Mem_root_array<const Alter_drop *> drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.

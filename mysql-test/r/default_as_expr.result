@@ -240,7 +240,7 @@ ERROR HY000: DEFAULT function cannot be used with default value expressions
 SELECT DEFAULT(c) from t3;
 ERROR HY000: DEFAULT function cannot be used with default value expressions
 ALTER TABLE t3 DROP COLUMN d;
-ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped.
+ERROR HY000: Column 'd' of table 't3' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t3;
 #
 # Test UTF8
@@ -934,14 +934,12 @@ DROP TABLE t2;
 # BUG#28040739 - WL#9418: INCORRECT ERROR THROWN WITH RENAME COLUMN
 #
 CREATE TABLE t1 ( i INT, j INT DEFAULT( i * i) ) ;
-# "Unknown column 'i' in 'default value expression'"
 ALTER TABLE t1 RENAME COLUMN i to i1 ;
-ERROR 42S22: Unknown column 'i' in 'default value expression'
+ERROR HY000: Column 'i' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t1;
 CREATE TABLE t1 ( i INT, j INT DEFAULT (i * i) ) ;
-# "Unknown column 'i' in 'default value expression'"
 ALTER TABLE t1 CHANGE COLUMN i i1 DOUBLE DEFAULT ( 4 * 4 ) ;
-ERROR 42S22: Unknown column 'i' in 'default value expression'
+ERROR HY000: Column 'i' of table 't1' has a default value expression dependency and cannot be dropped or renamed.
 DROP TABLE t1;
 create table t1 (i int, j double DEFAULT (i * i) ) ;
 # "Unknown column 'z' in 'default value expression'"
