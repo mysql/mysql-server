@@ -817,7 +817,7 @@ static void mtr_commit_mlog_test_filling_block_low(log_t &log,
     MLOG_TEST_REC_OVERHEAD bytes. Fortunately the MAX_DATA_SIZE is
     always at least twice larger than the MLOG_TEST_REC_OVERHEAD,
     so the payload has to be larger than MLOG_TEST_REC_OVERHEAD. */
-    ut_d(static_assert(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2));
+    ut_ad(mtr_buf_t::MAX_DATA_SIZE >= MLOG_TEST_REC_OVERHEAD * 2);
     ut_a(payload > MLOG_TEST_REC_OVERHEAD);
 
     /* Subtract space which we will consume by usage of next record.
