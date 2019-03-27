@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,4 @@ add_harness_plugin(keepalive
 
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_SUBDIRECTORY(tests)
-ENDIF()
-
-IF(WIN32)
-  INSTALL(TARGETS keepalive 
-    RUNTIME DESTINATION "lib"
-    COMPONENT Router)
 ENDIF()

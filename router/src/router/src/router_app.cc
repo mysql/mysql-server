@@ -374,7 +374,22 @@ void MySQLRouter::init_keyring_using_prompted_password() {
                                        master_key, false);
 }
 
-static string fixpath(const string &path, const std::string &basedir) {
+/** @brief Returns `<path>` if it is absolute[*], `<basedir>/<path>` otherwise
+ *
+ * [*] `<path>` is considered absolute if it starts with one of:
+ *   Unix:    '/'
+ *   Windows: '/' or '\' or '.:' (where . is any character)
+ *   both:    '{origin}' or 'ENV{'
+ * else:
+ *   it's considered relative (empty `<path>` is also relative in such respect)
+ *
+ * @param path Absolute or relative path; absolute path may start with
+ *        '{origin}' or 'ENV{'
+ * @param basedir Path to grandparent directory of mysqlrouter.exe, i.e.
+ *        for '/path/to/bin/mysqlrouter.exe/' it will be '/path/to'
+ */
+static string ensure_absolute_path(const string &path,
+                                   const std::string &basedir) {
   if (path.empty()) return basedir;
   if (path.compare(0, strlen("{origin}"), "{origin}") == 0) return path;
   if (path.find("ENV{") != std::string::npos) return path;
@@ -399,32 +414,17 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths(
   std::map<std::string, std::string> params = {
       {"program", kProgramName},
       {"origin", origin.str()},
-      {"logging_folder", fixpath(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
-      {"plugin_folder", fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
-      {"runtime_folder", fixpath(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
-      {"config_folder", fixpath(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
-      {"data_folder", fixpath(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
-  // check if the executable is being ran from the install location and if not
-  // set the plugin dir to a path relative to it
-#ifndef _WIN32
-  {
-    mysql_harness::Path install_origin(
-        fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
-      params["plugin_folder"] = fixpath(MYSQL_ROUTER_PLUGIN_FOLDER, basedir);
-    }
-  }
-#else
-  {
-    mysql_harness::Path install_origin(
-        fixpath(MYSQL_ROUTER_BINARY_FOLDER, basedir));
-    if (!install_origin.exists() || !(install_origin.real_path() == origin)) {
-      params["plugin_folder"] = origin.dirname().join("lib").str();
-    }
-  }
-#endif
+      {"logging_folder",
+       ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
+      {"plugin_folder",
+       ensure_absolute_path(MYSQL_ROUTER_PLUGIN_FOLDER, basedir)},
+      {"runtime_folder",
+       ensure_absolute_path(MYSQL_ROUTER_RUNTIME_FOLDER, basedir)},
+      {"config_folder",
+       ensure_absolute_path(MYSQL_ROUTER_CONFIG_FOLDER, basedir)},
+      {"data_folder", ensure_absolute_path(MYSQL_ROUTER_DATA_FOLDER, basedir)}};
 
-  // resolve environment variables & relative paths
+  // foreach param, s/{origin}/<basedir>/
   for (auto it : params) {
     std::string &param = params.at(it.first);
     param.assign(

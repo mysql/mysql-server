@@ -34,9 +34,13 @@ IF("${ROUTER_INSTALL_LIBDIR}" STREQUAL "")
   SET(ROUTER_INSTALL_LIBDIR "${INSTALL_LIBDIR}")
 ENDIF()
 
-# If router plugindir not set, use $router_install_libdir/mysqlrouter
+# If router plugindir not set, use $router_install_libdir[/mysqlrouter]
 IF("${ROUTER_INSTALL_PLUGINDIR}" STREQUAL "")
-  SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
+  IF(WIN32)
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}")
+  ELSE()
+    SET(ROUTER_INSTALL_PLUGINDIR "${ROUTER_INSTALL_LIBDIR}/mysqlrouter")
+  ENDIF()
 ENDIF()
 
 IF("${ROUTER_INSTALL_DOCDIR}" STREQUAL "")

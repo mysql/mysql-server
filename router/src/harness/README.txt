@@ -1,7 +1,7 @@
 MySQL Harness
 =============
 
-Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -177,13 +177,14 @@ function that can be used add new plugins.
     add_harness_plugin(<name> [ NO_INSTALL ]
                        INTERFACE <directory>
                        SOURCES <source> ...
+                       DESTINATION <directory>
                        REQUIRES <plugin> ...)
 
 This function adds a plugin named `<name>` built from the given
 sources. If `NO_INSTALL` is provided, it will not be installed with
 the harness (useful if you have plugins used for testing, see the
 `tests/` directory). Otherwise, the plugin will be installed in the
-*root*`/var/lib/harness` directory.
+directory specified by `DESTINATION`.
 
 The header files in the directory given by `INTERFACE` are the
 interface files to the plugin and shall be used by other plugins

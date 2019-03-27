@@ -51,12 +51,6 @@ TARGET_INCLUDE_DIRECTORIES(metadata_cache PRIVATE ${include_dirs})
 # INSTALL(FILES ${metadata_cache_headers}
 #   DESTINATION include/mysql/${HARNESS_NAME})
 
-IF(WIN32)
-  INSTALL(TARGETS metadata_cache 
-    RUNTIME DESTINATION "lib"
-    COMPONENT Router)
-ENDIF()
-
 IF(WITH_UNIT_TESTS AND GMOCK_FOUND)
   ADD_LIBRARY(metadata_cache_static STATIC ${METADATA_CACHE_SOURCES})
   TARGET_LINK_LIBRARIES(metadata_cache_static router_lib ${MySQL_CLIENT_LIB})

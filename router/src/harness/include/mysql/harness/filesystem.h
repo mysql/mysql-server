@@ -129,6 +129,7 @@ class HARNESS_EXPORT Path {
                         const std::string &extension);
 
   bool operator==(const Path &rhs) const;
+  bool operator!=(const Path &rhs) const { return !(*this == rhs); }
 
   /**
    * Path ordering operator.
