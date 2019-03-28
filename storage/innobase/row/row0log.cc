@@ -2026,14 +2026,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
   dtuple_t *old_row;
   row_ext_t *old_ext;
 
-  if (dict_index_t *index_next = index->next()) {
+  if (index->next() != nullptr) {
     /* Construct the row corresponding to the old value of
     the record. */
     old_row = row_build(ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
                         cur_offsets, NULL, NULL, NULL, &old_ext, heap);
-    if (dict_index_has_virtual(index_next)) {
-      dtuple_copy_v_fields(old_row, update->old_vrow);
-    }
     ut_ad(old_row);
 
     DBUG_PRINT("ib_alter_table",
@@ -2061,7 +2058,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
     dtuple_big_rec_free(big_rec);
   }
-
+  bool vfields_copied = false;
   while ((index = index->next()) != NULL) {
     n_index++;
     if (error != DB_SUCCESS) {
@@ -2072,12 +2069,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
       continue;
     }
 
-    if (!row_upd_changes_ord_field_binary(index, update, thr, old_row, NULL)) {
-      continue;
+    if (!vfields_copied && dict_index_has_virtual(index)) {
+      dtuple_copy_v_fields(old_row, old_pk);
+      vfields_copied = true;
     }
 
-    if (dict_index_has_virtual(index)) {
-      dtuple_copy_v_fields(old_row, old_pk);
+    if (!row_upd_changes_ord_field_binary(index, update, thr, old_row, NULL)) {
+      continue;
     }
 
     mtr_commit(&mtr);
