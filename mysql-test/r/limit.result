@@ -628,3 +628,28 @@ ERROR 22032: JSON documents may not contain NULL member names.
 FLUSH TABLES;
 DROP TABLE t1;
 set optimizer_switch=@old_opt_switch;
+#
+# Bug#29531472: SIG 6 AT JOIN::TEST_SKIP_SORT | SQL_OPTIMIZER.CC
+#
+CREATE TABLE t1 (
+col_int_key INT DEFAULT NULL,
+col_varchar_key VARCHAR(1) DEFAULT NULL,
+KEY idx_CC_col_int_key (col_int_key),
+KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+INSERT INTO t1 VALUES(1,'A');
+SELECT col_varchar_key AS f1
+FROM t1
+WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+GROUP BY f1 LIMIT 100;
+f1
+EXPLAIN
+SELECT col_varchar_key AS f1
+FROM t1
+WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+GROUP BY f1 LIMIT 100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	idx_CC_col_int_key,idx_CC_col_varchar_key	idx_CC_col_varchar_key	7	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`col_varchar_key` AS `f1` from `test`.`t1` where (((`test`.`t1`.`col_int_key` not between 10 and 15) or (`test`.`t1`.`col_varchar_key` < '2')) and (`test`.`t1`.`col_int_key` is null)) group by `f1` limit 100
+DROP TABLE t1;

@@ -304,3 +304,30 @@ SELECT JSON_OBJECTAGG(NULL, '') FROM t1, t1 AS t2 GROUP BY t1.pk LIMIT 2 OFFSET 
 FLUSH TABLES;
 DROP TABLE t1;
 set optimizer_switch=@old_opt_switch;
+
+
+--echo #
+--echo # Bug#29531472: SIG 6 AT JOIN::TEST_SKIP_SORT | SQL_OPTIMIZER.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_int_key INT DEFAULT NULL,
+  col_varchar_key VARCHAR(1) DEFAULT NULL,
+  KEY idx_CC_col_int_key (col_int_key),
+  KEY idx_CC_col_varchar_key (col_varchar_key)
+);
+
+INSERT INTO t1 VALUES(1,'A');
+
+SELECT col_varchar_key AS f1
+  FROM t1
+  WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+  GROUP BY f1 LIMIT 100;
+
+EXPLAIN
+SELECT col_varchar_key AS f1
+  FROM t1
+  WHERE (col_int_key NOT BETWEEN 10 AND 15 OR col_varchar_key < '2') AND col_int_key IS NULL
+  GROUP BY f1 LIMIT 100;
+
+DROP TABLE t1;

@@ -4940,10 +4940,12 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
           In any case we can't select more than #table_records.
           N/(refkey_rows_estimate/table_records) > table_records
           <=> N > refkey_rows_estimate.
+          Neither should it be possible to select more than #table_records
+          rows from refkey_rows_estimate.
          */
         if (select_limit > refkey_rows_estimate)
           select_limit = table_records;
-        else
+        else if (table_records >= refkey_rows_estimate)
           select_limit = (ha_rows)(select_limit * (double)table_records /
                                    refkey_rows_estimate);
         rec_per_key =
