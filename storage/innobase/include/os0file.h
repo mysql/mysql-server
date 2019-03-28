@@ -195,6 +195,8 @@ static const ulint OS_BUFFERED_FILE = 102;
 
 static const ulint OS_CLONE_DATA_FILE = 103;
 static const ulint OS_CLONE_LOG_FILE = 104;
+
+static const ulint OS_REDO_LOG_ARCHIVE_FILE = 105;
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */

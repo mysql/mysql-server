@@ -1,0 +1,3 @@
+--secure-file-priv=$MYSQL_TMP_DIR
+--local-infile=ON
+--skip-log-bin

@@ -3203,7 +3203,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE ||
        type == OS_CLONE_DATA_FILE || type == OS_CLONE_LOG_FILE ||
-       type == OS_BUFFERED_FILE);
+       type == OS_BUFFERED_FILE || type == OS_REDO_LOG_ARCHIVE_FILE);
 
   ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 

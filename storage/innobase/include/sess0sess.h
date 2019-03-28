@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sql_thd_internal_api.h>
 #include "dict0mem.h"
+#include "log0meb.h"
 #include "srv0tmp.h"
 #include "trx0trx.h"
 #include "univ.i"
@@ -82,6 +83,8 @@ class innodb_session_t {
          it != m_open_tables.end(); ++it) {
       delete (it->second);
     }
+
+    meb::redo_log_archive_session_end(this);
 
     if (m_usr_temp_tblsp != nullptr) {
       ibt::free_tmp(m_usr_temp_tblsp);

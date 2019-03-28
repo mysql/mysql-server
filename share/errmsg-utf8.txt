@@ -8854,6 +8854,44 @@ ER_PLUGIN_NOT_EARLY
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
   bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
 
+ER_INNODB_REDO_LOG_ARCHIVE_START_SUBDIR_PATH
+  eng "Redo log archiving start prohibits path name in 'subdir' argument"
+
+ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT
+  eng "Redo log archiving start timed out"
+
+ER_INNODB_REDO_LOG_ARCHIVE_DIRS_INVALID
+  eng "Server variable 'innodb_redo_log_archive_dirs' is NULL or empty"
+
+ER_INNODB_REDO_LOG_ARCHIVE_LABEL_NOT_FOUND
+  eng "Label '%.192s' not found in server variable 'innodb_redo_log_archive_dirs'"
+
+ER_INNODB_REDO_LOG_ARCHIVE_DIR_EMPTY
+  eng "Directory is empty after label '%.192s' in server variable 'innodb_redo_log_archive_dirs'"
+
+ER_INNODB_REDO_LOG_ARCHIVE_NO_SUCH_DIR
+  eng "Redo log archive directory '%.192s' does not exist or is not a directory"
+
+ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH
+  eng "Redo log archive directory '%.192s' is in, under, or over server directory '%.192s' - '%.192s'"
+
+ER_INNODB_REDO_LOG_ARCHIVE_DIR_PERMISSIONS
+  eng "Redo log archive directory '%.192s' is accessible to all OS users"
+
+ER_INNODB_REDO_LOG_ARCHIVE_FILE_CREATE
+  eng "Cannot create redo log archive file '%.512s' (OS errno: %d - %.128s)"
+
+ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE
+  eng "Redo log archiving has been started on '%.512s' - Call innodb_redo_log_archive_stop() first"
+
+ER_INNODB_REDO_LOG_ARCHIVE_INACTIVE
+  eng "Redo log archiving is not active"
+
+ER_INNODB_REDO_LOG_ARCHIVE_FAILED
+  eng "Redo log archiving failed: %.512s"
+
+ER_INNODB_REDO_LOG_ARCHIVE_SESSION
+  eng "Redo log archiving has not been started by this session"
 
 #
 #  End of 8.0 error messages.

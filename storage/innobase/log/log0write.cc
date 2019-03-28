@@ -57,6 +57,7 @@ the file COPYING.Google.
 #endif /* !UNIV_HOTBACKUP */
 #include "fil0fil.h"
 #include "log0log.h"
+#include "log0meb.h"
 #ifndef UNIV_HOTBACKUP
 #include "log0recv.h"
 #include "mem0mem.h"
@@ -1451,6 +1452,8 @@ static inline void write_blocks(log_t &log, byte *write_buf, size_t write_size,
   auto err = fil_redo_io(
       IORequestLogWrite, page_id_t{log.files_space_id, page_no}, univ_page_size,
       static_cast<ulint>(real_offset % UNIV_PAGE_SIZE), write_size, write_buf);
+
+  meb::redo_log_archive_produce(write_buf, write_size);
 
   ut_a(err == DB_SUCCESS);
 }

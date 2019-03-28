@@ -67,6 +67,7 @@ log_checksum_func_t log_checksum_algorithm_ptr;
 #include <time.h>
 #include "dict0boot.h"
 #include "ha_prototypes.h"
+#include "log0meb.h"
 #include "os0thread-create.h"
 #include "trx0sys.h"
 
@@ -751,6 +752,8 @@ void log_start_background_threads(log_t &log) {
   os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
 
   log_background_threads_active_validate(log);
+
+  meb::redo_log_archive_init();
 }
 
 void log_stop_background_threads(log_t &log) {
@@ -768,6 +771,8 @@ void log_stop_background_threads(log_t &log) {
   ib::info(ER_IB_MSG_1259) << "Log background threads are being closed...";
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
+
+  meb::redo_log_archive_deinit();
 
   log_background_threads_active_validate(log);
 

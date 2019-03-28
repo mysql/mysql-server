@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -451,6 +451,8 @@ enum latch_id_t {
   LATCH_ID_CLONE_SYS,
   LATCH_ID_CLONE_TASK,
   LATCH_ID_CLONE_SNAPSHOT,
+  LATCH_ID_REDO_LOG_ARCHIVE_ADMIN_MUTEX,
+  LATCH_ID_REDO_LOG_ARCHIVE_QUEUE_MUTEX,
   LATCH_ID_TEST_MUTEX,
   LATCH_ID_MAX = LATCH_ID_TEST_MUTEX
 };

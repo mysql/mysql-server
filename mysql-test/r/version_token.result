@@ -277,6 +277,7 @@ Execute	Functions,Procedures	To execute stored routines
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
+INNODB_REDO_LOG_ARCHIVE	Server Admin	
 Index	Tables	To create or drop indexes
 Insert	Tables	To insert data into tables
 Lock tables	Databases	To use LOCK TABLES (together with SELECT privilege)

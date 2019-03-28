@@ -615,6 +615,13 @@ INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y'
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege INNODB_REDO_LOG_ARCHIVE for every user who has the privilege BACKUP_ADMIN
+-- provided that there isn't a user who already has the privilege INNODB_REDO_LOG_ARCHIVE.
+SET @hadInnodbRedoLogArchivePriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'INNODB_REDO_LOG_ARCHIVE');
+INSERT INTO global_grants SELECT user, host, 'INNODB_REDO_LOG_ARCHIVE', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE Reload_priv = 'Y' AND @hadInnodbRedoLogArchivePriv = 0;
+COMMIT;
+
 -- Add the privilege RESOURCE_GROUP_ADMIN for every user who has the privilege SUPER
 -- provided that there isn't a user who already has the privilege RESOURCE_GROUP_ADMIN.
 SET @hadResourceGroupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_ADMIN');

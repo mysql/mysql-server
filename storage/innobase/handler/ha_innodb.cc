@@ -122,6 +122,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lex_string.h"
 #include "lob0lob.h"
 #include "lock0lock.h"
+#include "log0meb.h"
 #include "mem0mem.h"
 #include "mtr0mtr.h"
 #include "my_compare.h"
@@ -730,7 +731,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(fts_optimize_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_parallel_merge_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(fts_parallel_tokenization_thread, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_KEY(srv_ts_alter_encrypt_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(meb::redo_log_archive_consumer_thread, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_IO
@@ -742,7 +744,8 @@ static PSI_file_info all_innodb_files[] = {
     PSI_KEY(innodb_log_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_temp_file, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(innodb_arch_file, 0, 0, PSI_DOCUMENT_ME),
-    PSI_KEY(innodb_clone_file, 0, 0, PSI_DOCUMENT_ME)};
+    PSI_KEY(innodb_clone_file, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(meb::redo_log_archive_file, 0, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -21672,6 +21675,14 @@ static MYSQL_SYSVAR_ENUM(
     " The ROW_FORMAT value COMPRESSED is not allowed",
     NULL, NULL, DEFAULT_ROW_FORMAT_DYNAMIC, &innodb_default_row_format_typelib);
 
+static MYSQL_SYSVAR_STR(
+    redo_log_archive_dirs, meb::redo_log_archive_dirs,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
+    "Limit the location of the redo log archive to the semicolon "
+    "separated list of labeled directories",
+    /*validate_func*/ meb::validate_redo_log_archive_dirs,
+    /*update_func*/ NULL, /*default*/ NULL);
+
 static MYSQL_SYSVAR_BOOL(redo_log_encrypt, srv_redo_log_encrypt,
                          PLUGIN_VAR_OPCMDARG,
                          "Enable or disable Encryption of REDO tablespace.",
@@ -21938,6 +21949,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(compression_failure_threshold_pct),
     MYSQL_SYSVAR(compression_pad_pct_max),
     MYSQL_SYSVAR(default_row_format),
+    MYSQL_SYSVAR(redo_log_archive_dirs),
     MYSQL_SYSVAR(redo_log_encrypt),
     MYSQL_SYSVAR(print_ddl_logs),
 #ifdef UNIV_DEBUG

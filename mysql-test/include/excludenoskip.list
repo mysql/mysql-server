@@ -250,3 +250,7 @@ require_icu_version.inc
 # currently we are checking via this env $OPENSSL_FIPS_INSTALLED
 not_have_fips.inc
 have_fips.inc
+
+# 22.0 Tests for "disk full" conditions. Need special environment.
+# Shall not run on PB2.
+redo_log_archive_05.test

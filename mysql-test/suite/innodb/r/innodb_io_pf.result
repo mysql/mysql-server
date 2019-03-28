@@ -18,5 +18,6 @@ wait/io/file/innodb/innodb_log_file	5
 wait/io/file/innodb/innodb_temp_file	5
 wait/io/file/innodb/innodb_arch_file	5
 wait/io/file/innodb/innodb_clone_file	5
+wait/io/file/innodb/meb::redo_log_archive_file	5
 USE test;
 DROP table t1;
