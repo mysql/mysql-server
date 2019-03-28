@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,6 +126,15 @@ ulint os_event_wait_time_low(
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
 
 #include "os0event.ic"
+
+/** Initializes support for os_event objects. Must be called once,
+ and before any os_event object is created. */
+void os_event_global_init(void);
+
+/** Deinitializes support for os_event objects. Must be called once,
+ and after all os_event objects are destroyed. After it is called, no
+new os_event is allowed to be created. */
+void os_event_global_destroy(void);
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !os0event_h */

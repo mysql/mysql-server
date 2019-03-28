@@ -1328,7 +1328,7 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   space_id_t new_space_id = marked_space->id();
 
   /* Flush all the buffer pages for this new undo tablespace to disk. */
-  uintmax_t counter_time_flush = ut_time_us(NULL);
+  auto counter_time_flush = ut_time_monotonic_us();
   FlushObserver *new_space_flush_observer =
       UT_NEW_NOKEY(FlushObserver(new_space_id, nullptr, nullptr));
   new_space_flush_observer->flush();
@@ -1391,7 +1391,7 @@ static bool trx_purge_truncate_marked_undo() {
   }
 
   MONITOR_INC_VALUE(MONITOR_UNDO_TRUNCATE_COUNT, 1);
-  uintmax_t counter_time_truncate = ut_time_us(NULL);
+  auto counter_time_truncate = ut_time_monotonic_us();
 
   /* Initialize variables */
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
@@ -1413,7 +1413,7 @@ static bool trx_purge_truncate_marked_undo() {
                   ib::info(ER_IB_MSG_1168)
                       << "ib_undo_trunc_before_buf_remove_all";
                   DBUG_SUICIDE(););
-  uintmax_t counter_time_sweep = ut_time_us(NULL);
+  auto counter_time_sweep = ut_time_monotonic_us();
   FlushObserver *old_space_flush_observer =
       UT_NEW_NOKEY(FlushObserver(old_space_id, nullptr, nullptr));
   old_space_flush_observer->interrupted();
@@ -1495,7 +1495,7 @@ static void trx_purge_truncate_history(
   ulint i;
 
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
-  uintmax_t counter_time_truncate_history = ut_time_us(NULL);
+  auto counter_time_truncate_history = ut_time_monotonic_us();
 
   /* We play safe and set the truncate limit at most to the purge view
   low_limit number, though this is not necessary */

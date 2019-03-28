@@ -1366,6 +1366,8 @@ static int innodb_shutdown(handlerton *, ha_panic_function) {
     mysql_cond_destroy(&commit_cond);
     mysql_mutex_destroy(&resume_encryption_cond_m);
     mysql_cond_destroy(&resume_encryption_cond);
+
+    os_event_global_destroy();
   }
 
   DBUG_RETURN(0);
@@ -3181,7 +3183,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   const auto sys_space_name = dict_sys_t::s_sys_space_name;
 
   size_t count = 0;
-  auto start_time = ut_time();
+  auto start_time = ut_time_monotonic();
   auto heap = mem_heap_create(FN_REFLEN * 2 + 1);
   const bool validate = recv_needed_recovery && srv_force_recovery == 0;
 
@@ -3198,7 +3200,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
   for (auto it = begin; it != end; ++it, ++m_checked, ++count) {
     const auto &dd_tablespace = *it;
 
-    if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
+    if (ut_time_monotonic() - start_time >= PRINT_INTERVAL_SECS) {
       std::ostringstream msg;
 
       msg << prefix << "Validated " << count << "/" << (end - begin)
@@ -3211,7 +3213,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
       ib::info(ER_IB_MSG_525) << msg.str();
 
-      start_time = ut_time();
+      start_time = ut_time_monotonic();
     }
 
     if (dd_tablespace->engine() != innobase_hton_name) {
@@ -4841,6 +4843,8 @@ static int innodb_init(void *p) {
 
 #endif /* HAVE_PSI_INTERFACE */
 
+  os_event_global_init();
+
   if (int error = innodb_init_params()) {
     DBUG_RETURN(error);
   }
@@ -4866,10 +4870,6 @@ static int innodb_init(void *p) {
                srv_sys_space.name());
     DBUG_RETURN(innodb_init_abort());
   }
-
-#ifdef _WIN32
-  if (ut_win_init_time()) DBUG_RETURN(innodb_init_abort());
-#endif /* _WIN32 */
 
   /* Check for keyring plugin if UNDO/REDO logs are intended to be encrypted */
   if ((srv_undo_log_encrypt || srv_redo_log_encrypt) &&

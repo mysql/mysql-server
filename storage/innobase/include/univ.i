@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -706,8 +706,9 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type {
 }
 
 /** If we are doing something that takes longer than this many seconds then
-print an informative message. Type should be return type of ut_time(). */
-static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
+print an informative message. Type should be return type of ut_time_monotonic().
+*/
+static constexpr ib_time_monotonic_t PRINT_INTERVAL_SECS = 10;
 
 constexpr size_t PART_SEPARATOR_LEN = 3;
 constexpr size_t SUB_PART_SEPARATOR_LEN = 4;

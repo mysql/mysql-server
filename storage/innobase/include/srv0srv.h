@@ -1039,27 +1039,28 @@ struct export_var_t {
 #ifndef UNIV_HOTBACKUP
 /** Thread slot in the thread table.  */
 struct srv_slot_t {
-  srv_thread_type type;   /*!< thread type: user,
-                          utility etc. */
-  ibool in_use;           /*!< TRUE if this slot
-                          is in use */
-  ibool suspended;        /*!< TRUE if the thread is
-                          waiting for the event of this
-                          slot */
-  ib_time_t suspend_time; /*!< time when the thread was
-                          suspended. Initialized by
-                          lock_wait_table_reserve_slot()
-                          for lock wait */
-  ulong wait_timeout;     /*!< wait time that if exceeded
-                          the thread will be timed out.
-                          Initialized by
-                          lock_wait_table_reserve_slot()
-                          for lock wait */
-  os_event_t event;       /*!< event used in suspending
-                          the thread when it has nothing
-                          to do */
-  que_thr_t *thr;         /*!< suspended query thread
-                          (only used for user threads) */
+  /** Thread type: user, utility etc. */
+  srv_thread_type type;
+
+  /** TRUE if this slot is in use. */
+  bool in_use;
+
+  /** TRUE if the thread is waiting for the event of this slot. */
+  bool suspended;
+
+  /** Time when the thread was suspended. Initialized by
+  lock_wait_table_reserve_slot() for lock wait. */
+  ib_time_monotonic_t suspend_time;
+
+  /** Wait time that if exceeded the thread will be timed out.
+  Initialized by lock_wait_table_reserve_slot() for lock wait. */
+  ulong wait_timeout;
+
+  /** Event used in suspending the thread when it has nothing to do. */
+  os_event_t event;
+
+  /** Suspended query thread (only used for user threads). */
+  que_thr_t *thr;
 };
 #endif /* !UNIV_HOTBACKUP */
 

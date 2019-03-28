@@ -17996,7 +17996,7 @@ ER_IB_MSG_1212
   eng "%s"
 
 ER_IB_MSG_1213
-  eng "%s"
+  eng "gettimeofday() failed: %s"
 
 ER_IB_MSG_1214
   eng "Can't create UNDO tablespace %s %s"
@@ -19147,6 +19147,12 @@ ER_NET_WAIT_ERROR
 
 ER_IB_MSG_1285
   eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
+
+ER_IB_MSG_CLOCK_MONOTONIC_UNSUPPORTED
+  eng "CLOCK_MONOTONIC is unsupported, so do not change the system time when MySQL is running !"
+
+ER_IB_MSG_CLOCK_GETTIME_FAILED
+  eng "clock_gettime() failed: %s"
 
 ER_PLUGIN_NOT_EARLY_DUP
   eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."

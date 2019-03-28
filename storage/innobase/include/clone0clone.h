@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -676,7 +676,8 @@ class Clone_Handle {
   @param[in,out]	percent_done	percentage completed
   @param[in,out]	disp_time	last displayed time */
   void display_progress(uint32_t cur_chunk, uint32_t max_chunk,
-                        uint32_t &percent_done, ulint &disp_time);
+                        uint32_t &percent_done,
+                        ib_time_monotonic_ms_t &disp_time);
 
   /** Open file for the task
   @param[in]	task		clone task

@@ -62,160 +62,39 @@ namespace ut {
 ulong spin_wait_pause_multiplier = 50;
 }
 
-#ifdef _WIN32
-using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
-static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
-
-/** NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
- epoch starts from 1970/1/1. For selection of constant see:
- http://support.microsoft.com/kb/167296/ */
-#define WIN_TO_UNIX_DELTA_USEC 11644473600000000LL
-
-/**
-Initialise highest available time resolution API on Windows
-@return false if all OK else true */
-bool ut_win_init_time() {
-  HMODULE h = LoadLibrary("kernel32.dll");
-  if (h != nullptr) {
-    auto pfn = reinterpret_cast<time_fn>(
-        GetProcAddress(h, "GetSystemTimePreciseAsFileTime"));
-    if (pfn != nullptr) {
-      ut_get_system_time_as_file_time = pfn;
-    }
-    return false;
-  }
-  DWORD error = GetLastError();
-#ifndef UNIV_HOTBACKUP
-#ifndef UNIV_NO_ERR_MSGS
-  log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll", error);
-#else
-  ib::error() << "LoadLibrary(\"kernel32.dll\") failed:"
-              << " GetLastError returns " << error;
-#endif /* UNIV_NO_ERR_MSGS */
-#else  /* !UNIV_HOTBACKUP */
-  fprintf(stderr,
-          "LoadLibrary(\"kernel32.dll\") failed:"
-          " GetLastError returns %lu",
-          error);
-#endif /* !UNIV_HOTBACKUP */
-  return (true);
-}
-
-/** This is the Windows version of gettimeofday(2).
- @return 0 if all OK else -1 */
-static int ut_gettimeofday(
-    struct timeval *tv, /*!< out: Values are relative to Unix epoch */
-    void *tz)           /*!< in: not used */
-{
-  FILETIME ft;
-  int64_t tm;
-
-  if (!tv) {
-    errno = EINVAL;
-    return (-1);
-  }
-
-  ut_get_system_time_as_file_time(&ft);
-
-  tm = (int64_t)ft.dwHighDateTime << 32;
-  tm |= ft.dwLowDateTime;
-
-  ut_a(tm >= 0); /* If tm wraps over to negative, the quotient / 10
-                 does not work */
-
-  tm /= 10; /* Convert from 100 nsec periods to usec */
-
-  /* If we don't convert to the Unix epoch the value for
-  struct timeval::tv_sec will overflow.*/
-  tm -= WIN_TO_UNIX_DELTA_USEC;
-
-  tv->tv_sec = (long)(tm / 1000000L);
-  tv->tv_usec = (long)(tm % 1000000L);
-
-  return (0);
-}
-#else
-/** An alias for gettimeofday(2).  On Microsoft Windows, we have to
-reimplement this function. */
-#define ut_gettimeofday gettimeofday
-#endif
-
 /** Returns system time. We do not specify the format of the time returned:
  the only way to manipulate it is to use the function ut_difftime.
  @return system time */
 ib_time_t ut_time(void) { return (time(NULL)); }
 
-/** Returns system time.
- Upon successful completion, the value 0 is returned; otherwise the
- value -1 is returned and the global variable errno is set to indicate the
- error.
- @return 0 on success, -1 otherwise */
-int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
-                ulint *ms)  /*!< out: microseconds since the Epoch+*sec */
-{
-  struct timeval tv;
-  int ret = 0;
-  int errno_gettimeofday;
-  int i;
+/** Returns the number of microseconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_us_t ut_time_monotonic_us(void) {
+  const auto now = std::chrono::steady_clock::now();
+  return (std::chrono::duration_cast<std::chrono::microseconds>(
+              now.time_since_epoch())
+              .count());
+}
 
-  for (i = 0; i < 10; i++) {
-    ret = ut_gettimeofday(&tv, NULL);
+/** Returns the number of milliseconds since epoch. Uses the monotonic clock.
+ @return ms since epoch */
+ib_time_monotonic_ms_t ut_time_monotonic_ms(void) {
+  const auto now = std::chrono::steady_clock::now();
+  return (std::chrono::duration_cast<std::chrono::milliseconds>(
+              now.time_since_epoch())
+              .count());
+}
 
-    if (ret == -1) {
-      errno_gettimeofday = errno;
+/** Returns the number of seconds since epoch. Uses the monotonic clock.
+ @return us since epoch or 0 if failed to retrieve */
+ib_time_monotonic_t ut_time_monotonic(void) {
+  const auto now = std::chrono::steady_clock::now();
 
-#ifdef UNIV_NO_ERR_MSGS
-      ib::error()
-#else
-      ib::error(ER_IB_MSG_1213)
-#endif /* UNIV_NO_ERR_MSGS */
-          << "gettimeofday(): " << strerror(errno_gettimeofday);
-
-      os_thread_sleep(100000); /* 0.1 sec */
-      errno = errno_gettimeofday;
-    } else {
-      break;
-    }
-  }
-
-  if (ret != -1) {
-    *sec = (ulint)tv.tv_sec;
-    *ms = (ulint)tv.tv_usec;
-  }
+  const auto ret =
+      std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch())
+          .count();
 
   return (ret);
-}
-
-/** Returns the number of microseconds since epoch. Similar to
- time(3), the return value is also stored in *tloc, provided
- that tloc is non-NULL.
- @return us since epoch */
-uintmax_t ut_time_us(uintmax_t *tloc) /*!< out: us since epoch, if non-NULL */
-{
-  struct timeval tv;
-  uintmax_t us;
-
-  ut_gettimeofday(&tv, NULL);
-
-  us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
-
-  if (tloc != NULL) {
-    *tloc = us;
-  }
-
-  return (us);
-}
-
-/** Returns the number of milliseconds since some epoch.  The
- value may wrap around.  It should only be used for heuristic
- purposes.
- @return ms since epoch */
-ulint ut_time_ms(void) {
-  struct timeval tv;
-
-  ut_gettimeofday(&tv, NULL);
-
-  return ((ulint)tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 
 /** Returns the difference of two times in seconds.

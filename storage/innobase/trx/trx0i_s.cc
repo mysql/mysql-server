@@ -167,17 +167,17 @@ struct i_s_table_cache_t {
 
 /** This structure describes the intermediate buffer */
 struct trx_i_s_cache_t {
-  rw_lock_t *rw_lock;             /*!< read-write lock protecting
-                                  the rest of this structure */
-  uintmax_t last_read;            /*!< last time the cache was read;
-                                  measured in microseconds since
-                                  epoch */
-  ib_mutex_t last_read_mutex;     /*!< mutex protecting the
-                          last_read member - it is updated
-                          inside a shared lock of the
-                          rw_lock member */
-  i_s_table_cache_t innodb_trx;   /*!< innodb_trx table */
-  i_s_table_cache_t innodb_locks; /*!< innodb_locks table */
+  rw_lock_t *rw_lock;               /*!< read-write lock protecting
+                                    the rest of this structure */
+  ib_time_monotonic_us_t last_read; /*!< last time the cache was read;
+                                    measured in microseconds since
+                                    epoch */
+  ib_mutex_t last_read_mutex;       /*!< mutex protecting the
+                            last_read member - it is updated
+                            inside a shared lock of the
+                            rw_lock member */
+  i_s_table_cache_t innodb_trx;     /*!< innodb_trx table */
+  i_s_table_cache_t innodb_locks;   /*!< innodb_locks table */
 /** the hash table size is LOCKS_HASH_CELLS_NUM * sizeof(void*) bytes */
 #define LOCKS_HASH_CELLS_NUM 10000
   hash_table_t *locks_hash; /*!< hash table used to eliminate
@@ -830,8 +830,6 @@ the same version of the cache. */
  @return true if can be updated */
 static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 {
-  uintmax_t now;
-
   /* Here we read cache->last_read without acquiring its mutex
   because last_read is only updated when a shared rw lock on the
   whole cache is being held (see trx_i_s_cache_end_read()) and
@@ -841,7 +839,7 @@ static ibool can_cache_be_updated(trx_i_s_cache_t *cache) /*!< in: cache */
 
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_X));
 
-  now = ut_time_us(NULL);
+  const auto now = ut_time_monotonic_us();
   if (now - cache->last_read > CACHE_MIN_IDLE_TIME_US) {
     return (TRUE);
   }
@@ -1039,12 +1037,10 @@ void trx_i_s_cache_start_read(trx_i_s_cache_t *cache) /*!< in: cache */
 /** Release a shared/read lock on the tables cache. */
 void trx_i_s_cache_end_read(trx_i_s_cache_t *cache) /*!< in: cache */
 {
-  uintmax_t now;
-
   ut_ad(rw_lock_own(cache->rw_lock, RW_LOCK_S));
 
   /* update cache last read time */
-  now = ut_time_us(NULL);
+  const auto now = ut_time_monotonic_us();
   mutex_enter(&cache->last_read_mutex);
   cache->last_read = now;
   mutex_exit(&cache->last_read_mutex);
