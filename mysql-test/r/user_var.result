@@ -835,3 +835,26 @@ ERROR 42000: Result consisted of more than one row
 SET @x= 2;
 SELECT a FROM t1 WHERE a = @x INTO @x;
 DROP TABLE t1;
+#
+# Bug#28960901: ASSERTION FAILED: (TLEN % 2) == 0
+#
+CREATE TABLE t1(a VARCHAR(10) CHARSET latin1, b VARCHAR(20) CHARSET utf16);
+INSERT INTO t1 VALUES ('a', 'abcd');
+SELECT (@x:=b) FROM t1;
+(@x:=b)
+abcd
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT * FROM t1 WHERE b = (SELECT (@x:=1) FROM t1) OR a = @x;
+a	b
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+Warning	1292	Truncated incorrect DOUBLE value: ''
+SELECT (@x:=a) FROM t1;
+(@x:=a)
+a
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
+SELECT * FROM t1 WHERE a = (SELECT (@x:=_utf16 0x1023) FROM t1) OR b = @x;
+ERROR HY000: Invalid latin1 character string: '\x10\x23'
+DROP TABLE t1;

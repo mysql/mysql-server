@@ -5794,6 +5794,22 @@ String *Item_func_get_user_var::val_str(String *str) {
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry) DBUG_RETURN((String *)0);  // No such variable
   String *res = var_entry->val_str(&null_value, str, decimals);
+  if (res && !my_charset_same(res->charset(), collation.collation)) {
+    uint error;
+    if (str->copy(var_entry->ptr(), var_entry->length(),
+                  var_entry->collation.collation, collation.collation,
+                  &error) ||
+        error > 0) {
+      char tmp[32];
+      convert_to_printable(tmp, sizeof(tmp), var_entry->ptr(),
+                           var_entry->length(), var_entry->collation.collation,
+                           6);
+      my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
+               tmp);
+      DBUG_RETURN(nullptr);
+    }
+    DBUG_RETURN(str);
+  }
   DBUG_RETURN(res);
 }
 
