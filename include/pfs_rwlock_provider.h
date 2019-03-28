@@ -35,6 +35,7 @@
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 #ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
+#ifndef WITH_LOCK_ORDER
 
 #include "my_inttypes.h"
 #include "my_macros.h"
@@ -67,6 +68,7 @@ void pfs_end_rwlock_rdwait_v2(PSI_rwlock_locker *locker, int rc);
 
 void pfs_end_rwlock_wrwait_v2(PSI_rwlock_locker *locker, int rc);
 
+#endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */

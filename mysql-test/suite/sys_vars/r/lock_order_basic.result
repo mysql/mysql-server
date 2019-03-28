@@ -1,0 +1,23 @@
+select @@global.lock_order;
+@@global.lock_order
+1
+select @@session.lock_order;
+ERROR HY000: Variable 'lock_order' is a GLOBAL variable
+show global variables like 'lock_order';
+Variable_name	Value
+lock_order	ON
+show session variables like 'lock_order';
+Variable_name	Value
+lock_order	ON
+select * from performance_schema.global_variables
+where variable_name='lock_order';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order	ON
+select * from performance_schema.session_variables
+where variable_name='lock_order';
+VARIABLE_NAME	VARIABLE_VALUE
+lock_order	ON
+set global lock_order=1;
+ERROR HY000: Variable 'lock_order' is a read only variable
+set session lock_order=1;
+ERROR HY000: Variable 'lock_order' is a read only variable

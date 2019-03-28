@@ -1,0 +1,32 @@
+
+--source include/have_lock_order.inc
+
+#
+# Only global
+#
+
+select @@global.lock_order_debug_missing_unlock;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lock_order_debug_missing_unlock;
+
+show global variables like 'lock_order_debug_missing_unlock';
+
+show session variables like 'lock_order_debug_missing_unlock';
+
+select * from performance_schema.global_variables
+  where variable_name='lock_order_debug_missing_unlock';
+
+select * from performance_schema.session_variables
+  where variable_name='lock_order_debug_missing_unlock';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lock_order_debug_missing_unlock=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lock_order_debug_missing_unlock=1;
+

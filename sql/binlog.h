@@ -183,6 +183,9 @@ class Stage_manager {
   void deinit() {
     for (size_t i = 0; i < STAGE_COUNTER; ++i) m_queue[i].deinit();
     mysql_cond_destroy(&m_cond_done);
+#ifndef DBUG_OFF
+    mysql_cond_destroy(&m_cond_preempt);
+#endif
     mysql_mutex_destroy(&m_lock_done);
   }
 

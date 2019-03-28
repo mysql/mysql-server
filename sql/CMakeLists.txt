@@ -32,20 +32,27 @@ SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
 )
 SET(GEN_SOURCES
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 )
+SET(GEN_LOCK_ORDER_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.h
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+)
 SET(GEN_DIGEST_SOURCES
-  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
 )
 SET(GEN_KEYWORD_LIST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/keyword_list.h
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES}
+                            ${GEN_LOCK_ORDER_SOURCES}
                             ${GEN_DIGEST_SOURCES}
                             ${GEN_KEYWORD_LIST_SOURCES}
                             ${CONF_SOURCES}
@@ -540,6 +547,15 @@ SET(SQL_SHARED_SOURCES
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
+IF(WITH_LOCK_ORDER)
+  LIST(APPEND SQL_SHARED_SOURCES
+    ${GEN_LOCK_ORDER_SOURCES}
+    debug_lock_order.h
+    debug_lo_misc.h
+    debug_lock_order.cc
+  )
+ENDIF()
+
 UNSET(SQL_HEADERS)
 IF(CMAKE_GENERATOR STREQUAL "Xcode")
   OPTION(GLOB_RECURSE_SQL_HEADERS "Find header files with GLOB_RECURSE" ON)
@@ -665,6 +681,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
                     COMPILE_FLAGS "-Wno-undef")
+
+  IF(WITH_LOCK_ORDER)
+    ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
+                      COMPILE_FLAGS "-Wno-undef")
+  ENDIF()
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
@@ -679,6 +700,7 @@ ENDIF()
 ADD_LIBRARY(sql_main STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
+ADD_DEPENDENCIES(sql_main GenLockOrderSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
@@ -855,11 +877,29 @@ INSTALL_DEBUG_TARGET(mysqld
 # bison. Copy bison output to from source to build directory, if not already 
 # there
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/flex.cmake)
+
 COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.h
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+# Always copy, for make dist.
+COPY_BISON_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_parser.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_parser.h
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.h
+)
+
+# Always copy, for make dist.
+COPY_FLEX_OUTPUT(
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.h
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
 )
 
 COPY_BISON_OUTPUT(
@@ -876,12 +916,50 @@ RUN_BISON(
   MYSQL
 )
 
+# Always run, for make dist.
+RUN_BISON(
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_parser.yy
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.h
+  LOCK_ORDER_
+)
+
+# Always run, for make dist.
+RUN_FLEX(
+  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.ll
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
+  LOCK_ORDER_
+)
+
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h
   HINT_PARSER_
 )
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-parameter" HAVE_NO_UNUSED_PARAMETER)
+IF(WITH_LOCK_ORDER)
+  # Flex generated code is not warning free
+  IF(HAVE_NO_UNUSED_PARAMETER)
+    ADD_COMPILE_FLAGS(
+      ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+      COMPILE_FLAGS "-Wno-unused-parameter"
+    )
+  ENDIF()
+ENDIF()
+
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
+IF(WITH_LOCK_ORDER)
+  # Flex generated code is not warning free
+  IF(HAVE_NO_SIGN_COMPARE)
+    ADD_COMPILE_FLAGS(
+      ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+      COMPILE_FLAGS "-Wno-sign-compare"
+    )
+  ENDIF()
+ENDIF()
 
 SET_SOURCE_FILES_PROPERTIES(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
@@ -911,6 +989,11 @@ ADD_CUSTOM_TARGET(
 ADD_CUSTOM_TARGET( 
         GenDigestServerSource
         DEPENDS ${GEN_DIGEST_SOURCES}
+)
+
+ADD_CUSTOM_TARGET(
+        GenLockOrderSource
+        DEPENDS ${GEN_LOCK_ORDER_SOURCES}
 )
 
 ADD_CUSTOM_TARGET(
@@ -950,7 +1033,14 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(dist 
   COMMAND ${CMAKE_COMMAND} -P ${CMAKE_BINARY_DIR}/make_dist.cmake
-  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc ${CMAKE_BINARY_DIR}/sql/sql_yacc.h ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
+  DEPENDS ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
+          ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
+          ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
+          ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
+          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+          ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
+          ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 

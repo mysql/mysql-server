@@ -115,6 +115,13 @@ ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
+OPTION(WITH_LOCK_ORDER "Use lock order" OFF)
+
+EXECUTE_PROCESS(
+  COMMAND ${CMAKE_COMMAND} -E make_directory lock_order
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")

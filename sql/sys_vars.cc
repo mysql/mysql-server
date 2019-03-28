@@ -135,6 +135,10 @@
 #include "sql/named_pipe.h"
 #endif
 
+#ifdef WITH_LOCK_ORDER
+#include "sql/debug_lock_order.h"
+#endif /* WITH_LOCK_ORDER */
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -251,6 +255,84 @@ static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
   not a mistakenly forgotten 'static' keyword.
 */
 #define export /* not static */
+
+#ifdef WITH_LOCK_ORDER
+
+#define LO_TRAILING_PROPERTIES                                          \
+  NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL), NULL, \
+      sys_var::PARSE_EARLY
+
+static Sys_var_bool Sys_lo_enabled("lock_order", "Enable the lock order.",
+                                   READ_ONLY GLOBAL_VAR(lo_param.m_enabled),
+                                   CMD_LINE(OPT_ARG), DEFAULT(false),
+                                   LO_TRAILING_PROPERTIES);
+
+static Sys_var_charptr Sys_lo_out_dir(
+    "lock_order_output_directory", "Lock order output directory.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_out_dir), CMD_LINE(OPT_ARG),
+    IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
+
+static Sys_var_charptr Sys_lo_dep_1(
+    "lock_order_dependencies", "Lock order dependencies file.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_dependencies_1),
+    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT("lock_order_dependencies.txt"),
+    LO_TRAILING_PROPERTIES);
+
+static Sys_var_charptr Sys_lo_dep_2(
+    "lock_order_extra_dependencies", "Lock order extra dependencies file.",
+    READ_ONLY NOT_VISIBLE GLOBAL_VAR(lo_param.m_dependencies_2),
+    CMD_LINE(OPT_ARG), IN_FS_CHARSET, DEFAULT(nullptr), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_print_txt("lock_order_print_txt",
+                                     "Print the lock_order.txt file.",
+                                     READ_ONLY GLOBAL_VAR(lo_param.m_print_txt),
+                                     CMD_LINE(OPT_ARG), DEFAULT(false),
+                                     LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_trace_loop(
+    "lock_order_trace_loop", "Enable tracing for all loops.",
+    READ_ONLY GLOBAL_VAR(lo_param.m_trace_loop), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_debug_loop(
+    "lock_order_debug_loop", "Enable debugging for all loops.",
+    READ_ONLY GLOBAL_VAR(lo_param.m_debug_loop), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_trace_missing_arc(
+    "lock_order_trace_missing_arc", "Enable tracing for all missing arcs.",
+    READ_ONLY GLOBAL_VAR(lo_param.m_trace_missing_arc), CMD_LINE(OPT_ARG),
+    DEFAULT(true), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_debug_missing_arc(
+    "lock_order_debug_missing_arc", "Enable debugging for all missing arcs.",
+    READ_ONLY GLOBAL_VAR(lo_param.m_debug_missing_arc), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_trace_missing_unlock(
+    "lock_order_trace_missing_unlock", "Enable tracing for all missing unlocks",
+    READ_ONLY GLOBAL_VAR(lo_param.m_trace_missing_unlock), CMD_LINE(OPT_ARG),
+    DEFAULT(true), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_debug_missing_unlock(
+    "lock_order_debug_missing_unlock",
+    "Enable debugging for all missing unlocks",
+    READ_ONLY GLOBAL_VAR(lo_param.m_debug_missing_unlock), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_trace_missing_key(
+    "lock_order_trace_missing_key",
+    "Enable trace for missing performance schema keys",
+    READ_ONLY GLOBAL_VAR(lo_param.m_trace_missing_key), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+static Sys_var_bool Sys_lo_debug_missing_key(
+    "lock_order_debug_missing_key",
+    "Enable debugging for missing performance schema keys",
+    READ_ONLY GLOBAL_VAR(lo_param.m_debug_missing_key), CMD_LINE(OPT_ARG),
+    DEFAULT(false), LO_TRAILING_PROPERTIES);
+
+#endif /* WITH_LOCK_ORDER */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 

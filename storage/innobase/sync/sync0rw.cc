@@ -950,6 +950,7 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
     }
   }
 
+  rw_lock_debug_mutex_exit();
   ut_error;
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -102,18 +102,28 @@ IF(NOT GIT_EXECUTABLE)
     # Save bison output first.
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
        ${CMAKE_BINARY_DIR}/sql_yacc.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
        ${CMAKE_BINARY_DIR}/sql_yacc.h COPYONLY)
     #
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
        ${CMAKE_BINARY_DIR}/sql_hints.yy.cc COPYONLY)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
        ${CMAKE_BINARY_DIR}/sql_hints.yy.h COPYONLY)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
+       ${CMAKE_BINARY_DIR}/debug_lo_parser.cc COPYONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
+       ${CMAKE_BINARY_DIR}/debug_lo_parser.h COPYONLY)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+       ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc COPYONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+       ${CMAKE_BINARY_DIR}/debug_lo_scanner.h COPYONLY)
 
     IF(BUILD_IS_SINGLE_CONFIG)
     # make clean
     EXECUTE_PROCESS(
-      COMMAND ${CMAKE_MAKE_PROGRAM} clean 
+      COMMAND ${CMAKE_MAKE_PROGRAM} clean
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
     ENDIF()
@@ -121,7 +131,7 @@ IF(NOT GIT_EXECUTABLE)
     # Restore bison output
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.cc
        ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h 
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql_yacc.h
        ${CMAKE_BINARY_DIR}/sql/sql_yacc.h COPYONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_yacc.h)
@@ -132,6 +142,20 @@ IF(NOT GIT_EXECUTABLE)
        ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h COPYONLY)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/sql_hints.yy.h)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_parser.cc
+       ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc COPYONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_parser.h
+       ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h COPYONLY)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_parser.cc)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_parser.h)
+    #
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.cc
+       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc COPYONLY)
+    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.h
+       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h COPYONLY)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc)
+    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.h)
   ENDIF()
 
   EXECUTE_PROCESS(
@@ -149,7 +173,7 @@ IF(NOT GIT_EXECUTABLE)
 ENDIF()
 
 # Copy bison output
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.h
    ${PACKAGE_DIR}/sql/sql_yacc.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
    ${PACKAGE_DIR}/sql/sql_yacc.cc COPYONLY)
@@ -158,6 +182,16 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
    ${PACKAGE_DIR}/sql/sql_hints.yy.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
    ${PACKAGE_DIR}/sql/sql_hints.yy.cc COPYONLY)
+#
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
+   ${PACKAGE_DIR}/sql/debug_lo_parser.h COPYONLY)
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
+   ${PACKAGE_DIR}/sql/debug_lo_parser.cc COPYONLY)
+#
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+   ${PACKAGE_DIR}/sql/debug_lo_scanner.h COPYONLY)
+CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+   ${PACKAGE_DIR}/sql/debug_lo_scanner.cc COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)

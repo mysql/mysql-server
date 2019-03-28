@@ -508,6 +508,12 @@ The documentation is based on the source files such as:
   - @subpage PAGE_MYSQL_TEST_RUN
 */
 
+/**
+  @page PAGE_DEV_TOOLS Development Tools
+
+  - @subpage PAGE_LOCK_ORDER
+*/
+
 
 /**
   @page PAGE_SQL_Optimizer SQL Optimizer
@@ -764,6 +770,16 @@ The documentation is based on the source files such as:
 #include <new>
 #include <string>
 #include <vector>
+
+#ifndef EMBEDDED_LIBRARY
+#ifdef WITH_LOCK_ORDER
+#include "sql/debug_lock_order.h"
+#endif /* WITH_LOCK_ORDER */
+#endif /* EMBEDDED_LIBRARY */
+
+#ifndef EMBEDDED_LIBRARY
+#include "srv_session.h"
+#endif
 
 #include "../components/mysql_server/log_builtins_filter_imp.h"
 #include "../components/mysql_server/server_component.h"
@@ -2107,6 +2123,10 @@ static void mysqld_exit(int exit_code) {
   destroy_error_log();
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   shutdown_performance_schema();
+#endif
+
+#ifdef WITH_LOCK_ORDER
+  LO_cleanup();
 #endif
 
 #if defined(_WIN32)
@@ -5977,7 +5997,24 @@ int mysqld_main(int argc, char **argv)
       }
     }
   }
-#else
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+#ifdef WITH_LOCK_ORDER
+  if (ho_error == 0) {
+    if (lo_param.m_enabled && !opt_help && !opt_initialize) {
+      int lo_rc;
+      lo_rc = LO_init(&lo_param, &psi_thread_hook, &psi_mutex_hook,
+                      &psi_rwlock_hook, &psi_cond_hook, &psi_file_hook,
+                      &psi_socket_hook, &psi_table_hook, &psi_mdl_hook,
+                      &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
+                      &psi_transaction_hook, &psi_memory_hook);
+      if (lo_rc != 0) {
+        LogErr(WARNING_LEVEL, ER_LOCK_ORDER_INIT_FAILED);
+      }
+    }
+  }
+#endif /* WITH_LOCK_ORDER */
+
     /*
       Other provider of the instrumentation interface should
       initialize PSI_hook here:
@@ -5987,7 +6024,6 @@ int mysqld_main(int argc, char **argv)
       but there could be alternate implementations, which is why
       these two defines are kept separate.
     */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -6654,9 +6690,15 @@ int mysqld_main(int argc, char **argv)
     rpl_channel_filters.discard_all_unattached_filters();
   }
 
+#ifdef WITH_LOCK_ORDER
+  if (!opt_initialize) {
+    LO_activate();
+  }
+#endif /* WITH_LOCK_ORDER */
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   initialize_performance_schema_acl(opt_initialize);
-#endif
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   initialize_information_schema_acl();
 

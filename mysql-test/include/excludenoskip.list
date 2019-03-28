@@ -65,6 +65,8 @@ have_debug.inc
 have_nodebug.inc
 mysql_have_debug.inc
 have_ibd2sdi_debug.inc
+have_lock_order.inc
+have_no_lock_order.inc
 
 # 3.37 Compile options
 # Test checking existence of features in the build causing the test to be skipped

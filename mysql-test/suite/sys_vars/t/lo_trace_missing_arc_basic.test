@@ -1,0 +1,32 @@
+
+--source include/have_lock_order.inc
+
+#
+# Only global
+#
+
+select @@global.lock_order_trace_missing_arc;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.lock_order_trace_missing_arc;
+
+show global variables like 'lock_order_trace_missing_arc';
+
+show session variables like 'lock_order_trace_missing_arc';
+
+select * from performance_schema.global_variables
+  where variable_name='lock_order_trace_missing_arc';
+
+select * from performance_schema.session_variables
+  where variable_name='lock_order_trace_missing_arc';
+
+#
+# Read-only
+#
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global lock_order_trace_missing_arc=1;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session lock_order_trace_missing_arc=1;
+

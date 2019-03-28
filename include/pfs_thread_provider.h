@@ -31,7 +31,8 @@
 #include "my_psi_config.h"
 
 #if defined(HAVE_PSI_THREAD_INTERFACE) && defined(MYSQL_SERVER) && \
-    !defined(MYSQL_DYNAMIC_PLUGIN) && defined(__cplusplus)
+    !defined(MYSQL_DYNAMIC_PLUGIN) && !defined(WITH_LOCK_ORDER) && \
+    defined(__cplusplus)
 
 #include <sys/types.h>
 #include <time.h>

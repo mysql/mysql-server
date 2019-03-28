@@ -165,6 +165,10 @@
 #include "thr_lock.h"
 #include "violite.h"
 
+#ifdef WITH_LOCK_ORDER
+#include "sql/debug_lock_order.h"
+#endif /* WITH_LOCK_ORDER */
+
 namespace dd {
 class Spatial_reference_system;
 }  // namespace dd
@@ -2100,6 +2104,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       mysql_print_status();
       query_logger.general_log_print(thd, command, NullS);
       my_eof(thd);
+#ifdef WITH_LOCK_ORDER
+      LO_dump();
+#endif /* WITH_LOCK_ORDER */
       break;
     case COM_SLEEP:
     case COM_CONNECT:         // Impossible here

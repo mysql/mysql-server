@@ -20,11 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "include/config.h"
+
 #include "include/pfs_cond_provider.h"
 #include "include/pfs_mutex_provider.h"
 #include "include/pfs_rwlock_provider.h"
 #include "include/pfs_socket_provider.h"
 #include "include/pfs_thread_provider.h"
+
+#ifndef WITH_LOCK_ORDER
 
 #ifdef HAVE_PSI_COND_INTERFACE
 void pfs_broadcast_cond_v1(PSI_cond *) {}
@@ -110,3 +114,5 @@ int pfs_set_thread_connect_attrs_vc(char const *, unsigned int, void const *) {
   return 0;
 }
 #endif
+
+#endif /* WITH_LOCK_ORDER */

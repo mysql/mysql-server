@@ -19177,6 +19177,9 @@ ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
 ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE
   eng "Member version is read compatible with the group."
 
+ER_LOCK_ORDER_INIT_FAILED
+  eng "Lock order disabled (reason: init failed)."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
