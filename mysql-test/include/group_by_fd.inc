@@ -1100,7 +1100,9 @@ SELECT a,b,c FROM t WHERE a <> 3 GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a IN (3,4) GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a IN (SELECT b FROM t) GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE (a <> 3) IS TRUE GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a IS FALSE GROUP BY a,b;
+SELECT a,b,c FROM t WHERE (a <> 3) IS FALSE GROUP BY a,b;
 SELECT a,b,c FROM t WHERE NOT(a IN (3,4)) GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a NOT IN (3,4) GROUP BY a,b;
 SELECT a,b,c FROM t WHERE a LIKE "%abc%" GROUP BY a,b;
@@ -1114,6 +1116,10 @@ SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY b;
 # <=> lets NULLs pass, is potentially dangerous:
 --error ER_WRONG_FIELD_WITH_GROUP
 SELECT a,b,c FROM t WHERE a<=>NULL GROUP BY b;
+
+# unlike IS TRUE (tested above), IS NOT TRUE lets NULLs pass, so:
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT a,b,c FROM t WHERE a IS NOT TRUE GROUP BY a,b;
 
 # Conditions work equally well in merged derived table:
 SELECT a,b,c FROM
@@ -1186,6 +1192,33 @@ SELECT * FROM t1, t2, t3
 WHERE t2.b = t1.b AND t2.b = t3.b
 AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
 GROUP BY t1.b;
+
+--echo # Verify that for semijoin and antijoin we catch the FD issues.
+
+# Start with EXISTS:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1=(select t1.b from t3)) as col from t1 group by t1.a;
+# this is ok, as the value of t1.b doesn't influence the result of EXISTS
+explain select (select 2 from t2 where exists(select t1.b from t3)) as col from t1 group by t1.a;
+explain select (select 2 from t2 where not exists(select t1.b from t3)) as col from t1 group by t1.a;
+# Move the column into WHERE of subquery:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where not exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+
+# Same, with IN:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 in(select t1.b from t3)) as col from t1 group by t1.a;
+# need a not NULL column to trigger antisemijoin for NOT IN:
+alter table t1 modify b int not null;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 not in(select t1.b from t3)) as col from t1 group by t1.a;
+# Move the column into WHERE of subquery:
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+--error ER_WRONG_FIELD_WITH_GROUP
+explain select (select 2 from t2 where 1 not in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
 
 DROP TABLE t1, t2, t3;
 

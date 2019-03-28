@@ -502,8 +502,6 @@ a
 1
 Warnings:
 Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00'
 SELECT * FROM t1 WHERE
 LAST_DAY((SELECT b FROM t2 WHERE b = '0000-00-00 00:00:00')) IS NULL;
 a

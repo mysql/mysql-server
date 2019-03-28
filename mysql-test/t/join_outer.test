@@ -1537,6 +1537,16 @@ eval EXPLAIN SELECT STRAIGHT_JOIN $rest_of_query;
 eval SELECT $rest_of_query;
 eval EXPLAIN SELECT $rest_of_query;
 
+# In this case, LEFT JOIN must be converted to inner join:
+let $query=
+SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
+WHERE t6.col_int_key IS TRUE;
+eval EXPLAIN $query;
+# but not here
+let $query=
+SELECT * FROM t5 LEFT JOIN t6 ON t5.col_int=1000
+WHERE t6.col_int_key IS NOT TRUE;
+eval EXPLAIN $query;
 drop table t1,t2,t3,t4,t5,t6;
 
 --echo #
@@ -2302,6 +2312,30 @@ EXECUTE prep_stmt ;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # More coverage for IS TRUE in LEFT JOIN conditions
+--echo #
+
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES(1),(2);
+CREATE TABLE t2(c2 INT);
+INSERT INTO t2 VALUES(1);
+# returns two rows
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2;
+# returns one row, c1=2, execute as left join
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE c2 IS NULL;
+# returns one row, c1=1, execute as inner join
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE c2 IS NOT NULL;
+# returns one row, c1=1, execute as left join
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) = 1;
+# same
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) IS TRUE;
+# returns one row, c1=2, execute as left join
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) = 0;
+# same
+SELECT * FROM t1 LEFT JOIN t2 ON c1=c2 WHERE (c2 IS NOT NULL) IS FALSE;
+
+DROP TABLE t1,t2;
 
 --echo #
 --echo # Bug#29402481: INCORRECT RESULT FROM OUTER JOIN QUERIES

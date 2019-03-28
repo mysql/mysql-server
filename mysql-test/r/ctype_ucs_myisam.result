@@ -154,7 +154,7 @@ GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END)
 1234567
 SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					COALESCE(a,'')	253	9	7	Y	0	31	8
+def					COALESCE(a,'')	253	9	7	N	1	31	8
 COALESCE(a,'')
 1234567
 # All columns must be VARCHAR(9) with the same length:
@@ -173,7 +173,7 @@ t2	CREATE TABLE `t2` (
   `IFNULL(a,'')` varchar(9) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `IF(a,a,'')` varchar(9) CHARACTER SET latin1 DEFAULT NULL,
   `CASE WHEN a THEN a ELSE '' END` varchar(9) CHARACTER SET latin1 DEFAULT NULL,
-  `COALESCE(a,'')` varchar(9) CHARACTER SET latin1 DEFAULT NULL
+  `COALESCE(a,'')` varchar(9) CHARACTER SET latin1 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;

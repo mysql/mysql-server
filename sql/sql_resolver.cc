@@ -643,25 +643,6 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
                                      bool *ret_cond_value) {
   DBUG_ASSERT((*cond)->const_item());
 
-  /*
-    Removal of ISNULL FUNC here would have side effects on a special case
-    for some ODBC applications.
-    Requesting the row that was just updated with a auto_increment
-    value with the following construct:
-
-    SELECT * from table_name where auto_increment_column IS NULL
-    This should be changed to:
-    SELECT * from table_name where auto_increment_column = LAST_INSERT_ID
-    This is handled later in remove_eq_conds. Please check this function
-    for more details.
-  */
-
-  if ((*cond)->type() == Item::FUNC_ITEM &&
-      (down_cast<Item_func *>(*cond))->functype() == Item_func::ISNULL_FUNC) {
-    if (ret_cond_value) *ret_cond_value = true;
-    return false;
-  }
-
   bool cond_value;
 
   /* Push ignore / strict error handler */
@@ -679,6 +660,8 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
 
   if (err) return true;
 
+  DBUG_EXECUTE("where",
+               print_where(thd, *cond, "simplify_const_cond", QT_ORDINARY););
   if (cond_value) {
     if (remove_cond)
       *cond = nullptr;
@@ -699,7 +682,6 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
 /**
   Check if the subquery predicate can be executed via materialization.
 
-  @param predicate IN subquery predicate
   @param thd       THD
   @param select_lex SELECT_LEX of the subquery
   @param outer      Parent SELECT_LEX (outer to subquery)
@@ -707,20 +689,19 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
   @return true if subquery allows materialization, false otherwise.
 */
 
-bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
-                                     SELECT_LEX *select_lex,
-                                     const SELECT_LEX *outer) {
-  const uint elements = predicate->unit->first_select()->item_list.elements;
+bool Item_in_subselect::subquery_allows_materialization(
+    THD *thd, SELECT_LEX *select_lex, const SELECT_LEX *outer) {
+  const uint elements = unit->first_select()->item_list.elements;
   DBUG_ENTER("subquery_allows_materialization");
   DBUG_ASSERT(elements >= 1);
-  DBUG_ASSERT(predicate->left_expr->cols() == elements);
+  DBUG_ASSERT(left_expr->cols() == elements);
 
   OPT_TRACE_TRANSFORM(&thd->opt_trace, trace_wrapper, trace_mat,
                       select_lex->select_number, "IN (SELECT)",
                       "materialization");
 
   const char *cause = NULL;
-  if (predicate->substype() != Item_subselect::IN_SUBS) {
+  if (substype() != Item_subselect::IN_SUBS) {
     // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
     cause = "not an IN predicate";
   } else if (select_lex->is_part_of_union()) {
@@ -738,7 +719,7 @@ bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
   } else if (!outer->leaf_tables) {
     // The upper query is SELECT ... FROM DUAL. No gain in materializing.
     cause = "no tables in outer query";
-  } else if (predicate->dependent_before_in2exists()) {
+  } else if (dependent_before_in2exists()) {
     /*
       Subquery should not be correlated; the correlation due to predicates
       injected by IN->EXISTS does not count as we will remove them if we
@@ -759,14 +740,14 @@ bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
       This is a temporary fix for BUG#36752; see bug report for
       description of restrictions we need to put on the compared expressions.
     */
-    DBUG_ASSERT(predicate->left_expr->fixed);
+    DBUG_ASSERT(left_expr->fixed);
     // @see comment in Item_subselect::element_index()
-    bool has_nullables = predicate->left_expr->maybe_null;
+    bool has_nullables = left_expr->maybe_null;
 
-    List_iterator<Item> it(predicate->unit->first_select()->item_list);
+    List_iterator<Item> it(unit->first_select()->item_list);
     for (uint i = 0; i < elements; i++) {
       Item *const inner = it++;
-      Item *const outer = predicate->left_expr->element_index(i);
+      Item *const outer = left_expr->element_index(i);
       if (!types_allow_materialization(outer, inner)) {
         cause = "type mismatch";
         break;
@@ -792,10 +773,9 @@ bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
         - when there is a single inner column (because for this we have a
         limited implementation of NULLs partial matching).
       */
-      const bool is_top_level = predicate->is_top_level_item();
-      trace_mat.add("treat_UNKNOWN_as_FALSE", is_top_level);
+      trace_mat.add("treat_UNKNOWN_as_FALSE", abort_on_null);
 
-      if (!is_top_level && has_nullables && (elements > 1))
+      if (!abort_on_null && has_nullables && (elements > 1))
         cause = "cannot_handle_partial_matches";
       else {
         trace_mat.add("possible", true);
@@ -1220,6 +1200,8 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       10. Parent select is not a confluent table-less select
       11. Neither parent nor child select have STRAIGHT_JOIN option.
       12. LHS of IN predicate is deterministic
+      13. The surrounding truth test, and the nullability of expressions,
+      are compatible with the conversion.
   */
   if (semijoin_enabled(thd) &&                                    // 0
       predicate != nullptr &&                                     // 1
@@ -1238,7 +1220,9 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
       outer->leaf_table_count &&                                  // 10
       !((active_options() | outer->active_options()) &            // 11
         SELECT_STRAIGHT_JOIN) &&                                  // 11
-      deterministic)                                              // 12
+      deterministic &&                                            // 12
+      predicate->choose_semijoin_or_antijoin())                   // 13
+
   {
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
@@ -1482,7 +1466,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list) {
     -# used_tables
     -# not_null_tables
     -# dep_tables.
-    -# on_expr_dep_tables
+    -# join_cond_dep_tables
 
     The first two attributes are used to test whether an outer join can
     be substituted by an inner join. The third attribute represents the
@@ -1621,6 +1605,26 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
   /*
     Try to simplify join operations from join_list.
     The most outer join operation is checked for conversion first.
+    join_list is a join nest, and 'cond' is a condition which acts as a filter
+    applied to the nest's operation (post-filter).
+    Thus, considering this example:
+    (A LEFT JOIN B ON JC) WHERE W ,
+    we'll "confront W with A LEFT JOIN B": this will, recursively,
+    - confront W with B,
+    - confront W with A.
+    Because W is external to the nest, if W would be false when B is
+    NULL-complemented we know we can change LEFT JOIN to JOIN.
+    We will not confront JC with B or A, it wouldn't make sense, as JC isn't a
+    post-filter for their join operation.
+    Another example:
+    (A LEFT JOIN (B LEFT JOIN C ON JC2) ON JC1) WHERE W ,
+    while confronting W with (B LEFT JOIN C), we will also, as first step,
+    confront JC1 with (B LEFT JOIN C), and thus recursively confront JC1
+    with C and then with B.
+    Another example:
+    (A LEFT JOIN (B SEMI JOIN C ON JC2) ON JC1) WHERE W ,
+    while confronting W with (B SEMI JOIN C), if W is known false we will
+
   */
   while ((table = li++)) {
     table_map used_tables;
@@ -1630,6 +1634,8 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       /*
          If the element of join_list is a nested join apply
          the procedure to its nested join list first.
+         This confronts the join nest's condition with each member of the
+         nest.
       */
       if (table->join_cond()) {
         Item *join_cond = table->join_cond();
@@ -1641,8 +1647,11 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
            the outer join is converted to an inner join and
            the corresponding join condition is added to JC.
         */
-        if (simplify_joins(thd, &nested_join->join_list, false,
-                           in_sj || table->sj_cond(), &join_cond, changelog))
+        if (simplify_joins(
+                thd, &nested_join->join_list,
+                false,  // not 'top' as it's not WHERE.
+                // SJ nests can dissolve into upper SJ or anti SJ nests:
+                in_sj || table->is_sj_or_aj_nest(), &join_cond, changelog))
           DBUG_RETURN(true);
 
         if (join_cond != table->join_cond()) {
@@ -1652,8 +1661,10 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       }
       nested_join->used_tables = (table_map)0;
       nested_join->not_null_tables = (table_map)0;
-      if (simplify_joins(thd, &nested_join->join_list, top,
-                         in_sj || table->sj_cond(), cond, changelog))
+      // This recursively confronts "cond" with each member of the nest
+      if (simplify_joins(thd, &nested_join->join_list,
+                         top,  // if it was WHERE it still is
+                         in_sj || table->is_sj_or_aj_nest(), cond, changelog))
         DBUG_RETURN(true);
       used_tables = nested_join->used_tables;
       not_null_tables = nested_join->not_null_tables;
@@ -1693,7 +1704,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
           Item_cond_and *new_cond =
               down_cast<Item_cond_and *>(and_conds(i1, i2));
           if (!new_cond) DBUG_RETURN(true);
-          new_cond->top_level_item();
+          new_cond->apply_is_true();
           /*
             It is always a new item as both the upper-level condition and a
             join condition existed
@@ -1724,6 +1735,9 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       }
     }
 
+    // A table is traversed when 'cond' is WHERE, and when 'cond' is the join
+    // condition of any nest containing the table. Some bitmaps can be set
+    // only after all traversals of this table i.e. when 'cond' is WHERE.
     if (!top) continue;
 
     /*
@@ -1732,14 +1746,13 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
     */
     if (table->join_cond()) {
       table->dep_tables |= table->join_cond()->used_tables();
-
       // At this point the joined tables always have an embedding join nest:
       DBUG_ASSERT(table->embedding);
-
       table->dep_tables &= ~table->embedding->nested_join->used_tables;
 
       // Embedding table depends on tables used in embedded join conditions.
-      table->embedding->on_expr_dep_tables |= table->join_cond()->used_tables();
+      table->embedding->join_cond_dep_tables |=
+          table->join_cond()->used_tables();
     }
 
     if (prev_table) {
@@ -1747,13 +1760,15 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       if (prev_table->straight || straight_join)
         prev_table->dep_tables |= used_tables;
       if (prev_table->join_cond()) {
-        prev_table->dep_tables |= table->on_expr_dep_tables;
+        prev_table->dep_tables |= table->join_cond_dep_tables;
         table_map prev_used_tables = prev_table->nested_join
                                          ? prev_table->nested_join->used_tables
                                          : prev_table->map();
         /*
-          If join condition contains only references to inner tables
-          we still make the inner tables dependent on the outer tables.
+          If join condition contains no reference to outer tables
+          we still make the inner tables dependent on the outer tables,
+          as the outer must go before the inner since the executor requires
+          that at least one outer table is before the inner tables.
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
           Note:
@@ -1762,9 +1777,11 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
           For example it might happen if RAND()/COUNT(*) function
           is used in JOIN ON clause.
         */
-        if (!((prev_table->join_cond()->used_tables() & ~PSEUDO_TABLE_BITS) &
-              ~prev_used_tables))
+        if ((((prev_table->join_cond()->used_tables() & ~PSEUDO_TABLE_BITS) &
+              ~prev_used_tables) &
+             used_tables) == 0) {
           prev_table->dep_tables |= used_tables;
+        }
       }
     }
     prev_table = table;
@@ -1777,11 +1794,12 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
   li.rewind();
   while ((table = li++)) {
     nested_join = table->nested_join;
-    if (table->sj_cond()) {
-      /*
-        Remove semijoin condition if the join condition is found
-        be always false.
-      */
+    if (table->is_sj_or_aj_nest()) {
+      // See other uses of clear_sj_expressions().
+      // 'cond' is a post-filter after the semi/antijoin, so if it's
+      // always false the semi/antijoin can be partially simplified
+      // (note that the semi/antijoin nest will still be created and used in
+      // optimization and execution).
       if (*cond && (*cond)->const_item() &&
           !(*cond)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                          NULL)) {
@@ -1791,10 +1809,22 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
         if (!cond_value) clear_sj_expressions(nested_join);
       }
     }
-    if (table->sj_cond() && !in_sj) {
+    if (table->is_sj_nest() && !in_sj) {
       /*
         If this is a semi-join that is not contained within another semi-join,
-        leave it intact (otherwise it is flattened)
+        leave it intact.
+        Otherwise it is flattened, for example
+        A SJ (B SJ (C)) becomes the equivalent A SJ (B JOIN C),
+        A AJ (B SJ (C)) becomes the equivalent A AJ (B JOIN C),
+        While dissolving a SJ nest into an AJ nest is ok (for the AJ
+        this may lead to duplicates but AJ only cares for "at least
+        one match"), dissolving an AJ nest into a SJ is not ok:
+        A SJ (B AJ (C)) is not equivalent to A SJ (B JOIN C);
+        that is why the next if() block is guarded by !join_cond() which takes
+        care of that.
+        Note that when dissolving the SJ nest, its condition isn't lost as it
+        has previously been added to WHERE or outer nest's condition in
+        convert_subquery_to_semijoin().
       */
       *changelog |= SEMIJOIN;
     } else if (nested_join && !table->join_cond()) {
@@ -1864,10 +1894,11 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables) {
       This assignment is required in case pull_out_semijoin_tables()
       is not called.
     */
-    if (table->sj_cond())
+    if (table->is_sj_or_aj_nest())
       table->sj_inner_tables = table->nested_join->used_tables;
 
-    if (table->sj_cond() && sj_nests.push_back(table)) DBUG_RETURN(true);
+    if (table->is_sj_or_aj_nest() && sj_nests.push_back(table))
+      DBUG_RETURN(true);
 
     if (table->join_cond()) outer_join |= table->nested_join->used_tables;
   }
@@ -2007,8 +2038,7 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
 }
 
 /**
- If a join condition or a where condition for a query block is found to
- be always false, semijoin condition is removed from the query block.
+ Remove SJ outer/inner expressions.
 
  @param nested_join         join nest
 */
@@ -2016,7 +2046,7 @@ static void fix_tables_after_pullout(SELECT_LEX *parent_select,
 void SELECT_LEX::clear_sj_expressions(NESTED_JOIN *nested_join) {
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
-  sj_nests.empty();
+  DBUG_ASSERT(sj_nests.elements == 0);
 }
 
 /**
@@ -2336,7 +2366,8 @@ bool SELECT_LEX::decorrelate_join_conds(TABLE_LIST *sj_nest,
 
   @param thd         Thread handle
   @param subq_pred   Subquery predicate to be converted.
-                     This is either an IN, =ANY or EXISTS predicate.
+                     This is either an IN, =ANY or EXISTS predicate, possibly
+                     negated.
 
   @returns false if success, true if error
 
@@ -2348,7 +2379,7 @@ bool SELECT_LEX::decorrelate_join_conds(TABLE_LIST *sj_nest,
 
   SELECT ...
   FROM ot1 ... otN
-  WHERE (oe1, ... oeM) IN (SELECT ie1, ..., ieM)
+  WHERE (oe1, ... oeM) IN (SELECT ie1, ..., ieM
                            FROM it1 ... itK
                           [WHERE inner-cond])
    [AND outer-cond]
@@ -2385,6 +2416,50 @@ bool SELECT_LEX::decorrelate_join_conds(TABLE_LIST *sj_nest,
   [WHERE outer-cond]
   [GROUP BY ...] [HAVING ...] [ORDER BY ...]
 
+  3. Negated EXISTS predicates on the form:
+
+  SELECT ...
+  FROM ot1 ... otN
+  WHERE NOT EXISTS (SELECT expressions
+                FROM it1 ... itK
+                [WHERE inner-cond])
+   [AND outer-cond]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  are transformed into:
+
+  SELECT ...
+  FROM (ot1 ... otN) AJ (it1 ... itK)
+                     [ON inner-cond]
+  [WHERE outer-cond AND is-null-cond(it1)]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  where AJ means "antijoin" and is like a LEFT JOIN; and is-null-cond is
+  false if the row of it1 is "found" and "not_null_compl" (i.e. matches
+  inner-cond).
+
+  4. Negated IN predicates on the form:
+
+  SELECT ...
+  FROM ot1 ... otN
+  WHERE (oe1, ... oeM) NOT IN (SELECT ie1, ..., ieM
+                               FROM it1 ... itK
+                               [WHERE inner-cond])
+   [AND outer-cond]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  are transformed into:
+
+  SELECT ...
+  FROM (ot1 ... otN) AJ (it1 ... itK)
+                     ON (oe1, ... oeM) = (ie1, ..., ieM)
+                        [AND inner-cond]
+  [WHERE outer-cond]
+  [GROUP BY ...] [HAVING ...] [ORDER BY ...]
+
+  5. The cases 1/2 (respectively 3/4) above also apply when the predicate is
+  decorated with IS TRUE or IS NOT FALSE (respectively IS NOT TRUE or IS
+  FALSE).
 */
 bool SELECT_LEX::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
@@ -2405,6 +2480,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   // Save the set of tables in the outer query block:
   table_map outer_tables_map = all_tables_map();
+  const bool do_aj = subq_pred->can_do_aj;
 
   /*
     Find out where to insert the semi-join nest and the generated condition.
@@ -2438,18 +2514,21 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       */
       emb_tbl_nest = subq_pred->embedding_join_nest->embedding;
       if (emb_tbl_nest) emb_join_list = &emb_tbl_nest->nested_join->join_list;
-    } else if (!subq_pred->embedding_join_nest->nested_join) {
+    } else {
       TABLE_LIST *outer_tbl = subq_pred->embedding_join_nest;
       /*
         We're dealing with
 
           ... LEFT JOIN tbl ON (on_expr AND subq_pred) ...
 
-        we'll need to convert it into:
+        tbl will be replaced with:
 
+          ( tbl SJ (subq_tables) )
+          |                      |
+          |<----- wrap_nest ---->|
+
+        giving:
           ... LEFT JOIN ( tbl SJ (subq_tables) ) ON (on_expr AND subq_pred) ...
-                        |                      |
-                        |<----- wrap_nest ---->|
 
         Q:  other subqueries may be pointing to this element. What to do?
         A1: simple solution: copy *subq_pred->embedding_join_nest= *parent_nest.
@@ -2525,19 +2604,101 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       emb_tbl_nest = wrap_nest;
     }
   }
+  // else subquery is in WHERE.
+
+  if (do_aj) {
+    /*
+      A negated IN/EXISTS like:
+      NOT EXISTS(... FROM subq_tables WHERE subq_cond)
+      The above code has ensured that we have one of these 3 situations:
+
+      (a) FROM ... WHERE (subquery AND condition)
+      (emb_tbl_nest == nullptr, emb_join_list == FROM clause)
+
+      which has to be changed to
+          FROM (...)            LEFT JOIN (subq_tables) ON subq_cond
+               ^ aj-left-nest             ^aj-nest
+          WHERE x IS NULL AND condition
+
+      or:
+      (b) ... [LEFT] JOIN ( ...          ) ON (subquery AND condition) ...
+                          ^ emb_tbl_nest, emb_join_list
+
+      which has to be changed to
+          ... [LEFT] JOIN ( (...)          LEFT JOIN (subq_tables) ON subq_cond)
+                            ^aj-left-nest            ^aj-nest
+                          ^ emb_tbl_nest, emb_join_list
+              ON x IS NULL AND condition ...
+
+      or:
+      (c) ... INNER JOIN tblX ON (subquery AND condition) ...
+          ^ emb_tbl_nest, emb_join_list
+            (if no '()' above this INNER JOIN up to the root, emb_tbl_nest ==
+             nullptr and emb_join_list == FROM clause)
+
+      which has to be changed to
+       ( ... INNER JOIN tblX ON condition) LEFT JOIN (subq_tables) ON subq_cond
+       ^aj-left-nest                                 ^aj-nest
+
+      so:
+      - move all tables of emb_join_list into a new aj-left-nest
+      - emb_join_list is now empty
+      - put subq_tables in a new aj-nest
+      - add the subq's subq_cond to aj-nest's ON
+      - add a LEFT JOIN operator between the aj-left-nest and aj-nest, with
+      ON condition subq_cond.
+      - insert aj-nest and aj-left-nest into emb_join_list
+      - for some reason, a LEFT JOIN must always be wrapped into a nest (call
+      nest_last_join() then)
+      - do not yet add 'x IS NULL to WHERE' (add it in optimization phase when
+      we have the QEP_TABs so we can set up the 'found'/'not_null_compl'
+      pointers in trig conds).
+    */
+    TABLE_LIST *const wrap_nest = TABLE_LIST::new_nested_join(
+        thd->mem_root, "(aj-left-nest)", emb_tbl_nest, emb_join_list, this);
+    if (wrap_nest == NULL) DBUG_RETURN(true);
+
+    // Go through tables of emb_join_list, insert them in wrap_nest
+    List_iterator<TABLE_LIST> li(*emb_join_list);
+    TABLE_LIST *outer_tbl;
+    while ((outer_tbl = li++)) {
+      wrap_nest->nested_join->join_list.push_back(outer_tbl);
+      outer_tbl->embedding = wrap_nest;
+      outer_tbl->join_list = &wrap_nest->nested_join->join_list;
+
+      /*
+        outer_tbl is replaced by wrap_nest.
+        For subselects, update embedding_join_nest to point to wrap_nest
+        instead of outer_tbl.
+      */
+      for (Item_exists_subselect *subquery : (*sj_candidates)) {
+        if (subquery->embedding_join_nest == outer_tbl)
+          subquery->embedding_join_nest = wrap_nest;
+      }
+    }
+    // FROM clause is now only the new left nest
+    emb_join_list->empty();
+    emb_join_list->push_back(wrap_nest);
+    outer_join = true;
+  }
 
   if (unlikely(trace->is_started()))
     trace_object.add_alnum("embedded in", emb_tbl_nest ? "JOIN" : "WHERE");
 
   TABLE_LIST *const sj_nest = TABLE_LIST::new_nested_join(
-      thd->mem_root, "(sj-nest)", emb_tbl_nest, emb_join_list, this);
+      thd->mem_root, do_aj ? "(aj-nest)" : "(sj-nest)", emb_tbl_nest,
+      emb_join_list, this);
   if (sj_nest == NULL) DBUG_RETURN(true); /* purecov: inspected */
 
   NESTED_JOIN *const nested_join = sj_nest->nested_join;
 
   /* Nests do not participate in those 'chains', so: */
   /* sj_nest->next_leaf= sj_nest->next_local= sj_nest->next_global == NULL*/
-  emb_join_list->push_back(sj_nest);
+  /*
+    Using push_front, as sj_nest may be right arg of LEFT JOIN if
+    antijoin, and right args of LEFT JOIN go before left arg.
+  */
+  emb_join_list->push_front(sj_nest);
 
   /*
     Natural joins inside a semi-join nest were already processed when the
@@ -2597,6 +2758,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       subq_select->materialized_derived_table_count;
   table_func_count += subq_select->table_func_count;
   has_sj_nests |= subq_select->has_sj_nests;
+  has_aj_nests |= subq_select->has_aj_nests;
   partitioned_table_count += subq_select->partitioned_table_count;
   leaf_table_count += subq_select->leaf_table_count;
   cond_count += subq_select->cond_count;
@@ -2610,12 +2772,13 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
 
+  subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
+
   if (subq_pred->substype() == Item_subselect::IN_SUBS) {
     Item_in_subselect *in_subq_pred = (Item_in_subselect *)subq_pred;
 
     DBUG_ASSERT(in_subq_pred->left_expr->fixed);
 
-    subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
     /*
     Create the IN-equalities and inject them into semi-join's ON condition.
     Additionally, for LooseScan strategy
@@ -2663,8 +2826,6 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
         nested_join->sj_inner_exprs.push_back(subq_select->base_ref_items[i]);
       }
     }
-  } else if (subq_pred->substype() == Item_subselect::EXISTS_SUBS) {
-    subq_pred->exec_method = Item_exists_subselect::EXEC_SEMI_JOIN;
   }
 
   /*
@@ -2711,13 +2872,21 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   if (!sj_cond->fixed) {
     Opt_trace_array sj_on_trace(&thd->opt_trace,
                                 "evaluating_constant_semijoin_conditions");
-    sj_cond->top_level_item();
+    sj_cond->apply_is_true();
     if (sj_cond->fix_fields(thd, &sj_cond))
       DBUG_RETURN(true); /* purecov: inspected */
   }
 
-  // Attach semi-join condition to semi-join nest
-  sj_nest->set_sj_cond(sj_cond);
+  sj_nest->set_sj_or_aj_nest();
+  DBUG_ASSERT(sj_nest->join_cond() == nullptr);
+
+  if (do_aj) {
+    sj_nest->outer_join = JOIN_TYPE_LEFT;
+    sj_nest->set_join_cond(sj_cond);
+    this->outer_join |= sj_nest->nested_join->used_tables;
+    if (emb_tbl_nest == nullptr)
+      nest_last_join(thd);  // as is done for a true LEFT JOIN
+  }
 
   if (unlikely(trace->is_started())) {
     trace_object.add("semi-join condition", sj_cond);
@@ -2744,11 +2913,13 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   // TODO fix QT_
   DBUG_EXECUTE("where", print_where(thd, sj_cond, "SJ-COND", QT_ORDINARY););
 
-  if (emb_tbl_nest) {
+  if (do_aj) { /* Condition remains attached to inner table, as for LEFT JOIN
+                */
+  } else if (emb_tbl_nest) {
     // Inject semi-join condition into parent's join condition
     emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(), sj_cond));
     if (emb_tbl_nest->join_cond() == NULL) DBUG_RETURN(true);
-    emb_tbl_nest->join_cond()->top_level_item();
+    emb_tbl_nest->join_cond()->apply_is_true();
     if (!emb_tbl_nest->join_cond()->fixed &&
         emb_tbl_nest->join_cond()->fix_fields(thd,
                                               emb_tbl_nest->join_cond_ref()))
@@ -2757,14 +2928,10 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     // Inject semi-join condition into parent's WHERE condition
     m_where_cond = and_items(m_where_cond, sj_cond);
     if (m_where_cond == NULL) DBUG_RETURN(true);
-    m_where_cond->top_level_item();
+    m_where_cond->apply_is_true();
     if (m_where_cond->fix_fields(thd, &m_where_cond)) DBUG_RETURN(true);
   }
 
-  /*
-    Remove the semi-join condition from the query block if the resulting
-    condition is always false.
-  */
   Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
   if (cond && cond->const_item() &&
       !cond->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
@@ -2772,15 +2939,33 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     bool cond_value = true;
     if (simplify_const_condition(thd, &cond, false, &cond_value))
       DBUG_RETURN(true);
-    if (!cond_value) clear_sj_expressions(nested_join);
+    if (!cond_value) {
+      /*
+        Parent's condition is always FALSE. Thus:
+        (a) the value of the anti/semi-join condition has no influence on the
+        result
+        (b) we don't need to set up lookups (for loosescan or materialization)
+        (c) for a semi-join, the semi-join condition is already lost (it was
+        in parent's condition, which has been replaced with FALSE); the
+        outer/inner sj expressions are Items which point into the SJ
+        condition, so at 2nd execution they won't be fixed => clearing them
+        prevents a bug.
+        (d) for an anti-join, the join condition remains in
+        sj_nest->join_cond() and will possibly be evaluated. (c) doesn't hold,
+        but (a) and (b) do.
+      */
+      clear_sj_expressions(nested_join);
+    }
   }
 
   if (subq_select->ftfunc_list->elements &&
       add_ftfunc_list(subq_select->ftfunc_list))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  // This query block has semi-join nests
-  has_sj_nests = true;
+  if (do_aj)
+    has_aj_nests = true;
+  else
+    has_sj_nests = true;  // This query block has semi-join nests
 
   DBUG_RETURN(false);
 }
@@ -2846,7 +3031,8 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
     If STRAIGHT_JOIN is specified, it is not valid to merge in a query block
     that contains semi-join nests
   */
-  if ((active_options() & SELECT_STRAIGHT_JOIN) && derived_select->has_sj_nests)
+  if ((active_options() & SELECT_STRAIGHT_JOIN) &&
+      (derived_select->has_sj_nests || derived_select->has_aj_nests))
     DBUG_RETURN(false);
 
   // Check that we have room for the merged tables in the table map:
@@ -2927,6 +3113,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   materialized_derived_table_count +=
       derived_select->materialized_derived_table_count;
   has_sj_nests |= derived_select->has_sj_nests;
+  has_aj_nests |= derived_select->has_aj_nests;
   partitioned_table_count += derived_select->partitioned_table_count;
   cond_count += derived_select->cond_count;
   between_count += derived_select->between_count;
@@ -3207,7 +3394,13 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
     // Add the tables in the subquery nest plus one in case of materialization:
     const uint tables_added =
         (*subq)->unit->first_select()->leaf_table_count + 1;
-    if (table_count + tables_added <= MAX_TABLES)
+
+    // (1) Not too many tables in total.
+    // (2) This subquery contains no antijoin nest (anti/semijoin nest cannot
+    // include antijoin nest for implementation reasons, see
+    // advance_sj_state()).
+    if (table_count + tables_added <= MAX_TABLES &&    // (1)
+        !(*subq)->unit->first_select()->has_aj_nests)  // (2)
       (*subq)->sj_selection = Item_exists_subselect::SJ_SELECTED;
 
     Item *subq_pred = (*subq)->unit->first_select()->where_cond();
@@ -3236,12 +3429,14 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
       continue;
     /*
       In WHERE/ON of parent query, replace IN (subq) with truth value:
-      - When subquery is converted to semi-join: truth value true.
-      - When subquery WHERE cond is false: truth value false.
+      - When subquery is converted to anti/semi-join: truth value true.
+      - When subquery WHERE cond is false: IN returns FALSE, so truth value
+      false if a semijoin (IN) and truth value true if an antijoin (NOT IN).
     */
     Item *truth_item =
-        cond_value ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
-                   : down_cast<Item *>(new (thd->mem_root) Item_func_false());
+        (cond_value || (*subq)->can_do_aj)
+            ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
+            : down_cast<Item *>(new (thd->mem_root) Item_func_false());
     if (truth_item == nullptr) DBUG_RETURN(true);
     Item **tree = ((*subq)->embedding_join_nest == NULL)
                       ? &m_where_cond
@@ -3255,9 +3450,9 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
   for (subq = subq_begin; subq < subq_end; subq++) {
     if ((*subq)->sj_selection != Item_exists_subselect::SJ_SELECTED) continue;
 
-    OPT_TRACE_TRANSFORM(trace, oto0, oto1,
-                        (*subq)->unit->first_select()->select_number,
-                        "IN (SELECT)", "semijoin");
+    OPT_TRACE_TRANSFORM(
+        trace, oto0, oto1, (*subq)->unit->first_select()->select_number,
+        "IN (SELECT)", (*subq)->can_do_aj ? "antijoin" : "semijoin");
     oto1.add("chosen", true);
     if (convert_subquery_to_semijoin(thd, *subq)) DBUG_RETURN(true);
   }

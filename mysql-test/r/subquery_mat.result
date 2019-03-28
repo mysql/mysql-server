@@ -1437,7 +1437,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((not(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`) and (`test`.`t2`.`a` = `materialized-subquery`.`a`))))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where (<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`) and (`test`.`t2`.`a` = `materialized-subquery`.`a`)))) is false) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
@@ -1985,7 +1985,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where (not(<in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))))
+Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))) is false)
 SELECT alias2.col_int_key
 FROM t1 AS alias1 , t2 AS alias2
 WHERE alias1.col_varchar_key NOT IN (
@@ -2083,7 +2083,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
 SELECT COUNT(*)
 FROM t1
 WHERE t1.a NOT IN (
@@ -2109,7 +2109,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (not(<in_optimizer>((/* select#2 */ select 1,2 from `test`.`t2`),<exists>(/* select#3 */ select 1,1 from `test`.`t1` where (<if>(outer_field_is_not_null, ((<cache>(<cache>(1)) = 1) or <cache>((1 is null))), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(2)) = 2) or <cache>((2 is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))))) AS `(SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from `test`.`t2`),not <exists>(/* select#3 */ select 1,1 from `test`.`t1` where (<if>(outer_field_is_not_null, ((<cache>(<cache>(1)) = 1) or <cache>((1 is null))), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(2)) = 2) or <cache>((2 is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)` from `test`.`t1`
 SELECT (SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1) FROM t1;
 (SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)
 NULL

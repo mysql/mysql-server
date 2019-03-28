@@ -31,7 +31,7 @@ JOIN ( t1 AS alias2 JOIN t2 ON t2.col_varchar_key = alias2.col_varchar_key )
 ON ( t2.col_int_key = alias2.col_int_key AND alias2.col_varchar_key IN ( SELECT f1 FROM v1 ) ) )
 WHERE alias1.col_varchar >= 'Z' );
 EXPLAIN
--> Filter: (not(<in_optimizer>((t1.col_varchar_key,t1.col_varchar_key),<exists>(select #2))))
+-> Filter: <in_optimizer>((t1.col_varchar_key,t1.col_varchar_key),<exists>(select #2) is false)
     -> Index scan on t1 using k2
     -> Select #2 (subquery in condition; dependent)
         -> Limit: 1 row(s)

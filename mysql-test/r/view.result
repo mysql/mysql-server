@@ -3373,7 +3373,7 @@ a IS NOT FALSE	int(1)	NO		0
 old_isnotfalse	int(1)	NO		0	
 show create view view_24532_b;
 View	Create View	character_set_client	collation_connection
-view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select (`table_24532`.`a` is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,(`table_24532`.`a` is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,(`table_24532`.`a` is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,(`table_24532`.`a` is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`	utf8mb4	utf8mb4_0900_ai_ci
+view_24532_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `view_24532_b` AS select ((0 <> `table_24532`.`a`) is true) AS `a IS TRUE`,if(ifnull(`table_24532`.`a`,0),1,0) AS `old_istrue`,((0 <> `table_24532`.`a`) is not true) AS `a IS NOT TRUE`,if(ifnull(`table_24532`.`a`,0),0,1) AS `old_isnottrue`,((0 <> `table_24532`.`a`) is false) AS `a IS FALSE`,if(ifnull(`table_24532`.`a`,1),0,1) AS `old_isfalse`,((0 <> `table_24532`.`a`) is not false) AS `a IS NOT FALSE`,if(ifnull(`table_24532`.`a`,1),1,0) AS `old_isnotfalse` from `table_24532`	utf8mb4	utf8mb4_0900_ai_ci
 insert into table_24532 values (0, 0, 0, 0);
 select * from view_24532_b;
 a IS TRUE	old_istrue	a IS NOT TRUE	old_isnottrue	a IS FALSE	old_isfalse	a IS NOT FALSE	old_isnotfalse
@@ -4421,7 +4421,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
 SELECT *
 FROM t1 JOIN vu_1 AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -6498,20 +6498,20 @@ v7	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 CREATE VIEW v8 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
 SHOW CREATE VIEW v8;
 View	Create View	character_set_client	collation_connection
-v8	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v8` AS select `t1`.`fld1` AS `fld1` from `t1` where (not(`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`)))	utf8mb4	utf8mb4_0900_ai_ci
+v8	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v8` AS select `t1`.`fld1` AS `fld1` from `t1` where `t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`) is false	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW v9 AS SELECT fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
 SHOW CREATE VIEW v9;
 View	Create View	character_set_client	collation_connection
-v9	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v9` AS select `t1`.`fld1` AS `fld1` from `t1` where (not(`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`)))	utf8mb4	utf8mb4_0900_ai_ci
+v9	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v9` AS select `t1`.`fld1` AS `fld1` from `t1` where `t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`) is false	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW v10 AS SELECT t1.fld1 FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
 SHOW CREATE VIEW v10;
 View	Create View	character_set_client	collation_connection
-v10	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v10` AS select `t1`.`fld1` AS `fld1` from `t1` where (not(`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`)))	utf8mb4	utf8mb4_0900_ai_ci
+v10	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v10` AS select `t1`.`fld1` AS `fld1` from `t1` where `t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`) is false	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW v11 AS SELECT * FROM db.t1 WHERE fld1 NOT IN
 (SELECT fld2 FROM db.t2);
 SHOW CREATE VIEW v11;
 View	Create View	character_set_client	collation_connection
-v11	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v11` AS select `db`.`t1`.`fld1` AS `fld1` from `db`.`t1` where (not(`db`.`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`)))	utf8mb4	utf8mb4_0900_ai_ci
+v11	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v11` AS select `db`.`t1`.`fld1` AS `fld1` from `db`.`t1` where `db`.`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`) is false	utf8mb4	utf8mb4_0900_ai_ci
 # Test cases which uses derived table in sub query.
 CREATE VIEW v12 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
 SHOW CREATE VIEW v12;
@@ -6554,7 +6554,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 CREATE VIEW db.v2 AS SELECT * FROM t1 where fld1 NOT IN (SELECT fld2 FROM db.t2);
 SHOW CREATE VIEW db.v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db`.`v2` AS select `t1`.`fld1` AS `fld1` from `t1` where (not(`t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`)))	utf8mb4	utf8mb4_0900_ai_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `db`.`v2` AS select `t1`.`fld1` AS `fld1` from `t1` where `t1`.`fld1` in (select `db`.`t2`.`fld2` from `db`.`t2`) is false	utf8mb4	utf8mb4_0900_ai_ci
 CREATE VIEW db.v3 AS SELECT * FROM (SELECT fld1 FROM t1) dummy;
 SHOW CREATE VIEW db.v3;
 View	Create View	character_set_client	collation_connection

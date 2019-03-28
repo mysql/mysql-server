@@ -715,6 +715,7 @@ class JOIN_TAB : public QEP_shared_owner {
   /* SemiJoinDuplicateElimination variables: */
   /*
     Embedding SJ-nest (may be not the direct parent), or NULL if none.
+    It is the closest semijoin or antijoin nest.
     This variable holds the result of table pullout.
   */
   TABLE_LIST *emb_sj_nest;

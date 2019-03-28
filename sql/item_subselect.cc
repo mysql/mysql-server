@@ -1298,8 +1298,89 @@ Item_exists_subselect::Item_exists_subselect(SELECT_LEX *select)
 
 void Item_exists_subselect::print(const THD *thd, String *str,
                                   enum_query_type query_type) const {
+  const char *tail = Item_bool_func::bool_transform_names[value_transform];
+  if (implicit_is_op) tail = "";
+  // Put () around NOT as it has lower associativity than IS TRUE, or '+'
+  if (value_transform == BOOL_NEGATED) str->append(STRING_WITH_LEN("(not "));
   str->append(STRING_WITH_LEN("exists"));
   Item_subselect::print(thd, str, query_type);
+  if (value_transform == BOOL_NEGATED) str->append(STRING_WITH_LEN(")"));
+  if (tail[0]) {
+    str->append(STRING_WITH_LEN(" "));
+    str->append(tail, strlen(tail));
+  }
+}
+
+/**
+  Translates the value of the naked EXISTS to a value taking into account the
+  optional NULL and IS [NOT] TRUE/FALSE.
+  @param[in,out] null_v      NULL state of the value
+  @param         v           TRUE/FALSE state of the value
+*/
+bool Item_exists_subselect::translate(bool &null_v, bool v) {
+  if (null_v)  // Naked IN returns UNKNOWN
+  {
+    DBUG_ASSERT(substype() != EXISTS_SUBS);
+    switch (value_transform) {
+      case BOOL_IDENTITY:
+      case BOOL_NEGATED:
+        return false;
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+        null_v = false;
+        return false;
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        null_v = false;
+        return true;
+      default:
+        DBUG_ASSERT(false);
+        return false;
+    }
+  }
+  // Naked IN returns 'v'
+  switch (value_transform) {
+    case BOOL_IDENTITY:
+    case BOOL_IS_TRUE:
+    case BOOL_NOT_FALSE:
+      return v;
+    case BOOL_NEGATED:
+    case BOOL_NOT_TRUE:
+    case BOOL_IS_FALSE:
+      return !v;
+    default:
+      DBUG_ASSERT(false);
+      return v;
+  }
+}
+
+Item *Item_exists_subselect::truth_transformer(THD *, enum Bool_test test) {
+  // ALL_SUBS, ANY_SUBS are always wrapped in Item_func_{not|nop}_all
+  // so never come here. Which is good as they don't support all possible
+  // value transforms.
+  DBUG_ASSERT(substype() == EXISTS_SUBS || substype() == IN_SUBS);
+  switch (test) {
+    case BOOL_NEGATED:
+    case BOOL_IS_TRUE:
+    case BOOL_IS_FALSE:
+    case BOOL_NOT_TRUE:
+    case BOOL_NOT_FALSE:
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  // x IN (SELECT y FROM DUAL) may be replaced with x=y which alas doesn't
+  // support value transforms; we still want to allow this replacement, so
+  // let's not store the value transform in that case, and keep an explicit
+  // truth test Item at the outside.
+  if (!unit->is_union() && unit->first_select()->table_list.elements == 0 &&
+      unit->first_select()->where_cond() == nullptr && substype() == IN_SUBS &&
+      down_cast<Item_in_subselect *>(this)->left_expr->cols() == 1)
+    return nullptr;
+
+  // Combine requested test with already present test, if any.
+  value_transform = Item_bool_func::bool_transform[value_transform][test];
+  return this;
 }
 
 bool Item_in_subselect::test_limit() {
@@ -1376,7 +1457,6 @@ Item_allany_subselect::Item_allany_subselect(Item *left_exp,
   func = func_creator(all_arg);
   init(select, new (*THR_MALLOC) Query_result_exists_subquery(this));
   max_columns = 1;
-  abort_on_null = 0;
   reset();
   // if test_limit will fail then error will be reported to client
   test_limit();
@@ -1399,6 +1479,51 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
   return false;
 }
 
+/**
+   Helper for resolve_subquery().
+
+   @returns true if semijoin or antijoin is allowed; if returning true, also
+   records in the Item's can_do_aj member if this will be an antijoin (true)
+   or semijoin (false) nest.
+*/
+bool Item_exists_subselect::choose_semijoin_or_antijoin() {
+  can_do_aj = false;
+  bool MY_ATTRIBUTE((unused)) might_do_sj = false, might_do_aj = false;
+  bool null_problem = false;
+  switch (value_transform) {
+    case BOOL_IS_TRUE:
+      might_do_sj = true;
+      break;
+    case BOOL_NOT_TRUE:
+      might_do_aj = true;
+      break;
+    case BOOL_IS_FALSE:
+      might_do_aj = true;
+      null_problem = true;
+      break;
+    case BOOL_NOT_FALSE:
+      might_do_sj = true;
+      null_problem = true;
+      break;
+    default:
+      return false;
+  }
+  DBUG_ASSERT(might_do_sj || might_do_aj);
+  if (substype() == EXISTS_SUBS)  // never returns NULL
+    null_problem = false;
+  if (null_problem) {
+    // antijoin/semijoin cannot work with NULLs on either side of IN
+    if (down_cast<Item_in_subselect *>(this)->left_expr->maybe_null)
+      return false;
+    List_iterator<Item> it(unit->first_select()->item_list);
+    Item *inner;
+    while ((inner = it++))
+      if (inner->maybe_null) return false;
+  }
+  can_do_aj = might_do_aj;
+  return true;
+}
+
 double Item_exists_subselect::val_real() { return val_bool(); }
 
 longlong Item_exists_subselect::val_int() { return val_bool(); }
@@ -1407,18 +1532,16 @@ longlong Item_exists_subselect::val_int() { return val_bool(); }
   Return the result of EXISTS as a string value
 
   Converts the true/false result into a string value.
-  Note that currently this cannot be NULL, so if the query exection fails
-  it will return 0.
 
   @param [out] str             buffer to hold the resulting string value
   @retval                      Pointer to the converted string.
-                               Can't be a NULL pointer, as currently
-                               EXISTS cannot return NULL.
+                               NULL if execution returns in error
 */
 
 String *Item_exists_subselect::val_str(String *str) {
   longlong val = val_bool();
   if (null_value) return nullptr;
+  if (current_thd->is_error()) return nullptr;
   str->set(val, &my_charset_bin);
   return str;
 }
@@ -1427,18 +1550,16 @@ String *Item_exists_subselect::val_str(String *str) {
   Return the result of EXISTS as a decimal value
 
   Converts the true/false result into a decimal value.
-  Note that currently this cannot be NULL, so if the query exection fails
-  it will return 0.
 
   @param [out] decimal_value   Buffer to hold the resulting decimal value
   @retval                      Pointer to the converted decimal.
-                               Can't be a NULL pointer, as currently
-                               EXISTS cannot return NULL.
+                               NULL if execution returns in error
 */
 
 my_decimal *Item_exists_subselect::val_decimal(my_decimal *decimal_value) {
   longlong val = val_bool();
   if (null_value) return nullptr;
+  if (current_thd->is_error()) return nullptr;
   int2my_decimal(E_DEC_FATAL_ERROR, val, 0, decimal_value);
   return decimal_value;
 }
@@ -1449,7 +1570,9 @@ bool Item_exists_subselect::val_bool() {
     reset();
     return false;
   }
-  return value;
+  // EXISTS can never return NULL value
+  DBUG_ASSERT(!null_value);
+  return translate(null_value, value);
 }
 
 double Item_in_subselect::val_real() {
@@ -1474,12 +1597,24 @@ String *Item_in_subselect::val_str(String *) {
 }
 
 bool Item_in_subselect::val_bool() {
+  // Substituted with Item_in_optimizer, so this function is never used
+  DBUG_ASSERT(false);
+  my_error(ER_INTERNAL_ERROR, MYF(0), "Invalid function call");
+  return error_int();
+}
+
+bool Item_in_subselect::val_bool_naked() {
   DBUG_ASSERT(fixed);
   if (exec(current_thd)) {
     reset();
     return false;
   }
   if (was_null && !value) null_value = true;
+  /*
+    This is the value of the naked IN. Negation, or applying of IS TRUE/FALSE,
+    is left to the parent Item_in_optimizer, so make sure it's there:
+  */
+  DBUG_ASSERT(optimizer);
   return value;
 }
 
@@ -1558,11 +1693,12 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
     A predicate may be transformed to use a MIN/MAX subquery if it:
     1. has a greater than/less than comparison operator, and
     2. is not correlated with the outer query, and
-    3. UNKNOWN results are treated as FALSE, or can never be generated, and
+    3. UNKNOWN results are treated as FALSE, by this item or the outer item,
+    or can never be generated.
   */
-  if (!func->eqne_op() &&                                                   // 1
-      !unit->uncacheable &&                                                 // 2
-      (abort_on_null || (upper_item && upper_item->is_top_level_item()) ||  // 3
+  if (!func->eqne_op() &&                                                // 1
+      !unit->uncacheable &&                                              // 2
+      (abort_on_null || (upper_item && upper_item->ignore_unknown()) ||  // 3
        (!left_expr->maybe_null && !subquery_maybe_null))) {
     if (substitution) {
       // It is second (third, ...) SELECT of UNION => All is done
@@ -1574,6 +1710,8 @@ Item_subselect::trans_res Item_in_subselect::single_value_transformer(
         // MIN/MAX(agg_or_window_func) would not be valid
         !select->with_sum_func && select->m_windows.elements == 0 &&
         !(select->next_select()) && select->table_list.elements &&
+        // For ALL: MIN ignores NULL: 3<=ALL(4 and NULL) is UNKNOWN, while
+        // NOT(3>(SELECT MIN(4 and NULL)) is TRUE
         !(substype() == ALL_SUBS && subquery_maybe_null)) {
       OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1, select->select_number,
                           "> ALL/ANY (SELECT)", "SELECT(MIN)");
@@ -1828,7 +1966,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
       argument (reference) to fix_fields()
     */
     select->set_having_cond(and_items(select->having_cond(), item));
-    select->having_cond()->top_level_item();
+    select->having_cond()->apply_is_true();
     select->having_fix_field = true;
     /*
       we do not check having_cond()->fixed, because Item_and (from and_items)
@@ -1905,7 +2043,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
         each member of the UNION.
       */
       select->set_where_cond(and_items(select->where_cond(), item));
-      select->where_cond()->top_level_item();
+      select->where_cond()->apply_is_true();
       in2exists_info->added_to_where = true;
       /*
         No need to check select_lex->where_cond()->fixed, because Item_and
@@ -1952,6 +2090,8 @@ Item_in_subselect::single_value_in_to_exists_transformer(THD *thd,
           Single query block, without tables, without WHERE, HAVING, LIMIT:
           its content has one row and is equal to the item in the SELECT list,
           so we can replace the IN(subquery) with an equality.
+          Keep applicability conditions in sync with
+          Item_exists_subselect::truth_transformer().
           The expression is moved to the immediately outer query block, so it
           may no longer contain outer references.
         */
@@ -2135,11 +2275,10 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       }
       item_having_part2 = and_items(item_having_part2, item_nnull_test);
       item_having_part2->set_created_by_in2exists();
-      item_having_part2->top_level_item();
     }
     having_item = and_items(having_item, item_having_part2);
     having_item->set_created_by_in2exists();
-    having_item->top_level_item();
+    having_item->apply_is_true();
   } else {
     /*
       (l1, l2, l3) IN (SELECT v1, v2, v3 ... WHERE where) =>
@@ -2219,7 +2358,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
       argument (reference) to fix_fields()
     */
     select->set_where_cond(and_items(select->where_cond(), where_item));
-    select->where_cond()->top_level_item();
+    select->where_cond()->apply_is_true();
     in2exists_info->added_to_where = true;
     Opt_trace_array where_trace(&thd->opt_trace,
                                 "evaluating_constant_where_conditions");
@@ -2228,7 +2367,7 @@ Item_subselect::trans_res Item_in_subselect::row_value_in_to_exists_transformer(
   if (having_item) {
     bool res;
     select->set_having_cond(and_items(select->having_cond(), having_item));
-    select->having_cond()->top_level_item();
+    select->having_cond()->apply_is_true();
     /*
       AND can't be changed during fix_fields()
       we can assign select->having_cond() here, and pass 0 as last
@@ -2355,17 +2494,38 @@ err:
 
 void Item_in_subselect::print(const THD *thd, String *str,
                               enum_query_type query_type) const {
-  if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS)
+  const char *tail = Item_bool_func::bool_transform_names[value_transform];
+  if (implicit_is_op) tail = "";
+  bool paren = false;
+  if (exec_method == EXEC_EXISTS_OR_MAT || exec_method == EXEC_EXISTS) {
+    if (value_transform == BOOL_NEGATED) {  // NOT has low associativity, but
+                                            // we're inside Item_in_optimizer,
+      // so () are needed only if IS TRUE/FALSE is coming.
+      if (tail[0]) {
+        paren = true;
+        str->append(STRING_WITH_LEN("("));
+      }
+      str->append(STRING_WITH_LEN("not "));
+    }
     str->append(STRING_WITH_LEN("<exists>"));
-  else {
+  } else {
     left_expr->print(thd, str, query_type);
+    if (value_transform == BOOL_NEGATED) str->append(STRING_WITH_LEN(" not"));
     str->append(STRING_WITH_LEN(" in "));
   }
   Item_subselect::print(thd, str, query_type);
+  if (paren) str->append(STRING_WITH_LEN(")"));
+  if (tail[0]) {
+    str->append(STRING_WITH_LEN(" "));
+    str->append(tail, strlen(tail));
+  }
 }
 
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref) {
   bool result = 0;
+
+  abort_on_null =
+      value_transform == BOOL_IS_TRUE || value_transform == BOOL_NOT_TRUE;
 
   if (exec_method == EXEC_SEMI_JOIN) return !((*ref) = new Item_func_true());
 
@@ -2875,8 +3035,7 @@ void subselect_indexsubquery_engine::copy_ref_key(bool *require_scan,
       */
       if (tab->ref().cond_guards && tab->ref().cond_guards[part_no] &&
           !*tab->ref().cond_guards[part_no]) {
-        DBUG_ASSERT(
-            !(static_cast<Item_in_subselect *>(item)->is_top_level_item()));
+        DBUG_ASSERT(!(down_cast<Item_in_subselect *>(item)->abort_on_null));
 
         *require_scan = true;
         DBUG_VOID_RETURN;
@@ -3338,8 +3497,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
   uchar *cur_ref_buff = tab->ref().key_buff;
 
   /*
-    Like semijoin-materialization-lookup (see create_subquery_equalities()),
-    create an artificial condition to post-filter those rows matched by index
+    Create an artificial condition to post-filter those rows matched by index
     lookups that cannot be distinguished by the index lookup procedure, for
     example:
     - because of truncation (if the outer column type's length is bigger than
@@ -3407,7 +3565,7 @@ bool subselect_hash_sj_engine::setup(THD *thd, List<Item> *tmp_columns) {
           key_parts[part_no].length, tab->ref().items[part_no]);
     if (nullable &&  // nullable column in tmp table,
                      // and UNKNOWN should not be interpreted as FALSE
-        !item_in->is_top_level_item()) {
+        !item_in->abort_on_null) {
       // It must be the single column, or we wouldn't be here
       DBUG_ASSERT(tmp_key_parts == 1);
       // Be ready to search for NULL into inner column:

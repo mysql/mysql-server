@@ -395,7 +395,8 @@ bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
             there are no outer joins nor semi-joins.
           */
           if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
-              !inner_tables && !select->has_sj_nests && tables_filled) {
+              !inner_tables && !select->has_sj_nests && !select->has_aj_nests &&
+              tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
             } else {

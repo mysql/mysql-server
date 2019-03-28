@@ -2552,13 +2552,16 @@ struct TABLE_LIST {
   }
   Item **join_cond_optim_ref() { return &m_join_cond_optim; }
 
-  /// Get the semi-join condition for a semi-join nest, NULL otherwise
-  Item *sj_cond() const { return m_sj_cond; }
-
-  /// Set the semi-join condition for a semi-join nest
-  void set_sj_cond(Item *cond) {
-    DBUG_ASSERT(m_sj_cond == NULL);
-    m_sj_cond = cond;
+  /// @returns true if semi-join nest
+  bool is_sj_nest() const { return m_is_sj_or_aj_nest && !m_join_cond; }
+  /// @returns true if anti-join nest
+  bool is_aj_nest() const { return m_is_sj_or_aj_nest && m_join_cond; }
+  /// @returns true if anti/semi-join nest
+  bool is_sj_or_aj_nest() const { return m_is_sj_or_aj_nest; }
+  /// Makes the next a semi/antijoin nest
+  void set_sj_or_aj_nest() {
+    DBUG_ASSERT(!m_is_sj_or_aj_nest);
+    m_is_sj_or_aj_nest = true;
   }
 
   /// Merge tables from a query block into a nested join structure
@@ -2928,7 +2931,7 @@ struct TABLE_LIST {
 
   TABLE_LIST *outer_join_nest() const {
     if (!embedding) return NULL;
-    if (embedding->sj_cond()) return embedding->embedding;
+    if (embedding->is_sj_nest()) return embedding->embedding;
     return embedding;
   }
   /**
@@ -3054,7 +3057,8 @@ struct TABLE_LIST {
      once for all executions of a prepared statement).
   */
   Item *m_join_cond{nullptr};
-  Item *m_sj_cond{nullptr};  ///< Synthesized semijoin condition
+  bool m_is_sj_or_aj_nest{false};
+
  public:
   /*
     (Valid only for semi-join nests) Bitmap of tables that are within the
@@ -3252,14 +3256,31 @@ struct TABLE_LIST {
     especially important for multi-table UPDATE and DELETE.
   */
   bool updating{false};
-  bool force_index{false};              /* prefer index over table scan */
-  bool ignore_leaves{false};            /* preload only non-leaf nodes */
-  table_map dep_tables{0};              /* tables the table depends on      */
-  table_map on_expr_dep_tables{0};      /* tables on expression depends on  */
-  NESTED_JOIN *nested_join{nullptr};    /* if the element is a nested join  */
-  TABLE_LIST *embedding{nullptr};       /* nested join containing the table */
-  List<TABLE_LIST> *join_list{nullptr}; /* join list the table belongs to   */
-  bool cacheable_table{false};          /* stop PS caching */
+  /// True if using an index is preferred over a table scan.
+  bool force_index{false};
+  /// preload only non-leaf nodes (IS THIS USED???)
+  bool ignore_leaves{false};
+  /**
+    The set of tables in the query block that this table depends on.
+    Can be set due to outer join, join order hints or NOT EXISTS relationship.
+  */
+  table_map dep_tables{0};
+  /// The outer tables that an outer join's join condition depends on
+  table_map join_cond_dep_tables{0};
+  /**
+    Is non-NULL if this table reference is a nested join, ie it represents
+    the inner tables of an outer join, the tables contained in the
+    parentheses of an inner join (eliminated during resolving), the tables
+    referenced in a derived table or view, in a semi-join nest, the tables
+    from the subquery.
+  */
+  NESTED_JOIN *nested_join{nullptr};
+  /// The nested join containing this table reference.
+  TABLE_LIST *embedding{nullptr};
+  /// The join list immediately containing this table reference
+  List<TABLE_LIST> *join_list{nullptr};
+  /// stop PS caching
+  bool cacheable_table{false};
   /**
      Specifies which kind of table should be open for this element
      of table list.

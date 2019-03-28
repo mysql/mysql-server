@@ -334,7 +334,8 @@ class Item_exists_subselect : public Item_subselect {
   typedef Item_subselect super;
 
  protected:
-  bool value; /* value of this item (boolean: exists/not-exists) */
+  /// value of this item (boolean: exists/not-exists)
+  bool value{false};
 
  public:
   /**
@@ -407,6 +408,35 @@ class Item_exists_subselect : public Item_subselect {
   void reset() override { value = 0; }
 
   enum Item_result result_type() const override { return INT_RESULT; }
+  /*
+    The item is
+    ([NOT] IN/EXISTS) [ IS [NOT] TRUE|FALSE ]
+  */
+  enum Bool_test value_transform = BOOL_IDENTITY;
+  bool with_is_op() const {
+    switch (value_transform) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        return true;
+      default:
+        return false;
+    }
+  }
+  /// True if the IS TRUE/FALSE wasn't explicit in the query
+  bool implicit_is_op = false;
+  virtual Item *truth_transformer(THD *, enum Bool_test test);
+  bool translate(bool &null_v, bool v);
+  void apply_is_true() override {
+    bool had_is = with_is_op();
+    truth_transformer(nullptr, BOOL_IS_TRUE);
+    if (!had_is && value_transform == BOOL_IS_TRUE)
+      implicit_is_op = true;  // needn't be written by EXPLAIN
+  }
+  /// True if the Item has decided that it can do antijoin
+  bool can_do_aj = false;
+  bool choose_semijoin_or_antijoin();
   longlong val_int() override;
   double val_real() override;
   String *val_str(String *) override;
@@ -485,6 +515,11 @@ class Item_in_subselect : public Item_exists_subselect {
   bool was_null;
 
  protected:
+  /**
+     True if naked IN is allowed to exchange FALSE for UNKNOWN.
+     Because this is about the naked IN, there is no public ignore_unknown(),
+     intentionally, so that callers don't get it wrong.
+  */
   bool abort_on_null;
 
  private:
@@ -563,6 +598,7 @@ class Item_in_subselect : public Item_exists_subselect {
 
   void cleanup() override;
   subs_type substype() const override { return IN_SUBS; }
+
   void reset() override {
     value = 0;
     null_value = 0;
@@ -577,6 +613,8 @@ class Item_in_subselect : public Item_exists_subselect {
   trans_res single_value_in_to_exists_transformer(THD *thd, SELECT_LEX *select,
                                                   Comp_creator *func);
   trans_res row_value_in_to_exists_transformer(THD *thd, SELECT_LEX *select);
+  bool subquery_allows_materialization(THD *thd, SELECT_LEX *select_lex,
+                                       const SELECT_LEX *outer);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   bool exec(THD *thd) override;
   longlong val_int() override;
@@ -584,9 +622,6 @@ class Item_in_subselect : public Item_exists_subselect {
   String *val_str(String *) override;
   my_decimal *val_decimal(my_decimal *) override;
   bool val_bool() override;
-  void top_level_item() override { abort_on_null = 1; }
-  bool is_top_level_item() const { return abort_on_null; }
-
   bool test_limit();
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
@@ -611,6 +646,9 @@ class Item_in_subselect : public Item_exists_subselect {
   friend class Item_in_optimizer;
   friend class subselect_indexsubquery_engine;
   friend class subselect_hash_sj_engine;
+
+ private:
+  bool val_bool_naked();
 };
 
 /// ALL/ANY/SOME subselect.

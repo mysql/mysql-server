@@ -470,12 +470,12 @@ SELECT 1 FROM t1 WHERE NOT EXISTS
 EXPLAIN SELECT 1 FROM t1 WHERE NOT EXISTS
 (SELECT 1 FROM t2 WHERE d = (SELECT d FROM t2 WHERE a >= 1) ORDER BY d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY,d	PRIMARY	1	func	1	100.00	Using where
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t2	NULL	eq_ref	PRIMARY,d	PRIMARY	1	func	1	100.00	Using where; Not exists
 3	DEPENDENT SUBQUERY	t2	NULL	index	NULL	d	2	NULL	1	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (`test`.`t2`.`d` = (/* select#3 */ select `test`.`t2`.`d` from `test`.`t2` where (`test`.`t1`.`a` >= 1))))))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` anti join (`test`.`t2`) on(((/* select#3 */ select `test`.`t2`.`d` from `test`.`t2` where (`test`.`t1`.`a` >= 1)) = `test`.`t2`.`d`)) where true
 DROP TABLE t2;
 CREATE TABLE t2 (b INT, c INT, UNIQUE KEY (b), UNIQUE KEY (b, c )) ENGINE=INNODB;
 INSERT INTO t2 VALUES (1, 1);

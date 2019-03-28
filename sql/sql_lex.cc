@@ -2082,6 +2082,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
       table_func_count(0),
       materialized_derived_table_count(0),
       has_sj_nests(false),
+      has_aj_nests(false),
       partitioned_table_count(0),
       order_list(),
       order_list_ptrs(NULL),
@@ -2660,11 +2661,13 @@ static void print_table_array(const THD *thd, String *str,
 
     // Print the join operator which relates this table to the previous one
     const char *op = nullptr;
-    if (curr->outer_join) {
+    if (curr->is_aj_nest())
+      op = " anti join ";
+    else if (curr->is_sj_nest())
+      op = " semi join ";
+    else if (curr->outer_join) {
       /* MySQL converts right to left joins */
       op = " left join ";
-    } else if (curr->sj_cond()) {
-      op = " semi join ";
     } else if (!first || cond) {
       /*
         If it's the first table, and it has an ON condition (can happen due to
@@ -2738,16 +2741,6 @@ static void print_join(const THD *thd, String *str, List<TABLE_LIST> *tables,
   }
 
   std::reverse(tables_to_print.begin(), tables_to_print.end());
-
-  /*
-    If the first table is a semi-join nest, swap it with something that is
-    not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
-    same as "B SEMIJOIN A".
-  */
-  auto it = std::find_if(tables_to_print.begin(), tables_to_print.end(),
-                         [](const TABLE_LIST *t) { return !t->sj_cond(); });
-  if (it != tables_to_print.end()) std::iter_swap(tables_to_print.begin(), it);
-
   print_table_array(thd, str, tables_to_print, query_type);
 }
 
@@ -4442,14 +4435,23 @@ void SELECT_LEX::update_semijoin_strategies(THD *thd) {
   while ((sj_nest = sj_list_it++)) {
     /*
       After semi-join transformation, original SELECT_LEX with hints is lost.
-      Fetch hints from first table in semijoin nest.
+      Fetch hints from last table in semijoin nest, as join_list has the
+      convention to list join operators' arguments in reverse order.
     */
     List_iterator<TABLE_LIST> table_list(sj_nest->nested_join->join_list);
-    TABLE_LIST *table = table_list++;
+    TABLE_LIST *table, *last = nullptr;
+    while ((table = table_list++)) last = table;
+    table = last;
     sj_nest->nested_join->sj_enabled_strategies =
         table->opt_hints_qb
             ? table->opt_hints_qb->sj_enabled_strategies(opt_switches)
             : opt_switches;
+    if (sj_nest->is_aj_nest()) {
+      // only these are possible with NOT EXISTS/IN:
+      sj_nest->nested_join->sj_enabled_strategies &=
+          OPTIMIZER_SWITCH_FIRSTMATCH | OPTIMIZER_SWITCH_MATERIALIZATION |
+          OPTIMIZER_SWITCH_DUPSWEEDOUT;
+    }
   }
 }
 

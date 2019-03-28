@@ -1173,7 +1173,7 @@ unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     condition = new Item_cond_and(items);
     condition->quick_fix_field();
     condition->update_used_tables();
-    condition->top_level_item();
+    condition->apply_is_true();
   }
   return unique_ptr_destroy_only<RowIterator>(
       new (thd->mem_root) FilterIterator(thd, move(iterator), condition));
@@ -1400,6 +1400,9 @@ void SplitConditions(Item *condition, vector<Item *> *predicates_below_join,
         // table. If it _also_ has a FOUND_MATCH predicate, we are dealing
         // with case #4 above, and need to push it up to exactly the right
         // spot.
+        //
+        // There is a special exception here for anti-joins; see the code under
+        // qep_tab->table()->reginfo.not_exists_optimize in ConnectJoins().
         Item_func_trig_cond *inner_trig_cond = GetTriggerCondOrNull(inner_cond);
         if (inner_trig_cond != nullptr) {
           Item *inner_inner_cond = inner_trig_cond->arguments()[0];
@@ -1779,7 +1782,7 @@ unique_ptr_destroy_only<RowIterator> GetTableIterator(
         Item *condition = new Item_func_isnotnull(&item);
         condition->quick_fix_field();
         condition->update_used_tables();
-        condition->top_level_item();
+        condition->apply_is_true();
         not_null_conditions.push_back(condition);
       }
     }
@@ -1967,6 +1970,34 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
         DBUG_ASSERT(substructure != Substructure::SEMIJOIN);
         join_type =
             (pending_conditions == nullptr) ? JoinType::ANTI : JoinType::OUTER;
+
+        // Normally, a ”found” trigger means that the condition should be moved
+        // up above some outer join (ie., it's a WHERE, not an ON condition).
+        // However, there is one specific case where the optimizer sets up such
+        // a trigger with the condition being _the same table as it's posted
+        // on_, namely anti-joins used for NOT IN; here, a FALSE condition is
+        // being used to specify that inner rows should pass by the join, but
+        // they should inhibit the null-complemented row. (So in this case,
+        // the anti-join is no longer just an optimization that can be ignored
+        // as we rewrite into an outer join.) In this case, there's a condition
+        // wrapped in “not_null_compl” and ”found”, with the trigger for both
+        // being the same table as the condition is posted on.
+        //
+        // So, as a special exception, detect this case, removing these
+        // conditions (as they would otherwise kill all of our output rows) and
+        // use them to mark the join as _really_ anti-join, even when it's
+        // within an outer join.
+        for (auto it = subtree_pending_conditions.begin();
+             it != subtree_pending_conditions.end();) {
+          if (it->table_index_to_attach_to == int(i) &&
+              it->cond->item_name.ptr() == antijoin_null_cond) {
+            DBUG_ASSERT(nullptr != dynamic_cast<Item_func_false *>(it->cond));
+            join_type = JoinType::ANTI;
+            it = subtree_pending_conditions.erase(it);
+          } else {
+            ++it;
+          }
+        }
       } else {
         join_type = substructure == Substructure::SEMIJOIN ? JoinType::SEMI
                                                            : JoinType::OUTER;

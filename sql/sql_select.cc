@@ -2254,7 +2254,7 @@ static Item *make_cond_for_index(Item *cond, TABLE *table, uint keyno,
         cond->marker = Item::MARKER_ICP_COND_USES_INDEX_ONLY;
       new_cond->quick_fix_field();
       new_cond->set_used_tables(cond->used_tables());
-      new_cond->top_level_item();
+      new_cond->apply_is_true();
       return new_cond;
     }
   }
@@ -2315,7 +2315,7 @@ static Item *make_cond_remainder(Item *cond, bool exclude_index) {
       }
       new_cond->quick_fix_field();
       new_cond->set_used_tables(tbl_map);
-      new_cond->top_level_item();
+      new_cond->apply_is_true();
       return new_cond;
     }
   }
@@ -2509,10 +2509,10 @@ void QEP_TAB::push_index_cond(const JOIN_TAB *join_tab, uint keyno,
 */
 
 bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
-                                             const POSITION *inner_pos,
+                                             POSITION *inner_pos,
                                              POSITION *sjm_pos) {
   DBUG_ENTER("JOIN::setup_semijoin_materialized_table");
-  const TABLE_LIST *const emb_sj_nest = inner_pos->table->emb_sj_nest;
+  TABLE_LIST *const emb_sj_nest = inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt = &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec = tab->sj_mat_exec();
   const uint field_count = emb_sj_nest->nested_join->sj_inner_exprs.elements;
@@ -2564,7 +2564,28 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
   TABLE_LIST *tl = new (thd->mem_root)
       TABLE_LIST(table, "", 0, name, strlen(name), name, TL_IGNORE);
   if (tl == nullptr) DBUG_RETURN(true); /* purecov: inspected */
-  // TODO: May have to setup outer-join info for this TABLE_LIST !!!
+
+  /*
+    If the SJ nest is inside an outer join nest, this tmp table belongs to
+    it. It's important for attachment of the semi-join ON condition with the
+    proper guards, to this table. If it's an AJ nest it's an outer join
+    nest too.
+  */
+  if (emb_sj_nest->is_aj_nest())
+    tl->embedding = emb_sj_nest;
+  else
+    tl->embedding = emb_sj_nest->outer_join_nest();
+  /*
+    Above, we do not set tl->emb_sj_nest, neither first_sj_inner nor
+    last_sj_inner; it's because there's no use to say that this table is part
+    of the SJ nest; but it's necessary to say that it's part of any outer join
+    nest. The antijoin nest is an outer join nest, but from the POV of the
+    sj-tmp table it's only an outer join nest, so there is no need to set
+    emb_sj_nest even in this case.
+  */
+
+  // Table is "nullable" if inner table of an outer_join
+  if (tl->is_inner_table_of_outer_join()) table->set_nullable();
 
   tl->set_tableno(tableno);
 
@@ -4004,7 +4025,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
           new Item_cond_and(curr_table->condition(), sort_table_cond));
       if (curr_table->condition()->fix_fields(thd, 0)) DBUG_RETURN(true);
     }
-    curr_table->condition()->top_level_item();
+    curr_table->condition()->apply_is_true();
     DBUG_EXECUTE("where", print_where(thd, curr_table->condition(),
                                       "select and having", QT_ORDINARY););
 

@@ -1161,6 +1161,7 @@ class SELECT_LEX {
     before the full resolver process is complete.
   */
   bool has_sj_nests;
+  bool has_aj_nests;  ///< @see has_sj_nests; counts antijoin nests.
   /// Number of partitioned tables
   uint partitioned_table_count;
 
@@ -1831,7 +1832,7 @@ class SELECT_LEX {
                               Parse_context *pc, bool *found);
 
   /**
-    Pointer to collection of subqueries candidate for semijoin
+    Pointer to collection of subqueries candidate for semi/antijoin
     conversion.
     Template parameter is "true": no need to run DTORs on pointers.
   */

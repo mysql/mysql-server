@@ -24,3 +24,109 @@ INSERT INTO t1( id ) VALUES ( NULL );
 SELECT t1.id  FROM t1  WHERE (id  is not null and id is null );
 id
 DROP TABLE t1;
+#
+# Bug#29027883 INCORRECT RESULT OF LEFT JOIN
+#
+CREATE TABLE t1 (
+pk int NOT NULL,
+col_int_key INT NOT NULL,
+col_date_key date NOT NULL,
+PRIMARY KEY (pk),
+KEY col_int_key (col_int_key),
+KEY col_date_key (col_date_key)
+) ENGINE=MyISAM;
+INSERT IGNORE INTO t1 VALUES (14,4,'0000-00-00'), (15,2,'2003-01-13'),
+(16,5,'2006-07-07'), (17,3,'0000-00-00');
+Warnings:
+Warning	1264	Out of range value for column 'col_date_key' at row 1
+Warning	1264	Out of range value for column 'col_date_key' at row 4
+CREATE TABLE t2 (
+pk INT NOT NULL,
+PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE TABLE t3(pk INT NOT NULL);
+INSERT INTO t3 VALUES(3),(3);
+select * from t3 left join
+(t2 outr2 join t2 outr join t1)
+on (outr.pk = t3.pk) and (t1.col_int_key = t3.pk) and isnull(t1.col_date_key)
+and (outr2.pk <> t3.pk) ;
+pk	pk	pk	pk	col_int_key	col_date_key
+3	NULL	NULL	NULL	NULL	NULL
+3	NULL	NULL	NULL	NULL	NULL
+select * from t3 join
+(t2 outr2 join t2 outr join t1)
+on (outr.pk = t3.pk) and (t1.col_int_key = t3.pk) and isnull(t1.col_date_key)
+and (outr2.pk <> t3.pk) ;
+pk	pk	pk	pk	col_int_key	col_date_key
+delete from t3;
+INSERT INTO t3 VALUES(3);
+EXPLAIN select * from t3, t1 where t1.col_date_key is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where (`test`.`t1`.`col_date_key` = DATE'0000-00-00')
+select * from t3, t1 where t1.col_date_key is null;
+pk	pk	col_int_key	col_date_key
+3	14	4	0000-00-00
+3	17	3	0000-00-00
+EXPLAIN select * from t3 join t1 on t1.col_date_key is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where false
+select * from t3 join t1 on t1.col_date_key is null;
+pk	pk	col_int_key	col_date_key
+EXPLAIN select * from t3 left join t1 on t1.col_date_key is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`col_date_key` is null)) where true
+select * from t3 left join t1 on t1.col_date_key is null;
+pk	pk	col_int_key	col_date_key
+3	NULL	NULL	NULL
+EXPLAIN select * from t3 left join t1 on t1.col_date_key is null
+where t1.col_date_key is null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	col_date_key	col_date_key	3	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` left join `test`.`t1` on((`test`.`t1`.`col_date_key` is null)) where ((`test`.`t1`.`col_date_key` = DATE'0000-00-00') or (`test`.`t1`.`col_date_key` is null))
+select * from t3 left join t1 on t1.col_date_key is null
+where t1.col_date_key is null;
+pk	pk	col_int_key	col_date_key
+3	NULL	NULL	NULL
+EXPLAIN select * from t3, t1 where t1.col_date_key is not null;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where true
+select * from t3, t1 where t1.col_date_key is not null;
+pk	pk	col_int_key	col_date_key
+3	14	4	0000-00-00
+3	15	2	2003-01-13
+3	16	5	2006-07-07
+3	17	3	0000-00-00
+EXPLAIN select * from t3, t1 where not (t1.col_date_key is null);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where true
+select * from t3, t1 where not (t1.col_date_key is null);
+pk	pk	col_int_key	col_date_key
+3	14	4	0000-00-00
+3	15	2	2003-01-13
+3	16	5	2006-07-07
+3	17	3	0000-00-00
+EXPLAIN select * from t3, t1 where (t1.col_date_key is null) is true;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`pk` AS `pk`,`test`.`t1`.`pk` AS `pk`,`test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_date_key` AS `col_date_key` from `test`.`t3` join `test`.`t1` where false
+select * from t3, t1 where (t1.col_date_key is null) is true;
+pk	pk	col_int_key	col_date_key
+DROP TABLE t1,t2,t3;

@@ -314,7 +314,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`test`.`t2`.`a` + 1)) or ((`test`.`t2`.`a` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`a` + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`test`.`t2`.`a` + 1)) or ((`test`.`t2`.`a` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`a` + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 a	b
@@ -329,7 +329,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)) or ((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)) or ((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
 a	b
@@ -1840,7 +1840,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select (`dt`.`f` + 1) from (/* select#3 */ select `test`.`t2`.`a` AS `f` from `test`.`t2`) `dt` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`dt.f+1`)))) is false)
 select * from t1
 where a not in (select dt.f+1 from (select t2.a as f from t2) dt);
 a	b
@@ -1856,7 +1856,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from (/* select#3 */ select ((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) AS `f` from `test`.`t2`) `dt` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`dt`.`f` + 1)) or ((`dt`.`f` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`dt`.`f` + 1)), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from (/* select#3 */ select ((0 * `test`.`t1`.`a`) + `test`.`t2`.`a`) AS `f` from `test`.`t2`) `dt` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`a`) = (`dt`.`f` + 1)) or ((`dt`.`f` + 1) is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`dt`.`f` + 1)), true)) is false)
 select * from t1
 where a not in (select dt.f+1 from (select 0*t1.a+t2.a as f from t2) dt);
 a	b
@@ -3165,7 +3165,7 @@ Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row
 Warning	1292	Incorrect time value: '2008-03-18' for column 'col_time_key' at row 1
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
 Warning	1292	Incorrect time value: '2004-11-14' for column 'col_time_key' at row 1
-Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`grandparent1`.`col_varchar_key` AS `g1` from `test`.`bb` `grandparent1` semi join (`qn1` join `test`.`bb` `parent1` left join `test`.`bb` `parent2` on((`test`.`parent1`.`col_varchar` = `test`.`parent2`.`col_varchar`))) left join `test`.`bb` `grandparent2` on(multiple equal(`test`.`grandparent1`.`col_time`, `test`.`grandparent2`.`col_time`)) where ((`test`.`parent1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`grandparent1`.`col_int_key`, `test`.`parent1`.`col_int`) and multiple equal(`test`.`parent1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`grandparent1`.`col_int`
+Note	1003	/* select#1 */ select /*+ MERGE(`qn`@`select#2`) */ `test`.`grandparent1`.`col_varchar_key` AS `g1` from `test`.`bb` `grandparent1` left join `test`.`bb` `grandparent2` on(multiple equal(`test`.`grandparent1`.`col_time`, `test`.`grandparent2`.`col_time`)) semi join (`test`.`bb` `parent1` left join `test`.`bb` `parent2` on((`test`.`parent1`.`col_varchar` = `test`.`parent2`.`col_varchar`)) join `qn1`) where ((`test`.`parent1`.`col_time_key` between '2008-03-18' and '2004-11-14') and multiple equal(`test`.`grandparent1`.`col_int_key`, `test`.`parent1`.`col_int`) and multiple equal(`test`.`parent1`.`col_varchar_key`, `qn1`.`C1`)) group by `test`.`grandparent1`.`col_int`
 SELECT
 grandparent1.col_varchar_key AS g1 FROM bb AS grandparent1
 LEFT JOIN bb AS grandparent2 USING ( col_time )

@@ -2104,7 +2104,11 @@ SELECT a,b,c FROM t WHERE a IN (SELECT b FROM t) GROUP BY a,b;
 a	b	c
 SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY a,b;
 a	b	c
+SELECT a,b,c FROM t WHERE (a <> 3) IS TRUE GROUP BY a,b;
+a	b	c
 SELECT a,b,c FROM t WHERE a IS FALSE GROUP BY a,b;
+a	b	c
+SELECT a,b,c FROM t WHERE (a <> 3) IS FALSE GROUP BY a,b;
 a	b	c
 SELECT a,b,c FROM t WHERE NOT(a IN (3,4)) GROUP BY a,b;
 a	b	c
@@ -2118,6 +2122,8 @@ SELECT a,b,c FROM t WHERE a IS TRUE GROUP BY b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT a,b,c FROM t WHERE a<=>NULL GROUP BY b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT a,b,c FROM t WHERE a IS NOT TRUE GROUP BY a,b;
+ERROR 42000: Expression #3 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SELECT a,b,c FROM
 (SELECT * FROM t WHERE a IS NOT NULL) AS dt GROUP BY a,b;
 a	b	c
@@ -2197,6 +2203,38 @@ WHERE t2.b = t1.b AND t2.b = t3.b
 AND t3.e = 1 AND t3.d IS NOT NULL AND t1.a = 2
 GROUP BY t1.b;
 ERROR 42000: Expression #5 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t3.c' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+# Verify that for semijoin and antijoin we catch the FD issues.
+explain select (select 2 from t2 where 1=(select t1.b from t3)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+explain select (select 2 from t2 where exists(select t1.b from t3)) as col from t1 group by t1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using index; FirstMatch(t2); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` semi join (`test`.`t3`) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
+explain select (select 2 from t2 where not exists(select t1.b from t3)) as col from t1 group by t1.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using temporary
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DEPENDENT SUBQUERY	t3	NULL	index	NULL	b	15	NULL	1	100.00	Using where; Not exists; Using index; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1276	Field or reference 'test.t1.b' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select (/* select#2 */ select 2 from `test`.`t2` anti join (`test`.`t3`) on((1 = 1)) where true) AS `col` from `test`.`t1` group by `test`.`t1`.`a`
+explain select (select 2 from t2 where exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+explain select (select 2 from t2 where not exists(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+explain select (select 2 from t2 where 1 in(select t1.b from t3)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+alter table t1 modify b int not null;
+explain select (select 2 from t2 where 1 not in(select t1.b from t3)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+explain select (select 2 from t2 where 1 in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+explain select (select 2 from t2 where 1 not in(select 1 from t3 where t1.b)) as col from t1 group by t1.a;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP TABLE t1, t2, t3;
 DROP FUNCTION show_json_object;
 #

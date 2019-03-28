@@ -494,7 +494,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	outr2	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
 Warnings:
 Note	1276	Field or reference 'test.outr1.pk' of SELECT #2 was resolved in SELECT #1
-Note	1003	update `test`.`d` `outr1` semi join (`test`.`bb` `innr1`) join `test`.`b` `outr2` set `test`.`outr1`.`col_varchar_nokey` = NULL where ((`test`.`innr1`.`col_varchar_key` = 'b') and (`test`.`innr1`.`col_varchar_nokey` = 't'))
+Note	1003	update `test`.`d` `outr1` join `test`.`b` `outr2` semi join (`test`.`bb` `innr1`) set `test`.`outr1`.`col_varchar_nokey` = NULL where ((`test`.`innr1`.`col_varchar_key` = 'b') and (`test`.`innr1`.`col_varchar_nokey` = 't'))
 DROP TABLE IF EXISTS b,bb,d;
 #
 # Bug#21216067 ASSERTION FAILED ROW_UPD_SEC_INDEX_ENTRY (INNOBASE/ROW/ROW0UPD.CC:2103)

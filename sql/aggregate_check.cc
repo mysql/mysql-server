@@ -906,7 +906,9 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
   */
   const table_map not_null_tables = cnj->not_null_tables();
   if (!not_null_tables) return;
-  if (cnj->functype() == Item_func::NOT_FUNC)  // to handle e.g. NOT LIKE
+  auto functype = cnj->functype();
+  if (functype == Item_func::NOT_FUNC ||    // to handle e.g. col NOT LIKE
+      functype == Item_func::ISTRUTH_FUNC)  // and e.g. (col>3) IS TRUE
   {
     conjunct = cnj->arguments()[0];
     if (conjunct->type() != Item::FUNC_ITEM) return;
@@ -933,7 +935,7 @@ void Group_check::analyze_conjunct(Item *cond, Item *conjunct,
       thinking a NULL value of 'a' makes "=" UNKNOWN (while it's a NULL
       value of 'b' which does and explains the presence of t1 in
       not_null_tables()). There is only one case where we dive because it's
-      easy, it's NOT.
+      easy, it's NOT and IS TRUE/FALSE.
       (3) the condition is in WHERE, or is an outer join condition and the
       column's table is on weak side.
       (4) the column is represented by some Item_ident in the FD list.
@@ -1084,7 +1086,7 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list) {
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
   while ((table = li++)) {
-    if (table->sj_cond()) {
+    if (table->is_sj_or_aj_nest()) {
       /*
         We can ignore this nest as:
         - the subquery's WHERE was copied to the semi-join condition
@@ -1095,6 +1097,8 @@ void Group_check::find_fd_in_joined_table(List<TABLE_LIST> *join_list) {
         link" in the graph of functional dependencies, as they are neither in
         GROUP BY (the source) nor in the SELECT list / HAVING / ORDER BY (the
         target).
+        If this is an antijoin nest, it's a NOT, which doesn't bring any
+        functional dependency.
       */
       continue;
     }

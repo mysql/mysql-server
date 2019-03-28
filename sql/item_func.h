@@ -130,6 +130,7 @@ class Item_func : public Item_result_field {
     LIKE_FUNC,
     ISNULL_FUNC,
     ISNOTNULL_FUNC,
+    ISTRUTH_FUNC,
     COND_AND_FUNC,
     COND_OR_FUNC,
     XOR_FUNC,

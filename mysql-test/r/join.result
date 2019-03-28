@@ -175,8 +175,6 @@ d
 0000-00-00
 Warnings:
 Warning	1365	Division by 0
-Warning	1365	Division by 0
-Warning	1365	Division by 0
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 Document_ID varchar(50) NOT NULL default '',

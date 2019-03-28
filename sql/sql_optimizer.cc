@@ -83,7 +83,6 @@
 #include "sql/sql_error.h"
 #include "sql/sql_join_buffer.h"  // JOIN_CACHE
 #include "sql/sql_planner.h"      // calculate_condition_filter
-#include "sql/sql_resolver.h"     // subquery_allows_materialization
 #include "sql/sql_test.h"         // print_where
 #include "sql/sql_tmp_table.h"
 #include "sql/system_variables.h"
@@ -93,6 +92,8 @@
 
 using std::max;
 using std::min;
+
+const char *antijoin_null_cond = "<ANTIJOIN-NULL>";
 
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
 static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
@@ -4191,7 +4192,7 @@ static Item *eliminate_item_equal(THD *thd, Item *cond,
       return nullptr;
     eq_item->quick_fix_field();
     if (item_const != nullptr) {
-      eq_item->top_level_item();
+      eq_item->apply_is_true();
       Item::cond_result res;
       if (fold_condition(thd, eq_item, &eq_item, &res)) return nullptr;
       if (res == Item::COND_FALSE) {
@@ -4507,8 +4508,8 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
   while ((table = li++)) {
     NESTED_JOIN *nested_join;
     if ((nested_join = table->nested_join)) {
-      // We should have either a join condition or a semi-join condition
-      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_cond() != NULL));
+      // We should have a join condition or a semi-join condition or both
+      DBUG_ASSERT((table->join_cond() != NULL) || table->is_sj_nest());
 
       nested_join->nj_map = 0;
       nested_join->nj_total = 0;
@@ -4521,7 +4522,7 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
         DBUG_ASSERT(first_unused < sizeof(nested_join_map) * 8);
         nested_join->nj_map = (nested_join_map)1 << first_unused++;
         nested_join->nj_total = nested_join->join_list.elements;
-      } else if (table->sj_cond()) {
+      } else if (table->is_sj_nest()) {
         NESTED_JOIN *const outer_nest =
             table->embedding ? table->embedding->nested_join : NULL;
         /*
@@ -4619,16 +4620,18 @@ bool JOIN::update_equalities_for_sjm() {
   while ((sjm_exec = it++)) {
     TABLE_LIST *const sj_nest = sjm_exec->sj_nest;
 
-    DBUG_ASSERT(!sj_nest->outer_join_nest());
+    Item *cond;
     /*
-      A materialized semi-join nest cannot actually be an inner part of an
-      outer join yet, this is just a preparatory step,
-      ie sj_nest->outer_join_nest() is always NULL here.
-      @todo: Enable outer joining here later.
+      Conditions involving SJ-inner tables are only to be found in the closest
+      nest's condition, which may be an AJ nest, a LEFT JOIN nest, or the
+      WHERE clause.
     */
-    Item *cond = sj_nest->outer_join_nest()
-                     ? sj_nest->outer_join_nest()->join_cond_optim()
-                     : where_cond;
+    if (sj_nest->is_aj_nest())
+      cond = sj_nest->join_cond_optim();
+    else if (sj_nest->outer_join_nest())
+      cond = sj_nest->outer_join_nest()->join_cond_optim();
+    else
+      cond = where_cond;
     if (!cond) continue;
 
     uchar *dummy = NULL;
@@ -5109,7 +5112,7 @@ bool JOIN::extract_const_tables() {
         Table belongs to a nested join, no candidate for const table extraction.
       */
       extract_method = extract_no_table;
-    } else if (tl->embedding && tl->embedding->sj_cond()) {
+    } else if (tl->embedding && tl->embedding->is_sj_or_aj_nest()) {
       /*
         Table belongs to a semi-join.
         We do not currently pull out const tables from semi-join nests.
@@ -5294,7 +5297,7 @@ bool JOIN::extract_func_dependent_tables() {
           if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                                // 1
               !tl->outer_join_nest() &&                                   // 2
-              !(tl->embedding && tl->embedding->sj_cond()) &&             // 3
+              !(tl->embedding && tl->embedding->is_sj_or_aj_nest()) &&    // 3
               !(tab->join_cond() && tab->join_cond()->is_expensive()) &&  // 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))    // 5
           {
@@ -5413,9 +5416,9 @@ bool JOIN::estimate_rowcount() {
     */
     TABLE_LIST *const tl = tab->table_ref;
     if ((!tab->const_keys.is_clear_all() ||
-         !tab->skip_scan_keys.is_clear_all()) &&        // (1)
-        (!tl->embedding ||                              // (2)
-         (tl->embedding && tl->embedding->sj_cond())))  // (3)
+         !tab->skip_scan_keys.is_clear_all()) &&                 // (1)
+        (!tl->embedding ||                                       // (2)
+         (tl->embedding && tl->embedding->is_sj_or_aj_nest())))  // (3)
     {
       /*
         This call fills tab->quick() with the best QUICK access method
@@ -5433,7 +5436,7 @@ bool JOIN::estimate_rowcount() {
         pulled out of their semi-join nests).
       */
       if (records == 0 && tab->table()->reginfo.impossible_range &&
-          (!(tl->embedding && tl->embedding->sj_cond()))) {
+          (!(tl->embedding && tl->embedding->is_sj_or_aj_nest()))) {
         /*
           Impossible WHERE condition or join condition
           In case of join cond, mark that one empty NULL row is matched.
@@ -5472,6 +5475,7 @@ bool JOIN::estimate_rowcount() {
   Set semi-join embedding join nest pointers.
 
   Set pointer to embedding semi-join nest for all semi-joined tables.
+  This is the closest semi-join or anti-join nest.
   Note that this must be done for every table inside all semi-join nests,
   even for tables within outer join nests embedded in semi-join nests.
   A table can never be part of multiple semi-join nests, hence no
@@ -5486,10 +5490,12 @@ void JOIN::set_semijoin_embedding() {
   JOIN_TAB *const tab_end = join_tab + primary_tables;
 
   for (JOIN_TAB *tab = join_tab; tab < tab_end; tab++) {
+    tab->emb_sj_nest = nullptr;
     for (TABLE_LIST *tl = tab->table_ref; tl->embedding; tl = tl->embedding) {
-      if (tl->embedding->sj_cond()) {
+      if (tl->embedding->is_sj_or_aj_nest()) {
+        DBUG_ASSERT(!tab->emb_sj_nest);
         tab->emb_sj_nest = tl->embedding;
-        break;
+        // Let the up-walk continue, to assert there's no AJ/SJ nest above.
       }
     }
   }
@@ -5530,7 +5536,9 @@ static void semijoin_types_allow_materialization(TABLE_LIST *sj_nest) {
   DBUG_ASSERT(sj_nest->nested_join->sj_outer_exprs.elements ==
               sj_nest->nested_join->sj_inner_exprs.elements);
 
-  if (sj_nest->nested_join->sj_outer_exprs.elements > MAX_REF_PARTS) {
+  if (sj_nest->nested_join->sj_outer_exprs.elements > MAX_REF_PARTS ||
+      sj_nest->nested_join->sj_outer_exprs.elements == 0) {
+    // building an index is impossible
     sj_nest->nested_join->sjm.scan_allowed = false;
     sj_nest->nested_join->sjm.lookup_allowed = false;
     return;
@@ -5571,24 +5579,6 @@ static void semijoin_types_allow_materialization(TABLE_LIST *sj_nest) {
     sj_nest->nested_join->sjm.lookup_allowed = false;
 
   if (blobs_involved) sj_nest->nested_join->sjm.lookup_allowed = false;
-
-  if (sj_nest->embedding) {
-    DBUG_ASSERT(sj_nest->embedding->join_cond_optim());
-    /*
-      There are two issues that prevent materialization strategy from being
-      used when a semi-join nest is on the inner side of an outer join:
-      1. If the semi-join contains dependencies to outer tables,
-         materialize-scan strategy cannot be used.
-      2. Make sure that executor is able to evaluate triggered conditions
-         for semi-join materialized tables. It should be correct, but needs
-         verification.
-         TODO: Remove this limitation!
-      Handle this by disabling materialization strategies:
-    */
-    sj_nest->nested_join->sjm.scan_allowed = false;
-    sj_nest->nested_join->sjm.lookup_allowed = false;
-    return;
-  }
 
   DBUG_PRINT("info", ("semijoin_types_allow_materialization: ok, allowed"));
 }
@@ -6199,6 +6189,7 @@ static bool pull_out_semijoin_tables(JOIN *join) {
 
   /* Try pulling out tables from each semi-join nest */
   while ((sj_nest = sj_list_it++)) {
+    if (sj_nest->is_aj_nest()) continue;
     table_map pulled_tables = 0;
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
@@ -6505,7 +6496,7 @@ static Key_field *merge_key_fields(Key_field *start, Key_field *new_fields,
 
 static uint get_semi_join_select_list_index(Item_field *item_field) {
   TABLE_LIST *emb_sj_nest = item_field->table_ref->embedding;
-  if (emb_sj_nest && emb_sj_nest->sj_cond()) {
+  if (emb_sj_nest && emb_sj_nest->is_sj_or_aj_nest()) {
     List<Item> &items = emb_sj_nest->nested_join->sj_inner_exprs;
     List_iterator<Item> it(items);
     for (uint i = 0; i < items.elements; i++) {
@@ -7989,6 +7980,14 @@ void JOIN::make_outerjoin_info() {
     if (!table) continue;
 
     TABLE_LIST *const tbl = tab->table_ref;
+    /*
+      If 'tbl' is inside a SJ/AJ nest served by materialization, we must
+      limit setting first_inner, last_inner and first_upper for join nests
+      inside the materialized table. Indeed it is the SJ-tmp table, and not
+      'tbl', which interacts with the nests outer to the SJ/AJ nest.
+    */
+    const bool sj_mat_inner =
+        sj_is_materialize_strategy(tab->get_sj_strategy());
 
     if (tbl->outer_join) {
       /*
@@ -8007,11 +8006,16 @@ void JOIN::make_outerjoin_info() {
       TABLE_LIST *const outer_join_nest = tbl->outer_join_nest();
       if (outer_join_nest) {
         DBUG_ASSERT(outer_join_nest->nested_join->first_nested != NO_PLAN_IDX);
-        tab->set_first_upper(outer_join_nest->nested_join->first_nested);
+        if (!sj_mat_inner || (tab->emb_sj_nest->sj_inner_tables &
+                              outer_join_nest->nested_join->first_nested))
+          tab->set_first_upper(outer_join_nest->nested_join->first_nested);
       }
     }
     for (TABLE_LIST *embedding = tbl->embedding; embedding;
          embedding = embedding->embedding) {
+      // When reaching the outer tables of the materialized temporary table,
+      // the decoration for this table is complete.
+      if (sj_mat_inner && embedding == tab->emb_sj_nest) break;
       // Ignore join nests that are not outer join nests:
       if (!embedding->join_cond_optim()) continue;
       NESTED_JOIN *const nested_join = embedding->nested_join;
@@ -8021,16 +8025,28 @@ void JOIN::make_outerjoin_info() {
           Save reference to it in the nested join structure.
         */
         nested_join->first_nested = i;
+        // The table's condition is set to point to the join nest's condition
         tab->init_join_cond_ref(embedding);
         tab->cond_equal = tbl->cond_equal;
 
         TABLE_LIST *const outer_join_nest = embedding->outer_join_nest();
-        if (outer_join_nest)
-          tab->set_first_upper(outer_join_nest->nested_join->first_nested);
+        if (outer_join_nest) {
+          DBUG_ASSERT(outer_join_nest->nested_join->first_nested !=
+                      NO_PLAN_IDX);
+          if (!sj_mat_inner || (tab->emb_sj_nest->sj_inner_tables &
+                                outer_join_nest->nested_join->first_nested))
+            tab->set_first_upper(outer_join_nest->nested_join->first_nested);
+        }
       }
       if (tab->first_inner() == NO_PLAN_IDX)
         tab->set_first_inner(nested_join->first_nested);
-      if (++nested_join->nj_counter < nested_join->nj_total) break;
+      /*
+        If including the sj-mat tmp table, this also implicitely
+        includes the inner tables of the sj-nest.
+      */
+      nested_join->nj_counter +=
+          tab->sj_mat_exec() ? tab->sj_mat_exec()->table_count : 1;
+      if (nested_join->nj_counter < nested_join->nj_total) break;
       // Table tab is the last inner table for nested join.
       best_ref[nested_join->first_nested]->set_last_inner(i);
     }
@@ -8075,6 +8091,84 @@ static Item *add_found_match_trig_cond(JOIN *join, plan_idx idx, Item *cond,
   }
 
   return cond;
+}
+
+/**
+   Helper for JOIN::attach_join_conditions().
+   Attaches bits of 'join_cond' to each table in the range [first_inner,
+   last_tab], with proper guards.
+   If 'sj_mat_cond' is true, we do not see first_inner (and tables on the same
+   level of it) as inner to anything, as they're at the top from the POV of
+   the materialization of the tmp table. So, if the SJ-mat nest is A LJ B,
+   A will get a part of condition without any guard; B will get another part
+   with a guard on A->found_match. It's like pushing a WHERE.
+*/
+bool JOIN::attach_join_condition_to_nest(plan_idx first_inner,
+                                         plan_idx last_tab, Item *join_cond,
+                                         bool is_sj_mat_cond) {
+  /*
+    Add the constant part of the join condition to the first inner table
+    of the outer join.
+  */
+  Item *cond =
+      make_cond_for_table(thd, join_cond, const_table_map, table_map(0), false);
+  if (cond) {
+    if (!is_sj_mat_cond) {
+      cond = new Item_func_trig_cond(cond, NULL, this, first_inner,
+                                     Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond) return true;
+      if (cond->fix_fields(thd, NULL)) return true;
+    }
+    if (best_ref[first_inner]->and_with_condition(cond)) return true;
+  }
+  /*
+    Split the non-constant part of the join condition into parts that
+    can be attached to the inner tables of the outer join.
+  */
+  for (plan_idx i = first_inner; i <= last_tab; ++i) {
+    table_map prefix_tables = best_ref[i]->prefix_tables();
+    table_map added_tables = best_ref[i]->added_tables();
+
+    /*
+      When handling the first inner table of an outer join, we may also
+      reference all tables ahead of this table:
+    */
+    if (i == first_inner) added_tables = prefix_tables;
+    /*
+      We need RAND_TABLE_BIT on the last inner table, in case there is a
+      non-deterministic function in the join condition.
+      (RAND_TABLE_BIT is set for the last table of the join plan,
+      but this is not sufficient for join conditions, which may have a
+      last inner table that is ahead of the last table of the join plan).
+    */
+    if (i == last_tab) {
+      prefix_tables |= RAND_TABLE_BIT;
+      added_tables |= RAND_TABLE_BIT;
+    }
+    cond =
+        make_cond_for_table(thd, join_cond, prefix_tables, added_tables, false);
+    if (cond == NULL) continue;
+    /*
+      If the table is part of an outer join that is embedded in the
+      outer join currently being processed, wrap the condition in
+      triggered conditions for match variables of such embedded outer joins.
+    */
+    if (!(cond = add_found_match_trig_cond(
+              this, best_ref[i]->first_inner(), cond,
+              is_sj_mat_cond ? NO_PLAN_IDX : first_inner)))
+      return true;
+
+    if (!is_sj_mat_cond) {
+      // Add the guard turning the predicate off for the null-complemented row.
+      cond = new Item_func_trig_cond(cond, NULL, this, first_inner,
+                                     Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond) return true;
+      if (cond->fix_fields(thd, NULL)) return true;
+    }
+    // Add the generated condition to the existing table condition
+    if (best_ref[i]->and_with_condition(cond)) return true;
+  }
+  return false;
 }
 
 /**
@@ -8124,7 +8218,9 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
 
-  for (plan_idx first_inner = best_ref[last_tab]->first_inner();
+  JOIN_TAB *lt = best_ref[last_tab];
+
+  for (plan_idx first_inner = lt->first_inner();
        first_inner != NO_PLAN_IDX &&
        best_ref[first_inner]->last_inner() == last_tab;
        first_inner = best_ref[first_inner]->first_upper()) {
@@ -8135,65 +8231,74 @@ bool JOIN::attach_join_conditions(plan_idx last_tab) {
     */
     Item *const join_cond = best_ref[first_inner]->join_cond();
     DBUG_ASSERT(join_cond);
+    if (attach_join_condition_to_nest(first_inner, last_tab, join_cond, false))
+      return true;
+  }
+  if (sj_is_materialize_strategy(lt->get_sj_strategy())) {
+    plan_idx mat_tbl = NO_PLAN_IDX;
     /*
-      Add the constant part of the join condition to the first inner table
-      of the outer join.
+      The SJ nest's condition contains both the SJ equality condition and the
+       WHERE of the replaced subquery. This WHERE must be pushed to SJ-inner
+       tables for evaluation during materialization!
     */
-    Item *cond = make_cond_for_table(thd, join_cond, const_table_map,
-                                     table_map(0), false);
-    if (cond) {
-      cond = new Item_func_trig_cond(cond, NULL, this, first_inner,
-                                     Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!cond) return true;
-      if (cond->fix_fields(thd, NULL)) return true;
-
-      if (best_ref[first_inner]->and_with_condition(cond)) return true;
-    }
-    /*
-      Split the non-constant part of the join condition into parts that
-      can be attached to the inner tables of the outer join.
-    */
-    for (plan_idx i = first_inner; i <= last_tab; ++i) {
-      table_map prefix_tables = best_ref[i]->prefix_tables();
-      table_map added_tables = best_ref[i]->added_tables();
-
-      /*
-        When handling the first inner table of an outer join, we may also
-        reference all tables ahead of this table:
-      */
-      if (i == first_inner) added_tables = prefix_tables;
-      /*
-        We need RAND_TABLE_BIT on the last inner table, in case there is a
-        non-deterministic function in the join condition.
-        (RAND_TABLE_BIT is set for the last table of the join plan,
-         but this is not sufficient for join conditions, which may have a
-         last inner table that is ahead of the last table of the join plan).
-      */
-      if (i == last_tab) {
-        prefix_tables |= RAND_TABLE_BIT;
-        added_tables |= RAND_TABLE_BIT;
+    Semijoin_mat_exec *sjm = nullptr;
+    for (plan_idx j = last_tab;; j--) {
+      sjm = best_ref[j]->sj_mat_exec();
+      if (sjm && sjm->sj_nest == lt->emb_sj_nest) {
+        // 'j' is the sj-mat tmp table
+        mat_tbl = j;
+        break;
       }
-      cond = make_cond_for_table(thd, join_cond, prefix_tables, added_tables,
-                                 false);
-      if (cond == NULL) continue;
-      /*
-        If the table is part of an outer join that is embedded in the
-        outer join currently being processed, wrap the condition in
-        triggered conditions for match variables of such embedded outer joins.
-      */
-      if (!(cond = add_found_match_trig_cond(this, best_ref[i]->first_inner(),
-                                             cond, first_inner)))
-        return true;
-
-      // Add the guard turning the predicate off for the null-complemented row.
-      cond = new Item_func_trig_cond(cond, NULL, this, first_inner,
-                                     Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!cond) return true;
-      if (cond->fix_fields(thd, NULL)) return true;
-
-      // Add the generated condition to the existing table condition
-      if (best_ref[i]->and_with_condition(cond)) return true;
     }
+    DBUG_ASSERT(sjm);
+    if (sjm->inner_table_index + sjm->table_count - 1 == (uint)last_tab) {
+      // we're at last table of sjmat nest
+      auto join_cond = best_ref[mat_tbl]->join_cond();
+      if (join_cond && attach_join_condition_to_nest(sjm->inner_table_index,
+                                                     last_tab, join_cond, true))
+        return true;
+    }
+  }
+
+  /*
+    See if 'last_tab' is the first inner of an antijoin nest,
+    then add a IS NULL condition on it.
+    By attaching the condition to the first inner table, we know that if
+    it is not satisfied we can just jump back to the table right before
+    it.
+  */
+  if (lt->table_ref->embedding && lt->table_ref->embedding->is_aj_nest() &&
+      last_tab == lt->first_inner() &&
+      /*
+        Exception: in A AJ (B LJ C) where C is a single table: there is no
+        join nest for C as it's single; C->embedding is thus the AJ nest; but
+        C->first_inner() is C (as it's the first inner of the LJ operation).
+        In that case it's not the first inner table of the AJ.
+        Catch this case:
+      */
+      !lt->table_ref->join_cond()) {
+    Item *cond = new Item_func_false();
+    if (!cond) return true;
+    // This is a signal for JOIN::create_iterators
+    cond->item_name.set(antijoin_null_cond);
+    /*
+      For A AJ B ON COND, we need an IS NULL condition which
+      is tested on the result rows of A LEFT JOIN B ON COND.
+      It must be tested only after the "match status" of a row of B has been
+      decided, so is wrapped in a condition triggered by B->found_match.
+      To have it test IS NULL, it's wrapped in a triggered condition which is
+      false if B is not NULL-complemented.
+      We needn't wrap this condition with triggers from upper nests, hence the
+      last argument of the call below.
+    */
+    cond = add_found_match_trig_cond(this, last_tab, cond, lt->first_upper());
+    if (!cond) return true;
+    cond = new Item_func_trig_cond(cond, NULL, this, last_tab,
+                                   Item_func_trig_cond::IS_NOT_NULL_COMPL);
+    if (!cond) return true;
+    if (cond->fix_fields(thd, NULL)) return true;
+    if (lt->and_with_condition(cond)) return true;
+    lt->table()->reginfo.not_exists_optimize = true;
   }
 
   return false;
@@ -9720,56 +9825,6 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
       *retcond = item;
       return false;
     }
-  } else if (cond->type() == Item::FUNC_ITEM &&
-             down_cast<Item_func *>(cond)->functype() ==
-                 Item_func::ISNULL_FUNC) {
-    Item_func_isnull *const func = down_cast<Item_func_isnull *>(cond);
-    Item **args = func->arguments();
-    if (args[0]->type() == Item::FIELD_ITEM) {
-      Field *const field = down_cast<Item_field *>(args[0])->field;
-      /* fix to replace 'NULL' dates with '0' (shreeve@uci.edu) */
-      /*
-        See BUG#12594011
-        Documentation says that
-        SELECT datetime_notnull d FROM t1 WHERE d IS NULL
-        shall return rows where d=='0000-00-00'
-
-        Thus, for DATE and DATETIME columns defined as NOT NULL,
-        "date_notnull IS NULL" has to be modified to
-        "date_notnull IS NULL OR date_notnull == 0" (if outer join)
-        "date_notnull == 0"                         (otherwise)
-
-      */
-      if (((field->type() == MYSQL_TYPE_DATE) ||
-           (field->type() == MYSQL_TYPE_DATETIME)) &&
-          (field->flags & NOT_NULL_FLAG)) {
-        Item *item0 = new (thd->mem_root) Item_int(0);
-        if (item0 == NULL) return true;
-        Item *eq_cond = new (thd->mem_root) Item_func_eq(args[0], item0);
-        if (eq_cond == NULL) return true;
-
-        if (args[0]->is_outer_field()) {
-          // outer join: transform "col IS NULL" to "col IS NULL or col=0"
-          Item *or_cond = new (thd->mem_root) Item_cond_or(eq_cond, cond);
-          if (or_cond == NULL) return true;
-          cond = or_cond;
-        } else {
-          // not outer join: transform "col IS NULL" to "col=0"
-          cond = eq_cond;
-        }
-
-        if (cond->fix_fields(thd, &cond)) return true;
-      }
-    }
-    if (cond->const_for_execution()) {
-      bool value;
-      if (eval_const_cond(thd, cond, &value)) return true;
-      *cond_value = value ? Item::COND_TRUE : Item::COND_FALSE;
-      *retcond = NULL;
-      return false;
-    }
-
-    return fold_condition_exec(thd, cond, retcond, cond_value);
   } else if (cond->const_for_execution() && !cond->is_expensive()) {
     bool value;
     if (eval_const_cond(thd, cond, &value)) return true;
@@ -10356,8 +10411,8 @@ bool JOIN::compare_costs_of_subquery_strategies(
     Testing subquery_allows_etc() at each optimization is necessary as each
     execution of a prepared statement may use a different type of parameter.
   */
-  if (!subquery_allows_materialization(in_pred, thd, select_lex,
-                                       select_lex->outer_select()))
+  if (!in_pred->subquery_allows_materialization(thd, select_lex,
+                                                select_lex->outer_select()))
     return false;
 
   Opt_trace_context *const trace = &thd->opt_trace;

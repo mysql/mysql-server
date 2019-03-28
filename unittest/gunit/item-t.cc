@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -575,7 +575,7 @@ TEST_F(ItemTest, ItemFuncXor) {
   item_xor->print(thd(), &print_buffer, QT_ORDINARY);
   EXPECT_STREQ("(0 xor 1)", print_buffer.c_ptr_safe());
 
-  Item *neg_xor = item_xor->neg_transformer(thd());
+  Item *neg_xor = item_xor->truth_transformer(thd(), Item::BOOL_NEGATED);
   EXPECT_FALSE(neg_xor->fix_fields(thd(), NULL));
   EXPECT_EQ(0, neg_xor->val_int());
   EXPECT_DOUBLE_EQ(0.0, neg_xor->val_real());

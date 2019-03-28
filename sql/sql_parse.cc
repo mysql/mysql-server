@@ -6299,7 +6299,7 @@ void add_join_on(TABLE_LIST *b, Item *expr) {
       */
       b->set_join_cond(new Item_cond_and(b->join_cond(), expr));
     }
-    b->join_cond()->top_level_item();
+    b->join_cond()->apply_is_true();
   }
 }
 
@@ -6572,10 +6572,14 @@ Item *all_any_subquery_creator(Item *left_expr,
                                SELECT_LEX *select_lex) {
   if ((cmp == &comp_eq_creator) && !all)  //  = ANY <=> IN
     return new Item_in_subselect(left_expr, select_lex);
-
   if ((cmp == &comp_ne_creator) && all)  // <> ALL <=> NOT IN
-    return new Item_func_not(new Item_in_subselect(left_expr, select_lex));
-
+  {
+    Item *i = new Item_in_subselect(left_expr, select_lex);
+    if (i == nullptr) return nullptr;
+    Item *neg_i = i->truth_transformer(nullptr, Item::BOOL_NEGATED);
+    if (neg_i != nullptr) return neg_i;
+    return new Item_func_not(i);
+  }
   Item_allany_subselect *it =
       new Item_allany_subselect(left_expr, cmp, select_lex, all);
   if (all) return it->upper_item = new Item_func_not_all(it); /* ALL */

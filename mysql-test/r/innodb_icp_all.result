@@ -711,14 +711,14 @@ AND 6=7
 )
 ;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t1b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	t1a	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1b	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	t2	NULL	unique_subquery	PRIMARY	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
 Warnings:
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_int' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1b.t1_time' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1a`.`t1_int` AS `t1_int`,`test`.`t1a`.`t1_time` AS `t1_time` from `test`.`t1` `t1a` where false
+Note	1003	/* select#1 */ select `test`.`t1a`.`t1_int` AS `t1_int`,`test`.`t1a`.`t1_time` AS `t1_time` from `test`.`t1` `t1a` anti join (`test`.`t1` `t1b`) on((<in_optimizer>(`test`.`t1b`.`t1_int`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1b`.`t1_int`) in t2 on PRIMARY where ((`test`.`t1b`.`t1_time` like `test`.`t1b`.`t1_int`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1b`.`t1_int`) = `test`.`t2`.`t2_int`), true)))) is false))) where true
 
 DROP TABLE t1,t2;
 #
@@ -844,7 +844,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	DEPENDENT SUBQUERY	subquery_t1	NULL	eq_ref	PRIMARY,col_int_key	PRIMARY	4	func	1	100.00	Using where; Full scan on NULL key
 2	DEPENDENT SUBQUERY	subquery_t2	NULL	ref	col_int_key	col_int_key	5	func	1	100.00	Using where; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`i1`,<exists>(/* select#2 */ select straight_join 1 from `test`.`t1` `subquery_t1` join `test`.`t2` `subquery_t2` where ((`test`.`subquery_t2`.`i1` = `test`.`subquery_t1`.`pk`) and ((`test`.`subquery_t1`.`i1` > 0) or (`test`.`subquery_t2`.`c1` = 'a')) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`i1`) = `test`.`subquery_t1`.`pk`), true))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i1`,<exists>(/* select#2 */ select straight_join 1 from `test`.`t1` `subquery_t1` join `test`.`t2` `subquery_t2` where ((`test`.`subquery_t2`.`i1` = `test`.`subquery_t1`.`pk`) and ((`test`.`subquery_t1`.`i1` > 0) or (`test`.`subquery_t2`.`c1` = 'a')) and <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`i1`) = `test`.`subquery_t1`.`pk`), true))) is false)
 SELECT t1.i1
 FROM t1
 WHERE t1.i1 NOT IN

@@ -515,6 +515,21 @@ DROP TABLE t1;
 set @@optimizer_switch=@old_opt_switch;
 set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch='firstmatch=off';
+CREATE TABLE t1 ( a INTEGER NOT NULL, b INTEGER NOT NULL );
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a NOT IN ( SELECT b FROM t1 WHERE b > 2 );
+EXPLAIN
+-> Nested loop anti-join
+    -> Table scan on t1
+    -> Single-row index lookup on <subquery2> using <auto_key> (b=t1.a)
+        -> Materialize with deduplication
+            -> Filter: (t1.b > 2)
+                -> Table scan on t1
+
+DROP TABLE t1;
+set @@optimizer_switch=@old_opt_switch;
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='firstmatch=off';
 CREATE TABLE t1 ( a INTEGER, b INTEGER );
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
 EXPLAIN FORMAT=tree SELECT a FROM t1 WHERE a = ANY ( SELECT MAX(a) FROM t1 WHERE b = 2 );

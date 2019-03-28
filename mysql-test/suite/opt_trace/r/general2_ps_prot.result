@@ -772,7 +772,7 @@ TRACE
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from `t1` join `t2` join `t3` where ((`t3`.`f2` = `t2`.`f2`) and (`t3`.`f2` = `t2`.`f2`)) having (not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`))))))) order by `t1`.`f2`"
+            "expanded_query": "/* select#1 */ select `t1`.`f2` AS `f2` from `t1` join `t2` join `t3` where ((`t3`.`f2` = `t2`.`f2`) and (`t3`.`f2` = `t2`.`f2`)) having <in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))) is false) order by `t1`.`f2`"
           }
         ] /* steps */
       } /* join_preparation */
@@ -804,13 +804,13 @@ TRACE
           {
             "condition_processing": {
               "condition": "HAVING",
-              "original_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))",
+              "original_condition": "<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))) is false)",
               "steps": [
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))))))"
+                  "resulting_condition": "<in_optimizer>(('v','i'),<exists>(/* select#2 */ select `t1`.`f2`,min(`t1`.`f2`) from `t1` having (((<cache>('v') = `t1`.`f2`) or (`t1`.`f2` is null)) and ((<cache>('i') = min(`t1`.`f2`)) or (min(`t1`.`f2`) is null)) and <is_not_null_test>(`t1`.`f2`) and <is_not_null_test>(min(`t1`.`f2`)))) is false)"
                 },
                 {
                   "transformation": "trivial_condition_removal",

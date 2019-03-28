@@ -9290,23 +9290,23 @@ expr:
           }
         | NOT_SYM expr %prec NOT_SYM
           {
-            $$= NEW_PTN PTI_negate_condition(@$, $2);
+            $$= NEW_PTN PTI_truth_transform(@$, $2, Item::BOOL_NEGATED);
           }
         | bool_pri IS TRUE_SYM %prec IS
           {
-            $$= NEW_PTN Item_func_istrue(@$, $1);
+            $$= NEW_PTN PTI_truth_transform(@$, $1, Item::BOOL_IS_TRUE);
           }
         | bool_pri IS not TRUE_SYM %prec IS
           {
-            $$= NEW_PTN Item_func_isnottrue(@$, $1);
+            $$= NEW_PTN PTI_truth_transform(@$, $1, Item::BOOL_NOT_TRUE);
           }
         | bool_pri IS FALSE_SYM %prec IS
           {
-            $$= NEW_PTN Item_func_isfalse(@$, $1);
+            $$= NEW_PTN PTI_truth_transform(@$, $1, Item::BOOL_IS_FALSE);
           }
         | bool_pri IS not FALSE_SYM %prec IS
           {
-            $$= NEW_PTN Item_func_isnotfalse(@$, $1);
+            $$= NEW_PTN PTI_truth_transform(@$, $1, Item::BOOL_NOT_FALSE);
           }
         | bool_pri IS UNKNOWN_SYM %prec IS
           {
@@ -9356,7 +9356,7 @@ predicate:
         | bit_expr not IN_SYM table_subquery
           {
             Item *item= NEW_PTN Item_in_subselect(@$, $1, $4);
-            $$= NEW_PTN PTI_negate_condition(@$, item);
+            $$= NEW_PTN PTI_truth_transform(@$, item, Item::BOOL_NEGATED);
           }
         | bit_expr IN_SYM '(' expr ')'
           {
@@ -9428,7 +9428,7 @@ predicate:
             args->push_back($1);
             args->push_back($4);
             Item *item= NEW_PTN Item_func_regexp_like(@$, args);
-            $$= NEW_PTN PTI_negate_condition(@$, item);
+            $$= NEW_PTN PTI_truth_transform(@$, item, Item::BOOL_NEGATED);
           }
         | bit_expr
         ;
@@ -9561,7 +9561,7 @@ simple_expr:
           }
         | not2 simple_expr %prec NEG
           {
-            $$= NEW_PTN PTI_negate_condition(@$, $2);
+            $$= NEW_PTN PTI_truth_transform(@$, $2, Item::BOOL_NEGATED);
           }
         | row_subquery
           {
@@ -12962,7 +12962,7 @@ opt_wild_or_where:
 
             Select->set_where_cond($2);
             if ($2)
-              $2->top_level_item();
+              $2->apply_is_true();
           }
         ;
 

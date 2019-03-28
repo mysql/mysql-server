@@ -140,7 +140,7 @@ explain SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref_or_null	a	a	5	const	2	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 42) or ((`test`.`t1`.`a` is true) and (`test`.`t1`.`a` is null)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where ((`test`.`t1`.`a` = 42) or (((0 <> `test`.`t1`.`a`) is true) and (`test`.`t1`.`a` is null)))
 SELECT a FROM t1 WHERE a IN (42) OR (a IS TRUE AND a IS NULL);
 a
 explain SELECT a FROM t1 WHERE a IN (42) OR (a=NULL);

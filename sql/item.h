@@ -736,6 +736,19 @@ class Item : public Parse_tree_node {
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  enum Bool_test  ///< Modifier for result transformation
+  { BOOL_IS_TRUE = 0x00,
+    BOOL_IS_FALSE = 0x01,
+    BOOL_IS_UNKNOWN = 0x02,
+    BOOL_NOT_TRUE = 0x03,
+    BOOL_NOT_FALSE = 0x04,
+    BOOL_NOT_UNKNOWN = 0x05,
+    BOOL_IDENTITY = 0x06,
+    BOOL_NEGATED = 0x07,
+    BOOL_ALWAYS_TRUE = 0x08,
+    BOOL_ALWAYS_FALSE = 0x09,
+  };
+
   /**
     Provide data type for a user or system variable, based on the type of
     the item that is assigned to the variable.
@@ -1883,17 +1896,16 @@ class Item : public Parse_tree_node {
   /// Make sure the null_value member has a correct value.
   bool update_null_value();
 
-  /*
-    Inform the item that there will be no distinction between its result
-    being false or NULL.
+  /**
+    Apply the IS TRUE truth property, meaning that an UNKNOWN result and a
+    FALSE result are treated the same.
 
-    NOTE
-      This function will be called for eg. Items that are top-level AND-parts
-      of the WHERE clause. Items implementing this function (currently
-      Item_cond_and and subquery-related item) enable special optimizations
-      when they are "top level".
-  */
-  virtual void top_level_item() {}
+    This property is applied e.g to all conditions in WHERE, HAVING and ON
+    clauses, and is recursively applied to operands of AND, OR
+    operators. Some items (currently AND and subquery predicates) may enable
+    special optimizations when they have this property.
+   */
+  virtual void apply_is_true() {}
   /*
     set field of temporary table for Item which can be switched on temporary
     table during query processing (grouping and so on). @see
@@ -2358,8 +2370,16 @@ class Item : public Parse_tree_node {
 
   Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
   virtual Item_field *field_for_view_update() { return 0; }
-
-  virtual Item *neg_transformer(THD *) { return NULL; }
+  /**
+    Informs an item that it is wrapped in a truth test, in case it wants to
+    transforms itself to implement this test by itself.
+    @param thd   Thread handle
+    @param test  Truth test
+  */
+  virtual Item *truth_transformer(THD *thd MY_ATTRIBUTE((unused)),
+                                  Bool_test test MY_ATTRIBUTE((unused))) {
+    return nullptr;
+  }
   virtual Item *update_value_transformer(uchar *) { return this; }
   virtual Item *safe_charset_converter(THD *thd, const CHARSET_INFO *tocs);
   void delete_self() {

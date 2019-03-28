@@ -800,7 +800,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1)
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	update `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
+Note	1003	update `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -872,7 +872,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
+Note	1003	update `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) set `test`.`t1`.`a` = 10 where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -948,7 +948,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join (`test`.`t2`) join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t1`.`a` < 3))
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
@@ -7387,7 +7387,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	update `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	update `test`.`t1` join `test`.`t2` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7503,7 +7503,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	update `test`.`t1` join `test`.`t2` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7622,7 +7622,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join ((/* select#3 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
@@ -7651,7 +7651,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 4	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	update `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	update `test`.`t1` join `test`.`t2` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7767,7 +7767,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	update `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	update `test`.`t1` join `test`.`t2` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) set `test`.`t1`.`a` = 10 where (`x`.`b` = `test`.`t1`.`a`)
 FLUSH STATUS;
 FLUSH TABLES;
 Variable_name	Value
@@ -7886,7 +7886,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) join `test`.`t2` where (`x`.`b` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join ((/* select#4 */ select `test`.`t2`.`b` AS `b` from `test`.`t2` order by `test`.`t2`.`b` limit 2,2) `x`) where (`x`.`b` = `test`.`t1`.`a`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2

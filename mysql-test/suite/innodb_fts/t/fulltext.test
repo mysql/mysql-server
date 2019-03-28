@@ -581,7 +581,7 @@ INSERT INTO t3 VALUES (1,1), (2,1);
 EXPLAIN
 SELECT count(*) FROM t1 WHERE 
   not exists(
-   SELECT 1 FROM t2, t3
+   SELECT /*+ NO_SEMIJOIN() */ 1 FROM t2, t3
    WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
   );
 
@@ -589,14 +589,14 @@ SELECT count(*) FROM t1 WHERE
 --echo # should return 0
 SELECT count(*) FROM t1 WHERE 
   not exists(
-   SELECT 1 FROM t2, t3
+   SELECT /*+ NO_SEMIJOIN() */ 1 FROM t2, t3
    WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
   );
 
 --error ER_FT_MATCHING_KEY_NOT_FOUND
 SELECT count(*) FROM t1 WHERE 
   not exists(
-   SELECT 1 FROM t2 IGNORE INDEX (b2), t3
+   SELECT /*+ NO_SEMIJOIN() */ 1 FROM t2 IGNORE INDEX (b2), t3
    WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
   );
 

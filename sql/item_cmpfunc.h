@@ -66,7 +66,6 @@ class THD;
 struct MY_BITMAP;
 
 Item *make_condition(Parse_context *pc, Item *item);
-Item *negate_condition(Parse_context *pc, Item *cond);
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
@@ -202,6 +201,13 @@ class Item_bool_func : public Item_int_func {
   bool created_by_in2exists() const override { return m_created_by_in2exists; }
   void set_created_by_in2exists() { m_created_by_in2exists = true; }
 
+  static const char *bool_transform_names[10];
+  /**
+    Array that transforms a boolean test according to another.
+    First dimension is existing value, second dimension is test to apply
+  */
+  static const Bool_test bool_transform[10][8];
+
  private:
   /**
     True <=> this item was added by IN->EXISTS subquery transformation, and
@@ -264,76 +270,69 @@ class Item_func_false : public Item_func_bool_const {
 };
 
 /**
-  Abstract Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
+  Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
   boolean predicates.
 */
-
 class Item_func_truth : public Item_bool_func {
+  typedef Item_bool_func super;
+
  public:
-  bool val_bool() override;
   longlong val_int() override;
   bool resolve_type(THD *) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
+  Item *truth_transformer(THD *, Bool_test test) override {
+    truth_test = super::bool_transform[truth_test][test];
+    return this;
+  }
+  const char *func_name() const override {
+    return super::bool_transform_names[truth_test];
+  }
+  virtual enum Functype functype() const { return ISTRUTH_FUNC; }
+
+  Item_func_truth(const POS &pos, Item *a, Bool_test truth_test)
+      : super(pos, a), truth_test(truth_test) {
+    null_on_null = false;
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
+  Item_func_truth(Item *a, Bool_test truth_test)
+      : super(a), truth_test(truth_test) {
+    null_on_null = false;
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+      case BOOL_NOT_TRUE:
+      case BOOL_NOT_FALSE:
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
+  }
+  void apply_is_true() override {
+    /*
+      This item cannot produce NULL result. But, if the upper item confuses
+      NULL and FALSE, we can do as if NULL input caused a NULL result when it
+      actually causes a FALSE result.
+    */
+    switch (truth_test) {
+      case BOOL_IS_TRUE:
+      case BOOL_IS_FALSE:
+        null_on_null = true;
+      default:
+        break;
+    }
+  }
 
  protected:
-  Item_func_truth(const POS &pos, Item *a, bool a_value, bool a_affirmative)
-      : Item_bool_func(pos, a), value(a_value), affirmative(a_affirmative) {}
-
- private:
-  /**
-    True for <code>X IS [NOT] TRUE</code>,
-    false for <code>X IS [NOT] FALSE</code> predicates.
-  */
-  const bool value;
-  /**
-    True for <code>X IS Y</code>, false for <code>X IS NOT Y</code> predicates.
-  */
-  const bool affirmative;
-};
-
-/**
-  This Item represents a <code>X IS TRUE</code> boolean predicate.
-*/
-
-class Item_func_istrue final : public Item_func_truth {
- public:
-  Item_func_istrue(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, true, true) {}
-  const char *func_name() const override { return "istrue"; }
-};
-
-/**
-  This Item represents a <code>X IS NOT TRUE</code> boolean predicate.
-*/
-
-class Item_func_isnottrue final : public Item_func_truth {
- public:
-  Item_func_isnottrue(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, true, false) {}
-  const char *func_name() const override { return "isnottrue"; }
-};
-
-/**
-  This Item represents a <code>X IS FALSE</code> boolean predicate.
-*/
-
-class Item_func_isfalse final : public Item_func_truth {
- public:
-  Item_func_isfalse(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, false, true) {}
-  const char *func_name() const override { return "isfalse"; }
-};
-
-/**
-  This Item represents a <code>X IS NOT FALSE</code> boolean predicate.
-*/
-
-class Item_func_isnotfalse final : public Item_func_truth {
- public:
-  Item_func_isnotfalse(const POS &pos, Item *a)
-      : Item_func_truth(pos, a, false, false) {}
-  const char *func_name() const override { return "isnotfalse"; }
+  Bool_test truth_test;  ///< The value we're testing for.
 };
 
 static const int UNKNOWN = -1;
@@ -536,8 +535,9 @@ class Item_bool_func2 : public Item_bool_func { /* Bool with 2 string args */
   const CHARSET_INFO *compare_collation() const override {
     return cmp.cmp_collation.collation;
   }
-  void top_level_item() override { abort_on_null = true; }
-  bool is_top_level_item() const { return abort_on_null; }
+  void apply_is_true() override { abort_on_null = true; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   void cleanup() override {
     Item_bool_func::cleanup();
     cmp.cleanup();
@@ -561,7 +561,7 @@ class Item_func_comparison : public Item_bool_func2 {
     allowed_arg_cols = 0;  // Fetch this value from first argument
   }
 
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   virtual Item *negated_item();
   bool subst_argument_checker(uchar **) override { return true; }
   bool is_null() override;
@@ -584,8 +584,8 @@ class Item_func_xor final : public Item_bool_func2 {
   const char *func_name() const override { return "xor"; }
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
-  void top_level_item() override {}
-  Item *neg_transformer(THD *thd) override;
+  void apply_is_true() override {}
+  Item *truth_transformer(THD *, Bool_test) override;
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -601,7 +601,7 @@ class Item_func_not : public Item_bool_func {
   longlong val_int() override;
   enum Functype functype() const override { return NOT_FUNC; }
   const char *func_name() const override { return "not"; }
-  Item *neg_transformer(THD *) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
 
@@ -770,7 +770,6 @@ class Item_func_not_all : public Item_func_not {
   Item_sum_hybrid *test_sum_item;
   Item_maxmin_subselect *test_sub_item;
   Item_subselect *subselect;
-
   bool abort_on_null;
 
  public:
@@ -783,8 +782,9 @@ class Item_func_not_all : public Item_func_not {
         subselect(0),
         abort_on_null(0),
         show(0) {}
-  void top_level_item() override { abort_on_null = true; }
-  bool is_top_level_item() const { return abort_on_null; }
+  void apply_is_true() override { abort_on_null = true; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   longlong val_int() override;
   enum Functype functype() const override { return NOT_ALL_FUNC; }
   const char *func_name() const override { return "<not>"; }
@@ -802,7 +802,7 @@ class Item_func_not_all : public Item_func_not {
       such as
           left-expr < ALL(subquery)
       into
-          <not>(left-expr >= (subquery)
+          <not>(left-expr >= ANY(subquery)
 
       An inequality usually rejects NULLs from both operands, so the
       not_null_tables() of the inequality is the union of the
@@ -817,7 +817,7 @@ class Item_func_not_all : public Item_func_not {
     return 0;
   }
   bool empty_underlying_subquery();
-  Item *neg_transformer(THD *) override;
+  Item *truth_transformer(THD *, Bool_test) override;
 };
 
 class Item_func_nop_all final : public Item_func_not_all {
@@ -826,7 +826,7 @@ class Item_func_nop_all final : public Item_func_not_all {
   longlong val_int() override;
   const char *func_name() const override { return "<nop>"; }
   table_map not_null_tables() const override { return not_null_tables_cache; }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
 };
 
 /**
@@ -877,7 +877,7 @@ class Item_func_equal final : public Item_func_comparison {
   enum Functype rev_functype() const override { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
   const char *func_name() const override { return "<=>"; }
-  Item *neg_transformer(THD *) override { return nullptr; }
+  Item *truth_transformer(THD *, Bool_test) override { return nullptr; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
@@ -987,7 +987,7 @@ class Item_func_ne final : public Item_func_comparison {
 /*
   The class Item_func_opt_neg is defined to factor out the functionality
   common for the classes Item_func_between and Item_func_in. The objects
-  of these classes can express predicates or there negations.
+  of these classes can express predicates or their negations.
   The alternative approach would be to create pairs Item_func_between,
   Item_func_notbetween and Item_func_in, Item_func_notin.
 
@@ -1009,9 +1009,10 @@ class Item_func_opt_neg : public Item_int_func {
 
  public:
   inline void negate() { negated = !negated; }
-  inline void top_level_item() override { pred_level = 1; }
-  bool is_top_level_item() const { return pred_level; }
-  Item *neg_transformer(THD *) override {
+  inline void apply_is_true() override { pred_level = 1; }
+  bool ignore_unknown() const { return pred_level; }
+  Item *truth_transformer(THD *, Bool_test test) override {
+    if (test != BOOL_NEGATED) return nullptr;
     negated = !negated;
     return this;
   }
@@ -1878,12 +1879,14 @@ class in_row final : public in_vector {
 /* Functions used by where clause */
 
 class Item_func_isnull : public Item_bool_func {
+  typedef Item_bool_func super;
+
  protected:
   longlong cached_value;
 
  public:
-  Item_func_isnull(Item *a) : Item_bool_func(a) { null_on_null = false; }
-  Item_func_isnull(const POS &pos, Item *a) : Item_bool_func(pos, a) {
+  Item_func_isnull(Item *a) : super(a) { null_on_null = false; }
+  Item_func_isnull(const POS &pos, Item *a) : super(pos, a) {
     null_on_null = false;
   }
   longlong val_int() override;
@@ -1898,7 +1901,7 @@ class Item_func_isnull : public Item_bool_func {
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test test) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   const CHARSET_INFO *compare_collation() const override {
@@ -1939,12 +1942,11 @@ class Item_is_not_null_test final : public Item_func_isnull {
 };
 
 class Item_func_isnotnull final : public Item_bool_func {
-  bool abort_on_null;
-
  public:
-  Item_func_isnotnull(Item *a) : Item_bool_func(a), abort_on_null(0) {}
-  Item_func_isnotnull(const POS &pos, Item *a)
-      : Item_bool_func(pos, a), abort_on_null(0) {}
+  Item_func_isnotnull(Item *a) : Item_bool_func(a) { null_on_null = false; }
+  Item_func_isnotnull(const POS &pos, Item *a) : Item_bool_func(pos, a) {
+    null_on_null = false;
+  }
 
   longlong val_int() override;
   enum Functype functype() const override { return ISNOTNULL_FUNC; }
@@ -1955,17 +1957,15 @@ class Item_func_isnotnull final : public Item_bool_func {
   }
   const char *func_name() const override { return "isnotnull"; }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_NULL; }
-  table_map not_null_tables() const override {
-    return abort_on_null ? not_null_tables_cache : 0;
-  }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test test) override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   const CHARSET_INFO *compare_collation() const override {
     return args[0]->collation.collation;
   }
-  void top_level_item() override { abort_on_null = true; }
-
+  void apply_is_true() override {
+    null_on_null = true;
+  }  // Same logic as for Item_func_truth's function
   float get_filtering_effect(THD *thd, table_map filter_for_table,
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
@@ -2088,17 +2088,18 @@ class Item_cond : public Item_bool_func {
              enum_query_type query_type) const override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields) override;
-  void top_level_item() override { abort_on_null = true; }
+  void apply_is_true() override { abort_on_null = true; }
   void copy_andor_arguments(THD *thd, Item_cond *item);
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
   Item *transform(Item_transformer transformer, uchar *arg) override;
   void traverse_cond(Cond_traverser, void *arg, traverse_order order) override;
-  bool negate_arguments(THD *thd);
+  bool truth_transform_arguments(THD *thd, Bool_test test);
   bool subst_argument_checker(uchar **) override { return true; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;
   bool remove_const_conds(THD *thd, Item *item, Item **new_item);
-  bool is_top_level_item() const { return abort_on_null; }
+  /// Treat UNKNOWN result like FALSE because callers see no difference
+  bool ignore_unknown() const { return abort_on_null; }
   bool equality_substitution_analyzer(uchar **) override { return true; }
 };
 
@@ -2299,7 +2300,7 @@ class Item_cond_and final : public Item_cond {
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -2326,7 +2327,7 @@ class Item_cond_or final : public Item_cond {
       item->copy_andor_arguments(thd, this);
     return item;
   }
-  Item *neg_transformer(THD *thd) override;
+  Item *truth_transformer(THD *, Bool_test) override;
   bool gc_subst_analyzer(uchar **) override { return true; }
 
   float get_filtering_effect(THD *thd, table_map filter_for_table,
@@ -2335,15 +2336,14 @@ class Item_cond_or final : public Item_cond {
                              double rows_in_table) override;
 };
 
-/* Some useful inline functions */
-
+/// Builds condition: (a AND b) IS TRUE
 inline Item *and_conds(Item *a, Item *b) {
   if (!b) return a;
   if (!a) return b;
 
   Item *item = new Item_cond_and(a, b);
   if (item == nullptr) return nullptr;
-  item->top_level_item();
+  item->apply_is_true();
   return item;
 }
 

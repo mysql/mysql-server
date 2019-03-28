@@ -255,7 +255,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2.b1,test.t2.b2	2	100.00	Using index; FirstMatch(t1)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t1`.`a2` = `test`.`t2`.`b2`) and (`test`.`t3`.`c2` = `test`.`t2`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2`.`b2`) and (`test`.`t1`.`a1` = `test`.`t2`.`b1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` > '0') and (`test`.`t2`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t1`.`a2` = `test`.`t2`.`b2`) and (`test`.`t3`.`c2` = `test`.`t2`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2`.`b2`) and (`test`.`t1`.`a1` = `test`.`t2`.`b1`) and (`test`.`t3`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` > '0') and (`test`.`t2`.`b1` > '0'))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
@@ -274,7 +274,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t3i	NULL	ref	it3i1,it3i2,it3i3	it3i1	33	test.t2i.b1	1	100.00	Using where
 1	SIMPLE	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i` join `test`.`t3i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t3i` join `test`.`t2i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0'))
 select * from t1i
 where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
@@ -297,7 +297,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 4	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -322,7 +322,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t3a	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t2i` join `test`.`t3` `t3c`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (`test`.`t1`.`a2` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t3` `t3c` join `test`.`t2i`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))) and (`test`.`t1`.`a2` > '0'))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 t3a where c1 = a1) or
@@ -358,7 +358,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 7	UNION	t2i	NULL	ref	it2i1,it2i2,it2i3	it2i3	66	test.t2i.b1,test.t2i.b2	2	100.00	Using index; FirstMatch(t1i)
 NULL	UNION RESULT	<union1,7>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	(/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))) union (/* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t2i` join `test`.`t3i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0')))
+Note	1003	(/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (`test`.`t1`.`a2` > '0') and (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#3 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))) union (/* select#7 */ select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` semi join (`test`.`t3i` join `test`.`t2i`) semi join (`test`.`t2i`) where ((`test`.`t1i`.`a2` = `test`.`t2i`.`b2`) and (`test`.`t3i`.`c2` = `test`.`t2i`.`b2`) and (`test`.`t2i`.`b2` = `test`.`t2i`.`b2`) and (`test`.`t1i`.`a1` = `test`.`t2i`.`b1`) and (`test`.`t3i`.`c1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b1` = `test`.`t2i`.`b1`) and (`test`.`t2i`.`b2` > '0') and (`test`.`t2i`.`b1` > '0')))
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -387,7 +387,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and (`test`.`t1`.`a2` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2i`) where ((`test`.`t3`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and (`test`.`t1`.`a2` > '0'))
 select * from t1
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (a1, a2) in (select c1, c2 from t3
@@ -410,7 +410,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT UNION	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	20.00	Using where
 NULL	UNION RESULT	<union2,3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3`) join `test`.`t3` where ((`test`.`t3`.`c2` = `test`.`t3`.`c2`) and (`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and (`test`.`t3`.`c2` > '0'))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` join `test`.`t3` semi join (`test`.`t3` join `test`.`t2i`) where ((`test`.`t3`.`c2` = `test`.`t3`.`c2`) and (`test`.`t2i`.`b2` = `test`.`t3`.`c2`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union /* select#3 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and (`test`.`t3`.`c2` > '0'))
 select * from t1, t3
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (c1, c2) in (select c1, c2 from t3
@@ -456,7 +456,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a2' of SELECT #6 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t2i` join `test`.`t3` `t3c`) semi join (`test`.`t2`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` semi join (`test`.`t3` `t3c` join `test`.`t2i`) semi join (`test`.`t2`) where ((`test`.`t3c`.`c2` = `test`.`t1`.`a2`) and (`test`.`t2i`.`b2` = `test`.`t1`.`a2`) and (`test`.`t2`.`b2` = `test`.`t1`.`a2`) and (`test`.`t3c`.`c1` = `test`.`t1`.`a1`) and (`test`.`t2i`.`b1` = `test`.`t1`.`a1`) and (`test`.`t2`.`b1` = `test`.`t1`.`a1`) and (<in_optimizer>(`test`.`t2`.`b2`,<exists>(/* select#3 */ select 1 from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (/* select#4 */ select `test`.`t3b`.`c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on <auto_key> where ((`test`.`t2`.`b2` = `materialized-subquery`.`c2`)))))))
 explain
 select * from t1 where (a1, a2) in (select '1 - 01', '2 - 01');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -835,7 +835,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t4)
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `t1i` from `test`.`t4` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t4`.`t4i` = '1') and (`test`.`t2`.`t2i` = '1') and (`test`.`t3`.`t3i` = '1'))
+Note	1003	/* select#1 */ select '1' AS `t1i` from `test`.`t4` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t4`.`t4i` = '1') and (`test`.`t2`.`t2i` = '1') and (`test`.`t3`.`t3i` = '1'))
 DROP TABLE t1,t2,t3,t4;
 #
 # BUG#46680 - Assertion failed in file item_subselect.cc, 
@@ -1005,10 +1005,11 @@ EXPLAIN
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	Start temporary
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; End temporary
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+2	MATERIALIZED	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	0.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '10' AS `i`,`test`.`t2`.`j` AS `j` from <constant table> left join (`test`.`t2` semi join (`test`.`t3`)) on(((`test`.`t2`.`j` = `test`.`t3`.`k`))) where true
+Note	1003	/* select#1 */ select '10' AS `i`,`test`.`t2`.`j` AS `j` from <constant table> left join (`test`.`t2` semi join (`test`.`t3`)) on(((`test`.`t2`.`j` = `<subquery2>`.`k`))) where true
 SELECT i, j FROM t1 LEFT JOIN t2 ON (j) IN (SELECT k FROM t3);
 i	j
 10	NULL
@@ -1421,7 +1422,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2` `t3`) join `test`.`t2` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` semi join (`test`.`t2` `t3`) where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
 select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) in (select a,a from t2 as t3);
@@ -1434,11 +1435,11 @@ explain select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((not(<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`a`),(`test`.`t2`.`a`,`test`.`t2`.`a`) in ( <materialize> (/* select#2 */ select `test`.`t3`.`a`,`test`.`t3`.`a` from `test`.`t2` `t3` where true having true ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`) and (`test`.`t2`.`a` = `materialized-subquery`.`a`))))))) and ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a` from `test`.`t1` join `test`.`t2` anti join (`test`.`t2` `t3`) on(((`test`.`t3`.`a` = `test`.`t2`.`a`))) where ((`test`.`t1`.`a` + `test`.`t2`.`a`) = 3)
 select t1.a, t2.a
 from t1 join t2 on t1.a+t2.a=3
 where (t2.a,t2.a) not in (select a,a from t2 as t3);
@@ -1708,14 +1709,14 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t3`.`a` AS `a` from `test`.`t2` join `test`.`t3` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 EXPLAIN UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where; Start temporary
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Note	1003	update `test`.`t2` semi join (`test`.`t1`) join `test`.`t3` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
+Note	1003	update `test`.`t2` join `test`.`t3` semi join (`test`.`t1`) set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1731,7 +1732,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 Warnings:
-Note	1003	delete `test`.`t2` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
+Note	1003	delete `test`.`t2` from `test`.`t2` join `test`.`t3` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1986,7 +1987,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	7	func	2	100.00	Using where; Using index
 Warnings:
 Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where (not(<in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))))
+Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where <in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (0 <> (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`))) having true ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))) is false)
 SELECT alias2.col_int_key
 FROM t1 AS alias1 , t2 AS alias2
 WHERE alias1.col_varchar_key NOT IN (
@@ -2084,7 +2085,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))))
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t1` `t2` where true having true ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))) is false)
 SELECT COUNT(*)
 FROM t1
 WHERE t1.a NOT IN (
@@ -2110,7 +2111,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (not(<in_optimizer>((/* select#2 */ select 1,2 from `test`.`t2`),<exists>(/* select#3 */ select 1,1 from `test`.`t1` where (<if>(outer_field_is_not_null, ((<cache>(<cache>(1)) = 1) or <cache>((1 is null))), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(2)) = 2) or <cache>((2 is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))))) AS `(SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)` from `test`.`t1`
+Note	1003	/* select#1 */ select <in_optimizer>((/* select#2 */ select 1,2 from `test`.`t2`),not <exists>(/* select#3 */ select 1,1 from `test`.`t1` where (<if>(outer_field_is_not_null, ((<cache>(<cache>(1)) = 1) or <cache>((1 is null))), true) and <if>(outer_field_is_not_null, ((<cache>(<cache>(2)) = 2) or <cache>((2 is null))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(1), true) and <if>(outer_field_is_not_null, <is_not_null_test>(2), true)))) AS `(SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)` from `test`.`t1`
 SELECT (SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1) FROM t1;
 (SELECT 1,2 FROM t2) NOT IN (SELECT 1,2 FROM t1)
 NULL

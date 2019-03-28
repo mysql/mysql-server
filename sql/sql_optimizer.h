@@ -835,6 +835,12 @@ class JOIN {
   void finalize_derived_keys();
   bool get_best_combination();
   bool attach_join_conditions(plan_idx last_tab);
+
+ private:
+  bool attach_join_condition_to_nest(plan_idx first_inner, plan_idx last_tab,
+                                     Item *join_cond, bool is_sj_mat_cond);
+
+ public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
                             bool force_stable_sort = false);
@@ -1053,7 +1059,7 @@ class JOIN {
   bool alloc_qep(uint n);
   void unplug_join_tabs();
   bool setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
-                                         const POSITION *inner_pos,
+                                         POSITION *inner_pos,
                                          POSITION *sjm_pos);
 
   bool add_having_as_tmp_table_cond(uint curr_tmp_table);
@@ -1282,5 +1288,7 @@ class Candidate_table_order {
  private:
   const JOIN *const m_join;
 };
+
+extern const char *antijoin_null_cond;
 
 #endif /* SQL_OPTIMIZER_INCLUDED */

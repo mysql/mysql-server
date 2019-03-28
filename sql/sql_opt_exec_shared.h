@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,8 @@ struct TABLE_REF {
     If a table in a subquery has this it means that the table access
     will switch from ref access to table scan when the outer query
     produces a NULL value to be checked for in the subquery. This will
-    be used by NOT IN subqueries and IN subqueries for which
-    is_top_level_item() returns false.
+    be used by NOT IN subqueries and IN subqueries which need to distinguish
+    NULL and FALSE, where ignore_unknown() is false.
   */
   bool **cond_guards;
   /**

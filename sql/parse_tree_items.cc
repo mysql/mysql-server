@@ -36,6 +36,42 @@
 #include "sql/trigger_def.h"
 
 /**
+  Apply a truth test to given expression. Either the expression can implement
+  it itself, or we create an Item node to implement it by wrapping the
+  expression. Expression is possibly an incomplete predicate.
+
+  @param pc   current parse context
+  @param expr expression
+  @param truth_test  test to apply
+
+  @returns the resulting expression, or NULL if error
+*/
+
+static Item *change_truth_value_of_condition(Parse_context *pc, Item *expr,
+                                             Item::Bool_test truth_test) {
+  switch (truth_test) {
+    case Item::BOOL_NEGATED:
+    case Item::BOOL_IS_TRUE:
+    case Item::BOOL_IS_FALSE:
+    case Item::BOOL_NOT_TRUE:
+    case Item::BOOL_NOT_FALSE:
+      break;
+    default:
+      DBUG_ASSERT(false);
+  }
+  // Ensure that all incomplete predicates are made complete:
+  if (!expr->is_bool_func()) {
+    expr = make_condition(pc, expr);
+    if (expr == nullptr) return nullptr;
+  }
+  Item *changed = expr->truth_transformer(pc->thd, truth_test);
+  if (changed != nullptr) return changed;
+  if (truth_test == Item::BOOL_NEGATED)
+    return new (pc->mem_root) Item_func_not(expr);
+  return new (pc->mem_root) Item_func_truth(expr, truth_test);
+}
+
+/**
   Helper to resolve the SQL:2003 Syntax exception 1) in @<in predicate@>.
   See SQL:2003, Part 2, section 8.4 @<in predicate@>, Note 184, page 383.
   This function returns the proper item for the SQL expression
@@ -92,7 +128,9 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
       subselect = expr3->invalidate_and_restore_select_lex();
       result = new (pc->mem_root) Item_in_subselect(left, subselect);
 
-      if (!equal) result = negate_condition(pc, result);
+      if (!equal)
+        result =
+            change_truth_value_of_condition(pc, result, Item::BOOL_NEGATED);
 
       DBUG_RETURN(result);
     }
@@ -388,4 +426,11 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
     if (super::itemize(pc, res)) return true;
   }
   return false;
+}
+
+bool PTI_truth_transform::itemize(Parse_context *pc, Item **res) {
+  if (super::itemize(pc, res) || expr->itemize(pc, &expr)) return true;
+
+  *res = change_truth_value_of_condition(pc, expr, truth_test);
+  return *res == NULL;
 }

@@ -3326,8 +3326,6 @@ bool Optimize_table_order::fix_semijoin_strategies() {
 
     } else if (pos->sj_strategy == SJ_OPT_FIRST_MATCH) {
       first = pos->first_firstmatch_table;
-      join->best_positions[first].sj_strategy = SJ_OPT_FIRST_MATCH;
-      join->best_positions[first].n_sj_tables = tableno - first + 1;
 
       Opt_trace_object trace_final_strategy(trace);
       trace_final_strategy.add_alnum("final_semijoin_strategy", "FirstMatch");
@@ -3336,6 +3334,18 @@ bool Optimize_table_order::fix_semijoin_strategies() {
       double rowcount, cost;
       (void)semijoin_firstmatch_loosescan_access_paths(
           first, tableno, remaining_tables, false, &rowcount, &cost);
+
+      if (pos->table->emb_sj_nest->is_aj_nest()) {
+        /*
+          Antijoin doesn't use the execution logic of FirstMatch. So we
+          won't set it up; and we won't either have the incompatibilities of
+          FirstMatch with outer join. Declare that we don't use it:
+        */
+        pos->sj_strategy = SJ_OPT_NONE;
+      } else {
+        join->best_positions[first].sj_strategy = SJ_OPT_FIRST_MATCH;
+        join->best_positions[first].n_sj_tables = tableno - first + 1;
+      }
     } else if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN) {
       first = pos->first_loosescan_table;
 
@@ -3493,7 +3503,6 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab) {
 
     next_emb->nested_join->nj_counter++;
     cur_embedding_map |= next_emb->nested_join->nj_map;
-
     if (next_emb->nested_join->nj_total != next_emb->nested_join->nj_counter)
       break;
 
@@ -3915,6 +3924,18 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(uint first_tab,
 
 /**
   Do semi-join optimization step after we've added a new tab to join prefix
+
+  This function cannot work with nested SJ nests, for two reasons:
+  (a) QEP_TAB::emb_sj_nest points to the most inner SJ nest, and this
+  function looks only at it, so misses to do any SJ strategy choice for
+  outer nests
+  (b) POSITION has only one set of SJ-info (e.g. first_firstmatch_table): so
+  planning for two nested nests would require more info than we have.
+  And indeed, SJ nests cannot be nested, because:
+  (c) a SJ nest is not nested in another SJ or anti SJ nest (it would have been
+  dissolved into the outer nest by simplify_joins()).
+  (d) an anti SJ nest is not nested inside another SJ or anti SJ nest (this case
+  is blocked by resolve_subquery()).
 
   @param remaining_tables Tables not in the join prefix
   @param new_join_tab     Join tab that we are adding to the join prefix
@@ -4487,6 +4508,7 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables
     DBUG_ASSERT(nest->nj_counter > 0);
 
     cur_embedding_map |= nest->nj_map;
+
     bool was_fully_covered = nest->nj_total == nest->nj_counter;
 
     if (--nest->nj_counter == 0) cur_embedding_map &= ~nest->nj_map;

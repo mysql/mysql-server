@@ -2021,7 +2021,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1276	Field or reference 'grandparent.col_varchar_key' of SELECT #3 was resolved in SELECT #1
 Note	1276	Field or reference 'grandparent.col_int_key' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`)) join (/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent`) where ((`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and (`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and (`grandparent`.`col_int_key` is null)) order by `grandparent`.`col_varchar_nokey`
+Note	1003	/* select#1 */ select `grandparent`.`col_varchar_nokey` AS `g1` from (/* select#2 */ select `test`.`t3`.`col_int_key` AS `col_int_key`,`test`.`t3`.`col_varchar_key` AS `col_varchar_key`,`test`.`t3`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t3`) `grandparent` semi join ((/* select#4 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `parent` join (/* select#6 */ select 'r' AS `col_varchar_key`,'r' AS `col_varchar_nokey` from dual) `child1` left join (/* select#7 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `child2` on((`child1`.`col_varchar_nokey` <> `child2`.`col_varchar_key`))) where ((`child1`.`col_varchar_key` = `grandparent`.`col_varchar_key`) and (`parent`.`col_varchar_key` = `grandparent`.`col_varchar_nokey`) and (`grandparent`.`col_int_key` is null)) order by `grandparent`.`col_varchar_nokey`
 SELECT grandparent.col_varchar_nokey AS g1
 FROM (SELECT * FROM t3) AS grandparent
 WHERE grandparent.col_varchar_nokey IN
@@ -2246,7 +2246,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` = `test`.`t1`.`a`))
 SELECT *
 FROM t1 JOIN (SELECT * FROM t2 UNION SELECT * FROM t2) AS dt ON t1.a=dt.a;
 a	b	a	b
@@ -2756,7 +2756,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 5	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 5	SUBQUERY	t1	NULL	ref	col_varchar_key	col_varchar_key	6	test.t3.col_varchar_nokey	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where ((not(<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`))))))) or (`test`.`t1`.`pk` = 96))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` left join (`test`.`t2` join `test`.`t1`) on(((`test`.`t1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`) and (`test`.`t1`.`col_int_nokey` = `test`.`t2`.`pk`))) where (<in_optimizer>(`test`.`t2`.`col_varchar_key`,`test`.`t2`.`col_varchar_key` in ( <materialize> (/* select#5 */ select `test`.`t3`.`col_varchar_nokey` AS `sq1_field1` from `test`.`t3` left join (`test`.`t1`) on((`test`.`t1`.`col_varchar_key` = `test`.`t3`.`col_varchar_nokey`)) where true ), <primary_index_lookup>(`test`.`t2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`t2`.`col_varchar_key` = `materialized-subquery`.`sq1_field1`)))) is false) or (`test`.`t1`.`pk` = 96))
 SELECT table1.pk
 FROM (SELECT * FROM t1) AS table1
 LEFT JOIN
@@ -3012,7 +3012,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	sq2_t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `field2` from `test`.`t1` `sq1_t1` semi join (`test`.`t1` `child_sq1_t2`) join `test`.`t2` `sq1_t3` join `test`.`t1` `sq1_t2` left join (`test`.`t1` `table2` join `test`.`t1` `sq2_t1`) on(((`test`.`sq2_t1`.`col_varchar_key` = `test`.`table2`.`col_varchar_key`))) where ((`test`.`child_sq1_t2`.`col_varchar_key` = `test`.`sq1_t1`.`col_varchar_key`) and (`test`.`sq1_t3`.`col_int_key` = `test`.`sq1_t2`.`pk`) and (`test`.`sq1_t3`.`pk` = `test`.`sq1_t2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`table2`.`pk` AS `field2` from `test`.`t1` `sq1_t1` join `test`.`t2` `sq1_t3` join `test`.`t1` `sq1_t2` semi join (`test`.`t1` `child_sq1_t2`) left join (`test`.`t1` `table2` join `test`.`t1` `sq2_t1`) on(((`test`.`sq2_t1`.`col_varchar_key` = `test`.`table2`.`col_varchar_key`))) where ((`test`.`child_sq1_t2`.`col_varchar_key` = `test`.`sq1_t1`.`col_varchar_key`) and (`test`.`sq1_t3`.`col_int_key` = `test`.`sq1_t2`.`pk`) and (`test`.`sq1_t3`.`pk` = `test`.`sq1_t2`.`pk`))
 SELECT table2.pk AS field2
 FROM (SELECT sq1_t2.pk
 FROM t1 AS sq1_t1
@@ -3069,7 +3069,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select `test`.`child_sq1_t1`.`col_int_key` AS `child_sq2_field1` from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = `test`.`child_sq1_t1`.`col_int_key`) or (`test`.`child_sq1_t1`.`col_int_key` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`child_sq1_t1`.`col_int_key`), true))))) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on((<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select `test`.`child_sq1_t1`.`col_int_key` AS `child_sq2_field1` from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = `test`.`child_sq1_t1`.`col_int_key`) or (`test`.`child_sq1_t1`.`col_int_key` is null)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`child_sq1_t1`.`col_int_key`), true)) is false) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
 SELECT table1.pk AS field1,
 table2.pk field2
 FROM (SELECT sq1_t1.*
@@ -3241,7 +3241,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	MATERIALIZED	c_sq1_alias1	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	90.00	Using where
 3	MATERIALIZED	c_sq1_alias2	NULL	ALL	col_varchar_key	NULL	NULL	NULL	20	10.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `field1` from `test`.`t1` `sq1_alias1` semi join (`test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2`) join `test`.`t1` `sq1_alias2` join `test`.`t3` `sq2_alias2` left join `test`.`t2` `sq2_alias1` on((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where ((`test`.`c_sq1_alias2`.`col_varchar_nokey` = `test`.`c_sq1_alias1`.`col_varchar_key`) and (`test`.`sq1_alias1`.`col_varchar_nokey` = `<subquery3>`.`c_sq1_field1`) and (`test`.`sq1_alias2`.`pk` = `test`.`sq1_alias1`.`pk`) and (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`col_int_nokey`))
+Note	1003	/* select#1 */ select min(`test`.`sq1_alias1`.`col_varchar_nokey`) AS `field1` from `test`.`t1` `sq1_alias1` join `test`.`t1` `sq1_alias2` semi join (`test`.`t1` `c_sq1_alias1` join `test`.`t1` `c_sq1_alias2`) join `test`.`t3` `sq2_alias2` left join `test`.`t2` `sq2_alias1` on((`test`.`sq2_alias1`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`)) where ((`test`.`c_sq1_alias2`.`col_varchar_nokey` = `test`.`c_sq1_alias1`.`col_varchar_key`) and (`test`.`sq1_alias1`.`col_varchar_nokey` = `<subquery3>`.`c_sq1_field1`) and (`test`.`sq1_alias2`.`pk` = `test`.`sq1_alias1`.`pk`) and (`test`.`c_sq1_alias1`.`col_int_nokey` <> `test`.`c_sq1_alias1`.`col_int_nokey`))
 SELECT MIN(alias1.col_varchar_nokey) AS field1
 FROM (SELECT sq1_alias1.*
 FROM t1 AS sq1_alias1, t1 AS sq1_alias2
@@ -3515,7 +3515,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t4	NULL	index	k	k	5	NULL	2	100.00	Using where; Using index; LooseScan
 1	SIMPLE	t3	NULL	index	k	k	5	NULL	2	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` `t2` semi join (`test`.`t1` `t4`) join `test`.`t1` `t3` left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t3`.`k` = `test`.`t4`.`k`) and (`test`.`t4`.`k` > 1))
+Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` `t2` join `test`.`t1` `t3` semi join (`test`.`t1` `t4`) left join `test`.`t1` on((`test`.`t1`.`pk` = `test`.`t2`.`pk`)) where ((`test`.`t3`.`k` = `test`.`t4`.`k`) and (`test`.`t4`.`k` > 1))
 SELECT t1.k
 FROM t1 RIGHT JOIN
 (SELECT t2.*
@@ -4102,7 +4102,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'table3.pk' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` semi join (`test`.`t3` `subquery2_t3`) join `test`.`t1` `subquery1_t1` where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
+Note	1003	/* select#1 */ select '2' AS `col_int` from `test`.`t2` `subquery1_t2` join `test`.`t1` `subquery1_t1` semi join (`test`.`t3` `subquery2_t3`) where ((`test`.`subquery2_t3`.`pk` < NULL) and multiple equal('g', NULL, `test`.`subquery2_t3`.`col_varchar`, `test`.`subquery1_t2`.`col_varchar_key`))
 SELECT table1.col_int
 FROM t3 AS table1
 LEFT JOIN (
