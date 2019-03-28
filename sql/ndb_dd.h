@@ -61,4 +61,8 @@ bool ndb_dd_update_schema_version(class THD *thd, const char* schema_name,
                                   unsigned int counter, unsigned int node_id,
                                   bool skip_commit = false);
 
+bool ndb_dd_has_local_tables_in_schema(class THD *thd,
+                                       const char* schema_name,
+                                       bool &tables_exist_in_database);
+
 #endif

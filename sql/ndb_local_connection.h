@@ -60,6 +60,12 @@ public:
 
   bool create_util_table(const std::string& table_def_sql);
 
+  bool create_database(const std::string& database_name);
+
+  bool drop_database(const std::string& database_name);
+
+  bool execute_database_ddl(const std::string& ddl_query);
+
   /* Don't use this function for new implementation, backward compat. only */
   bool raw_run_query(const char* query, size_t query_length,
                      const int* suppress_errors);

@@ -238,3 +238,32 @@ ndb_dd_update_schema_version(THD *thd, const char* schema_name,
 
   DBUG_RETURN(true);
 }
+
+
+bool ndb_dd_has_local_tables_in_schema(THD *thd, const char* schema_name,
+                                       bool &tables_exist_in_database)
+{
+  DBUG_ENTER("ndb_dd_has_tables_in_schema");
+  DBUG_PRINT("enter", ("Checking if schema '%s' has local tables",
+                       schema_name));
+
+  Ndb_dd_client dd_client(thd);
+
+  /* Lock the schema in DD */
+  if (!dd_client.mdl_lock_schema(schema_name))
+  {
+    DBUG_PRINT("error", ("Failed to MDL lock schema : '%s'", schema_name));
+    DBUG_RETURN(false);
+  }
+
+  /* Check if there are any local tables */
+  if (!dd_client.have_local_tables_in_schema(schema_name,
+                                             &tables_exist_in_database))
+  {
+    DBUG_PRINT("error", ("Failed to check if the Schema '%s' has any tables",
+                         schema_name));
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+}

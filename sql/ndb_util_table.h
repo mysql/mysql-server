@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,8 @@
 #include "my_compiler.h"
 #include "sql/ndb_table_guard.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+
+class NdbRecAttr;
 
 // Base class used for working with tables created in NDB by the
 // ndbcluster plugin
@@ -156,6 +158,11 @@ class Ndb_util_table {
    */
   virtual std::string define_table_dd() const = 0;
 
+  /**
+     @brief Unpack the varbinary column value
+     @return the value stored in the varbinary column
+   */
+  static std::string unpack_varbinary(NdbRecAttr* ndbRecAttr);
 };
 
 #endif

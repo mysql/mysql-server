@@ -44,6 +44,7 @@
 #include "sql/ndb_bitmap.h"
 #include "sql/ndb_dd.h"
 #include "sql/ndb_dd_client.h"
+#include "sql/ndb_dd_schema.h"
 #include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_table.h"
 #include "sql/ndb_global_schema_lock.h"
@@ -53,6 +54,7 @@
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_ndbapi_util.h"
 #include "sql/ndb_require.h"
+#include "sql/ndb_retry.h"
 #include "sql/ndb_schema_dist_table.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
@@ -1032,183 +1034,368 @@ class Ndb_binlog_setup {
 
   THD* const m_thd;
 
+  // Enum defining database ddl types
+  enum Ndb_schema_ddl_type : unsigned short {
+    SCHEMA_DDL_CREATE= 0,
+    SCHEMA_DDL_ALTER= 1,
+    SCHEMA_DDL_DROP= 2
+  };
+
+  // A tuple to hold the values read from ndb_schema table
+  using Ndb_schema_tuple =
+      std::tuple<std::string,         /* db name */
+                 std::string,         /* query */
+                 Ndb_schema_ddl_type, /* database ddl type */
+                 unsigned int,        /* id */
+                 unsigned int>;       /* version */
+
+  /**
+   * @brief Retrieves all the database DDLs from the mysql.ndb_schema table
+   *
+   * @note This function is designed to be called through ndb_trans_retry().
+   *
+   * @param      ndb_transaction  NdbTransaction object to perform the read.
+   * @param      ndb_schema_tab   Pointer to ndb_schema table's
+   *                              NdbDictionary::Table object.
+   * @param[out] database_ddls    Vector of Ndb_schema_tuple consisting DDLs
+   *                              read from ndb_schema table
+   * @return NdbError On failure
+   *         nullptr  On success
+   */
+  static const NdbError *fetch_database_ddls(
+      NdbTransaction *ndb_transaction,
+      const NdbDictionary::Table *ndb_schema_tab,
+      std::vector<Ndb_schema_tuple> *database_ddls) {
+    DBUG_ASSERT(ndb_transaction != nullptr);
+    DBUG_ENTER("Ndb_binlog_setup::fetch_database_ddls");
+
+    /* Create scan operation and define the read */
+    NdbScanOperation *op = ndb_transaction->getNdbScanOperation(ndb_schema_tab);
+    if (op == nullptr) {
+      DBUG_RETURN(&ndb_transaction->getNdbError());
+    }
+
+    if (op->readTuples(NdbScanOperation::LM_Read, NdbScanOperation::SF_TupScan,
+                       1) != 0) {
+      DBUG_RETURN(&op->getNdbError());
+    }
+
+    /* Define the attributes to be fetched */
+    NdbRecAttr *ndb_rec_db = op->getValue(Ndb_schema_dist_table::COL_DB);
+    NdbRecAttr *ndb_rec_name = op->getValue(Ndb_schema_dist_table::COL_NAME);
+    NdbRecAttr *ndb_rec_id = op->getValue(Ndb_schema_dist_table::COL_ID);
+    NdbRecAttr *ndb_rec_version =
+        op->getValue(Ndb_schema_dist_table::COL_VERSION);
+    if (!ndb_rec_db || !ndb_rec_name || !ndb_rec_id || !ndb_rec_version) {
+      DBUG_RETURN(&op->getNdbError());
+    }
+
+    char query[64000];
+    NdbBlob *query_blob_handle =
+        op->getBlobHandle(Ndb_schema_dist_table::COL_QUERY);
+    if (!query_blob_handle ||
+        (query_blob_handle->getValue(query, sizeof(query)) != 0)) {
+      DBUG_RETURN(&op->getNdbError());
+    }
+
+    /* Start scanning */
+    if (ndb_transaction->execute(NdbTransaction::NoCommit)) {
+      DBUG_RETURN(&ndb_transaction->getNdbError());
+    }
+
+    /* Handle the results and store it in the map */
+    while ((op->nextResult()) == 0) {
+      std::string db_name = Ndb_util_table::unpack_varbinary(ndb_rec_db);
+      std::string table_name = Ndb_util_table::unpack_varbinary(ndb_rec_name);
+      /* Database DDLs are entries with no table_name */
+      if (table_name.empty()) {
+        /* NULL terminate the query string by
+           getting the length of the query blob */
+        Uint64 query_length = 0;
+        if (query_blob_handle->getLength(query_length)) {
+          DBUG_RETURN(&query_blob_handle->getNdbError());
+        }
+        query[query_length] = 0;
+
+        /* Inspect the query string further to find out the DDL type */
+        Ndb_schema_ddl_type type;
+        if (native_strncasecmp("CREATE", query, 6) == 0) {
+          type = SCHEMA_DDL_CREATE;
+        } else if (native_strncasecmp("ALTER", query, 5) == 0) {
+          type = SCHEMA_DDL_ALTER;
+        } else if (native_strncasecmp("DROP", query, 4) == 0) {
+          type = SCHEMA_DDL_DROP;
+        } else {
+          /* Not a database DDL skip this one */
+          continue;
+        }
+        /* Add the database DDL to the map */
+        database_ddls->push_back(
+            std::make_tuple(db_name, query, type, ndb_rec_id->u_32_value(),
+                            ndb_rec_version->u_32_value()));
+      }
+    }
+    /* Successfully read the rows. Return to caller */
+    DBUG_RETURN(nullptr);
+  }
+
   /*
     NDB has no representation of the database schema objects, but
     the mysql.ndb_schema table contains the latest schema operations
     done via a mysqld, and thus reflects databases created/dropped/altered.
     This function tries to restore the correct state w.r.t created databases
-    using the information in that table.
+    using the information in that table, NDB Dictionary and DD.
   */
-  static
-  int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
-  {
-    Ndb *ndb= thd_ndb->ndb;
-    NDBDICT *dict= ndb->getDictionary();
-    NdbTransaction *trans= NULL;
-    NdbError ndb_error;
-    int retries= 100;
-    int retry_sleep= 30; /* 30 milliseconds, transaction */
-    DBUG_ENTER("Ndb_binlog_setup::find_all_databases");
+  bool synchronize_databases() {
+    ndb_log_info("Synchronizing databases");
+    DBUG_ENTER("Ndb_binlog_setup::synchronize_databases");
 
     /*
       Function should only be called while ndbcluster_global_schema_lock
       is held, to ensure that ndb_schema table is not being updated while
-      scanning.
-    */
-    if (!thd_ndb->has_required_global_schema_lock("Ndb_binlog_setup::find_all_databases"))
-      DBUG_RETURN(1);
+      synchronizing the databases.
+     */
+    Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
+    if (!thd_ndb->has_required_global_schema_lock(
+            "Ndb_binlog_setup::synchronize_databases"))
+      DBUG_RETURN(false);
 
-    ndb->setDatabaseName(NDB_REP_DB);
+    /* Open the ndb_schema table for reading */
+    Ndb *ndb = thd_ndb->ndb;
+    Ndb_schema_dist_table ndb_schema_table(thd_ndb);
+    if (!ndb_schema_table.open()) {
+      const NdbError &ndb_error = ndb->getDictionary()->getNdbError();
+      ndb_log_error("Failed to open ndb_schema table, Error : %u(%s)",
+                    ndb_error.code, ndb_error.message);
+      DBUG_RETURN(false);
+    }
+    const NDBTAB *ndbtab = ndb_schema_table.get_table();
 
+    /* Create the std::function instance of fetch_database_ddls()
+       to be used with ndb_trans_retry() */
+    std::function<const NdbError *(NdbTransaction *,
+                                   const NdbDictionary::Table *,
+                                   std::vector<Ndb_schema_tuple> *)>
+        fetch_db_func = std::bind(&fetch_database_ddls, std::placeholders::_1,
+                                  std::placeholders::_2, std::placeholders::_3);
+
+    /* Read ndb_schema and fetch the database DDLs */
+    NdbError last_ndb_err;
+    std::vector<Ndb_schema_tuple> database_ddls;
+    if (!ndb_trans_retry(ndb, m_thd, last_ndb_err, fetch_db_func, ndbtab,
+                         &database_ddls)) {
+      ndb_log_error(
+          "Failed to fetch database DDL from ndb_schema table. Error : %u(%s)",
+          last_ndb_err.code, last_ndb_err.message);
+      DBUG_RETURN(false);
+    }
+
+    /* Fetch list of databases used in NDB */
+    std::unordered_set<std::string> databases_in_NDB;
+    if (!ndb_get_database_names_in_dictionary(thd_ndb->ndb->getDictionary(),
+                                              databases_in_NDB)) {
+      ndb_log_error("Failed to fetch database names from NDB");
+      DBUG_RETURN(false);
+    }
+
+    /* Read all the databases from DD */
+    Ndb_dd_client dd_client(m_thd);
+    std::map<std::string, const dd::Schema *> databases_in_DD;
+    if (!dd_client.fetch_all_schemas(databases_in_DD)) {
+      ndb_log_error("Failed to fetch schema details from DD");
+      DBUG_RETURN(false);
+    }
+
+    /* Mark this as a participant so that the any DDLs don't get distributed */
     Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
     thd_ndb_options.set(Thd_ndb::IS_SCHEMA_DIST_PARTICIPANT);
-    while (1)
-    {
-      char db_buffer[FN_REFLEN];
-      char *db= db_buffer+1;
-      char name[FN_REFLEN];
-      char query[64000];
-      Ndb_table_guard ndbtab_g(dict, NDB_SCHEMA_TABLE);
-      const NDBTAB *ndbtab= ndbtab_g.get_table();
-      NdbScanOperation *op;
-      NdbBlob *query_blob_handle;
-      int r= 0;
-      if (ndbtab == NULL)
-      {
-        ndb_error= dict->getNdbError();
-        goto error;
-      }
-      trans= ndb->startTransaction();
-      if (trans == NULL)
-      {
-        ndb_error= ndb->getNdbError();
-        goto error;
-      }
-      op= trans->getNdbScanOperation(ndbtab);
-      if (op == NULL)
-      {
-        ndb_error= trans->getNdbError();
-        goto error;
-      }
 
-      op->readTuples(NdbScanOperation::LM_Read,
-                     NdbScanOperation::SF_TupScan, 1);
+    /* Inspect the DDLs obtained from ndb_schema and act upon it based on
+       the list of databases available in the DD and NDB */
+    Ndb_local_connection mysqld(m_thd);
+    for (auto &ddl_tuple : database_ddls) {
+      /* Read all the values from tuple */
+      std::string db_name, query;
+      Ndb_schema_ddl_type schema_ddl_type;
+      unsigned int ddl_counter, ddl_node_id;
+      std::tie(db_name, query, schema_ddl_type, ddl_counter, ddl_node_id) =
+          ddl_tuple;
+      DBUG_ASSERT(ddl_counter != 0 && ddl_node_id != 0);
+      ndb_log_verbose(5,
+                      "ndb_schema query : '%s', db : '%s', "
+                      "counter : %u, node_id : %u",
+                      query.c_str(), db_name.c_str(), ddl_counter, ddl_node_id);
 
-      r|= op->getValue("db", db_buffer) == NULL;
-      r|= op->getValue("name", name) == NULL;
-      r|= (query_blob_handle= op->getBlobHandle("query")) == NULL;
-      r|= query_blob_handle->getValue(query, sizeof(query));
+      /* Check if the database exists in DD and read in its version info */
+      bool db_exists_in_DD = false;
+      bool tables_exist_in_database = false;
+      unsigned int schema_counter = 0, schema_node_id = 0;
+      auto it = databases_in_DD.find(db_name);
+      if (it != databases_in_DD.end()) {
+        db_exists_in_DD = true;
 
-      if (r)
-      {
-        ndb_error= op->getNdbError();
-        goto error;
-      }
+        /* Read se_private_data */
+        const dd::Schema *schema = it->second;
+        ndb_dd_schema_get_counter_and_nodeid(schema, schema_counter,
+                                             schema_node_id);
+        ndb_log_verbose(5,
+                        "Found schema '%s' in DD with "
+                        "counter : %u, node_id : %u",
+                        db_name.c_str(), ddl_counter, ddl_node_id);
 
-      if (trans->execute(NdbTransaction::NoCommit))
-      {
-        ndb_error= trans->getNdbError();
-        goto error;
-      }
-
-      while ((r= op->nextResult()) == 0)
-      {
-        unsigned db_len= db_buffer[0];
-        unsigned name_len= name[0];
-        /*
-          name_len == 0 means no table name, hence the row
-          is for a database
-        */
-        if (db_len > 0 && name_len == 0)
-        {
-          /* database found */
-          db[db_len]= 0;
-
-          /* find query */
-          Uint64 query_length= 0;
-          if (query_blob_handle->getLength(query_length))
-          {
-            ndb_error= query_blob_handle->getNdbError();
-            goto error;
-          }
-          query[query_length]= 0;
-          build_table_filename(name, sizeof(name), db, "", "", 0);
-          int database_exists= !my_access(name, F_OK);
-          if (native_strncasecmp("CREATE", query, 6) == 0)
-          {
-            /* Database should exist */
-            if (!database_exists)
-            {
-              /* create missing database */
-              ndb_log_info("Discovered missing database '%s'", db);
-              const int no_print_error[1]= {0};
-              run_query(thd, query, query + query_length,
-                        no_print_error);
-            }
-          }
-          else if (native_strncasecmp("ALTER", query, 5) == 0)
-          {
-            /* Database should exist */
-            if (!database_exists)
-            {
-              /* create missing database */
-              ndb_log_info("Discovered missing database '%s'", db);
-              const int no_print_error[1]= {0};
-              name_len= (unsigned)snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
-              run_query(thd, name, name + name_len,
-                        no_print_error);
-              run_query(thd, query, query + query_length,
-                        no_print_error);
-            }
-          }
-          else if (native_strncasecmp("DROP", query, 4) == 0)
-          {
-            /* Database should not exist */
-            if (database_exists)
-            {
-              /* drop missing database */
-              ndb_log_info("Discovered remaining database '%s'", db);
-            }
-          }
+        /* Check if there are any local tables */
+        if (!ndb_dd_has_local_tables_in_schema(m_thd, db_name.c_str(),
+                                               tables_exist_in_database)) {
+          ndb_log_error(
+              "Failed to check if the Schema '%s' has any local tables",
+              db_name.c_str());
+          DBUG_RETURN(false);
         }
       }
-      if (r == -1)
-      {
-        ndb_error= op->getNdbError();
-        goto error;
-      }
-      ndb->closeTransaction(trans);
-      trans= NULL;
-      DBUG_RETURN(0); // success
 
-    error:
-      if (trans)
-      {
-        ndb->closeTransaction(trans);
-        trans= NULL;
-      }
-      if (ndb_error.status == NdbError::TemporaryError && !thd->killed)
-      {
-        if (retries--)
-        {
-          ndb_log_warning("ndbcluster_find_all_databases retry: %u - %s",
-                          ndb_error.code,
-                          ndb_error.message);
-          ndb_retry_sleep(retry_sleep);
-          continue; // retry
-        }
-      }
-      if (!thd->killed)
-      {
-        ndb_log_error("ndbcluster_find_all_databases fail: %u - %s",
-                      ndb_error.code,
-                      ndb_error.message);
-      }
+      /* Check if the database has tables in NDB. */
+      tables_exist_in_database |=
+          (databases_in_NDB.find(db_name) != databases_in_NDB.end());
 
-      DBUG_RETURN(1); // not temp error or too many retries
+      /* Handle the relevant DDL based on the
+         existence of the database in DD and NDB*/
+      switch (schema_ddl_type) {
+        case SCHEMA_DDL_CREATE: {
+          /* Flags to decide if the database needs to be created */
+          bool create_database = !db_exists_in_DD;
+          bool update_version = create_database;
+
+          if (db_exists_in_DD && (ddl_node_id != schema_node_id ||
+                                  ddl_counter != schema_counter)) {
+            /* Database exists in DD but version differs.
+               Drop and recreate database iff it is empty */
+            if (!tables_exist_in_database) {
+              if (mysqld.drop_database(db_name)) {
+                ndb_log_error("Failed to update database '%s'",
+                              db_name.c_str());
+                DBUG_RETURN(false);
+              }
+              /* Mark that the database needs to be created */
+              create_database = true;
+            } else {
+              /* Database has tables in it. Just update the version later. */
+              ndb_log_warning(
+                  "Database '%s' exists already with a different version",
+                  db_name.c_str());
+            }
+            /* The version information in the ndb_schema is the right version.
+               So, always update the version of schema in DD to that in the
+               ndb_schema if they differ. */
+            update_version = true;
+          }
+
+          if (create_database) {
+            /* Create it by running the DDL */
+            if (mysqld.execute_database_ddl(query)) {
+              ndb_log_error("Failed to create database '%s'.", db_name.c_str());
+              DBUG_RETURN(false);
+            }
+            ndb_log_info("Created database '%s'", db_name.c_str());
+          }
+
+          if (update_version) {
+            /* Update the schema version */
+            if (!ndb_dd_update_schema_version(m_thd, db_name.c_str(),
+                                              ddl_counter, ddl_node_id)) {
+              ndb_log_error(
+                  "Failed to update version in DD for database : '%s'",
+                  db_name.c_str());
+              DBUG_RETURN(false);
+            }
+            ndb_log_info(
+                "Updated the version of database '%s' to "
+                "counter : %u, node_id : %u",
+                db_name.c_str(), ddl_counter, ddl_node_id);
+          }
+
+          /* Remove the database name from the NDB list */
+          databases_in_NDB.erase(db_name);
+
+        } break;
+        case SCHEMA_DDL_ALTER: {
+          if (!db_exists_in_DD) {
+            /* Database doesn't exist. Create it. */
+            if (mysqld.create_database(db_name)) {
+              ndb_log_error("Failed to create database '%s'", db_name.c_str());
+              DBUG_RETURN(false);
+            }
+            ndb_log_info("Created database '%s'", db_name.c_str());
+          }
+
+          /* Compare the versions and run the alter if they differ */
+          if (ddl_node_id != schema_node_id || ddl_counter != schema_counter) {
+            if (mysqld.execute_database_ddl(query)) {
+              ndb_log_error("Failed to alter database '%s'.", db_name.c_str());
+              DBUG_RETURN(false);
+            }
+            /* Update the schema version */
+            if (!ndb_dd_update_schema_version(m_thd, db_name.c_str(),
+                                              ddl_counter, ddl_node_id)) {
+              ndb_log_error(
+                  "Failed to update version in DD for database : '%s'",
+                  db_name.c_str());
+              DBUG_RETURN(false);
+            }
+            ndb_log_info("Successfully altered database '%s'", db_name.c_str());
+          }
+
+          /* Remove the database name from the NDB list */
+          databases_in_NDB.erase(db_name);
+
+        } break;
+        case SCHEMA_DDL_DROP: {
+          if (db_exists_in_DD) {
+            /* Database exists in DD */
+            if (!tables_exist_in_database) {
+              /* drop it if doesn't have any table in it */
+              if (mysqld.drop_database(db_name)) {
+                ndb_log_error("Failed to drop database '%s'.", db_name.c_str());
+                DBUG_RETURN(false);
+              }
+              ndb_log_info("Dropped database '%s'", db_name.c_str());
+            } else {
+              /* It has table(s) in it. Skip dropping it */
+              ndb_log_warning("Database '%s' has tables. Skipped dropping it.",
+                              db_name.c_str());
+
+              /* Update the schema version to drop database DDL's version */
+              if (!ndb_dd_update_schema_version(m_thd, db_name.c_str(),
+                                                ddl_counter, ddl_node_id)) {
+                ndb_log_error(
+                    "Failed to update version in DD for database : '%s'",
+                    db_name.c_str());
+                DBUG_RETURN(false);
+              }
+            }
+
+            /* Remove the database name from the NDB list */
+            databases_in_NDB.erase(db_name);
+          }
+        } break;
+        default:
+          DBUG_ASSERT(!"Unknown database DDL type");
+      }
     }
-  }
 
+    /* Check that all the remaining databases in NDB are in DD.
+       Create them if they don't exist in the DD. */
+    for (std::string db_name : databases_in_NDB) {
+      if (databases_in_DD.find(db_name) == databases_in_DD.end()) {
+        /* Create the database with default properties */
+        if (mysqld.create_database(db_name)) {
+          ndb_log_error("Failed to create database '%s'.", db_name.c_str());
+          DBUG_RETURN(false);
+        }
+        ndb_log_info("Discovered a database : '%s'", db_name.c_str());
+      }
+    }
+    DBUG_RETURN(true);
+  }
 
   bool
   remove_table_from_dd(const char* schema_name,
@@ -2086,10 +2273,14 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    Ndb_dd_client dd_client(m_thd);
+    // Synchronize databases
+    if (!synchronize_databases())
+    {
+      ndb_log_warning("Failed to synchronize databases");
+      return false;
+    }
 
-    // Current assumption is that databases already has been
-    // synched by 'find_all_databases"
+    Ndb_dd_client dd_client(m_thd);
 
     // Fetch list of schemas in DD
     std::vector<std::string> schema_names;
@@ -2366,8 +2557,6 @@ public:
    Ndb_apply_status_table apply_status_table(thd_ndb);
    Util_table_creator apply_table_creator(m_thd, thd_ndb, apply_status_table);
    if (!apply_table_creator.create_or_upgrade(true)) return false;
-
-   if (find_all_databases(m_thd, thd_ndb)) return false;
 
    if (!synchronize_data_dictionary()) {
      ndb_log_verbose(9, "Failed to synchronize DD with NDB");

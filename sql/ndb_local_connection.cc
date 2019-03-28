@@ -252,6 +252,42 @@ bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
 }
 
 
+bool Ndb_local_connection::create_database(const std::string& database_name) {
+  DBUG_ENTER("Ndb_local_connection::create_database");
+  // Don't ignore any errors
+  uint ignore_mysql_errors[1] = {0};
+  const std::string create_database_sql = "CREATE DATABASE " + database_name;
+  MYSQL_LEX_STRING sql_text = {const_cast<char *>(create_database_sql.c_str()),
+                               create_database_sql.length()};
+
+  DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
+}
+
+
+bool Ndb_local_connection::drop_database(const std::string& database_name) {
+  DBUG_ENTER("Ndb_local_connection::drop_database");
+  // Don't ignore any errors
+  uint ignore_mysql_errors[1] = {0};
+  std::string drop_database_sql = "DROP DATABASE ";
+  drop_database_sql += database_name;
+  MYSQL_LEX_STRING sql_text = {const_cast<char *>(drop_database_sql.c_str()),
+                               drop_database_sql.length()};
+
+  DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
+}
+
+
+bool Ndb_local_connection::execute_database_ddl(const std::string& ddl_query) {
+  DBUG_ENTER("Ndb_local_connection::execute_database_ddl");
+  // Don't ignore any errors
+  uint ignore_mysql_errors[1] = {0};
+  MYSQL_LEX_STRING sql_text = {const_cast<char *>(ddl_query.c_str()),
+                               ddl_query.length()};
+
+  DBUG_RETURN(execute_query_iso(sql_text, ignore_mysql_errors, nullptr));
+}
+
+
 bool
 Ndb_local_connection::raw_run_query(const char* query, size_t query_length,
                                     const int* suppress_errors)

@@ -840,6 +840,26 @@ Ndb_dd_client::set_tablespace_id_in_table(const char *schema_name,
 
 
 bool
+Ndb_dd_client::fetch_all_schemas(
+    std::map<std::string, const dd::Schema*> &schemas) {
+  DBUG_ENTER("Ndb_dd_client::fetch_all_schemas");
+
+  std::vector<const dd::Schema*> schemas_list;
+  if (m_client->fetch_global_components(&schemas_list))
+  {
+    DBUG_PRINT("error", ("Failed to fetch all schemas"));
+    DBUG_RETURN(false);
+  }
+
+  for (const dd::Schema* schema : schemas_list)
+  {
+    schemas.insert(std::make_pair(schema->name().c_str(), schema));
+  }
+  DBUG_RETURN(true);
+}
+
+
+bool
 Ndb_dd_client::fetch_schema_names(std::vector<std::string>* names)
 {
   DBUG_ENTER("Ndb_dd_client::fetch_schema_names");

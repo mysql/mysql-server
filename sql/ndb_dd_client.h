@@ -25,6 +25,7 @@
 #ifndef NDB_DD_CLIENT_H
 #define NDB_DD_CLIENT_H
 
+#include <map>
 #include <set>
 #include <vector>
 #include <unordered_set>
@@ -38,6 +39,7 @@ namespace dd {
   namespace cache {
     class Dictionary_client;
   }
+  class Schema;
   class Table;
   class Tablespace;
 }
@@ -146,6 +148,7 @@ public:
                                   const char *table_name,
                                   dd::Object_id tablespace_id);
 
+  bool fetch_all_schemas(std::map<std::string, const dd::Schema*>&);
   bool fetch_schema_names(std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,
                                      std::unordered_set<std::string> *names);

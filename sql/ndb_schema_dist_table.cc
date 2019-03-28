@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,12 +32,12 @@
 
 const char* Ndb_schema_dist_table::COL_DB = "db";
 const char* Ndb_schema_dist_table::COL_NAME = "name";
+const char* Ndb_schema_dist_table::COL_QUERY = "query";
+const char* Ndb_schema_dist_table::COL_ID = "id";
+const char* Ndb_schema_dist_table::COL_VERSION = "version";
 static const char* COL_SLOCK = "slock";
-static const char* COL_QUERY = "query";
 static const char* COL_NODEID = "node_id";
 static const char* COL_EPOCH = "epoch";
-static const char* COL_ID = "id";
-static const char* COL_VERSION = "version";
 static const char* COL_TYPE = "type";
 
 Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)

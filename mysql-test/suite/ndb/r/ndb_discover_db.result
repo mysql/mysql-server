@@ -1,33 +1,125 @@
-create database discover_db;
-create table discover_db.t1 (a int key, b int) engine ndb;
-create database discover_db_2;
-alter database discover_db_2 character set binary;
-create table discover_db_2.t1 (a int key, b int) engine ndb;
-show create database discover_db;
+#
+# WL#12731: Improve database synchronization during mysqld startup
+#
+# Setup - create few databases and tables so that the alter and drop statements can be tested.
+create database alter_db1 charset utf8mb4;
+create table alter_db1.t1 (a int);
+create database drop_db1;
+create database drop_db2;
+create table drop_db2.t1(a int) engine ndb;
+create database drop_db3;
+create table drop_db3.t1(a int);
+create database restore_db1;
+create table restore_db1.t1(a int) engine ndb;
+create database restore_db2 charset latin1;
+create table restore_db2.t1(a int) engine ndb;
+create database restore_db3 charset latin1;
+create table restore_db3.t1(a int) engine ndb;
+# Take a backup of the current setup
+# Drop restore_db1,restore_db2 to check how the server startup handles database restores
+drop database restore_db1;
+drop database restore_db2;
+#
+# Shutdown Server1
+#
+#
+# Run DDLs on Server2 when server1 is down
+#
+# Create a database
+create database create_db;
+# Add tables to it
+create table create_db.t1(a int) engine ndb;
+create table create_db.t2(a int);
+# Alter already existing databases
+alter database alter_db1 charset latin1;
+# Create and alter a database
+create database alter_db2 charset utf8mb4;
+alter database alter_db2 charset latin1;
+# Drop databases
+drop database drop_db1;
+drop database drop_db2;
+drop database drop_db3;
+# Drop database restore_db3 and then restore restore_db1, restore_db2, restore_db3
+drop database restore_db3;
+#
+# Startup server1
+#
+#
+# Now check that the databases are in expected states
+#
+# Verify that create_db has been discovered
+show create database create_db;
 Database	Create Database
-discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
-show create database discover_db_2;
+create_db	CREATE DATABASE `create_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Verify t1 has been created. t2 won't be as it is local to Server 2.
+show tables from create_db;
+Tables_in_create_db
+t1
+show create table create_db.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table create_db.t2;
+ERROR 42S02: Table 'create_db.t2' doesn't exist
+# Verify that the database alter_db1 were properly altered
+show create database alter_db1;
 Database	Create Database
-discover_db_2	CREATE DATABASE `discover_db_2` /*!40100 DEFAULT CHARACTER SET binary */ /*!80016 DEFAULT ENCRYPTION='N' */
-reset master;
-insert into discover_db.t1 values (1,1);
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (discover_db.t1)
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	#	#	table_id: #
-mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	#	#	COMMIT
-reset master;
-insert into discover_db_2.t1 values (1,1);
-include/show_binlog_events.inc
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-mysqld-bin.000001	#	Query	#	#	BEGIN
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (discover_db_2.t1)
-mysqld-bin.000001	#	Table_map	#	#	table_id: # (mysql.ndb_apply_status)
-mysqld-bin.000001	#	Write_rows	#	#	table_id: #
-mysqld-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-mysqld-bin.000001	#	Query	#	#	COMMIT
-drop database discover_db;
-drop database discover_db_2;
+alter_db1	CREATE DATABASE `alter_db1` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Check that alter_db2 is created and altered
+show create database alter_db2;
+Database	Create Database
+alter_db2	CREATE DATABASE `alter_db2` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Check the states of databases that were dropped
+# Databases drop_db1 and drop_db2 should be dropped.
+show create database drop_db1;
+ERROR 42000: Unknown database 'drop_db1'
+show create database drop_db2;
+ERROR 42000: Unknown database 'drop_db2'
+# Database drop_db3 should be preserved.
+show create database drop_db3;
+Database	Create Database
+drop_db3	CREATE DATABASE `drop_db3` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+# Check that the databases and tables that were
+# dropped and restored are now discovered
+show create database restore_db1;
+Database	Create Database
+restore_db1	CREATE DATABASE `restore_db1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+show create table restore_db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# restore_db2 was dropped when both mysqlds were alive
+# so it would have been discovered with default charset
+show create database restore_db2;
+Database	Create Database
+restore_db2	CREATE DATABASE `restore_db2` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+show create table restore_db2.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# restore_db3 was dropped when server1 was down
+# when server1 came up, it should have been
+# preserved the database with previous setting
+show create database restore_db3;
+Database	Create Database
+restore_db3	CREATE DATABASE `restore_db3` /*!40100 DEFAULT CHARACTER SET latin1 */ /*!80016 DEFAULT ENCRYPTION='N' */
+show create table restore_db3.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+#
+# Cleanup
+#
+drop table create_db.t2;
+drop table drop_db3.t1;
+drop database create_db;
+drop database alter_db1;
+drop database alter_db2;
+drop database drop_db3;
+drop database restore_db1;
+drop database restore_db2;
+drop database restore_db3;

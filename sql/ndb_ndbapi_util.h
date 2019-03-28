@@ -176,4 +176,15 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
                             const std::string &tablespace_name,
                             std::vector<std::string> &datafile_names);
 
+
+/**
+ * @brief Retrieves list of database names in NDB Dictionary
+ * @param dict                 NDB Dictionary
+ * @param database_names [out] List of database names in Dictionary
+ * @return true on success, false on failure
+ */
+bool
+ndb_get_database_names_in_dictionary(NdbDictionary::Dictionary* dict,
+    std::unordered_set<std::string>& database_names);
+
 #endif

@@ -59,8 +59,8 @@
   @param args               The arguments that need to be passed to the
                             function during execution.
 
-  @retval const NdbError*   On failure
-  @retval nullptr           On success
+  @retval true              On success
+  @retval false             On failure
 */
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_execute_and_retry(
@@ -122,12 +122,12 @@ bool ndb_execute_and_retry(
 */
 template <typename... FunctionArgTypes, typename... FunctionArgs>
 bool ndb_trans_retry(
-    Ndb *ndb, const THD *thd, NdbError &ndb_err,
+    Ndb *ndb, const THD *thd, NdbError &last_ndb_err,
     std::function<const NdbError *(NdbTransaction *, FunctionArgTypes...)>
         ndb_func,
     FunctionArgs... args) {
   return ndb_execute_and_retry<FunctionArgTypes...>(
-      ndb, thd, 30, ndb_err, ndb_func, std::forward<FunctionArgs>(args)...);
+      ndb, thd, 30, last_ndb_err, ndb_func, std::forward<FunctionArgs>(args)...);
 }
 
 #endif /* NDB_RETRY_H */

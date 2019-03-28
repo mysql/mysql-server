@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,11 @@
 // Implements the interface defined in
 #include "sql/ndb_util_table.h"
 
+#include "my_base.h"
+#include "my_byteorder.h" // uint2korr
 #include "mysql_version.h"
 #include "sql/ndb_thd_ndb.h"
+#include "ndbapi/NdbRecAttr.hpp" // NdbRecAttr
 
 class Db_name_guard {
   Ndb * const m_ndb;
@@ -273,4 +276,35 @@ bool Ndb_util_table::upgrade() const {
   }
 
   return true;
+}
+
+
+std::string
+Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
+  DBUG_ENTER("Ndb_util_table::unpack_varbinary");
+  // Function should be called only on a varbinary column
+  DBUG_ASSERT(ndbRecAttr->getType() == NdbDictionary::Column::Varbinary ||
+              ndbRecAttr->getType() == NdbDictionary::Column::Longvarbinary);
+
+  // Retrieve the complete packed value from the NdbRecAttr
+  char *packed_value = ndbRecAttr->aRef();
+  // Calculate the length bytes from column length
+  const uint length_bytes =
+      HA_VARCHAR_PACKLENGTH(ndbRecAttr->getColumn()->getLength());
+
+  // Read length of the varbinary which is stored in the value
+  const uint varbinary_length =
+      length_bytes == 1 ?
+          static_cast<uint>(packed_value[0]) : uint2korr(packed_value);
+  // the varbinary length and length bytes should add up
+  // to the total length of the data stored in ndbRecAttr
+  // or else the value is corrupted
+  DBUG_ASSERT(varbinary_length + length_bytes ==
+              ndbRecAttr->get_size_in_bytes());
+  DBUG_PRINT("info", ("varbinary length: %u", varbinary_length));
+
+  // Extract the actual row data and return
+  const char *varbinary_start =
+      reinterpret_cast<const char *>(packed_value + length_bytes);
+  DBUG_RETURN(std::string(varbinary_start, varbinary_length));
 }

@@ -294,3 +294,35 @@ bool ndb_get_datafile_names(NdbDictionary::Dictionary *dict,
   }
   return true;
 }
+
+
+bool
+ndb_get_database_names_in_dictionary(
+    NdbDictionary::Dictionary* dict,
+    std::unordered_set<std::string>& database_names) {
+  DBUG_ENTER("ndb_get_database_names_in_dictionary");
+
+  /* Get all the list of tables from NDB and read the database names */
+  NdbDictionary::Dictionary::List list;
+  if (dict->listObjects(list, NdbDictionary::Object::UserTable) != 0)
+    DBUG_RETURN(false);
+
+  for (uint i= 0 ; i < list.count ; i++) {
+    NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
+
+    /* Skip the table if it is not in an expected state
+       or if it is a temporary or blob table.*/
+    if ((elmt.state != NdbDictionary::Object::StateOnline &&
+         elmt.state != NdbDictionary::Object::StateBuilding) ||
+        ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
+      DBUG_PRINT("debug",
+                 ("Skipping table %s.%s", elmt.database, elmt.name));
+      continue;
+    }
+    DBUG_PRINT("debug",
+               ("Found %s.%s in NDB", elmt.database, elmt.name));
+
+    database_names.insert(elmt.database);
+  }
+  DBUG_RETURN(true);
+}

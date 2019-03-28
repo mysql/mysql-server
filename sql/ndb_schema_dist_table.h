@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,9 @@ class Ndb_schema_dist_table : public Ndb_util_table {
  public:
   static const char* COL_DB;
   static const char* COL_NAME;
+  static const char* COL_QUERY;
+  static const char* COL_ID;
+  static const char* COL_VERSION;
 
   Ndb_schema_dist_table(class Thd_ndb*);
   virtual ~Ndb_schema_dist_table();
