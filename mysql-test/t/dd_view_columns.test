@@ -525,7 +525,7 @@ CREATE TABLE t1 (i INT);
 CREATE VIEW v1 AS SELECT * FROM t1;
 DROP TABLE t1;
 --echo # The below statement caused assertion failure before the fix.
-CREATE TABLE t1 ENGINE=MyISAM SELECT 1 AS i;
+CREATE TABLE t1 ENGINE=InnoDB SELECT 1 AS i;
 DROP TABLE t1;
 DROP VIEW v1;
 

@@ -25,6 +25,9 @@
 ################################################################################
 --source include/force_myisam_default.inc
 
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings

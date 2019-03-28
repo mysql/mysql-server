@@ -1,0 +1,48 @@
+SET GLOBAL long_query_time=0;
+CREATE TABLE islow(i INT) ENGINE=innodb;
+INSERT INTO islow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+CREATE TABLE mslow(i INT) ENGINE=myisam;
+INSERT INTO mslow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+SELECT * FROM islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM islow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SELECT * FROM mslow;
+i
+1
+2
+3
+4
+5
+6
+7
+8
+SET GLOBAL long_query_time=default;
+DROP TABLE islow;
+DROP TABLE mslow;

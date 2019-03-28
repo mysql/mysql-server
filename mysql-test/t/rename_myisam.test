@@ -1,0 +1,201 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+--echo #
+--echo # Bug#24807594 SDI FILE LOSTS AFTER ALTERING DATABASE
+--echo # Verify that .sdi files are cleaned up correctly
+--echo #
+
+let $MYSQLD_DATADIR = `select @@datadir`;
+
+CREATE TABLE t1(i INT) ENGINE MYISAM;
+RENAME TABLE t1 TO tt1;
+--echo # Should only see tt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tt1 TO tt1tt1;
+--echo # Should only see tt1tt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tt1tt1 TO ttt1ttt1ttt1ttt1_xyz;
+--echo # Should only see ttt1ttt1ttt1ttt1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE ttt1ttt1ttt1ttt1_xyz TO tttttttttttttttt1_abc;
+--echo # Should only see tttttttttttttttt_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+RENAME TABLE tttttttttttttttt1_abc TO t1;
+--echo # Should only see t1_XXX.sdi
+--replace_regex /_[0-9]+\.sdi/_XXX.sdi/
+--list_files $MYSQLD_DATADIR/test *.sdi
+
+DROP TABLE t1;
+
+--enable_connect_log
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connect (con1, localhost, root,,);
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection default;
+
+--echo #
+--echo # Non-atomic RENAME TABLES which fails but is fully
+--echo # reverted should restore set of locked tables and
+--echo # state of metadata locks.
+CREATE TABLE t0 (m INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT) ENGINE=InnoDB;
+CREATE TABLE t4 (l INT) ENGINE=InnoDB;
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t0 WRITE;
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLES t0 TO t00, t1 TO t01, t2 TO t4;
+--echo # Tables are available under old names.
+SELECT * FROM t0;
+SELECT * FROM t1;
+SELECT * FROM t2;
+--echo # Including untouched table.
+SELECT * FROM t3;
+--echo # And not under new names.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t00;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t01;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+connection con1;
+--echo # Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t0;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+--echo # And access to untouched table too.
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t3;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # New names should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t00;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t01;
+SELECT * FROM t4;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t0, t1, t2, t3, t4;
+
+--echo #
+--echo # 7) RENAME TABLES under LOCK TABLES which moves tables
+--echo #    between schemas.
+--echo #
+--echo # 7.1) RENAME TABLES under LOCK TABLES which moves table
+--echo #      to different schema acquires IX lock on it and keeps
+--echo #      it until UNLOCK TABLES.
+CREATE TABLE t1 (i INT);
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE;
+RENAME TABLE t1 TO mysqltest.t1;
+--echo # Table is available in new schema!
+INSERT INTO mysqltest.t1 VALUES (1);
+--echo # And not in the old one.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t1;
+connection con1;
+--echo # Access in the new schema from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # But not when trying to find table in old schema.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM test.t1;
+--echo # Also IX metadata lock on new schema should be kept.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+connection default;
+UNLOCK TABLES;
+DROP TABLE mysqltest.t1;
+
+--echo #
+--echo # 7.2) Atomic RENAME TABLES which moves table to different schema
+--echo #      and fails at late stage should be fully rolled back.
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (j INT) ENGINE=InnoDB;
+CREATE TABLE t3 (k INT);
+CREATE TABLE t4 (l INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE;
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLES t1 TO mysqltest.t1, t2 TO t3;
+--echo # Tables are available under old names.
+SELECT * FROM t1;
+SELECT * FROM t2;
+--echo # And not under new names.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM mysqltest.t1;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t3;
+connection con1;
+--echo # Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # New names should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysqltest.t1;
+SELECT * FROM t3;
+--echo # There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # 7.3) Non-atomic RENAME TABLES which moves table to different schema, fails
+--echo #      but is fully reverted should restore set of locked tables and
+--echo #      state of metadata locks too.
+--echo # This part of the test resides in rename_myisam.test.
+LOCK TABLES t4 WRITE, t1 WRITE;
+--error ER_TABLE_EXISTS_ERROR
+RENAME TABLES t4 TO mysqltest.t4, t1 TO t3;
+--echo # Tables are available under old names.
+SELECT * FROM t4;
+SELECT * FROM t1;
+--echo # And not under new names.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM mysqltest.t4;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t3;
+connection con1;
+--echo # Access by old names from other connections should be blocked.
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t4;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--echo # New names should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM mysqltest.t4;
+SELECT * FROM t3;
+--echo # There should be no IX metadata lock on new schema.
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t2, t3, t4;
+DROP DATABASE mysqltest;
+--echo # Clean-up.
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+--disable_connect_log

@@ -1,0 +1,182 @@
+CREATE TABLE t1(f1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2(f1 INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1);
+EXPLAIN SELECT /*+ JOIN_PREFIX(t1, t2)  */ 1 FROM t1 JOIN t2 ON t1.f1 = t2.f1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t1`,`t2`) */ 1 AS `1` from `test`.`t2` where (`test`.`t2`.`f1` = '1')
+EXPLAIN SELECT /*+ JOIN_PREFIX(t2, t1)  */ 1 FROM t1 JOIN t2 ON t1.f1 = t2.f1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`,`t1`) */ 1 AS `1` from `test`.`t2` where (`test`.`t2`.`f1` = '1')
+DROP TABLE t1, t2;
+#
+# Bug#23144274 WL9158:ASSERTION `JOIN->BEST_READ < DOUBLE(1.79769313486231570815E+308L)' FAILED
+#
+CREATE TABLE t1
+(
+f1 DATETIME,
+f2 DATE,
+f3 VARCHAR(1),
+KEY (f1)
+) ENGINE=myisam;
+CREATE TABLE t2
+(
+f1 VARCHAR(1),
+f2 INT,
+f3 VARCHAR(1),
+KEY (f1)
+) ENGINE=innodb;
+CREATE TABLE t3
+(
+f1 VARCHAR(1),
+f2 DATE,
+f3 DATETIME,
+f4 INT
+) ENGINE=myisam;
+EXPLAIN
+UPDATE /*+ JOIN_ORDER(t2, als1, als3) JOIN_FIXED_ORDER()  */ t3 AS als1
+JOIN t1 AS als2 ON (als1.f3 = als2 .f1)
+JOIN t1 AS als3 ON (als1.f1 = als3.f3)
+RIGHT OUTER JOIN t3 AS als4 ON (als1.f3 = als4.f2)
+SET als1.f4 = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc'
+WHERE ('i','b') IN (SELECT f3, f1 FROM t2 WHERE f2 <> f2 AND als2.f2 IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	3126	Hint JOIN_FIXED_ORDER( ) is ignored as conflicting/duplicated
+Note	1276	Field or reference 'test.als2.f2' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t2`,`als1`,`als3`) */ `test`.`t3` `als4` semi join (`test`.`t2`) left join (`test`.`t3` `als1` join `test`.`t1` `als2` join `test`.`t1` `als3`) on(((`test`.`als1`.`f3` = `test`.`als4`.`f2`) and multiple equal(`test`.`als1`.`f1`, `test`.`als3`.`f3`) and multiple equal(`test`.`als1`.`f3`, `test`.`als2`.`f1`))) set `test`.`als1`.`f4` = 'eogqjvbhzodzimqahyzlktkbexkhdwxwgifikhcgblhgswxyutepc' where ((`test`.`t2`.`f2` <> `test`.`t2`.`f2`) and (`test`.`als2`.`f2` is null) and multiple equal('i', `test`.`t2`.`f3`) and multiple equal('b', `test`.`t2`.`f1`))
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1(
+f1 VARCHAR(1)) ENGINE=myisam;
+CREATE TABLE t2(
+f1 VARCHAR(1),
+f2 VARCHAR(1),
+f3 DATETIME,
+KEY(f2)) ENGINE=innodb;
+CREATE TABLE t3(
+f1 INT,
+f2 DATE,
+f3 VARCHAR(1),
+KEY(f3)) ENGINE=myisam;
+CREATE TABLE t4(
+f1 VARCHAR(1),
+KEY(f1)) ENGINE=innodb;
+ALTER TABLE t4 DISABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't4' doesn't have this option
+INSERT INTO t4 VALUES ('x'), (NULL), ('d'), ('x'), ('u');
+ALTER TABLE t4 ENABLE KEYS;
+Warnings:
+Note	1031	Table storage engine for 't4' doesn't have this option
+CREATE TABLE t5(
+f1 VARCHAR(1),
+KEY(f1) ) ENGINE=myisam;
+INSERT INTO t5 VALUES  (NULL), ('s'), ('c'), ('x'), ('z');
+EXPLAIN UPDATE /*+ JOIN_ORDER(t4, alias1, alias3)  */ t3 AS alias1
+JOIN t5 ON (alias1.f3 = t5.f1)
+JOIN t3 AS alias3 ON (alias1.f2 = alias3.f2 )
+RIGHT OUTER JOIN t1 ON (alias1.f3 = t1.f1)
+SET alias1.f1 = -1
+WHERE ( 'v', 'o' )  IN
+(SELECT DISTINCT t2.f1, t2.f2 FROM t4 RIGHT OUTER JOIN t2 ON (t4.f1 = t2.f1)
+WHERE t2.f3 BETWEEN '2001-10-04' AND '2003-05-15');
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	update /*+ JOIN_ORDER(@`select#1` `t4`,`alias1`,`alias3`) */ `test`.`t1` semi join (`test`.`t2` left join `test`.`t4` on((`test`.`t4`.`f1` = `test`.`t2`.`f1`))) left join (`test`.`t3` `alias1` join `test`.`t5` join `test`.`t3` `alias3`) on((multiple equal(`test`.`alias1`.`f3`, `test`.`t1`.`f1`, `test`.`t5`.`f1`) and multiple equal(`test`.`alias1`.`f2`, `test`.`alias3`.`f2`))) set `test`.`alias1`.`f1` = -(1) where ((`test`.`t2`.`f3` between '2001-10-04' and '2003-05-15') and multiple equal('v', `test`.`t2`.`f1`) and multiple equal('o', `test`.`t2`.`f2`))
+DROP TABLE t1, t2, t3, t4, t5;
+CREATE TABLE t1 (
+f1 INT(11) DEFAULT NULL,
+f3 VARCHAR(1) DEFAULT NULL,
+f2 INT(11) DEFAULT NULL,
+KEY (f1)
+) ENGINE=MyISAM;
+CREATE TABLE t2(
+f1 INT(11) DEFAULT NULL
+) ENGINE=MyISAM;
+CREATE TABLE t3 (
+f1 VARCHAR(1) DEFAULT NULL,
+f2 VARCHAR(1) DEFAULT NULL,
+KEY (f2)
+) ENGINE=InnoDB;
+EXPLAIN UPDATE /*+ JOIN_SUFFIX(ta1, t2) */
+t1 AS ta1 JOIN t1 AS ta2 ON ta1.f1 = ta2.f1 RIGHT JOIN t2 ON (ta1.f1 = t2.f1)
+SET ta1.f2 = '', ta2.f3 = ''
+WHERE ('n', 'r') IN (SELECT f2, f1 FROM t3 WHERE f1 <> f2 XOR ta2.f3 IS NULL);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.ta2.f3' of SELECT #2 was resolved in SELECT #1
+Note	1003	update /*+ JOIN_SUFFIX(@`select#1` `ta1`,`t2`) */ `test`.`t2` semi join (`test`.`t3`) left join (`test`.`t1` `ta1` join `test`.`t1` `ta2`) on((multiple equal(`test`.`ta1`.`f1`, `test`.`t2`.`f1`, `test`.`ta2`.`f1`))) set `test`.`ta1`.`f2` = '',`test`.`ta2`.`f3` = '' where (((`test`.`t3`.`f1` <> `test`.`t3`.`f2`) xor (`test`.`ta2`.`f3` is null)) and multiple equal('n', `test`.`t3`.`f2`) and multiple equal('r', `test`.`t3`.`f1`))
+DROP TABLE t1, t2, t3;
+CREATE TABLE t2(f1 VARCHAR(255) DEFAULT NULL, f2 INT(11) DEFAULT NULL,
+KEY (f1), KEY (f2)) charset latin1 ENGINE=MyISAM;
+CREATE TABLE t4(f1 INT(11) DEFAULT NULL, f2 INT(11) DEFAULT NULL, KEY (f1))
+charset latin1 ENGINE=MyISAM;
+CREATE TABLE t5(f1 INT(11) NOT NULL AUTO_INCREMENT, f2 INT(11) DEFAULT NULL, PRIMARY KEY (f1))
+charset latin1 ENGINE=InnoDB;
+CREATE TABLE t6(f1 INT(11) NOT NULL AUTO_INCREMENT, PRIMARY KEY (f1))
+charset latin1 ENGINE=InnoDB;
+CREATE TABLE t7 (f1 VARCHAR(255) DEFAULT NULL)
+charset latin1 ENGINE=InnoDB;
+CREATE TABLE t10(f1 INT(11) NOT NULL AUTO_INCREMENT,f2 INT(11) DEFAULT NULL,f3 VARCHAR(10) DEFAULT NULL,
+PRIMARY KEY (f1),KEY (f2),KEY (f3)) charset latin1 ENGINE=MyISAM;
+CREATE TABLE t11(f1 INT(11) DEFAULT NULL,f2 VARCHAR(10) DEFAULT NULL,
+KEY (f1),KEY (f2)) charset latin1 ENGINE=InnoDB;
+EXPLAIN
+SELECT /*+ JOIN_ORDER(alias11, alias8) */ 1
+FROM t4 AS alias4
+LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
+LEFT JOIN t7 AS alias7 JOIN t2 AS alias8 ON alias7.f1 = alias8.f1
+ON alias5.f1 = alias8.f2 ON alias4.f2 = alias6.f1
+JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
+ON alias4.f2 = alias11.f2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `alias11`,`alias8`) */ 1 AS `1` from `test`.`t4` `alias4` left join (`test`.`t5` `alias5` join `test`.`t6` `alias6` left join (`test`.`t7` `alias7` join `test`.`t2` `alias8`) on((multiple equal(`test`.`alias5`.`f1`, `test`.`alias8`.`f2`) and multiple equal(`test`.`alias7`.`f1`, `test`.`alias8`.`f1`)))) on((multiple equal(NULL, `test`.`alias6`.`f1`, `test`.`alias5`.`f2`))) join `test`.`t10` `alias10` join `test`.`t11` `alias11` where ((NULL = `test`.`alias11`.`f2`) and multiple equal(NULL, `test`.`alias11`.`f1`))
+EXPLAIN
+SELECT /*+ JOIN_ORDER(alias11, alias10, alias8, alias7) */ 1
+FROM t4 AS alias4
+LEFT JOIN t5 AS alias5 JOIN t6 AS alias6 ON alias5.f2 = alias6.f1
+LEFT JOIN t7 AS alias7 JOIN t2 AS alias8 ON alias7.f1 = alias8.f1
+ON alias5.f1 = alias8.f2 ON alias4.f2 = alias6.f1
+JOIN t10 AS alias10 JOIN t11 AS alias11 ON alias10.f1 = alias11.f1
+ON alias4.f2 = alias11.f2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Warning	1739	Cannot use ref access on index 'f2' due to type or collation conversion on field 'f2'
+Note	1003	/* select#1 */ select /*+ JOIN_ORDER(@`select#1` `alias11`,`alias10`,`alias8`,`alias7`) */ 1 AS `1` from `test`.`t4` `alias4` left join (`test`.`t5` `alias5` join `test`.`t6` `alias6` left join (`test`.`t7` `alias7` join `test`.`t2` `alias8`) on((multiple equal(`test`.`alias5`.`f1`, `test`.`alias8`.`f2`) and multiple equal(`test`.`alias7`.`f1`, `test`.`alias8`.`f1`)))) on((multiple equal(NULL, `test`.`alias6`.`f1`, `test`.`alias5`.`f2`))) join `test`.`t10` `alias10` join `test`.`t11` `alias11` where ((NULL = `test`.`alias11`.`f2`) and multiple equal(NULL, `test`.`alias11`.`f1`))
+DROP TABLES t2, t4, t5, t6, t7, t10, t11;
+#
+# Bug#23651098 WL#9158 : ASSERTION `!(SJ_NEST->SJ_INNER_TABLES & JOIN->CONST_TABLE_MAP)' FAILED
+#
+CREATE TABLE t1
+(
+f1 INT(11) NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (f1)
+) ENGINE=InnoDB;
+CREATE TABLE t2
+(
+f1 VARCHAR(1) DEFAULT NULL
+) ENGINE=MyISAM;
+CREATE TABLE t3
+(
+f1 VARCHAR(1) DEFAULT NULL
+) ENGINE=MyISAM;
+EXPLAIN SELECT /*+ JOIN_PREFIX(t2, t1) */ t1.f1 FROM t1, t2
+WHERE t2.f1 IN (SELECT t3.f1 FROM t3) AND t1.f1 = 183;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select /*+ JOIN_PREFIX(@`select#1` `t2`,`t1`) */ NULL AS `f1` from `test`.`t1` semi join (`test`.`t3`) join `test`.`t2` where (multiple equal(183, NULL) and multiple equal(NULL, `test`.`t3`.`f1`))
+DROP TABLE t1, t2, t3;

@@ -157,7 +157,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Verify that the failed RENAME TABLE statement does not save
 # the specified gtid into @@GLOBAL.GTID_EXECUTED and
@@ -173,8 +173,7 @@ include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed tab
 SET SESSION GTID_NEXT='MASTER_UUID:7';
 OPTIMIZE TABLE t1, t_non_existent;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
-test.t1	optimize	status	OK
+test.t1	optimize	status	Table is already up to date
 test.t_non_existent	optimize	Error	Table 'test.t_non_existent' doesn't exist
 test.t_non_existent	optimize	status	Operation failed
 #
@@ -192,7 +191,7 @@ include/assert.inc [Saved gtid MASTER_UUID:7 into mysql.gtid_executed table]
 SET SESSION GTID_NEXT='MASTER_UUID:8';
 ANALYZE TABLE t1, t_non_existent;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	status	Table is already up to date
 test.t_non_existent	analyze	Error	Table 'test.t_non_existent' doesn't exist
 test.t_non_existent	analyze	status	Operation failed
 #
@@ -210,7 +209,7 @@ include/assert.inc [Saved gtid MASTER_UUID:8 into mysql.gtid_executed table]
 SET SESSION GTID_NEXT='MASTER_UUID:9';
 REPAIR TABLE t1, t_non_existent;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 test.t_non_existent	repair	Error	Table 'test.t_non_existent' doesn't exist
 test.t_non_existent	repair	status	Operation failed
 #

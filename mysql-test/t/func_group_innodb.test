@@ -17,9 +17,9 @@ drop table t1;
 #
 
 --disable_warnings
-create table t1m (a int) engine=myisam;
+create table t1m (a int) engine=innodb;
 create table t1i (a int) engine=innodb;
-create table t2m (a int) engine=myisam;
+create table t2m (a int) engine=innodb;
 create table t2i (a int) engine=innodb;
 --enable_warnings
 insert into t2m values (5);

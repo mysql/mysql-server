@@ -1,0 +1,143 @@
+use mysql;
+truncate table general_log;
+select * from general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from general_log
+truncate table slow_log;
+select * from slow_log;
+start_time	user_host	query_time	lock_time	rows_sent	rows_examined	db	last_insert_id	insert_id	server_id	sql_text	thread_id
+alter table mysql.general_log engine=myisam;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+alter table mysql.slow_log engine=myisam;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+drop table mysql.general_log;
+ERROR HY000: You cannot 'DROP' a log table if logging is enabled
+drop table mysql.slow_log;
+ERROR HY000: You cannot 'DROP' a log table if logging is enabled
+set global general_log='OFF';
+alter table mysql.slow_log engine=myisam;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+set global slow_query_log='OFF';
+show create table mysql.general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `user_host` mediumtext NOT NULL,
+  `thread_id` bigint(21) unsigned NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumblob NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+show create table mysql.slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `user_host` mediumtext NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `sql_text` mediumblob NOT NULL,
+  `thread_id` bigint(21) unsigned NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+alter table mysql.general_log engine=myisam;
+alter table mysql.slow_log engine=myisam;
+show create table mysql.general_log;
+Table	Create Table
+general_log	CREATE TABLE `general_log` (
+  `event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `user_host` mediumtext NOT NULL,
+  `thread_id` bigint(21) unsigned NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `command_type` varchar(64) NOT NULL,
+  `argument` mediumblob NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='General log'
+show create table mysql.slow_log;
+Table	Create Table
+slow_log	CREATE TABLE `slow_log` (
+  `start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `user_host` mediumtext NOT NULL,
+  `query_time` time(6) NOT NULL,
+  `lock_time` time(6) NOT NULL,
+  `rows_sent` int(11) NOT NULL,
+  `rows_examined` int(11) NOT NULL,
+  `db` varchar(512) NOT NULL,
+  `last_insert_id` int(11) NOT NULL,
+  `insert_id` int(11) NOT NULL,
+  `server_id` int(10) unsigned NOT NULL,
+  `sql_text` mediumblob NOT NULL,
+  `thread_id` bigint(21) unsigned NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Slow log'
+set global general_log='ON';
+set global slow_query_log='ON';
+select * from mysql.general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from general_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	truncate table slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	alter table mysql.general_log engine=myisam
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	alter table mysql.slow_log engine=myisam
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	drop table mysql.general_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	drop table mysql.slow_log
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set global general_log='OFF'
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set global slow_query_log='ON'
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
+flush logs;
+lock tables mysql.general_log WRITE;
+ERROR HY000: You can't use locks with log tables.
+lock tables mysql.slow_log WRITE;
+ERROR HY000: You can't use locks with log tables.
+lock tables mysql.general_log READ;
+ERROR HY000: You can't use locks with log tables.
+lock tables mysql.slow_log READ;
+ERROR HY000: You can't use locks with log tables.
+set global general_log='OFF';
+set global slow_query_log='OFF';
+set @save_storage_engine= @@session.default_storage_engine;
+set default_storage_engine= MEMORY;
+alter table mysql.slow_log engine=NonExistentEngine;
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+alter table mysql.slow_log engine=memory;
+ERROR HY000: This storage engine cannot be used for log tables
+set default_storage_engine= @save_storage_engine;
+drop table mysql.slow_log;
+drop table mysql.general_log;
+drop table mysql.general_log;
+ERROR 42S02: Unknown table 'mysql.general_log'
+drop table mysql.slow_log;
+ERROR 42S02: Unknown table 'mysql.slow_log'
+CREATE TABLE `general_log` (
+`event_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+ON UPDATE CURRENT_TIMESTAMP(6),
+`user_host` mediumtext NOT NULL,
+`thread_id` bigint(21) unsigned NOT NULL,
+`server_id` int(10) unsigned NOT NULL,
+`command_type` varchar(64) NOT NULL,
+`argument` mediumblob NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CREATE TABLE `slow_log` (
+`start_time` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+ON UPDATE CURRENT_TIMESTAMP(6),
+`user_host` mediumtext NOT NULL,
+`query_time` time(6) NOT NULL,
+`lock_time` time(6) NOT NULL,
+`rows_sent` int(11) NOT NULL,
+`rows_examined` int(11) NOT NULL,
+`db` varchar(512) NOT NULL,
+`last_insert_id` int(11) NOT NULL,
+`insert_id` int(11) NOT NULL,
+`server_id` int(10) unsigned NOT NULL,
+`sql_text` mediumblob NOT NULL,
+`thread_id` bigint(21) unsigned NOT NULL
+) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+set global general_log='ON';
+set global slow_query_log='ON';
+use test;

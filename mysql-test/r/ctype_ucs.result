@@ -424,138 +424,12 @@ a
 Æù×Á
 Æù×ÁÐÒÏÌÄÖ
 DROP TABLE t1;
-CREATE TABLE t1 (word varchar(64) NOT NULL, PRIMARY KEY (word))
-ENGINE=MyISAM CHARACTER SET ucs2 COLLATE ucs2_general_ci;
-INSERT INTO t1 (word) VALUES ("cat");
-SELECT * FROM t1 WHERE word LIKE "c%";
-word
-cat
-SELECT * FROM t1 WHERE word LIKE "ca_";
-word
-cat
-SELECT * FROM t1 WHERE word LIKE "cat";
-word
-cat
-SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630025';
-word
-cat
-SELECT * FROM t1 WHERE word LIKE _ucs2 x'00630061005F';
-word
-cat
-DROP TABLE t1;
 select insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066);
 insert(_ucs2 0x006100620063,10,2,_ucs2 0x006400650066)
 abc
 select insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066);
 insert(_ucs2 0x006100620063,1,2,_ucs2 0x006400650066)
 defc
-SET NAMES latin1;
-CREATE TABLE t1 (
-word VARCHAR(64),
-bar INT(11) default 0,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET ucs2
-COLLATE ucs2_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	0
-aar	0
-aardvar	0
-aardvara	0
-aardvark	0
-aardvarz	0
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	130	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER by word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-CREATE TABLE t1 (
-word VARCHAR(64) ,
-PRIMARY KEY (word))
-ENGINE=MyISAM
-CHARSET ucs2
-COLLATE ucs2_general_ci;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a");
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY WORD;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	PRIMARY	130	NULL	6	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
-CREATE TABLE t1 (
-word TEXT,
-bar INT(11) AUTO_INCREMENT,
-PRIMARY KEY (bar))
-ENGINE=MyISAM
-CHARSET ucs2
-COLLATE ucs2_general_ci ;
-INSERT INTO t1 (word) VALUES ("aar");
-INSERT INTO t1 (word) VALUES ("a" );
-INSERT INTO t1 (word) VALUES ("aardvar");
-INSERT INTO t1 (word) VALUES ("aardvark");
-INSERT INTO t1 (word) VALUES ("aardvara");
-INSERT INTO t1 (word) VALUES ("aardvarz");
-EXPLAIN SELECT * FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word`,`test`.`t1`.`bar` AS `bar` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT * FROM t1 ORDER BY word;
-word	bar
-a	2
-aar	1
-aardvar	3
-aardvara	5
-aardvark	4
-aardvarz	6
-EXPLAIN SELECT word FROM t1 ORDER BY word;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using filesort
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`word` AS `word` from `test`.`t1` order by `test`.`t1`.`word`
-SELECT word FROM t1 ORDER BY word;
-word
-a
-aar
-aardvar
-aardvara
-aardvark
-aardvarz
-DROP TABLE t1;
 SELECT HEX(_ucs2 0x0);
 HEX(_ucs2 0x0)
 0000
@@ -676,6 +550,7 @@ a	0061
 b	0062
 c	0063
 drop table t1;
+set names latin1;
 set @ivar= 1234;
 set @str1 = 'select ?';
 set @str2 = convert(@str1 using ucs2);
@@ -976,17 +851,6 @@ CONVERT(-103, CHAR(50) UNICODE)
 SELECT CONVERT(-103.0, CHAR(50) UNICODE);
 CONVERT(-103.0, CHAR(50) UNICODE)
 -103.0
-CREATE TABLE t1 (
-a varchar(255) NOT NULL default '',
-KEY a (a)
-) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE ucs2_general_ci;
-insert into t1 values (0x803d);
-insert into t1 values (0x005b);
-select hex(a) from t1;
-hex(a)
-005B
-803D
-drop table t1;
 create table t1(f1 varchar(5) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL) engine=InnoDB;
 insert into t1 values('a');
 create index t1f1 on t1(f1);
@@ -1013,30 +877,6 @@ lily
 river
 drop table t1;
 deallocate prepare stmt;
-create table t1 (
-a char(10) unicode not null, 
-index a (a)
-) engine=myisam;
-insert into t1 values (repeat(0x201f, 10));
-insert into t1 values (repeat(0x2020, 10));
-insert into t1 values (repeat(0x2021, 10));
-explain select hex(a) from t1 order by a;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	20	NULL	3	100.00	Using index
-Warnings:
-Note	1003	/* select#1 */ select hex(`test`.`t1`.`a`) AS `hex(a)` from `test`.`t1` order by `test`.`t1`.`a`
-select hex(a) from t1 order by a;
-hex(a)
-201F201F201F201F201F201F201F201F201F201F
-2020202020202020202020202020202020202020
-2021202120212021202120212021202120212021
-alter table t1 drop index a;
-select hex(a) from t1 order by a;
-hex(a)
-201F201F201F201F201F201F201F201F201F201F
-2020202020202020202020202020202020202020
-2021202120212021202120212021202120212021
-drop table t1;
 CREATE TABLE t1 (id int, s char(5) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci);
 INSERT INTO t1 VALUES (1, 'ZZZZZ'), (1, 'ZZZ'), (2, 'ZZZ'), (2, 'ZZZZZ');
 SELECT id, MIN(s) FROM t1 GROUP BY id;
@@ -1103,12 +943,6 @@ set character_set_client= ucs2;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
 set character_set_client= concat('ucs', substr('2', 1));
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
-CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) engine=MyISAM;
-INSERT INTO t1 VALUES('abcd');
-SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abcd' IN BOOLEAN MODE);
-a
-abcd
-DROP TABLE t1;
 End of 4.1 tests
 CREATE TABLE t1 (a varchar(64) character set ucs2, b decimal(10,3));
 INSERT INTO t1 VALUES ("1.1", 0), ("2.1", 0);
@@ -3958,156 +3792,6 @@ SET @ST_X=ST_AsWKT(point(1,2));
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 ucs2	ucs2_general_ci
-#
-# Bug#54916 GROUP_CONCAT + IFNULL truncates output
-#
-SELECT @@collation_connection;
-@@collation_connection
-ucs2_general_ci
-CREATE TABLE t1 (a MEDIUMINT NULL) ENGINE=MYISAM;
-INSERT INTO t1 VALUES (1234567);
-SELECT GROUP_CONCAT(IFNULL(a,'')) FROM t1;
-GROUP_CONCAT(IFNULL(a,''))
-1234567
-SELECT GROUP_CONCAT(IF(a,a,'')) FROM t1;
-GROUP_CONCAT(IF(a,a,''))
-1234567
-SELECT GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END) FROM t1;
-GROUP_CONCAT(CASE WHEN a THEN a ELSE '' END)
-1234567
-SELECT COALESCE(a,'') FROM t1 GROUP BY 1;
-Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def					COALESCE(a,'')	253	9	7	Y	0	31	8
-COALESCE(a,'')
-1234567
-# All columns must be VARCHAR(9) with the same length:
-CREATE TABLE t2 AS
-SELECT
-CONCAT(a),
-IFNULL(a,''),
-IF(a,a,''),
-CASE WHEN a THEN a ELSE '' END,
-COALESCE(a,'')
-FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `CONCAT(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
-  `IFNULL(a,'')` varchar(9) CHARACTER SET ucs2 NOT NULL DEFAULT '',
-  `IF(a,a,'')` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
-  `CASE WHEN a THEN a ELSE '' END` varchar(9) CHARACTER SET ucs2 DEFAULT NULL,
-  `COALESCE(a,'')` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT CONCAT_WS(1,2,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `CONCAT_WS(1,2,3)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT INSERT(1133,3,0,22) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `INSERT(1133,3,0,22)` varchar(6) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LCASE(a) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LCASE(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT UCASE(a) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `UCASE(a)` varchar(9) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT REPEAT(1,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `REPEAT(1,2)` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LEFT(123,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LEFT(123,2)` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT RIGHT(123,2) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `RIGHT(123,2)` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT LTRIM(123) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `LTRIM(123)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT RTRIM(123) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `RTRIM(123)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT ELT(1,111,222,333) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `ELT(1,111,222,333)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT REPLACE(111,2,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `REPLACE(111,2,3)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT SUBSTRING_INDEX(111,111,1) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `SUBSTRING_INDEX(111,111,1)` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT MAKE_SET(111,222,3) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `MAKE_SET(111,222,3)` varchar(5) CHARACTER SET ucs2 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT SOUNDEX(1) FROM t1;
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `SOUNDEX(1)` varchar(4) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-CREATE TABLE t2 AS SELECT EXPORT_SET(1,'ST_Y','N','',8);
-SHOW CREATE TABLE t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `EXPORT_SET(1,'ST_Y','N','',8)` varchar(256) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-DROP TABLE t2;
-DROP TABLE t1;
-#
-# End of Bug#54916
-#
 #
 # WL#5510 Functions to_base64 and from_base64
 #

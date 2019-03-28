@@ -12,7 +12,7 @@ CREATE TABLE t1 (
 CREATE TABLE t2 (
   b int NOT NULL auto_increment PRIMARY KEY,
   c datetime NOT NULL
-) ENGINE= MyISAM;
+) ENGINE= InnoDB;
 
 INSERT INTO t2(c) VALUES ('2007-01-01');
 INSERT INTO t2(c) SELECT c FROM t2;

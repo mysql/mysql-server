@@ -1,6 +1,9 @@
 --source include/no_valgrind_without_big.inc
-#Start server with MyISAM
+# Start server with MyISAM
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
 
 ######## t/ddl_myisam.test ######
 #

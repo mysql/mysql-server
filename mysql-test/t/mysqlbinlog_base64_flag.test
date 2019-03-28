@@ -6,6 +6,8 @@
 #
 # See also BUG#32407.
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 
 disable_warnings;

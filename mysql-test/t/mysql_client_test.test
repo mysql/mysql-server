@@ -1,4 +1,6 @@
 --source include/no_valgrind_without_big.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 # need to have the dynamic loading turned on for the client plugin tests
 --source include/have_plugin_auth.inc

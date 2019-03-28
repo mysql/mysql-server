@@ -37,31 +37,13 @@ INSERT INTO t1_innodb
 SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
 FROM t0 AS a0, t0 AS a1;
 
-# Create the same table in MyISAM
-CREATE TABLE t1_myisam (
-  pk INTEGER PRIMARY KEY,
-  i1 INTEGER NOT NULL,
-  c1 CHAR(250),
-  c2 CHAR(250),
-  c3 CHAR(250),
-  c4 CHAR(250),
-  INDEX i1_key (i1)
-) ENGINE=MyISAM;
+ANALYZE TABLE t1_innodb;
 
-INSERT INTO t1_myisam
-SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
-FROM t0 AS a0, t0 AS a1;
-
-ANALYZE TABLE t1_innodb, t1_myisam;
-
-# Run two queries to see cost estimates when run with default cost constants
+# Run the query to see cost estimates when run with default cost constants
 let query_innodb= SELECT * FROM t1_innodb;
-let query_myisam= SELECT * FROM t1_myisam;
 
 --echo "Explain with cost estimate against InnoDB"
 eval EXPLAIN FORMAT=JSON $query_innodb;
---echo "Explain with cost estimate against MyISAM"
-eval EXPLAIN FORMAT=JSON $query_myisam;
 
 #
 # Update one cost constant in the server cost table and the two cost
@@ -89,12 +71,10 @@ SELECT cost_name, cost_value FROM mysql.server_cost;
 SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 
 #
-# Run the two queries an validate that the cost estimate has doubled
+# Run the two queries and validate that the cost estimate has doubled
 #
---echo "Explain with cost estimate against InnoDB"
-eval EXPLAIN FORMAT=JSON $query_innodb;
 --echo "Explain with cost estimate against MyISAM"
-eval EXPLAIN FORMAT=JSON $query_myisam;
+eval EXPLAIN FORMAT=JSON $query_innodb;
 
 # Reset the cost constants
 UPDATE mysql.server_cost
@@ -119,14 +99,11 @@ SELECT cost_name, cost_value FROM mysql.server_cost;
 SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 
 #
-# Run the two queries and validate that the query against MyISAM has
-# the original cost estimates while the read cost for InnoDB should
-# be four times the original
+# Run the query and validate that the query against InnoDB has
+# read cost four times the original
 #
 --echo "Explain with cost estimate against InnoDB"
 eval EXPLAIN FORMAT=JSON $query_innodb;
---echo "Explain with cost estimate against MyISAM"
-eval EXPLAIN FORMAT=JSON $query_myisam;
 
 # Delete the added entry for InnoDB
 DELETE FROM mysql.engine_cost
@@ -135,4 +112,4 @@ WHERE engine_name NOT LIKE "default";
 --echo "Restarting MySQL server"
 --source include/restart_mysqld.inc
 
-DROP TABLE t0, t1_innodb, t1_myisam;
+DROP TABLE t0, t1_innodb;

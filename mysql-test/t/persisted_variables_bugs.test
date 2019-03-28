@@ -160,7 +160,6 @@ RESET PERSIST;
 --echo #
 
 SELECT @@global.binlog_cache_size;
-SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
 # test SIGNED long value
 SELECT @@global.optimizer_trace_offset;
@@ -176,7 +175,6 @@ SET @@global.binlog_cache_size= 4096;
 # persist default values
 SET @@persist_only.binlog_cache_size= default,
     @@persist_only.collation_database= default,
-    @@persist_only.disabled_storage_engines= default,
     @@persist_only.optimizer_trace_offset= default,
     @@persist_only.optimizer_switch= default,
     @@persist_only.enforce_gtid_consistency= default,
@@ -189,7 +187,6 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 # must have default values.
 SELECT @@global.binlog_cache_size;
-SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
 SELECT @@global.optimizer_trace_offset;
 SELECT @@global.optimizer_switch;

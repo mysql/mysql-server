@@ -1,5 +1,3 @@
-set @save_storage_engine= @@default_storage_engine;
-set default_storage_engine=MyISAM;
 set end_markers_in_json=on;
 # new "FORMAT" keyword doesn't conflict with the FORMAT() function name:
 SELECT FORMAT(1, 2), FORMAT(1, 2, 3);
@@ -2773,5 +2771,4 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`a`) in t1 on PRIMARY where (`test`.`t1`.`b` <> 30))))
 DROP TABLE t1, t2;
-set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;

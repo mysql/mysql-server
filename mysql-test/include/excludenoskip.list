@@ -166,6 +166,7 @@ wrapper.test
 have_federated_plugin.inc
 have_archive_plugin.inc
 have_blackhole_plugin.inc
+have_myisam.inc
 
 # 9.0 To be retained until Bug#24382105 - PARTS.PARTITION_VALUE_INNODB NEVER RUNS
 # is fixed.

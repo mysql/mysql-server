@@ -5252,14 +5252,6 @@ id	string
 0.67	string
 9.67	string
 drop table float_test;
-CREATE TABLE `bug21328` (
-`col1` int(11) NOT NULL,
-`col2` int(11) NOT NULL,
-`col3` int(11) NOT NULL
-) ENGINE=CSV;
-insert into bug21328 values (1,0,0);
-alter table bug21328 engine=myisam;
-drop table bug21328;
 create table t1(a blob not null, b int not null) engine=csv;
 insert into t1 values('a', 1);
 flush tables;

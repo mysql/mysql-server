@@ -20,9 +20,6 @@ SET @save_sql_mode=@@sql_mode;
 # - an error is the expected result with the current implementation,
 #   and is a limitation.
 
-# Test needs MyISAM for a few subtests
---source include/have_myisam.inc
-
 set SQL_MODE='';
 
 create table ADDDATE(a int);
@@ -746,50 +743,6 @@ DROP TABLE t1, t2, t3;
 --echo #
 --echo # End of 5.1 tests
 --echo #
-
-#
-# Bug#31293 - Incorrect parser errors for create/alter/drop logfile group/tablespace
-#
-
---echo # Should use myisam
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam; 
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_FEATURE_UNSUPPORTED
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
-
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
--- error ER_ILLEGAL_HA_CREATE_OPTION
-drop logfile group ndb_lg1 engine=myisam;
-
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
--- error ER_TABLESPACE_MISSING_WITH_NAME
-drop tablespace ndb_ts1 engine=myisam;
 
 #
 # Bug#12546960 - 60993: NAME QUOTED WITH QUOTE INSTEAD OF BACKTICK 

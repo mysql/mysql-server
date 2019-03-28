@@ -542,41 +542,6 @@ FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1;
 c2
 DROP TABLE t1, t2;
 #
-# Bug#58463: Error Can't find record on SELECT with JOIN and ORDER BY
-#
-CREATE TABLE t1 (
-pk INT NOT NULL,
-PRIMARY KEY (pk)
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (2);
-CREATE TABLE t2 (
-pk INT NOT NULL,
-i1 INT NOT NULL,
-i2 INT NOT NULL,
-c1 VARCHAR(1024) CHARACTER SET utf8,
-PRIMARY KEY (pk),
-KEY k1 (i1)
-);
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-INSERT INTO t2 VALUES (3, 9, 1, NULL);
-EXPLAIN SELECT i1
-FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
-WHERE t2.i1 > 5
-AND t2.pk IS  NULL
-ORDER BY i1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`i1` AS `i1` from `test`.`t2` where ((`test`.`t2`.`i1` > 5) and (`test`.`t2`.`pk` is null) and multiple equal('2', `test`.`t2`.`i2`)) order by `test`.`t2`.`i1`
-SELECT i1
-FROM t1 LEFT JOIN t2 ON t1.pk = t2.i2
-WHERE t2.i1 > 5
-AND t2.pk IS  NULL
-ORDER BY i1;
-i1
-DROP TABLE t1, t2;
-#
 # Bug#12321461: CRASH IN DSMRR_IMPL::DSMRR_INIT ON SELECT STRAIGHT_JOIN
 #
 set @save_optimizer_switch = @@optimizer_switch;

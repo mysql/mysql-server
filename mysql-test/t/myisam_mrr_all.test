@@ -18,6 +18,7 @@ set read_rnd_buffer_size=79;
 select @@read_rnd_buffer_size;
 
 -- source include/mrr_tests.inc
+-- source include/mrr_myisam_tests.inc
 
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 set optimizer_switch=default;

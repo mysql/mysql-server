@@ -1,0 +1,26 @@
+set @orig_sql_mode= @@sql_mode;
+#
+# Bug#19307777 ASSERTION `QEP_TAB->CONDITION() == QEP_TAB->CONDITION_OPTIM()' FAILED
+#
+CREATE TABLE mysql.procs_priv_copy ENGINE=MyISAM AS SELECT * FROM mysql.procs_priv;
+EXPLAIN select * from
+information_schema . innodb_cmp as table1
+left outer join mysql . procs_priv_copy as table2
+on ( table2 . routine_name = table1 . compress_time )
+where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
+having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible HAVING noticed after reading const tables
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2006-09-03 10:11:37.046313'
+Note	1003	/* select#1 */ select `table1`.`page_size` AS `page_size`,`table1`.`compress_ops` AS `compress_ops`,`table1`.`compress_ops_ok` AS `compress_ops_ok`,`table1`.`compress_time` AS `compress_time`,`table1`.`uncompress_ops` AS `uncompress_ops`,`table1`.`uncompress_time` AS `uncompress_time`,NULL AS `Host`,NULL AS `Db`,NULL AS `User`,NULL AS `Routine_name`,NULL AS `Routine_type`,NULL AS `Grantor`,NULL AS `Proc_priv`,NULL AS `Timestamp` from `information_schema`.`INNODB_CMP` `table1` where (`table1`.`compress_time` = 2006) having false limit 9
+select * from
+information_schema . innodb_cmp as table1
+left outer join mysql . procs_priv_copy as table2
+on ( table2 . routine_name = table1 . compress_time )
+where not table1 . compress_time <> '2006-09-03 10:11:37.046313'
+having  table2 . grantor <> '2008-02-28 22:17:05.025739' limit 9;
+page_size	compress_ops	compress_ops_ok	compress_time	uncompress_ops	uncompress_time	Host	Db	User	Routine_name	Routine_type	Grantor	Proc_priv	Timestamp
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2006-09-03 10:11:37.046313'
+DROP TABLE mysql.procs_priv_copy;

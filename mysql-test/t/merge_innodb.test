@@ -3,6 +3,9 @@
 # Tests with MERGE tables over InnoDB tables
 #
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2, t3, t4, t5;

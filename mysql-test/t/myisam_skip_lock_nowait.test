@@ -1,6 +1,8 @@
 # Test of SKIP LOCKED and NOWAIT on table in myisam engine.
 # Must have no effect on MyISAm db.
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/count_sessions.inc
 
 set @start_read_only= @@global.read_only;

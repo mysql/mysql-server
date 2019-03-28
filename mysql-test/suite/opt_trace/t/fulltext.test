@@ -1,5 +1,8 @@
-#Start server with MyISAM
+# Start server with MyISAM
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc

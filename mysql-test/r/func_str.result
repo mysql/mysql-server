@@ -375,58 +375,6 @@ select domain from t1 where concat('@', trim(leading '.' from concat('.', domain
 domain
 test.de
 drop table t1;
-CREATE TABLE t1 (
-id int(10) unsigned NOT NULL,
-title varchar(255) default NULL,
-prio int(10) unsigned default NULL,
-category int(10) unsigned default NULL,
-program int(10) unsigned default NULL,
-bugdesc text,
-created datetime default NULL,
-modified timestamp NOT NULL,
-bugstatus int(10) unsigned default NULL,
-submitter int(10) unsigned default NULL
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1,'Link',1,1,1,'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','2001-02-28 08:40:16',20010228084016,0,4);
-SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"') FROM t1;
-CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter), '"')
-"Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4"
-SELECT CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"') FROM t1;
-CONCAT('"',CONCAT_WS('";"',title,prio,category,program,bugstatus,submitter), '"')
-"Link";"1";"1";"1";"0";"4"
-SELECT CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter) FROM t1;
-CONCAT_WS('";"',title,prio,category,program,bugdesc,created,modified+0,bugstatus,submitter)
-Link";"1";"1";"1";"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"2001-02-28 08:40:16";"20010228084016";"0";"4
-SELECT bugdesc, REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb') from t1 group by bugdesc;
-bugdesc	REPLACE(bugdesc, 'xxxxxxxxxxxxxxxxxxxx', 'bbbbbbbbbbbbbbbbbbbb')
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-drop table t1;
-CREATE TABLE t1 (id int(11) NOT NULL auto_increment, tmp text NOT NULL, KEY id (id)) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1, 'a545f661efdd1fb66fdee3aab79945bf');
-SELECT 1 FROM t1 WHERE tmp=AES_DECRYPT(tmp,"password");
-1
-DROP TABLE t1;
-CREATE TABLE t1 (
-wid int(10) unsigned NOT NULL auto_increment,
-data_podp date default NULL,
-status_wnio enum('nowy','podp','real','arch') NOT NULL default 'nowy',
-PRIMARY KEY(wid)
-);
-INSERT INTO t1 VALUES (8,NULL,'real');
-INSERT INTO t1 VALUES (9,NULL,'nowy');
-SELECT elt(status_wnio,data_podp) FROM t1 GROUP BY wid;
-elt(status_wnio,data_podp)
-NULL
-NULL
-DROP TABLE t1;
-CREATE TABLE t1 (title text) ENGINE=MyISAM;
-INSERT INTO t1 VALUES ('Congress reconvenes in September to debate welfare and adult education');
-INSERT INTO t1 VALUES ('House passes the CAREERS bill');
-SELECT CONCAT("</a>",RPAD("",(55 - LENGTH(title)),".")) from t1;
-CONCAT("</a>",RPAD("",(55 - LENGTH(title)),"."))
-NULL
-</a>..........................
-DROP TABLE t1;
 CREATE TABLE t1 (i int, j int);
 INSERT INTO t1 VALUES (1,1),(2,2);
 SELECT DISTINCT i, ELT(j, '345', '34') FROM t1;
@@ -742,7 +690,7 @@ t1	CREATE TABLE `t1` (
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `replace(_latin2'abcd',_latin2'b',_latin2'B')` varchar(4) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a char character set latin2);
 insert into t1 values (null);
@@ -1088,33 +1036,6 @@ NULL
 select trim(trailing NULL from 'xyz') as "must_be_null";
 must_be_null
 NULL
-CREATE TABLE t1 (
-id int(11) NOT NULL auto_increment,
-a bigint(20) unsigned default NULL,
-PRIMARY KEY  (id)
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES
-('0','16307858876001849059');
-SELECT CONV('e251273eb74a8ee3', 16, 10);
-CONV('e251273eb74a8ee3', 16, 10)
-16307858876001849059
-EXPLAIN 
-SELECT id
-FROM t1
-WHERE a = 16307858876001849059;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select '1' AS `id` from dual where true
-EXPLAIN 
-SELECT id
-FROM t1
-WHERE a = CONV('e251273eb74a8ee3', 16, 10);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select '1' AS `id` from dual where true
-DROP TABLE t1;
 SELECT CHAR(NULL,121,83,81,'76') as my_column;
 my_column
 ySQL
@@ -1327,24 +1248,6 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both 'y' from `test`.`t1`.`s`) > 'ab')
 DROP TABLE t1;
-create table t1 (a bigint not null)engine=myisam;
-insert into t1 set a = 1024*1024*1024*4;
-SET @orig_sql_mode = @@SQL_MODE;
-SET SQL_MODE='';
-delete from t1 order by (inet_ntoa(a)) desc limit 10;
-Warnings:
-Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
-SET SQL_MODE=@orig_sql_mode;
-drop table t1;
-create table t1 (a char(36) not null)engine=myisam;
-insert ignore into t1 set a = ' ';
-insert ignore into t1 set a = ' ';
-select * from t1 order by (oct(a));
-a
-
-
-drop table t1;
-End of 4.1 tests
 create table t1 (d decimal default null);
 insert into t1 values (null);
 select format(d, 2) from t1;
@@ -1406,7 +1309,7 @@ SELECT * FROM t1 INNER JOIN t2 ON code=id
 WHERE id='a12' AND (LENGTH(code)=5 OR code < 'a00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	const	PRIMARY	PRIMARY	42	const	1	100.00	Using index
-1	SIMPLE	t1	NULL	ref	code	code	43	const	3	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	ref	code	code	43	const	4	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
@@ -2602,7 +2505,7 @@ t1	CREATE TABLE `t1` (
   `f4` longtext CHARACTER SET latin1,
   `f5` longtext CHARACTER SET latin1,
   `f6` longtext CHARACTER SET latin1
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#11766684 59851: UNINITIALISED VALUE IN ITEM_FUNC_LIKE::SELECT_OPTIMIZE WITH SUBQUERY AND
@@ -2763,7 +2666,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `format(123,2,'no_NO')` varchar(37) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
 123,00
@@ -2860,7 +2763,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2870,7 +2773,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	63
@@ -2882,7 +2785,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2892,7 +2795,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	62
@@ -2904,7 +2807,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(85) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2914,7 +2817,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(63) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	61
@@ -2926,7 +2829,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2936,7 +2839,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	60
@@ -2948,7 +2851,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2958,7 +2861,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	59
@@ -2970,7 +2873,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(81) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh
@@ -2980,7 +2883,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(60) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	58
@@ -2992,7 +2895,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	76
@@ -3001,7 +2904,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	57
@@ -3013,7 +2916,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	76
@@ -3022,7 +2925,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	56
@@ -3034,7 +2937,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(76) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	76
@@ -3043,7 +2946,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(57) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	55
@@ -3055,7 +2958,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	72
@@ -3064,7 +2967,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	54
@@ -3076,7 +2979,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	72
@@ -3085,7 +2988,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	53
@@ -3097,7 +3000,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(72) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	72
@@ -3106,7 +3009,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(54) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	52
@@ -3118,7 +3021,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	68
@@ -3127,7 +3030,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	51
@@ -3139,7 +3042,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	68
@@ -3148,7 +3051,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	50
@@ -3160,7 +3063,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(68) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	68
@@ -3169,7 +3072,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(51) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	49
@@ -3181,7 +3084,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	64
@@ -3190,7 +3093,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	48
@@ -3202,7 +3105,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	64
@@ -3211,7 +3114,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	47
@@ -3223,7 +3126,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(64) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	64
@@ -3232,7 +3135,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(48) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	46
@@ -3244,7 +3147,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	60
@@ -3253,7 +3156,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	45
@@ -3265,7 +3168,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	60
@@ -3274,7 +3177,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	44
@@ -3286,7 +3189,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(60) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	60
@@ -3295,7 +3198,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(45) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	43
@@ -3307,7 +3210,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	56
@@ -3316,7 +3219,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	42
@@ -3328,7 +3231,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	56
@@ -3337,7 +3240,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	41
@@ -3349,7 +3252,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(56) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	56
@@ -3358,7 +3261,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(42) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	40
@@ -3370,7 +3273,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	52
@@ -3379,7 +3282,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	39
@@ -3391,7 +3294,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	52
@@ -3400,7 +3303,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	38
@@ -3412,7 +3315,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(52) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	52
@@ -3421,7 +3324,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(39) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	37
@@ -3433,7 +3336,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	48
@@ -3442,7 +3345,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	36
@@ -3454,7 +3357,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	48
@@ -3463,7 +3366,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	35
@@ -3475,7 +3378,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(48) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	48
@@ -3484,7 +3387,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(36) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	34
@@ -3496,7 +3399,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	44
@@ -3505,7 +3408,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	33
@@ -3517,7 +3420,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	44
@@ -3526,7 +3429,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	32
@@ -3538,7 +3441,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(44) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	44
@@ -3547,7 +3450,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(33) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	31
@@ -3559,7 +3462,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	40
@@ -3568,7 +3471,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	30
@@ -3580,7 +3483,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	40
@@ -3589,7 +3492,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaa	29
@@ -3601,7 +3504,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(40) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	40
@@ -3610,7 +3513,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(30) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaaa	28
@@ -3622,7 +3525,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	36
@@ -3631,7 +3534,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaaa	27
@@ -3643,7 +3546,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	36
@@ -3652,7 +3555,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaaa	26
@@ -3664,7 +3567,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(36) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	36
@@ -3673,7 +3576,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(27) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaaa	25
@@ -3685,7 +3588,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh	32
@@ -3694,7 +3597,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaaa	24
@@ -3706,7 +3609,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=	32
@@ -3715,7 +3618,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaaa	23
@@ -3727,7 +3630,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(32) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==	32
@@ -3736,7 +3639,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(24) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaaa	22
@@ -3748,7 +3651,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWFh	28
@@ -3757,7 +3660,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaaa	21
@@ -3769,7 +3672,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYWE=	28
@@ -3778,7 +3681,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaaa	20
@@ -3790,7 +3693,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(28) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFhYQ==	28
@@ -3799,7 +3702,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(21) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaaa	19
@@ -3811,7 +3714,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWFh	24
@@ -3820,7 +3723,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaaa	18
@@ -3832,7 +3735,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYWE=	24
@@ -3841,7 +3744,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaaa	17
@@ -3853,7 +3756,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(24) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFhYQ==	24
@@ -3862,7 +3765,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(18) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaaa	16
@@ -3874,7 +3777,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWFh	20
@@ -3883,7 +3786,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaaa	15
@@ -3895,7 +3798,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYWE=	20
@@ -3904,7 +3807,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaaa	14
@@ -3916,7 +3819,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(20) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFhYQ==	20
@@ -3925,7 +3828,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaaa	13
@@ -3937,7 +3840,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWFh	16
@@ -3946,7 +3849,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaaa	12
@@ -3958,7 +3861,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYWE=	16
@@ -3967,7 +3870,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaaa	11
@@ -3979,7 +3882,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(16) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFhYQ==	16
@@ -3988,7 +3891,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(12) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaaa	10
@@ -4000,7 +3903,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWFh	12
@@ -4009,7 +3912,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaaa	9
@@ -4021,7 +3924,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYWE=	12
@@ -4030,7 +3933,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaaa	8
@@ -4042,7 +3945,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(12) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFhYQ==	12
@@ -4051,7 +3954,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(9) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaaa	7
@@ -4063,7 +3966,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWFh	8
@@ -4072,7 +3975,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaaa	6
@@ -4084,7 +3987,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYWE=	8
@@ -4093,7 +3996,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaaa	5
@@ -4105,7 +4008,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(8) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFhYQ==	8
@@ -4114,7 +4017,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(6) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaaa	4
@@ -4126,7 +4029,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWFh	4
@@ -4135,7 +4038,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aaa	3
@@ -4147,7 +4050,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YWE=	4
@@ -4156,7 +4059,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 aa	2
@@ -4168,7 +4071,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` varchar(4) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 YQ==	4
@@ -4177,7 +4080,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` varbinary(3) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 a	1
@@ -4189,7 +4092,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `to_base64` char(0) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT to_base64, LENGTH(to_base64) FROM t1;
 to_base64	LENGTH(to_base64)
 	0
@@ -4198,7 +4101,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `from_base64` binary(0) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT from_base64, LENGTH(from_base64) FROM t2;
 from_base64	LENGTH(from_base64)
 	0
@@ -5021,7 +4924,6 @@ SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
 COUNT(*)	CONCAT(x, 'x')
 0	NULL
 DROP TABLE t;
-SET default_storage_engine=InnoDB;
 # Bug#26049942 create table .. as select .. quote() give wrong length
 SET NAMES latin1;
 CREATE TABLE t1 AS SELECT quote('a');

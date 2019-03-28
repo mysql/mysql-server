@@ -469,7 +469,7 @@ monthname(date)
 NULL
 January
 drop table t1,t2;
-CREATE TABLE t1 (updated text) ENGINE=MyISAM;
+CREATE TABLE t1 (updated text) ENGINE=Innodb;
 INSERT INTO t1 VALUES ('');
 SELECT month(updated) from t1;
 month(updated)
@@ -1666,7 +1666,7 @@ End of 5.1 tests
 # ORDER BY DESC on date index"
 #
 CREATE TABLE t1(c1 DATE NOT NULL PRIMARY KEY, c2 DATE NULL, c3 INT,
-INDEX idx2(c2)) ENGINE=MyISAM;
+INDEX idx2(c2)) ENGINE=InnoDB;
 SET TIMESTAMP=1235553613;
 INSERT INTO t1 VALUES(NOW(),NOW(),3),
 (ADDTIME(NOW(),'1 01:01:01'),ADDTIME(NOW(),'1 01:01:01'),4),
@@ -1675,12 +1675,12 @@ INSERT INTO t1 VALUES(NOW(),NOW(),3),
 Warnings:
 Note	1292	Incorrect date value: '2009-02-25 12:20:13' for column 'c1' at row 1
 Note	1292	Incorrect date value: '2009-02-25 12:20:13' for column 'c2' at row 1
-Note	1265	Data truncated for column 'c1' at row 2
-Note	1265	Data truncated for column 'c2' at row 2
-Note	1265	Data truncated for column 'c1' at row 3
-Note	1265	Data truncated for column 'c2' at row 3
-Note	1265	Data truncated for column 'c1' at row 4
-Note	1265	Data truncated for column 'c2' at row 4
+Note	1292	Incorrect date value: '2009-02-26 13:21:14' for column 'c1' at row 2
+Note	1292	Incorrect date value: '2009-02-26 13:21:14' for column 'c2' at row 2
+Note	1292	Incorrect date value: '2009-02-27 13:21:14' for column 'c1' at row 3
+Note	1292	Incorrect date value: '2009-02-27 13:21:14' for column 'c2' at row 3
+Note	1292	Incorrect date value: '2009-02-28 13:21:14' for column 'c1' at row 4
+Note	1292	Incorrect date value: '2009-02-28 13:21:14' for column 'c2' at row 4
 SELECT * FROM t1;
 c1	c2	c3
 2009-02-25	2009-02-25	3
@@ -1762,7 +1762,7 @@ drop table t1;
 # BUG#13545236 - ASSERT IN SEC_SINCE_EPOCH
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-CREATE TABLE t1 (a TIME NOT NULL) ENGINE=MyIsam;
+CREATE TABLE t1 (a TIME NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('04:39:24');
 INSERT INTO t1 VALUES ('00:20:09');
 SELECT a FROM t1
@@ -1774,21 +1774,17 @@ WHERE CONVERT_TZ(TIMESTAMPADD(YEAR, a, DATE('0000-00-00')),
 '+00:00','+00:00');
 a
 DROP TABLE t1;
-CREATE TABLE t1 (a TIME) ENGINE=MyIsam;
+CREATE TABLE t1 (a TIME) ENGINE=InnoDB;
 INSERT INTO t1 VALUES ('00:00:00');
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP('0000-00-01')) IS NULL;
 a
 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-01'
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, TIMESTAMP'0000-00-01 00:00:00') IS NULL;
 a
 00:00:00
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE('0000-00-01')) IS NULL;
 a
 00:00:00
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-01'
 SELECT * FROM t1 WHERE TIMESTAMPDIFF(MONTH, a, DATE'0000-00-01') IS NULL;
 a
 00:00:00

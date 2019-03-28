@@ -1,5 +1,7 @@
 # Testing of "strict" mode
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 set @org_mode=@@sql_mode;
 set @@sql_mode='ansi,traditional';

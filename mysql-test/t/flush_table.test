@@ -4,9 +4,6 @@
 # Test of flush table
 #
 
-# Test needs MyISAM for few subtests
---source include/have_myisam.inc
-
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -380,28 +377,17 @@ FLUSH TABLES WITH READ LOCK;
 FLUSH TABLE t1 FOR EXPORT;
 UNLOCK TABLES;
 
---echo # Connection default
---connection default
-UNLOCK TABLES;
-DROP TABLE t1;
-
---echo # Test 6: Unsupported storage engines.
---echo #
-
-CREATE TABLE t1(a INT) engine= MyISAM;
---error ER_ILLEGAL_HA
-FLUSH TABLE t1 FOR EXPORT;
-DROP TABLE t1;
-
 --echo # Connection con1
 --connection con1
 --disconnect con1
 --source include/wait_until_disconnected.inc
 
---echo # Connection defalt
+--echo # Connection default
 --connection default
+UNLOCK TABLES;
+DROP TABLE t1;
 
---echo # Test 7: Check privileges required.
+--echo # Test 6: Check privileges required.
 --echo #
 
 CREATE DATABASE db1;
@@ -469,7 +455,7 @@ DROP USER user1@localhost, user2@localhost, user3@localhost,
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 
---echo # Test 8: FLUSH TABLE <table_list> FOR EXPORT is incompatible
+--echo # Test 7: FLUSH TABLE <table_list> FOR EXPORT is incompatible
 --echo #         with itself (to avoid race conditions in metadata
 --echo #         file handling).
 --echo #
@@ -505,7 +491,7 @@ UNLOCK TABLES;
 --reap
 UNLOCK TABLES;
 
---echo # Test 9: LOCK TABLES ... READ is not affected
+--echo # Test 8: LOCK TABLES ... READ is not affected
 --echo #
 
 LOCK TABLE t1 READ;
@@ -540,7 +526,7 @@ UNLOCK TABLES;
 --connection default
 DROP TABLE t1, t2;
 
---echo # Test 10: Lock is released if transaction is started after doing
+--echo # Test 9: Lock is released if transaction is started after doing
 --echo #          'flush table..' in same session
 
 CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
@@ -555,7 +541,7 @@ FLUSH TABLE t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
 
---echo # Test 11: Test 'flush table with fully qualified table names
+--echo # Test 10: Test 'flush table with fully qualified table names
 --echo #          and with syntax local/NO_WRITE_TO_BINLOG
 
 --echo # Connection con1
@@ -610,7 +596,7 @@ SELECT * FROM t1 ORDER BY i;
 UNLOCK TABLE;
 DROP TABLE t1;
 
---echo # Test 12: Active transaction get committed if user execute
+--echo # Test 11: Active transaction get committed if user execute
 --echo #          "FLUSH TABLE ... FOR EXPORT" or "LOCK TABLE.."
 
 --echo # Connection default
@@ -632,7 +618,7 @@ SELECT * FROM t1 ORDER BY i;
 UNLOCK TABLES;
 DROP TABLE t1;
 
---echo # Test 13: Verify "FLUSH TABLE ... FOR EXPORT" and "LOCK TABLE.."
+--echo # Test 12: Verify "FLUSH TABLE ... FOR EXPORT" and "LOCK TABLE.."
 --echo #          in same session   
 --echo # Connection default
 

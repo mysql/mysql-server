@@ -1,3 +1,7 @@
+# Due to existing Bug#27272052, this test requires MyISAM storage engine
+# Remove this have_myisam.inc file once this bug is fixed.
+--source include/have_myisam.inc
+
 # Initialise
 --disable_warnings
 drop table if exists t1;

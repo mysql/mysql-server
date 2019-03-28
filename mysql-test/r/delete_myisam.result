@@ -1,0 +1,26 @@
+#
+# Bug #53450: Crash/assertion
+#    "virtual int ha_myisam::index_first(uchar*)") at assert.c:81
+#
+CREATE TABLE t1 (a INT,    b INT,    c INT,
+INDEX(a), INDEX(b), INDEX(c)) engine=myisam;
+INSERT INTO t1 VALUES (1,2,3), (4,5,6), (7,8,9);
+DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
+DROP TABLE t1;
+#
+# Bug#17787664 : ASSERT `! IS_SET()` IN DIAGNOSTICS_AREA::SET_OK_STATUS
+#                ON ER_SUBQUERY_NO_1_ROW
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8);
+INSERT INTO t2 VALUES (24);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (43);
+INSERT INTO t3 VALUES (1);
+DELETE  FROM OUTR1.* USING t1 AS OUTR1
+LEFT OUTER JOIN t2 AS OUTR2  ON ( OUTR1.a = OUTR2.b )
+WHERE OUTR1.a < ( SELECT t3.c  from t3 where 1 XOR OUTR2.b IS NOT NULL);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1,t2,t3;

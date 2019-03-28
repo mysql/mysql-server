@@ -1,4 +1,6 @@
 --source include/not_windows.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 --echo #
 --echo # Testing WL#7524 - Import from SDI files using symlinks

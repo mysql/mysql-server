@@ -42,9 +42,9 @@ AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS, @IV), @KEYS, @IV)=@ENCSTR
 Warnings:
 Warning	1618	<IV> option ignored
 Warning	1618	<IV> option ignored
-####Test with MyISAM tables
+####Test with Innodb tables
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(f1 varchar(256)) engine=MyISAM;
+CREATE TABLE t1(f1 varchar(256)) engine=InnoDB;
 INSERT INTO t1 values(@ENCSTR);
 should return 1
 SELECT AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS), @KEYS)=@ENCSTR FROM t1;
@@ -93,9 +93,9 @@ AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS, @IV), @KEYS, @IV)=@ENCSTR
 Warnings:
 Warning	1618	<IV> option ignored
 Warning	1618	<IV> option ignored
-####Test with MyISAM tables
+####Test with Innodb tables
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(f1 varchar(256)) engine=MyISAM;
+CREATE TABLE t1(f1 varchar(256)) engine=InnoDB;
 INSERT INTO t1 values(@ENCSTR);
 should return 1
 SELECT AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS), @KEYS)=@ENCSTR FROM t1;
@@ -146,9 +146,9 @@ AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS, @IV), @KEYS, @IV)=@ENCSTR
 Warnings:
 Warning	1618	<IV> option ignored
 Warning	1618	<IV> option ignored
-####Test with MyISAM tables
+####Test with innodb tables
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(f1 varchar(256)) engine=MyISAM;
+CREATE TABLE t1(f1 varchar(256)) engine=InnoDB;
 INSERT INTO t1 values(@ENCSTR);
 should return 1
 SELECT AES_DECRYPT(AES_ENCRYPT(@ENCSTR, @KEYS), @KEYS)=@ENCSTR FROM t1;

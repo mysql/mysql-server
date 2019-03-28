@@ -50,8 +50,6 @@
 # - Part 22: Special tables (views temp tables)
 # - Part 23: Special statements
 # - Part 24: Testing the strength of TABLE_SHARE version
-# Test SQLCOM_REPAIR  needs MyISAM for execution. 
---source include/have_myisam.inc
 
 --disable_warnings
 drop temporary table if exists t1, t2, t3;
@@ -1074,71 +1072,6 @@ create table t1 (a1 int, a2 int);
 execute stmt;
 
 alter table t1 drop column b;
-execute stmt;
-
-alter table t1 drop column b;
-execute stmt;
-call p_verify_reprepare_count(0);
-
-drop table t1;
-
---echo # SQLCOM_REPAIR:
-
-create table t1 (a int) engine=MyISAM;
-
-insert into t1 values (1), (2), (3);
-
-prepare stmt from "repair table t1";
-
-execute stmt;
-
-drop table t1;
-create table t1 (a1 int, a2 int) engine=myisam;
-insert into t1 values (1, 10), (2, 20), (3, 30);
-
---echo # t1 has changed, and it's does not lead to reprepare
-execute stmt;
-
-alter table t1 add column b varchar(50) default NULL;
-execute stmt;
-call p_verify_reprepare_count(0);
-
-alter table t1 drop column b;
-execute stmt;
-call p_verify_reprepare_count(0);
-
---echo # SQLCOM_ANALYZE:
-
-prepare stmt from "analyze table t1";
-execute stmt;
-
-drop table t1;
-create table t1 (a1 int, a2 int) engine=myisam;
-insert into t1 values (1, 10), (2, 20), (3, 30);
---echo # t1 has changed, and it's not a problem
-execute stmt;
-
-alter table t1 add column b varchar(50) default NULL;
-execute stmt;
-
-alter table t1 drop column b;
-execute stmt;
-
-call p_verify_reprepare_count(0);
-
---echo # SQLCOM_OPTIMIZE:
-
-prepare stmt from "optimize table t1";
-execute stmt;
-
-drop table t1;
-create table t1 (a1 int, a2 int) engine=myisam;
-insert into t1 values (1, 10), (2, 20), (3, 30);
-
---echo # t1 has changed, and it's not a problem
-execute stmt;
-
-alter table t1 add column b varchar(50) default NULL;
 execute stmt;
 
 alter table t1 drop column b;

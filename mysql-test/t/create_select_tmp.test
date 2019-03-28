@@ -12,28 +12,16 @@
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
---disable_warnings
-drop table if exists t1, t2;
---enable_warnings
 CREATE TABLE t1 ( a int );
 INSERT INTO t1 VALUES (1),(2),(1);
 --error ER_DUP_ENTRY
 CREATE TABLE t2 ( PRIMARY KEY (a) ) ENGINE=INNODB SELECT a FROM t1;
---error 1146
+--error ER_NO_SUCH_TABLE 
 select * from t2;
 --error ER_DUP_ENTRY
 CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=INNODB SELECT a FROM t1;
---error 1146
-select * from t2;
---error ER_DUP_ENTRY
-CREATE TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
---error 1146
-select * from t2;
---error ER_DUP_ENTRY
-CREATE TEMPORARY TABLE t2 ( PRIMARY KEY (a) ) ENGINE=MYISAM SELECT a FROM t1;
---error 1146
+--error ER_NO_SUCH_TABLE
 select * from t2;
 drop table t1;
 
-# End of 4.1 tests
 --source include/restore_default_binlog_format.inc

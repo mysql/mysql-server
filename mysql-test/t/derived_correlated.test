@@ -582,7 +582,7 @@ select trace from information_schema.optimizer_trace;
 
 --echo # LDT depending on const table only
 
-create table t3(a int) engine=myisam;
+create table t3(a int) engine=innodb;
 insert into t3 values(3);
 analyze table t3;
 let $query=

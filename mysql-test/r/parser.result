@@ -638,39 +638,6 @@ DROP TABLE t1, t2, t3;
 #
 # End of 5.1 tests
 #
-# Should use myisam
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' initial_size=32M engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-create logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=innodb;
-ERROR HY000: Feature LOGFILE GROUP is unsupported (by InnoDB).
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam initial_size=32M;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
-create tablespace ndb_ts1 add datafile 'ndb_ts1.dat' use logfile group ndb_lg1 engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE TABLESPACE'
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' wait engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-alter logfile group ndb_lg1 add undofile 'ndb_undo1.dat' engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' initial_size=32M engine=myisam;
-ERROR HY000: Tablespace ndb_ts1 doesn't exist.
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
-ERROR HY000: Tablespace ndb_ts1 doesn't exist.
-alter tablespace ndb_ts1 add datafile 'ndb_ts1.dat' engine=myisam;
-ERROR HY000: Tablespace ndb_ts1 doesn't exist.
-drop logfile group ndb_lg1 engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-drop logfile group ndb_lg1 engine=myisam;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'CREATE/ALTER/DROP LOGFILE GROUP'
-drop tablespace ndb_ts1 engine=myisam;
-ERROR HY000: Tablespace ndb_ts1 doesn't exist.
-drop tablespace ndb_ts1 engine=myisam;
-ERROR HY000: Tablespace ndb_ts1 doesn't exist.
 CREATE TABLE t (id INT PRIMARY KEY);
 ALTER TABLE t RENAME TO `t1';;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '`t1'' at line 1

@@ -868,7 +868,7 @@ DROP TABLE not_encrypted2;
 --echo #
 
 --echo # Create a non-transactional table with a trigger.
-CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=MyISAM;
+CREATE TABLE t1 (i INT, at INT, k INT) ENGINE=InnoDB;
 CREATE TRIGGER ai AFTER INSERT ON t1 FOR EACH ROW SET @a:= NEW.at;
 ALTER TABLE t1 ADD PRIMARY KEY (i);
 DROP TABLE t1;

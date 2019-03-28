@@ -1,0 +1,3782 @@
+drop table if exists t1,t2,t3,t4,t5,t6;
+drop database if exists mysqltest;
+create table t1 (a int not null primary key auto_increment, message char(20));
+create table t2 (a int not null primary key auto_increment, message char(20));
+INSERT INTO t1 (message) VALUES ("Testing"),("table"),("t1");
+INSERT INTO t2 (message) VALUES ("Testing"),("table"),("t2");
+create table t3 (a int not null, b char(20), key(a)) engine=MERGE UNION=(t1,t2);
+select * from t3;
+a	b
+1	Testing
+2	table
+3	t1
+1	Testing
+2	table
+3	t2
+select * from t3 order by a desc;
+a	b
+3	t1
+3	t2
+2	table
+2	table
+1	Testing
+1	Testing
+drop table t3;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+insert into t2 select NULL,message from t1;
+insert into t1 select NULL,message from t2;
+create table t3 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,test.t2);
+explain select * from t3 where a < 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	a	a	4	NULL	18	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where (`test`.`t3`.`a` < 10)
+explain select * from t3 where a > 10 and a < 20;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	range	a	a	4	NULL	17	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t3` where ((`test`.`t3`.`a` > 10) and (`test`.`t3`.`a` < 20))
+select * from t3 where a = 10;
+a	b
+10	Testing
+10	Testing
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+3	t1
+3	t2
+4	Testing
+4	Testing
+5	table
+5	table
+6	t2
+6	t1
+7	Testing
+7	Testing
+8	table
+8	table
+9	t2
+9	t2
+select * from t3 where a > 10 and a < 20;
+a	b
+11	table
+11	table
+12	t1
+12	t1
+13	Testing
+13	Testing
+14	table
+14	table
+15	t2
+15	t2
+16	Testing
+16	Testing
+17	table
+17	table
+18	t2
+18	t2
+19	Testing
+19	Testing
+explain select a from t3 order by a desc limit 10;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	index	NULL	a	4	NULL	10	100.00	Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` order by `test`.`t3`.`a` desc limit 10
+select a from t3 order by a desc limit 10;
+a
+699
+698
+697
+696
+695
+694
+693
+692
+691
+690
+select a from t3 order by a desc limit 300,10;
+a
+416
+415
+415
+414
+414
+413
+413
+412
+412
+411
+delete from t3 where a=3;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+4	Testing
+4	Testing
+5	table
+5	table
+6	t2
+6	t1
+7	Testing
+7	Testing
+8	table
+8	table
+9	t2
+9	t2
+delete from t3 where a >= 6 and a <= 8;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+4	Testing
+4	Testing
+5	table
+5	table
+9	t2
+9	t2
+update t3 set a=3 where a=9;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+3	t2
+3	t2
+4	Testing
+4	Testing
+5	table
+5	table
+update t3 set a=6 where a=7;
+select * from t3 where a < 10;
+a	b
+1	Testing
+1	Testing
+2	table
+2	table
+3	t2
+3	t2
+4	Testing
+4	Testing
+5	table
+5	table
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` char(20) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`t2`)
+create table t4 (a int not null, b char(10), key(a)) engine=MERGE UNION=(t1,t2);
+select * from t4;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+alter table t4 add column c int;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+flush tables;
+select * from t4;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+create database mysqltest;
+create table mysqltest.t6 (a int not null primary key auto_increment, message char(20));
+create table t5 (a int not null, b char(20), key(a)) engine=MERGE UNION=(test.t1,mysqltest.t6);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  `b` char(20) DEFAULT NULL,
+  KEY `a` (`a`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`mysqltest`.`t6`)
+alter table t5 engine=myisam;
+drop table t5, mysqltest.t6;
+drop database mysqltest;
+drop table t4,t3,t1,t2;
+create table t1 (c char(10)) engine=myisam;
+create table t2 (c char(10)) engine=myisam;
+create table t3 (c char(10)) union=(t1,t2) engine=merge;
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t1 (c) values ('test1');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+insert into t2 (c) values ('test2');
+select * from t3;
+c
+test1
+test1
+test1
+test2
+test2
+test2
+select * from t3;
+c
+test1
+test1
+test1
+test2
+test2
+test2
+delete from t3 where 1=1;
+select * from t3;
+c
+select * from t1;
+c
+drop table t3,t2,t1;
+CREATE TABLE t1 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t2 (incr int not null, othr int not null, primary key(incr));
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+ENGINE=MERGE UNION=(t1,t2);
+SELECT * from t3;
+incr	othr
+INSERT INTO t1 VALUES ( 1,10),( 3,53),( 5,21),( 7,12),( 9,17);
+INSERT INTO t2 VALUES ( 2,24),( 4,33),( 6,41),( 8,26),( 0,32);
+INSERT INTO t1 VALUES (11,20),(13,43),(15,11),(17,22),(19,37);
+INSERT INTO t2 VALUES (12,25),(14,31),(16,42),(18,27),(10,30);
+SELECT * from t3 where incr in (1,2,3,4) order by othr;
+incr	othr
+1	10
+2	24
+4	33
+3	53
+alter table t3 UNION=(t1);
+select count(*) from t3;
+count(*)
+10
+alter table t3 UNION=(t1,t2);
+select count(*) from t3;
+count(*)
+20
+alter table t3 ENGINE=MYISAM;
+select count(*) from t3;
+count(*)
+20
+drop table t3;
+CREATE TABLE t3 (incr int not null, othr int not null, primary key(incr))
+ENGINE=MERGE UNION=(t1,t2);
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `incr` int(11) NOT NULL,
+  `othr` int(11) NOT NULL,
+  PRIMARY KEY (`incr`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`t2`)
+alter table t3 drop primary key;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `incr` int(11) NOT NULL,
+  `othr` int(11) NOT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`t2`)
+drop table t3,t2,t1;
+create table t1 (a int not null, key(a)) engine=merge;
+select * from t1;
+a
+drop table t1;
+create table t1 (a int not null, b int not null, key(a,b));
+create table t2 (a int not null, b int not null, key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) ENGINE=MERGE UNION=(t1,t2);
+insert into t1 values (1,2),(2,1),(0,0),(4,4),(5,5),(6,6);
+insert into t2 values (1,1),(2,2),(0,0),(4,4),(5,5),(6,6);
+flush tables;
+select * from t3 where a=1 order by b limit 2;
+a	b
+1	1
+1	2
+drop table t3,t1,t2;
+create table t1 (a int not null, b int not null auto_increment, primary key(a,b));
+create table t2 (a int not null, b int not null auto_increment, primary key(a,b));
+create table t3 (a int not null, b int not null, key(a,b)) UNION=(t1,t2) INSERT_METHOD=NO;
+create table t4 (a int not null, b int not null, key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=NO;
+create table t5 (a int not null, b int not null auto_increment, primary key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=FIRST;
+create table t6 (a int not null, b int not null auto_increment, primary key(a,b)) ENGINE=MERGE UNION=(t1,t2) INSERT_METHOD=LAST;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  KEY `a` (`a`,`b`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  KEY `a` (`a`,`b`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`t2`)
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=FIRST UNION=(`t1`,`t2`)
+show create table t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+insert into t1 values (1,NULL),(1,NULL),(1,NULL),(1,NULL);
+insert into t2 values (2,NULL),(2,NULL),(2,NULL),(2,NULL);
+select * from t3 order by b,a limit 3;
+a	b
+select * from t4 order by b,a limit 3;
+a	b
+1	1
+2	1
+1	2
+select * from t5 order by b,a limit 3,3;
+a	b
+2	2
+1	3
+2	3
+select * from t6 order by b,a limit 6,3;
+a	b
+1	4
+2	4
+insert into t5 values (5,1),(5,2);
+insert into t6 values (6,1),(6,2);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+5	1
+5	2
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+6	1
+6	2
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+5	1
+5	2
+6	1
+6	2
+insert into t3 values (3,1),(3,2),(3,3),(3,4);
+select * from t3 order by a,b;
+a	b
+3	1
+3	2
+3	3
+3	4
+alter table t4 UNION=(t1,t2,t3);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  KEY `a` (`a`,`b`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`,`t2`,`t3`)
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+3	1
+3	2
+3	3
+3	4
+5	1
+5	2
+6	1
+6	2
+alter table t4 INSERT_METHOD=FIRST;
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` int(11) NOT NULL,
+  `b` int(11) NOT NULL,
+  KEY `a` (`a`,`b`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=FIRST UNION=(`t1`,`t2`,`t3`)
+insert into t4 values (4,1),(4,2);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+4	1
+4	2
+5	1
+5	2
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+6	1
+6	2
+select * from t3 order by a,b;
+a	b
+3	1
+3	2
+3	3
+3	4
+select * from t4 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+3	1
+3	2
+3	3
+3	4
+4	1
+4	2
+5	1
+5	2
+6	1
+6	2
+select * from t5 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+2	1
+2	2
+2	3
+2	4
+4	1
+4	2
+5	1
+5	2
+6	1
+6	2
+select 1;
+1
+1
+insert into t5 values (1,NULL),(5,NULL);
+insert into t6 values (2,NULL),(6,NULL);
+select * from t1 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+4	1
+4	2
+5	1
+5	2
+5	3
+select * from t2 order by a,b;
+a	b
+2	1
+2	2
+2	3
+2	4
+2	5
+6	1
+6	2
+6	3
+select * from t5 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+2	1
+2	2
+2	3
+2	4
+2	5
+4	1
+4	2
+5	1
+5	2
+5	3
+6	1
+6	2
+6	3
+select * from t6 order by a,b;
+a	b
+1	1
+1	2
+1	3
+1	4
+1	5
+2	1
+2	2
+2	3
+2	4
+2	5
+4	1
+4	2
+5	1
+5	2
+5	3
+6	1
+6	2
+6	3
+insert into t1 values (99,NULL);
+select * from t4 where a+0 > 90;
+a	b
+99	1
+insert t5 values (1,1);
+ERROR 23000: Duplicate entry '1-1' for key 'PRIMARY'
+insert t6 values (2,1);
+ERROR 23000: Duplicate entry '2-1' for key 'PRIMARY'
+insert t5 values (1,1) on duplicate key update b=b+10;
+insert t6 values (2,1) on duplicate key update b=b+20;
+select * from t5 where a < 3;
+a	b
+1	2
+1	3
+1	4
+1	5
+1	11
+2	2
+2	3
+2	4
+2	5
+2	21
+drop table t6, t5, t4, t3, t2, t1;
+CREATE TABLE t1 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,1), (2,1);
+CREATE TABLE t2 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  PRIMARY KEY  (a,b)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2), (2,2);
+CREATE TABLE t3 (  a int(11) NOT NULL default '0',  b int(11) NOT NULL default '0',  KEY a (a,b)) ENGINE=MRG_MyISAM UNION=(t1,t2);
+select max(b) from t3 where a = 2;
+max(b)
+2
+select max(b) from t1 where a = 2;
+max(b)
+1
+drop table t3,t1,t2;
+CREATE TABLE t1 (c1 INT NOT NULL);
+CREATE TABLE t2 (c1 INT NOT NULL);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t1,t2);
+SELECT * FROM t3;
+c1
+1
+2
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t4 VALUES (4);
+INSERT INTO t5 VALUES (5);
+CREATE TEMPORARY TABLE t6 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t4,t5);
+SELECT * FROM t6;
+c1
+4
+5
+DROP TABLE t6, t3, t1, t2, t4, t5;
+create temporary table t1 (a int not null);
+create temporary table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table t3, t2, t1;
+create table t1 (a int not null);
+create temporary table t2 (a int not null) engine=myisam;
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+drop table t3;
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+a
+1
+2
+drop table t3, t2, t1;
+# CREATE...SELECT is not implemented for MERGE tables.
+CREATE TEMPORARY TABLE t1 (c1 INT NOT NULL) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT NOT NULL);
+INSERT INTO t3 VALUES (3), (33);
+LOCK TABLES t3 READ;
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+INSERT_METHOD=LAST SELECT * FROM t3;
+ERROR HY000: 'test.t4' is not BASE TABLE
+SELECT * FROM t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+UNLOCK TABLES;
+CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL) ENGINE=MERGE UNION=(t1,t2)
+INSERT_METHOD=LAST;
+INSERT INTO t4 SELECT * FROM t3;
+# Alter temporary MERGE table.
+ALTER TABLE t4 UNION=(t1);
+LOCK TABLES t4 WRITE;
+# Alter temporary MERGE table under LOCk tables.
+ALTER TABLE t4 UNION=(t1,t2);
+UNLOCK TABLES;
+# MERGE table and function.
+CREATE FUNCTION f1 () RETURNS INT RETURN (SELECT max(c1) FROM t3);
+SELECT * FROM t4 WHERE c1 < f1();
+c1
+3
+DROP FUNCTION f1;
+DROP TABLE t4, t3, t2, t1;
+CREATE TABLE t1 (
+fileset_id tinyint(3) unsigned NOT NULL default '0',
+file_code varchar(32) NOT NULL default '',
+fileset_root_id tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY  (fileset_id,file_code),
+KEY files (fileset_id,fileset_root_id)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (2, '0000000111', 1), (2, '0000000112', 1), (2, '0000000113', 1),
+(2, '0000000114', 1), (2, '0000000115', 1), (2, '0000000116', 1), (2, '0000000117', 1),
+(2, '0000000118', 1), (2, '0000000119', 1), (2, '0000000120', 1);
+CREATE TABLE t2 (
+fileset_id tinyint(3) unsigned NOT NULL default '0',
+file_code varchar(32) NOT NULL default '',
+fileset_root_id tinyint(3) unsigned NOT NULL default '0',
+PRIMARY KEY  (fileset_id,file_code),
+KEY files (fileset_id,fileset_root_id)
+) ENGINE=MRG_MyISAM UNION=(t1);
+EXPLAIN SELECT * FROM t2 IGNORE INDEX (files) WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY	PRIMARY	131	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`fileset_id` AS `fileset_id`,`test`.`t2`.`file_code` AS `file_code`,`test`.`t2`.`fileset_root_id` AS `fileset_root_id` from `test`.`t2` IGNORE INDEX (`files`) where ((`test`.`t2`.`fileset_id` = 2) and (`test`.`t2`.`file_code` between '0000000115' and '0000000120')) limit 1
+EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	range	PRIMARY,files	PRIMARY	131	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`fileset_id` AS `fileset_id`,`test`.`t2`.`file_code` AS `file_code`,`test`.`t2`.`fileset_root_id` AS `fileset_root_id` from `test`.`t2` where ((`test`.`t2`.`fileset_id` = 2) and (`test`.`t2`.`file_code` between '0000000115' and '0000000120')) limit 1
+EXPLAIN SELECT * FROM t1 WHERE fileset_id = 2
+AND file_code BETWEEN '0000000115' AND '0000000120' LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,files	PRIMARY	131	NULL	5	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`fileset_id` AS `fileset_id`,`test`.`t1`.`file_code` AS `file_code`,`test`.`t1`.`fileset_root_id` AS `fileset_root_id` from `test`.`t1` where ((`test`.`t1`.`fileset_id` = 2) and (`test`.`t1`.`file_code` between '0000000115' and '0000000120')) limit 1
+EXPLAIN SELECT * FROM t2 WHERE fileset_id = 2
+AND file_code = '0000000115' LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	const	PRIMARY,files	PRIMARY	131	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `fileset_id`,'0000000115' AS `file_code`,'1' AS `fileset_root_id` from `test`.`t2` where true limit 1
+DROP TABLE t2, t1;
+create table t1 (x int, y int, index xy(x, y));
+create table t2 (x int, y int, index xy(x, y));
+create table t3 (x int, y int, index xy(x, y)) engine=merge union=(t1,t2);
+insert into t1 values(1, 2);
+insert into t2 values(1, 3);
+select * from t3 where x = 1 and y < 5 order by y;
+x	y
+1	2
+1	3
+select * from t3 where x = 1 and y < 5 order by y desc;
+x	y
+1	3
+1	2
+drop table t1,t2,t3;
+create table t1 (a int);
+create table t2 (a int);
+insert into t1 values (0);
+insert into t2 values (1);
+create table t3 engine=merge union=(t1, t2) select * from t1;
+ERROR HY000: 'test.t3' is not BASE TABLE
+create table t3 engine=merge union=(t1, t2) select * from t2;
+ERROR HY000: 'test.t3' is not BASE TABLE
+create table t3 engine=merge union=(t1, t2) select (select max(a) from t2);
+ERROR HY000: 'test.t3' is not BASE TABLE
+drop table t1, t2;
+create table t1 (
+a double(14,4),
+b varchar(10),
+index (a,b)
+) engine=merge union=(t2,t3);
+create table t2 (
+a double(14,4),
+b varchar(10),
+index (a,b)
+) engine=myisam;
+create table t3 (
+a double(14,4),
+b varchar(10),
+index (a,b)
+) engine=myisam;
+insert into t2 values ( null, '');
+insert into t2 values ( 9999999999.999, '');
+insert into t3 select * from t2;
+select min(a), max(a) from t1;
+min(a)	max(a)
+9999999999.9990	9999999999.9990
+flush tables;
+select min(a), max(a) from t1;
+min(a)	max(a)
+9999999999.9990	9999999999.9990
+drop table t1, t2, t3;
+create table t1 (a int,b int,c int, index (a,b,c));
+create table t2 (a int,b int,c int, index (a,b,c));
+create table t3 (a int,b int,c int, index (a,b,c))
+engine=merge union=(t1 ,t2);
+insert into t1 (a,b,c) values (1,1,0),(1,2,0);
+insert into t2 (a,b,c) values (1,1,1),(1,2,1);
+explain select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ref	a	a	5	const	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` FORCE INDEX (`a`) where (`test`.`t3`.`a` = 1) order by `test`.`t3`.`a`,`test`.`t3`.`b`,`test`.`t3`.`c`
+select a,b,c from t3 force index (a) where a=1 order by a,b,c;
+a	b	c
+1	1	0
+1	1	1
+1	2	0
+1	2	1
+explain select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3	NULL	ref	a	a	5	const	2	100.00	Backward index scan; Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t3` FORCE INDEX (`a`) where (`test`.`t3`.`a` = 1) order by `test`.`t3`.`a` desc,`test`.`t3`.`b` desc,`test`.`t3`.`c` desc
+select a,b,c from t3 force index (a) where a=1 order by a desc, b desc, c desc;
+a	b	c
+1	2	1
+1	2	0
+1	1	1
+1	1	0
+show index from t3;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t3	1	a	1	a	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t3	1	a	2	b	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+t3	1	a	3	c	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+drop table t1, t2, t3;
+CREATE TABLE t1 ( a INT AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), UNIQUE (b) )
+ENGINE=MyISAM;
+CREATE TABLE t2 ( a INT AUTO_INCREMENT, b VARCHAR(10), INDEX (a), INDEX (b) )
+ENGINE=MERGE UNION (t1) INSERT_METHOD=FIRST;
+INSERT INTO t2 (b) VALUES (1) ON DUPLICATE KEY UPDATE b=2;
+INSERT INTO t2 (b) VALUES (1) ON DUPLICATE KEY UPDATE b=3;
+SELECT b FROM t2;
+b
+3
+DROP TABLE t1, t2;
+create table t1(a int);
+create table t2(a int);
+insert into t1 values (1);
+insert into t2 values (2);
+create table t3 (a int) engine=merge union=(t1, t2) insert_method=first;
+select * from t3;
+a
+1
+2
+insert t2 select * from t2;
+select * from t2;
+a
+2
+2
+insert t3 select * from t1;
+select * from t3;
+a
+1
+1
+2
+2
+insert t1 select * from t3;
+select * from t1;
+a
+1
+1
+1
+1
+2
+2
+select * from t2;
+a
+2
+2
+select * from t3;
+a
+1
+1
+1
+1
+2
+2
+2
+2
+check table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+test.t2	check	status	OK
+drop table t1, t2, t3;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(2),(1);
+CREATE TABLE t2(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t2 WHERE a=2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2;
+CREATE TABLE t1(a INT) ENGINE=MEMORY;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2;
+CREATE TABLE t2(a INT) ENGINE=MERGE UNION=(t3);
+SELECT * FROM t2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t2;
+CREATE TABLE t1(a INT, b TEXT);
+CREATE TABLE tm1(a TEXT, b INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT);
+CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT, KEY(a, b));
+CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(a SMALLINT, b SMALLINT, KEY(b));
+CREATE TABLE tm1(a SMALLINT, b SMALLINT, KEY(a)) ENGINE=MERGE UNION=(t1);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, tm1;
+CREATE TABLE t1(c1 VARCHAR(1));
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+c1
+DROP TABLE t1, m1;
+CREATE TABLE t1(c1 VARCHAR(4), c2 TINYINT, c3 TINYINT, c4 TINYINT,
+c5 TINYINT, c6 TINYINT, c7 TINYINT, c8 TINYINT, c9 TINYINT);
+CREATE TABLE m1 LIKE t1;
+ALTER TABLE m1 ENGINE=MERGE UNION=(t1);
+SELECT * FROM m1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9
+DROP TABLE t1, m1;
+CREATE TABLE t1 (a VARCHAR(255) CHARACTER SET latin1 COLLATE latin1_german2_ci,
+b INT, INDEX(a,b));
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 LIKE t1;
+ALTER TABLE t3 ENGINE=MERGE UNION=(t1,t2);
+INSERT INTO t1 VALUES ('ss',1);
+INSERT INTO t2 VALUES ('ss',2),(0xDF,2);
+SELECT COUNT(*) FROM t3 WHERE a=0xDF AND b=2;
+COUNT(*)
+2
+DROP TABLE t1,t2,t3;
+create table t1 (b bit(1));
+create table t2 (b bit(1));
+create table tm (b bit(1)) engine = merge union = (t1,t2);
+select * from tm;
+b
+drop table tm, t1, t2;
+create table t1 (a int) insert_method = last engine = merge;
+insert into t1 values (1);
+ERROR HY000: Table 't1' is read only
+create table t2 (a int) engine = myisam;
+alter table t1 union (t2);
+insert into t1 values (1);
+alter table t1 insert_method = no;
+insert into t1 values (1);
+ERROR HY000: Table 't1' is read only
+drop table t2;
+drop table t1;
+CREATE TABLE tm1(a INT) ENGINE=MERGE UNION=(t1, t2);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table 'test.t1' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+CREATE TABLE t1(a INT);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+CREATE TABLE t2(a BLOB);
+SELECT * FROM tm1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.tm1	check	error	Corrupt
+ALTER TABLE t2 MODIFY a INT;
+SELECT * FROM tm1;
+a
+CHECK TABLE tm1;
+Table	Op	Msg_type	Msg_text
+test.tm1	check	status	OK
+DROP TABLE tm1, t1, t2;
+CREATE TABLE t1(c1 INT);
+CREATE TABLE t2 (c1 INT) ENGINE=MERGE UNION=(t1) INSERT_METHOD=FIRST;
+CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
+Warnings:
+Note	1050	Table 't1' already exists
+DROP TABLE t1, t2;
+CREATE TABLE t1 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MyISAM;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 (id, ref) VALUES (1,3), (2,1), (3,2), (4,5), (4,4);
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1 SELECT * FROM t2;
+CREATE TABLE t3 (id INT NOT NULL, ref INT NOT NULL, INDEX (id)) ENGINE=MERGE
+UNION(t1);
+SELECT * FROM t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+id	ref	ref
+4	4	5
+4	4	5
+4	4	5
+4	4	5
+SELECT * FROM t3;
+id	ref
+1	3
+2	1
+3	2
+4	5
+4	4
+1	3
+2	1
+3	2
+4	5
+4	4
+DELETE FROM a USING t3 AS a INNER JOIN t3 AS b USING (id) WHERE a.ref < b.ref;
+SELECT * FROM t3;
+id	ref
+1	3
+2	1
+3	2
+4	5
+1	3
+2	1
+3	2
+4	5
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1(a INT);
+CREATE TABLE m1(a INT) ENGINE=MERGE;
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE m1;
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=();
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE m1 UNION=(t1);
+ALTER TABLE m1 UNION=();
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, m1;
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
+SELECT MAX(a) FROM t1;
+MAX(a)
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a VARCHAR(10));
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(t1, t2);
+CREATE TABLE m2(a INT) ENGINE=MERGE UNION=(t1);
+SELECT * FROM t1;
+a
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+SELECT * FROM m2;
+a
+DROP TABLE t1, t2, m1, m2;
+End of 5.0 tests
+create table t1 (c1 int, index(c1));
+create table t2 (c1 int, index(c1)) engine=merge union=(t1);
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+flush tables;
+truncate table t1;
+insert into t1 values (1);
+flush tables;
+select * from t2;
+c1
+1
+truncate table t1;
+insert into t1 values (1);
+drop table t1,t2;
+#
+# Extra tests for TRUNCATE.
+#
+# Truncate MERGE table.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+#
+# Truncate child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+#
+# Truncate MERGE table under locked tables.
+LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
+INSERT INTO t1 VALUES (1);
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+UNLOCK TABLES;
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
+#
+# Truncate child table under locked tables.
+LOCK TABLE t1 WRITE, t2 WRITE, t3 WRITE;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3;
+#
+# Truncate temporary MERGE table.
+CREATE TEMPORARY TABLE t1 (c1 INT, INDEX(c1)) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+#
+# Truncate temporary child table.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+#
+# Truncate temporary MERGE table under locked tables.
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t4 (c1 INT, INDEX(c1));
+LOCK TABLE t4 WRITE;
+TRUNCATE TABLE t3;
+SELECT * FROM t3;
+c1
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
+#
+# Truncate temporary child table under locked tables.
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+SELECT * FROM t1;
+c1
+SELECT * FROM t2;
+c1
+2
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+REPAIR TABLE t1;
+INSERT INTO t2 VALUES (1);
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1) INSERT_METHOD= LAST;
+LOCK TABLE t1 WRITE;
+INSERT INTO t2 VALUES (1);
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM;
+LOCK TABLE t1 WRITE;
+INSERT INTO t1 VALUES (1);
+FLUSH TABLES;
+FLUSH TABLES;
+SELECT * FROM t1;
+c1
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Extra tests for Bug#26379 - Combination of FLUSH TABLE and
+#                             REPAIR TABLE corrupts a MERGE table
+#
+# CREATE ... SELECT is disabled for MERGE tables.
+#
+CREATE TABLE t1(c1 INT);
+INSERT INTO t1 VALUES (1);
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+CREATE TABLE t3 ENGINE=MRG_MYISAM INSERT_METHOD=LAST SELECT * FROM t2;
+ERROR HY000: Table 't3' is read only
+SHOW CREATE TABLE t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+CREATE TABLE t3 ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST
+SELECT * FROM t2;
+ERROR HY000: 'test.t3' is not BASE TABLE
+SHOW CREATE TABLE t3;
+ERROR 42S02: Table 'test.t3' doesn't exist
+DROP TABLE t1, t2;
+#
+# Bug#37371 "CREATE TABLE LIKE merge loses UNION parameter"
+# Demonstrate that this is no longer the case.
+#
+# 1. Create like.
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+INSERT INTO t4 VALUES (4);
+DROP TABLE t4;
+#
+# 1. Create like with locked tables.
+LOCK TABLES t3 WRITE, t2 WRITE, t1 WRITE;
+CREATE TABLE t4 LIKE t3;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+SHOW CREATE TABLE t4;
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+INSERT INTO t4 VALUES (4);
+ERROR HY000: Table 't4' was not locked with LOCK TABLES
+# Temporary tables can be created in spite of LOCK TABLES.
+# If the temporary MERGE table uses the locked children only,
+# it can even be used.
+CREATE TEMPORARY TABLE t4 LIKE t3;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+INSERT INTO t4 VALUES (4);
+UNLOCK TABLES;
+INSERT INTO t4 VALUES (4);
+DROP TABLE t4;
+#
+# Rename child.
+#
+# 1. Normal rename of non-MERGE table.
+CREATE TABLE t4 (c1 INT);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+4
+RENAME TABLE t4 TO t5;
+SELECT * FROM t5 ORDER BY c1;
+c1
+4
+RENAME TABLE t5 TO t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+4
+DROP TABLE t4;
+#
+# 2. Normal rename.
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+RENAME TABLE t2 TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+RENAME TABLE t5 TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+#
+# 3. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+RENAME TABLE t2 TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+RENAME TABLE t5 TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+UNLOCK TABLES;
+#
+# 4. Alter table rename.
+ALTER TABLE t2 RENAME TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+#
+# 5. Alter table rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+ALTER TABLE t2 RENAME TO t5;
+SELECT * FROM t3 ORDER BY c1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+ALTER TABLE t5 RENAME TO t2;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+UNLOCK TABLES;
+#
+# Rename parent.
+#
+# 6. Normal rename with locked tables.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+RENAME TABLE t3 TO t5;
+SELECT * FROM t5 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+RENAME TABLE t5 TO t3;
+SELECT * FROM t3 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+#
+# 7. Alter table rename with locked tables.
+ALTER TABLE t3 RENAME TO t5;
+SELECT * FROM t5 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+4
+UNLOCK TABLES;
+DROP TABLE t1, t2, t5;
+#
+# Drop locked tables.
+#
+# 1. Drop parent.
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t2;
+SELECT * FROM t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+SELECT * FROM t1;
+c1
+1
+UNLOCK TABLES;
+# 2. Drop child.
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t1;
+SELECT * FROM t2;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+SELECT * FROM t1;
+ERROR HY000: Table 't1' was not locked with LOCK TABLES
+UNLOCK TABLES;
+DROP TABLE t2;
+#
+# ALTER TABLE. Change child list.
+#
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1));
+CREATE TABLE t3 (c1 INT, INDEX(c1));
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t3,t2)
+INSERT_METHOD=LAST;
+# Shrink child list.
+ALTER TABLE t4 UNION=(t3);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t3`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+3
+# Extend child list.
+ALTER TABLE t4 UNION=(t3,t2);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+2
+3
+#
+# ALTER TABLE under LOCK TABLES. Change child list.
+#
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE;
+# Shrink child list.
+ALTER TABLE t4 UNION=(t3);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+# Extend child list within locked tables.
+ALTER TABLE t4 UNION=(t3,t2);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+# Extend child list beyond locked tables.
+ALTER TABLE t4 UNION=(t3,t2,t1);
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `c1` int(11) DEFAULT NULL,
+  KEY `c1` (`c1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t3`,`t2`)
+SELECT * FROM t4 ORDER BY c1;
+c1
+2
+3
+UNLOCK TABLES;
+DROP TABLE t4;
+#
+# ALTER TABLE under LOCK TABLES. Grave change, table re-creation.
+#
+CREATE TABLE t4 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+INSERT_METHOD=LAST;
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 DROP INDEX c1, ADD UNIQUE INDEX (c1);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+# ALTER TABLE under LOCK TABLES. Simple change, no re-creation.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+CREATE TABLE t3 (c1 INT);
+CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2,t3)
+INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (3);
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+ALTER TABLE t4 ALTER COLUMN c1 SET DEFAULT 44;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+ALTER TABLE t2 ALTER COLUMN c1 SET DEFAULT 22;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+#
+# FLUSH TABLE under LOCK TABLES.
+#
+# Lock parent first and then children.
+LOCK TABLES t4 WRITE, t3 WRITE, t2 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock children first and then parent.
+LOCK TABLES t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+# Lock parent between children.
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+FLUSH TABLE t4;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLE t2;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+FLUSH TABLES;
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+UNLOCK TABLES;
+#
+# Triggers
+#
+# Trigger on parent
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+DROP TRIGGER t4_ai;
+# Trigger on parent under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t4_ai AFTER INSERT ON t4 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+DROP TRIGGER t4_ai;
+UNLOCK TABLES;
+#
+# Trigger on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+0
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+33
+DROP TRIGGER t3_ai;
+# Trigger on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW SET @a=1;
+SET @a=0;
+INSERT INTO t4 VALUES (4);
+SELECT @a;
+@a
+0
+INSERT INTO t3 VALUES (33);
+SELECT @a;
+@a
+1
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+33
+33
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+UNLOCK TABLES;
+#
+# Trigger with table use on child
+DELETE FROM t4 WHERE c1 = 4;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+22
+33
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+DROP TRIGGER t3_ai;
+# Trigger with table use on child under LOCK TABLES
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CREATE TRIGGER t3_ai AFTER INSERT ON t3 FOR EACH ROW INSERT INTO t2 VALUES(22);
+INSERT INTO t4 VALUES (4);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+INSERT INTO t3 VALUES (33);
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+22
+33
+DROP TRIGGER t3_ai;
+DELETE FROM t4 WHERE c1 = 22;
+DELETE FROM t4 WHERE c1 = 33;
+UNLOCK TABLES;
+#
+# Repair
+#
+REPAIR TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+REPAIR TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+#
+# Optimize
+#
+OPTIMIZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	optimize	note	The storage engine for the table doesn't support optimize
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	OK
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+OPTIMIZE TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	optimize	note	The storage engine for the table doesn't support optimize
+OPTIMIZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	optimize	status	Table is already up to date
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+#
+# Checksum
+#
+CHECKSUM TABLE t4;
+Table	Checksum
+test.t4	46622073
+CHECKSUM TABLE t2;
+Table	Checksum
+test.t2	3700403066
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
+CHECKSUM TABLE t4;
+Table	Checksum
+test.t4	46622073
+CHECKSUM TABLE t2;
+Table	Checksum
+test.t2	3700403066
+SELECT * FROM t4 ORDER BY c1;
+c1
+1
+2
+3
+4
+4
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4;
+#
+# Recursive inclusion of merge tables in their union clauses.
+#
+CREATE TABLE t1 (c1 INT, INDEX(c1));
+CREATE TABLE t2 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TABLE t3 (c1 INT, INDEX(c1)) ENGINE=MRG_MYISAM UNION=(t2,t1)
+INSERT_METHOD=LAST;
+ALTER TABLE t2 UNION=(t3,t1);
+SELECT * FROM t2;
+ERROR HY000: Table 't3' is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t3;
+c1
+1
+2
+TRUNCATE TABLE t1;
+SELECT * FROM t3;
+c1
+2
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (id INTEGER, grp TINYINT, id_rev INTEGER);
+SET @rnd_max= 2147483647;
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+SET @rnd= RAND();
+SET @id = CAST(@rnd * @rnd_max AS UNSIGNED);
+SET @id_rev= @rnd_max - @id;
+SET @grp= CAST(127.0 * @rnd AS UNSIGNED);
+INSERT INTO t1 (id, grp, id_rev) VALUES (@id, @grp, @id_rev);
+set @@read_buffer_size=2*1024*1024;
+CREATE TABLE t2 SELECT * FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+INSERT INTO t2 (id, grp, id_rev) SELECT id, grp, id_rev FROM t1;
+INSERT INTO t1 (id, grp, id_rev) SELECT id, grp, id_rev FROM t2;
+CREATE TABLE t3 (id INTEGER, grp TINYINT, id_rev INTEGER)
+ENGINE= MRG_MYISAM UNION= (t1, t2);
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+130
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+80
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+210
+SELECT COUNT(DISTINCT a1.id) FROM t3 AS a1, t3 AS a2
+WHERE a1.id = a2.id GROUP BY a2.grp;
+TRUNCATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+0
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+80
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+80
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t2;
+c1
+1
+LOCK TABLES t2 WRITE, t1 WRITE;
+FLUSH TABLES;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+LOCK TABLES t2 WRITE, t1 WRITE;
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+UNLOCK TABLES;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1, t2;
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+LOCK TABLES t1 WRITE, m1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+CREATE TABLE t1 ( a INT ) ENGINE=MyISAM;
+CREATE TABLE m1 ( a INT ) ENGINE=MRG_MYISAM UNION=(t1);
+LOCK TABLES m1 WRITE, t1 WRITE;
+FLUSH TABLE t1;
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE= MyISAM;
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE= MRG_MYISAM UNION(t1, t2);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+SELECT * FROM t3;
+c1	c2
+1	1
+2	2
+ALTER TABLE t1 ENGINE= MEMORY;
+INSERT INTO t1 VALUES (0, 0);
+SELECT * FROM t3;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (c1 INT, KEY(c1));
+CREATE TABLE t2 (c1 INT, KEY(c1)) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=FIRST;
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	Table is already up to date
+FLUSH TABLES t1;
+UNLOCK TABLES;
+FLUSH TABLES;
+INSERT INTO t1 VALUES (1);
+LOCK TABLE t1 WRITE, t2 WRITE;
+FLUSH TABLES t2, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+FLUSH TABLES t1;
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+CREATE TABLE t1 (ID INT) ENGINE=MYISAM;
+CREATE TABLE m1 (ID INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+INSERT INTO t1 VALUES ();
+INSERT INTO m1 VALUES ();
+LOCK TABLE t1 WRITE, m1 WRITE;
+FLUSH TABLES m1, t1;
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+FLUSH TABLES m1, t1;
+UNLOCK TABLES;
+DROP TABLE t1, m1;
+SET SESSION information_schema_stats_expiry=0;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=FIRST;
+SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE
+TABLE_SCHEMA = 'test' and TABLE_NAME='tm1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+def	test	tm1	BASE TABLE	MRG_MYISAM	10	Fixed	#	#	#	#	#	#	#	#	#	#	utf8mb4_0900_ai_ci	#	#	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+Warnings:
+Warning	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE tm1;
+SET SESSION information_schema_stats_expiry=default;
+CREATE TABLE t1(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t2(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t3(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2)) ENGINE=MYISAM;
+CREATE TABLE t4(C1 INT, C2 INT, KEY C1(C1), KEY C2(C2))
+ENGINE=MRG_MYISAM UNION=(t1, t2, t3);
+INSERT INTO t1 VALUES (1,1), (1,2),(1,3), (1,4);
+INSERT INTO t2 VALUES (2,1), (2,2),(2,3), (2,4);
+INSERT INTO t3 VALUES (3,1), (3,2),(3,3), (3,4);
+EXPLAIN SELECT COUNT(*) FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1`
+EXPLAIN SELECT COUNT(*) FROM t4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t4`
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1(a INT, KEY(a));
+INSERT INTO t1 VALUES(0),(1),(2),(3),(4);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+CREATE TABLE m1(a INT, KEY(a)) ENGINE=MERGE UNION=(t1);
+ANALYZE TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	analyze	note	The storage engine for the table doesn't support analyze
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1';
+CARDINALITY
+5
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1';
+CARDINALITY
+5
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1';
+CARDINALITY
+5
+SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA='test' AND TABLE_NAME='m1';
+CARDINALITY
+5
+DROP TABLE t1, m1;
+#
+# Bug #40675 MySQL 5.1 crash with index merge algorithm and Merge tables
+#
+# create MYISAM table t1 and insert values into it
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+# create MYISAM table t2 and insert values into it
+CREATE TABLE t2(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b));
+INSERT INTO t2(a,b) VALUES
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),(0,0),
+(1,2);
+# Create the merge table t3
+CREATE TABLE t3(a INT, b INT, dummy CHAR(16) DEFAULT '', KEY(a), KEY(b))
+ENGINE=MERGE UNION=(t2) INSERT_METHOD=FIRST;
+# Lock tables t1 and t3 for write
+LOCK TABLES t1 WRITE, t3 WRITE;
+# Insert values into the merge table t3
+INSERT INTO t3(a,b) VALUES(1,2);
+# select from the join of t2 and t3 (The merge table)
+SELECT t3.a FROM t1,t3 WHERE t3.b=2 AND t3.a=1;
+a
+1
+1
+# Unlock the tables
+UNLOCK TABLES;
+# drop the created tables
+DROP TABLE t1, t2, t3;
+# insert duplicate value in child table while merge table doesn't have key
+create table t1 (
+col1 int(10),
+primary key (col1)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+CREATE TABLE m1 (
+col1 int(10) NOT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(t1);
+insert into m1 (col1) values (1);
+insert into m1 (col1) values (1);
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+drop table m1, t1;
+#
+# Bug#45800 crash when replacing into a merge table and there is a duplicate
+#
+# Replace duplicate value in child table when merge table doesn't have key
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+c1
+666
+# insert the duplicate value into the merge table
+REPLACE INTO m1 VALUES (666);
+SELECT * FROM m1;
+c1
+666
+DROP TABLE m1, t1;
+# Insert... on duplicate key update (with duplicate values in the table)
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE m1 (c1 INT NOT NULL) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1  VALUES (666);
+SELECT * FROM m1;
+c1
+666
+# insert the duplicate value into the merge table
+INSERT INTO m1 VALUES (666) ON DUPLICATE KEY UPDATE c1=c1+1;
+SELECT * FROM m1;
+c1
+667
+DROP TABLE m1, t1;
+# Insert duplicate value on MERGE table, where, MERGE has a key but MyISAM has more keys
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1), UNIQUE (c2));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c1)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+INSERT INTO m1 VALUES (1,2);
+# insert the duplicate value into the merge table
+INSERT INTO m1 VALUES (3,2);
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+DROP TABLE m1,t1;
+# Try to define MERGE and MyISAM with keys on different columns
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE (c1));
+CREATE TABLE m1 (c1 INT, c2 INT, UNIQUE (c2)) ENGINE=MRG_MyISAM INSERT_METHOD=LAST UNION=(t1);
+# Try accessing the merge table for inserts (error occurs)
+INSERT INTO m1 VALUES (1,2);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+INSERT INTO m1 VALUES (1,4);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE m1,t1;
+CREATE TABLE t1 (
+col1 INT(10)
+) ENGINE=MyISAM  DEFAULT CHARSET=latin1;
+CREATE VIEW v1 as SELECT * FROM t1;
+CREATE TABLE m1 (
+col1 INT(10)
+)ENGINE=MRG_MyISAM DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(v1);
+#Select should detect that the child table is a view and fail.
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP VIEW v1;
+DROP TABLE m1, t1;
+#
+# Bug #45796: invalid memory reads and writes when altering merge and 
+#             base tables
+#
+CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
+CREATE TABLE m1(c1 INT) ENGINE=MERGE UNION=(t1);
+ALTER TABLE m1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 ADD INDEX idx_c1(c1);
+SELECT * FROM m1;
+c1
+DROP TABLE m1;
+DROP TABLE t1;
+#
+# Bug45781 infinite hang/crash in "opening tables" after handler tries to
+#          open merge table
+#
+DROP TABLE IF EXISTS m1,t1;
+CREATE TABLE t1(a int)engine=myisam;
+CREATE TABLE t2(a int)engine=myisam;
+CREATE TABLE t3(a int)engine=myisam;
+CREATE TABLE t4(a int)engine=myisam;
+CREATE TABLE t5(a int)engine=myisam;
+CREATE TABLE t6(a int)engine=myisam;
+CREATE TABLE t7(a int)engine=myisam;
+CREATE TABLE m1(a int)engine=merge union=(t1,t2,t3,t4,t5,t6,t7);
+SELECT 1 FROM m1;
+1
+HANDLER m1 OPEN;
+ERROR HY000: Table storage engine for 'm1' doesn't have this option
+DROP TABLE m1,t1,t2,t3,t4,t5,t6,t7;
+SELECT 1 FROM m1;
+ERROR 42S02: Table 'test.m1' doesn't exist
+#
+# Bug #46614: Assertion in show_create_trigger()
+#
+CREATE TABLE t1(a int);
+CREATE TABLE t2(a int);
+CREATE TABLE t3(a int) ENGINE = MERGE UNION(t1, t2);
+CREATE TRIGGER tr1 AFTER INSERT ON t3 FOR EACH ROW CALL foo();
+SHOW CREATE TRIGGER tr1;
+Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
+tr1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER `tr1` AFTER INSERT ON `t3` FOR EACH ROW CALL foo()	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci	#
+DROP TRIGGER tr1;
+DROP TABLE t1, t2, t3;
+#
+# BUG#48265 - MRG_MYISAM problem (works in 5.0.85, does't work in 5.1.40)
+#
+CREATE DATABASE `test/1`;
+CREATE TABLE `test/1`.`t/1`(a INT);
+CREATE TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`test/1`.`t/1`)
+DROP TABLE m1;
+CREATE TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+a
+SHOW CREATE TABLE `test/1`.m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t/1`)
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+CREATE TEMPORARY TABLE `test/1`.`t/1`(a INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM m1;
+a
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`test/1`.`t/1`)
+DROP TABLE m1;
+CREATE TEMPORARY TABLE `test/1`.m1(a INT) ENGINE=MERGE UNION=(`test/1`.`t/1`);
+SELECT * FROM `test/1`.m1;
+a
+SHOW CREATE TABLE `test/1`.m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t/1`)
+DROP TABLE `test/1`.m1;
+DROP TABLE `test/1`.`t/1`;
+DROP DATABASE `test/1`;
+#
+# Bug#51494c rash with join, explain and 'sounds like' operator
+#
+CREATE TABLE t1 (a INT) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2 (b INT NOT NULL,c INT,d INT,e BLOB NOT NULL,
+KEY idx0 (d, c)) ENGINE=MERGE;
+EXPLAIN SELECT * FROM t1 NATURAL RIGHT JOIN
+t2 WHERE b SOUNDS LIKE e AND d = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2`.`e` AS `e`,`test`.`t1`.`a` AS `a` from `test`.`t2` left join `test`.`t1` on(true) where ((soundex(`test`.`t2`.`b`) = soundex(`test`.`t2`.`e`)) and multiple equal(1, `test`.`t2`.`d`))
+DROP TABLE t2, t1;
+#
+# Bug#46339 - crash on REPAIR TABLE merge table USE_FRM
+#
+DROP TABLE IF EXISTS m1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MYISAM;
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE m1 READ;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'm1' was locked with a READ lock and can't be updated
+test.m1	repair	status	Operation failed
+UNLOCK TABLES;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1,t1;
+CREATE TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Warning	Can't open table
+test.m1	repair	error	Corrupt
+CREATE TABLE t1 (f1 BIGINT) ENGINE = MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
+CREATE TEMPORARY TABLE m1 (f1 BIGINT) ENGINE=MRG_MyISAM UNION(t1);
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.m1' doesn't exist
+test.m1	repair	error	Corrupt
+CREATE TEMPORARY TABLE t1 (f1 BIGINT) ENGINE=MyISAM;
+REPAIR TABLE m1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+m1	repair	error	Cannot repair temporary table from .frm file
+REPAIR TABLE m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE m1, t1;
+End of 5.1 tests
+#
+# An additional test case for Bug#27430 Crash in subquery code
+# when in PS and table DDL changed after PREPARE
+#
+# Test merge table with too many merge children.
+#
+drop table if exists t_parent;
+set @save_table_definition_cache=@@global.table_definition_cache;
+set @save_table_open_cache=@@global.table_open_cache;
+set @@global.table_open_cache=400;
+#
+# Set @@global.table_definition_cache to minimum
+#
+set @@global.table_definition_cache=400;
+set @a=null;
+#
+# Create 400 merge children
+#
+set @a=concat("create table t_parent (a int) union(", @a,
+") insert_method=first engine=mrg_myisam");
+prepare stmt from @a;
+execute stmt;
+prepare stmt from "select * from t_parent";
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+execute stmt;
+ERROR HY000: Prepared statement needs to be re-prepared
+deallocate prepare stmt;
+#
+# Create merge parent 
+#
+#
+# Cleanup
+#
+drop table t_parent;
+set @@global.table_definition_cache=@save_table_definition_cache;
+set @@global.table_open_cache=@save_table_open_cache;
+DROP DATABASE IF EXISTS mysql_test1;
+CREATE DATABASE mysql_test1;
+CREATE TABLE t1 ... DATA DIRECTORY=... INDEX DIRECTORY=...
+CREATE TABLE mysql_test1.t2 ... DATA DIRECTORY=... INDEX DIRECTORY=...
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,mysql_test1.t2)
+INSERT_METHOD=LAST;
+INSERT INTO t1 VALUES (1);
+INSERT INTO mysql_test1.t2 VALUES (2);
+SELECT * FROM m1;
+c1
+1
+2
+DROP TABLE t1, mysql_test1.t2, m1;
+DROP DATABASE mysql_test1;
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2) INSERT_METHOD=FIRST;
+CREATE TABLE t3 (c1 INT);
+INSERT INTO t3 (c1) VALUES (1);
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT MAX(c1) FROM t3);
+CREATE VIEW v1 AS SELECT foo.c1 c1, f1() c2, bar.c1 c3, f1() c4
+FROM tm1 foo, tm1 bar, t3;
+SELECT * FROM v1;
+c1	c2	c3	c4
+1	1	1	1
+DROP FUNCTION f1;
+DROP VIEW v1;
+DROP TABLE tm1, t1, t2, t3;
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
+INSERT_METHOD=FIRST;
+CREATE FUNCTION f1() RETURNS INT RETURN (SELECT MAX(c1) FROM tm1);
+INSERT INTO tm1 (c1) VALUES (1);
+SELECT f1() FROM (SELECT 1) AS c1;
+f1()
+1
+DROP FUNCTION f1;
+DROP TABLE tm1, t1, t2;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2);
+INSERT INTO t1 (c1) VALUES (1);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+SELECT f1() FROM (SELECT 1 UNION SELECT 1) c1;
+f1()
+1
+DROP FUNCTION f1;
+DROP TABLE tm1, t1, t2;
+CREATE TEMPORARY TABLE t1 (c1 INT);
+INSERT INTO t1 (c1) VALUES (1);
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+CREATE TEMPORARY TABLE t2 (c1 INT);
+ALTER TEMPORARY TABLE tm1 UNION=(t1,t2);
+INSERT INTO t2 (c1) VALUES (2);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+ERROR 0A000: ALTER VIEW is not allowed in stored procedures
+DROP TABLE tm1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+DROP TABLE tm1, t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO tm1 VALUES (1);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+SELECT f1();
+f1()
+1
+DROP FUNCTION f1;
+DROP TABLE tm1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE tm1 WRITE;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+UNLOCK TABLES;
+DROP TABLE tm1, t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO tm1 VALUES (1);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+LOCK TABLE tm1 WRITE;
+SELECT f1();
+f1()
+1
+UNLOCK TABLES;
+DROP FUNCTION f1;
+DROP TABLE tm1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1) INSERT_METHOD=LAST;
+CREATE TRIGGER t2_ai AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO tm1 VALUES(11);
+LOCK TABLE t2 WRITE;
+INSERT INTO t2 VALUES (2);
+SELECT * FROM tm1;
+c1
+11
+SELECT * FROM t2;
+c1
+2
+UNLOCK TABLES;
+DROP TRIGGER t2_ai;
+DROP TABLE tm1, t1, t2;
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+DROP TABLE tm1, t1;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO tm1 VALUES (1);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+SELECT f1();
+f1()
+1
+DROP FUNCTION f1;
+DROP TABLE tm1, t1;
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TABLE t9 (c1 INT) ENGINE=MyISAM;
+LOCK TABLE t9 WRITE;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+UNLOCK TABLES;
+DROP TABLE tm1, t1, t9;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO tm1 VALUES (1);
+RETURN (SELECT MAX(c1) FROM tm1);
+END|
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TABLE t9 (c1 INT) ENGINE=MyISAM;
+LOCK TABLE t9 WRITE;
+SELECT f1();
+f1()
+1
+UNLOCK TABLES;
+DROP FUNCTION f1;
+DROP TABLE tm1, t1, t9;
+CREATE TEMPORARY TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TRIGGER t2_ai AFTER INSERT ON t2
+FOR EACH ROW INSERT INTO tm1 VALUES(11);
+LOCK TABLE t2 WRITE;
+INSERT INTO t2 VALUES (2);
+SELECT * FROM tm1;
+c1
+11
+SELECT * FROM t2;
+c1
+2
+UNLOCK TABLES;
+DROP TRIGGER t2_ai;
+DROP TABLE tm1, t1, t2;
+#
+# Don't allow an update of a MERGE child in a trigger
+# if the table's already being modified by the main
+# statement.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TRIGGER tm1_ai AFTER INSERT ON tm1
+FOR EACH ROW INSERT INTO t1 VALUES(11);
+LOCK TABLE tm1 WRITE, t1 WRITE;
+INSERT INTO tm1 VALUES (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+SELECT * FROM tm1;
+c1
+1
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE, tm1 WRITE;
+INSERT INTO tm1 VALUES (1);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+SELECT * FROM tm1;
+c1
+1
+1
+UNLOCK TABLES;
+DROP TRIGGER tm1_ai;
+DROP TABLE tm1, t1;
+#
+# Don't select MERGE child when trying to get a prelocked table.
+#
+# Due to a limitation demonstrated by the previous test
+# we can no longer use a write-locked prelocked table.
+# The test is kept for historical purposes.
+#
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1)
+INSERT_METHOD=LAST;
+CREATE TRIGGER tm1_ai AFTER INSERT ON tm1
+FOR EACH ROW SELECT max(c1) FROM t1 INTO @var;
+LOCK TABLE tm1 WRITE, t1 WRITE;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+UNLOCK TABLES;
+LOCK TABLE t1 WRITE, tm1 WRITE;
+INSERT INTO tm1 VALUES (1);
+SELECT * FROM tm1;
+c1
+1
+1
+UNLOCK TABLES;
+DROP TRIGGER tm1_ai;
+DROP TABLE tm1, t1;
+CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t3 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t4 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t5 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE tm1 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2,t3,t4,t5)
+INSERT_METHOD=LAST;
+CREATE TRIGGER t2_au AFTER UPDATE ON t2
+FOR EACH ROW SELECT MAX(c1) FROM t1 INTO @var;
+CREATE FUNCTION f1() RETURNS INT
+RETURN (SELECT MAX(c1) FROM t4);
+LOCK TABLE tm1 WRITE, t1 WRITE, t2 WRITE, t3 WRITE, t4 WRITE, t5 WRITE;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(2);
+INSERT INTO t3 VALUES(3);
+INSERT INTO t4 VALUES(4);
+INSERT INTO t5 VALUES(5);
+UPDATE t2, tm1 SET t2.c1=f1();
+FLUSH TABLES;
+FLUSH TABLES;
+UNLOCK TABLES;
+SELECT * FROM tm1;
+c1
+1
+4
+3
+4
+5
+DROP TRIGGER t2_au;
+DROP FUNCTION f1;
+DROP TABLE tm1, t1, t2, t3, t4, t5;
+#
+# Bug#47633 - assert in ha_myisammrg::info during OPTIMIZE
+#
+CREATE TEMPORARY TABLE t1 (c1 INT);
+CREATE TEMPORARY TABLE t2 (c1 INT);
+ALTER TABLE t1 ENGINE=MERGE UNION(t_not_exists, t2);
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	optimize	error	Corrupt
+DROP TABLE t1, t2;
+#
+# Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
+# More tests with TEMPORARY MERGE table and permanent children.
+# First without locked tables.
+#
+DROP TABLE IF EXISTS t1, t2, t3, t4, m1, m2;
+#
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m1;
+c1	c2
+INSERT INTO t1 VALUES (111, 121);
+INSERT INTO m1 VALUES (211, 221);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+#
+ALTER TABLE m1 RENAME m2;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+#
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+ALTER TABLE m2 RENAME m1;
+ERROR 42S01: Table 'm1' already exists
+DROP TABLE m1;
+ALTER TABLE m2 RENAME m1;
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+#
+ALTER TABLE m1 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ALTER TABLE t2 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+SELECT * FROM m1;
+c1	c2	c3
+111	121	NULL
+211	221	NULL
+212	222	232
+#
+ALTER TABLE m1 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t2 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+#
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3);
+INSERT INTO m1 VALUES (311, 321);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+SELECT * FROM t3;
+c1	c2
+311	321
+#
+CREATE TEMPORARY TABLE t4 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3,t4);
+INSERT INTO m1 VALUES (411, 421);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+411	421
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+SELECT * FROM t3;
+c1	c2
+311	321
+SELECT * FROM t4;
+c1	c2
+411	421
+#
+ALTER TABLE m1 ENGINE=MyISAM;
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO m1 VALUES (511, 521);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+411	421
+511	521
+#
+ALTER TABLE m1 ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+#
+CREATE TEMPORARY TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (611, 621);
+SELECT * FROM m1;
+c1	c2
+611	621
+211	221
+212	222
+213	223
+DROP TABLE t1;
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+#
+#
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+#
+CREATE TABLE m2 SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TEMPORARY TABLE m2 ENGINE=MyISAM SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST;
+SELECT * FROM m2;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE m2;
+#
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST SELECT * FROM m1;
+ERROR HY000: 'test.m2' is not BASE TABLE
+#
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST SELECT * FROM m1;
+ERROR HY000: 'test.m2' is not BASE TABLE
+#
+CREATE TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TEMPORARY TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+c1	c2
+311	321
+411	421
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+#
+#
+LOCK TABLE m1 WRITE, m2 WRITE;
+SELECT * FROM m1,m2 WHERE m1.c1=m2.c1;
+c1	c2	c1	c2
+111	121	111	121
+111	121	111	121
+111	121	111	121
+111	121	111	121
+211	221	211	221
+211	221	211	221
+211	221	211	221
+211	221	211	221
+212	222	212	222
+212	222	212	222
+212	222	212	222
+212	222	212	222
+213	223	213	223
+213	223	213	223
+213	223	213	223
+213	223	213	223
+111	121	111	121
+111	121	111	121
+111	121	111	121
+111	121	111	121
+211	221	211	221
+211	221	211	221
+211	221	211	221
+211	221	211	221
+212	222	212	222
+212	222	212	222
+212	222	212	222
+212	222	212	222
+213	223	213	223
+213	223	213	223
+213	223	213	223
+213	223	213	223
+111	121	111	121
+111	121	111	121
+111	121	111	121
+111	121	111	121
+211	221	211	221
+211	221	211	221
+211	221	211	221
+211	221	211	221
+212	222	212	222
+212	222	212	222
+212	222	212	222
+212	222	212	222
+213	223	213	223
+213	223	213	223
+213	223	213	223
+213	223	213	223
+111	121	111	121
+111	121	111	121
+111	121	111	121
+111	121	111	121
+211	221	211	221
+211	221	211	221
+211	221	211	221
+211	221	211	221
+212	222	212	222
+212	222	212	222
+212	222	212	222
+212	222	212	222
+213	223	213	223
+213	223	213	223
+213	223	213	223
+213	223	213	223
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4, m1, m2;
+#
+# Bug#36171 - CREATE TEMPORARY TABLE and MERGE engine
+# More tests with TEMPORARY MERGE table and permanent children.
+# (continued) Now the same with locked table.
+#
+CREATE TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TABLE t2 (c1 INT, c2 INT) ENGINE=MyISAM;
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m1;
+c1	c2
+INSERT INTO t1 VALUES (111, 121);
+INSERT INTO m1 VALUES (211, 221);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+#
+LOCK TABLE m1 WRITE, t1 WRITE, t2 WRITE;
+#
+ALTER TABLE m1 RENAME m2;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+#
+CREATE TEMPORARY TABLE m1 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+ALTER TABLE m2 RENAME m1;
+ERROR 42S01: Table 'm1' already exists
+DROP TABLE m1;
+ALTER TABLE m2 RENAME m1;
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+#
+ALTER TABLE m1 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ALTER TABLE t2 ADD COLUMN c3 INT;
+INSERT INTO m1 VALUES (212, 222, 232);
+SELECT * FROM m1;
+c1	c2	c3
+111	121	NULL
+211	221	NULL
+212	222	232
+#
+ALTER TABLE m1 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+SELECT * FROM m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+ALTER TABLE t1 DROP COLUMN c3;
+ALTER TABLE t2 DROP COLUMN c3;
+INSERT INTO m1 VALUES (213, 223);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+#
+UNLOCK TABLES;
+CREATE TABLE t3 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3);
+LOCK TABLE m1 WRITE;
+INSERT INTO m1 VALUES (311, 321);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+SELECT * FROM t3;
+c1	c2
+311	321
+#
+CREATE TEMPORARY TABLE t4 (c1 INT, c2 INT) ENGINE=MyISAM;
+ALTER TABLE m1 UNION=(t1,t2,t3,t4);
+INSERT INTO m1 VALUES (411, 421);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+411	421
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+SELECT * FROM t3;
+c1	c2
+311	321
+SELECT * FROM t4;
+c1	c2
+411	421
+#
+ALTER TABLE m1 ENGINE=MyISAM;
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO m1 VALUES (511, 521);
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+311	321
+411	421
+511	521
+#
+ALTER TABLE m1 ENGINE=MRG_MyISAM UNION=(t1,t2)
+INSERT_METHOD=LAST;
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+SELECT * FROM t1;
+c1	c2
+111	121
+SELECT * FROM t2;
+c1	c2
+211	221
+212	222
+213	223
+#
+CREATE TEMPORARY TABLE t1 (c1 INT, c2 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (611, 621);
+SELECT * FROM m1;
+c1	c2
+611	621
+211	221
+212	222
+213	223
+DROP TABLE t1;
+SELECT * FROM m1;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+#
+#
+SHOW CREATE TABLE m1;
+Table	Create Table
+m1	CREATE TEMPORARY TABLE `m1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+CREATE TABLE m2 SELECT * FROM m1;
+ERROR HY000: Table 'm2' was not locked with LOCK TABLES
+#
+CREATE TEMPORARY TABLE m2 ENGINE=MyISAM SELECT * FROM m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST;
+SELECT * FROM m2;
+c1	c2
+311	321
+411	421
+LOCK TABLE m1 WRITE, m2 WRITE;
+UNLOCK TABLES;
+DROP TABLE m2;
+LOCK TABLE m1 WRITE;
+#
+# ER_TABLE_NOT_LOCKED is returned in ps-protocol
+CREATE TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST SELECT * FROM m1;
+Got one of the listed errors
+#
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST SELECT * FROM m1;
+ERROR HY000: 'test.m2' is not BASE TABLE
+#
+CREATE TEMPORARY TABLE m2 LIKE m1;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+LOCK TABLE m1 WRITE, m2 WRITE;
+SHOW CREATE TABLE m2;
+Table	Create Table
+m2	CREATE TEMPORARY TABLE `m2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=LAST UNION=(`t1`,`t2`)
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+c1	c2
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+DROP TABLE m2;
+#
+CREATE TEMPORARY TABLE m2 (c1 INT, c2 INT) ENGINE=MRG_MyISAM UNION=(t3,t4)
+INSERT_METHOD=LAST;
+LOCK TABLE m1 WRITE, m2 WRITE;
+INSERT INTO m2 SELECT * FROM m1;
+SELECT * FROM m2;
+c1	c2
+311	321
+411	421
+111	121
+211	221
+212	222
+213	223
+111	121
+211	221
+212	222
+213	223
+#
+UNLOCK TABLES;
+DROP TABLE t1, t2, t3, t4, m1, m2;
+#
+# Bug47098 assert in MDL_context::destroy on HANDLER
+#          <damaged merge table> OPEN
+#
+# Test that merge tables are closed correctly when opened using 
+# HANDLER ... OPEN.
+# The general case.
+DROP TABLE IF EXISTS t1, t2, t3;
+# Connection con1.
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+START TRANSACTION;
+HANDLER t3 OPEN;
+ERROR HY000: Table storage engine for 't3' doesn't have this option
+DROP TABLE t1, t2, t3;
+# Connection default.
+# Disconnecting con1, all mdl_tickets must have been released.
+# The bug-specific case.
+# Connection con1.
+CREATE TABLE t1 (c1 int);
+CREATE TABLE t2 (c1 int);
+CREATE TABLE t3 (c1 int) ENGINE = MERGE UNION (t1,t2);
+DROP TABLE t2;
+START TRANSACTION;
+HANDLER t3 OPEN;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TABLE t1, t3;
+# Connection default.
+# Disconnecting con1, all mdl_tickets must have been released.
+#
+# A test case for Bug#47648   main.merge fails sporadically
+#
+# Make sure we correctly maintain lex->query_tables_last_own.
+#
+create table t1 (c1 int not null);
+create table t2 (c1 int not null);
+create table t3 (c1 int not null);
+create function f1 () returns int return (select max(c1) from t3);
+create table t4 (c1 int not null) engine=merge union=(t1,t2) insert_method=last ;
+select * from t4 where c1 < f1();
+c1
+prepare stmt from "select * from t4 where c1 < f1()";
+execute stmt;
+c1
+execute stmt;
+c1
+execute stmt;
+c1
+drop function f1;
+execute stmt;
+ERROR 42000: FUNCTION test.f1 does not exist
+execute stmt;
+ERROR 42000: FUNCTION test.f1 does not exist
+drop table t4, t3, t2, t1;
+#
+# Bug#51240 ALTER TABLE of a locked MERGE table fails
+#
+DROP TABLE IF EXISTS m1, t1;
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
+LOCK TABLE m1 WRITE;
+ALTER TABLE m1 ADD INDEX (c1);
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+#
+# Locking the merge table won't implicitly lock children.
+#
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
+LOCK TABLE m1 WRITE;
+ALTER TABLE t1 ADD INDEX (c1);
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+LOCK TABLE m1 WRITE, t1 WRITE;
+ALTER TABLE t1 ADD INDEX (c1);
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+#
+# Test for bug #37371 "CREATE TABLE LIKE merge loses UNION parameter"
+#
+drop tables if exists t1, m1, m2;
+create table t1 (i int) engine=myisam;
+create table m1 (i int) engine=mrg_myisam union=(t1) insert_method=first;
+create table m2 like m1;
+# Table definitions should match
+show create table m1;
+Table	Create Table
+m1	CREATE TABLE `m1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=FIRST UNION=(`t1`)
+show create table m2;
+Table	Create Table
+m2	CREATE TABLE `m2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=FIRST UNION=(`t1`)
+drop tables m1, m2, t1;
+#
+# Test case for Bug#54811 "Assert in mysql_lock_have_duplicate()"
+# Check that unique_table() works correctly for merge tables.
+#
+drop table if exists t1, t2, t3, m1, m2;
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (b int);
+create view v1 as select * from t3,t1;
+create table m1 (a int) engine=merge union (t1, t2) insert_method=last;
+create table m2 (a int) engine=merge union (t1, t2) insert_method=first;
+create temporary table tmp (b int);
+insert into tmp (b) values (1);
+insert into t1 (a) values (1);
+insert into t3 (b) values (1);
+insert into m1 (a) values ((select max(a) from m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from t3, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from tmp, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+insert into m1 (a) values ((select max(a) from v1));
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'm1'.
+insert into m1 (a) values ((select max(a) from tmp, v1));
+ERROR HY000: The definition of table 'v1' prevents operation INSERT on table 'm1'.
+update m1 set a = ((select max(a) from m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from t3, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, m1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, m2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, t1));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from tmp, t2));
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+update m1 set a = ((select max(a) from v1));
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'm1'.
+update m1 set a = ((select max(a) from tmp, v1));
+ERROR HY000: The definition of table 'v1' prevents operation UPDATE on table 'm1'.
+delete from m1 where a = (select max(a) from m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from t3, t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, m1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, m2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, t1);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from tmp, t2);
+ERROR HY000: You can't specify target table 'm1' for update in FROM clause
+delete from m1 where a = (select max(a) from v1);
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'm1'.
+delete from m1 where a = (select max(a) from tmp, v1);
+ERROR HY000: The definition of table 'v1' prevents operation DELETE on table 'm1'.
+drop view v1;
+drop temporary table tmp;
+drop table t1, t2, t3, m1, m2;
+#
+# Bug#56494 Segfault in upgrade_shared_lock_to_exclusive() for
+#           REPAIR of merge table
+#
+DROP TABLE IF EXISTS t1, t2, t_not_exists;
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 engine= MERGE UNION (t_not_exists);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	analyze	error	Corrupt
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Table 'test.t_not_exists' is differently defined or of non-MyISAM type or doesn't exist
+test.t1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	check	error	Corrupt
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	NULL
+Warnings:
+Error	1168	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	optimize	error	Corrupt
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Table 'test.t_not_exists' is differently defined or of non-MyISAM type or doesn't exist
+test.t1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.t1	repair	error	Corrupt
+REPAIR TABLE t1 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Warning	Can't open table
+test.t1	repair	error	Corrupt
+DROP TABLE t1;
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT) engine= MERGE UNION (t1);
+REPAIR TABLE t2 USE_FRM;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	note	The storage engine for the table doesn't support repair
+DROP TABLE t1, t2;
+#
+# Bug#57002 Assert in upgrade_shared_lock_to_exclusive()
+#           for ALTER TABLE + MERGE tables
+#
+DROP TABLE IF EXISTS t1, m1;
+CREATE TABLE t1(a INT) engine=myisam;
+CREATE TABLE m1(a INT) engine=merge UNION(t1);
+LOCK TABLES t1 READ, m1 WRITE;
+ALTER TABLE t1 engine=myisam;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+#
+# Test for bug #11754210 - "45777: CHECK TABLE DOESN'T SHOW ALL
+#                           PROBLEMS FOR MERGE TABLE COMPLIANCE IN 5.1"
+#
+drop tables if exists t1, t2, t3, t4, m1;
+create table t1(id int) engine=myisam;
+create view t3 as select 1 as id;
+create table t4(id int) engine=memory;
+create table m1(id int) engine=merge union=(t1,t2,t3,t4);
+select * from m1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+# The below CHECK and REPAIR TABLE statements should
+# report all problems with underlying tables: 
+# - absence of 't2',
+# - missing base table for 't3',
+# - wrong engine of 't4'.
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Table 'test.t3' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Table 'test.t4' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.m1	check	error	Corrupt
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	Error	Table 'test.t2' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Table 'test.t3' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Table 'test.t4' is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	Error	Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+test.m1	repair	error	Corrupt
+# Clean-up.
+drop tables m1, t1, t4;
+drop view t3;
+End of 5.5 tests
+#
+# Additional coverage for refactoring which is made as part
+# of fix for bug #27480 "Extend CREATE TEMPORARY TABLES privilege
+# to allow temp table operations".
+# 
+# Check that prelocking works correctly for various variants of
+# merge tables.
+drop table if exists t1, t2, m1;
+drop function if exists f1;
+create table t1 (j int);
+insert into t1 values (1);
+create function f1() returns int return (select count(*) from m1);
+create temporary table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t2, m1;
+create table t2 (a int) engine=myisam;
+insert into t2 values (1);
+create table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop table m1;
+create temporary table m1 (a int) engine=merge union=(t2);
+select f1() from t1;
+f1()
+1
+drop tables t1, t2, m1;
+drop function f1;
+#
+# Check that REPAIR/CHECK and CHECKSUM statements work correctly
+# for various variants of merge tables.
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create temporary table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+create table t1 (a int) engine=myisam;
+insert into t1 values (1);
+create temporary table m1 (a int) engine=merge union=(t1);
+check table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	check	status	OK
+repair table m1;
+Table	Op	Msg_type	Msg_text
+test.m1	repair	note	The storage engine for the table doesn't support repair
+checksum table m1;
+Table	Checksum
+test.m1	3459908756
+drop tables t1, m1;
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS m1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS q1;
+DROP TABLE IF EXISTS q2;
+CREATE TABLE t1(a INT);
+CREATE TABLE m1(a INT) ENGINE = MERGE UNION (q1, q2);
+CREATE TRIGGER trg1 BEFORE DELETE ON t1
+FOR EACH ROW
+INSERT INTO m1 VALUES (1);
+DELETE FROM t1;
+ERROR HY000: Unable to open underlying table which is differently defined or of non-MyISAM type or doesn't exist
+DROP TRIGGER trg1;
+DROP TABLE t1;
+DROP TABLE m1;
+#
+# Test for bug #11764786 - 57657: TEMPORARY MERGE TABLE WITH TEMPORARY
+#                                 UNDERLYING TABLE, IS BROKEN BY ALTER.
+#
+DROP TABLES IF EXISTS t1, t2, t3, t4;
+CREATE TEMPORARY TABLE t1(i INT) ENGINE= MyISAM;
+CREATE TEMPORARY TABLE t2(i INT) ENGINE= MERGE UNION= (t1) INSERT_METHOD= LAST;
+ALTER TABLE t2 INSERT_METHOD= FIRST;
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+CREATE TABLE t3(i INT) ENGINE= MyISAM;
+CREATE TABLE t4(i int) ENGINE= MERGE UNION= (t3) INSERT_METHOD= LAST;
+ALTER TABLE t4 INSERT_METHOD= FIRST;
+CHECK TABLE t4;
+Table	Op	Msg_type	Msg_text
+test.t4	check	status	OK
+# Clean-up
+DROP TABLES t1, t2, t3, t4;
+# End of bug #11764786 - 57657

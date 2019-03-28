@@ -1,0 +1,189 @@
+CREATE TABLE t1(a int) TABLESPACE ts ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE DISK ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE MEMORY ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` STORAGE MEMORY */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) STORAGE MEMORY ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 STORAGE MEMORY */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) STORAGE DISK ENGINE=MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) TABLESPACE ts ENGINE=MyISAM;
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) TABLESPACE ts STORAGE DISK ENGINE=MyISAM;
+ALTER TABLE t1 ADD COLUMN b int;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+ALTER TABLE t1 TABLESPACE ts;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 TABLESPACE ts2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+ALTER TABLE t1 STORAGE MEMORY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 STORAGE MEMORY */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 STORAGE DISK;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1(a int) ENGINE=MyISAM;
+ALTER TABLE t1 STORAGE MEMORY TABLESPACE ts;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` STORAGE MEMORY */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 STORAGE DISK TABLESPACE ts2;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` STORAGE DISK */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# 2. Non partitioned table DDL.
+# 2.1 Create table.
+CREATE TABLE t1 (i INTEGER) TABLESPACE innodb_file_per_table ENGINE InnoDB;
+CREATE TABLE t2 (i INTEGER) TABLESPACE innodb_system ENGINE InnoDB;
+# 2.2 Alter table.
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2`;
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
+# This is valid since MyISAM does not care:
+ALTER TABLE t2 TABLESPACE `innodb_file_per_table.2` ENGINE MyISAM;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table.2` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Table t1 is carried over to MyISAM using the dummy 'innodb_file_per_table':
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Changing only engine back to InnoDB now will be rejected for t2:
+ALTER TABLE t2 ENGINE InnoDB;
+ERROR 42000: InnoDB: Tablespace names starting with `innodb_` are reserved.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table.2` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# For t1, changing engine back to InnoDB will re-establish usage of the implicit tablespace:
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Changing both engine and tablespace works:
+ALTER TABLE t1 TABLESPACE innodb_system ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t2 TABLESPACE innodb_file_per_table ENGINE InnoDB;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Keeping a valid tablespace through ALTER TABLE:
+ALTER TABLE t1 ADD COLUMN (j INTEGER);
+CREATE TABLESPACE ts ADD DATAFILE 'f.ibd' ENGINE InnoDB;
+ALTER TABLE t1 TABLESPACE ts;
+ALTER TABLE t1 ENGINE MyISAM;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 ENGINE InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) DEFAULT NULL,
+  `j` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLESPACE ts;
+# 1. Verify that ENGINE attribute is not needed for ALTER and DROP
+# TABLESPACE
+CREATE TABLESPACE ts1 ADD DATAFILE 'df1.ibd' ENGINE=InnoDB;
+# No need to add ENGINE - looked up in DD
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd';
+ERROR HY000: Failed to alter: TABLESPACE ts1
+SHOW WARNINGS;
+Level	Code	Message
+Error	1533	Failed to alter: TABLESPACE ts1
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+# Specifying correct ENGINE is allowed, but triggers deprecation
+# warning
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=INNODB;
+ERROR HY000: Failed to alter: TABLESPACE ts1
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1681	'ENGINE tablespace option' is deprecated and will be removed in a future release.
+Error	1533	Failed to alter: TABLESPACE ts1
+Error	1178	The storage engine for the table doesn't support ALTER TABLESPACE ... ADD DATAFILE
+# Specifying a different ENGINE than the one stored in the DD is an
+# error
+ALTER TABLESPACE ts1 ADD DATAFILE 'df2.ibd' ENGINE=MYISAM;
+ERROR HY000: Engine 'MYISAM' does not match stored engine 'InnoDB' for tablespace 'ts1'
+DROP TABLESPACE ts1;

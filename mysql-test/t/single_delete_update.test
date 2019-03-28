@@ -3,6 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 # Run the test with InnoDB engine once Bug #27422448 fixed.
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 #
 # Single table specific update/delete tests (mysql_update and mysql_delete)

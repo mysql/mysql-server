@@ -26,22 +26,9 @@ INDEX i1_key (i1)
 INSERT INTO t1_innodb
 SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
 FROM t0 AS a0, t0 AS a1;
-CREATE TABLE t1_myisam (
-pk INTEGER PRIMARY KEY,
-i1 INTEGER NOT NULL,
-c1 CHAR(250),
-c2 CHAR(250),
-c3 CHAR(250),
-c4 CHAR(250),
-INDEX i1_key (i1)
-) ENGINE=MyISAM;
-INSERT INTO t1_myisam
-SELECT a0.i1 + 10 * a1.i1, a0.i1, 'abc', 'def', 'ghi', 'jkl'
-FROM t0 AS a0, t0 AS a1;
-ANALYZE TABLE t1_innodb, t1_myisam;
+ANALYZE TABLE t1_innodb;
 Table	Op	Msg_type	Msg_text
 test.t1_innodb	analyze	status	OK
-test.t1_myisam	analyze	status	Table is already up to date
 "Explain with cost estimate against InnoDB"
 EXPLAIN FORMAT=JSON SELECT * FROM t1_innodb;
 EXPLAIN
@@ -76,40 +63,6 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1_innodb`.`pk` AS `pk`,`test`.`t1_innodb`.`i1` AS `i1`,`test`.`t1_innodb`.`c1` AS `c1`,`test`.`t1_innodb`.`c2` AS `c2`,`test`.`t1_innodb`.`c3` AS `c3`,`test`.`t1_innodb`.`c4` AS `c4` from `test`.`t1_innodb`
-"Explain with cost estimate against MyISAM"
-EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "34.97"
-    },
-    "table": {
-      "table_name": "t1_myisam",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 100,
-      "rows_produced_per_join": 100,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "24.97",
-        "eval_cost": "10.00",
-        "prefix_cost": "34.97",
-        "data_read_per_join": "392K"
-      },
-      "used_columns": [
-        "pk",
-        "i1",
-        "c1",
-        "c2",
-        "c3",
-        "c4"
-      ]
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
 UPDATE mysql.server_cost 
 SET cost_value=0.4
 WHERE cost_name="row_evaluate_cost";
@@ -134,7 +87,7 @@ SELECT engine_name, cost_name, cost_value FROM mysql.engine_cost;
 engine_name	cost_name	cost_value
 default	io_block_read_cost	2
 default	memory_block_read_cost	2
-"Explain with cost estimate against InnoDB"
+"Explain with cost estimate against MyISAM"
 EXPLAIN FORMAT=JSON SELECT * FROM t1_innodb;
 EXPLAIN
 {
@@ -168,40 +121,6 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1_innodb`.`pk` AS `pk`,`test`.`t1_innodb`.`i1` AS `i1`,`test`.`t1_innodb`.`c1` AS `c1`,`test`.`t1_innodb`.`c2` AS `c2`,`test`.`t1_innodb`.`c3` AS `c3`,`test`.`t1_innodb`.`c4` AS `c4` from `test`.`t1_innodb`
-"Explain with cost estimate against MyISAM"
-EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "239.75"
-    },
-    "table": {
-      "table_name": "t1_myisam",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 100,
-      "rows_produced_per_join": 100,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "199.75",
-        "eval_cost": "40.00",
-        "prefix_cost": "239.75",
-        "data_read_per_join": "392K"
-      },
-      "used_columns": [
-        "pk",
-        "i1",
-        "c1",
-        "c2",
-        "c3",
-        "c4"
-      ]
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
 UPDATE mysql.server_cost
 SET cost_value=DEFAULT;
 UPDATE mysql.engine_cost
@@ -261,42 +180,8 @@ EXPLAIN
 }
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1_innodb`.`pk` AS `pk`,`test`.`t1_innodb`.`i1` AS `i1`,`test`.`t1_innodb`.`c1` AS `c1`,`test`.`t1_innodb`.`c2` AS `c2`,`test`.`t1_innodb`.`c3` AS `c3`,`test`.`t1_innodb`.`c4` AS `c4` from `test`.`t1_innodb`
-"Explain with cost estimate against MyISAM"
-EXPLAIN FORMAT=JSON SELECT * FROM t1_myisam;
-EXPLAIN
-{
-  "query_block": {
-    "select_id": 1,
-    "cost_info": {
-      "query_cost": "34.97"
-    },
-    "table": {
-      "table_name": "t1_myisam",
-      "access_type": "ALL",
-      "rows_examined_per_scan": 100,
-      "rows_produced_per_join": 100,
-      "filtered": "100.00",
-      "cost_info": {
-        "read_cost": "24.97",
-        "eval_cost": "10.00",
-        "prefix_cost": "34.97",
-        "data_read_per_join": "392K"
-      },
-      "used_columns": [
-        "pk",
-        "i1",
-        "c1",
-        "c2",
-        "c3",
-        "c4"
-      ]
-    }
-  }
-}
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1_myisam`.`pk` AS `pk`,`test`.`t1_myisam`.`i1` AS `i1`,`test`.`t1_myisam`.`c1` AS `c1`,`test`.`t1_myisam`.`c2` AS `c2`,`test`.`t1_myisam`.`c3` AS `c3`,`test`.`t1_myisam`.`c4` AS `c4` from `test`.`t1_myisam`
 DELETE FROM mysql.engine_cost
 WHERE engine_name NOT LIKE "default";
 "Restarting MySQL server"
 # restart
-DROP TABLE t0, t1_innodb, t1_myisam;
+DROP TABLE t0, t1_innodb;

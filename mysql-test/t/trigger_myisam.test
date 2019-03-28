@@ -1,0 +1,145 @@
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+# Test for bug #5894 "Triggers with altered tables cause corrupt databases"
+# Also tests basic error handling for various kinds of triggers.
+create table t1 (i int, at int, k int, key(k)) engine=myisam;
+create table t2 (i int);
+insert into t1 values (1, 1, 1);
+# We need at least 3 elements in t2 to test multi-update properly
+insert into t2 values (1), (2), (3);
+# Create and then break "after" triggers
+create trigger ai after insert on t1 for each row set @a:= new.at;
+create trigger au after update on t1 for each row set @a:= new.at;
+create trigger ad after delete on t1 for each row set @a:= old.at;
+alter table t1 drop column at;
+# We still should be able select data from tables.
+select * from t1;
+# The following statements changing t1 should fail, but still cause
+# their main effect. This is because operation on the table row is
+# executed before "after" trigger and its effect cannot be rolled back
+# when whole statement fails, because t1 is MyISAM table.
+--error ER_BAD_FIELD_ERROR
+insert into t1 values (2, 1);
+select * from t1;
+--error ER_BAD_FIELD_ERROR
+update t1 set k = 2 where i = 2;
+select * from t1;
+--error ER_BAD_FIELD_ERROR
+delete from t1 where i = 2;
+select * from t1;
+# Should fail and insert only 1 row
+--error ER_BAD_FIELD_ERROR
+load data infile '../../std_data/loaddata5.dat' into table t1 fields terminated by '' enclosed by '' (i, k);
+select * from t1;
+--error ER_BAD_FIELD_ERROR
+insert into t1 select 3, 3;
+select * from t1;
+# Multi-update working on the fly, again it will update only
+# one row even if more matches
+--error ER_BAD_FIELD_ERROR
+update t1, t2 set k = k + 10 where t1.i = t2.i;
+select * from t1;
+# The same for multi-update via temp table
+--error ER_BAD_FIELD_ERROR
+update t1, t2 set k = k + 10 where t1.i = t2.i and k < 3;
+select * from t1;
+# Multi-delete on the fly
+--error ER_BAD_FIELD_ERROR
+delete t1, t2 from t1 straight_join t2 where t1.i = t2.i;
+select * from t1;
+# And via temporary storage
+--error ER_BAD_FIELD_ERROR
+delete t2, t1 from t2 straight_join t1 where t1.i = t2.i;
+select * from t1;
+# Prepare table for testing of REPLACE and INSERT ... ON DUPLICATE KEY UPDATE
+alter table t1 add primary key (i);
+--error ER_BAD_FIELD_ERROR
+insert into t1 values (3, 4) on duplicate key update k= k + 10;
+select * from t1;
+# The following statement will delete old row and won't
+# insert new one since after delete trigger will fail.
+--error ER_BAD_FIELD_ERROR
+replace into t1 values (3, 3);
+select * from t1;
+# Also drops all triggers
+drop table t1, t2;
+
+
+#
+# Bug #26162: Trigger DML ignores low_priority_updates setting
+#"LOW_PRIORITY_UPDATES" used by the test is not supported by Innodb
+#
+CREATE TABLE t1 (id INTEGER) ENGINE=MyISAM;
+CREATE TABLE t2 (id INTEGER) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1),(2);
+
+# trigger that produces the high priority insert, but should be low, adding
+# LOW_PRIORITY fixes this
+CREATE TRIGGER t1_test AFTER INSERT ON t1 FOR EACH ROW
+  INSERT INTO t2 VALUES (new.id);
+
+CONNECT (rl_holder,    localhost, root,,);
+CONNECT (rl_acquirer,  localhost, root,,);
+CONNECT (wl_acquirer,  localhost, root,,);
+CONNECT (rl_contender, localhost, root,,);
+
+CONNECTION rl_holder;
+SELECT GET_LOCK('B26162',120);
+
+CONNECTION rl_acquirer;
+--send
+SELECT 'rl_acquirer', GET_LOCK('B26162',120), id FROM t2 WHERE id = 1;
+
+CONNECTION wl_acquirer;
+SET SESSION LOW_PRIORITY_UPDATES=1;
+SET GLOBAL LOW_PRIORITY_UPDATES=1;
+#need to wait for rl_acquirer to lock on the B26162 lock 
+sleep 2;
+--send
+INSERT INTO t1 VALUES (5);
+
+CONNECTION rl_contender;
+# must not "see" the row inserted by the INSERT (as it must run before the
+# INSERT)
+--send
+SELECT 'rl_contender', id FROM t2 WHERE id > 1;
+
+CONNECTION rl_holder;
+#need to wait for wl_acquirer and rl_contender to lock on t2 
+sleep 2;
+SELECT RELEASE_LOCK('B26162');
+
+CONNECTION rl_acquirer;
+--reap
+SELECT RELEASE_LOCK('B26162');
+CONNECTION wl_acquirer;
+--reap
+CONNECTION rl_contender;
+--reap
+
+CONNECTION default;
+DISCONNECT rl_acquirer;
+DISCONNECT wl_acquirer;
+DISCONNECT rl_contender;
+DISCONNECT rl_holder;
+
+DROP TRIGGER t1_test;
+DROP TABLE t1,t2;
+SET SESSION LOW_PRIORITY_UPDATES=DEFAULT;
+SET GLOBAL LOW_PRIORITY_UPDATES=DEFAULT;
+
+#
+# Bug #48525: trigger changes "Column 'id' cannot be null" behaviour
+#
+CREATE TABLE t1 (id INT NOT NULL) ENGINE=MyISAM;
+CREATE TABLE t2 (id INT NOT NULL) ENGINE=MyISAM;
+INSERT t1 VALUES (1),(2),(3);
+UPDATE IGNORE t1 SET id=NULL;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+  INSERT INTO t2 VALUES (3);
+UPDATE t1 SET id=NULL;
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
+

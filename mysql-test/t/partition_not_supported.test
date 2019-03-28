@@ -23,8 +23,6 @@ if ($ENGINE == "")
   --source partition_not_supported.test
   --let $ENGINE=Memory
   --source partition_not_supported.test
-  --let $ENGINE=MyISAM
-  --source partition_not_supported.test
   exit;
 }
 

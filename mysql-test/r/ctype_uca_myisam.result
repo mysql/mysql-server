@@ -1,0 +1,23 @@
+CREATE TABLE t (
+c char(20) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t VALUES ('a'),('ab'),('aba');
+ALTER TABLE t ADD INDEX (c);
+SELECT c FROM t WHERE c LIKE 'a%';
+c
+a
+ab
+aba
+DROP TABLE t;
+CREATE TABLE t1 (
+c1 text character set ucs2 collate ucs2_polish_ci NOT NULL
+) ENGINE=MyISAM;
+insert into t1 values (''),('a');
+SELECT COUNT(*), c1 FROM t1 GROUP BY c1;
+COUNT(*)	c1
+1	
+1	a
+DROP TABLE IF EXISTS t1;

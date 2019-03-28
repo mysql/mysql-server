@@ -1,4 +1,7 @@
- #Get deafult engine value
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+ 
+#Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 ###############################################

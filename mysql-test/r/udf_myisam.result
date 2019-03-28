@@ -1,0 +1,18 @@
+#
+# WL8980 - Move udf metatable table from MyISAM to InnoDB.
+#
+SET autocommit= 0;
+SET innodb_lock_wait_timeout= 1;
+
+# Connection: con1
+
+######################################################################
+# C. Check that it is possible to ALTER storage engine for
+#    mysql.func to MyISAM.
+#    This is necessary for mysql_system_tables_fix_for_downgrade.sql
+#    to work.
+######################################################################
+ALTER TABLE mysql.func ENGINE = MYISAM;
+SELECT * FROM mysql.func;
+name	ret	dl	type
+ALTER TABLE mysql.func ENGINE = INNODB;

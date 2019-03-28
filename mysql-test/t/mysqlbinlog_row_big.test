@@ -10,6 +10,7 @@
 --let $mysqlbinlog_output= tmp/mysqlbinlog_big_1.out
 
 #--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --let $engine_type= MyISAM
 
 #

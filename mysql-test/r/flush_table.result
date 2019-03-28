@@ -275,18 +275,11 @@ FLUSH TABLES WITH READ LOCK;
 # This should not block
 FLUSH TABLE t1 FOR EXPORT;
 UNLOCK TABLES;
+# Connection con1
 # Connection default
 UNLOCK TABLES;
 DROP TABLE t1;
-# Test 6: Unsupported storage engines.
-#
-CREATE TABLE t1(a INT) engine= MyISAM;
-FLUSH TABLE t1 FOR EXPORT;
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-DROP TABLE t1;
-# Connection con1
-# Connection defalt
-# Test 7: Check privileges required.
+# Test 6: Check privileges required.
 #
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine= InnoDB;
@@ -322,7 +315,7 @@ DROP USER user1@localhost, user2@localhost, user3@localhost,
 user4@localhost, user5@localhost;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
-# Test 8: FLUSH TABLE <table_list> FOR EXPORT is incompatible
+# Test 7: FLUSH TABLE <table_list> FOR EXPORT is incompatible
 #         with itself (to avoid race conditions in metadata
 #         file handling).
 #
@@ -342,7 +335,7 @@ UNLOCK TABLES;
 # Connection default
 # Reaping: FLUSH TABLE t1 FOR EXPORT
 UNLOCK TABLES;
-# Test 9: LOCK TABLES ... READ is not affected
+# Test 8: LOCK TABLES ... READ is not affected
 #
 LOCK TABLE t1 READ;
 # Connection con1
@@ -361,7 +354,7 @@ UNLOCK TABLES;
 # Connection con1
 # Connection default
 DROP TABLE t1, t2;
-# Test 10: Lock is released if transaction is started after doing
+# Test 9: Lock is released if transaction is started after doing
 #          'flush table..' in same session
 CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
 FLUSH TABLE t1 FOR EXPORT;
@@ -374,7 +367,7 @@ START TRANSACTION;
 FLUSH TABLE t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
-# Test 11: Test 'flush table with fully qualified table names
+# Test 10: Test 'flush table with fully qualified table names
 #          and with syntax local/NO_WRITE_TO_BINLOG
 # Connection con1
 # Connection default
@@ -407,7 +400,7 @@ i
 200
 UNLOCK TABLE;
 DROP TABLE t1;
-# Test 12: Active transaction get committed if user execute
+# Test 11: Active transaction get committed if user execute
 #          "FLUSH TABLE ... FOR EXPORT" or "LOCK TABLE.."
 # Connection default
 CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
@@ -435,7 +428,7 @@ i
 400
 UNLOCK TABLES;
 DROP TABLE t1;
-# Test 13: Verify "FLUSH TABLE ... FOR EXPORT" and "LOCK TABLE.."
+# Test 12: Verify "FLUSH TABLE ... FOR EXPORT" and "LOCK TABLE.."
 #          in same session   
 # Connection default
 CREATE TABLE t1 ( i INT ) ENGINE = Innodb;

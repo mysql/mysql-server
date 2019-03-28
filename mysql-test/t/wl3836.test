@@ -2,6 +2,8 @@
 # WL#3836: Method to bring servers off line
  
 --source include/not_threadpool.inc
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 	  
 --echo #
 --echo # WL#3836:  Method to bring servers off line

@@ -2,6 +2,8 @@
 # Tests with the utf8mb4 character set
 #
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1,t2;
@@ -252,61 +254,9 @@ drop table t1;
 
 #
 # Bug 4521: unique key prefix interacts poorly with utf8mb4
-# InnoDB: keys with prefix compression, case insensitive collation.
-#
---disable_warnings
-create table t1 (c varchar(30) character set utf8mb4, unique(c(10))) engine=innodb;
---enable_warnings
-insert into t1 values ('1'),('2'),('3'),('x'),('y'),('z');
-insert into t1 values ('aaaaaaaaaa');
---error ER_DUP_ENTRY
-insert into t1 values ('aaaaaaaaaaa');
---error ER_DUP_ENTRY
-insert into t1 values ('aaaaaaaaaaaa');
-insert into t1 values (repeat('b',20));
-select c c1 from t1 where c='1';
-select c c2 from t1 where c='2';
-select c c3 from t1 where c='3';
-select c cx from t1 where c='x';
-select c cy from t1 where c='y';
-select c cz from t1 where c='z';
-select c ca10 from t1 where c='aaaaaaaaaa';
-select c cb20 from t1 where c=repeat('b',20);
-drop table t1;
-#
-# Bug 4521: unique key prefix interacts poorly with utf8mb4
 # MYISAM: fixed length keys, case insensitive collation
 #
 create table t1 (c char(3) character set utf8mb4, unique (c(2)));
-insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
-insert into t1 values ('a');
-insert into t1 values ('aa');
---error ER_DUP_ENTRY
-insert into t1 values ('aaa');
-insert into t1 values ('b');
-insert into t1 values ('bb');
---error ER_DUP_ENTRY
-insert into t1 values ('bbb');
-insert into t1 values ('а');
-insert into t1 values ('аа');
---error ER_DUP_ENTRY
-insert into t1 values ('ааа');
-insert into t1 values ('б');
-insert into t1 values ('бб');
---error ER_DUP_ENTRY
-insert into t1 values ('ббб');
-insert into t1 values ('ꪪ');
-insert into t1 values ('ꪪꪪ');
---error ER_DUP_ENTRY
-insert into t1 values ('ꪪꪪꪪ');
-drop table t1;
-#
-# Bug 4521: unique key prefix interacts poorly with utf8mb4
-# InnoDB: fixed length keys, case insensitive collation
-#
---disable_warnings
-create table t1 (c char(3) character set utf8mb4, unique (c(2))) engine=innodb;
---enable_warnings
 insert into t1 values ('1'),('2'),('3'),('4'),('x'),('y'),('z');
 insert into t1 values ('a');
 insert into t1 values ('aa');
@@ -362,31 +312,6 @@ c char(10) character set utf8mb4,
 unique key a using btree (c(1))
 ) engine=heap;
 show create table t1;
-insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY
-insert into t1 values ('aa');
---error ER_DUP_ENTRY
-insert into t1 values ('aaa');
-insert into t1 values ('б');
---error ER_DUP_ENTRY
-insert into t1 values ('бб');
---error ER_DUP_ENTRY
-insert into t1 values ('ббб');
-select c as c_all from t1 order by c;
-select c as c_a from t1 where c='a';
-select c as c_a from t1 where c='б';
-drop table t1;
-
-#
-# Bug 4531: unique key prefix interacts poorly with utf8mb4
-# Check BDB, case insensitive collation
-#
---disable_warnings
-create table t1 (
-c char(10) character set utf8mb4,
-unique key a (c(1))
-) engine=innodb;
---enable_warnings
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 --error ER_DUP_ENTRY
 insert into t1 values ('aa');
@@ -500,53 +425,13 @@ select c as c_a from t1 where c='a';
 select c as c_a from t1 where c='б';
 drop table t1;
 
-#
-# Bug 4531: unique key prefix interacts poorly with utf8mb4
-# Check BDB, binary collation
-#
---disable_warnings
-create table t1 (
-c char(10) character set utf8mb4 collate utf8mb4_bin,
-unique key a (c(1))
-) engine=innodb;
---enable_warnings
-insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
---error ER_DUP_ENTRY
-insert into t1 values ('aa');
---error ER_DUP_ENTRY
-insert into t1 values ('aaa');
-insert into t1 values ('б');
---error ER_DUP_ENTRY
-insert into t1 values ('бб');
---error ER_DUP_ENTRY
-insert into t1 values ('ббб');
-select c as c_all from t1 order by c;
-select c as c_a from t1 where c='a';
-select c as c_a from t1 where c='б';
-drop table t1;
-
-
 # Bug#4594: column index make = failed for gbk, but like works
 # Check MYISAM
 #
 create table t1 (
   str varchar(255) character set utf8mb4 not null,
   key str  (str(2))
-) engine=myisam;
-INSERT INTO t1 VALUES ('str');
-INSERT INTO t1 VALUES ('str2');
-select * from t1 where str='str';
-drop table t1;
-
-# Bug#4594: column index make = failed for gbk, but like works
-# Check InnoDB
-#
---disable_warnings
-create table t1 (
-  str varchar(255) character set utf8mb4 not null,
-  key str  (str(2))
-) engine=innodb;
---enable_warnings
+);
 INSERT INTO t1 VALUES ('str');
 INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
@@ -576,43 +461,12 @@ INSERT INTO t1 VALUES ('str2');
 select * from t1 where str='str';
 drop table t1;
 
-# the same for BDB
-#
-
---disable_warnings
-create table t1 (
-  str varchar(255) character set utf8mb4 not null,
-  key str (str(2))
-) engine=innodb;
---enable_warnings
-INSERT INTO t1 VALUES ('str');
-INSERT INTO t1 VALUES ('str2');
-select * from t1 where str='str';
-drop table t1;
-
 #
 # Bug #5397: Crash with varchar binary and LIKE
 #
 CREATE TABLE t1 (a varchar(32) BINARY) CHARACTER SET utf8mb4;
 INSERT INTO t1 VALUES ('test');
 SELECT a FROM t1 WHERE a LIKE '%te';
-DROP TABLE t1;
-
-#
-# Bug #5723: length(<varchar utf8mb4 field>) returns varying results
-#
---disable_warnings
-SET NAMES utf8mb4;
---disable_warnings
-CREATE TABLE t1 (
-  subject varchar(255) character set utf8mb4 collate utf8mb4_unicode_ci,
-  p varchar(15) character set utf8mb4
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
-INSERT INTO t1 VALUES ('谷川俊二と申しますが、インターネット予約の会員登録をしましたところ、メールアドレスを間違えてしまい会員ＩＤが受け取ることが出来ませんでした。間違えアドレスはtani-shun@n.vodafone.ne.jpを書き込みました。どうすればよいですか？ その他、住所等は間違えありません。連絡ください。よろしくお願いします。m(__)m','040312-000057');
-INSERT INTO t1 VALUES ('aaa','bbb');
-SELECT length(subject) FROM t1;
-SELECT length(subject) FROM t1 ORDER BY 1;
 DROP TABLE t1;
 
 #
@@ -624,7 +478,7 @@ CREATE TABLE t1 (
     term     TEXT NOT NULL,
     PRIMARY KEY(id),
     INDEX(list_id, term(4))
-) ENGINE=MYISAM CHARSET=utf8mb4;
+) CHARSET=utf8mb4;
 INSERT INTO t1 SET list_id = 1, term = "letterc";
 INSERT INTO t1 SET list_id = 1, term = "letterb";
 INSERT INTO t1 SET list_id = 1, term = "lettera";
@@ -656,27 +510,9 @@ SELECT id, term FROM t1 where (list_id = 1) AND (term = "test�test");
 DROP TABLE t1;
 
 #
-# Bug #6019 SELECT tries to use too short prefix index on utf8mb4 data
-#
-set names utf8mb4;
---disable_warnings
-create table t1 (
-  a int primary key,
-  b varchar(6),
-  index b3(b(3))
-) engine=innodb character set=utf8mb4;
---enable_warnings
-insert into t1 values(1,'foo'),(2,'foobar');
-select * from t1 where b like 'foob%';
---disable_warnings
-alter table t1 engine=innodb;
---enable_warnings
-select * from t1 where b like 'foob%';
-drop table t1;
-
-#
 # Test for calculate_interval_lengths() function
 #
+set names utf8mb4;
 create table t1 (
   a enum('петя','вася','анюта') character set utf8mb4 not null default 'анюта',
   b set('петя','вася','анюта') character set utf8mb4 not null default 'анюта'
@@ -731,7 +567,7 @@ SET collation_connection='utf8mb4_bin';
 #
 CREATE TABLE t1 (
 	user varchar(255) NOT NULL default ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES ('one'),('two');
 SELECT CHARSET('a');
 SELECT user, CONCAT('<', user, '>') AS c FROM t1;
@@ -834,7 +670,7 @@ CREATE TABLE t1 (
   KEY `IX_mobile_originated_message_keyword` (`keyword`),
   KEY `IX_mobile_originated_message_created` (`created`),
   KEY `IX_mobile_originated_message_support` (`msisdn`,`momid`,`keyword`,`gateway_id`,`created`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO t1 VALUES 
 (1,'blah','464','aaa','fkc1c9ilc20x0hgae7lx6j09','ERR','ERR Имри.Афимим.Аеимимримдмримрмрирор имримримримр имридм ирбднримрфмририримрфмфмим.Ад.Д имдимримрад.Адимримримрмдиримримримр м.Дадимфшьмримд им.Адимимрн имадми','ИМРИ.АФИМИМ.АЕИМИМРИМДМРИМРМРИРОР',3,'2005-06-01 17:30:43','1234567890'),
@@ -899,7 +735,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE t1 (
   a varchar(255) NOT NULL default '',
   KEY a (a)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
+) DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_general_ci;
 insert into t1 values (_utf8mb4 0xe880bd);
 insert into t1 values (_utf8mb4 0x5b);
 select hex(a) from t1;
@@ -950,7 +786,7 @@ DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES utf8mb4;
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1(a VARCHAR(255), KEY(a)) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+CREATE TABLE t1(a VARCHAR(255), KEY(a)) DEFAULT CHARSET=utf8mb4;
 INSERT INTO t1 VALUES('uuABCDEFGHIGKLMNOPRSTUVWXYZ̈bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 INSERT INTO t1 VALUES('uu');
 check table t1;
@@ -1010,43 +846,6 @@ delete from t1 where s1 = 'Y';
 select s1 as after_delete_bin from t1 where s1 like 'ペテ%';
 drop table t1;
 
-# additional tests from duplicate bug#20744 MySQL return no result
-
-set names utf8mb4;
---disable_warnings
-create table t1 (a varchar(30) not null primary key)
-engine=innodb  default character set utf8mb4 collate utf8mb4_general_ci;
---enable_warnings
-insert into t1 values ('あいうえおかきくけこさしすせそ');
-insert into t1 values ('さしすせそかきくけこあいうえお');
-select a as gci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
-select a as gci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
-drop table t1;
-
-set names utf8mb4;
---disable_warnings
-create table t1 (a varchar(30) not null primary key)
-engine=innodb default character set utf8mb4 collate utf8mb4_unicode_ci;
---enable_warnings
-insert into t1 values ('あいうえおかきくけこさしすせそ');
-insert into t1 values ('さしすせそかきくけこあいうえお');
-select a as uci1 from t1 where a like 'さしすせそかきくけこあいうえお%';
-select a as uci2 from t1 where a like 'あいうえおかきくけこさしすせそ';
-drop table t1;
-
-set names utf8mb4;
---disable_warnings
-create table t1 (a varchar(30) not null primary key)
-engine=innodb default character set utf8mb4 collate utf8mb4_bin;
---enable_warnings
-insert into t1 values ('あいうえおかきくけこさしすせそ');
-insert into t1 values ('さしすせそかきくけこあいうえお');
-select a as bin1 from t1 where a like 'さしすせそかきくけこあいうえお%';
-select a as bin2 from t1 where a like 'あいうえおかきくけこさしすせそ';
-drop table t1;
-
-
-
 #
 # Bug#14896: Comparison with a key in a partial index over mb chararacter field
 #
@@ -1057,7 +856,7 @@ CREATE TABLE t1 (id int PRIMARY KEY,
                  b int,
                  f varchar(128) default 'XXX',
                  INDEX (a(4))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 INSERT INTO t1(id, a, b) VALUES
   (1, 'cccc', 50), (2, 'cccc', 70), (3, 'cccc', 30),
   (4, 'cccc', 30), (5, 'cccc', 20), (6, 'bbbbbb', 40),
@@ -1082,7 +881,7 @@ SET NAMES utf8mb4;
 CREATE TABLE t1 (
   a CHAR(13) DEFAULT '',
   INDEX(a)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO t1 VALUES 
  ('Käli Käli 2-4'), ('Käli Käli 2-4'),
  ('Käli Käli 2+4'), ('Käli Käli 2+4'),
@@ -1092,7 +891,7 @@ INSERT INTO t1 SELECT * FROM t1;
 CREATE TABLE t2 (
   a CHAR(13) DEFAULT '',
   INDEX(a)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
+) DEFAULT CHARSET=latin1 COLLATE=latin1_general_ci;
 
 INSERT INTO t2 VALUES
  ('Kali Kali 2-4'), ('Kali Kali 2-4'),
@@ -1113,7 +912,7 @@ DROP TABLE t1,t2;
 CREATE TABLE t1 (
   a char(255) DEFAULT '', 
   KEY(a(10))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
@@ -1122,7 +921,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (
   a char(255) DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 INSERT INTO t1 VALUES ('Käli Käli 2-4');
 SELECT * FROM t1 WHERE a LIKE 'Käli Käli 2%';
@@ -1142,7 +941,7 @@ CREATE TABLE t1 (
   tid int(11) NOT NULL default '0',
   val text NOT NULL,
   INDEX idx(tid, val(10))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4;
+) DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO t1 VALUES
   (40988,72,'VOLN� ADSL'),(41009,72,'VOLN� ADSL'),
@@ -1399,30 +1198,6 @@ select concat(a, if(b>10, 'x' 'x', 'y' 'y')) from t1;
 select concat(a, if(b>10, 'x' 'æ', 'y' 'ß')) from t1;
 drop table t1;
 
-
-#
-# Bug#19960: Inconsistent results when joining
-# InnoDB tables using partial UTF8 indexes
-#
---disable_warnings
-CREATE TABLE t1 (
-  colA int(11) NOT NULL,
-  colB varchar(255) character set utf8mb4 NOT NULL,
-   PRIMARY KEY  (colA)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
-INSERT INTO t1 (colA, colB) VALUES (1, 'foo'), (2, 'foo bar');
---disable_warnings
-CREATE TABLE t2 (
-  colA int(11) NOT NULL,
-  colB varchar(255) character set utf8mb4 NOT NULL,
-   KEY bad  (colA,colB(3))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
---enable_warnings
-INSERT INTO t2 (colA, colB) VALUES (1, 'foo'),(2, 'foo bar');
-SELECT * FROM t1 JOIN t2 ON t1.colA=t2.colA AND t1.colB=t2.colB
-WHERE t1.colA < 3;
-DROP TABLE t1, t2;
 
 #
 # Bug#29205: truncation of UTF8 values when the UNION statement

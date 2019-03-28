@@ -1,4 +1,3 @@
-drop table if exists t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 10	10.0	10.	.1e+2	100.0e-1
@@ -205,26 +204,6 @@ c
 2e6
 0.0002
 2e-5
-drop table t1;
-CREATE TABLE t1 (
-reckey int unsigned NOT NULL,
-recdesc varchar(50) NOT NULL,
-PRIMARY KEY  (reckey)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
-INSERT INTO t1 VALUES (108, 'Has 108 as key');
-INSERT INTO t1 VALUES (109, 'Has 109 as key');
-select * from t1 where reckey=108;
-reckey	recdesc
-108	Has 108 as key
-select * from t1 where reckey=1.08E2;
-reckey	recdesc
-108	Has 108 as key
-select * from t1 where reckey=109;
-reckey	recdesc
-109	Has 109 as key
-select * from t1 where reckey=1.09E2;
-reckey	recdesc
-109	Has 109 as key
 drop table t1;
 create table t1 (d double(10,1));
 create table t2 (d double(10,9));

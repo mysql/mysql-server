@@ -1,5 +1,4 @@
 --source include/no_valgrind_without_big.inc
---source include/have_myisam.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

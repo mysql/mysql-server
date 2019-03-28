@@ -1,6 +1,3 @@
-# Test needs myisam for some myisam specific testcases
---source include/have_myisam.inc
-
 --error ER_UNKNOWN_SYSTEM_VARIABLE
 set global log_bin_trust_routine_creators=1;
 --error ER_UNKNOWN_SYSTEM_VARIABLE

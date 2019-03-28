@@ -1,27 +1,3 @@
-create table t1 (
-a int not null references t2,
-b int not null references t2 (c),
-primary key (a,b),
-foreign key (a) references t3 match full,
-foreign key (a) references t3 match partial,
-foreign key (a,b) references t3 (c,d) on delete no action
-on update no action,
-foreign key (a,b) references t3 (c,d) on update cascade,
-foreign key (a,b) references t3 (c,d) on delete set default,
-foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
-ERROR 42000: Incorrect foreign key definition for 'foreign key without name': Key reference and table reference don't match
-create table t1 (
-a int not null,
-b int not null references t2 (c),
-primary key (a,b),
-foreign key (a,b) references t3 (c,d) on delete no action
-on update no action,
-foreign key (a,b) references t3 (c,d) on update cascade,
-foreign key (a,b) references t3 (c,d) on delete set default,
-foreign key (a,b) references t3 (c,d) on update set null) engine=myisam;
-create index a on t1 (a);
-create unique index b on t1 (a,b);
-drop table t1;
 drop table if exists t_34455;
 create table t_34455 (
 a int not null,
@@ -3521,54 +3497,6 @@ ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(pk) REMOVE PARTITIONING;
 ERROR HY000: Cannot add foreign key constraint
 DROP TABLES self;
 #
-# 5) Check how parent table in different storage engine is handled.
-#
-# We handle it in the same way as if table was missing to be compatible
-# with pre-8.0 versions.
-#
-# 5.a) Attempt to create table with a foreign key or to add foreign key
-#      to already xisting table which reference parent in different SE
-#      should fail in FOREIGN_KEY_CHECKS=1 mode.
-CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-ERROR HY000: Failed to open the referenced table 'bad_parent'
-CREATE TABLE child (fk INT);
-ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
-ERROR HY000: Failed to open the referenced table 'bad_parent'
-#
-# 5.b) However, in FOREIGN_KEY_CHECKS=0 mode this is allowed.
-#      Referenced table is considered missing and existing table
-#      in a wrong SE is not considered as real parent.
-SET FOREIGN_KEY_CHECKS = 0;
-ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES bad_parent(pk);
-DROP TABLE child;
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-SET FOREIGN_KEY_CHECKS = 1;
-# Bad parent can be dropped just fine even in FOREIGN_KEY_CHECKS=1 mode.
-DROP TABLE bad_parent;
-DROP TABLE child;
-#
-# 5.c) Attempt to change SE for table participating in foreign key
-#      should lead to error.
-CREATE TABLE parent (pk INT PRIMARY KEY);
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pk));
-ALTER TABLE child ENGINE=MyISAM;
-ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
-ALTER TABLE parent ENGINE=MyISAM;
-ERROR HY000: Cannot change table's storage engine because the table participates in a foreign key constraint.
-DROP TABLES child, parent;
-#
-# 5.d) It is possible to add "parent" in wrong SE to orphan foreign key.
-#      However, it won't be considered as real parent.
-SET FOREIGN_KEY_CHECKS = 0;
-CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES bad_parent(pk));
-SET FOREIGN_KEY_CHECKS = 1;
-CREATE TABLE bad_parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-# It is possible to break bad parent even in FOREIGN_KEY_CHECKS=1 mode.
-ALTER TABLE bad_parent DROP COLUMN pk, ADD COLUMN i INT;
-DROP TABLE bad_parent;
-DROP TABLE child;
-#
 # 6) Check that we prohibit foreign keys with SET NULL action with
 #    non-nullable referencing columns.
 #
@@ -3714,22 +3642,6 @@ ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key
 ALTER TABLE self MODIFY pk2 CHAR(10);
 ERROR HY000: Referencing column 'fk2' and referenced column 'pk2' in foreign key constraint 'self_ibfk_1' are incompatible.
 DROP TABLE self;
-#
-# 7.d) It should be impossible to create foreign keys with incompatible
-#      column types by adding parent to previously orphan foreign key.
-SET FOREIGN_KEY_CHECKS=0;
-CREATE TABLE child (fk CHAR(10), FOREIGN KEY (fk) REFERENCES parent(pk));
-CREATE TABLE parent (pk INT PRIMARY KEY);
-ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
-CREATE TABLE parent0 (pk INT PRIMARY KEY);
-ALTER TABLE parent0 RENAME TO parent;
-ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
-ALTER TABLE parent0 RENAME TO parent, ADD COLUMN j INT;
-ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
-RENAME TABLE parent0 TO parent;
-ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
-DROP TABLES child, parent0;
-SET FOREIGN_KEY_CHECKS=1;
 #
 # 7.e) Test how compatibility rules work for various types.
 #      Different engines have different rules, so the below
@@ -4550,93 +4462,6 @@ WHERE referenced_table_schema='test' AND referenced_table_name='parent';
 column_name	referenced_column_name
 Fk	pK
 DROP TABLES child, parent;
-#
-# Tests for bug#28608460 "POSSIBLE TO ADD INCONSISTENT PARENT TO ORPHAN
-#                         FOREIGN KEY IF SE CHANGED".
-#
-#
-# Check that consistency checks are performed when we add parent
-# table to previously orphan foreign key by changing table storage
-# engine.
-SET FOREIGN_KEY_CHECKS=0;
-CREATE TABLE child (fk INT, FOREIGN KEY(fk) REFERENCES parent (pk));
-CREATE TABLE parent (pk INT) ENGINE=MyISAM;
-ALTER TABLE parent ENGINE=InnoDB;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
-DROP TABLE parent;
-CREATE TABLE parent (a INT) ENGINE=MyISAM;
-ALTER TABLE parent ENGINE=InnoDB;
-ERROR HY000: Failed to add the foreign key constraint. Missing column 'pk' for constraint 'child_ibfk_1' in the referenced table 'parent'
-DROP TABLE parent;
-CREATE TABLE parent (pk BIGINT PRIMARY KEY) ENGINE=MyISAM;
-ALTER TABLE parent ENGINE=InnoDB;
-ERROR HY000: Referencing column 'fk' and referenced column 'pk' in foreign key constraint 'child_ibfk_1' are incompatible.
-DROP TABLE parent;
-#
-# This should work for ALTER TABLE that combines change of SE
-# with renaming of table.
-CREATE TABLE parent0 (pk INT) ENGINE=MyISAM;
-ALTER TABLE parent0 ENGINE=InnoDB, RENAME TO parent;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
-DROP TABLE parent0;
-#
-# ALTER TABLE which combines change of SE and renaming of the
-# table is executed as if we separately did change of SE and
-# renamed table after that. I.e. consistency checks are also
-# performed for orphan foreign keys which are associated with
-# old table name.
-CREATE TABLE parent (pk INT) ENGINE=MyISAM;
-ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
-ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
-DROP TABLE parent;
-#
-# Check that unique constraint name is correctly updated when parent
-# table is added to orphan foreign key by changing table SE.
-CREATE TABLE parent (pk INT, UNIQUE u(pk)) ENGINE=MyISAM;
-SELECT referenced_table_name, unique_constraint_name FROM
-information_schema.referential_constraints WHERE table_name = 'child';
-REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
-parent	NULL
-ALTER TABLE parent ENGINE=InnoDB;
-SELECT referenced_table_name, unique_constraint_name FROM
-information_schema.referential_constraints WHERE table_name = 'child';
-REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
-parent	u
-DROP TABLE parent;
-#
-# Since ALTER TABLE which combines change of SE and renaming of the
-# table is executed as if we separately did change of SE and
-# renamed table after that, the referenced table name should
-# be updated too.
-CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-SELECT referenced_table_name, unique_constraint_name FROM
-information_schema.referential_constraints WHERE table_name = 'child';
-REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
-parent	NULL
-ALTER TABLE parent ENGINE=InnoDB, RENAME TO parent0;
-SELECT referenced_table_name, unique_constraint_name FROM
-information_schema.referential_constraints WHERE table_name = 'child';
-REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
-parent0	PRIMARY
-RENAME TABLE parent0 TO parent;
-DROP TABLES parent;
-#
-# Check that under LOCK TABLES, when adding parent for previously orphan
-# foreign key by SE change, we check locks on child tables.
-CREATE TABLE parent (pk INT PRIMARY KEY) ENGINE=MyISAM;
-LOCK TABLES parent WRITE;
-ALTER TABLE parent ENGINE=InnoDB;
-ERROR HY000: Table 'child' was not locked with LOCK TABLES
-UNLOCK TABLES;
-LOCK TABLES child READ, parent WRITE;
-ALTER TABLE parent ENGINE=InnoDB;
-ERROR HY000: Table 'child' was locked with a READ lock and can't be updated
-UNLOCK TABLES;
-LOCK TABLES child WRITE, parent WRITE;
-ALTER TABLE parent ENGINE=InnoDB;
-UNLOCK TABLES;
-DROP TABLES child, parent;
-SET FOREIGN_KEY_CHECKS=1;
 #
 # Test for bug#29173134 "FOREIGN KEY CONSTRAINT NAMES TAKING INDEX NAME".
 #

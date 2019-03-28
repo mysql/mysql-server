@@ -1,5 +1,8 @@
-#Start server with MyISAM
+# Start server with MyISAM
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
 
 --disable_query_log
 if (`select locate('semijoin', @@optimizer_switch) > 0`) 

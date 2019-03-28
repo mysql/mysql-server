@@ -58,32 +58,6 @@ eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_extra_slow2.log';
 
 let SLOW_LOG2= `SELECT @@global.slow_query_log_file`;
 
-SET GLOBAL long_query_time=0;
-connect (con,localhost,root,,);
-
---disable_warnings
-DROP TABLE IF EXISTS islow;
-DROP TABLE IF EXISTS mslow;
---enable_warnings
-
-CREATE TABLE islow(i INT) ENGINE=innodb;
-INSERT INTO islow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
-
-CREATE TABLE mslow(i INT) ENGINE=myisam;
-INSERT INTO mslow VALUES (1), (2), (3), (4), (5), (6), (7), (8);
-
-SELECT * FROM islow;
-SELECT * FROM islow;
-
-SELECT * FROM mslow;
-SELECT * FROM mslow;
-
-connection default;
-SET GLOBAL long_query_time=1;
-disconnect con;
-DROP TABLE islow;
-DROP TABLE mslow;
-
 --echo #
 --echo # This is a hack to check the log result.
 --echo # We strip off time related fields (non-deterministic) and

@@ -107,10 +107,10 @@ CALL test_hint("SET_VAR(bulk_insert_buffer_size=0)", "bulk_insert_buffer_size");
 # Testing default_tmp_storage_engine variable.
 CREATE TEMPORARY TABLE t1 SELECT 1;
 SHOW CREATE TABLE t1;
-CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=MyISAM)*/ 1;
+CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=InnoDB)*/ 1;
 SHOW CREATE TABLE t2;
 DROP TABLE t1, t2;
-CALL test_hint("SET_VAR(default_tmp_storage_engine=MyISAM)", "default_tmp_storage_engine");
+CALL test_hint("SET_VAR(default_tmp_storage_engine=InnoDB)", "default_tmp_storage_engine");
 
 # Testing div_precision_increment
 SELECT /*+ SET_VAR(div_precision_increment=12) */ 1/2;
@@ -158,7 +158,7 @@ CALL test_hint("SET_VAR(insert_id=10)", "insert_id");
 CALL test_hint("SET_VAR(join_buffer_size=128)", "join_buffer_size");
 
 # Testing lock_wait_timeout variable, ER_LOCK_WAIT_TIMEOUT error should be issued.
-CREATE TABLE t1(i INT) ENGINE MYISAM;
+CREATE TABLE t1(i INT) ENGINE InnoDB;
 LOCK TABLES t1 WRITE;
 connect (con1,localhost,root,,);
 --error ER_LOCK_WAIT_TIMEOUT

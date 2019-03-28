@@ -1,0 +1,107 @@
+"WL6369 Explain for Connection"
+QUERY: UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 
+STATUS:NOT_EQUAL
+SYNC_POINT:planned_single_update
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -24,3 +24,3 @@
+       "filtered": "100.00",
+-      "attached_condition": "(`test`.`t1`.`a` = 5)"
++      "using_where": true
+     },
+@@ -32,3 +32,3 @@
+           "select_id": 2,
+-          "message": "Select tables optimized away"
++          "message": "Plan isn't ready yet"
+         }
+QUERY: UPDATE t1, t2 SET t1.b = CONCAT(t1.b, ', t2.b:', t2.b), t2.b = CONCAT(t2.b, ', t1.b:', t1.b) WHERE t2.b = t1.b and t2.a = 4 
+STATUS: EQUAL
+QUERY: SELECT (SELECT rs.t2_id FROM t2 rs WHERE rs.t1_id= (SELECT lt.t1_id FROM t1 lt WHERE lt.t3_id=a.t3_id) ORDER BY b DESC LIMIT 1) from t3 AS a 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -51,2 +51,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "using_index": true,
+@@ -63,3 +64,2 @@
+               ],
+-              "attached_condition": "(`test`.`rs`.`t1_id` = (/* select#3 */ select `test`.`lt`.`t1_id` from `test`.`t1` `lt` where (`test`.`lt`.`t3_id` = `test`.`a`.`t3_id`)))",
+               "attached_subqueries": [
+@@ -79,2 +79,3 @@
+                       "filtered": "100.00",
++                      "using_where": true,
+                       "cost_info": {
+@@ -88,4 +89,3 @@
+                         "t1_id"
+-                      ],
+-                      "attached_condition": "(`test`.`lt`.`t3_id` = `test`.`a`.`t3_id`)"
++                      ]
+                     }
+QUERY: SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -23,2 +23,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+@@ -32,4 +33,3 @@
+                 "pk"
+-              ],
+-              "attached_condition": "((`test`.`alias1`.`col_int` = 8) or (`test`.`alias1`.`pk` <= `test`.`alias1`.`col_int`))"
++              ]
+             }
+QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "using_index": true,
+@@ -36,4 +37,3 @@
+                 "pk"
+-              ],
+-              "attached_condition": "(`test`.`alias1`.`pk` <> 9)"
++              ]
+             }
+QUERY: SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -44,4 +44,5 @@
+           "rows_examined_per_scan": 2,
+-          "rows_produced_per_join": 1,
+-          "filtered": "50.00",
++          "rows_produced_per_join": 2,
++          "filtered": "100.00",
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -49,5 +50,5 @@
+             "read_cost": "0.25",
+-            "eval_cost": "0.10",
++            "eval_cost": "0.20",
+             "prefix_cost": "0.80",
+-            "data_read_per_join": "8"
++            "data_read_per_join": "16"
+           },
+@@ -55,4 +56,3 @@
+             "col_int"
+-          ],
+-          "attached_condition": "(`test`.`alias2`.`col_int` = `test`.`alias1`.`col_int`)"
++          ]
+         }
+QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+@@ -37,4 +38,3 @@
+                 "col_varchar_key"
+-              ],
+-              "attached_condition": "((`test`.`alias1`.`col_int` > `test`.`alias1`.`col_int`) and (`test`.`alias1`.`col_varchar_key` is not null))"
++              ]
+             }

@@ -1,0 +1,27 @@
+SET @global_saved_tmp =  @@global.offline_mode;
+SET @global_autocommit =  @@global.autocommit;
+SET @@global.autocommit= OFF;
+CREATE USER 'user2'@'localhost';
+connect conu2,localhost,user2;
+START TRANSACTION;
+CREATE TABLE t1 (c1 int,c2 char(10));
+INSERT INTO t1 VALUES (1,'aaaaaaaaaa');
+COMMIT;
+INSERT INTO t1 VALUES (2,'bbbbbbbbbb');
+disconnect conu2;
+connect conu2,localhost,user2;
+SELECT * FROM t1 ORDER BY c1;
+c1	c2
+1	aaaaaaaaaa
+2	bbbbbbbbbb
+DROP TABLE t1;
+connection default;
+SET GLOBAL offline_mode = ON;
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+COUNT(USER)
+2
+disconnect conu2;
+DROP USER 'user2'@'localhost';
+# Restoring the original values.
+SET @@global.offline_mode = @global_saved_tmp;
+SET @@global.autocommit= @global_autocommit;

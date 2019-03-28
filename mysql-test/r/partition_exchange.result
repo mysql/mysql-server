@@ -1,4 +1,3 @@
-DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 #
 # Bug#11894100: EXCHANGE PARTITION CAN'T BE EXECUTED IF
 #               ROW_FORMAT WAS SET EXPLICITLY
@@ -871,46 +870,6 @@ a	b
 5	Five
 99	End of values
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-# test different engines
-ALTER TABLE t ENGINE = MyISAM;
-ALTER TABLE tp ENGINE = InnoDB;
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SHOW CREATE TABLE tp;
-Table	Create Table
-tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-/*!50100 PARTITION BY RANGE (`a`)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-SHOW CREATE TABLE t;
-Table	Create Table
-t	CREATE TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SHOW CREATE TABLE tp;
-Table	Create Table
-tp	CREATE TABLE `tp` (
-  `a` int(11) NOT NULL,
-  `b` varchar(55) DEFAULT NULL,
-  PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-/*!50100 PARTITION BY RANGE (`a`)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
-ALTER TABLE t ENGINE = InnoDB;
 # Test different charsets
 CREATE TABLE tmp LIKE t;
 INSERT INTO tmp SELECT * FROM t;
@@ -1058,21 +1017,6 @@ ALTER TABLE tp REMOVE PARTITIONING;
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
 ERROR HY000: Partition management on a not partitioned table is not possible
 DROP TABLE t, tp, tsp;
-# Test with general_log
-use mysql;
-SET @old_general_log_state = @@global.general_log;
-SET GLOBAL general_log = 0;
-ALTER TABLE general_log ENGINE = MyISAM;
-CREATE TABLE t LIKE general_log;
-ALTER TABLE t ENGINE InnoDB PARTITION BY RANGE (thread_id)
-(PARTITION p0 VALUES LESS THAN (123456789),
-PARTITION pMAX VALUES LESS THAN MAXVALUE);
-ALTER TABLE t EXCHANGE PARTITION p0 WITH TABLE general_log;
-ERROR HY000: Incorrect usage of PARTITION and log table
-ALTER TABLE general_log ENGINE = CSV;
-SET @@global.general_log = @old_general_log_state;
-DROP TABLE t;
-use test;
 # Test with LOCK TABLE
 CREATE TABLE tp
 (a VARCHAR(24),

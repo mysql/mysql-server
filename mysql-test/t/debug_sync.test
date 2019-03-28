@@ -375,59 +375,6 @@ connection default;
 DROP TABLE t1;
 
 #
-# Example 2.
-#
-# Preparative cleanup.
---disable_warnings
-SET DEBUG_SYNC= 'RESET';
-DROP TABLE IF EXISTS t1;
---enable_warnings
-#
-# Test.
-CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1);
-SELECT GET_LOCK('mysqltest_lock', 100);
-
---echo connection con1
-connect (con1,localhost,root,,);
---echo # Sending:
---send UPDATE t1 SET c1=GET_LOCK('mysqltest_lock', 100);
-
---echo connection con2
-connect (con2,localhost,root,,);
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "User lock" and
-        info = "UPDATE t1 SET c1=GET_LOCK('mysqltest_lock', 100)";
---source include/wait_condition.inc
-
-# Retain action after use. First used by general_log.
-SET DEBUG_SYNC= 'wait_for_lock SIGNAL locked EXECUTE 2';
-send INSERT INTO t1 VALUES (1);
-
---echo connection default
-connection default;
-# Wait until INSERT waits for lock.
-SET DEBUG_SYNC= 'now WAIT_FOR locked';
-# let UPDATE continue.
-SELECT RELEASE_LOCK('mysqltest_lock');
---echo connection con1
-connection con1;
---echo # Reaping UPDATE
-reap;
-SELECT RELEASE_LOCK('mysqltest_lock');
-
---echo connection con2
-connection con2;
---echo retrieve INSERT result.
-reap;
-disconnect con1;
-disconnect con2;
---echo connection default
-connection default;
-DROP TABLE t1;
-
-#
 # Cleanup after test case.
 # Otherwise signal would contain 'flushed' here,
 # which could confuse the next test.

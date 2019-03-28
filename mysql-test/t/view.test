@@ -1263,20 +1263,7 @@ drop table t1;
 # LOAD DATA with view and CHECK OPTION
 #
 # fixed length fields
-# Following scenario is to test the functionality of MyISAM
 
-create table t1 (a int, b char(10)) charset latin1 engine=Myisam;
-create view v1 as select * from t1 where a != 0 with check option;
--- error ER_VIEW_CHECK_FAILED
-load data infile '../../std_data/loaddata3.dat' into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
-select * from t1;
-select * from v1;
-delete from t1;
-load data infile '../../std_data/loaddata3.dat' ignore into table v1 fields terminated by '' enclosed by '' ignore 1 lines;
-select * from t1 order by a,b;
-select * from v1 order by a,b;
-drop view v1;
-drop table t1;
 # variable length fields
 create table t1 (a text, b text);
 create view v1 as select * from t1 where a <> 'Field A' with check option;
@@ -1415,61 +1402,6 @@ execute stmt1 using @a,@b;
 select * from v3;
 deallocate prepare stmt1;
 drop view v3,v2;
-drop tables t1,t2;
-
-#
-# inserting/deleting join view
-#
-
-# Following scenario is to test the functionality of MyISAM
-
-create table t1 (a int, primary key (a), b int) engine=myisam;
-create table t2 (a int, primary key (a), b int) engine=myisam;
-insert into t2 values (1000, 2000);
-create view v3 (a,b) as select t1.a as a, t2.a as b from t1, t2;
-# inserting into join view without field list
--- error ER_VIEW_NO_INSERT_FIELD_LIST
-insert into v3 values (1,2);
--- error ER_VIEW_NO_INSERT_FIELD_LIST
-insert into v3 select * from t2;
-# inserting in several tables of join view
--- error ER_VIEW_MULTIUPDATE
-insert into v3(a,b) values (1,2);
--- error ER_VIEW_MULTIUPDATE
-insert into v3(a,b) select * from t2;
-# correct inserts into join view
-insert into v3(a) values (1);
-insert into v3(b) values (10);
-insert into v3(a) select a from t2;
-insert into v3(b) select b from t2;
-insert into v3(a) values (1) on duplicate key update a=a+10000+VALUES(a);
-select * from t1 ;
-select * from t2 ;
-# try delete from join view
--- error ER_VIEW_DELETE_MERGE_VIEW
-delete from v3;
--- error ER_VIEW_DELETE_MERGE_VIEW
-delete v3,t1 from v3,t1;
--- error ER_VIEW_DELETE_MERGE_VIEW
-delete t1,v3 from t1,v3;
-# delete from t1 just to reduce result set size
-delete from t1;
-# prepare statement with insert join view
-prepare stmt1 from "insert into v3(a) values (?);";
-set @a= 100;
-execute stmt1 using @a;
-set @a= 300;
-execute stmt1 using @a;
-deallocate prepare stmt1;
-prepare stmt1 from "insert into v3(a) select ?;";
-set @a= 101;
-execute stmt1 using @a;
-set @a= 301;
-execute stmt1 using @a;
-deallocate prepare stmt1;
-select * from v3 ;
-
-drop view v3;
 drop tables t1,t2;
 
 # Following scenario is to test the functionality of InnoDB
@@ -4274,54 +4206,6 @@ DROP PROCEDURE p1;
 disconnect con2;
 disconnect con3;
 
-# Tables are created using MyISAM since this is test for a bug that is specific to MyISAM.
-
---echo #
---echo # Bug#11757397 49437: CANNOT DO SHOW FIELDS FOR BIG VIEW 
---echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1, t2, t3, table_broken;
-DROP VIEW IF EXISTS view_broken;
---enable_warnings
-
-let $colnum= 1500;
-let $str= a text;
-while ($colnum)
-{
-  let $str= a$colnum int, $str;
-  dec $colnum;
-}
---eval CREATE TABLE t1 ($str) ENGINE=MyiSAM
-
-let $colnum= 1500;
-let $str= b text;
-while ($colnum)
-{
-  let $str= b$colnum int, $str;
-  dec $colnum;
-}
---eval CREATE TABLE t2 ($str) ENGINE=MyiSAM
-
-let $colnum= 1500;
-let $str= c text;
-while ($colnum)
-{
-  let $str= c$colnum int, $str;
-  dec $colnum;
-}
---eval CREATE TABLE t3 ($str) ENGINE=MyiSAM
- 
-# New behavior
---error ER_TOO_MANY_FIELDS
-CREATE VIEW view_broken AS SELECT * FROM t1, t2, t3;
-
-# Existing behavior
---error ER_TOO_MANY_FIELDS
-CREATE TABLE table_broken AS SELECT * FROM t1, t2, t3;
-
-DROP TABLE t1, t2, t3;
-
 --echo #
 --echo # Bug#11766440 59546: Assertion m_sp == __null fails in
 --echo # Item_func_sp::init_result_field with functions
@@ -6082,22 +5966,6 @@ RENAME TABLE t3 TO t1, t4 TO t2;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
-
-# Coverage for case of non-atomic RENAME TABLES which is also renaming a view.
-CREATE TABLE t1(a INT) ENGINE=MyISAM;
-CREATE TABLE t2(b INT);
-CREATE TABLE t3(c INT);
-CREATE TABLE t4(d INT);
-CREATE VIEW v1 AS SELECT * FROM t2;
-RENAME TABLES t1 TO t5, v1 TO v2;
-SELECT * FROM v2;
-# Now non-atomic RENAME TABLES which renames view and fails.
---error ER_TABLE_EXISTS_ERROR
-RENAME TABLES t5 TO t1, v2 TO v1, t3 TO t4;
-SELECT * FROM v2;
-DROP VIEW v2;
-DROP TABLES t2, t3, t4, t5;
-
 
 --echo #
 --echo # BUG#25634576: DATABASE NAME IN SHOW CREATE VIEW

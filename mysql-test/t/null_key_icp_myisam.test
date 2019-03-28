@@ -1,0 +1,27 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
+set optimizer_switch='index_condition_pushdown=on';
+
+--disable_query_log
+if (`select locate('semijoin', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='semijoin=off';
+}
+if (`select locate('materialization', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='materialization=off';
+}
+if (`select locate('mrr', @@optimizer_switch) > 0`) 
+{
+  set optimizer_switch='mrr=off';
+}
+--enable_query_log
+
+--source include/null_key_myisam.inc
+
+set optimizer_switch=default;
+

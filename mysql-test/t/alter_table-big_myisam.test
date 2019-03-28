@@ -1,0 +1,384 @@
+#
+# Tests for various concurrency-related aspects of ALTER TABLE implemetation
+# Note: MyISAM specific test
+
+# Start the server with MyISAM as default storage engine
+--source include/force_myisam_default.inc
+# Test need MyISAM to support disable key feature
+--source include/have_myisam.inc
+# This test takes rather long time so let us run it only in --big-test mode
+--source include/big_test.inc
+# We are using some debug-only features in this test
+--source include/have_debug.inc
+# Also we are using SBR to check that statements are executed
+# in proper order.
+--source include/force_binlog_format_statement.inc
+
+--source include/count_sessions.inc
+
+--echo #
+--echo # 1.5) ALTER TABLE RENAME which fails at the late stage for SEs
+--echo #      supporting and not supporting atomic DDL.
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t1 RENAME TO t3;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE supporting atomic DDL table still should be available under
+--echo # old name.
+SELECT * FROM t1;
+
+--connect (con1, localhost, root,,)
+SET @old_lock_wait_timeout= @@lock_wait_timeout;
+connection con1;
+--echo # New name should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+
+connection default;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t2 RENAME TO t4;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE not supporting atomic DDL table will be
+--echo # removed from list of locked tables. And new
+--echo # name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+
+connection con1;
+--echo # But metadata lock on old name can be still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that table with such name doesn't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+--echo # New name should not be locked.
+SELECT * FROM t4;
+
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t4;
+
+
+--echo #
+--echo # 2.5) ALTER TABLE INPLACE with RENAME clause fails at the late stage
+--echo #      for SEs supporting and not supporting atomic DDL.
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+LOCK TABLES t1 WRITE, t2 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t3, ALGORITHM=INPLACE;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE supporting atomic DDL table still should be available under
+--echo # old name.
+SELECT * FROM t1;
+
+connection con1;
+--echo # New name should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+
+connection default;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t2 RENAME COLUMN i TO j, RENAME TO t4, ALGORITHM=INPLACE;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE not supporting atomic DDL table will be
+--echo # removed from list of locked tables. And new
+--echo # name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+
+connection con1;
+--echo # But metadata lock on old name can be still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata lock (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that table with such name doesn't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+--echo # New name should not be locked.
+SELECT * FROM t4;
+
+connection default;
+UNLOCK TABLES;
+DROP TABLES t1, t4;
+
+--echo #
+--echo # 3.5) ALTER TABLE COPY with RENAME clause fails at the late stage
+--echo #      for SEs supporting and not supporting atomic DDL.
+--echo #
+CREATE TABLE t1 (i INT) ENGINE=InnoDB;
+CREATE TABLE t2 (i INT) ENGINE=MyISAM;
+CREATE DATABASE mysqltest;
+LOCK TABLES t1 WRITE, t2 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t3, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE supporting atomic DDL table still should be available under
+--echo # old name.
+SELECT * FROM t1;
+
+connection con1;
+--echo # New name should not be locked.
+--error ER_NO_SUCH_TABLE
+SELECT * FROM t3;
+
+connection default;
+DROP TABLE t1;
+
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t2 RENAME COLUMN i TO j, RENAME TO t4, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE not supporting atomic DDL table will be
+--echo # removed from list of locked tables. And new
+--echo # name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+
+connection con1;
+--echo # Metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t4;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+
+connection default;
+UNLOCK TABLES;
+
+--echo # Now test SE not supporting atomic DDL and different schema
+--echo # to improve code coverage.
+connection default;
+LOCK TABLE t4 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t4 RENAME COLUMN j TO i, RENAME TO mysqltest.t4, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # For SE not supporting atomic DDL table will be
+--echo # removed from list of locked tables. And new
+--echo # name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t4;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM mysqltest.t4;
+
+connection con1;
+--echo # Metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t4;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM mysqltest.t4;
+--echo # Also IX lock on new schema should be kept.
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER DATABASE mysqltest CHARACTER SET latin1;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+
+connection default;
+UNLOCK TABLES;
+DROP DATABASE mysqltest;
+
+--echo #
+--echo # 3.6) Special case ALTER TABLE COPY with RENAME clause which
+--echo #      non-atomic, adds foreign keys and fails at the late stage.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (fk INT) ENGINE=MyISAM;
+LOCK TABLES t2 WRITE, t1 WRITE;
+SET @@debug='+d,injecting_fault_writing';
+--replace_regex /(errno: .*)/(errno: #)/
+--error ER_ERROR_ON_WRITE
+ALTER TABLE t2 ADD FOREIGN KEY (fk) REFERENCES t1(pk), ENGINE=InnoDB, RENAME TO t3, ALGORITHM=COPY;
+SET @@debug='-d,injecting_fault_writing';
+--echo # Table should be removed from locked tables list and new
+--echo # table name should not be added.
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t2;
+--error ER_TABLE_NOT_LOCKED
+SELECT * FROM t3;
+
+connection con1;
+--echo # However, metadata locks on both old and new names are still kept.
+# Disable prepared statements, since for them the below check
+# works differently. The prepare phase of statements execution
+# acquires weaker S metadata locks (which do not conflict with
+# SNRW locks held by LOCK TABLE WRITE) and manages to discover
+# that tables with such names don't exist.
+--disable_ps_protocol
+SET @@lock_wait_timeout= 1;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t2;
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t3;
+SET @@lock_wait_timeout= @old_lock_wait_timeout;
+--enable_ps_protocol
+
+connection default;
+--echo # And delete from parent table is possible and doesn't cause asserts.
+DELETE FROM t1;
+UNLOCK TABLES;
+DROP TABLES t3, t1;
+
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+--disable_connect_log
+--echo #
+--echo # Bug#24786075   FIND A WAY TO LIST #SQL... TABLE LEFT IN      
+--echo #                DATA DICTIONARY IN CASE ALTER FAILS.
+--echo # Test that we can see hidden temporary tables using ALTER TABLE.
+--echo # Test that we can delete the hidden temporary tables that were
+--echo # left by ALTER TABLE table failures in rare situations.
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=MyISAM;
+
+SET debug="+d,exit_after_alter_table_before_rename";
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 modify column a varchar(30);
+SET debug="-d,exit_after_alter_table_before_rename";
+
+--echo # Verify that #sql... tables are not seen by I_S and SHOW
+SELECT COUNT(TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA='test' AND TABLE_NAME like '#sql%';
+SHOW TABLES FROM test;
+
+--echo # The SHOW EXTENDED [FULL] syntax should show the hidden table.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # Dropping the temporary table.
+let $value=
+  query_get_value(SHOW EXTENDED TABLES FROM test, Tables_in_test, 1);
+let $stmt = DROP TABLE `$value`;
+--replace_regex /#sql.*$/#sql-xxxxx/
+eval $stmt;
+
+--echo # Verify that the temporary table is dropped.
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED TABLES FROM test;
+
+--replace_regex /#sql.*$/#sql-xxxxx/
+SHOW EXTENDED FULL TABLES FROM test;
+
+--echo # clean-up
+DROP TABLE t1;
+
+#
+# Test for Bug#25044 ALTER TABLE ... ENABLE KEYS acquires global
+#                    'opening tables' lock
+#
+# ALTER TABLE ... ENABLE KEYS should not acquire LOCK_open mutex for
+# the whole its duration as it prevents other queries from execution.
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+set debug_sync='RESET';
+
+connect (addconroot, localhost, root,,);
+connect (addconroot2, localhost, root,,);
+connection default;
+create table t1 (n1 int, n2 int, n3 int,
+                key (n1, n2, n3),
+                key (n2, n3, n1),
+                key (n3, n1, n2));
+create table t2 (i int) engine=innodb;
+
+alter table t1 disable keys;
+insert into t1 values (1, 2, 3);
+
+# Later we use binlog to check the order in which statements are
+# executed so let us reset it first.
+reset master;
+set debug_sync='alter_table_enable_indexes SIGNAL parked WAIT_FOR go';
+--send alter table t1 enable keys;
+connection addconroot;
+# Wait until ALTER TABLE acquires metadata lock.
+set debug_sync='now WAIT_FOR parked';
+# This statement should not be blocked by in-flight ALTER and therefore
+# should be executed and written to binlog before ALTER TABLE ... ENABLE KEYS
+# finishes.
+insert into t2 values (1);
+# And this should wait until the end of ALTER TABLE ... ENABLE KEYS.
+--send insert into t1 values (1, 1, 1);
+connection addconroot2;
+# Wait until the above INSERT INTO t1 is blocked due to ALTER
+let $wait_condition=
+    select count(*) = 1 from information_schema.processlist
+    where state = "Waiting for table metadata lock" and
+          info = "insert into t1 values (1, 1, 1)";
+--source include/wait_condition.inc
+# Resume ALTER execution.
+set debug_sync='now SIGNAL go';
+connection default;
+--reap
+connection addconroot;
+--reap
+connection default;
+# Check that statements were executed/binlogged in correct order.
+source include/show_binlog_events.inc;
+
+# Clean up
+drop tables t1, t2;
+disconnect addconroot;
+disconnect addconroot2;
+set debug_sync='RESET';
+
+--source include/restore_default_binlog_format.inc
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
+

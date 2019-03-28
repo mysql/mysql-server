@@ -4,6 +4,9 @@
 #  Mixed SE in a single statement will need to call ha_records from execute
 #  phase only.
 
+--source include/force_myisam_default.inc
+--source include/have_myisam.inc
+
 CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
                       c2 INT NOT NULL,
                       c3 char(20),

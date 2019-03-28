@@ -206,18 +206,18 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `1` int(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=MyISAM)*/ 1;
+CREATE TEMPORARY TABLE t2 SELECT /*+ SET_VAR(default_tmp_storage_engine=InnoDB)*/ 1;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `1` int(1) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
-CALL test_hint("SET_VAR(default_tmp_storage_engine=MyISAM)", "default_tmp_storage_engine");
+CALL test_hint("SET_VAR(default_tmp_storage_engine=InnoDB)", "default_tmp_storage_engine");
 VARIABLE_VALUE
 InnoDB
 VARIABLE_VALUE
-MyISAM
+InnoDB
 VARIABLE_VALUE
 InnoDB
 SELECT /*+ SET_VAR(div_precision_increment=12) */ 1/2;
@@ -301,7 +301,7 @@ VARIABLE_VALUE
 128
 VARIABLE_VALUE
 262144
-CREATE TABLE t1(i INT) ENGINE MYISAM;
+CREATE TABLE t1(i INT) ENGINE InnoDB;
 LOCK TABLES t1 WRITE;
 INSERT /*+ SET_VAR(lock_wait_timeout=1) */INTO t1 VALUES (1);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction

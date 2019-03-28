@@ -19,6 +19,10 @@
 #                                                                             #
 ###############################################################################
 --source include/force_myisam_default.inc
+
+# Skip the test if MyISAM is not available
+--source include/have_myisam.inc
+
 --echo '#--------------------FN_DYNVARS_033_01-------------------------#'
 ###################################################################
 # Check if setting ft_boolean_syntax is changed in new connection # 

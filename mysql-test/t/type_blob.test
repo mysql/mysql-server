@@ -1,7 +1,6 @@
 # This test can't be run with running server (--extern) as this uses
 # load_file() on a file in the tree.
 #
---source include/have_myisam.inc
 #
 # Basic cleanup
 #
@@ -129,12 +128,6 @@ select b,count(*) from t1 group by b;
 select c,count(*) from t1 group by c;
 --sorted_result
 select d,count(*) from t1 group by d;
-drop table t1;
-
--- error 1071
-create table t1 (a text, unique (a(2100))) engine=myisam; # should give an error
-create table t1 (a text, key (a(2100))) engine=myisam;    # key is auto-truncated
-show create table t1;
 drop table t1;
 
 #
