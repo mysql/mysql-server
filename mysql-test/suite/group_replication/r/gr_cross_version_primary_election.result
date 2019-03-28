@@ -1,0 +1,71 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap M1 and start GR on M2.
+#    Set higher member weight on M3 and start GR with higher patch version.
+
+[connection server1]
+SET @debug1_save= @@GLOBAL.DEBUG;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+SET @member_weight3_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 90;
+SET @debug3_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin = 1;
+include/start_group_replication.inc
+
+# 2. Stop GR on M1.
+#    M2 becomes primary due to lower version rule.
+
+[connection server1]
+include/stop_group_replication.inc
+include/gr_assert_spm_consistency.inc
+
+# 3. Set higher member weight on M1 and start GR on M1 and M4.
+#    Stop GR primary member M2.
+#    M1 becomes primary due to lower version and higher member weight.
+
+[connection server1]
+SET @member_weight1_save= @@GLOBAL.group_replication_member_weight;
+SET GLOBAL group_replication_member_weight= 60;
+include/start_group_replication.inc
+[connection server4]
+include/start_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+include/gr_assert_spm_consistency.inc
+
+# 4. Start GR on M2.
+#    Stop GR primary member M1.
+#    Lowest server_uuid between M2 or M4 becomes primary.
+#    Server_uuid is considered among same version and member weight.
+
+[connection server2]
+include/start_group_replication.inc
+[connection server1]
+include/stop_group_replication.inc
+[connection server2]
+include/gr_assert_spm_consistency.inc
+
+# 5. Cleanup.
+
+[connection server4]
+include/stop_group_replication.inc
+[connection server1]
+SET @@GLOBAL.DEBUG= @debug1_save;
+SET @@GLOBAL.group_replication_member_weight = @member_weight1_save;
+[connection server2]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
+SET @@GLOBAL.DEBUG= @debug3_save;
+include/group_replication_end.inc

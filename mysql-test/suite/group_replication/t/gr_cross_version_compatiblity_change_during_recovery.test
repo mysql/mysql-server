@@ -1,0 +1,133 @@
+################################################################################
+# Group Replication: cross-version policies
+# This test verifies compatibility is rechecked post recovery.
+# Lower member version may leave during recovery.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap M1 with lower patch version.
+#    Start GR on M2 with higher patch version.
+# 2. STOP slave thread of applier on M1.
+# 3. Send Start GR on M3 with base version.
+# 4. Stop GR on M1 so M3 has no member to recover from.
+#    Set allow_local_lower_version_join on M3 so M3 uses M2 as donor.
+# 5. Verify M3 is ONLINE and writable since its new lowest version.
+# 6. Cleanup.
+#
+################################################################################
+
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap M1 with lower patch version.
+--echo #    Start GR on M2 with higher patch version.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug1_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_patch_version';
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @debug2_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+
+--source include/start_group_replication.inc
+
+--echo
+--echo # 2. STOP slave thread of applier on M1.
+--echo
+
+## STATUS - ASSUMING 8.0.17 is original version
+# Server - State - Version - Weight - R/W
+#  M1    - ON    - 8.0.16  - 50     - W
+#  M2    - ON    - 8.0.18  - 50     - W
+#  M3    - OFF   - 8.0.17  - 50     - R
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
+
+--echo
+--echo # 3. Send Start GR on M3 with base version.
+--echo
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+--send START GROUP_REPLICATION;
+
+--echo
+--echo # 4. Stop GR on M1 so M3 has no member to recover from.
+--echo #    Set allow_local_lower_version_join on M3 so M3 uses M2 as donor.
+--echo
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="RECOVERING" AND MEMBER_ID = '$server3_uuid'
+--source include/wait_condition.inc
+
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_allow_local_lower_version_join=1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--reap
+
+--echo
+--echo # 5. Verify M3 is ONLINE and writable since its new lowest version.
+--echo
+
+# Increase wait_timeout since old donor connection will be dropped
+# and new donor will be selected
+--let $wait_timeout= 120
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE" AND MEMBER_ID = '$server3_uuid'
+--source include/wait_condition.inc
+
+--let $assert_text= The super_read_only mode should be 0 on server1.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= The super_read_only mode should be 1 on server3.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 1;
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+SET @@GLOBAL.DEBUG= @debug2_save;
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug1_save;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_allow_local_lower_version_join= 0;
+
+--source include/group_replication_end.inc

@@ -593,6 +593,14 @@ class Group_member_info_manager_interface {
   virtual Group_member_info *get_group_member_info_by_index(int idx) = 0;
 
   /**
+    Return lowest member version.
+
+    @return group lowest version, if used at place where member can be OFFLINE
+            or in ERROR state, version 0xFFFFFF may be returned(not found)
+   */
+  virtual Member_version get_group_lowest_online_version() = 0;
+
+  /**
     Retrieves a registered Group member by its backbone GCS identifier
 
     @param[in] idx the GCS identifier
@@ -793,6 +801,13 @@ class Group_member_info_manager_interface {
     @return hosts and port of all ONLINE and RECOVERING members
   */
   virtual std::string get_string_current_view_active_hosts() const = 0;
+
+  /**
+    This method returns the update lock for consistent read of member state.
+
+    @return update_lock reference
+  */
+  virtual mysql_mutex_t *get_update_lock() = 0;
 };
 
 /**
@@ -816,6 +831,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   Group_member_info *get_group_member_info(const std::string &uuid);
 
   Group_member_info *get_group_member_info_by_index(int idx);
+
+  Member_version get_group_lowest_online_version();
 
   Group_member_info *get_group_member_info_by_member_id(
       Gcs_member_identifier idx);
@@ -869,6 +886,8 @@ class Group_member_info_manager : public Group_member_info_manager_interface {
   bool is_recovering_member_present();
 
   std::string get_string_current_view_active_hosts() const;
+
+  mysql_mutex_t *get_update_lock() { return &update_lock; }
 
  private:
   void clear_members();

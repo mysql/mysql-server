@@ -1,0 +1,54 @@
+include/group_replication.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap M1.
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+# 2. Start GR on M2 with higher patch version.
+
+[connection server2]
+SET @debug2_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+include/gr_assert_mpm_consistency.inc
+
+# 3. Start GR on M3 with higher minor version.
+
+[connection server3]
+SET @debug3_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+include/start_group_replication.inc
+include/gr_assert_mpm_consistency.inc
+
+# 4. Stop GR on M1.
+#    M2 turns off read_only since its lowest version.
+
+[connection server1]
+include/stop_group_replication.inc
+include/gr_assert_mpm_consistency.inc
+
+# 5. Stop GR on M2.
+#    M3 turns off read_only since it is now a single member.
+
+[connection server2]
+SET @@GLOBAL.DEBUG= @debug2_save;
+include/stop_group_replication.inc
+include/gr_assert_mpm_consistency.inc
+
+# 6. Cleanup.
+
+[connection server3]
+SET @@GLOBAL.DEBUG= @debug3_save;
+include/stop_group_replication.inc
+include/group_replication_end.inc

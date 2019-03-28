@@ -23,11 +23,13 @@
 #include <stddef.h>
 #include <algorithm>
 #include <list>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include <mysql/components/services/log_builtins.h>
+#include "mutex_lock.h"
 #include "my_dbug.h"
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/gcs_event_handlers.h"
@@ -319,23 +321,13 @@ void Plugin_gcs_events_handler::handle_recovery_message(
     terminate_wait_on_start_process();
 
     /**
+      Re-check compatibility, members may leave during recovery.
       Disable the read mode in the server if the member is:
       - joining
       - doesn't have a higher possible incompatible version
       - We are not on Primary mode.
     */
-    if (*joiner_compatibility_status != READ_COMPATIBLE &&
-        (local_member_info->get_role() ==
-             Group_member_info::MEMBER_ROLE_PRIMARY ||
-         !local_member_info->in_primary_mode())) {
-      if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
-        LogPluginErr(WARNING_LEVEL,
-                     ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED); /* purecov:
-                                                                      inspected
-                                                                    */
-      }
-    }
-
+    disable_read_mode_for_compatible_members(true);
   } else {
     Group_member_info *member_info =
         group_member_mgr->get_group_member_info(member_uuid);
@@ -711,7 +703,7 @@ void Plugin_gcs_events_handler::on_view_changed(
       view_id_representation = view->get_view_id().get_representation();
       delete view;
     }
-
+    disable_read_mode_for_compatible_members();
     LogPluginErr(
         INFORMATION_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
         group_member_mgr->get_string_current_view_active_hosts().c_str(),
@@ -1294,6 +1286,9 @@ int Plugin_gcs_events_handler::check_group_compatibility(
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_VER_INCOMPATIBLE);
     return GROUP_REPLICATION_CONFIGURATION_ERROR;
   }
+  if (*joiner_compatibility_status == READ_COMPATIBLE) {
+    LogPluginErr(WARNING_LEVEL, ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE);
+  }
 
   /*
     All group members must have the same gtid_assignment_block_size
@@ -1333,24 +1328,35 @@ int Plugin_gcs_events_handler::check_group_compatibility(
 Compatibility_type
 Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
   bool override_lower_incompatibility = false;
-  Compatibility_type compatibility_type = INCOMPATIBLE;
+  Compatibility_type compatibility_type = COMPATIBLE;
   bool read_compatible = false;
 
   std::vector<Group_member_info *> *all_members =
       group_member_mgr->get_all_members();
   std::vector<Group_member_info *>::iterator all_members_it;
+
+  Member_version lowest_version(0xFFFFFF);
+  std::set<Member_version> unique_version_set;
+  /* Find lowest member version and unique versions of the group for
+   * comparison. */
   for (all_members_it = all_members->begin();
        all_members_it != all_members->end(); all_members_it++) {
-    Member_version member_version = (*all_members_it)->get_member_version();
-    compatibility_type =
-        compatibility_manager->check_local_incompatibility(member_version);
+    /* Skip self */
+    if ((*all_members_it)->get_uuid() != local_member_info->get_uuid()) {
+      if ((*all_members_it)->get_member_version() < lowest_version)
+        lowest_version = (*all_members_it)->get_member_version();
+      unique_version_set.insert((*all_members_it)->get_member_version());
+    }
+  }
+  for (auto it = unique_version_set.begin();
+       it != unique_version_set.end() && compatibility_type != INCOMPATIBLE;
+       ++it) {
+    Member_version ver(*it);
+    compatibility_type = compatibility_manager->check_local_incompatibility(
+        ver, (ver == lowest_version));
 
     if (compatibility_type == READ_COMPATIBLE) {
       read_compatible = true;
-    }
-
-    if (compatibility_type == INCOMPATIBLE) {
-      break;
     }
 
     if (compatibility_type == INCOMPATIBLE_LOWER_VERSION) {
@@ -1365,7 +1371,6 @@ Plugin_gcs_events_handler::check_version_compatibility_with_group() const {
         compatibility_type = COMPATIBLE;
       } else {
         compatibility_type = INCOMPATIBLE;
-        break;
       }
     }
   }
@@ -1628,4 +1633,35 @@ void Plugin_gcs_events_handler::leave_group_on_error() const {
       return;
   }
   LogPluginErr(log_severity, errcode); /* purecov: inspected */
+}
+
+void Plugin_gcs_events_handler::disable_read_mode_for_compatible_members(
+    bool force_check) const {
+  Member_version lowest_version =
+      group_member_mgr->get_group_lowest_online_version();
+  /* We need to lock the operations of group_member_mgr so that member does not
+   * changes it state to ERROR and enables read only mode after we check its
+   * state here. If we read old ONLINE value and continue to disable read mode,
+   * member will continue to be writable even in ERROR state. So lock protects
+   * from this situation. */
+  MUTEX_LOCK(lock, group_member_mgr->get_update_lock());
+  if (local_member_info->get_recovery_status() ==
+          Group_member_info::MEMBER_ONLINE &&
+      (force_check || *joiner_compatibility_status != COMPATIBLE)) {
+    *joiner_compatibility_status =
+        Compatibility_module::check_version_incompatibility(
+            local_member_info->get_member_version(), lowest_version);
+    /* Some lower version left the group, now this member is new lowest
+     * version. */
+    if ((!local_member_info->in_primary_mode() &&
+         *joiner_compatibility_status == COMPATIBLE) ||
+        (local_member_info->in_primary_mode() &&
+         local_member_info->get_role() ==
+             Group_member_info::MEMBER_ROLE_PRIMARY)) {
+      if (disable_server_read_mode(PSESSION_DEDICATED_THREAD)) {
+        LogPluginErr(WARNING_LEVEL,
+                     ER_GRP_RPL_DISABLE_SRV_READ_MODE_RESTRICTED);
+      }
+    }
+  }
 }

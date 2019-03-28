@@ -774,6 +774,26 @@ Group_member_info *Group_member_info_manager::get_group_member_info_by_index(
   return member_copy;
 }
 
+Member_version Group_member_info_manager::get_group_lowest_online_version() {
+  Member_version lowest_version(0xFFFFFF);
+
+  mysql_mutex_lock(&update_lock);
+
+  for (auto it = members->begin(); it != members->end(); it++) {
+    if ((*it).second->get_member_version() < lowest_version &&
+        (*it).second->get_recovery_status() != /* Not part of group */
+            Group_member_info::MEMBER_OFFLINE &&
+        (*it).second->get_recovery_status() !=
+            Group_member_info::MEMBER_ERROR) {
+      lowest_version = (*it).second->get_member_version();
+    }
+  }
+
+  mysql_mutex_unlock(&update_lock);
+
+  return lowest_version;
+}
+
 Group_member_info *
 Group_member_info_manager::get_group_member_info_by_member_id(
     Gcs_member_identifier idx) {

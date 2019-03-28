@@ -1,0 +1,265 @@
+################################################################################
+# Group Replication: cross-version policies
+# This test-case makes sure while using UDFs, change primary consider patch
+# version while selecting new primary.
+# 1. Only lowest server version becomes primary else error is thrown
+# 2. Among lowest member versions member weight is considered
+# 3. Among lowest member version and same weight lower server_uuid is choosen
+# Post multi-primary switch, only lowest member versions are writable.
+#
+# Test:
+# 0. The test requires three servers: M1, M2, M3
+# 1. Bootstrap M1.
+#    Start GR on M2 with higher weight and patch version.
+# 2. Set M2 as primary, it fails due to higher patch version.
+# 3. Switch to single-primary mode.
+#    M1 becomes primary due to lower version rule.
+# 4. Switch to multi-primary mode and start GR on M3.
+# 5. Switch to single primary mode holding elections.
+#    M2 is not considered due to higher patch version,
+#    even though it has higher member weight.
+#    M1 and M3 has same version and weight,
+#    lower server_uuid become primary.
+#    Assert configurations are correct.
+# 6. Change primary, UDF fails if new primary has higher version.
+#    Assert configurations are not changed.
+# 7. Switch to multi-primary mode.
+#    Assert configurations are correct.
+# 8. Change primary to M3.
+#    Assert configurations are correct.
+# 9. Change primary, UDF succedds if new primary has lowest version.
+#    Assert configurations are correct.
+# 10. Make M3 weight higher and switch to SPM mode. M3 becomes primary.
+#    Member weight is considered among lowest equal versions.
+#    Assert configurations are correct.
+# 11. Cleanup.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Bootstrap M1.
+--echo #    Start GR on M2 with higher weight and patch version.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin=1;
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET @member_weight2_save= @@GLOBAL.group_replication_member_weight;
+--eval SET GLOBAL group_replication_member_weight= 90
+SET @debug2_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+call mtr.add_suppression("Error while executing a group configuration operation: Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin=1;
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 2. Set M2 as primary, it fails due to higher patch version.
+--echo
+
+## STATUS - ASSUMING 8.0.17 is original version
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - W
+#  M2    - ON    - 8.0.18  - 90     - R
+#  M3    - OFF   - 8.0.17  - 50     - R
+
+--replace_result $server2_uuid MEMBER_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_switch_to_single_primary_mode("$server2_uuid");
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 3. Switch to single-primary mode.
+--echo #    M1 becomes primary due to lower version rule.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - W
+#  M2    - ON    - 8.0.18  - 90     - R
+#  M3    - OFF   - 8.0.17  - 50     - R
+
+SELECT group_replication_switch_to_single_primary_mode();
+--let $_primary_member_of_group= $server1_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 4. Switch to multi-primary mode and start GR on M3.
+--echo
+
+# Mode: Single-primary
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - P
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - OFF   - 8.0.17  - 50     - S
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET @member_weight3_save= @@GLOBAL.group_replication_member_weight;
+--let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+# Later group will switch to single-primary mode and M3 will become read-only.
+# So add suppression now.
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Error processing configuration start message: The appointed primary member has a version that is greater than the one of some of the members in the group.");
+SET SESSION sql_log_bin=1;
+
+--source include/start_group_replication.inc
+--source include/gr_assert_mpm_consistency.inc
+
+--echo
+--echo # 5. Switch to single primary mode holding elections.
+--echo #    M2 is not considered due to higher patch version,
+--echo #    even though it has higher member weight.
+--echo #    M1 and M3 has same version and weight,
+--echo #    lower server_uuid become primary.
+--echo #    Assert configurations are correct.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - W
+#  M2    - ON    - 8.0.18  - 90     - R
+#  M3    - ON    - 8.0.17  - 50     - W
+
+SELECT group_replication_switch_to_single_primary_mode();
+--let $_next_primary_uuid= query_get_value("SELECT Member_id FROM performance_schema.replication_group_members WHERE Member_id <> '$server2_uuid' ORDER BY Member_id ASC LIMIT 1", Member_id, 1)
+
+--let $_primary_member_of_group= $_next_primary_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 6. Change primary, UDF fails if new primary has higher version.
+--echo #    Assert configurations are not changed.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - P/S (CANDIDATE)
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - ON    - 8.0.17  - 50     - P/S (CANDIDATE)
+
+--replace_result $server2_uuid MEMBER_UUID
+--error ER_GRP_RPL_UDF_ERROR
+--eval SELECT group_replication_set_as_primary("$server2_uuid");
+
+--let $_primary_member_of_group= $_next_primary_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 7. Switch to multi-primary mode.
+--echo #    Assert configurations are correct.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - P/S (CANDIDATE)
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - ON    - 8.0.17  - 50     - P/S (CANDIDATE)
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 8. Change primary to M3.
+--echo #    Assert configurations are correct.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - W
+#  M2    - ON    - 8.0.18  - 90     - R
+#  M3    - ON    - 8.0.17  - 50     - W
+
+--replace_result $server3_uuid MEMBER_UUID
+--eval SELECT group_replication_switch_to_single_primary_mode("$server3_uuid");
+
+--let $_primary_member_of_group= $server3_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 9. Change primary, UDF succedds if new primary has lowest version.
+--echo #    Assert configurations are correct.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - S
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - ON    - 8.0.17  - 50     - P
+
+--replace_result $server1_uuid MEMBER_UUID
+--eval SELECT group_replication_set_as_primary("$server1_uuid");
+
+--let $_primary_member_of_group= $server1_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 10. Make M3 weight higher and switch to SPM mode. M3 becomes primary.
+--echo #    Member weight is considered among lowest equal versions.
+--echo #    Assert configurations are correct.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - P
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - ON    - 8.0.17  - 50     - S
+
+SELECT group_replication_switch_to_multi_primary_mode();
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--eval SET GLOBAL group_replication_member_weight= 60
+
+SELECT group_replication_switch_to_single_primary_mode();
+
+--let $_primary_member_of_group= $server3_uuid
+--source include/gr_assert_spm_consistency.inc
+
+
+--echo
+--echo # 11. Cleanup.
+--echo
+
+# Server - State - Version - Weight - R/W/P/S
+#  M1    - ON    - 8.0.17  - 50     - S
+#  M2    - ON    - 8.0.18  - 90     - S
+#  M3    - ON    - 8.0.17  - 60     - P
+
+SET @@GLOBAL.group_replication_member_weight = @member_weight3_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SELECT group_replication_switch_to_multi_primary_mode();
+# Stop GR because version is different.
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_member_weight = @member_weight2_save;
+SET @@GLOBAL.DEBUG= @debug2_save;
+--source include/start_group_replication.inc
+
+--let $rpl_group_replication_reset_persistent_vars=1
+--source include/group_replication_end.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -85,6 +85,14 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
     @param[in]  timeout      the timeout
   */
   void set_stop_wait_timeout(ulong timeout) { stop_wait_timeout = timeout; }
+
+  /**
+    This function disable read-only mode when member version is compatible with
+    group.
+
+    @param[in]  force_check  Compatibility is mandatory re-checked
+  */
+  void disable_read_mode_for_compatible_members(bool force_check = false) const;
 
  private:
   /*

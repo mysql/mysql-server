@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,5 +63,11 @@
   is supported.
 */
 #define TRANSACTION_WITH_GUARANTEES_VERSION 0x080014
+
+/*
+  Version from which patch version number is also considered during member
+  join, view changes or primary member selection.
+*/
+#define PRIMARY_ELECTION_PATCH_CONSIDERATION 0x080017
 
 #endif /* PLUGIN_CONSTANTS_INCLUDE */

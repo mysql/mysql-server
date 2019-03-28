@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,14 +72,27 @@ class Compatibility_module {
     Checks if the given version is incompatible with another version.
     @param from  The member that may be not compatible with 'to'
     @param to    The member with which 'from' may be not compatible with
+    @param do_version_check If version compatibility check is needed
     @return the compatibility status
       @retval INCOMPATIBLE     The versions are not compatible with each other
       @retval COMPATIBLE       The versions are compatible with each other
       @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
   */
   Compatibility_type check_incompatibility(Member_version &from,
-                                           Member_version &to);
+                                           Member_version &to,
+                                           bool do_version_check);
 
+  /**
+    Checks if the given version is incompatible with another version.
+    @param from  The member that may be not compatible with 'to'
+    @param to    The member with which 'from' may be not compatible with
+    @return the compatibility status
+      @retval INCOMPATIBLE     The versions are not compatible with each other
+      @retval COMPATIBLE       The versions are compatible with each other
+      @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
+  */
+  static Compatibility_type check_version_incompatibility(Member_version from,
+                                                          Member_version to);
   /**
     Checks if the given version is incompatible with another version.
     @param from  The member that may be not compatible with 'to'
@@ -97,12 +110,14 @@ class Compatibility_module {
   /**
     Checks if the given version is compatible with this member local version.
     @param to    The member with which 'from' may be not compatible with
+    @param is_lowest_version If to version is lowest in the group
     @return the compatibility status
       @retval INCOMPATIBLE     The versions are not compatible with each other
       @retval COMPATIBLE       The versions are compatible with each other
       @retval READ_COMPATIBLE  The version 'from' can only read from 'to'
   */
-  Compatibility_type check_local_incompatibility(Member_version &to);
+  Compatibility_type check_local_incompatibility(Member_version &to,
+                                                 bool is_lowest_version);
 
   virtual ~Compatibility_module();
 

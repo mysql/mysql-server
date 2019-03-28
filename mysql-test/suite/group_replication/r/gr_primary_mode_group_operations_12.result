@@ -17,6 +17,7 @@ include/start_and_bootstrap_group_replication.inc
 [connection server2]
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. The group has a member with a version that does not support group coordinated operations.");
+call mtr.add_suppression("Member version is read compatible with the group.");
 set session sql_log_bin=1;
 include/start_group_replication.inc
 

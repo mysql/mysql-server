@@ -344,14 +344,23 @@ void Recovery_state_transfer::build_donor_list(string *selected_donor_uuid) {
     bool is_online =
         member->get_recovery_status() == Group_member_info::MEMBER_ONLINE;
     bool not_self = m_uuid.compare(member_uuid);
+    bool valid_donor = false;
 
     if (is_online && not_self) {
-      suitable_donors.push_back(member);
+      if (member->get_member_version() <=
+          local_member_info->get_member_version()) {
+        suitable_donors.push_back(member);
+        valid_donor = true;
+      } else if (get_allow_local_lower_version_join()) {
+        suitable_donors.push_back(member);
+        valid_donor = true;
+      }
     }
 
     // if requested, and if the donor is still in the group, update its
     // reference
-    if (selected_donor_uuid != NULL && !m_uuid.compare(*selected_donor_uuid)) {
+    if (selected_donor_uuid != NULL && !m_uuid.compare(*selected_donor_uuid) &&
+        valid_donor) {
       selected_donor = member;
     }
 

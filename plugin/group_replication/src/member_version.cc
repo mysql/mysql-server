@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include "plugin/group_replication/include/member_version.h"
 
 Member_version::Member_version(unsigned int version) {
-  this->version = version;
+  this->version = version & 0x00FFFFFF;
 }
 
 uint32 Member_version::get_version() const { return this->version; }
@@ -50,6 +50,10 @@ uint32 Member_version::get_patch_version() const {
 
 bool Member_version::operator==(const Member_version &other) const {
   return get_version() == other.get_version();
+}
+
+bool Member_version::operator!=(const Member_version &other) const {
+  return get_version() != other.get_version();
 }
 
 bool Member_version::operator<(const Member_version &other) const {

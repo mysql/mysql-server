@@ -1,0 +1,150 @@
+################################################################################
+# Group Replication: cross-version policies
+# This test-case makes sure in multi-primary mode:
+# 1. Lower version servers(considering patch version) do not join group
+# 2. Higher version servers(considering patch version) are in read-only mode
+# 3. When versions are same(considering patch version) servers are writable
+#
+# Test:
+# 0.   The test requires two servers: M1 and M2.
+#      Bootstrap M1 and set environment on M2.
+# 1.   Lower version do not join the group.
+# 1.1. Make M2 major version lower and make sure START GR fails.
+# 1.2. Make M2 minor version lower and make sure START GR fails.
+# 1.3. Make M2 patch version lower and make sure START GR fails.
+# 2.   Higher version are in read-only mode.
+# 2.1. Make M2 major version higher and assert read-only is set.
+# 2.2. Make M2 minor version higher and assert read-only is set.
+# 2.3. Make M2 patch version higher and assert read-only is set.
+# 3.   Make M2 version same as M1 and confirm both M1 and M2 are online.
+#      Assert read-only is disabled on M2.
+# 4.   Cleanup.
+#
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+SET SESSION sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group.");
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET SESSION sql_log_bin=1;
+
+SET @debug_save= @@GLOBAL.DEBUG;
+
+--echo
+--echo # 1.   Lower version do not join the group.
+--echo
+
+--echo
+--echo # 1.1. Make M2 major version lower and make sure START GR fails.
+
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_major_version';
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $assert_text= Assert M2 is OFFLINE.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_state="OFFLINE" AND member_id="$server2_uuid"] = 1
+--source include/assert.inc
+
+--echo
+--echo # 1.2. Make M2 minor version lower and make sure START GR fails.
+
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_minor_version';
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $assert_text= Assert M2 is OFFLINE.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_state="OFFLINE" AND member_id="$server2_uuid"] = 1
+--source include/assert.inc
+
+--echo
+--echo # 1.3. Make M2 patch version lower and make sure START GR fails.
+
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_lower_patch_version';
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--let $assert_text= Assert M2 is OFFLINE.
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_state="OFFLINE" AND member_id="$server2_uuid"] = 1
+--source include/assert.inc
+
+--echo
+--echo # 2.   Higher version are in read-only mode.
+--echo
+
+--echo
+--echo # 2.1. Make M2 major version higher and assert read-only is set.
+
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_major_version';
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 2.2. Make M2 minor version higher and assert read-only is set.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_minor_version';
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 2.3. Make M2 patch version higher and assert read-only is set.
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_higher_patch_version';
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 3.   Make M2 version same as M1 and confirm both M1 and M2 are online.
+--echo #      Assert read-only is disabled on M2.
+--echo
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+# Single member testing in MPM mode.
+--source include/gr_assert_mpm_consistency.inc
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--source include/start_group_replication.inc
+
+--source include/gr_assert_mpm_consistency.inc
+
+
+--echo
+--echo # 4.   Cleanup.
+--echo
+
+--source include/group_replication_end.inc

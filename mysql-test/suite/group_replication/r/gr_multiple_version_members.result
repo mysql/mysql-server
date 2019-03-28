@@ -1,4 +1,4 @@
-include/group_replication.inc [rpl_server_count=5]
+include/group_replication.inc [rpl_server_count=4]
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -26,25 +26,27 @@ INSERT INTO t1 VALUES (1);
 server2
 SET @debug_saved_s2= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is read compatible with the group.");
+SET session sql_log_bin=1;
 include/start_group_replication.inc
 include/assert.inc [On the recovered member, the table should contain 1 elements]
 #
 # Try to add a new member with a base version.
 # Version = Base version
-# It will succeed since the major version is the same
+# It will fail since group lowest version is (patch + 1)
+# Try to add server 3 again with higher major version.
+# Version= Base version + 1 major version
+# It will succeed and join group in read only mode.
 #
 server3
 SET session sql_log_bin=0;
 call mtr.add_suppression("Member version is incompatible with the group");
+call mtr.add_suppression("Member version is read compatible with the group.");
 SET session sql_log_bin=1;
-include/start_group_replication.inc
-#
-# Try to add a new member with a higher major version
-# Version = Base version + 1 major version
-# The member will join the group
-#
-include/stop_group_replication.inc
-SET @debug_saved_s3= @@GLOBAL.DEBUG;
+SET GLOBAL group_replication_group_name= "8a1da670-05fa-11e5-b939-0800200c9a66";
+START GROUP_REPLICATION;
+ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_major_version';
 include/start_group_replication.inc
 include/assert.inc [On the recovered member, the table should contain 1 elements]
@@ -52,59 +54,42 @@ include/assert.inc [On the recovered member, the table should contain 1 elements
 # Try to add a new member with a major version equal to the base version,
 # but a higher minor version.
 # Version = Base version + 1 minor version
-# It will fail to join since a higher major version member is present
 #
 server4
 SET @debug_saved_s4= @@GLOBAL.DEBUG;
 SET session sql_log_bin=0;
-call mtr.add_suppression("Member version is incompatible with the group");
+call mtr.add_suppression("Member version is read compatible with the group.");
 SET session sql_log_bin=1;
 SET @@GLOBAL.DEBUG= '+d,group_replication_compatibility_higher_minor_version';
+SET GLOBAL group_replication_group_name= "8a1da670-05fa-11e5-b939-0800200c9a66";
+include/start_group_replication.inc
+include/assert.inc [On the recovered member, the table should contain 1 elements]
+#
+# Stop GR on server 1 and start server 1 with base version.
+# Version = Base version
+# It will fail since group lowest version is (minor + 1)
+#
+server1
+DROP TABLE t1;
+include/rpl_sync.inc
+include/stop_group_replication.inc
+SET session sql_log_bin=0;
+call mtr.add_suppression("Member version is incompatible with the group");
+SET session sql_log_bin=1;
+SET @@GLOBAL.DEBUG= @debug_save_s1;
 SET GLOBAL group_replication_group_name= "8a1da670-05fa-11e5-b939-0800200c9a66";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 #
-# Make server 3 leave so every member has the same major version
-# Try to add server 4 again with a higher minor version than base
-# Version = Base version + 1 minor version
-# The member will join the group
-#
-server3
-include/stop_group_replication.inc
-server4
-include/start_group_replication.inc
-include/assert.inc [On the recovered member, the table should contain 1 elements]
-#
-# Remove all servers with higher minor versions
-# Try to add a new member with a lower patch version than member 1
-# Version = Base version
-# The member will join the group
-#
-server2
-include/stop_group_replication.inc
-server4
-include/stop_group_replication.inc
-server5
-include/start_group_replication.inc
-include/assert.inc [On the recovered member, the table should contain 1 elements]
-#
 # Clean up
 #
-server1
-SET @@GLOBAL.DEBUG= @debug_save_s1;
-include/stop_group_replication.inc
-include/start_group_replication.inc
 server2
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
-include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save_s2;
+include/stop_group_replication.inc
 server3
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
-include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save_s3;
+include/stop_group_replication.inc
 server4
-SET @@GLOBAL.DEBUG= 'd,group_replication_compatibility_restore_version';
-include/start_group_replication.inc
 SET @@GLOBAL.DEBUG= @debug_save_s4;
-DROP TABLE t1;
+include/stop_group_replication.inc
 include/group_replication_end.inc
