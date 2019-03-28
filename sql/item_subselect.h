@@ -426,7 +426,7 @@ class Item_exists_subselect : public Item_subselect {
   }
   /// True if the IS TRUE/FALSE wasn't explicit in the query
   bool implicit_is_op = false;
-  virtual Item *truth_transformer(THD *, enum Bool_test test);
+  Item *truth_transformer(THD *, enum Bool_test test) override;
   bool translate(bool &null_v, bool v);
   void apply_is_true() override {
     bool had_is = with_is_op();
