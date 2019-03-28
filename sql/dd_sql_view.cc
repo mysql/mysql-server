@@ -32,7 +32,7 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysqld.h"  // mysqld_server_started
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
@@ -128,8 +128,8 @@ class View_metadata_updater_context {
 };
 
 /**
-  A error handler to convert all the errors except deadlock and lock wait
-  timeout errors to ER_VIEW_INVALID while updating views metadata.
+  A error handler to convert all the errors except deadlock, lock wait
+  timeout and stack overrun to ER_VIEW_INVALID while updating views metadata.
 
   Even a warning ER_NO_SUCH_USER generated for non-existing user is handled with
   the error handler.
@@ -140,11 +140,18 @@ class View_metadata_updater_error_handler final
  public:
   virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char *) {
+                                const char *msg) override {
     switch (sql_errno) {
       case ER_LOCK_WAIT_TIMEOUT:
       case ER_LOCK_DEADLOCK:
       case ER_STACK_OVERRUN_NEED_MORE:
+        if (m_log_error)
+          LogEvent()
+              .type(LOG_TYPE_ERROR)
+              .subsys(LOG_SUBSYSTEM_TAG)
+              .prio(ERROR_LEVEL)
+              .errcode(ER_ERROR_INFO_FROM_DA)
+              .verbatim(msg);
         break;
       case ER_NO_SUCH_USER:
         m_sql_errno = ER_NO_SUCH_USER;
@@ -167,8 +174,30 @@ class View_metadata_updater_error_handler final
     return m_sql_errno == ER_NO_SUCH_USER || m_sql_errno == ER_VIEW_INVALID;
   }
 
+ public:
+  View_metadata_updater_error_handler() {
+    m_log_error = (error_handler_hook == my_message_stderr);
+    /*
+      When error_handler_hook is set to my_message_stderr (e.g, during server
+      startup) error handler is not invoked. To invoke this error handler,
+      switching error_handler_hook to my_message_sql() here. my_message_sql()
+      invokes this error handler and flag m_log_error makes sure that errors are
+      logged to error log file.
+    */
+    m_old_error_handler_hook = error_handler_hook;
+    error_handler_hook = my_message_sql;
+  }
+  ~View_metadata_updater_error_handler() override {
+    error_handler_hook = m_old_error_handler_hook;
+  }
+
+ private:
+  void (*m_old_error_handler_hook)(uint, const char *, myf);
+
  private:
   uint m_sql_errno = 0;
+
+  bool m_log_error = false;
 };
 
 Uncommitted_tables_guard::~Uncommitted_tables_guard() {
@@ -416,18 +445,8 @@ static bool open_views_and_update_metadata(
     if (open_tables(thd, &view, &counter, MYSQL_OPEN_NO_NEW_TABLE_IN_SE,
                     &prelocking_strategy)) {
       thd->pop_internal_handler();
-      /*
-        If error is handled by the error handler then update status of the view
-        as "invalid." else report an error.
 
-        During server startup, my_message_stderr is set to the
-        error_handler_hook until all the server components and network are
-        initialized. my_message_stderr does not invoke error handlers pushed.
-        Even there will not be any concurrent operations at this stage to hit
-        deadlock and lock wait timeout situations. So during server startup,
-        view is marked as "invalid" in the error cases.
-      */
-      if (!mysqld_server_started || error_handler.is_view_invalid()) {
+      if (error_handler.is_view_invalid()) {
         if (view->mdl_request.ticket != NULL) {
           // Update view status in tables.options.view_valid.
           if (dd::update_view_status(thd, view->get_db_name(),
@@ -460,7 +479,7 @@ static bool open_views_and_update_metadata(
       thd->lex = org_lex;
       thd->pop_internal_handler();
       // Please refer comments in the view open error handling block above.
-      if (!mysqld_server_started || error_handler.is_view_invalid()) {
+      if (error_handler.is_view_invalid()) {
         // Update view status in tables.options.view_valid.
         if (dd::update_view_status(thd, view->get_db_name(),
                                    view->get_table_name(), false,

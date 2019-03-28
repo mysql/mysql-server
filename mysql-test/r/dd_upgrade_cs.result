@@ -147,6 +147,8 @@ t	CREATE TABLE `t` (
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (-1) ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+# Error log file must not contain following error. Patch for Bug#29440725 suppresses it.
+Pattern "Table 'information_schema.TABLES' doesn't exist" not found
 # Stop the server and do cleanup.
 # Test with lctn=0 and no partitioned tables. Upgrade should succeed.
 # Set different path for --datadir and check that it exists.
