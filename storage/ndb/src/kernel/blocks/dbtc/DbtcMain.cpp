@@ -11297,6 +11297,16 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   }
   else
   {
+    if (tcNodeFailptr.p->takeOverFailed)
+    {
+      jam();
+      /**
+       * After we failed to allocate a transaction record we won't
+       * try to allocate any new ones since it might mean that we
+       * miss operations of a transaction.
+       */
+      return;
+    }
     if (unlikely(!seizeApiConnectFail(signal, apiConnectptr)))
     {
       jam();
@@ -11317,16 +11327,6 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
                           "this node has MaxNoOfConcurrentTransactions = %u",
                           capiConnectFailCount);
       tcNodeFailptr.p->takeOverFailed = true;
-      return;
-    }
-    else if (tcNodeFailptr.p->takeOverFailed)
-    {
-      jam();
-      /**
-       * After we failed to allocate a transaction record we won't
-       * try to allocate any new ones since it might mean that we
-       * miss operations of a transaction.
-       */
       return;
     }
     /**
