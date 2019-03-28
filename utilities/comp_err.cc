@@ -653,7 +653,6 @@ static uint parse_error_offset(char *str) {
 */
 static bool parse_reserved_error_section(char *str) {
   char *offset;
-  const char *end;
   int error;
 
   DBUG_ENTER("parse_reserved_error_section");
@@ -667,7 +666,7 @@ static bool parse_reserved_error_section(char *str) {
 
   /* reading the section start number */
   if (!(offset = get_word(&str))) DBUG_RETURN(true); /* OOM: Fatal error */
-  uint sec_start = static_cast<uint>(my_strtoll10(offset, &end, &error));
+  uint sec_start = static_cast<uint>(my_strtoll10(offset, nullptr, &error));
   my_free(offset);
   DBUG_PRINT("info", ("reserved_range_start: %u", sec_start));
 
@@ -678,7 +677,7 @@ static bool parse_reserved_error_section(char *str) {
 
   /* reading the section end number */
   if (!(offset = get_word(&str))) DBUG_RETURN(true); /* OOM: Fatal error */
-  uint sec_end = static_cast<uint>(my_strtoll10(offset, &end, &error));
+  uint sec_end = static_cast<uint>(my_strtoll10(offset, nullptr, &error));
   my_free(offset);
   DBUG_PRINT("info", ("reserved_range_end: %u", sec_end));
 
