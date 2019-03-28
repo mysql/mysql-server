@@ -49,6 +49,7 @@
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_builtin_memory.h"
 #include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_dd_version.h"
 #include "storage/perfschema/pfs_digest.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/pfs_events_stages.h"
@@ -64,6 +65,33 @@
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_stat.h"
 #include "storage/perfschema/pfs_user.h"
+
+/*
+  Make sure the PFS_DD_VERSION is sane.
+  Normally,
+    PFS_DD_VERSION <= MYSQL_VERSION_ID
+
+  Exceptionally,
+  because a given version number might have already leaked anyway:
+  - MySQL 8.0.16 claims to have PFS_DD_VERSION = 80017 tables instead of 80016
+  - known backports, rogue forks, lab releases, etc, could claim a version
+  number ... versions can be named in a second space, [MYSQL_VERSION_ID * 10,
+  MYSQL_VERSION_ID * 10 + 9]
+
+  For example, because MySQL 8.0.17 can not claim PFS_DD_VERSION = 80017,
+  it then claims PFS_DD_VERSION = 800171.
+
+  By the next release, MySQL 8.0.18 should claim PFS_DD_VERSION = 80018,
+  to resume a sane numbering (even without schema changes).
+
+  Document every exception in the assert below,
+  so that by the time MYSQL_VERSION_ID is renumbered,
+  the build fails (forcing adjustment on PFS_DD_VERSION to be sane again).
+*/
+
+static_assert((PFS_DD_VERSION <= MYSQL_VERSION_ID) ||
+                  ((PFS_DD_VERSION == 800171) && (MYSQL_VERSION_ID == 80017)),
+              "This release can not use a version number from the future");
 
 class KEY;
 class Plugin_table;

@@ -96,15 +96,16 @@
 
   performance_schema.keyring_keys
 
-  Version published is now 80015.
+  80017: -- WARNING, EXPOSED BY MySQL 8.0.16 --
 
-  80017:
-
-  performance_schema tables changed in MySQL 8.0.17
+  Unfortunately, MySQL 8.0.16 claim the 80017 tag, due to a bad merge.
+  performance_schema tables changed in MySQL 8.0.16
   - replication_connection_configuration, added column NETWORK_NAMESPACE
 
-  Version published is now 80017.
+  800171: -- WARNING, EXPOSED BY MySQL 8.0.17 --
+
+  Version published is now 800171.
 */
-static const uint PFS_DD_VERSION = 80017;
+static const uint PFS_DD_VERSION = 800171;
 
 #endif /* PFS_DD_VERSION_H */
