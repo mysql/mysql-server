@@ -519,70 +519,8 @@ SELECT SHA2("hello", -4294966784); # 512 when cast to uint
 --echo # The statement_digest() native function.
 --echo #
 
-
---echo #
---echo # Error handling/edge cases.
---echo #
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( (SELECT * FROM( SELECT user() ) t) );
-
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( 'This can''t be parsed but yields a digest.' ) IS NULL;
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT statement_digest();
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT statement_digest( 'too many', 'arguments' );
-SELECT statement_digest( NULL );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( '/*' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( '@@' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( "SELECT 1; SELECT 2" );
-SELECT statement_digest( "SELECT 1;" ) IS NULL;
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( repeat( 'a', character_maximum_length ) ) IS NULL
-FROM information_schema.columns
-WHERE table_name = 'events_statements_history' AND column_name = 'digest';
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( point(1, 2) ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( _utf8 x'e298ba' ) IS NULL; # White Smiling Face U+263A
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( 'a\0bc' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( '\0abc' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( '' );
-SELECT statement_digest( statement_digest( NULL ) );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( statement_digest( '' ) );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( statement_digest( '\0' ) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( statement_digest( 'SELECT 1, 2, 3' ) );
---echo # Prepared statement syntax is not supported...
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( 'SELECT ?' );
---echo # ... which is why we get the text in this case; The error stems from
---echo # the inner call.
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest( statement_digest( 'SELECT ?' ) );
-
-SET sql_mode = ''; # Un-strict
-CREATE TABLE t1 ( g GEOMETRY NOT NULL );
-INSERT INTO t1 VALUES ( POINT(1,2) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT concat( statement_digest(g), 'x' ) FROM t1;
-SET sql_mode = DEFAULT;
-DROP TABLE t1;
-
-
---echo # Let's check that warnings in the parser are silenced.
-SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
+--let digest_fn=statement_digest
+--source include/func_digest_errors.inc
 
 --echo #
 --echo # Test queries.
@@ -645,71 +583,8 @@ CREATE TABLE digest_gcol (
 --echo # The statement_digest_text() native function.
 --echo #
 
-
---echo #
---echo # Error handling/edge cases.
---echo #
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( (SELECT * FROM( SELECT user() ) t) );
-
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( 'This can''t be parsed but yields a digest.' ) IS NULL;
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT statement_digest_text();
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT statement_digest_text( 'too many', 'arguments' );
-SELECT statement_digest_text( NULL );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( '/*' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( '@@' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( "SELECT 1; SELECT 2" );
-SELECT statement_digest_text( "SELECT 1;" );
-
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( repeat( 'a', character_maximum_length ) ) IS NULL
-FROM information_schema.columns
-WHERE table_name = 'events_statements_history' AND column_name = 'digest';
-
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( point(1, 2) ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( _utf8 x'e298ba' ) IS NULL; # White Smiling Face U+263A
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( 'a\0bc' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( '\0abc' ) IS NULL;
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( '' );
-SELECT statement_digest_text( statement_digest_text( NULL ) );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( statement_digest_text( '' ) );
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( statement_digest_text( '\0' ) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( statement_digest_text( 'SELECT 1, 2, 3' ) );
---echo # Prepared statement syntax is not supported...
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( 'SELECT ?' );
---echo # ... which is why we get the text in this case; The error stems from
---echo # the inner call.
---error ER_PARSE_ERROR_IN_DIGEST_FN
-SELECT statement_digest_text( statement_digest_text( 'SELECT ?' ) );
-
-SET sql_mode = ''; # Un-strict
-CREATE TABLE t1 ( g GEOMETRY NOT NULL );
-INSERT INTO t1 VALUES ( POINT(1,2) );
---error ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
-SELECT concat( statement_digest_text(g), 'x' ) FROM t1;
-SET sql_mode = DEFAULT;
-DROP TABLE t1;
-
-
---echo # Let's check that warnings in the parser are silenced.
-SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
+--let digest_fn=statement_digest_text
+--source include/func_digest_errors.inc
 
 --echo #
 --echo # Test queries.
@@ -890,3 +765,25 @@ SELECT statement_digest_text('SELECT 1 + 1');
 SELECT DIGEST_TEXT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE DIGEST_TEXT LIKE 'SELECT ?%';
+
+--echo #
+--echo # Bug#29526571: STATEMENT_DIGEST() AND STATEMENT_DIGEST_TEXT() CAN USE
+--echo # WRONG QUERY CHARSET
+--echo #
+SET @v = CONCAT('SELECT 1 AS ', _latin1 0xC5);
+
+SET NAMES utf8mb4;
+SELECT statement_digest_text(CONVERT(@v USING latin1));
+SELECT statement_digest(CONVERT(@v USING latin1));
+--echo # Angstrom sign is 0xC385 in UTF-8.
+SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
+SHOW variables LIKE 'character_set_client';
+
+SET NAMES latin1;
+SELECT statement_digest_text(CONVERT(@v USING latin1));
+SELECT statement_digest(CONVERT(@v USING latin1));
+--echo # Angstrom sign is 0xC385 in UTF-8.
+SELECT substr(hex(statement_digest_text(CONVERT(@v USING latin1))), -6, 4);
+SHOW variables LIKE 'character_set_client';
+
+SET NAMES DEFAULT;
