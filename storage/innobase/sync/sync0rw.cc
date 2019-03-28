@@ -515,43 +515,43 @@ ibool rw_lock_x_lock_low(
   } else {
     os_thread_id_t thread_id = os_thread_get_curr_id();
 
-    bool recursive;
-    os_thread_id_t writer_thread;
+    bool locked = false;
 
     if (!pass) {
-      recursive = lock->recursive;
+      bool recursive = lock->recursive;
       os_rmb;
-      writer_thread = lock->writer_thread;
-    }
+      os_thread_id_t writer_thread = lock->writer_thread;
 
-    /* Decrement failed: An X or SX lock is held by either
-    this thread or another. Try to relock. */
-    if (!pass && recursive && os_thread_eq(writer_thread, thread_id)) {
-      /* Other s-locks can be allowed. If it is request x
-      recursively while holding sx lock, this x lock should
-      be along with the latching-order. */
+      /* Decrement failed: An X or SX lock is held by either
+      this thread or another. Try to relock. */
+      if (recursive && os_thread_eq(writer_thread, thread_id)) {
+        /* Other s-locks can be allowed. If it is request x
+        recursively while holding sx lock, this x lock should
+        be along with the latching-order. */
 
-      /* The existing X or SX lock is from this thread */
-      if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
-        /* There is at least one SX-lock from this
-        thread, but no X-lock. */
+        /* The existing X or SX lock is from this thread */
+        if (rw_lock_lock_word_decr(lock, X_LOCK_DECR, 0)) {
+          /* There is at least one SX-lock from this
+          thread, but no X-lock. */
 
-        /* Wait for any the other S-locks to be
-        released. */
-        rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
+          /* Wait for any the other S-locks to be
+          released. */
+          rw_lock_x_lock_wait(lock, pass, -X_LOCK_HALF_DECR, file_name, line);
 
-      } else {
-        /* At least one X lock by this thread already
-        exists. Add another. */
-        if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
-          lock->lock_word -= X_LOCK_DECR;
         } else {
-          ut_ad(lock->lock_word <= -X_LOCK_DECR);
-          --lock->lock_word;
+          /* At least one X lock by this thread already
+          exists. Add another. */
+          if (lock->lock_word == 0 || lock->lock_word == -X_LOCK_HALF_DECR) {
+            lock->lock_word -= X_LOCK_DECR;
+          } else {
+            ut_ad(lock->lock_word <= -X_LOCK_DECR);
+            --lock->lock_word;
+          }
         }
+        locked = true;
       }
-
-    } else {
+    }
+    if (!locked) {
       /* Another thread locked before us */
       return (FALSE);
     }
@@ -589,46 +589,47 @@ ibool rw_lock_sx_lock_low(
   } else {
     os_thread_id_t thread_id = os_thread_get_curr_id();
 
-    bool recursive;
-    os_thread_id_t writer_thread;
+    bool locked = false;
 
     if (!pass) {
-      recursive = lock->recursive;
+      bool recursive = lock->recursive;
       os_rmb;
-      writer_thread = lock->writer_thread;
-    }
+      os_thread_id_t writer_thread = lock->writer_thread;
 
-    /* Decrement failed: It already has an X or SX lock by this
-    thread or another thread. If it is this thread, relock,
-    else fail. */
-    if (!pass && recursive && os_thread_eq(writer_thread, thread_id)) {
-      /* This thread owns an X or SX lock */
-      if (lock->sx_recursive++ == 0) {
-        /* This thread is making first SX-lock request
-        and it must be holding at least one X-lock here
-        because:
+      /* Decrement failed: It already has an X or SX lock by this
+      thread or another thread. If it is this thread, relock,
+      else fail. */
+      if (recursive && os_thread_eq(writer_thread, thread_id)) {
+        /* This thread owns an X or SX lock */
+        if (lock->sx_recursive++ == 0) {
+          /* This thread is making first SX-lock request
+          and it must be holding at least one X-lock here
+          because:
 
-        * There can't be a WAIT_EX thread because we are
-          the thread which has it's thread_id written in
-          the writer_thread field and we are not waiting.
+          * There can't be a WAIT_EX thread because we are
+            the thread which has it's thread_id written in
+            the writer_thread field and we are not waiting.
 
-        * Any other X-lock thread cannot exist because
-          it must update recursive flag only after
-          updating the thread_id. Had there been
-          a concurrent X-locking thread which succeeded
-          in decrementing the lock_word it must have
-          written it's thread_id before setting the
-          recursive flag. As we cleared the if()
-          condition above therefore we must be the only
-          thread working on this lock and it is safe to
-          read and write to the lock_word. */
+          * Any other X-lock thread cannot exist because
+            it must update recursive flag only after
+            updating the thread_id. Had there been
+            a concurrent X-locking thread which succeeded
+            in decrementing the lock_word it must have
+            written it's thread_id before setting the
+            recursive flag. As we cleared the if()
+            condition above therefore we must be the only
+            thread working on this lock and it is safe to
+            read and write to the lock_word. */
 
-        ut_ad((lock->lock_word == 0) ||
-              ((lock->lock_word <= -X_LOCK_DECR) &&
-               (lock->lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
-        lock->lock_word -= X_LOCK_HALF_DECR;
+          ut_ad((lock->lock_word == 0) ||
+                ((lock->lock_word <= -X_LOCK_DECR) &&
+                 (lock->lock_word > -(X_LOCK_DECR + X_LOCK_HALF_DECR))));
+          lock->lock_word -= X_LOCK_HALF_DECR;
+        }
+        locked = true;
       }
-    } else {
+    }
+    if (!locked) {
       /* Another thread locked before us */
       return (FALSE);
     }
