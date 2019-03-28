@@ -155,6 +155,30 @@ struct MEM_ROOT {
   }
 
   /**
+    Allocate “num” objects of type T, and default-construct them.
+    If the constructor throws an exception, behavior is undefined.
+
+    We don't use new[], as it can put extra data in front of the array.
+   */
+  template <class T>
+  T *ArrayAlloc(size_t num) {
+    static_assert(alignof(T) <= 8, "MEM_ROOT only returns 8-aligned memory.");
+    if (num * sizeof(T) < num) {
+      // Overflow.
+      return nullptr;
+    }
+    T *ret = static_cast<T *>(Alloc(num * sizeof(T)));
+
+    // Default-construct all elements. For primitive types like int,
+    // the entire loop will be optimized away.
+    for (size_t i = 0; i < num; ++i) {
+      new (&ret[i]) T;
+    }
+
+    return ret;
+  }
+
+  /**
    * Claim all the allocated memory for the current thread in the performance
    * schema. Use when transferring responsibility for a MEM_ROOT from one thread
    * to another.

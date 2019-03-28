@@ -2857,8 +2857,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if ((db_stat & HA_OPEN_KEYFILE) || (prgflag & DELAYED_OPEN)) records = 1;
   if (prgflag & (READ_ALL + EXTRA_RECORD)) records++;
 
-  record = pointer_cast<uchar *>(
-      root->Alloc(share->rec_buff_length * records + share->null_bytes));
+  record = root->ArrayAlloc<uchar>(share->rec_buff_length * records +
+                                   share->null_bytes);
   if (record == NULL) goto err; /* purecov: inspected */
 
   if (records == 0) {
@@ -2874,8 +2874,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
   outparam->null_flags_saved = record + (records * share->rec_buff_length);
 
-  if (!(field_ptr = (Field **)root->Alloc(
-            (uint)((share->fields + 1) * sizeof(Field *)))))
+  if (!(field_ptr = root->ArrayAlloc<Field *>(share->fields + 1)))
     goto err; /* purecov: inspected */
 
   outparam->field = field_ptr;
@@ -2999,7 +2998,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
 
   bitmap_size = share->column_bitmap_size;
-  if (!(bitmaps = (uchar *)root->Alloc(bitmap_size * 7))) goto err;
+  if (!(bitmaps = root->ArrayAlloc<uchar>(bitmap_size * 7))) goto err;
   bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields,
               false);
   bitmap_init(&outparam->def_write_set,
@@ -3024,8 +3023,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
   outparam->vfield = nullptr;
   if (share->vfields) {
-    Field **vfield_ptr = pointer_cast<Field **>(
-        root->Alloc((uint)((share->vfields + 1) * sizeof(Field *))));
+    Field **vfield_ptr = root->ArrayAlloc<Field *>(share->vfields + 1);
     if (!vfield_ptr) goto err;
 
     outparam->vfield = vfield_ptr;
@@ -3064,8 +3062,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   // Unpack generated default fields and store reference to this type of fields
   outparam->gen_def_fields_ptr = nullptr;
   if (share->gen_def_field_count) {
-    Field **gen_def_field = pointer_cast<Field **>(root->Alloc(
-        (uint)((share->gen_def_field_count + 1) * sizeof(Field *))));
+    Field **gen_def_field =
+        root->ArrayAlloc<Field *>(share->gen_def_field_count + 1);
     if (!gen_def_field) goto err;
 
     outparam->gen_def_fields_ptr = gen_def_field;
