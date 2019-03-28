@@ -641,9 +641,12 @@ void os_event_global_init(void) {
   }
 #endif /* HAVE_CLOCK_GETTIME */
 
+#ifndef UNIV_NO_ERR_MSGS
   if (!os_event::cond_attr_has_monotonic_clock) {
     ib::warn(ER_IB_MSG_CLOCK_MONOTONIC_UNSUPPORTED);
   }
+#endif /* !UNIV_NO_ERR_MSGS */
+
 #endif /* UNIV_LINUX */
 #endif /* !_WIN32 */
 }
