@@ -180,4 +180,28 @@ class Ndb_util_table {
   static std::string unpack_varbinary(NdbRecAttr* ndbRecAttr);
 };
 
+
+class Util_table_creator {
+  class THD *const m_thd;
+  Thd_ndb *const m_thd_ndb;
+  Ndb_util_table &m_util_table;
+  std::string m_name;
+
+  const char *db_name() const { return m_util_table.db_name(); }
+  const char *table_name() const { return m_util_table.table_name(); }
+
+  bool create_or_upgrade_in_NDB(bool upgrade_allowed, bool& reinstall) const;
+
+  bool install_in_DD(bool reinstall);
+
+  bool setup_table_for_binlog() const;
+
+ public:
+  Util_table_creator(class THD *, Thd_ndb *, Ndb_util_table &);
+  Util_table_creator() = delete;
+  Util_table_creator(const Util_table_creator &) = delete;
+
+  bool create_or_upgrade(bool upgrade_allowed);
+};
+
 #endif

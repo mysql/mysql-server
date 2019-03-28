@@ -30,7 +30,16 @@
 #include "my_base.h"
 #include "my_byteorder.h" // uint2korr
 #include "mysql_version.h"
+
+#include "sql/ha_ndbcluster_binlog.h"
+#include "sql/ndb_dd_client.h"
+#include "sql/ndb_dd_table.h"
+#include "sql/ndb_local_connection.h"
+#include "sql/ndb_log.h"
+#include "sql/ndb_tdc.h"
 #include "sql/ndb_thd_ndb.h"
+#include "sql/sql_class.h"      // THD
+
 #include "ndbapi/NdbRecAttr.hpp" // NdbRecAttr
 
 class Db_name_guard {
@@ -346,4 +355,181 @@ Ndb_util_table::unpack_varbinary(NdbRecAttr* ndbRecAttr) {
   const char *varbinary_start =
       reinterpret_cast<const char *>(packed_value + length_bytes);
   DBUG_RETURN(std::string(varbinary_start, varbinary_length));
+}
+
+//
+//  Util_table_creator
+//
+
+Util_table_creator::Util_table_creator(THD *thd,
+                                       Thd_ndb *thd_ndb,
+                                       Ndb_util_table &util_table) :
+  m_thd(thd),
+  m_thd_ndb(thd_ndb),
+  m_util_table(util_table)
+{
+  m_name.append(db_name()).append(".").append(table_name());
+}
+
+bool Util_table_creator::create_or_upgrade_in_NDB(bool upgrade_allowed,
+                                                  bool& reinstall) const {
+  ndb_log_verbose(50, "Checking '%s' table", m_name.c_str());
+
+  if (!m_util_table.exists()) {
+    ndb_log_verbose(50, "The '%s' table does not exist, creating..",
+                    m_name.c_str());
+
+    // Create the table using NdbApi
+    if (!m_util_table.create()) {
+      ndb_log_error("Failed to create '%s' table", m_name.c_str());
+      return false;
+    }
+    reinstall = true;
+
+    ndb_log_info("Created '%s' table", m_name.c_str());
+  }
+
+  if (!m_util_table.open()) {
+    ndb_log_error("Failed to open '%s' table", m_name.c_str());
+    return false;
+  }
+
+  if (m_util_table.need_upgrade()) {
+    ndb_log_warning("The '%s' table need upgrade", m_name.c_str());
+
+    if (!upgrade_allowed) {
+      ndb_log_info("Upgrade of '%s' table not allowed!", m_name.c_str());
+      // Skip upgrading the table and continue with
+      // limited functionality
+      return true;
+    }
+
+    ndb_log_info("Upgrade of '%s' table...", m_name.c_str());
+    if (!m_util_table.upgrade()) {
+      ndb_log_error("Upgrade of '%s' table failed!", m_name.c_str());
+      return false;
+    }
+    reinstall= true;
+    ndb_log_info("Upgrade of '%s' table completed", m_name.c_str());
+  }
+
+  ndb_log_verbose(50, "The '%s' table is ok", m_name.c_str());
+  return true;
+}
+
+bool Util_table_creator::install_in_DD(bool reinstall) {
+  Ndb_dd_client dd_client(m_thd);
+
+  if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
+    ndb_log_error("Failed to MDL lock '%s' table", m_name.c_str());
+    return false;
+  }
+
+  const dd::Table *existing;
+  if (!dd_client.get_table(db_name(), table_name(), &existing)) {
+    ndb_log_error("Failed to get '%s' table from DD", m_name.c_str());
+    return false;
+  }
+
+  // Table definition exists
+  if (existing) {
+    int table_id, table_version;
+    if (!ndb_dd_table_get_object_id_and_version(existing, table_id,
+                                                table_version)) {
+      ndb_log_error("Failed to extract id and version from '%s' table",
+                    m_name.c_str());
+      DBUG_ASSERT(false);
+      // Continue and force removal of table definition
+      reinstall = true;
+    }
+
+    // Check if table definition in DD is outdated
+    const NdbDictionary::Table *ndbtab = m_util_table.get_table();
+    if (!reinstall && (ndbtab->getObjectId() == table_id &&
+                       ndbtab->getObjectVersion() == table_version)) {
+      // Existed, didn't need reinstall and version matched
+      return true;
+    }
+
+    ndb_log_verbose(1, "Removing '%s' from DD", m_name.c_str());
+    if (!dd_client.remove_table(db_name(), table_name())) {
+      ndb_log_info("Failed to remove '%s' from DD", m_name.c_str());
+      return false;
+    }
+
+    dd_client.commit();
+
+    /*
+      The table existed in and was deleted from DD. It's possible
+      that someone has tried to use it and thus it might have been
+      inserted in the table definition cache. Close the table
+      in the table definition cace(tdc).
+    */
+    ndb_log_verbose(1, "Removing '%s' from table definition cache",
+                    m_name.c_str());
+    ndb_tdc_close_cached_table(m_thd, db_name(), table_name());
+  }
+
+  // Create DD table definition
+  Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+  // Allow creating DD table definition although table already exist in NDB
+  thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE);
+  // Mark table definition as hidden in DD
+  if (m_util_table.is_hidden())
+    thd_ndb_options.set(Thd_ndb::CREATE_UTIL_TABLE_HIDDEN);
+
+  Ndb_local_connection mysqld(m_thd);
+  if (mysqld.create_util_table(m_util_table.define_table_dd())) {
+    ndb_log_error("Failed to create table defintion for '%s' in DD",
+                  m_name.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+bool Util_table_creator::setup_table_for_binlog() const {
+  // Acquire exclusive MDL lock on schema and table
+  Ndb_dd_client dd_client(m_thd);
+  if (!dd_client.mdl_locks_acquire_exclusive(db_name(), table_name())) {
+    ndb_log_error("Failed to acquire MDL lock for '%s' table",
+                  m_name.c_str());
+    m_thd->clear_error();
+    return false;
+  }
+
+  const dd::Table *table_def;
+  if (!dd_client.get_table(db_name(), table_name(), &table_def)) {
+    ndb_log_error("Failed to open table definition for '%s' table",
+                  m_name.c_str());
+    return false;
+  }
+
+  // Setup events for this table
+  if (ndbcluster_binlog_setup_table(m_thd, m_thd_ndb->ndb, db_name(),
+                                    table_name(), table_def)) {
+    ndb_log_error("Failed to setup events for '%s' table", m_name.c_str());
+    return false;
+  }
+
+  return true;
+}
+
+bool Util_table_creator::create_or_upgrade(bool upgrade_allowed) {
+  bool reinstall = false;
+  if (!create_or_upgrade_in_NDB(upgrade_allowed, reinstall)) {
+    return false;
+  }
+
+  if (!install_in_DD(reinstall)) {
+    return false;
+  }
+
+  /* Give additional 'binlog_setup rights' to this Thd_ndb */
+  Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+  thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
+  if (!setup_table_for_binlog()) {
+    return false;
+  }
+  return true;
 }
