@@ -41,8 +41,8 @@ SET(GEN_SOURCES
 SET(GEN_LOCK_ORDER_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.h
   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+##  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
+##  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
 )
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
@@ -877,7 +877,8 @@ INSTALL_DEBUG_TARGET(mysqld
 # bison. Copy bison output to from source to build directory, if not already 
 # there
 INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/flex.cmake)
+
+## INCLUDE(${CMAKE_SOURCE_DIR}/cmake/flex.cmake)
 
 COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc
@@ -894,13 +895,13 @@ COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_parser.h
 )
 
-# Always copy, for make dist.
-COPY_FLEX_OUTPUT(
-  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.cc
-  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.h
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
-)
+## # Always copy, for make dist.
+## COPY_FLEX_OUTPUT(
+##   ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.cc
+##   ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.h
+##   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+##   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
+## )
 
 COPY_BISON_OUTPUT(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy.cc
@@ -924,13 +925,13 @@ RUN_BISON(
   LOCK_ORDER_
 )
 
-# Always run, for make dist.
-RUN_FLEX(
-  ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.ll
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
-  LOCK_ORDER_
-)
+## # Always run, for make dist.
+## RUN_FLEX(
+##   ${CMAKE_CURRENT_SOURCE_DIR}/debug_lo_scanner.ll
+##   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+##   ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.h
+##   LOCK_ORDER_
+## )
 
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_hints.yy 
