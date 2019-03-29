@@ -79,6 +79,19 @@ class XSession {
       Capability type: BOOL. Value: enable/disable the support.
      */
     Capability_client_interactive,
+
+    /**
+      The server may want know more about the client. MySQL X clients connection
+      the server may differ in: application version, MySQL library version,
+      OS, CPU, CPU endianess, programming language. Having more information
+      about clients/statistics is going to help server administrators with
+      finding faulty clients, targeting potential issues and allow better
+      optimizing.
+      Capability type: OBJECT. Value: associative array of strings where
+      key name must not exceed 32 characters and value must not exceed
+      1024 characters.
+     */
+    Capability_session_connect_attrs,
   };
 
   /**
@@ -427,6 +440,22 @@ class XSession {
                                 const int64_t value) = 0;
 
   /**
+    Set X protocol capabilities.
+
+    All capabilities set before calling `XSession::connect` method are
+    committed to the server (other side of the connection).
+
+    @param capability   capability to set or modify
+    @param value        assign object value to the capability
+
+    @return Error code with description
+      @retval != true     OK
+      @retval == true     error occurred
+  */
+  virtual XError set_capability(const Mysqlx_capability capability,
+                                const Argument_object &value) = 0;
+
+  /**
     Establish and authenticate connection using TCP.
 
     @param host         specifies destination address as host, ipv4, ipv6 add
@@ -527,6 +556,13 @@ class XSession {
     object.
   */
   virtual void close() = 0;
+
+  /**
+   Get pre-filled session connection attributes.
+   If necessary could be supplemented with additional information before
+   sending it as capability to the server.
+   */
+  virtual Argument_object get_connect_attrs() const = 0;
 };
 
 /**

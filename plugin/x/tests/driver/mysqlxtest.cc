@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -118,8 +118,8 @@ int client_connect_and_process(const Driver_command_line_options &options,
     context.m_script_stack.push({0, "main"});
 
     cm.connect_default(options.m_cap_expired_password,
-                       options.m_client_interactive,
-                       options.m_run_without_auth);
+                       options.m_client_interactive, options.m_run_without_auth,
+                       options.m_connect_attrs);
 
     std::vector<Block_processor_ptr> eaters = create_block_processors(&context);
     int result_code =

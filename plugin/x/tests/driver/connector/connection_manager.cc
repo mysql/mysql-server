@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include "plugin/x/tests/driver/connector/connection_manager.h"
 
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <utility>
@@ -118,7 +117,8 @@ void Connection_manager::safe_close(const std::string &name) {
 
 void Connection_manager::connect_default(const bool send_cap_password_expired,
                                          const bool client_interactive,
-                                         const bool no_auth) {
+                                         const bool no_auth,
+                                         const bool connect_attrs) {
   m_console.print_verbose("Connecting...\n");
 
   auto session = m_active_holder->get_session();
@@ -130,6 +130,13 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
 
   if (client_interactive) {
     session->set_capability(xcl::XSession::Capability_client_interactive, true);
+  }
+
+  if (connect_attrs) {
+    auto attrs = session->get_connect_attrs();
+    attrs.emplace_back("program_name", xcl::Argument_value{"mysqlxtest"});
+    session->set_capability(xcl::XSession::Capability_session_connect_attrs,
+                            attrs);
   }
 
   xcl::XError error = m_active_holder->connect(no_auth);

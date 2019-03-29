@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,69 +28,13 @@
 #ifndef PLUGIN_X_CLIENT_XCAPABILITY_BUILDER_H_
 #define PLUGIN_X_CLIENT_XCAPABILITY_BUILDER_H_
 
-#include <memory>
 #include <string>
 
-#include "my_compiler.h"
-#include "plugin/x/client/mysqlxclient/xargument.h"
-#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/any_filler.h"
 
 namespace xcl {
 
 class Capabilities_builder {
- private:
-  class Capability_visitor : public Argument_value::Argument_visitor {
-   public:
-    using Capability = ::Mysqlx::Connection::Capability;
-    using Scalar = ::Mysqlx::Datatypes::Scalar;
-    using Capability_ptr = std::unique_ptr<Capability>;
-
-   public:
-    explicit Capability_visitor(Capability *capability)
-        : m_capability(capability) {}
-
-   private:
-    void visit(const int64_t value) override {
-      auto scalr = get_scalar();
-      scalr->set_type(Mysqlx::Datatypes::Scalar_Type_V_SINT);
-      scalr->set_v_signed_int(value);
-    }
-
-    void visit(const std::string &value, const Argument_value::String_type st
-                                             MY_ATTRIBUTE((unused))) override {
-      auto scalr = get_scalar();
-      scalr->set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
-      scalr->mutable_v_string()->set_value(value);
-    }
-
-    void visit(const bool value) override {
-      auto scalr = get_scalar();
-      scalr->set_type(Mysqlx::Datatypes::Scalar_Type_V_BOOL);
-      scalr->set_v_bool(value);
-    }
-
-    // Methods below shouldn't be called
-    void visit() override {}
-
-    void visit(const uint64_t value MY_ATTRIBUTE((unused))) override {}
-
-    void visit(const double value MY_ATTRIBUTE((unused))) override {}
-
-    void visit(const float value MY_ATTRIBUTE((unused))) override {}
-
-    void visit(const Object &value MY_ATTRIBUTE((unused))) override {}
-
-    void visit(const Arguments &value MY_ATTRIBUTE((unused))) override {}
-
-    Scalar *get_scalar() {
-      auto any = m_capability->mutable_value();
-      any->set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
-      return any->mutable_scalar();
-    }
-
-    Capability *m_capability;
-  };
-
  public:
   using CapabilitiesSet = ::Mysqlx::Connection::CapabilitiesSet;
 
@@ -99,10 +43,9 @@ class Capabilities_builder {
                                        const xcl::Argument_value &argument) {
     auto capabilities = m_cap_set.mutable_capabilities();
     auto capability = capabilities->add_capabilities();
-    Capability_visitor capability_scalar_vallue_filler(capability);
-
     capability->set_name(name);
-    argument.accept(&capability_scalar_vallue_filler);
+    Any_filler capability_filler(capability->mutable_value());
+    argument.accept(&capability_filler);
 
     return *this;
   }
