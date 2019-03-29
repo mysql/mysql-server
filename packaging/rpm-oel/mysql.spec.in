@@ -248,6 +248,7 @@ Obsoletes:      mariadb-connector-c-config
 Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
+Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
 Obsoletes:      mariadb-gssapi-server
 Provides:       mysql-server = %{version}-%{release}
