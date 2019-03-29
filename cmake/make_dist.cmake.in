@@ -115,10 +115,10 @@ IF(NOT GIT_EXECUTABLE)
     CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
        ${CMAKE_BINARY_DIR}/debug_lo_parser.h COPYONLY)
     #
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
-       ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
-       ${CMAKE_BINARY_DIR}/debug_lo_scanner.h COPYONLY)
+##    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+##       ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc COPYONLY)
+##    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+##       ${CMAKE_BINARY_DIR}/debug_lo_scanner.h COPYONLY)
 
     IF(BUILD_IS_SINGLE_CONFIG)
     # make clean
@@ -150,12 +150,12 @@ IF(NOT GIT_EXECUTABLE)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_parser.cc)
     FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_parser.h)
     #
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.cc
-       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc COPYONLY)
-    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.h
-       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h COPYONLY)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc)
-    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.h)
+##    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.cc
+##       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc COPYONLY)
+##    CONFIGURE_FILE(${CMAKE_BINARY_DIR}/debug_lo_scanner.h
+##       ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h COPYONLY)
+##    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.cc)
+##    FILE(REMOVE ${CMAKE_BINARY_DIR}/debug_lo_scanner.h)
   ENDIF()
 
   EXECUTE_PROCESS(
@@ -188,10 +188,10 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
    ${PACKAGE_DIR}/sql/debug_lo_parser.cc COPYONLY)
 #
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
-   ${PACKAGE_DIR}/sql/debug_lo_scanner.h COPYONLY)
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
-   ${PACKAGE_DIR}/sql/debug_lo_scanner.cc COPYONLY)
+## CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+##    ${PACKAGE_DIR}/sql/debug_lo_scanner.h COPYONLY)
+## CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+##    ${PACKAGE_DIR}/sql/debug_lo_scanner.cc COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)
