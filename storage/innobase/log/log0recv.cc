@@ -673,7 +673,11 @@ static
 block.
 @param[in]	block	pointer to a log block
 @return whether the checksum matches */
-static bool log_block_checksum_is_ok(const byte *block) {
+#ifndef UNIV_HOTBACKUP
+static
+#endif /* !UNIV_HOTBACKUP */
+    bool
+    log_block_checksum_is_ok(const byte *block) {
   return (!srv_log_checksums ||
           log_block_get_checksum(block) == log_block_calc_checksum(block));
 }
@@ -1360,10 +1364,12 @@ log scanned.
 lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
 checkpoint number so far
+@param[out]	scanned_checkpoint_no	highest block no in scanned buffer.
 @param[out]	n_bytes_scanned		how much we were able to scan, smaller
 than buf_len if log data ended here */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *n_bytes_scanned) {
+                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      ulint *n_bytes_scanned) {
   *n_bytes_scanned = 0;
 
   for (auto log_block = buf; log_block < buf + buf_len;
@@ -1411,6 +1417,7 @@ void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
 
       break;
     }
+    *block_no = no;
   }
 }
 

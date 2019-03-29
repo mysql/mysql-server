@@ -72,11 +72,13 @@ log scanned.
 @param[in,out]	scanned_lsn		lsn of buffer start, we return scanned
 lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
+@param[out]	scanned_checkpoint_no	highest block no in scanned buffer.
 checkpoint number so far
 @param[out]	n_bytes_scanned		how much we were able to scan, smaller
 than buf_len if log data ended here */
 void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
-                      ulint *scanned_checkpoint_no, ulint *n_bytes_scanned);
+                      ulint *scanned_checkpoint_no, ulint *block_no,
+                      ulint *n_bytes_scanned);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
@@ -139,6 +141,11 @@ bool meb_scan_log_recs(ulint available_memory, const byte *buf, ulint len,
                        lsn_t *contiguous_lsn, lsn_t *group_scanned_lsn);
 
 bool recv_check_log_header_checksum(const byte *buf);
+/** Check the 4-byte checksum to the trailer checksum field of a log
+block.
+@param[in]	block	pointer to a log block
+@return whether the checksum matches */
+bool log_block_checksum_is_ok(const byte *block);
 #else /* UNIV_HOTBACKUP */
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
