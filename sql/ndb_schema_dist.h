@@ -79,7 +79,8 @@ namespace Ndb_schema_dist {
 // Schema operation result codes
 enum Schema_op_result_code {
   NODE_UNSUBSCRIBE = 9001,  // Node unsubscribe during
-  NODE_FAILURE = 9002       // Node failed during
+  NODE_FAILURE = 9002,      // Node failed during
+  NODE_TIMEOUT = 9003       // Node timeout during
 };
 
 }  // namespace Ndb_schema_dist

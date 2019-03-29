@@ -90,6 +90,7 @@ extern bool log_bin_use_v1_row_events;
 extern bool opt_ndb_log_empty_update;
 extern bool opt_ndb_clear_apply_status;
 extern bool opt_ndb_schema_dist_upgrade_allowed;
+extern int opt_ndb_schema_dist_timeout;
 
 bool ndb_log_empty_epochs(void);
 
@@ -2602,8 +2603,7 @@ constexpr uint SCHEMA_OP_ID_I = 9;
 static void ndb_report_waiting(const char *key,
                                int the_time,
                                const char *op,
-                               const char *obj,
-                               const std::string& participants)
+                               const char *obj)
 {
   ulonglong ndb_latest_epoch= 0;
   const char *proc_info= "<no info>";
@@ -2613,7 +2613,6 @@ static void ndb_report_waiting(const char *key,
   if (injector_thd)
     proc_info= injector_thd->proc_info;
   mysql_mutex_unlock(&injector_event_mutex);
-  if (participants == "")
   {
     ndb_log_info("%s, waiting max %u sec for %s %s."
                  "  epochs: (%u/%u,%u/%u,%u/%u)"
@@ -2626,20 +2625,6 @@ static void ndb_report_waiting(const char *key,
                  (uint)(ndb_latest_epoch >> 32),
                  (uint)(ndb_latest_epoch),
                  proc_info);
-  }
-  else
-  {
-    ndb_log_info("%s, waiting max %u sec for %s %s."
-                 "  epochs: (%u/%u,%u/%u,%u/%u)"
-                 "  injector proc_info: %s participants: %s",
-                 key, the_time, op, obj,
-                 (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                 (uint)(ndb_latest_handled_binlog_epoch),
-                 (uint)(ndb_latest_received_binlog_epoch >> 32),
-                 (uint)(ndb_latest_received_binlog_epoch),
-                 (uint)(ndb_latest_epoch >> 32),
-                 (uint)(ndb_latest_epoch),
-                 proc_info, participants.c_str());
   }
 }
 
@@ -2772,29 +2757,18 @@ int Ndb_schema_dist_client::log_schema_op_impl(
       op_name.c_str(), type, query);
 
   // Wait for participants to complete the schema change
-  int max_timeout = 120;  // Seconds to wait for schema operation to complete
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
-
-    if (completed) break;  // Done, normal completion
+    if (completed) {
+      // Schema operation completed
+      break;
+    }
 
     if (m_thd->killed) {
       ndb_log_warning("Distribution of '%s' type: %u, query: '%s' - killed!",
                       op_name.c_str(), type, query);
       break;
     }
-
-    max_timeout--;
-    if (max_timeout == 0) {
-      ndb_log_error("Distribution of '%s' type: %u, query: '%s' - timed out!",
-                    op_name.c_str(), type, query);
-      DBUG_ASSERT(false);
-      break;
-    }
-    if (ndb_log_get_verbose_level())
-      ndb_report_waiting(type_str(type), max_timeout, "distributing",
-                         op_name.c_str(),
-                         ndb_schema_object->waiting_participants_to_string());
   }
   ndb_log_verbose(19, "Distribution of '%s' type: %u, query: '%s' - completed!",
                   op_name.c_str(), type, query);
@@ -2806,7 +2780,7 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     // Save result for later
     m_schema_op_results.push_back({it.nodeid, it.result, it.message});
     // Push the result as warning
-    m_thd_ndb->push_warning("Node %d: '%u %s", it.nodeid, it.result,
+    m_thd_ndb->push_warning("Node %d: '%u %s'", it.nodeid, it.result,
                             it.message.c_str());
   }
 
@@ -2913,10 +2887,12 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
 class Ndb_schema_dist_data {
   uint m_own_nodeid;
   uint m_max_subscribers{0};
-  // Counter telling how many active schema operations are going on in this
-  // coordinator. Having an active schema operation means it need to be checked
+  // List of active schema operations in this coordinator. Having an
+  // active schema operation means it need to be checked
   // for timeout or request to be killed regularly
-  uint m_schema_ops_active{0};
+  std::unordered_set<const NDB_SCHEMA_OBJECT*> m_active_schema_ops;
+
+  std::chrono::steady_clock::time_point m_next_check_time;
 
   // Keeps track of subscribers as reported by one data node
   class Node_subscribers {
@@ -2998,7 +2974,7 @@ public:
   {}
   ~Ndb_schema_dist_data() {
     // There should be no schema operations active
-    DBUG_ASSERT(m_schema_ops_active == 0);
+    DBUG_ASSERT(m_active_schema_ops.size() == 0);
   }
 
   void init(Ndb_cluster_connection *cluster_connection, uint max_subscribers) {
@@ -3120,20 +3096,45 @@ public:
     return m_inplace_alter_event_data;
   }
 
-  void add_active_schema_op() {
+  void add_active_schema_op(NDB_SCHEMA_OBJECT* schema_op) {
     // Current assumption is that as long as all users of schema distribution
     // hold the GSL, there will ever only be one active schema operation at a
     // time. This assumption will probably change soon, but until then it can
     // be verifed with an assert.
-    DBUG_ASSERT(m_schema_ops_active == 0);
-    m_schema_ops_active++;
+    DBUG_ASSERT(m_active_schema_ops.size() == 0);
+
+    // Get coordinator reference to NDB_SCHEMA_OBJECT. It will be kept alive
+    // until the coordinator releases it
+    NDB_SCHEMA_OBJECT::get(schema_op);
+
+    // Insert NDB_SCHEMA_OBJECT in list of active schema ops
+    ndbcluster::ndbrequire(m_active_schema_ops.insert(schema_op).second);
   }
-  void remove_active_schema_op() {
+
+  void remove_active_schema_op(NDB_SCHEMA_OBJECT* schema_op) {
     // Need to have active schema op for decrement
-    ndbcluster::ndbrequire(m_schema_ops_active > 0);
-    m_schema_ops_active--;
+    ndbcluster::ndbrequire(m_active_schema_ops.size() > 0);
+
+    // Remove NDB_SCHEMA_OBJECT from list of active schema ops
+    ndbcluster::ndbrequire(m_active_schema_ops.erase(schema_op) == 1);
+
+    // Release coordinator reference to NDB_SCHEMA_OBJECT
+    NDB_SCHEMA_OBJECT::release(schema_op);
   }
-  uint active_schema_ops() const { return m_schema_ops_active; }
+
+  const std::unordered_set<const NDB_SCHEMA_OBJECT *> &active_schema_ops() {
+    return m_active_schema_ops;
+  }
+
+  bool time_for_check() {
+    std::chrono::steady_clock::time_point curr_time =
+        std::chrono::steady_clock::now();
+    if (m_next_check_time > curr_time) return false;
+
+    // Setup time for next check in 1 second
+    m_next_check_time = curr_time + std::chrono::seconds(1);
+    return true;
+  }
 
 }; //class Ndb_schema_dist_data
 
@@ -4072,8 +4073,8 @@ class Ndb_schema_event_handler {
     if (coordinator_completed) {
       remove_schema_result_rows(ndb_schema_object->schema_op_id());
 
-      // Remove active schema operation
-      m_schema_dist_data.remove_active_schema_op();
+      // Remove active schema operation from coordinator
+      m_schema_dist_data.remove_active_schema_op(ndb_schema_object.get());
     }
 
     /**
@@ -5368,6 +5369,9 @@ class Ndb_schema_event_handler {
 
       DBUG_EXECUTE_IF("ndb_schema_op_start_crash", DBUG_SUICIDE(););
 
+      // Return to simulate schema operation timeout
+      DBUG_EXECUTE_IF("ndb_schema_op_start_timeout", DBUG_RETURN(0););
+
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
       {
         /**
@@ -5411,8 +5415,8 @@ class Ndb_schema_event_handler {
             19, "Participants: %s",
             ndb_schema_object->waiting_participants_to_string().c_str());
 
-        // Add active schema operation
-        m_schema_dist_data.add_active_schema_op();
+        // Add active schema operation to coordinator
+        m_schema_dist_data.add_active_schema_op(ndb_schema_object.get());
       }
 
       Ndb_schema_op_result schema_op_result;
@@ -5770,7 +5774,47 @@ class Ndb_schema_event_handler {
     DBUG_VOID_RETURN;
   }
 
-  void post_epoch()
+  void check_active_schema_ops(ulonglong current_epoch) {
+    // This function is called repeatedly as epochs pass but checks should only
+    // be performed at regular intervals. Check if it's time for one now and
+    // calculate the time for next if time is up
+    if (likely(!m_schema_dist_data.time_for_check()))
+      return;
+
+    const uint active_ops = m_schema_dist_data.active_schema_ops().size();
+    if (likely(active_ops == 0)) return;  // Nothing to do at this time
+
+    ndb_log_info("Coordinator checking active schema operations, "
+                 "epochs: (%u/%u,%u/%u,%u/%u), proc_info: '%s'",
+                 (uint)(ndb_latest_handled_binlog_epoch >> 32),
+                 (uint)(ndb_latest_handled_binlog_epoch),
+                 (uint)(ndb_latest_received_binlog_epoch >> 32),
+                 (uint)(ndb_latest_received_binlog_epoch),
+                 (uint)(current_epoch >> 32),
+                 (uint)(current_epoch), m_thd->proc_info);
+
+    for (const NDB_SCHEMA_OBJECT *schema_object :
+         m_schema_dist_data.active_schema_ops()) {
+      // Print into about this schema operation
+      ndb_log_info(" - schema operation active on '%s.%s'", schema_object->db(),
+                   schema_object->name());
+      if (ndb_log_get_verbose_level() > 30){
+        ndb_log_error_dump("%s", schema_object->to_string().c_str());
+      }
+
+      // Check if schema operation has timed out
+      const bool completed = schema_object->check_timeout(
+          opt_ndb_schema_dist_timeout, Ndb_schema_dist::NODE_TIMEOUT,
+          "Participant timeout");
+      if (completed) {
+        ndb_log_warning("Schema dist coordinator detected timeout");
+        // Timeout occured -> send final ack to complete the schema opration
+        ack_schema_op_final(schema_object->db(), schema_object->name());
+      }
+    }
+  }
+
+  void post_epoch(ulonglong ndb_latest_epoch)
   {
     if (unlikely(m_post_epoch_handle_list.elements > 0))
     {
@@ -5805,11 +5849,7 @@ class Ndb_schema_event_handler {
       }
     }
 
-    const uint active_ops = m_schema_dist_data.active_schema_ops();
-    if (unlikely(active_ops)) {
-      ndb_log_verbose(99, "Coordinator: %d schema operation(s) active",
-                      active_ops);
-    }
+    check_active_schema_ops(ndb_latest_epoch);
 
     // There should be no work left todo...
     DBUG_ASSERT(m_post_epoch_handle_list.elements == 0);
@@ -7204,7 +7244,7 @@ ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share)
       }
       if (ndb_log_get_verbose_level())
         ndb_report_waiting("delete table", max_timeout,
-                           "delete table", share->key_string(), "");
+                           "delete table", share->key_string());
     }
   }
   mysql_mutex_unlock(&share->mutex);
@@ -9235,7 +9275,7 @@ restart_cluster_failure:
 
     // Notify the schema event handler about post_epoch so it may finish
     // any outstanding business
-    schema_event_handler.post_epoch();
+    schema_event_handler.post_epoch(current_epoch);
 
     free_root(&mem_root, MYF(0));
     *root_ptr= old_root;
