@@ -15,40 +15,42 @@ insert into t3 values (1,10), (2,10), (3,30), (4, 30);
 insert into t4 values (1,10), (2,10), (3,30), (4, 30);
 explain select * from t2 where p NOT IN (select p from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	unique_subquery	PRIMARY	PRIMARY	4	func	#	#	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on PRIMARY)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`p` = `test`.`t2`.`p`)) where true
 select * from t2 where p NOT IN (select p from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
 explain select * from t2 where p NOT IN (select u from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	unique_subquery	u	u	4	func	#	#	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	u	u	4	test.t2.p	#	#	Child of 't2' in pushed join@1; Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on u)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`u` = `test`.`t2`.`p`)) where true
 select * from t2 where p NOT IN (select u from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
 explain select * from t2 where p NOT IN (select o from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	DEPENDENT SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	index_subquery	o	o	4	func	#	#	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	o	o	4	test.t2.p	#	#	Using where; Not exists
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,<exists>(<index_lookup>(<cache>(`test`.`t2`.`p`) in t1 on o)))))
+Note	1003	Can't push table 't1' as child of 't2', outer join of scan-child not implemented
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t1`.`o` = `test`.`t2`.`p`)) where true
 select * from t2 where p NOT IN (select o from t1) order by p;
 p	u	o
 4	4	4
 5	5	5
 explain select * from t2 where p NOT IN (select p+0 from t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where
-2	SUBQUERY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` where (not(<in_optimizer>(`test`.`t2`.`p`,`test`.`t2`.`p` in ( <materialize> (/* select#2 */ select (`test`.`t1`.`p` + 0) from `test`.`t1` where true ), <primary_index_lookup>(`test`.`t2`.`p` in <temporary table> on <auto_key> where ((`test`.`t2`.`p` = `materialized-subquery`.`p+0`)))))))
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`t2`.`p` AS `p`,`test`.`t2`.`u` AS `u`,`test`.`t2`.`o` AS `o` from `test`.`t2` anti join (`test`.`t1`) on((`test`.`t2`.`p` = (`test`.`t1`.`p` + 0))) where true
 select * from t2 where p NOT IN (select p+0 from t1) order by p;
 p	u	o
 4	4	4
