@@ -5132,14 +5132,6 @@ static int init_server_components() {
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
               array_elements(binlog_format_names) - 1);
 
-  if (opt_log_slave_updates && replicate_same_server_id) {
-    if (opt_bin_log) {
-      LogErr(ERROR_LEVEL, ER_RPL_INFINITY_DENIED);
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    } else
-      LogErr(WARNING_LEVEL, ER_RPL_INFINITY_IGNORED);
-  }
-
   opt_server_id_mask = ~ulong(0);
   opt_server_id_mask =
       (opt_server_id_bits == 32) ? ~ulong(0) : (1 << opt_server_id_bits) - 1;
@@ -5353,6 +5345,15 @@ static int init_server_components() {
   if (gtid_server_init()) {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
     unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  if (opt_log_slave_updates && replicate_same_server_id) {
+    enum_gtid_mode gtid_mode = get_gtid_mode(GTID_MODE_LOCK_NONE);
+    if (opt_bin_log && gtid_mode != GTID_MODE_ON) {
+      LogErr(ERROR_LEVEL, ER_RPL_INFINITY_DENIED);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    } else
+      LogErr(WARNING_LEVEL, ER_RPL_INFINITY_IGNORED);
   }
 
   {

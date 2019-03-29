@@ -3950,6 +3950,20 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
+  if (new_gtid_mode != GTID_MODE_ON && replicate_same_server_id &&
+      opt_log_slave_updates && opt_bin_log) {
+    std::string mode = get_gtid_mode_string(new_gtid_mode);
+    std::stringstream ss;
+
+    ss << "replicate_same_server_id is set together with log_slave_updates"
+       << " and log_bin. Thus, setting @@global.GTID_MODE = " << mode
+       << " would lead to infinite loops in case this server is part of a"
+       << " circular replication topology";
+
+    my_error(ER_CANT_SET_GTID_MODE, MYF(0), mode.c_str(), ss.str().c_str());
+    goto err;
+  }
+
   // Cannot set OFF when some channel uses AUTO_POSITION.
   if (new_gtid_mode == GTID_MODE_OFF) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
