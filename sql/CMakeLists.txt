@@ -940,27 +940,27 @@ RUN_BISON(
   HINT_PARSER_
 )
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-parameter" HAVE_NO_UNUSED_PARAMETER)
-IF(WITH_LOCK_ORDER)
-  # Flex generated code is not warning free
-  IF(HAVE_NO_UNUSED_PARAMETER)
-    ADD_COMPILE_FLAGS(
-      ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
-      COMPILE_FLAGS "-Wno-unused-parameter"
-    )
-  ENDIF()
-ENDIF()
+## MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-parameter" HAVE_NO_UNUSED_PARAMETER)
+## IF(WITH_LOCK_ORDER)
+##   # Flex generated code is not warning free
+##   IF(HAVE_NO_UNUSED_PARAMETER)
+##     ADD_COMPILE_FLAGS(
+##       ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+##       COMPILE_FLAGS "-Wno-unused-parameter"
+##     )
+##   ENDIF()
+## ENDIF()
 
-MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
-IF(WITH_LOCK_ORDER)
-  # Flex generated code is not warning free
-  IF(HAVE_NO_SIGN_COMPARE)
-    ADD_COMPILE_FLAGS(
-      ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
-      COMPILE_FLAGS "-Wno-sign-compare"
-    )
-  ENDIF()
-ENDIF()
+## MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
+## IF(WITH_LOCK_ORDER)
+##   # Flex generated code is not warning free
+##   IF(HAVE_NO_SIGN_COMPARE)
+##     ADD_COMPILE_FLAGS(
+##       ${CMAKE_CURRENT_BINARY_DIR}/debug_lo_scanner.cc
+##       COMPILE_FLAGS "-Wno-sign-compare"
+##     )
+##   ENDIF()
+## ENDIF()
 
 SET_SOURCE_FILES_PROPERTIES(
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
@@ -1038,8 +1038,8 @@ ADD_CUSTOM_TARGET(dist
           ${CMAKE_BINARY_DIR}/sql/sql_yacc.h
           ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.cc
           ${CMAKE_BINARY_DIR}/sql/debug_lo_parser.h
-          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
-          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
+##          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.cc
+##          ${CMAKE_BINARY_DIR}/sql/debug_lo_scanner.h
           ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
           ${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
