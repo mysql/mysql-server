@@ -7991,9 +7991,10 @@ static int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi,
     suppress_warnings = 0;
     mi->report(ERROR_LEVEL, last_errno,
                "error %s to master '%s@%s:%d'"
-               " - retry-time: %d  retries: %lu",
+               " - retry-time: %d retries: %lu message: %s",
                (reconnect ? "reconnecting" : "connecting"), mi->get_user(),
-               mi->host, mi->port, mi->connect_retry, err_count + 1);
+               mi->host, mi->port, mi->connect_retry, err_count + 1,
+               mysql_error(mysql));
     /*
       By default we try forever. The reason is that failure will trigger
       master election, so if the user did not set mi->retry_count we

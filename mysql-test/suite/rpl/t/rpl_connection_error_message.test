@@ -1,0 +1,139 @@
+# ==== Requirements ====
+#
+# R1. When slave fails to connect to master, the error message shown in
+#     performance_schema.replication_connection_status/LAST_ERROR_MESSAGE,
+#     and in SHOW SLAVE STATUS/LAST_IO_ERROR, should contain the reason
+#     for the failure.
+#
+# R2. When slave fails to connect to master, the messages in
+#     performance_schema.replication_connection_status/LAST_ERROR_MESSAGE,
+#     and in SHOW SLAVE STATUS/LAST_IO_ERROR, should both be identical.
+#
+# ==== Implementation ====
+#
+# 1. Try to connect using a non-existing user.
+# 2. Try to connect on an invalid port.
+# 3. Try to connect to a non-existing host.
+#
+# In each of the cases:
+# - Verify that the error message in performance_schema contains
+#   'Access denied'/'Cant connect to MySQL'/'Unknown MySQL server host'
+# - Verify that the error message in SHOW SLAVE STATUS contains the same.
+#
+# ==== References ====
+#
+# BUG#26580064	CONFUSING ERROR MESSAGE IN REPLICATION WHEN CONNECTING WITH MASTER
+
+# Test should only run once.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+
+
+# Verify that the message has the expected form.
+#
+# This asserts that $message contains $expected_message,
+# but ignores single quotes, numbers, and dots.
+#
+# Usage:
+#  --let $message = "message text from mysql server"
+#  --let $expected_message = "the text that we expect to see"
+#  --source $script_dir/check_message.inc
+
+--let $script_dir = $MYSQLTEST_VARDIR
+--write_file $script_dir/check_message.inc
+  if ($message == '') {
+    --die !!!ERROR IN TEST: you must set $message
+  }
+  if ($expected_message == '') {
+    --die !!!ERROR IN TEST: you must set $expected_message
+  }
+  # Remove quotes (which confuse assert.inc) from the message.
+  --let $message_noquotes = `SELECT REPLACE("$message", "'", '')`
+  # Remove numbers (which are nondeterministic) from the message.
+  --let $message_nonumbers = `SELECT REGEXP_REPLACE("$message_noquotes", "[0-9\.]*", '')`
+  --let $assert_cond = "$message_nonumbers" LIKE "%$expected_message%"
+  --let $assert_text = Error should contain the reason ($expected_message) for connection failure
+  --source include/assert.inc
+EOF
+
+# Check messages in both performance_schema and SHOW SLAVE STATUS.
+#
+# This will check that the receiver error in performance_schema and
+# SHOW SLAVE STATUS contains $expected_message. It also checks that
+# both performance_schema and SHOW SLAVE STATUS contain literally the
+# same message.
+#
+# Usage:
+#   --let $expected_message = "the text that we expect to see"
+#   --source $script_dir/check_both_messages.inc
+#
+# Side effects:
+# - Sets $message_noquotes to the message with quotes removed.
+--write_file $script_dir/check_both_messages.inc
+  if ($expected_message == '') {
+    --die !!!ERROR IN TEST: you must set $expected_message
+  }
+  START SLAVE IO_THREAD;
+  --source include/wait_for_slave_io_error.inc
+
+  --echo ---- Check performance_schema ----
+
+  --let $message = `SELECT LAST_ERROR_MESSAGE FROM performance_schema.replication_connection_status`
+  # Remove quotes since they confuse assert.inc
+  --source $script_dir/check_message.inc
+  --let $message_ps = $message_noquotes
+
+  --echo ---- Check SHOW SLAVE STATUS ----
+
+  --let $message = query_get_value(SHOW SLAVE STATUS, Last_IO_Error, 1)
+  --source $script_dir/check_message.inc
+  --let $message_sss = $message_noquotes
+
+  --echo ---- Check that messages are the same in both places ----
+
+  --let $assert_cond = "$message_ps" = "$message_sss"
+  --let $assert_text = Error should be the same in both SSS and P_S
+  --source include/assert.inc
+EOF
+
+CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 1;
+
+
+--echo #### Test 1: invalid credentials ####
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_USER = 'foo';
+--let $slave_io_errno = convert_error(ER_ACCESS_DENIED_ERROR)
+--let $expected_message = Access denied for user foo
+--source $script_dir/check_both_messages.inc
+
+
+--echo #### Test 2: invalid port ####
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_PORT = 1;
+--let $slave_io_errno = 2003 # CR_CONN_HOST_ERROR
+--let $expected_message = Cant connect to MySQL server on
+--source $script_dir/check_both_messages.inc
+
+
+--echo #### Test 3: invalid host ####
+
+--source include/rpl_connection_slave.inc
+CHANGE MASTER TO MASTER_HOST = '999.999.999.999';
+--let $slave_io_errno = 2005 # CR_UNKNOWN_HOST
+--let $expected_message = Unknown MySQL server host
+--source $script_dir/check_both_messages.inc
+
+
+--echo #### Clean up ####
+
+RESET SLAVE;
+--remove_file $script_dir/check_message.inc
+--remove_file $script_dir/check_both_messages.inc
+--replace_result $MASTER_MYPORT PORT
+eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $MASTER_MYPORT, MASTER_USER = 'root';
+--source include/start_slave.inc
+
+--source include/rpl_end.inc
