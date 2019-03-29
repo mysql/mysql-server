@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,19 +70,7 @@ class PluginFuncEnv;
 #include <ws2tcpip.h>
 #endif
 
-#ifdef _WIN32
-#ifdef routing_DEFINE_STATIC
-#define ROUTING_API
-#else
-#ifdef routing_EXPORTS
-#define ROUTING_API __declspec(dllexport)
-#else
-#define ROUTING_API __declspec(dllimport)
-#endif
-#endif
-#else
-#define ROUTING_API
-#endif
+#include "mysqlrouter/routing_export.h"
 
 using mysqlrouter::URI;
 using std::string;
@@ -234,6 +222,14 @@ class MySQLRouting {
   void create_connection(int client_socket,
                          const sockaddr_storage &client_addr);
 
+  routing::RoutingStrategy get_routing_strategy() const;
+
+  routing::AccessMode get_mode() const;
+
+  std::vector<mysql_harness::TCPAddress> get_destinations() const;
+
+  std::vector<MySQLRoutingAPI::ConnData> get_connections();
+
  private:
   /** @brief Sets up the TCP service
    *
@@ -317,7 +313,7 @@ class MySQLRouting {
 };
 
 extern "C" {
-extern mysql_harness::Plugin ROUTING_API harness_plugin_routing;
+extern mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing;
 }
 
 #endif  // ROUTING_MYSQLROUTING_INCLUDED

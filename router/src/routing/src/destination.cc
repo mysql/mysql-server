@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -132,4 +132,9 @@ int RouteDestination::get_mysql_socket(
     const TCPAddress &addr, std::chrono::milliseconds connect_timeout,
     const bool log_errors) {
   return routing_sock_ops_->get_mysql_socket(addr, connect_timeout, log_errors);
+}
+
+std::vector<mysql_harness::TCPAddress> RouteDestination::get_destinations()
+    const {
+  return destinations_;
 }

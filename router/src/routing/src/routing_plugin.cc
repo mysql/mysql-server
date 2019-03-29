@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,11 +32,16 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 
+#include "mysqlrouter/routing_component.h"
+#include "mysqlrouter/routing_export.h"  // ROUTING_EXPORT
+
 #include <atomic>
 #include <iostream>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
+
+#include "mysql_routing.h"
 
 using mysql_harness::AppInfo;
 using mysql_harness::ConfigSection;
@@ -226,23 +231,25 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds client_connect_timeout(
         config.client_connect_timeout * 1000);
 
-    MySQLRouting r(config.routing_strategy, config.bind_address.port,
-                   config.protocol, config.mode, config.bind_address.addr,
-                   config.named_socket, name, config.max_connections,
-                   destination_connect_timeout, config.max_connect_errors,
-                   client_connect_timeout, routing::kDefaultNetBufferLength,
-                   routing::RoutingSockOps::instance(
-                       mysql_harness::SocketOperations::instance()),
-                   config.thread_stack_size);
+    auto r = std::make_shared<MySQLRouting>(
+        config.routing_strategy, config.bind_address.port, config.protocol,
+        config.mode, config.bind_address.addr, config.named_socket, name,
+        config.max_connections, destination_connect_timeout,
+        config.max_connect_errors, client_connect_timeout,
+        routing::kDefaultNetBufferLength,
+        routing::RoutingSockOps::instance(
+            mysql_harness::SocketOperations::instance()),
+        config.thread_stack_size);
 
     try {
       // don't allow rootless URIs as we did already in the
       // get_option_destinations()
-      r.set_destinations_from_uri(URI(config.destinations, false));
+      r->set_destinations_from_uri(URI(config.destinations, false));
     } catch (URIError &) {
-      r.set_destinations_from_csv(config.destinations);
+      r->set_destinations_from_csv(config.destinations);
     }
-    r.start(env);
+    MySQLRoutingComponent::get_instance().init(section->key, r);
+    r->start(env);
   } catch (const std::invalid_argument &exc) {
     log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -258,8 +265,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-extern "C" {
-mysql_harness::Plugin ROUTING_API harness_plugin_routing = {
+mysql_harness::Plugin ROUTING_EXPORT harness_plugin_routing = {
     mysql_harness::PLUGIN_ABI_VERSION,
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "Routing MySQL connections between MySQL clients/connectors and servers",
@@ -273,4 +279,3 @@ mysql_harness::Plugin ROUTING_API harness_plugin_routing = {
     start,    // start
     nullptr   // stop
 };
-}

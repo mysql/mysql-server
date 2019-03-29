@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -110,6 +110,10 @@ class MySQLRoutingContext {
   void increase_info_active_routes();
   void decrease_info_active_routes();
   void increase_info_handled_routes();
+
+  uint16_t get_active_routes() { return info_active_routes_; }
+  uint64_t get_handled_routes() { return info_handled_routes_; }
+  uint64_t get_max_connect_errors() { return max_connect_errors_; }
 
   mysql_harness::SocketOperationsBase *get_socket_operations() {
     return socket_operations_;

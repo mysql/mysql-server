@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,8 @@ MySQLRoutingConnection::MySQLRoutingConnection(
       server_socket_(server_socket),
       server_address_(server_address),
       client_address_(make_client_address(client_socket, context,
-                                          context_.get_socket_operations())) {}
+                                          context_.get_socket_operations())),
+      started_(std::chrono::system_clock::now()) {}
 
 void MySQLRoutingConnection::start(bool detached) {
   context_.increase_active_thread_counter();
@@ -137,8 +138,6 @@ void MySQLRoutingConnection::run() {
       get_routing_thread_name(context_.get_name(), "RtC")
           .c_str());  // "Rt client thread" would be too long :(
 
-  std::size_t bytes_down = 0;
-  std::size_t bytes_up = 0;
   std::size_t bytes_read = 0;
   std::string extra_msg = "";
   RoutingProtocolBuffer buffer(context_.get_net_buffer_length());
@@ -147,6 +146,8 @@ void MySQLRoutingConnection::run() {
   if (!check_sockets()) {
     return;
   }
+
+  connected_server_ = std::chrono::system_clock::now();
 
   log_debug("[%s] fd=%d connected %s -> %s as fd=%d",
             context_.get_name().c_str(), client_socket_,
@@ -235,7 +236,8 @@ void MySQLRoutingConnection::run() {
 
       connection_is_ok = false;
     } else {
-      bytes_up += bytes_read;
+      last_received_from_server_ = std::chrono::system_clock::now();
+      bytes_up_ += bytes_read;
     }
 
     // after a successful handshake, we reset client-side connection error
@@ -262,7 +264,8 @@ void MySQLRoutingConnection::run() {
       // client close on us.
       connection_is_ok = false;
     } else {
-      bytes_down += bytes_read;
+      last_sent_to_server_ = std::chrono::system_clock::now();
+      bytes_down_ += bytes_read;
     }
 
   }  // while (connection_is_ok && !disconnect_.load())
@@ -287,11 +290,11 @@ void MySQLRoutingConnection::run() {
   context_.decrease_info_active_routes();
 #ifndef _WIN32
   log_debug("[%s] fd=%d connection closed (up: %zub; down: %zub) %s",
-            context_.get_name().c_str(), client_socket_, bytes_up, bytes_down,
+            context_.get_name().c_str(), client_socket_, bytes_up_, bytes_down_,
             extra_msg.c_str());
 #else
   log_debug("[%s] fd=%d connection closed (up: %Iub; down: %Iub) %s",
-            context_.get_name().c_str(), client_socket_, bytes_up, bytes_down,
+            context_.get_name().c_str(), client_socket_, bytes_up_, bytes_down_,
             extra_msg.c_str());
 #endif
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,16 +20,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-ADD_SUBDIRECTORY(harness)
-ADD_SUBDIRECTORY(http)
-ADD_SUBDIRECTORY(json_schema_embedder)
-ADD_SUBDIRECTORY(keepalive)
-ADD_SUBDIRECTORY(metadata_cache)
-ADD_SUBDIRECTORY(mock_server)
-ADD_SUBDIRECTORY(mysql_protocol)
-ADD_SUBDIRECTORY(plugin_info)
-ADD_SUBDIRECTORY(rest_api)
-ADD_SUBDIRECTORY(rest_router)
-ADD_SUBDIRECTORY(rest_routing)
-ADD_SUBDIRECTORY(router)
-ADD_SUBDIRECTORY(routing)
+INCLUDE(GenerateExportHeader)
+
+ADD_HARNESS_PLUGIN(rest_routing
+  SOURCES
+  rest_routing_blocked_hosts.cc
+  rest_routing_config.cc
+  rest_routing_connections.cc
+  rest_routing_destinations.cc
+  rest_routing_health.cc
+  rest_routing_list.cc
+  rest_routing_plugin.cc
+  rest_routing_status.cc
+  REQUIRES router_lib;routing;http_server;rest_api
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
+
+GENERATE_EXPORT_HEADER(rest_routing
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysqlrouter/rest_routing_export.h)
+
+TARGET_INCLUDE_DIRECTORIES(rest_routing
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+    ${CMAKE_CURRENT_BINARY_DIR}/../include/
+    )

@@ -747,3 +747,17 @@ int MySQLRouting::set_max_connections(int maximum) {
   max_connections_ = maximum;
   return max_connections_;
 }
+
+routing::AccessMode MySQLRouting::get_mode() const { return access_mode_; }
+
+routing::RoutingStrategy MySQLRouting::get_routing_strategy() const {
+  return routing_strategy_;
+}
+
+std::vector<mysql_harness::TCPAddress> MySQLRouting::get_destinations() const {
+  return destination_->get_destinations();
+}
+
+std::vector<MySQLRoutingAPI::ConnData> MySQLRouting::get_connections() {
+  return connection_container_.get_all_connections_info();
+}

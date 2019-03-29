@@ -34,7 +34,8 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS mock_server_rest_client;http_client;http_common
   DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
-          routing;metadata_cache;http_auth_realm;http_auth_backend;rest_api;rest_router
+          routing;metadata_cache;http_auth_realm;http_auth_backend;rest_api;
+          rest_router;rest_routing
   )
 
 # When system deployment bootstrap is executed, files are

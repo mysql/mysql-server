@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,20 @@ class MySQLRoutingConnection {
    */
   const std::string &get_client_address() const;
 
+  std::size_t get_bytes_up() const { return bytes_up_; }
+  std::size_t get_bytes_down() const { return bytes_down_; }
+
+  using time_point_type = std::chrono::time_point<std::chrono::system_clock>;
+
+  time_point_type get_started() const { return started_; }
+  time_point_type get_connected_to_server() const { return connected_server_; }
+  time_point_type get_last_sent_to_server() const {
+    return last_sent_to_server_;
+  }
+  time_point_type get_last_received_from_server() const {
+    return last_received_from_server_;
+  }
+
  private:
   /** @brief wrapper for common data used by all routing threads */
   MySQLRoutingContext &context_;
@@ -141,6 +155,14 @@ class MySQLRoutingConnection {
   static std::string make_client_address(
       int client_socket, const MySQLRoutingContext &context,
       mysql_harness::SocketOperationsBase *sock_op);
+
+  std::size_t bytes_up_{0};
+  std::size_t bytes_down_{0};
+
+  time_point_type started_;
+  time_point_type connected_server_;
+  time_point_type last_sent_to_server_;
+  time_point_type last_received_from_server_;
 };
 
 #endif /* ROUTING_CONNECTION_INCLUDED */

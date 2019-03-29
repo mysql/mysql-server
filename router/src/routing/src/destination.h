@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -222,6 +222,8 @@ class RouteDestination : public DestinationNodesStateNotifier {
   AddrVector::iterator end() { return destinations_.end(); }
 
   AddrVector::const_iterator end() const { return destinations_.end(); }
+
+  AddrVector get_destinations() const;
 
  protected:
   /** @brief Returns socket descriptor of connected MySQL server
