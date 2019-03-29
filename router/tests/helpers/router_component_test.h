@@ -417,6 +417,7 @@ class RouterComponentTest {
                                 const std::string &content);
 
   void set_origin(const Path &origin) { origin_dir_ = origin; }
+  const Path &get_origin() const { return origin_dir_; }
 
   const Path &get_mysqlrouter_exec() const { return mysqlrouter_exec_; }
 

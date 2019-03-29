@@ -444,7 +444,18 @@ Plugin *Loader::load_from(const std::string &plugin_name,
       Designator designator(req);
 
       // Load the plugin using the plugin name.
-      Plugin *dep_plugin = load(designator.plugin);  // throws bad_plugin
+      Plugin *dep_plugin{nullptr};
+
+      try {
+        dep_plugin =
+            load(designator.plugin);  // throws bad_plugin and bad_section
+      } catch (const bad_section &) {
+        log_error(
+            "Plugin '%s' needs plugin '%s' which is missing in the "
+            "configuration",
+            plugin_name.c_str(), designator.plugin.c_str());
+        throw;
+      }
 
       // Check that the version of the plugin match what the
       // designator expected and raise an exception if they don't
@@ -478,7 +489,8 @@ Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
     ConfigSection &plugin =
         config_.get(plugin_name, key);  // throws bad_section
     const std::string &library_name = plugin.get("library");
-    return load_from(plugin_name, library_name);  // throws bad_plugin
+    return load_from(plugin_name,
+                     library_name);  // throws bad_plugin and bad_section
   }
 }
 

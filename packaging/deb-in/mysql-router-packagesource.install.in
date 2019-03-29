@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@ usr/lib/mysqlrouter/plugin/keepalive.so
 usr/lib/mysqlrouter/plugin/mysql_protocol.so
 usr/lib/mysqlrouter/plugin/routing.so
 usr/lib/mysqlrouter/plugin/metadata_cache.so
+usr/lib/mysqlrouter/plugin/rest_api.so
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 # app armor profile

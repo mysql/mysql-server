@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,8 @@
 #define MYSQL_ROUTER_REST_CLIENT_H_INCLUDED
 
 #include "mysqlrouter/http_client.h"
+
+constexpr const char kRestAPIVersion[] = "20190715";
 
 class HTTP_CLIENT_EXPORT RestClient {
  public:

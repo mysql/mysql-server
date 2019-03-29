@@ -33,17 +33,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <regex>
 #include <stdexcept>
 #include <thread>
 
 #ifndef _WIN32
-#include <regex.h>
 #include <unistd.h>
 #else
 #include <direct.h>
 #include <windows.h>
 #include <winsock2.h>
-#include <regex>
 #define getcwd _getcwd
 typedef long ssize_t;
 #endif
@@ -219,20 +218,14 @@ void init_windows_sockets() {
 }
 
 bool pattern_found(const std::string &s, const std::string &pattern) {
-#ifndef _WIN32
-  regex_t regex;
-  auto r = regcomp(&regex, pattern.c_str(), 0);
-  if (r) {
-    throw std::runtime_error("Error compiling regex pattern: " + pattern);
+  bool result;
+  try {
+    std::smatch m;
+    std::regex r(pattern);
+    result = std::regex_search(s, m, r);
+  } catch (const std::regex_error &e) {
+    std::cerr << ">" << e.what();
   }
-  r = regexec(&regex, s.c_str(), 0, NULL, 0);
-  regfree(&regex);
-  return (r == 0);
-#else
-  std::smatch m;
-  std::regex r(pattern);
-  bool result = std::regex_search(s, m, r);
 
   return result;
-#endif
 }

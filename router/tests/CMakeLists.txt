@@ -37,6 +37,7 @@ SET(helper_sources
   helpers/router_test_helpers.cc
   helpers/script_generator.cc
   helpers/tcp_port_pool.cc
+  helpers/rest_api_testutils.cc
 )
 
 IF(WIN32)
