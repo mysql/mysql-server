@@ -273,7 +273,7 @@ class Item_func_false : public Item_func_bool_const {
   Item class, to represent <code>X IS [NOT] (TRUE | FALSE)</code>
   boolean predicates.
 */
-class Item_func_truth : public Item_bool_func {
+class Item_func_truth final : public Item_bool_func {
   typedef Item_bool_func super;
 
  public:
@@ -288,7 +288,7 @@ class Item_func_truth : public Item_bool_func {
   const char *func_name() const override {
     return super::bool_transform_names[truth_test];
   }
-  virtual enum Functype functype() const { return ISTRUTH_FUNC; }
+  virtual enum Functype functype() const override { return ISTRUTH_FUNC; }
 
   Item_func_truth(const POS &pos, Item *a, Bool_test truth_test)
       : super(pos, a), truth_test(truth_test) {

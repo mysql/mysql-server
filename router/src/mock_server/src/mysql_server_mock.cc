@@ -83,9 +83,6 @@ void non_blocking(socket_t handle_, bool mode) noexcept {
 #endif
 }
 
-constexpr size_t kReadBufSize =
-    16 * 1024;  // size big enough to contain any packet we're likely to read
-
 MySQLServerMock::MySQLServerMock(const std::string &expected_queries_file,
                                  const std::string &module_prefix,
                                  unsigned bind_port,

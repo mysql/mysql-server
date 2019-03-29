@@ -67,6 +67,8 @@ class Block {
       block is not the last log block enqueued (is_final_block = false). */
   ~Block() { reset(); }
 
+  Block &operator=(const Block &) = default;
+
   /** Resets the data in the log block, initializing the byte array to all 0's
       and sets that the block is not the last log block enqueued
       (is_final_block = false) */
