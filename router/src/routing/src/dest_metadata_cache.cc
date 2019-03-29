@@ -213,7 +213,7 @@ DestMetadataCacheGroup::DestMetadataCacheGroup(
 DestMetadataCacheGroup::AvailableDestinations
 DestMetadataCacheGroup::get_available(
     const metadata_cache::LookupResult &managed_servers,
-    bool for_new_connections) {
+    bool for_new_connections) const {
   DestMetadataCacheGroup::AvailableDestinations result;
 
   bool primary_fallback{false};
@@ -438,6 +438,14 @@ int DestMetadataCacheGroup::get_server_socket(
 
   *error = errno;
   return -1;
+}
+
+DestMetadataCacheGroup::AddrVector DestMetadataCacheGroup::get_destinations()
+    const {
+  auto available = get_available(
+      cache_api_->lookup_replicaset(ha_replicaset_).instance_vector);
+
+  return available.address;
 }
 
 void DestMetadataCacheGroup::on_instances_change(

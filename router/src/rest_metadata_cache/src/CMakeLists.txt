@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,18 +19,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ADD_HARNESS_PLUGIN(rest_metadata_cache
+  SOURCES
+  rest_metadata_cache_config.cc
+  rest_metadata_cache_list.cc
+  rest_metadata_cache_plugin.cc
+  rest_metadata_cache_status.cc
+  rest_clusters_list.cc
+  rest_clusters_nodes.cc
+  REQUIRES router_lib;metadata_cache;http_server;rest_api
+  DESTINATION "${ROUTER_INSTALL_PLUGINDIR}")
 
-ADD_SUBDIRECTORY(harness)
-ADD_SUBDIRECTORY(http)
-ADD_SUBDIRECTORY(json_schema_embedder)
-ADD_SUBDIRECTORY(keepalive)
-ADD_SUBDIRECTORY(metadata_cache)
-ADD_SUBDIRECTORY(mock_server)
-ADD_SUBDIRECTORY(mysql_protocol)
-ADD_SUBDIRECTORY(plugin_info)
-ADD_SUBDIRECTORY(rest_api)
-ADD_SUBDIRECTORY(rest_metadata_cache)
-ADD_SUBDIRECTORY(rest_router)
-ADD_SUBDIRECTORY(rest_routing)
-ADD_SUBDIRECTORY(router)
-ADD_SUBDIRECTORY(routing)
+TARGET_INCLUDE_DIRECTORIES(rest_metadata_cache
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/src/harness/include/
+    ${PROJECT_SOURCE_DIR}/ext/rapidjson/include/
+    ${PROJECT_SOURCE_DIR}/src/router/include/
+    ${PROJECT_SOURCE_DIR}/src/metadata_cache/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+    ${PROJECT_SOURCE_DIR}/src/http/include/
+    ${CMAKE_CURRENT_BINARY_DIR}
+    )

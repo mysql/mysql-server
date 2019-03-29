@@ -689,6 +689,10 @@ void MetadataCache::refresh() {
     }
     fetched = fetch_metadata_from_connected_instance(metadata_server, changed);
     if (fetched) {
+      last_refresh_succeeded_ = std::chrono::system_clock::now();
+      last_metadata_server_host_ = metadata_server.host;
+      last_metadata_server_port_ = metadata_server.port;
+      refresh_succeeded_++;
       break;  // successfully updated metadata
     }
   }
@@ -707,6 +711,9 @@ void MetadataCache::refresh() {
     }
     return;
   }
+
+  refresh_failed_++;
+  last_refresh_failed_ = std::chrono::system_clock::now();
 
   // we failed to fetch metadata from any of the metadata servers
   if (!broke_loop)
@@ -741,7 +748,7 @@ bool MetadataCache::fetch_metadata_from_connected_instance(
     if (replicaset_data_temp.empty()) {
       log_warning(
           "Tried node %s on host %s, port %d as a metadata server, it does not "
-          "contan metadata for replication group %s",
+          "contain metadata for replication group %s",
           instance.mysql_server_uuid.c_str(), instance.host.c_str(),
           instance.port, group_replication_id_.c_str());
       return false;

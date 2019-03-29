@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -75,6 +75,8 @@ class DestMetadataCacheGroup final
   void add(const std::string &, uint16_t) override {}
   void add(const mysql_harness::TCPAddress) override {}
 
+  AddrVector get_destinations() const override;
+
   /** @brief Returns whether there are destination servers
    *
    * The empty() method always returns false for Metadata Cache.
@@ -146,7 +148,7 @@ class DestMetadataCacheGroup final
    */
   AvailableDestinations get_available(
       const metadata_cache::LookupResult &managed_servers,
-      bool for_new_connections = true);
+      bool for_new_connections = true) const;
 
   size_t get_next_server(
       const DestMetadataCacheGroup::AvailableDestinations &available);

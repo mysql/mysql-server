@@ -84,6 +84,14 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void cache_stop() noexcept override {}  // no easy way to mock noexcept method
   bool is_initialized() noexcept override { return true; }
 
+  void instance_name(const std::string &) override {}
+  std::string instance_name() const override { return "foo"; }
+  std::string group_replication_id() const override { return "foo"; }
+  std::string cluster_name() const override { return "foo"; }
+  std::chrono::milliseconds ttl() const { return {}; }
+
+  RefreshStatus get_refresh_status() { return {}; }
+
  public:
   void fill_instance_vector(const InstanceVector &iv) { instance_vector_ = iv; }
 

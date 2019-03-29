@@ -223,7 +223,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
 
   AddrVector::const_iterator end() const { return destinations_.end(); }
 
-  AddrVector get_destinations() const;
+  virtual AddrVector get_destinations() const;
 
  protected:
   /** @brief Returns socket descriptor of connected MySQL server

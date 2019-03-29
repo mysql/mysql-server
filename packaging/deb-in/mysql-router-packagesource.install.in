@@ -36,6 +36,7 @@ usr/lib/mysqlrouter/plugin/metadata_cache.so
 usr/lib/mysqlrouter/plugin/rest_api.so
 usr/lib/mysqlrouter/plugin/rest_router.so
 usr/lib/mysqlrouter/plugin/rest_routing.so
+usr/lib/mysqlrouter/plugin/rest_metadata_cache.so
 usr/share/mysql-@MYSQL_BASE_VERSION@/docs/sample_mysqlrouter.conf
 debian/extra/mysqlrouter.conf /etc/mysqlrouter/
 # app armor profile

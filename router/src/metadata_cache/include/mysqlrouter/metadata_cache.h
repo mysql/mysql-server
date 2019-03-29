@@ -294,6 +294,9 @@ class METADATA_API MetadataCacheAPIBase
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false) = 0;
 
+  virtual void instance_name(const std::string &inst_name) = 0;
+  virtual std::string instance_name() const = 0;
+
   virtual bool is_initialized() noexcept = 0;
 
   /**
@@ -369,6 +372,21 @@ class METADATA_API MetadataCacheAPIBase
   explicit MetadataCacheAPIBase(const MetadataCacheAPIBase &) = delete;
   MetadataCacheAPIBase &operator=(const MetadataCacheAPIBase &) = delete;
   virtual ~MetadataCacheAPIBase() {}
+
+  struct RefreshStatus {
+    uint64_t refresh_failed;
+    uint64_t refresh_succeeded;
+    std::chrono::system_clock::time_point last_refresh_succeeded;
+    std::chrono::system_clock::time_point last_refresh_failed;
+
+    std::string last_metadata_server_host;
+    uint16_t last_metadata_server_port;
+  };
+
+  virtual RefreshStatus get_refresh_status() = 0;
+  virtual std::string group_replication_id() const = 0;
+  virtual std::string cluster_name() const = 0;
+  virtual std::chrono::milliseconds ttl() const = 0;
 };
 
 class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
@@ -382,6 +400,13 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
       std::chrono::milliseconds ttl, const mysqlrouter::SSLOptions &ssl_options,
       const std::string &cluster_name, int connect_timeout, int read_timeout,
       size_t thread_stack_size, bool use_gr_notifications) override;
+
+  void instance_name(const std::string &inst_name) override;
+  std::string instance_name() const override;
+
+  std::string group_replication_id() const override;
+  std::string cluster_name() const override;
+  std::chrono::milliseconds ttl() const override;
 
   bool is_initialized() noexcept override { return is_initialized_; }
   void cache_start() override;
@@ -401,7 +426,11 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void remove_listener(const std::string &replicaset_name,
                        ReplicasetStateListenerInterface *listener) override;
 
+  RefreshStatus get_refresh_status() override;
+
  private:
+  std::string inst_name_;
+
   std::atomic<bool> is_initialized_{false};
   MetadataCacheAPI() {}
   MetadataCacheAPI(const MetadataCacheAPI &) = delete;

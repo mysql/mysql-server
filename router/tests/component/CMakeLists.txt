@@ -35,7 +35,7 @@ add_test_dir(${CMAKE_CURRENT_SOURCE_DIR}
   LIB_DEPENDS mock_server_rest_client;http_client;http_common
   DEPENDS master_key_test_writer;mysqlrouter;mysql_server_mock;mock_server;http_server;
           routing;metadata_cache;http_auth_realm;http_auth_backend;rest_api;
-          rest_router;rest_routing
+          rest_router;rest_routing;rest_metadata_cache
   )
 
 # When system deployment bootstrap is executed, files are

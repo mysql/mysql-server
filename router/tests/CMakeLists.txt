@@ -38,6 +38,7 @@ SET(helper_sources
   helpers/script_generator.cc
   helpers/tcp_port_pool.cc
   helpers/rest_api_testutils.cc
+  helpers/rest_metadata_client.cc
 )
 
 IF(WIN32)
@@ -52,7 +53,7 @@ ENDIF()
 
 ADD_LIBRARY(routertest_helpers STATIC ${helper_sources})
 
-TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib)
+TARGET_LINK_LIBRARIES(routertest_helpers harness-library router_lib rest_api_lib)
 
 FOREACH(test_dir tools)
     IF(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${test_dir})

@@ -174,6 +174,9 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     log_info("Starting Metadata Cache");
     // Initialize the metadata cache.
     auto md_cache = metadata_cache::MetadataCacheAPI::instance();
+
+    md_cache->instance_name(section->key);
+
     const std::string replicaset_id = config.get_group_replication_id();
 
     md_cache->cache_init(replicaset_id, config.metadata_servers_addresses,

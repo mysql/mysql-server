@@ -154,6 +154,21 @@ class METADATA_API MetadataCache
       const std::string &replicaset_name,
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
 
+  metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
+    return {refresh_failed_,
+            refresh_succeeded_,
+            last_refresh_succeeded_,
+            last_refresh_failed_,
+            last_metadata_server_host_,
+            last_metadata_server_port_};
+  }
+
+  std::string group_replication_id() const { return group_replication_id_; }
+  std::chrono::milliseconds ttl() const { return ttl_; }
+  std::string cluster_name() const { return cluster_name_; }
+
+  std::vector<mysql_harness::TCPAddress> metadata_servers();
+
  private:
   /** @brief Refreshes the cache
    *
@@ -242,6 +257,14 @@ class METADATA_API MetadataCache
   std::map<std::string,
            std::set<metadata_cache::ReplicasetStateListenerInterface *>>
       listeners_;
+
+  std::chrono::system_clock::time_point last_refresh_failed_;
+  std::chrono::system_clock::time_point last_refresh_succeeded_;
+  uint64_t refresh_failed_{0};
+  uint64_t refresh_succeeded_{0};
+
+  std::string last_metadata_server_host_;
+  uint16_t last_metadata_server_port_;
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);

@@ -22,14 +22,27 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-#include "router_component_test.h"
-#include "tcp_port_pool.h"
-
 #include <chrono>
 #include <thread>
 
+#include <gmock/gmock.h>
+
+#include "mysql_session.h"
+#include "rest_metadata_client.h"
+#include "router_component_test.h"
+#include "tcp_port_pool.h"
+
+/**
+ * assert std::error_code has no 'error'
+ */
+#define ASSERT_NO_ERROR(expr) \
+  ASSERT_THAT(expr, ::testing::Eq(std::error_code{})) << expr.message()
+
 Path g_origin_path;
+using mysqlrouter::MySQLSession;
+
+static const std::string kRestApiUsername("someuser");
+static const std::string kRestApiPassword("somepass");
 
 class RouterRoutingStrategyTest : public RouterComponentTest {
  protected:
@@ -121,6 +134,60 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     return result;
   }
 
+  std::string get_monitoring_section(unsigned monitoring_port,
+                                     const std::string &config_dir) {
+    std::string passwd_filename =
+        mysql_harness::Path(config_dir).join("users").str();
+
+    {
+      auto cmd =
+          launch_command(g_origin_path.join("mysqlrouter_passwd").str(),
+                         {"set", passwd_filename, kRestApiUsername}, true);
+      cmd.register_response("Please enter password", kRestApiPassword + "\n");
+      EXPECT_EQ(cmd.wait_for_exit(), 0) << cmd.get_full_output();
+    }
+
+    return "[rest_api]\n"
+           "[rest_metadata_cache]\n"
+           "require_realm=somerealm\n"
+           "[http_auth_realm:somerealm]\n"
+           "backend=somebackend\n"
+           "method=basic\n"
+           "name=somerealm\n"
+           "[http_auth_backend:somebackend]\n"
+           "backend=file\n"
+           "filename=" +
+           passwd_filename +
+           "\n"
+           "[http_server]\n"
+           "port=" +
+           std::to_string(monitoring_port) + "\n";
+  }
+
+  // need to return void to be able to use ASSERT_ macros
+  void connect_client_and_query_port(unsigned router_port,
+                                     std::string &out_port,
+                                     bool should_fail = false) {
+    MySQLSession client;
+
+    if (should_fail) {
+      EXPECT_THROW_LIKE(client.connect("127.0.0.1", router_port, "username",
+                                       "password", "", ""),
+                        std::exception, "Error connecting to MySQL server");
+      out_port = "";
+      return;
+    } else {
+      ASSERT_NO_THROW(client.connect("127.0.0.1", router_port, "username",
+                                     "password", "", ""));
+    }
+
+    std::unique_ptr<MySQLSession::ResultRow> result{
+        client.query_one("select @@port")};
+    ASSERT_NE(nullptr, result.get());
+    ASSERT_EQ(1u, result->size());
+    out_port = std::string((*result)[0]);
+  }
+
   RouterComponentTest::CommandHandle launch_cluster_node(
       unsigned cluster_port, const std::string &data_dir,
       const std::string &tmp_dir) {
@@ -187,6 +254,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     const std::string conf_dir = get_tmp_dir("conf");
     std::shared_ptr<void> exit_guard(nullptr,
                                      [&](void *) { purge_dir(conf_dir); });
+
     const std::string conf_file = create_config_file(
         conf_dir, metadata_cache_section + routing_section, &default_section);
     auto router = RouterComponentTest::launch_router("-c " + conf_file,
@@ -299,8 +367,13 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   const std::string routing_section = get_metadata_cache_routing_section(
       router_port, test_params.role, test_params.routing_strategy,
       test_params.mode);
+  const auto monitoring_port = port_pool_.get_next_available();
+  const std::string monitoring_section =
+      get_monitoring_section(monitoring_port, temp_test_dir);
+
   auto router = launch_router(router_port, temp_test_dir,
-                              metadata_cache_section, routing_section);
+                              metadata_cache_section + monitoring_section,
+                              routing_section);
 
   // launch the secondary cluster nodes
   for (unsigned port = 1; port < cluster_nodes_ports.size(); ++port) {
@@ -310,9 +383,16 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
   }
 
   // give the router a chance to initialise metadata-cache module
-  // there is currently no easy way to check that
-  std::this_thread::sleep_for(
-      std::chrono::milliseconds(wait_for_cache_ready_timeout));
+  // there is currently now easy way to check that
+  SCOPED_TRACE("// waiting " + std::to_string(wait_for_cache_ready_timeout) +
+               "ms until metadata is initialized");
+  RestMetadataClient::MetadataStatus metadata_status;
+  RestMetadataClient rest_metadata_client("127.0.0.1", monitoring_port,
+                                          kRestApiUsername, kRestApiPassword);
+
+  ASSERT_NO_ERROR(rest_metadata_client.wait_for_cache_ready(
+      std::chrono::milliseconds(wait_for_cache_ready_timeout), metadata_status))
+      << get_router_log_output();
 
   if (!test_params.round_robin) {
     // check if the server nodes are being used in the expected order

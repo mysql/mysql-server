@@ -103,6 +103,23 @@ void MetadataCacheAPI::cache_init(
   is_initialized_ = true;
 }
 
+std::string MetadataCacheAPI::instance_name() const { return inst_name_; }
+void MetadataCacheAPI::instance_name(const std::string &inst_name) {
+  inst_name_ = inst_name;
+}
+
+std::string MetadataCacheAPI::group_replication_id() const {
+  return g_metadata_cache->group_replication_id();
+}
+
+std::string MetadataCacheAPI::cluster_name() const {
+  return g_metadata_cache->cluster_name();
+}
+
+std::chrono::milliseconds MetadataCacheAPI::ttl() const {
+  return g_metadata_cache->ttl();
+}
+
 /**
  * Start the metadata cache
  */
@@ -162,6 +179,12 @@ void MetadataCacheAPI::remove_listener(
     ReplicasetStateListenerInterface *listener) {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
   g_metadata_cache->remove_listener(replicaset_name, listener);
+}
+
+MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+
+  return g_metadata_cache->refresh_status();
 }
 
 }  // namespace metadata_cache
