@@ -218,7 +218,7 @@ void init_windows_sockets() {
 }
 
 bool pattern_found(const std::string &s, const std::string &pattern) {
-  bool result;
+  bool result = false;
   try {
     std::smatch m;
     std::regex r(pattern);

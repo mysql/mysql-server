@@ -163,11 +163,11 @@ static const std::array<JsonPointer::Token, 2> metadata_status_path_tokens{
 static const std::array<JsonPointer::Token, 2> metadata_config_path_tokens{
     {STR("paths"), STR("/metadata/{metadataName}/config")}};
 
-static const std::array<JsonPointer::Token, 2> cluster_list_path_tokens{
-    {STR("paths"), STR("/clusters")}};
+// static const std::array<JsonPointer::Token, 2> cluster_list_path_tokens{
+//    {STR("paths"), STR("/clusters")}};
 
-static const std::array<JsonPointer::Token, 2> cluster_node_list_path_tokens{
-    {STR("paths"), STR("/clusters/{clusterName}/nodes")}};
+// static const std::array<JsonPointer::Token, 2> cluster_node_list_path_tokens{
+//    {STR("paths"), STR("/clusters/{clusterName}/nodes")}};
 
 static const std::array<JsonPointer::Token, 2> metadata_list_path_tokens{
     {STR("paths"), STR("/metadata")}};
