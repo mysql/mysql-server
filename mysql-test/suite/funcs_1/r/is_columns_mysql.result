@@ -5,7 +5,7 @@ ORDER BY table_schema,
 table_name COLLATE utf8_general_ci,
 ordinal_position;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
-def	mysql	columns_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	columns_priv	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	columns_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	columns_priv	User	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	columns_priv	Table_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
@@ -15,7 +15,7 @@ def	mysql	columns_priv	Column_priv	7		NO	set	31	93	NULL	NULL	NULL	utf8	utf8_gene
 def	mysql	component	component_id	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI	auto_increment	select,insert,update,references			NULL
 def	mysql	component	component_group_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
 def	mysql	component	component_urn	3	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references			NULL
-def	mysql	db	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	db	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	db	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	db	User	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	db	Select_priv	4	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
@@ -37,9 +37,9 @@ def	mysql	db	Alter_routine_priv	19	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_genera
 def	mysql	db	Execute_priv	20	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	db	Event_priv	21	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	db	Trigger_priv	22	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
-def	mysql	default_roles	HOST	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	default_roles	HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	default_roles	USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
-def	mysql	default_roles	DEFAULT_ROLE_HOST	3	%	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	default_roles	DEFAULT_ROLE_HOST	3	%	NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	default_roles	DEFAULT_ROLE_USER	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	engine_cost	engine_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references			NULL
 def	mysql	engine_cost	device_type	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI		select,insert,update,references			NULL
@@ -59,7 +59,7 @@ def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(
 def	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	mysql	general_log	argument	6	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
 def	mysql	global_grants	USER	1		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
-def	mysql	global_grants	HOST	2		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	global_grants	HOST	2		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	global_grants	PRIV	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	global_grants	WITH_GRANT_OPTION	4	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	gtid_executed	source_uuid	1	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(36)	PRI		select,insert,update,references	uuid of the source where the transaction was originally executed.		NULL
@@ -93,34 +93,34 @@ def	mysql	innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	N
 def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	mysql	innodb_table_stats	clustered_index_size	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
-def	mysql	password_history	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	password_history	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	password_history	User	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	password_history	Password_timestamp	3	CURRENT_TIMESTAMP(6)	NO	timestamp	NULL	NULL	NULL	NULL	6	NULL	NULL	timestamp(6)	PRI	DEFAULT_GENERATED	select,insert,update,references			NULL
 def	mysql	password_history	Password	4	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references			NULL
 def	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references			NULL
 def	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references			NULL
-def	mysql	procs_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	procs_priv	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	procs_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	procs_priv	User	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	procs_priv	Routine_type	5	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')	PRI		select,insert,update,references			NULL
-def	mysql	procs_priv	Grantor	6		NO	char	93	279	NULL	NULL	NULL	utf8	utf8_bin	char(93)	MUL		select,insert,update,references			NULL
+def	mysql	procs_priv	Grantor	6		NO	varchar	288	864	NULL	NULL	NULL	utf8	utf8_bin	varchar(288)	MUL		select,insert,update,references			NULL
 def	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references			NULL
 def	mysql	procs_priv	Timestamp	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
-def	mysql	proxies_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	proxies_priv	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	proxies_priv	User	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
-def	mysql	proxies_priv	Proxied_host	3		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	proxies_priv	Proxied_host	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	proxies_priv	Proxied_user	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	proxies_priv	With_grant	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
-def	mysql	proxies_priv	Grantor	6		NO	char	93	279	NULL	NULL	NULL	utf8	utf8_bin	char(93)	MUL		select,insert,update,references			NULL
+def	mysql	proxies_priv	Grantor	6		NO	varchar	288	864	NULL	NULL	NULL	utf8	utf8_bin	varchar(288)	MUL		select,insert,update,references			NULL
 def	mysql	proxies_priv	Timestamp	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
-def	mysql	role_edges	FROM_HOST	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	role_edges	FROM_HOST	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	FROM_USER	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
-def	mysql	role_edges	TO_HOST	3		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	role_edges	TO_HOST	3		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	TO_USER	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	role_edges	WITH_ADMIN_OPTION	5	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	servers	Server_name	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references			NULL
-def	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references			NULL
+def	mysql	servers	Host	2		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references			NULL
 def	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references			NULL
 def	mysql	servers	Username	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references			NULL
 def	mysql	servers	Password	5		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)			select,insert,update,references			NULL
@@ -136,7 +136,7 @@ def	mysql	server_cost	default_value	5	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL
 def	mysql	slave_master_info	Number_of_lines	1	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	Number of lines in the file.		NULL
 def	mysql	slave_master_info	Master_log_name	2	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The name of the master binary log currently being read from the master.		NULL
 def	mysql	slave_master_info	Master_log_pos	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	The master log position of the last read event.		NULL
-def	mysql	slave_master_info	Host	4	NULL	YES	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)			select,insert,update,references	The host name of the master.		NULL
+def	mysql	slave_master_info	Host	4	NULL	YES	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)			select,insert,update,references	The host name of the master.		NULL
 def	mysql	slave_master_info	User_name	5	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The user name used to connect to the master.		NULL
 def	mysql	slave_master_info	User_password	6	NULL	YES	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	The password used to connect to the master.		NULL
 def	mysql	slave_master_info	Port	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	The network port used to connect to the master.		NULL
@@ -195,11 +195,11 @@ def	mysql	slow_log	insert_id	9	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)
 def	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
 def	mysql	slow_log	sql_text	11	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references			NULL
 def	mysql	slow_log	thread_id	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select,insert,update,references			NULL
-def	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	tables_priv	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
 def	mysql	tables_priv	User	3		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references			NULL
-def	mysql	tables_priv	Grantor	5		NO	char	93	279	NULL	NULL	NULL	utf8	utf8_bin	char(93)	MUL		select,insert,update,references			NULL
+def	mysql	tables_priv	Grantor	5		NO	varchar	288	864	NULL	NULL	NULL	utf8	utf8_bin	varchar(288)	MUL		select,insert,update,references			NULL
 def	mysql	tables_priv	Timestamp	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		DEFAULT_GENERATED on update CURRENT_TIMESTAMP	select,insert,update,references			NULL
 def	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references			NULL
 def	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references			NULL
@@ -217,7 +217,7 @@ def	mysql	time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	1
 def	mysql	time_zone_transition_type	Offset	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	mysql	time_zone_transition_type	Is_DST	4	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(3) unsigned			select,insert,update,references			NULL
 def	mysql	time_zone_transition_type	Abbreviation	5		NO	char	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	char(8)			select,insert,update,references			NULL
-def	mysql	user	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references			NULL
+def	mysql	user	Host	1		NO	char	255	255	NULL	NULL	NULL	ascii	ascii_general_ci	char(255)	PRI		select,insert,update,references			NULL
 def	mysql	user	User	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI		select,insert,update,references			NULL
 def	mysql	user	Select_priv	3	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
 def	mysql	user	Insert_priv	4	N	NO	enum	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references			NULL
@@ -283,6 +283,7 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML, DATA_TYPE;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	blob	NULL	NULL
 1.0000	mediumblob	NULL	NULL
+1.0000	char	ascii	ascii_general_ci
 1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
@@ -338,7 +339,7 @@ FROM information_schema.columns
 WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY TABLE_SCHEMA, TABLE_NAME COLLATE utf8_general_ci, ORDINAL_POSITION;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
-3.0000	mysql	columns_priv	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	columns_priv	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	columns_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	columns_priv	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	columns_priv	Table_name	char	64	192	utf8	utf8_bin	char(64)
@@ -348,7 +349,7 @@ NULL	mysql	columns_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	component	component_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	component	component_urn	text	65535	65535	utf8	utf8_general_ci	text
-3.0000	mysql	db	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	db	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	db	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	db	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	db	Select_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
@@ -370,9 +371,9 @@ NULL	mysql	component	component_group_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	db	Execute_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Event_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	db	Trigger_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
-3.0000	mysql	default_roles	HOST	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	default_roles	HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	default_roles	USER	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	default_roles	DEFAULT_ROLE_HOST	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	default_roles	DEFAULT_ROLE_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	default_roles	DEFAULT_ROLE_USER	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	engine_cost	engine_name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	mysql	engine_cost	device_type	int	NULL	NULL	NULL	NULL	int(11)
@@ -392,7 +393,7 @@ NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	mysql	general_log	argument	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 3.0000	mysql	global_grants	USER	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	global_grants	HOST	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	global_grants	HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	global_grants	PRIV	char	32	96	utf8	utf8_general_ci	char(32)
 3.0000	mysql	global_grants	WITH_GRANT_OPTION	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 4.0000	mysql	gtid_executed	source_uuid	char	36	144	utf8mb4	utf8mb4_0900_ai_ci	char(36)
@@ -426,34 +427,34 @@ NULL	mysql	innodb_table_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestam
 NULL	mysql	innodb_table_stats	n_rows	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_table_stats	clustered_index_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_table_stats	sum_of_other_index_sizes	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	password_history	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	password_history	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	password_history	User	char	32	96	utf8	utf8_bin	char(32)
 NULL	mysql	password_history	Password_timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp(6)
 1.0000	mysql	password_history	Password	text	65535	65535	utf8	utf8_bin	text
 3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
-3.0000	mysql	procs_priv	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	procs_priv	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	procs_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	procs_priv	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	procs_priv	Routine_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	procs_priv	Routine_type	enum	9	27	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')
-3.0000	mysql	procs_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
+3.0000	mysql	procs_priv	Grantor	varchar	288	864	utf8	utf8_bin	varchar(288)
 3.0000	mysql	procs_priv	Proc_priv	set	27	81	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')
 NULL	mysql	procs_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
-3.0000	mysql	proxies_priv	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	proxies_priv	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	proxies_priv	User	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	proxies_priv	Proxied_host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	proxies_priv	Proxied_host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	proxies_priv	Proxied_user	char	32	96	utf8	utf8_bin	char(32)
 NULL	mysql	proxies_priv	With_grant	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-3.0000	mysql	proxies_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
+3.0000	mysql	proxies_priv	Grantor	varchar	288	864	utf8	utf8_bin	varchar(288)
 NULL	mysql	proxies_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
-3.0000	mysql	role_edges	FROM_HOST	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	role_edges	FROM_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	FROM_USER	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	role_edges	TO_HOST	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	role_edges	TO_HOST	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	role_edges	TO_USER	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	role_edges	WITH_ADMIN_OPTION	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	servers	Server_name	char	64	192	utf8	utf8_general_ci	char(64)
-3.0000	mysql	servers	Host	char	64	192	utf8	utf8_general_ci	char(64)
+1.0000	mysql	servers	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	servers	Db	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Username	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Password	char	64	192	utf8	utf8_general_ci	char(64)
@@ -469,7 +470,7 @@ NULL	mysql	server_cost	default_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	slave_master_info	Number_of_lines	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slave_master_info	Master_log_name	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Master_log_pos	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	slave_master_info	Host	char	64	192	utf8	utf8_bin	char(64)
+1.0000	mysql	slave_master_info	Host	char	255	255	ascii	ascii_general_ci	char(255)
 1.0000	mysql	slave_master_info	User_name	text	65535	65535	utf8	utf8_bin	text
 1.0000	mysql	slave_master_info	User_password	text	65535	65535	utf8	utf8_bin	text
 NULL	mysql	slave_master_info	Port	int	NULL	NULL	NULL	NULL	int(10) unsigned
@@ -528,11 +529,11 @@ NULL	mysql	slow_log	insert_id	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 1.0000	mysql	slow_log	sql_text	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 NULL	mysql	slow_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-3.0000	mysql	tables_priv	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	tables_priv	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	tables_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	tables_priv	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	tables_priv	Table_name	char	64	192	utf8	utf8_bin	char(64)
-3.0000	mysql	tables_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
+3.0000	mysql	tables_priv	Grantor	varchar	288	864	utf8	utf8_bin	varchar(288)
 NULL	mysql	tables_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	tables_priv	Table_priv	set	98	294	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')
 3.0000	mysql	tables_priv	Column_priv	set	31	93	utf8	utf8_general_ci	set('Select','Insert','Update','References')
@@ -550,7 +551,7 @@ NULL	mysql	time_zone_transition_type	Transition_type_id	int	NULL	NULL	NULL	NULL	
 NULL	mysql	time_zone_transition_type	Offset	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	time_zone_transition_type	Is_DST	tinyint	NULL	NULL	NULL	NULL	tinyint(3) unsigned
 3.0000	mysql	time_zone_transition_type	Abbreviation	char	8	24	utf8	utf8_general_ci	char(8)
-3.0000	mysql	user	Host	char	60	180	utf8	utf8_bin	char(60)
+1.0000	mysql	user	Host	char	255	255	ascii	ascii_general_ci	char(255)
 3.0000	mysql	user	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	user	Select_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
 3.0000	mysql	user	Insert_priv	enum	1	3	utf8	utf8_general_ci	enum('N','Y')
