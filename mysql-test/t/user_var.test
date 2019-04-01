@@ -553,6 +553,7 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#28960901: ASSERTION FAILED: (TLEN % 2) == 0
 --echo #
+--disable_ps_protocol
 CREATE TABLE t1(a VARCHAR(10) CHARSET latin1, b VARCHAR(20) CHARSET utf16);
 INSERT INTO t1 VALUES ('a', 'abcd');
 SELECT (@x:=b) FROM t1;
@@ -561,3 +562,4 @@ SELECT (@x:=a) FROM t1;
 --error ER_INVALID_CHARACTER_STRING
 SELECT * FROM t1 WHERE a = (SELECT (@x:=_utf16 0x1023) FROM t1) OR b = @x;
 DROP TABLE t1;
+--enable_ps_protocol
