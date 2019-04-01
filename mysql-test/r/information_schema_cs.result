@@ -298,10 +298,11 @@ Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client
 test	sub1	FUNCTION	root@localhost	#	#	DEFINER		utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
-a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test';
+a.ROUTINE_SCHEMA = b.SCHEMA_NAME AND b.SCHEMA_NAME='test'
+ORDER BY a.ROUTINE_NAME;
 ROUTINE_NAME
-sub1
 sel2
+sub1
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 count(*)
 2
@@ -312,26 +313,30 @@ routine_schema	routine_name
 test	sel2
 test	sub1
 drop view v1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 show create function sub1;
 ERROR 42000: FUNCTION sub1 does not exist
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sub1	NULL
 sel2	NULL
+sub1	NULL
 grant all privileges on test.* to mysqltest_1@localhost;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
-sub1	NULL
 sel2	NULL
+sub1	NULL
 create function sub2(i int) returns int
 return i+1;
-select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES WHERE ROUTINE_SCHEMA='test';
+select ROUTINE_NAME, ROUTINE_DEFINITION from information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
+sel2	NULL
 sub1	NULL
 sub2	return i+1
-sel2	NULL
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
@@ -490,10 +495,11 @@ select table_name,column_name from information_schema.COLUMNS
 where table_schema like "test%" order by table_name, column_name;
 TABLE_NAME	COLUMN_NAME
 t1	a
-select ROUTINE_NAME from information_schema.ROUTINES where ROUTINE_SCHEMA != 'sys';
+SELECT ROUTINE_NAME FROM information_schema.ROUTINES
+WHERE ROUTINE_SCHEMA != 'sys' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME
-sub1
 sel2
+sub1
 delete from mysql.user where user='mysqltest_1';
 drop table t1;
 drop procedure sel2;
@@ -1191,7 +1197,8 @@ CREATE FUNCTION f1() RETURNS INT RETURN @a + 1;
 CREATE USER mysql_bug20230@localhost;
 GRANT EXECUTE ON PROCEDURE p1 TO mysql_bug20230@localhost;
 GRANT EXECUTE ON FUNCTION f1 TO mysql_bug20230@localhost;
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	RETURN @a + 1
 p1	SET @a= 1
@@ -1203,7 +1210,8 @@ SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 RETURN @a + 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
+SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA='test' ORDER BY ROUTINE_NAME;
 ROUTINE_NAME	ROUTINE_DEFINITION
 f1	NULL
 p1	NULL
