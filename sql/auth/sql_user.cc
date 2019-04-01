@@ -1318,6 +1318,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   std::string authentication_plugin;
   bool is_role;
   int ret;
+  sql_mode_t old_sql_mode = thd->variables.sql_mode;
 
   DBUG_ENTER("change_password");
   DBUG_ASSERT(lex_user && lex_user->host.str);
@@ -1407,7 +1408,11 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   // We must not have user with plain text password at this point
   thd->lex->contains_plaintext_password = false;
   authentication_plugin.assign(combo->plugin.str);
+
+  thd->variables.sql_mode &= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   ret = replace_user_table(thd, table, combo, 0, false, false, what_to_set);
+  thd->variables.sql_mode = old_sql_mode;
+
   if (ret) {
     result = 1;
     goto end;
