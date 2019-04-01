@@ -7,7 +7,8 @@
 perl mysql-test-run.pl --force --timer   --comment=all-default  --vardir=var-all-default  --report-features --unit-tests-report --no-skip
 
 # Run the suites that are not part of the default
-# funcs_2, stress, jp, nist, GR
+# funcs_1, funcs_2, stress, jp, nist, GR
+perl mysql-test-run.pl --force --timer  --comment=funcs1  --vardir=var-funcs1 --suite=funcs_1 --no-skip --max-test-fail=30
 perl mysql-test-run.pl --force --timer  --comment=funcs2  --vardir=var-funcs2 --suite=funcs_2 --no-skip --max-test-fail=30
 perl mysql-test-run.pl --force --timer    --comment=stress --vardir=var-stress  --suite=stress --no-skip --max-test-fail=30
 perl mysql-test-run.pl --force --timer    --comment=jp --vardir=var-jp --suite=jp --no-skip --max-test-fail=30
