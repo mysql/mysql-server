@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -48,22 +48,18 @@ add_test_file(test_base64.cc
 
 add_test_file(test_auth_backend.cc
   MODULE http
-  LIB_DEPENDS http_auth_backend_lib
   )
 
 add_test_file(test_kdf_sha_crypt.cc
   MODULE http
-  LIB_DEPENDS http_auth_backend_lib
   )
 
 add_test_file(test_kdf_pbkdf2.cc
   MODULE http
-  LIB_DEPENDS http_auth_backend_lib
   )
 
 add_test_file(test_passwd.cc
   MODULE http
-  LIB_DEPENDS http_auth_backend_lib
   EXTRA_SOURCES ../src/passwd.cc
   )
 

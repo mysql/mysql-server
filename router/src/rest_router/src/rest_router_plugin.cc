@@ -261,7 +261,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-const char *plugin_requires[] = {
+const char *rest_router_plugin_requires[] = {
     "rest_api",
 };
 
@@ -271,8 +271,9 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_router = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "REST_ROUTER",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(plugin_requires) / sizeof(plugin_requires[0]),
-    plugin_requires,  // requires
+    sizeof(rest_router_plugin_requires) /
+        sizeof(rest_router_plugin_requires[0]),
+    rest_router_plugin_requires,  // requires
     0,
     nullptr,  // conflicts
     init,     // init

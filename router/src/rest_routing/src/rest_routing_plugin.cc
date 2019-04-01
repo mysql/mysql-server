@@ -1116,7 +1116,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
   rest_api_srv.remove_path(RestRoutingBlockedHosts::path_regex);
 }
 
-const char *plugin_requires[] = {
+const char *rest_routing_plugin_requires[] = {
     // "routing",
     "rest_api",
 };
@@ -1127,8 +1127,9 @@ mysql_harness::Plugin REST_ROUTING_EXPORT harness_plugin_rest_routing = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "REST_ROUTING",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(plugin_requires) / sizeof(plugin_requires[0]),
-    plugin_requires,  // requires
+    sizeof(rest_routing_plugin_requires) /
+        sizeof(rest_routing_plugin_requires[0]),
+    rest_routing_plugin_requires,  // requires
     0,
     nullptr,  // conflicts
     init,     // init

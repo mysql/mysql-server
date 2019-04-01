@@ -836,7 +836,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
 #define DLLEXPORT
 #endif
 
-const char *plugin_requires[] = {
+const char *rest_metadata_plugin_requires[] = {
     // "metadata_cache",
     "rest_api",
 };
@@ -847,8 +847,9 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_metadata_cache = {
     mysql_harness::ARCHITECTURE_DESCRIPTOR,
     "REST_METADATA_CACHE",
     VERSION_NUMBER(0, 0, 1),
-    sizeof(plugin_requires) / sizeof(plugin_requires[0]),
-    plugin_requires,  // requires
+    sizeof(rest_metadata_plugin_requires) /
+        sizeof(rest_metadata_plugin_requires[0]),
+    rest_metadata_plugin_requires,  // requires
     0,
     nullptr,  // conflicts
     init,     // init
