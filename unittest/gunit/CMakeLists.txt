@@ -310,6 +310,7 @@ SET(TESTS
   mysys_lf
   mysys_my_b_vprintf
   mysys_my_getopt
+  mysys_my_getpw
   mysys_my_loadpath
   mysys_my_malloc
   mysys_my_pwrite
@@ -410,6 +411,7 @@ SET(SERVER_TESTS
   make_sortkey
   mdl_sync
   my_decimal
+  mysqld_funcs
   opt_costconstants
   opt_costmodel
   opt_guessrecperkey

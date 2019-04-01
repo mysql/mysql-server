@@ -175,4 +175,58 @@ TEST(Mysys, CreateTempFile) {
 }
 #endif  // HAVE_O_TMPFILE
 
+// Verify that unpack_dirname works correctly with ~/ and ~user
+TEST(Mysys, UnpackDirname) {
+  char dst[FN_REFLEN];
+  aset(dst, 0xaa);
+
+  char src[FN_REFLEN + 5];
+  aset(src, 'a');
+  std::fill_n(src + FN_REFLEN, 4, 'b');
+  src[FN_REFLEN + 4] = '\0';
+
+  // Verify that destination array does not overflow when source is larger
+  unpack_dirname(dst, src);
+  EXPECT_EQ('\0', dst[FN_REFLEN - 1]);
+  EXPECT_EQ(FN_LIBCHAR, dst[FN_REFLEN - 2]);
+  EXPECT_EQ('a', dst[FN_REFLEN - 3]);
+
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "/an/absolute/path");
+  EXPECT_STREQ(
+      FN_ROOTDIR "an" FN_ROOTDIR "absolute" FN_ROOTDIR "path" FN_ROOTDIR, dst);
+
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "a/relative/path");
+  EXPECT_STREQ("a" FN_ROOTDIR "relative" FN_ROOTDIR "path" FN_ROOTDIR, dst);
+
+  // Verify that ~ is expanded to home_dir+/
+  // If home_dir is not set (WIN32) tilde expansion does not happen.
+  std::string hd{home_dir ? home_dir : "~"};
+  hd.append(1, FN_LIBCHAR);
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~");
+  EXPECT_EQ(hd, std::string{dst});
+
+  // Verify that /~ is expanded to home_dir+/
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~/");
+  EXPECT_EQ(hd, std::string{dst});
+
+  // Verify that ~root is expanded to somthing starting with / and which
+  // contains /dir (exact name of root's home dir varies between platforms)
+  aset(dst, 0xaa);
+  unpack_dirname(dst, "~root/dir");
+#ifdef HAVE_GETPWNAM
+  EXPECT_EQ('/', dst[0]);
+  EXPECT_LE(dst, strstr(dst, "/dir"));
+#else
+  // On platforms which do not have getpwnam no expansion of ~user is performed
+  EXPECT_STREQ("~root" FN_ROOTDIR "dir" FN_ROOTDIR, dst);
+#endif
+  // Verify that ~ is not expanded when the user does not exist
+  unpack_dirname(dst, "~___/dir");
+  EXPECT_STREQ("~___" FN_ROOTDIR "dir" FN_ROOTDIR, dst);
+}
+
 }  // namespace mysys_pathfuncs

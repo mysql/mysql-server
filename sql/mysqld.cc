@@ -554,6 +554,7 @@ The documentation is based on the source files such as:
 #include "my_dbug.h"
 #include "my_default.h"  // print_defaults
 #include "my_dir.h"
+#include "my_getpwnam.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_shm_defaults.h"  // IWYU pragma: keep
@@ -735,9 +736,6 @@ The documentation is based on the source files such as:
 #endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
-#endif
-#ifdef HAVE_PWD_H
-#include <pwd.h>
 #endif
 #include <signal.h>
 #include <stdarg.h>
@@ -1643,8 +1641,8 @@ static void charset_error_reporter(enum loglevel level, uint ecode, ...) {
 
 struct rand_struct sql_rand;  ///< used by sql_class.cc:THD::THD()
 
-struct passwd *user_info = NULL;
 #ifndef _WIN32
+PasswdValue user_info;
 static my_thread_t main_thread_id;
 #endif  // !_WIN32
 
@@ -2427,39 +2425,44 @@ static void set_ports() {
 #if !defined(_WIN32)
 /* Change to run as another user if started with --user */
 
-static struct passwd *check_user(const char *user) {
-  struct passwd *tmp_user_info;
+static PasswdValue check_user(const char *user) {
   uid_t user_id = geteuid();
+
+  PasswdValue tmp_user_info =
+      (user == nullptr ? PasswdValue{} : my_getpwnam(user));
 
   // Don't bother if we aren't superuser
   if (user_id) {
     if (user) {
       /* Don't give a warning, if real user is same as given with --user */
-      tmp_user_info = getpwnam(user);
-      if ((!tmp_user_info || user_id != tmp_user_info->pw_uid))
+      if ((tmp_user_info.IsVoid() || user_id != tmp_user_info.pw_uid))
         LogErr(WARNING_LEVEL, ER_USER_REQUIRES_ROOT);
     }
-    return NULL;
+    return PasswdValue{};
   }
+  DBUG_ASSERT(user_id == 0);  // we are running as root
+
   if (!user) {
     if (!opt_initialize && !is_help_or_validate_option()) {
       LogErr(ERROR_LEVEL, ER_REALLY_RUN_AS_ROOT);
       unireg_abort(MYSQLD_ABORT_EXIT);
     }
-    return NULL;
+    return PasswdValue{};
   }
   /* purecov: begin tested */
   if (!strcmp(user, "root"))
-    return NULL;  // Avoid problem with dynamic libraries
+    return PasswdValue{};  // Avoid problem with dynamic libraries
 
-  if (!(tmp_user_info = getpwnam(user))) {
+  if (tmp_user_info.IsVoid()) {
     // Allow a numeric uid to be used
     const char *pos;
     for (pos = user; my_isdigit(mysqld_charset, *pos); pos++)
       ;
     if (*pos)  // Not numeric id
       goto err;
-    if (!(tmp_user_info = getpwuid(atoi(user)))) goto err;
+
+    tmp_user_info = my_getpwuid(atoi(user));
+    if (tmp_user_info.IsVoid()) goto err;
   }
   return tmp_user_info;
   /* purecov: end */
@@ -2468,20 +2471,24 @@ err:
   LogErr(ERROR_LEVEL, ER_USER_WHAT_USER, user);
   unireg_abort(MYSQLD_ABORT_EXIT);
 
-  return NULL;
+  return PasswdValue{};
 }
 
-static void set_user(const char *user, struct passwd *user_info_arg) {
+namespace mysqld_funcs_unit_test {
+PasswdValue check_user_drv(const char *user) { return check_user(user); }
+}  // namespace mysqld_funcs_unit_test
+
+static void set_user(const char *user, const PasswdValue &user_info_arg) {
   /* purecov: begin tested */
-  DBUG_ASSERT(user_info_arg != 0);
+  DBUG_ASSERT(user_info_arg.IsVoid() == false);
 #ifdef HAVE_INITGROUPS
-  initgroups(user, user_info_arg->pw_gid);
+  initgroups(user, user_info_arg.pw_gid);
 #endif
-  if (setgid(user_info_arg->pw_gid) == -1) {
+  if (setgid(user_info_arg.pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETGID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-  if (setuid(user_info_arg->pw_uid) == -1) {
+  if (setuid(user_info_arg.pw_uid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETUID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -2496,13 +2503,13 @@ static void set_user(const char *user, struct passwd *user_info_arg) {
   /* purecov: end */
 }
 
-static void set_effective_user(struct passwd *user_info_arg) {
-  DBUG_ASSERT(user_info_arg != 0);
-  if (setregid((gid_t)-1, user_info_arg->pw_gid) == -1) {
+static void set_effective_user(const PasswdValue &user_info_arg) {
+  DBUG_ASSERT(user_info_arg.IsVoid() == false);
+  if (setregid((gid_t)-1, user_info_arg.pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETREGID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
-  if (setreuid((uid_t)-1, user_info_arg->pw_uid) == -1) {
+  if (setreuid((uid_t)-1, user_info_arg.pw_uid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETREUID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
@@ -5780,7 +5787,7 @@ static int init_server_components() {
       locked_in_memory = 0;
     }
 #ifndef _WIN32
-    if (user_info) set_user(mysqld_user, user_info);
+    if (!user_info.IsVoid()) set_user(mysqld_user, user_info);
 #endif
   } else
 #endif
@@ -6313,7 +6320,8 @@ int mysqld_main(int argc, char **argv)
 #endif
 
 #ifndef _WIN32
-  if ((user_info = check_user(mysqld_user))) {
+  user_info = check_user(mysqld_user);
+  if (!user_info.IsVoid()) {
 #if HAVE_CHOWN
     if (unlikely(opt_initialize)) {
       /* need to change the owner of the freshly created data directory */
@@ -6327,12 +6335,12 @@ int mysqld_main(int argc, char **argv)
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
       }
       /* Don't change it if it's already the same as SElinux stops this */
-      else if (stat.st_uid == user_info->pw_uid &&
-               stat.st_gid == user_info->pw_gid)
+      else if (stat.st_uid == user_info.pw_uid &&
+               stat.st_gid == user_info.pw_gid)
         must_chown = false;
 
       if (must_chown &&
-          chown(mysql_real_data_home, user_info->pw_uid, user_info->pw_gid)) {
+          chown(mysql_real_data_home, user_info.pw_uid, user_info.pw_gid)) {
         LogErr(ERROR_LEVEL, ER_CANT_CHOWN_DATADIR, mysqld_user);
         unireg_abort(1);
       }
