@@ -1764,6 +1764,7 @@ bool Item_sum_sum::resolve_type(THD *) {
   maybe_null = true;
   null_value = true;
   decimals = args[0]->decimals;
+  max_length = float_length(decimals);
 
   switch (args[0]->numeric_context_result_type()) {
     case REAL_RESULT:
