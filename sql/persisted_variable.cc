@@ -619,7 +619,8 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   vector<st_persist_var> *persist_variables = NULL;
   bool result = 0, new_thd = 0;
   const std::vector<std::string> priv_list = {
-      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN"};
+      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN",
+      "AUDIT_ADMIN"};
   const ulong static_priv_list = (SUPER_ACL | FILE_ACL);
   Sctx_ptr<Security_context> ctx;
   /*

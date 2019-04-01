@@ -301,6 +301,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/audit_api_message_service_imp.cc
   server_component/page_track_service.cc
   server_component/mysql_current_thread_reader_imp.cc
+  server_component/keyring_iterator_service_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES

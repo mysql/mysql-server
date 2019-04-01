@@ -7758,10 +7758,10 @@ OBSOLETE_ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
   eng "Audit Log filtering has not been installed."
 
 OBSOLETE_ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
-  eng "Request ignored for '%s'@'%s'. SUPER or AUDIT_ADMIN needed to perform operation"
+  eng "Request ignored for '%s'@'%s'. SUPER privilege or AUDIT_ADMIN role needed to perform operation"
 
 ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
-  eng "SUPER privilege required for '%s'@'%s' user."
+  eng "SUPER privilege or AUDIT_ADMIN role required for '%s'@'%s' user."
 
 OBSOLETE_ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
   eng "Could not reinitialize audit log filters."
@@ -19223,6 +19223,42 @@ ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE
 
 ER_LOCK_ORDER_INIT_FAILED
   eng "Lock order disabled (reason: init failed)."
+
+ER_AUDIT_LOG_KEYRING_ID_TIMESTAMP_VALUE_IS_INVALID
+  eng "Keyring ID timestamp value is invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_TIMESTAMP_VALUE_IS_MISSING_OR_INVALID
+  eng "Cannot process audit log file. File name timestamp value is missing or invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_DOES_NOT_HAVE_REQUIRED_FORMAT
+  eng "Cannot process audit log file. File name does not have required format: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_KEYRING_ID_VALUE_IS_MISSING
+  eng "Cannot process audit log file. File name keyring ID value is missing: '%s'"
+
+ER_AUDIT_LOG_FILE_HAS_BEEN_SUCCESSFULLY_PROCESSED
+  eng "Audit log file has been successfully processed: '%s'"
+
+ER_AUDIT_LOG_COULD_NOT_OPEN_FILE_FOR_READING
+  eng "Could not open audit log file for reading: '%s'"
+
+ER_AUDIT_LOG_INVALID_FILE_CONTENT
+  eng "Invalid audit log file content: '%s'"
+
+ER_AUDIT_LOG_CANNOT_READ_PASSWORD
+  eng "Cannot read password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
+  eng "Cannot store password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
+  eng "Cannot remove password: '%.32s'"
+
+ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+  eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
 
 #
 # End of 8.0 error messages intended to be logged to the server error log.

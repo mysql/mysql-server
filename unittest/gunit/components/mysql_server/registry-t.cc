@@ -37,6 +37,7 @@
 #include <audit_api_message_service_imp.h>
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
+#include <keyring_iterator_service_imp.h>
 #include <mysql/components/services/backup_lock_service.h>
 #include <mysql/components/services/clone_protocol_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
@@ -295,6 +296,25 @@ DEFINE_METHOD(int, Page_track_implementation::purge,
 DEFINE_METHOD(int, Page_track_implementation::get_status,
               (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
   return (0);
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
+                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
+                    char *key_id MY_ATTRIBUTE((unused)),
+                    size_t key_id_size MY_ATTRIBUTE((unused)),
+                    char *user_id MY_ATTRIBUTE((unused)),
+                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
 }
 
 /* TODO following code resembles symbols used in sql library, these should be

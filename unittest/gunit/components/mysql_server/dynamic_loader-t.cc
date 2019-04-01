@@ -26,6 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <components/mysql_server/mysql_page_track.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
+#include <keyring_iterator_service_imp.h>
 #include <mysql.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
@@ -290,6 +291,25 @@ DEFINE_METHOD(int, Page_track_implementation::purge,
 DEFINE_METHOD(int, Page_track_implementation::get_status,
               (MYSQL_THD, Page_Track_SE, uint64_t *, uint64_t *)) {
   return (0);
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::init,
+                   (my_h_keyring_iterator * iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::deinit,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)))) {
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_keyring_iterator_imp::get,
+                   (my_h_keyring_iterator iterator MY_ATTRIBUTE((unused)),
+                    char *key_id MY_ATTRIBUTE((unused)),
+                    size_t key_id_size MY_ATTRIBUTE((unused)),
+                    char *user_id MY_ATTRIBUTE((unused)),
+                    size_t user_id_size MY_ATTRIBUTE((unused)))) {
+  return true;
 }
 
 /* TODO following code resembles symbols used in sql library, these should be

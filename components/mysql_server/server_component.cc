@@ -38,6 +38,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "host_application_signal_imp.h"
+#include "keyring_iterator_service_imp.h"
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
@@ -309,6 +310,10 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_current_thread_reader)
 mysql_component_mysql_current_thread_reader_imp::get
 END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_keyring_iterator)
+mysql_keyring_iterator_imp::init, mysql_keyring_iterator_imp::deinit,
+    mysql_keyring_iterator_imp::get END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, registry_registration),
@@ -359,6 +364,7 @@ PROVIDES_SERVICE(mysql_server, registry),
     PROVIDES_SERVICE(mysql_server, mysql_page_track),
     PROVIDES_SERVICE(mysql_server, mysql_runtime_error),
     PROVIDES_SERVICE(mysql_server, mysql_current_thread_reader),
+    PROVIDES_SERVICE(mysql_server, mysql_keyring_iterator),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
