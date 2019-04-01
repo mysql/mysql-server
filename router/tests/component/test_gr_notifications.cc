@@ -185,14 +185,16 @@ class GrNotificationsTest : public RouterComponentTest {
           JsonValue((unsigned)async_notice.send_offset_ms.count()), allocator);
       json_notice.AddMember("type", JsonValue(async_notice.id), allocator);
       const std::string scope = async_notice.is_local ? "LOCAL" : "GLOBAL";
-      json_notice.AddMember("scope", JsonValue(scope.c_str(), scope.length()),
+      json_notice.AddMember("scope",
+                            JsonValue(scope.c_str(), scope.length(), allocator),
                             allocator);
       // gr notice specific payload
       JsonValue json_notice_gr(rapidjson::kObjectType);
       json_notice_gr.AddMember("type", JsonValue(async_notice.type), allocator);
-      const std::string &view_id = async_notice.view_id;
+      const std::string view_id = async_notice.view_id;
       json_notice_gr.AddMember(
-          "view_id", JsonValue(view_id.c_str(), view_id.length()), allocator);
+          "view_id", JsonValue(view_id.c_str(), view_id.length(), allocator),
+          allocator);
       json_notice.AddMember("payload", json_notice_gr, allocator);
       notices_->PushBack(json_notice, allocator);
     }
