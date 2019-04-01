@@ -3306,7 +3306,8 @@ SimulatedBlock::sendNextSegmentedFragment(Signal* signal,
     Uint32 prevPtrI = ptrI;
     ptrI = ptrP->m_nextSegment;
     const Uint32 fill = sizeLeft - SectionSegment::DataLength;
-    while(sum < fill){
+    while (sum <= fill)
+    {
       prevPtrI = ptrI;
       ptrP = g_sectionSegmentPool.getPtr(ptrI);
       ptrI = ptrP->m_nextSegment;
