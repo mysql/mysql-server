@@ -802,3 +802,17 @@ id	count
 2	0
 SET SQL_MODE=DEFAULT;
 DROP TABLE test;
+#
+# Bug#29287785: PASSWORD IS NOT UPDATED WITHOUT ERRORS WHEN
+#               SQL MODE IS PAD_CHAR_TO_FULL_LENGTH
+#
+CREATE USER 'user1'@'localhost';
+SET sql_mode= 'PAD_CHAR_TO_FULL_LENGTH';
+Warnings:
+Warning	3090	Changing sql mode 'PAD_CHAR_TO_FULL_LENGTH' is deprecated. It will be removed in a future release.
+SET PASSWORD FOR 'user1'@'localhost'= 'abc';
+SELECT LENGTH(authentication_string) FROM mysql.user WHERE user= 'user1';
+LENGTH(authentication_string)
+70
+DROP USER 'user1'@'localhost';
+SET sql_mode= DEFAULT;
