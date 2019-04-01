@@ -170,7 +170,7 @@ Field (abstract)
 */
 
 enum enum_check_fields : int {
-  CHECK_FIELD_IGNORE,
+  CHECK_FIELD_IGNORE = 0,
   CHECK_FIELD_WARN,
   CHECK_FIELD_ERROR_FOR_NULL
 };

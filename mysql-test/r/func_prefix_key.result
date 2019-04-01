@@ -805,3 +805,29 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select (`test`.`t1`.`f1` like NULL) AS `(f1 LIKE null)` from `test`.`t1` where (`test`.`t1`.`f1` like 'a%')
 DROP TABLE t1;
+#
+# Bug#28934315 CASE STATEMENT USE IN CONDITIONAL WITH SUB_PART INDEX REGRESSION IN 8.0.
+#
+CREATE TABLE t1 (
+id INT(11) NOT NULL AUTO_INCREMENT,
+example VARCHAR(100) NOT NULL DEFAULT '',
+PRIMARY KEY (id),
+KEY example_key (example(9))
+) ENGINE=InnoDB;
+CREATE TABLE t2 (
+id INT(11) NOT NULL AUTO_INCREMENT,
+example VARCHAR(100) NOT NULL DEFAULT '',
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT INTO t1 (example) VALUES ('1234567890');
+INSERT INTO t2 (example) VALUES ('1234567890');
+EXPLAIN SELECT t2.example, t2.id FROM t2, t1 WHERE t1.example = LOWER(t2.example);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ref	example_key	example_key	38	func	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t2`.`example` AS `example`,`test`.`t2`.`id` AS `id` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`example` = lower(`test`.`t2`.`example`))
+SELECT t2.example, t2.id FROM t2, t1 WHERE t1.example = LOWER(t2.example);
+example	id
+1234567890	1
+DROP TABLE t1, t2;
