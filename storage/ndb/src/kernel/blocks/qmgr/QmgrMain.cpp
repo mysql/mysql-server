@@ -2972,6 +2972,12 @@ void Qmgr::checkHeartbeat(Signal* signal)
 
   if (get_hb_count(nodePtr.i) > 2)
   {
+    /**
+     * If we have seen more than 10 heartbeat failures it is because
+     * we are in the process of stopping and the stop has most likely
+     * hanged.
+     */
+    ndbrequire(get_hb_count(nodePtr.i) < 10);
     signal->theData[0] = NDB_LE_MissedHeartbeat;
     signal->theData[1] = nodePtr.i;
     signal->theData[2] = get_hb_count(nodePtr.i) - 1;
@@ -7096,6 +7102,17 @@ Qmgr::check_multi_node_shutdown(Signal* signal)
     } else {
       sendSignal(CMVMI_REF, GSN_STOP_ORD, signal, 1, JBA);
     }
+    return true;
+  }
+  const NodeState & s = getNodeState();
+  if (s.startLevel >= NodeState::SL_STOPPING_1)
+  {
+    jam();
+    /**
+     * Our node have already started a graceful shutdown, allow this
+     * graceful shutdown to complete to avoid reporting errors when
+     * there is no error.
+     */
     return true;
   }
   return false;

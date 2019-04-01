@@ -954,7 +954,10 @@ Dbtup::disk_page_prealloc_callback(Signal* signal,
   {
     jam();
     D(V(pagePtr.p->m_restart_seq) << V(globalData.m_restart_seq));
-    restart_setup_page(fragPtr, alloc, pagePtr, req.p->m_original_estimated_free_space);
+    restart_setup_page(fragPtr,
+                       alloc,
+                       pagePtr,
+                       req.p->m_original_estimated_free_space);
   }
 
   Ptr<Extent_info> extentPtr;
