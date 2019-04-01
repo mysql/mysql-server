@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -685,6 +685,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   size_t escaped_hash_str_len= 0;
   bool result= true, rollback_whole_statement= false;
+  sql_mode_t old_sql_mode= thd->variables.sql_mode;
   int ret;
 
   DBUG_ENTER("change_password");
@@ -790,7 +791,10 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
 
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
   ret= replace_user_table(thd, table, combo, 0, false, false, what_to_set);
+  thd->variables.sql_mode= old_sql_mode;
+
   if (ret)
   {
     mysql_mutex_unlock(&acl_cache->lock);
