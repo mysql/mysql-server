@@ -224,7 +224,7 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 
 dd::String_type get_sql_type_by_create_field(TABLE *table,
                                              Create_field *field) {
-  DBUG_ENTER("get_sql_type_by_create_field");
+  DBUG_TRACE;
 
   unique_ptr_destroy_only<Field> fld(make_field(*field, table->s));
   fld->init(table);
@@ -236,7 +236,7 @@ dd::String_type get_sql_type_by_create_field(TABLE *table,
 
   dd::String_type col_display_str(type.ptr(), type.length());
 
-  DBUG_RETURN(col_display_str);
+  return col_display_str;
 }
 
 /**
@@ -1143,7 +1143,7 @@ static dd::Foreign_key::enum_rule get_fk_rule(fk_option opt) {
 
 static bool fill_dd_foreign_keys_from_create_fields(
     dd::Table *tab_obj, uint key_count, const FOREIGN_KEY *keyinfo) {
-  DBUG_ENTER("dd::fill_dd_foreign_keys_from_create_fields");
+  DBUG_TRACE;
   for (const FOREIGN_KEY *key = keyinfo; key != keyinfo + key_count; ++key) {
     dd::Foreign_key *fk_obj = tab_obj->add_foreign_key();
 
@@ -1194,7 +1194,7 @@ static bool fill_dd_foreign_keys_from_create_fields(
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1216,9 +1216,9 @@ template <typename T>
 static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
                                           const char *tablespace_name,
                                           bool is_temporary_table) {
-  DBUG_ENTER("fill_dd_tablespace_id_or_name");
+  DBUG_TRACE;
 
-  if (!(tablespace_name && strlen(tablespace_name))) DBUG_RETURN(false);
+  if (!(tablespace_name && strlen(tablespace_name))) return false;
 
   /*
     Tablespace metadata can be stored in new DD for following cases.
@@ -1255,12 +1255,12 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
     const dd::Tablespace *ts_obj = NULL;
     if (thd->dd_client()->acquire(tablespace_name, &ts_obj)) {
       // acquire() always fails with a error being reported.
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (!ts_obj) {
       my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), tablespace_name);
-      DBUG_RETURN(true);
+      return true;
     }
 
     // We found valid tablespace so store the ID with dd::Table now.
@@ -1285,7 +1285,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
   */
   options->set("explicit_tablespace", true);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2386,7 +2386,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
 bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
                   const char *name, bool *exists) {
-  DBUG_ENTER("dd::table_exists");
+  DBUG_TRACE;
   DBUG_ASSERT(exists);
 
   // Tables exist if they can be acquired.
@@ -2394,11 +2394,11 @@ bool table_exists(dd::cache::Dictionary_client *client, const char *schema_name,
   const dd::Abstract_table *tab_obj = NULL;
   if (client->acquire(schema_name, name, &tab_obj)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
   *exists = (tab_obj != NULL);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool is_generated_foreign_key_name(const char *table_name,
@@ -2494,7 +2494,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
 bool table_legacy_db_type(THD *thd, const char *schema_name,
                           const char *table_name,
                           enum legacy_db_type *db_type) {
-  DBUG_ENTER("dd::table_legacy_db_type");
+  DBUG_TRACE;
 
   // TODO-NOW: Getting DD objects without getting MDL lock on them
   //       is likely to cause problems. We need to revisit
@@ -2517,12 +2517,12 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   const dd::Table *table = NULL;
   if (thd->dd_client()->acquire(schema_name, table_name, &table)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (table == NULL) {
     my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Get engine by name
@@ -2533,13 +2533,13 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   *db_type =
       ha_legacy_type(tmp_plugin ? plugin_data<handlerton *>(tmp_plugin) : NULL);
 
-  DBUG_RETURN(false);
+  return false;
 }
 /* purecov: end */
 
 template <typename T>
 bool table_storage_engine(THD *thd, const T *obj, handlerton **hton) {
-  DBUG_ENTER("dd::table_storage_engine");
+  DBUG_TRACE;
 
   DBUG_ASSERT(hton);
 
@@ -2548,13 +2548,13 @@ bool table_storage_engine(THD *thd, const T *obj, handlerton **hton) {
       ha_resolve_by_name_raw(thd, lex_cstring_handle(obj->engine()));
   if (!tmp_plugin) {
     my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), obj->engine().c_str());
-    DBUG_RETURN(true);
+    return true;
   }
 
   *hton = plugin_data<handlerton *>(tmp_plugin);
   DBUG_ASSERT(*hton && ha_storage_engine_is_enabled(*hton));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template bool table_storage_engine<dd::Table>(THD *, const dd::Table *,
@@ -2610,7 +2610,7 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
                                            uint32 field_length, uint32 decimals,
                                            bool maybe_null, bool is_unsigned,
                                            const CHARSET_INFO *field_charset) {
-  DBUG_ENTER("get_sql_type_by_field_info");
+  DBUG_TRACE;
 
   TABLE_SHARE share;
   TABLE table;
@@ -2623,7 +2623,7 @@ dd::String_type get_sql_type_by_field_info(THD *thd,
                            is_unsigned, 0);
   field.charset = field_charset;
 
-  DBUG_RETURN(get_sql_type_by_create_field(&table, &field));
+  return get_sql_type_by_create_field(&table, &field);
 }
 
 bool fix_row_type(THD *thd, dd::Table *table_def, row_type correct_row_type) {

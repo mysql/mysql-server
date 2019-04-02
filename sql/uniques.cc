@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,7 +104,7 @@ class Uniq_param {
 */
 static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                                 Uniq_param *param) {
-  DBUG_ENTER("uniq_read_to_buffer");
+  DBUG_TRACE;
   const uint rec_length = param->rec_length;
 
   const ha_rows count =
@@ -118,16 +118,16 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                         static_cast<ulonglong>(bytes_to_read)));
     if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
                          bytes_to_read, merge_chunk->file_position(), MYF_RW))
-      DBUG_RETURN((uint)-1); /* purecov: inspected */
+      return (uint)-1; /* purecov: inspected */
 
     merge_chunk->init_current_key();
     merge_chunk->advance_file_position(bytes_to_read);
     merge_chunk->decrement_rowcount(count);
     merge_chunk->set_mem_count(count);
-    DBUG_RETURN(bytes_to_read);
+    return bytes_to_read;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 } /* uniq_read_to_buffer */
 
 /**
@@ -163,7 +163,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   Merge_chunk_compare_context *first_cmp_arg;
   std::atomic<THD::killed_state> *killed = &thd->killed;
   std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
-  DBUG_ENTER("uniq_merge_buffers");
+  DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
   if (param->not_killable) {
@@ -198,7 +198,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   queue(greater,
         Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
-  if (queue.reserve(chunk_array.size())) DBUG_RETURN(1);
+  if (queue.reserve(chunk_array.size())) return 1;
 
   for (merge_chunk = chunk_array.begin(); merge_chunk != chunk_array.end();
        merge_chunk++) {
@@ -207,8 +207,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     merge_chunk->set_max_keys(maxcount);
     uint bytes_read = uniq_read_to_buffer(from_file, merge_chunk, param);
 
-    if (static_cast<int>(bytes_read) == -1)
-      DBUG_RETURN(-1); /* purecov: inspected */
+    if (static_cast<int>(bytes_read) == -1) return -1; /* purecov: inspected */
 
     strpos += bytes_read;
     merge_chunk->set_buffer_end(strpos);
@@ -227,7 +226,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
     merge_chunk = queue.top();
     memcpy(param->unique_buff, merge_chunk->current_key(), rec_length);
     if (my_b_write(to_file, merge_chunk->current_key(), rec_length)) {
-      DBUG_RETURN(1); /* purecov: inspected */
+      return 1; /* purecov: inspected */
     }
     merge_chunk->advance_current_key(rec_length);
     merge_chunk->decrement_mem_count();
@@ -241,14 +240,14 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
         queue.pop();
         reuse_freed_buff(merge_chunk, &queue);
       } else if (error == -1)
-        DBUG_RETURN(error);
+        return error;
     }
     queue.update_top();  // Top element has been used
   }
 
   while (queue.size() > 1) {
     if (*killed) {
-      DBUG_RETURN(1); /* purecov: inspected */
+      return 1; /* purecov: inspected */
     }
     for (;;) {
       merge_chunk = queue.top();
@@ -265,7 +264,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                             bytes_to_write));
         if (my_b_write(to_file, merge_chunk->current_key() + offset,
                        bytes_to_write)) {
-          DBUG_RETURN(1); /* purecov: inspected */
+          return 1; /* purecov: inspected */
         }
         if (--max_rows == 0) {
           error = 0; /* purecov: inspected */
@@ -283,7 +282,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
           reuse_freed_buff(merge_chunk, &queue);
           break; /* One buffer has been removed */
         } else if (error == -1)
-          DBUG_RETURN(error); /* purecov: inspected */
+          return error; /* purecov: inspected */
       }
       /*
         The Merge_chunk at the queue's top had one of its keys consumed, thus
@@ -320,7 +319,7 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
       const uint bytes_to_write = param->rec_length;
       if (my_b_write(to_file, merge_chunk->current_key() + offset,
                      bytes_to_write)) {
-        DBUG_RETURN(1); /* purecov: inspected */
+        return 1; /* purecov: inspected */
       }
       merge_chunk->advance_current_key(rec_length);
     }
@@ -332,7 +331,7 @@ end:
   last_chunk->set_rowcount(std::min(org_max_rows - max_rows, param->max_rows));
   last_chunk->set_file_position(to_start_filepos);
 
-  DBUG_RETURN(error);
+  return error;
 } /* merge_buffers */
 
 int unique_write_to_file(void *v_key, element_count, void *v_unique) {

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -75,13 +75,13 @@ void srv_session_deinit_thread() { Srv_session::deinit_thread(); }
     NULL                 on failure
 */
 Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
-  DBUG_ENTER("srv_session_open");
+  DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
     if (error_cb)
       error_cb(plugin_ctx, ER_SERVER_ISNT_AVAILABLE,
                ER_DEFAULT(ER_SERVER_ISNT_AVAILABLE));
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   bool simulate_reach_max_connections = false;
@@ -95,7 +95,7 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
       !conn_manager->check_and_incr_conn_count(false)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   Srv_session *session =
@@ -125,7 +125,7 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
 
     if (current) current->store_globals();
   }
-  DBUG_RETURN(session);
+  return session;
 }
 
 /**
@@ -138,14 +138,14 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
     1  failure
 */
 int srv_session_detach(Srv_session *session) {
-  DBUG_ENTER("srv_session_detach");
+  DBUG_TRACE;
 
   if (!session || !Srv_session::is_valid(session)) {
     DBUG_PRINT("error", ("Session is not valid"));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(session->detach());
+  return session->detach();
 }
 
 /**
@@ -158,11 +158,11 @@ int srv_session_detach(Srv_session *session) {
     1  Session wasn't found or key doesn't match
 */
 int srv_session_close(Srv_session *session) {
-  DBUG_ENTER("srv_session_close");
+  DBUG_TRACE;
 
   if (!session || !Srv_session::is_valid(session)) {
     DBUG_PRINT("error", ("Session is not valid"));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   session->close();
@@ -172,7 +172,7 @@ int srv_session_close(Srv_session *session) {
     Here we don't need to reattach the previous session, as the next
     function (run_command() for example) will attach to whatever is needed.
   */
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -197,19 +197,19 @@ int srv_session_server_is_available() {
     1  failure
 */
 int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd) {
-  DBUG_ENTER("srv_session_attach");
+  DBUG_TRACE;
 
   if (!Srv_session::is_srv_session_thread()) {
     DBUG_PRINT("error", ("Thread can't be used with srv_session API"));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (!session || !Srv_session::is_valid(session)) {
     DBUG_PRINT("error", ("Session is not valid"));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (ret_previous_thd) *ret_previous_thd = current_thd;
 
-  DBUG_RETURN(session->attach());
+  return session->attach();
 }

@@ -43,16 +43,16 @@ IO_CACHE_binlog_cache_storage::~IO_CACHE_binlog_cache_storage() { close(); }
 bool IO_CACHE_binlog_cache_storage::open(const char *dir, const char *prefix,
                                          my_off_t cache_size,
                                          my_off_t max_cache_size) {
-  DBUG_ENTER("IO_CACHE_binlog_cache_storage::open");
+  DBUG_TRACE;
   if (open_cached_file(&m_io_cache, dir, prefix, cache_size, MYF(MY_WME)))
-    DBUG_RETURN(true);
+    return true;
 
   if (rpl_encryption.is_enabled()) enable_encryption();
 
   m_max_cache_size = max_cache_size;
   /* Set the max cache size for IO_CACHE */
   m_io_cache.end_of_file = max_cache_size;
-  DBUG_RETURN(false);
+  return false;
 }
 
 void IO_CACHE_binlog_cache_storage::close() { close_cached_file(&m_io_cache); }
@@ -313,7 +313,7 @@ bool Binlog_encryption_ostream::open(
 }
 
 std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
-  DBUG_ENTER("Binlog_encryption_ostream::reencrypt");
+  DBUG_TRACE;
   DBUG_ASSERT(m_header != nullptr);
   DBUG_ASSERT(m_down_ostream != nullptr);
   std::string error_message;
@@ -323,12 +323,12 @@ std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
   if (password_str.empty() ||
       DBUG_EVALUATE_IF("fail_to_decrypt_file_password", true, false)) {
     error_message.assign("failed to decrypt the file password");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (m_down_ostream->seek(0) ||
       DBUG_EVALUATE_IF("fail_to_reset_file_stream", true, false)) {
     error_message.assign("failed to reset the file out stream");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   m_header.reset(nullptr);
   m_header = Rpl_encryption_header::get_new_default_header();
@@ -336,27 +336,27 @@ std::pair<bool, std::string> Binlog_encryption_ostream::reencrypt() {
       DBUG_EVALUATE_IF("fail_to_encrypt_file_password", true, false)) {
     error_message.assign(
         "failed to encrypt the file password with current encryption key");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (m_header->serialize(m_down_ostream.get()) ||
       DBUG_EVALUATE_IF("fail_to_write_reencrypted_header", true, false)) {
     error_message.assign("failed to write the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (flush() ||
       DBUG_EVALUATE_IF("fail_to_flush_reencrypted_header", true, false)) {
     error_message.assign("failed to flush the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   if (sync() ||
       DBUG_EVALUATE_IF("fail_to_sync_reencrypted_header", true, false)) {
     error_message.assign(
         "failed to synchronize the new reencrypted file header");
-    DBUG_RETURN(std::make_pair(true, error_message));
+    return std::make_pair(true, error_message);
   }
   close();
 
-  DBUG_RETURN(std::make_pair(false, error_message));
+  return std::make_pair(false, error_message);
 }
 
 void Binlog_encryption_ostream::close() {

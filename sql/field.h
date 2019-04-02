@@ -520,19 +520,19 @@ inline enum_field_types real_type_to_type(enum_field_types real_type) {
   @retval MYSQL_TYPE_X_BLOB corresponding to pack_length.
 */
 inline enum_field_types blob_type_from_pack_length(uint pack_length) {
-  DBUG_ENTER("blob_type_from_pack_length");
+  DBUG_TRACE;
   switch (pack_length) {
     case 1:
-      DBUG_RETURN(MYSQL_TYPE_TINY_BLOB);
+      return MYSQL_TYPE_TINY_BLOB;
     case 2:
-      DBUG_RETURN(MYSQL_TYPE_BLOB);
+      return MYSQL_TYPE_BLOB;
     case 3:
-      DBUG_RETURN(MYSQL_TYPE_MEDIUM_BLOB);
+      return MYSQL_TYPE_MEDIUM_BLOB;
     case 4:
-      DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+      return MYSQL_TYPE_LONG_BLOB;
     default:
       DBUG_ASSERT(false);
-      DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+      return MYSQL_TYPE_LONG_BLOB;
   }
 }
 
@@ -1121,8 +1121,8 @@ class Field : public Proto_field {
   virtual bool compatible_field_size(uint metadata, Relay_log_info *, uint16,
                                      int *order) const;
   virtual uint pack_length_from_metadata(uint field_metadata) const {
-    DBUG_ENTER("Field::pack_length_from_metadata");
-    DBUG_RETURN(field_metadata);
+    DBUG_TRACE;
+    return field_metadata;
   }
   virtual uint row_pack_length() const { return 0; }
   virtual int save_field_metadata(uchar *first_byte) {
@@ -3122,9 +3122,9 @@ class Field_timestampf : public Field_temporal_with_date_and_timef {
     return my_timestamp_binary_length(dec);
   }
   uint pack_length_from_metadata(uint field_metadata) const final override {
-    DBUG_ENTER("Field_timestampf::pack_length_from_metadata");
+    DBUG_TRACE;
     uint tmp = my_timestamp_binary_length(field_metadata);
-    DBUG_RETURN(tmp);
+    return tmp;
   }
 
   type_conversion_status reset() final override;
@@ -3390,9 +3390,9 @@ class Field_timef final : public Field_time_common {
     return my_time_binary_length(dec);
   }
   uint pack_length_from_metadata(uint field_metadata) const final override {
-    DBUG_ENTER("Field_timef::pack_length_from_metadata");
+    DBUG_TRACE;
     uint tmp = my_time_binary_length(field_metadata);
-    DBUG_RETURN(tmp);
+    return tmp;
   }
   uint row_pack_length() const final override { return pack_length(); }
   void sql_type(String &str) const final override;
@@ -3540,9 +3540,9 @@ class Field_datetimef : public Field_temporal_with_date_and_timef {
     return my_datetime_binary_length(dec);
   }
   uint pack_length_from_metadata(uint field_metadata) const final override {
-    DBUG_ENTER("Field_datetimef::pack_length_from_metadata");
+    DBUG_TRACE;
     uint tmp = my_datetime_binary_length(field_metadata);
-    DBUG_RETURN(tmp);
+    return tmp;
   }
   bool zero_pack() const final override { return 1; }
 

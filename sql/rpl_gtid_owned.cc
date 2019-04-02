@@ -53,7 +53,7 @@ Owned_gtids::~Owned_gtids() {
 }
 
 enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno) {
-  DBUG_ENTER("Owned_gtids::ensure_sidno");
+  DBUG_TRACE;
   sid_lock->assert_some_wrlock();
   rpl_sidno max_sidno = get_max_sidno();
   if (sidno > max_sidno || get_hash(sidno) == nullptr) {
@@ -68,7 +68,7 @@ enum_return_status Owned_gtids::ensure_sidno(rpl_sidno sidno) {
 
 enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
                                                my_thread_id owner) {
-  DBUG_ENTER("Owned_gtids::add_gtid_owner(Gtid, my_thread_id)");
+  DBUG_TRACE;
   DBUG_ASSERT(gtid.sidno <= get_max_sidno());
   Node *n =
       (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME));
@@ -84,7 +84,7 @@ enum_return_status Owned_gtids::add_gtid_owner(const Gtid &gtid,
 }
 
 void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner) {
-  DBUG_ENTER("Owned_gtids::remove_gtid(Gtid)");
+  DBUG_TRACE;
   // printf("Owned_gtids::remove(sidno=%d gno=%lld)\n", sidno, gno);
   // DBUG_ASSERT(contains_gtid(sidno, gno)); // allow group not owned
   malloc_unordered_multimap<rpl_gno, unique_ptr_my_free<Node>> *hash =
@@ -93,27 +93,26 @@ void Owned_gtids::remove_gtid(const Gtid &gtid, const my_thread_id owner) {
   for (auto it = it_range.first; it != it_range.second; ++it) {
     if (it->second->owner == owner) {
       hash->erase(it);
-      DBUG_VOID_RETURN;
+      return;
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 bool Owned_gtids::is_intersection_nonempty(const Gtid_set *other) const {
-  DBUG_ENTER("Owned_gtids::is_intersection_nonempty(Gtid_set *)");
+  DBUG_TRACE;
   if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
   Gtid_iterator git(this);
   Gtid g = git.get();
   while (g.sidno != 0) {
-    if (other->contains_gtid(g.sidno, g.gno)) DBUG_RETURN(true);
+    if (other->contains_gtid(g.sidno, g.gno)) return true;
     git.next();
     g = git.get();
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 void Owned_gtids::get_gtids(Gtid_set &gtid_set) const {
-  DBUG_ENTER("Owned_gtids::get_gtids");
+  DBUG_TRACE;
 
   if (sid_lock != nullptr) sid_lock->assert_some_wrlock();
 
@@ -124,7 +123,6 @@ void Owned_gtids::get_gtids(Gtid_set &gtid_set) const {
     git.next();
     g = git.get();
   }
-  DBUG_VOID_RETURN;
 }
 
 bool Owned_gtids::contains_gtid(const Gtid &gtid) const {

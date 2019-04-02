@@ -106,40 +106,38 @@ Pipeline_stats_member_message::Pipeline_stats_member_message(
 Pipeline_stats_member_message::~Pipeline_stats_member_message() {}
 
 int32 Pipeline_stats_member_message::get_transactions_waiting_certification() {
-  DBUG_ENTER(
-      "Pipeline_stats_member_message::get_transactions_waiting_certification");
-  DBUG_RETURN(m_transactions_waiting_certification);
+  DBUG_TRACE;
+  return m_transactions_waiting_certification;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_certified() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_certified");
-  DBUG_RETURN(m_transactions_certified);
+  DBUG_TRACE;
+  return m_transactions_certified;
 }
 
 int32 Pipeline_stats_member_message::get_transactions_waiting_apply() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_waiting_apply");
-  DBUG_RETURN(m_transactions_waiting_apply);
+  DBUG_TRACE;
+  return m_transactions_waiting_apply;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_applied() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_applied");
-  DBUG_RETURN(m_transactions_applied);
+  DBUG_TRACE;
+  return m_transactions_applied;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_local() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_local");
-  DBUG_RETURN(m_transactions_local);
+  DBUG_TRACE;
+  return m_transactions_local;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_negative_certified() {
-  DBUG_ENTER(
-      "Pipeline_stats_member_message::get_transactions_negative_certified");
-  DBUG_RETURN(m_transactions_negative_certified);
+  DBUG_TRACE;
+  return m_transactions_negative_certified;
 }
 
 int64 Pipeline_stats_member_message::get_transactions_rows_validating() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_rows_validating");
-  DBUG_RETURN(m_transactions_rows_validating);
+  DBUG_TRACE;
+  return m_transactions_rows_validating;
 }
 
 bool Pipeline_stats_member_message::get_transation_gtids_present() const {
@@ -147,32 +145,30 @@ bool Pipeline_stats_member_message::get_transation_gtids_present() const {
 }
 
 int64 Pipeline_stats_member_message::get_transactions_local_rollback() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_transactions_local_rollback");
-  DBUG_RETURN(m_transactions_local_rollback);
+  DBUG_TRACE;
+  return m_transactions_local_rollback;
 }
 
 const std::string &
 Pipeline_stats_member_message::get_transaction_committed_all_members() {
-  DBUG_ENTER(
-      "Pipeline_stats_member_message::get_transaction_committed_all_members");
-  DBUG_RETURN(m_transactions_committed_all_members);
+  DBUG_TRACE;
+  return m_transactions_committed_all_members;
 }
 
 const std::string &
 Pipeline_stats_member_message::get_transaction_last_conflict_free() {
-  DBUG_ENTER(
-      "Pipeline_stats_member_message::get_transaction_last_conflict_free");
-  DBUG_RETURN(m_transaction_last_conflict_free);
+  DBUG_TRACE;
+  return m_transaction_last_conflict_free;
 }
 
 Flow_control_mode Pipeline_stats_member_message::get_flow_control_mode() {
-  DBUG_ENTER("Pipeline_stats_member_message::get_flow_control_mode");
-  DBUG_RETURN(m_flow_control_mode);
+  DBUG_TRACE;
+  return m_flow_control_mode;
 }
 
 void Pipeline_stats_member_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Pipeline_stats_member_message::encode_payload");
+  DBUG_TRACE;
 
   uint32 transactions_waiting_certification_aux =
       (uint32)m_transactions_waiting_certification;
@@ -225,13 +221,11 @@ void Pipeline_stats_member_message::encode_payload(
   char aux_transaction_gtids_present = m_transaction_gtids_present ? '1' : '0';
   encode_payload_item_char(buffer, PIT_TRANSACTION_GTIDS_PRESENT,
                            aux_transaction_gtids_present);
-
-  DBUG_VOID_RETURN;
 }
 
 void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
                                                    const unsigned char *end) {
-  DBUG_ENTER("Pipeline_stats_member_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -329,8 +323,6 @@ void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
         break;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 Pipeline_stats_member_collector::Pipeline_stats_member_collector()
@@ -896,7 +888,7 @@ void Flow_control_module::flow_control_step(
 
 int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
                                            const std::string &member_id) {
-  DBUG_ENTER("Flow_control_module::handle_stats_data");
+  DBUG_TRACE;
   int error = 0;
   Pipeline_stats_member_message message(data, len);
 
@@ -926,7 +918,7 @@ int Flow_control_module::handle_stats_data(const uchar *data, size_t len,
 #endif
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
@@ -940,7 +932,7 @@ Pipeline_member_stats *Flow_control_module::get_pipeline_stats(
 }
 
 int32 Flow_control_module::do_wait() {
-  DBUG_ENTER("Flow_control_module::do_wait");
+  DBUG_TRACE;
   int64 quota_size = m_quota_size.load();
   int64 quota_used = ++m_quota_used;
 
@@ -953,5 +945,5 @@ int32 Flow_control_module::do_wait() {
     mysql_mutex_unlock(&m_flow_control_lock);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }

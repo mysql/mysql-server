@@ -214,7 +214,7 @@ void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
 bool show_slave_hosts(THD *thd) {
   List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("show_slave_hosts");
+  DBUG_TRACE;
 
   field_list.push_back(new Item_return_int("Server_id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
@@ -228,7 +228,7 @@ bool show_slave_hosts(THD *thd) {
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   mysql_mutex_lock(&LOCK_slave_list);
 
@@ -250,12 +250,12 @@ bool show_slave_hosts(THD *thd) {
       protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->end_row()) {
       mysql_mutex_unlock(&LOCK_slave_list);
-      DBUG_RETURN(true);
+      return true;
     }
   }
   mysql_mutex_unlock(&LOCK_slave_list);
   my_eof(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /* clang-format off */
@@ -907,7 +907,7 @@ bool show_slave_hosts(THD *thd) {
   } while (0)
 
 bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
-  DBUG_ENTER("com_binlog_dump");
+  DBUG_TRACE;
   ulong pos;
   ushort flags = 0;
   const uchar *packet_position = (uchar *)packet;
@@ -916,7 +916,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
-  if (check_global_access(thd, REPL_SLAVE_ACL)) DBUG_RETURN(false);
+  if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
 
   /*
     4 bytes is too little, but changing the protocol would break
@@ -939,15 +939,15 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
 
   unregister_slave(thd, true, true /*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
-  DBUG_RETURN(true);
+  return true;
 
 error_malformed_packet:
   my_error(ER_MALFORMED_PACKET, MYF(0));
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
-  DBUG_ENTER("com_binlog_dump_gtid");
+  DBUG_TRACE;
   /*
     Before going GA, we need to make this protocol extensible without
     breaking compatitibilty. /Alfranio.
@@ -967,7 +967,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
-  if (check_global_access(thd, REPL_SLAVE_ACL)) DBUG_RETURN(false);
+  if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
 
   READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);
@@ -980,7 +980,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
   CHECK_PACKET_SIZE(data_size);
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
       RETURN_STATUS_OK)
-    DBUG_RETURN(true);
+    return true;
   slave_gtid_executed.to_string(&gtid_string);
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
                       "'%s'.",
@@ -995,11 +995,11 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
 
   unregister_slave(thd, true, true /*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
-  DBUG_RETURN(true);
+  return true;
 
 error_malformed_packet:
   my_error(ER_MALFORMED_PACKET, MYF(0));
-  DBUG_RETURN(true);
+  return true;
 }
 
 void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
@@ -1208,7 +1208,7 @@ bool show_master_status(THD *thd) {
   int gtid_set_size = 0;
   List<Item> field_list;
 
-  DBUG_ENTER("show_binlog_info");
+  DBUG_TRACE;
 
   global_sid_lock->wrlock();
   const Gtid_set *gtid_set = gtid_state->get_executed_gtids();
@@ -1216,7 +1216,7 @@ bool show_master_status(THD *thd) {
     global_sid_lock->unlock();
     my_eof(thd);
     my_free(gtid_set_buffer);
-    DBUG_RETURN(true);
+    return true;
   }
   global_sid_lock->unlock();
 
@@ -1231,7 +1231,7 @@ bool show_master_status(THD *thd) {
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     my_free(gtid_set_buffer);
-    DBUG_RETURN(true);
+    return true;
   }
   protocol->start_row();
 
@@ -1246,12 +1246,12 @@ bool show_master_status(THD *thd) {
     protocol->store(gtid_set_buffer, &my_charset_bin);
     if (protocol->end_row()) {
       my_free(gtid_set_buffer);
-      DBUG_RETURN(true);
+      return true;
     }
   }
   my_eof(thd);
   my_free(gtid_set_buffer);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1272,11 +1272,11 @@ bool show_binlogs(THD *thd) {
   size_t length;
   size_t cur_dir_len;
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("show_binlogs");
+  DBUG_TRACE;
 
   if (!mysql_bin_log.is_open()) {
     my_error(ER_NO_BINARY_LOGGING, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   field_list.push_back(new Item_empty_string("Log_name", 255));
@@ -1285,7 +1285,7 @@ bool show_binlogs(THD *thd) {
   field_list.push_back(new Item_empty_string("Encrypted", 3));
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   DEBUG_SYNC(thd, "show_binlogs_after_lock_log_before_lock_index");
@@ -1344,9 +1344,9 @@ bool show_binlogs(THD *thd) {
   if (index_file->error == -1) goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
-  DBUG_RETURN(false);
+  return false;
 
 err:
   mysql_bin_log.unlock_index();
-  DBUG_RETURN(true);
+  return true;
 }

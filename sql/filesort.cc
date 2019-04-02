@@ -363,10 +363,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   ha_rows max_rows = filesort->limit;
   uint s_length = 0;
 
-  DBUG_ENTER("filesort");
+  DBUG_TRACE;
 
   if (!(s_length = filesort->sort_order_length()))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   DBUG_ASSERT(!table->reginfo.join_tab);
   DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
@@ -388,7 +388,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // before that.
   DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
   if (source_iterator->Init()) {
-    DBUG_RETURN(HA_POS_ERROR);
+    return HA_POS_ERROR;
   }
 
   /*
@@ -649,11 +649,11 @@ err:
   } else
     thd->inc_status_sort_rows(num_rows_found);
 
-  DBUG_RETURN(error);
+  return error;
 } /* filesort */
 
 void filesort_free_buffers(TABLE *table, bool full) {
-  DBUG_ENTER("filesort_free_buffers");
+  DBUG_TRACE;
 
   table->unique_result.sorted_result.reset();
   DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
@@ -665,8 +665,6 @@ void filesort_free_buffers(TABLE *table, bool full) {
     table->sort.merge_chunks = Merge_chunk_array(NULL, 0);
     table->sort.addon_fields = NULL;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 Filesort::Filesort(QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
@@ -698,7 +696,7 @@ uint Filesort::make_sortorder(ORDER *order) {
   uint count;
   st_sort_field *sort, *pos;
   ORDER *ord;
-  DBUG_ENTER("Filesort::make_sortorder");
+  DBUG_TRACE;
 
   count = 0;
   for (ord = order; ord; ord = ord->next) count++;
@@ -708,7 +706,7 @@ uint Filesort::make_sortorder(ORDER *order) {
   if (sortorder == nullptr)
     sortorder =
         static_cast<st_sort_field *>((*THR_MALLOC)->Alloc(sortorder_size));
-  if (sortorder == nullptr) DBUG_RETURN(0); /* purecov: inspected */
+  if (sortorder == nullptr) return 0; /* purecov: inspected */
   memset(sortorder, 0, sortorder_size);
 
   pos = sort = sortorder;
@@ -743,11 +741,11 @@ uint Filesort::make_sortorder(ORDER *order) {
     DBUG_PRINT("info", ("sorting on %s: %s", (pos->field ? "field" : "item"),
                         (pos->field ? pos->field->field_name : "")));
   }
-  DBUG_RETURN(count);
+  return count;
 }
 
 void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
-  DBUG_ENTER("Filesort_info::read_chunk_descriptors");
+  DBUG_TRACE;
 
   // If we already have a chunk array, we're doing sort in a subquery.
   if (!merge_chunks.is_null() && merge_chunks.size() < count) {
@@ -759,7 +757,7 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
   const size_t length = sizeof(Merge_chunk) * count;
   if (NULL == rawmem) {
     rawmem = my_malloc(key_memory_Filesort_info_merge, length, MYF(MY_WME));
-    if (rawmem == NULL) DBUG_VOID_RETURN; /* purecov: inspected */
+    if (rawmem == NULL) return; /* purecov: inspected */
   }
 
   if (reinit_io_cache(chunk_file, READ_CACHE, 0L, 0, 0) ||
@@ -770,7 +768,6 @@ void Filesort_info::read_chunk_descriptors(IO_CACHE *chunk_file, uint count) {
   }
 
   merge_chunks = Merge_chunk_array(static_cast<Merge_chunk *>(rawmem), count);
-  DBUG_VOID_RETURN;
 }
 
 #ifndef DBUG_OFF
@@ -965,7 +962,7 @@ static ha_rows read_all_rows(
   */
   Filesort_error_handler error_handler(thd);
 
-  DBUG_ENTER("read_all_rows");
+  DBUG_TRACE;
 
   int error = 0;
   TABLE *sort_form = param->sort_form;
@@ -1113,7 +1110,7 @@ cleanup:
   DBUG_PRINT("info", ("read_all_rows return %lu", (ulong)num_total_records));
 
   *longest_key = longest_key_so_far;
-  DBUG_RETURN(num_total_records);
+  return num_total_records;
 } /* read_all_rows */
 
 /**
@@ -1139,23 +1136,23 @@ cleanup:
 static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
                       IO_CACHE *chunk_file, IO_CACHE *tempfile) {
   Merge_chunk merge_chunk;
-  DBUG_ENTER("write_keys");
+  DBUG_TRACE;
 
   count = fs_info->sort_buffer(param, count);
 
   if (!my_b_inited(chunk_file) &&
       open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
-    DBUG_RETURN(1);
+    return 1;
 
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
   // Check that we wont have more chunks than we can possibly keep in memory.
   if (my_b_tell(chunk_file) + sizeof(Merge_chunk) > (ulonglong)UINT_MAX)
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
   merge_chunk.set_file_position(my_b_tell(tempfile));
   if (static_cast<ha_rows>(count) > param->max_rows) {
@@ -1169,14 +1166,14 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
     size_t rec_length = param->get_record_length(record);
 
     if (my_b_write(tempfile, record, rec_length))
-      DBUG_RETURN(1); /* purecov: inspected */
+      return 1; /* purecov: inspected */
   }
 
   if (my_b_write(chunk_file, pointer_cast<uchar *>(&merge_chunk),
                  sizeof(merge_chunk)))
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
-  DBUG_RETURN(0);
+  return 0;
 } /* write_keys */
 
 #ifdef WORDS_BIGENDIAN
@@ -1703,7 +1700,7 @@ static void register_used_fields(Sort_param *param) {
 static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
                        Sort_result *sort_result) {
   uchar *to;
-  DBUG_ENTER("save_index");
+  DBUG_TRACE;
 
   table_sort->set_sort_length(param->max_compare_length(),
                               param->using_varlen_keys());
@@ -1713,7 +1710,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
 
   if (param->using_addon_fields()) {
     sort_result->sorted_result_in_fsbuf = true;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   sort_result->sorted_result_in_fsbuf = false;
@@ -1723,7 +1720,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
   sort_result->sorted_result.reset(static_cast<uchar *>(my_malloc(
       key_memory_Filesort_info_record_pointers, buf_size, MYF(MY_WME))));
   if (!(to = sort_result->sorted_result.get()))
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
   sort_result->sorted_result_end = sort_result->sorted_result.get() + buf_size;
 
   uint res_length = param->fixed_res_length;
@@ -1733,7 +1730,7 @@ static bool save_index(Sort_param *param, uint count, Filesort_info *table_sort,
     memcpy(to, start_of_payload, res_length);
     to += res_length;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1771,7 +1768,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                             Filesort_info *filesort_info, TABLE *table,
                             ha_rows num_rows, ulong memory_available,
                             bool keep_addon_fields) {
-  DBUG_ENTER("check_if_pq_applicable");
+  DBUG_TRACE;
 
   /*
     How much Priority Queue sort is slower than qsort.
@@ -1784,25 +1781,25 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
   if (param->max_rows == HA_POS_ERROR) {
     trace_filesort.add("usable", false)
         .add_alnum("cause", "not applicable (no LIMIT)");
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (param->m_remove_duplicates) {
     trace_filesort.add("usable", false)
         .add_alnum("cause", "duplicate removal not supported yet");
-    DBUG_RETURN(false);
+    return false;
   }
 
   trace_filesort.add("limit", param->max_rows);
 
   if (param->max_rows + 2 >= UINT_MAX) {
     trace_filesort.add("usable", false).add_alnum("cause", "limit too large");
-    DBUG_RETURN(false);
+    return false;
   }
   if (param->max_record_length() >= 0xFFFFFFFFu) {
     trace_filesort.add("usable", false)
         .add_alnum("cause", "contains records of unbounded length");
-    DBUG_RETURN(false);
+    return false;
   }
 
   ulong num_available_keys =
@@ -1815,11 +1812,11 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
     if (param->max_rows < num_rows / PQ_slowness) {
       filesort_info->set_max_size(memory_available, param->max_record_length());
       trace_filesort.add("chosen", true);
-      DBUG_RETURN(filesort_info->max_size_in_bytes() > 0);
+      return filesort_info->max_size_in_bytes() > 0;
     } else {
       // PQ will be slower.
       trace_filesort.add("chosen", false).add_alnum("cause", "sort_is_cheaper");
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -1827,7 +1824,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
   if (param->max_rows_per_buffer < num_available_keys) {
     filesort_info->set_max_size(memory_available, param->max_record_length());
     trace_filesort.add("chosen", true);
-    DBUG_RETURN(filesort_info->max_size_in_bytes() > 0);
+    return filesort_info->max_size_in_bytes() > 0;
   }
 
   // Try to strip off addon fields.
@@ -1866,7 +1863,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
       if (sort_merge_cost < pq_cost) {
         trace_addon.add("chosen", false);
-        DBUG_RETURN(false);
+        return false;
       }
 
       trace_addon.add("chosen", true);
@@ -1882,11 +1879,11 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                                       param->ref_length);
         param->set_max_record_length(param->max_compare_length());
 
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1899,7 +1896,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 */
 static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                            Sort_param *param) {
-  DBUG_ENTER("read_to_buffer");
+  DBUG_TRACE;
   uint rec_length = param->max_record_length();
   ha_rows count;
 
@@ -1920,7 +1917,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
         // Not even room for the first row.
         my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
         LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
-        DBUG_RETURN((uint)-1);
+        return (uint)-1;
       }
     }
 
@@ -1930,7 +1927,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                 static_cast<ulonglong>(bytes_to_read)));
     if (mysql_file_pread(fromfile->file, merge_chunk->buffer_start(),
                          bytes_to_read, merge_chunk->file_position(), MYF_RW))
-      DBUG_RETURN((uint)-1); /* purecov: inspected */
+      return (uint)-1; /* purecov: inspected */
 
     size_t num_bytes_read;
     if (packed_addon_fields || using_varlen_keys) {
@@ -1971,7 +1968,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
         // Not even room for the first row.
         my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
         LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
-        DBUG_RETURN((uint)-1);
+        return (uint)-1;
       }
       count = ix;
       num_bytes_read = record - merge_chunk->buffer_start();
@@ -1984,10 +1981,10 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
     merge_chunk->advance_file_position(num_bytes_read);
     merge_chunk->decrement_rowcount(count);
     merge_chunk->set_mem_count(count);
-    DBUG_RETURN(num_bytes_read);
+    return num_bytes_read;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 } /* read_to_buffer */
 
 namespace {
@@ -2056,7 +2053,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   Merge_chunk *merge_chunk;
   std::atomic<THD::killed_state> *killed = &thd->killed;
   std::atomic<THD::killed_state> not_killable{THD::NOT_KILLED};
-  DBUG_ENTER("merge_buffers");
+  DBUG_TRACE;
 
   thd->inc_status_sort_merge_passes();
   if (param->not_killable) {
@@ -2088,7 +2085,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
                  Merge_chunk_greater>
   queue(mcl, Malloc_allocator<Merge_chunk *>(key_memory_Filesort_info_merge));
 
-  if (queue.reserve(chunk_array.size())) DBUG_RETURN(1);
+  if (queue.reserve(chunk_array.size())) return 1;
 
   for (merge_chunk = chunk_array.begin(); merge_chunk != chunk_array.end();
        merge_chunk++) {
@@ -2099,7 +2096,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
     strpos += chunk_sz;
     error = static_cast<int>(read_to_buffer(from_file, merge_chunk, param));
 
-    if (error == -1) DBUG_RETURN(error); /* purecov: inspected */
+    if (error == -1) return error; /* purecov: inspected */
     // If less data in buffers than expected
     merge_chunk->set_max_keys(merge_chunk->mem_count());
     (void)queue.push(merge_chunk);
@@ -2108,7 +2105,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   bool seen_any_records = false;  // Used for deduplication only.
   while (queue.size() > 1) {
     if (*killed) {
-      DBUG_RETURN(1); /* purecov: inspected */
+      return 1; /* purecov: inspected */
     }
     for (;;) {
       merge_chunk = queue.top();
@@ -2135,7 +2132,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
         if (!is_duplicate) {
           if (my_b_write(to_file, merge_chunk->current_key() + offset,
                          bytes_to_write)) {
-            DBUG_RETURN(1); /* purecov: inspected */
+            return 1; /* purecov: inspected */
           }
           if (!--max_rows) {
             error = 0; /* purecov: inspected */
@@ -2154,7 +2151,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
           reuse_freed_buff(merge_chunk, &queue);
           break; /* One buffer have been removed */
         } else if (error == -1)
-          DBUG_RETURN(error); /* purecov: inspected */
+          return error; /* purecov: inspected */
       }
       /*
         The Merge_chunk at the queue's top had one of its keys consumed, thus
@@ -2194,7 +2191,7 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
       if (!is_duplicate) {
         if (my_b_write(to_file, merge_chunk->current_key() + offset,
                        bytes_to_write)) {
-          DBUG_RETURN(1); /* purecov: inspected */
+          return 1; /* purecov: inspected */
         }
       }
       merge_chunk->advance_current_key(row_length);
@@ -2206,7 +2203,7 @@ end:
   last_chunk->set_rowcount(min(org_max_rows - max_rows, param->max_rows));
   last_chunk->set_file_position(to_start_filepos);
 
-  DBUG_RETURN(error);
+  return error;
 } /* merge_buffers */
 
 /* Do a merge to output-file (save only positions) */
@@ -2214,7 +2211,7 @@ end:
 static int merge_index(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                        Merge_chunk_array chunk_array, IO_CACHE *tempfile,
                        IO_CACHE *outfile) {
-  DBUG_ENTER("merge_index");
+  DBUG_TRACE;
   if (merge_buffers(thd,
                     param,                // param
                     tempfile,             // from_file
@@ -2223,8 +2220,8 @@ static int merge_index(THD *thd, Sort_param *param, Sort_buffer sort_buffer,
                     chunk_array.begin(),  // last_chunk [out]
                     chunk_array,
                     false))  // include_keys
-    DBUG_RETURN(1);          /* purecov: inspected */
-  DBUG_RETURN(0);
+    return 1;                /* purecov: inspected */
+  return 0;
 } /* merge_index */
 
 /**

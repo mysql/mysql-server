@@ -192,7 +192,7 @@ class Commit_order_manager {
 */
 inline void commit_order_manager_check_deadlock(THD *thd_self,
                                                 THD *thd_wait_for) {
-  DBUG_ENTER("commit_order_manager_check_deadlock");
+  DBUG_TRACE;
 
   Slave_worker *self_w = get_thd_worker(thd_self);
   Slave_worker *wait_for_w = get_thd_worker(thd_wait_for);
@@ -204,7 +204,6 @@ inline void commit_order_manager_check_deadlock(THD *thd_self,
     DBUG_PRINT("info", ("Found slave order commit deadlock"));
     mngr->report_deadlock(wait_for_w);
   }
-  DBUG_VOID_RETURN;
 }
 
 #endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/

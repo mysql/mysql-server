@@ -39,7 +39,7 @@
 
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
     : m_has_missing_keys(false), m_has_related_foreign_keys(false) {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
+  DBUG_TRACE;
   /*
     In order to speed-up small transactions write-set extraction,
     we preallocate 12 elements.
@@ -47,50 +47,44 @@ Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
     statement transactions, even on tables with foreign keys.
   */
   write_set.reserve(12);
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash) {
-  DBUG_ENTER("Transaction_context_log_event::add_write_set");
+  DBUG_TRACE;
   write_set.push_back(hash);
-  DBUG_VOID_RETURN;
 }
 
 std::vector<uint64> *Rpl_transaction_write_set_ctx::get_write_set() {
-  DBUG_ENTER("Transaction_context_log_event::add_write_set");
-  DBUG_RETURN(&write_set);
+  DBUG_TRACE;
+  return &write_set;
 }
 
 void Rpl_transaction_write_set_ctx::clear_write_set() {
-  DBUG_ENTER("Transaction_context_log_event::clear_write_set");
+  DBUG_TRACE;
   write_set.clear();
   savepoint.clear();
   savepoint_list.clear();
   m_has_missing_keys = m_has_related_foreign_keys = false;
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::set_has_missing_keys() {
-  DBUG_ENTER("Transaction_context_log_event::set_has_missing_keys");
+  DBUG_TRACE;
   m_has_missing_keys = true;
-  DBUG_VOID_RETURN;
 }
 
 bool Rpl_transaction_write_set_ctx::get_has_missing_keys() {
-  DBUG_ENTER("Transaction_context_log_event::get_has_missing_keys");
-  DBUG_RETURN(m_has_missing_keys);
+  DBUG_TRACE;
+  return m_has_missing_keys;
 }
 
 void Rpl_transaction_write_set_ctx::set_has_related_foreign_keys() {
-  DBUG_ENTER("Transaction_context_log_event::set_has_related_foreign_keys");
+  DBUG_TRACE;
   m_has_related_foreign_keys = true;
-  DBUG_VOID_RETURN;
 }
 
 bool Rpl_transaction_write_set_ctx::get_has_related_foreign_keys() {
-  DBUG_ENTER("Transaction_context_log_event::get_has_related_foreign_keys");
-  DBUG_RETURN(m_has_related_foreign_keys);
+  DBUG_TRACE;
+  return m_has_related_foreign_keys;
 }
 
 /**
@@ -99,7 +93,7 @@ bool Rpl_transaction_write_set_ctx::get_has_related_foreign_keys() {
 */
 
 Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
-  DBUG_ENTER("get_transaction_write_set");
+  DBUG_TRACE;
   THD *thd = nullptr;
   Transaction_write_set *result_set = nullptr;
   Find_thd_with_id find_thd_with_id(m_thread_id);
@@ -111,7 +105,7 @@ Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
     int write_set_size = transaction_write_set_ctx->get_write_set()->size();
     if (write_set_size == 0) {
       mysql_mutex_unlock(&thd->LOCK_thd_data);
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
     result_set = (Transaction_write_set *)my_malloc(
@@ -129,11 +123,11 @@ Transaction_write_set *get_transaction_write_set(unsigned long m_thread_id) {
     }
     mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
-  DBUG_RETURN(result_set);
+  return result_set;
 }
 
 void Rpl_transaction_write_set_ctx::add_savepoint(char *name) {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::add_savepoint");
+  DBUG_TRACE;
   std::string identifier(name);
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_clear_on_commit_rollback", {
@@ -159,12 +153,10 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char *name) {
   DBUG_EXECUTE_IF(
       "transaction_write_set_savepoint_add_savepoint",
       DBUG_ASSERT(savepoint.find(identifier)->second == write_set.size()););
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::del_savepoint(char *name) {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::del_savepoint");
+  DBUG_TRACE;
   std::string identifier(name);
 
   DBUG_EXECUTE_IF("transaction_write_set_savepoint_block_before_release", {
@@ -173,12 +165,10 @@ void Rpl_transaction_write_set_ctx::del_savepoint(char *name) {
   });
 
   savepoint.erase(identifier);
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char *name) {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::rollback_to_savepoint");
+  DBUG_TRACE;
   size_t position = 0;
   std::string identifier(name);
   std::map<std::string, size_t>::iterator elem;
@@ -219,26 +209,20 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char *name) {
     DBUG_EXECUTE_IF("transaction_write_set_size_2",
                     DBUG_ASSERT(write_set.size() == 2););
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::reset_savepoint_list() {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::reset_savepoint_list");
+  DBUG_TRACE;
 
   savepoint_list.push_back(savepoint);
   savepoint.clear();
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::restore_savepoint_list() {
-  DBUG_ENTER("Rpl_transaction_write_set_ctx::restore_savepoint_list");
+  DBUG_TRACE;
 
   if (!savepoint_list.empty()) {
     savepoint = savepoint_list.back();
     savepoint_list.pop_back();
   }
-
-  DBUG_VOID_RETURN;
 }

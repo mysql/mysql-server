@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +64,9 @@ class Until_option {
        @retval false if it is not satisfied.
   */
   bool is_satisfied_at_start_slave() {
-    DBUG_ENTER("Until_option::is_satisfied_at_start_slave");
+    DBUG_TRACE;
     bool ret = check_at_start_slave();
-    DBUG_RETURN(ret);
+    return ret;
   }
 
   /**
@@ -80,9 +80,9 @@ class Until_option {
        @retval false if it is not satisfied.
   */
   bool is_satisfied_before_dispatching_event(const Log_event *ev) {
-    DBUG_ENTER("Until_option::is_satisfied_before_dispatching_event");
+    DBUG_TRACE;
     bool ret = check_before_dispatching_event(ev);
-    DBUG_RETURN(ret);
+    return ret;
   }
 
   /**
@@ -94,9 +94,9 @@ class Until_option {
        @retval false if it is not satisfied.
   */
   bool is_satisfied_after_dispatching_event() {
-    DBUG_ENTER("Until_option::is_satisfied_after_dispatching_event");
+    DBUG_TRACE;
     bool ret = check_after_dispatching_event();
-    DBUG_RETURN(ret);
+    return ret;
   }
 
  protected:
@@ -148,9 +148,9 @@ class Until_position : public Until_option {
      log switch or relay log switch.
   */
   void notify_log_name_change() {
-    DBUG_ENTER("Until_position::notify_log_name_change");
+    DBUG_TRACE;
     m_log_names_cmp_result = LOG_NAMES_CMP_UNKNOWN;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   const char *get_until_log_name() { return (const char *)m_until_log_name; }

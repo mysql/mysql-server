@@ -334,11 +334,11 @@ error:
 static int
 pfs_example_plugin_employee_init(void *p)
 {
-  DBUG_ENTER("pfs_example_plugin_employee_init");
+  DBUG_TRACE;
   int result = 0;
 
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+    return 1;
 
   /* Register the mutex classes */
   mysql_mutex_register("pfs_example2", mutex_info, 3);
@@ -366,24 +366,24 @@ pfs_example_plugin_employee_init(void *p)
     mysql_mutex_destroy(&LOCK_machine_records_array);
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static int
 pfs_example_plugin_employee_check(void *)
 {
-  DBUG_ENTER("pfs_example_plugin_employee_check");
+  DBUG_TRACE;
 
   if (table_svc != NULL)
   {
     if (table_svc->delete_tables(&share_list[0], share_list_count))
     {
       /* Block execution of UNINSTALL PLUGIN. */
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -396,7 +396,7 @@ pfs_example_plugin_employee_check(void *)
 static int
 pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
 {
-  DBUG_ENTER("pfs_example_plugin_employee_deinit");
+  DBUG_TRACE;
 
   /**
    * Call delete_tables function of pfs_plugin_table service to
@@ -409,13 +409,13 @@ pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
       LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                    "Error returned from delete_tables()");
       deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-      DBUG_RETURN(1);
+      return 1;
     }
   }
   else /* Service not found or released */
   {
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   /* Destroy mutexes for table records */
@@ -428,7 +428,7 @@ pfs_example_plugin_employee_deinit(void *p  MY_ATTRIBUTE((unused)))
   /* Release service handles. */
   release_service_handles();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static struct st_mysql_daemon pfs_example_plugin_employee = {

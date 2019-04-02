@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@ static void heap_extra_keyflag(HP_INFO *info, enum ha_extra_function function);
 /* set extra flags for database */
 
 int heap_extra(HP_INFO *info, enum ha_extra_function function) {
-  DBUG_ENTER("heap_extra");
+  DBUG_TRACE;
 
   switch (function) {
     case HA_EXTRA_RESET_STATE:
@@ -54,7 +54,7 @@ int heap_extra(HP_INFO *info, enum ha_extra_function function) {
     default:
       break;
   }
-  DBUG_RETURN(0);
+  return 0;
 } /* heap_extra */
 
 int heap_reset(HP_INFO *info) {

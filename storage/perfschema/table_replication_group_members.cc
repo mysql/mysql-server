@@ -198,7 +198,7 @@ int table_replication_group_members::rnd_pos(const void *pos) {
 }
 
 int table_replication_group_members::make_row(uint index) {
-  DBUG_ENTER("table_replication_group_members::make_row");
+  DBUG_TRACE;
   // Set default values.
   m_row.channel_name_length = 0;
   m_row.member_id_length = 0;
@@ -221,7 +221,7 @@ int table_replication_group_members::make_row(uint index) {
   } else {
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_group_members::read_row_values(TABLE *table,

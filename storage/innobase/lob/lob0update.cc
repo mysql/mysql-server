@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,7 +93,7 @@ static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                const upd_t *upd, ulint field_no, ref_t blobref) {
-  DBUG_ENTER("lob::update");
+  DBUG_TRACE;
   dberr_t err = DB_SUCCESS;
   mtr_t *mtr = ctx.get_mtr();
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
@@ -157,7 +157,7 @@ dberr_t update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
 
   blobref.set_offset(lob_version, mtr);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 #ifdef UNIV_DEBUG
@@ -213,7 +213,7 @@ containing the requested offset.
 @return file location of index entry which contains requested LOB offset.*/
 fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
                        ulint &offset, mtr_t *mtr) {
-  DBUG_ENTER("find_offset");
+  DBUG_TRACE;
   ut_ad(!fil_addr_is_null(node_loc));
 
   buf_block_t *block = nullptr;
@@ -246,7 +246,7 @@ fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
     node_loc = entry.get_next();
   }
 
-  DBUG_RETURN(node_loc);
+  return node_loc;
 }
 
 /** Replace a large object (LOB) with the given new data of equal length.
@@ -265,7 +265,7 @@ fil_addr_t find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
 dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
                 first_page_t &first_page, ulint offset, ulint len, byte *buf,
                 int count) {
-  DBUG_ENTER("lob::replace");
+  DBUG_TRACE;
 
   dberr_t ret(DB_SUCCESS);
   mtr_t *mtr = ctx.get_mtr();
@@ -491,19 +491,19 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
   first_page.print_index_entries(std::cout);
 #endif /* LOB_DEBUG */
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 
 error:
   ut_ad(ret != DB_SUCCESS);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
                               dict_index_t *index, ref_t ref,
                               first_page_t &first_page, ulint offset, ulint len,
                               byte *buf, int count) {
-  DBUG_ENTER("lob::replace_inline");
+  DBUG_TRACE;
 
   mtr_t *mtr = ctx.get_mtr();
   const undo_no_t undo_no = (trx == nullptr ? 0 : trx->undo_no - 1);
@@ -595,12 +595,12 @@ static dberr_t replace_inline(InsertContext &ctx, trx_t *trx,
   }
 #endif /* UNIV_DEBUG */
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
                       const upd_field_t *uf) {
-  DBUG_ENTER("lob::apply_undolog");
+  DBUG_TRACE;
 
   const Lob_diff_vector &lob_diffs = *uf->lob_diffs;
 
@@ -635,7 +635,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
       if (offset < DICT_ANTELOPE_MAX_INDEX_COL_LEN) {
         /* In this case, partial update was not done.
         It is possible to do it, but not yet done.*/
-        DBUG_RETURN(DB_SUCCESS);
+        return DB_SUCCESS;
       }
     }
   }
@@ -721,7 +721,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
     ut_ad(want == 0);
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 }  // namespace lob

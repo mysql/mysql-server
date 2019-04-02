@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -66,9 +66,9 @@ bool is_mysqld_managed() {
 }
 
 bool Sql_cmd_restart_server::execute(THD *thd) {
-  DBUG_ENTER("Sql_cmd_restart_server");
+  DBUG_TRACE;
 
-  if (check_restart_server_admin_privilege(thd)) DBUG_RETURN(true);
+  if (check_restart_server_admin_privilege(thd)) return true;
 
   // RESTART shall not be binlogged.
   thd->lex->no_write_to_binlog = 1;
@@ -77,12 +77,12 @@ bool Sql_cmd_restart_server::execute(THD *thd) {
 
   if (signal_restart_server()) {
     my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Restart server failed");
-    DBUG_RETURN(true);
+    return true;
   }
 
   LogErr(SYSTEM_LEVEL, ER_RESTART_RECEIVED_INFO,
          thd->security_context()->user().str, server_version);
   my_ok(thd);
 
-  DBUG_RETURN(false);
+  return false;
 }

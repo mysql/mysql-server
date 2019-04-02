@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -76,7 +76,7 @@ static void z_print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                  const upd_t *upd, ulint field_no, ref_t blobref) {
-  DBUG_ENTER("lob::z_update");
+  DBUG_TRACE;
   dberr_t err = DB_SUCCESS;
   mtr_t *mtr = ctx.get_mtr();
 
@@ -121,7 +121,7 @@ dberr_t z_update(InsertContext &ctx, trx_t *trx, dict_index_t *index,
     ctx.zblob_write_blobref(field_no, ctx.m_mtr);
   }
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Find the location of the given offset within LOB.
@@ -175,7 +175,7 @@ fil_addr_t z_find_offset(trx_t *trx, dict_index_t *index, fil_addr_t node_loc,
 static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
                          ref_t ref, z_first_page_t &first_page, ulint offset,
                          ulint len, byte *buf) {
-  DBUG_ENTER("lob::z_replace");
+  DBUG_TRACE;
   dberr_t ret(DB_SUCCESS);
   uint32_t new_entries = 0;
   trx_id_t trxid = (trx == nullptr) ? 0 : trx->id;
@@ -328,7 +328,7 @@ static dberr_t z_replace(InsertContext &ctx, trx_t *trx, dict_index_t *index,
   ut_ad(first_page.validate());
 #endif /* LOB_DEBUG */
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 } /* namespace lob */

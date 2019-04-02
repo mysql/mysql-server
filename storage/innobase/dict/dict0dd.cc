@@ -774,7 +774,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
                                  dd::Table *table_def, bool discard) {
   bool ret = false;
 
-  DBUG_ENTER("dd_table_set_discard_flag");
+  DBUG_TRACE;
 
   ut_ad(thd == current_thd);
 #ifdef UNIV_DEBUG
@@ -854,7 +854,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
     ret = false;
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /** Open an internal handle to a persistent InnoDB table by name.
@@ -868,7 +868,7 @@ bool dd_table_discard_tablespace(THD *thd, const dict_table_t *table,
 dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
                                     const char *name, bool dict_locked,
                                     ulint ignore_err) {
-  DBUG_ENTER("dd_table_open_on_name");
+  DBUG_TRACE;
 
 #ifdef UNIV_DEBUG
   btrsea_sync_check check(false);
@@ -891,16 +891,16 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
 
   if (table != nullptr) {
     table->acquire();
-    DBUG_RETURN(table);
+    return table;
   }
 
   db_buf[0] = tbl_buf[0] = part_buf[0] = sub_buf[0] = '\0';
   if (!dd_parse_tbl_name(name, db_buf, tbl_buf, part_buf, sub_buf, nullptr)) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   if (!skip_mdl && dd_mdl_acquire(thd, mdl, db_buf, tbl_buf)) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   if (!dict_locked) {
@@ -914,7 +914,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
     if (!dict_locked) {
       mutex_exit(&dict_sys->mutex);
     }
-    DBUG_RETURN(table);
+    return table;
   }
 
   mutex_exit(&dict_sys->mutex);
@@ -981,7 +981,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
     mutex_enter(&dict_sys->mutex);
   }
 
-  DBUG_RETURN(table);
+  return table;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1013,7 +1013,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
   THD *thd = current_thd;
   std::string tablespace_name;
 
-  DBUG_ENTER("dd_tablespace_rename");
+  DBUG_TRACE;
 #ifdef UNIV_DEBUG
   btrsea_sync_check check(false);
   ut_ad(!sync_check_iterate(check));
@@ -1030,13 +1030,13 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
                                                            &dd_space) ||
       dd_space == nullptr) {
     ut_ad(false);
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   MDL_ticket *src_ticket = nullptr;
   if (dd_tablespace_get_mdl(dd_space->name().c_str(), &src_ticket)) {
     ut_ad(false);
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   dd_filename_to_spacename(new_space_name, &tablespace_name);
@@ -1044,7 +1044,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
   MDL_ticket *dst_ticket = nullptr;
   if (dd_tablespace_get_mdl(tablespace_name.c_str(), &dst_ticket)) {
     ut_ad(false);
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   dd::Tablespace *new_space = nullptr;
@@ -1053,7 +1053,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
   if (client->acquire_for_modification<dd::Tablespace>(dd_space_id,
                                                        &new_space)) {
     ut_ad(false);
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   ut_ad(new_space->files().size() == 1);
@@ -1074,7 +1074,7 @@ dberr_t dd_tablespace_rename(dd::Object_id dd_space_id,
   ut_ad(!fail);
   dd::rename_tablespace_mdl_hook(thd, src_ticket, dst_ticket);
 
-  DBUG_RETURN(fail ? DB_ERROR : DB_SUCCESS);
+  return fail ? DB_ERROR : DB_SUCCESS;
 }
 
 /** Validate the table format options.
@@ -3516,7 +3516,7 @@ const char *dd_table_get_space_name(const Table *dd_table) {
   THD *thd = current_thd;
   const char *space_name;
 
-  DBUG_ENTER("dd_table_get_space_name");
+  DBUG_TRACE;
   ut_ad(!srv_is_being_shutdown);
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
@@ -3528,12 +3528,12 @@ const char *dd_table_get_space_name(const Table *dd_table) {
                                                            &dd_space) ||
       dd_space == nullptr) {
     ut_ad(false);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   space_name = dd_space->name().c_str();
 
-  DBUG_RETURN(space_name);
+  return space_name;
 }
 
 /** Get the first filepath from mysql.tablespace_datafiles

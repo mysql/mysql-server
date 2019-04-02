@@ -248,13 +248,13 @@ static bool show_plugins(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 static int fill_plugins(THD *thd, TABLE_LIST *tables, Item *) {
-  DBUG_ENTER("fill_plugins");
+  DBUG_TRACE;
 
   if (plugin_foreach_with_mask(thd, show_plugins, MYSQL_ANY_PLUGIN,
                                ~PLUGIN_IS_FREED, tables->table))
-    DBUG_RETURN(1);
+    return 1;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /***************************************************************************
@@ -315,7 +315,7 @@ static struct show_privileges_st sys_privileges[] = {
 bool mysqld_show_privileges(THD *thd) {
   List<Item> field_list;
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("mysqld_show_privileges");
+  DBUG_TRACE;
 
   field_list.push_back(new Item_empty_string("Privilege", 10));
   field_list.push_back(new Item_empty_string("Context", 15));
@@ -323,7 +323,7 @@ bool mysqld_show_privileges(THD *thd) {
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   show_privileges_st *privilege = sys_privileges;
   for (privilege = sys_privileges; privilege->privilege; privilege++) {
@@ -331,7 +331,7 @@ bool mysqld_show_privileges(THD *thd) {
     protocol->store(privilege->privilege, system_charset_info);
     protocol->store(privilege->context, system_charset_info);
     protocol->store(privilege->comment, system_charset_info);
-    if (protocol->end_row()) DBUG_RETURN(true);
+    if (protocol->end_row()) return true;
   }
   if (iterate_all_dynamic_privileges(thd,
                                      /*
@@ -347,10 +347,10 @@ bool mysqld_show_privileges(THD *thd) {
                                        if (protocol->end_row()) return true;
                                        return false;
                                      })) {
-    DBUG_RETURN(true);
+    return true;
   }
   my_eof(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -469,7 +469,7 @@ bool mysqld_show_create(THD *thd, TABLE_LIST *table_list) {
   String buffer(buff, sizeof(buff), system_charset_info);
   List<Item> field_list;
   bool error = true;
-  DBUG_ENTER("mysqld_show_create");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("db: %s  table: %s", table_list->db, table_list->table_name));
 
@@ -580,7 +580,7 @@ exit:
   close_thread_tables(thd);
   /* Release any metadata locks taken during SHOW CREATE. */
   thd->mdl_context.rollback_to_savepoint(mdl_savepoint);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool mysqld_show_create_db(THD *thd, char *dbname,
@@ -592,7 +592,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   HA_CREATE_INFO create;
   uint create_options = create_info ? create_info->options : 0;
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("mysql_show_create_db");
+  DBUG_TRACE;
 
   strcpy(orig_dbname, dbname);
   if (lower_case_table_names && dbname != any_db)
@@ -615,7 +615,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     query_logger.general_log_print(
         thd, COM_INIT_DB, ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
         sctx->priv_user().str, sctx->host_or_ip().str, dbname);
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool is_encrypted_schema = false;
@@ -627,16 +627,16 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     const dd::Schema *schema = nullptr;
     if (mdl_handler.ensure_locked(dbname) ||
         thd->dd_client()->acquire(dbname, &schema))
-      DBUG_RETURN(true);
+      return true;
 
     if (schema == nullptr) {
       my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (get_default_db_collation(*schema, &create.default_table_charset)) {
       DBUG_ASSERT(thd->is_error() || thd->killed);
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (create.default_table_charset == NULL)
@@ -650,7 +650,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   protocol->start_row();
   protocol->store(orig_dbname, strlen(orig_dbname), system_charset_info);
@@ -681,9 +681,9 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   protocol->store(buffer.ptr(), buffer.length(), buffer.charset());
 
-  if (protocol->end_row()) DBUG_RETURN(true);
+  if (protocol->end_row()) return true;
   my_eof(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /****************************************************************************
@@ -692,19 +692,19 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 ****************************************************************************/
 
 void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
-  DBUG_ENTER("mysqld_list_fields");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table_list->table_name));
 
   if (open_tables_for_query(thd, table_list,
                             MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
-    DBUG_VOID_RETURN;
+    return;
 
   if (table_list->is_view_or_derived()) {
     // Setup materialized result table so that we can read the column list
     if (table_list->resolve_derived(thd, false))
-      DBUG_VOID_RETURN; /* purecov: inspected */
+      return; /* purecov: inspected */
     if (table_list->setup_materialized_derived(thd))
-      DBUG_VOID_RETURN; /* purecov: inspected */
+      return; /* purecov: inspected */
   }
   TABLE *table = table_list->table;
 
@@ -727,10 +727,8 @@ void mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild) {
   }
   restore_record(table, s->default_values);  // Get empty record
   table->use_all_columns();
-  if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS))
-    DBUG_VOID_RETURN;
+  if (thd->send_result_metadata(&field_list, Protocol::SEND_DEFAULTS)) return;
   my_eof(thd);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -1103,7 +1101,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   bool foreign_db_mode = (thd->variables.sql_mode & MODE_ANSI) != 0;
   my_bitmap_map *old_map;
   bool error = false;
-  DBUG_ENTER("store_create_info");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table->s->table_name.str));
 
   restore_record(table, s->default_values);  // Get empty record
@@ -1159,10 +1157,10 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     if (thd->dd_client()->acquire(dd::String_type(share->db.str),
                                   dd::String_type(share->table_name.str),
                                   &table_obj))
-      DBUG_RETURN(true);
+      return true;
     DBUG_EXECUTE_IF("sim_acq_fail_in_store_ci", {
       my_error(ER_UNKNOWN_ERROR_NUMBER, MYF(0), 42);
-      DBUG_RETURN(true);
+      return true;
     });
   }
 
@@ -1570,7 +1568,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     }
     bool print_encryption = false;
     if (should_print_encryption_clause(thd, share, &print_encryption))
-      DBUG_RETURN(true);
+      return true;
     if (print_encryption) {
       /*
         Add versioned comment when there is TABLESPACE clause displayed and
@@ -1642,7 +1640,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 static void store_key_options(THD *thd, String *packet, TABLE *table,
@@ -1962,7 +1960,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   size_t max_query_length =
       (verbose ? thd->variables.max_allowed_packet : PROCESS_LIST_WIDTH);
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("mysqld_list_processes");
+  DBUG_TRACE;
 
   field_list.push_back(
       new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
@@ -1979,7 +1977,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
   field->maybe_null = 1;
   if (thd->send_result_metadata(&field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_VOID_RETURN;
+    return;
 
   if (!thd->killed) {
     thread_infos.reserve(Global_THD_manager::get_instance()->get_thd_count());
@@ -2013,7 +2011,6 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
     if (protocol->end_row()) break; /* purecov: inspected */
   }
   my_eof(thd);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -2146,13 +2143,13 @@ class Fill_process_list : public Do_THD_Impl {
 };
 
 static int fill_schema_processlist(THD *thd, TABLE_LIST *tables, Item *) {
-  DBUG_ENTER("fill_schema_processlist");
+  DBUG_TRACE;
 
   Fill_process_list fill_process_list(thd, tables);
   if (!thd->killed) {
     Global_THD_manager::get_instance()->do_for_all_thd_copy(&fill_process_list);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*****************************************************************************
@@ -2587,13 +2584,12 @@ class Add_status : public Do_THD_Impl {
 };
 
 void calc_sum_of_all_status(System_status_var *to) {
-  DBUG_ENTER("calc_sum_of_all_status");
+  DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_status);
   /* Get global values as base. */
   *to = global_status_var;
   Add_status add_status(to);
   Global_THD_manager::get_instance()->do_for_all_thd_copy(&add_status);
-  DBUG_VOID_RETURN;
 }
 
 /* This is only used internally, but we need it here as a forward reference */
@@ -2690,7 +2686,7 @@ static int show_temporary_tables(THD *thd, TABLE_LIST *tables, Item *) {
   SELECT_LEX *lsel = tables->schema_select_lex;
   ST_SCHEMA_TABLE *schema_table = tables->schema_table;
 
-  DBUG_ENTER("show_temporary_tables");
+  DBUG_TRACE;
 
   /*
     This code is now only used for SHOW statements for temporary tables
@@ -2806,7 +2802,7 @@ end:
   thd->stmt_arena = old_arena;
   thd->swap_query_arena(backup_arena, &i_s_arena);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /* Define fields' indexes for COLUMNS of temporary tables */
@@ -2825,11 +2821,11 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
                                                TABLE *table, bool res,
                                                LEX_STRING *db_name,
                                                LEX_STRING *table_name) {
-  DBUG_ENTER("get_schema_tmp_table_columns_record");
+  DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_FIELDS);
 
-  if (res) DBUG_RETURN(res);
+  if (res) return res;
 
   const char *wild = thd->lex->wild ? thd->lex->wild->ptr() : nullptr;
   CHARSET_INFO *cs = system_charset_info;
@@ -2955,10 +2951,10 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     } else
       table->field[TMP_TABLE_COLUMNS_GENERATION_EXPRESSION]->set_null();
 
-    if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
+    if (schema_table_store_record(thd, table)) return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
@@ -2967,7 +2963,7 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
   const char *wild = thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs = system_charset_info;
   handlerton *default_type = ha_default_handlerton(thd);
-  DBUG_ENTER("iter_schema_engines");
+  DBUG_TRACE;
 
   /* Disabled plugins */
   if (plugin_state(plugin) != PLUGIN_IS_READY) {
@@ -2978,9 +2974,9 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[0]->store(plug->name, strlen(plug->name), scs);
       table->field[1]->store(C_STRING_WITH_LEN("NO"), scs);
       table->field[2]->store(plug->descr, strlen(plug->descr), scs);
-      if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
+      if (schema_table_store_record(thd, table)) return 1;
     }
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (!(hton->flags & HTON_HIDDEN)) {
@@ -3008,19 +3004,19 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
-      if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
+      if (schema_table_store_record(thd, table)) return 1;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int fill_schema_engines(THD *thd, TABLE_LIST *tables, Item *) {
-  DBUG_ENTER("fill_schema_engines");
+  DBUG_TRACE;
   if (plugin_foreach_with_mask(thd, iter_schema_engines,
                                MYSQL_STORAGE_ENGINE_PLUGIN, ~PLUGIN_IS_FREED,
                                tables->table))
-    DBUG_RETURN(1);
-  DBUG_RETURN(0);
+    return 1;
+  return 0;
 }
 
 /* Define fields' indexes for KEYS of temporary tables */
@@ -3045,11 +3041,11 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
                                             TABLE *table, bool res,
                                             LEX_STRING *,
                                             LEX_STRING *table_name) {
-  DBUG_ENTER("get_schema_tmp_table_keys_record");
+  DBUG_TRACE;
 
   DBUG_ASSERT(thd->lex->sql_command == SQLCOM_SHOW_KEYS);
 
-  if (res) DBUG_RETURN(res);
+  if (res) return res;
 
   CHARSET_INFO *cs = system_charset_info;
   TABLE *show_table = tables->table;
@@ -3184,10 +3180,10 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
         table->field[TMP_TABLE_KEYS_EXPRESSION]->set_null();
       }
 
-      if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
+      if (schema_table_store_record(thd, table)) return 1;
     }
   }
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -3233,14 +3229,14 @@ bool get_cs_converted_part_value_from_string(THD *thd, Item *item,
 }
 
 static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *) {
-  DBUG_ENTER("fill_open_tables");
+  DBUG_TRACE;
   const char *wild = thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   TABLE *table = tables->table;
   CHARSET_INFO *cs = system_charset_info;
   OPEN_TABLE_LIST *open_list;
   if (!(open_list = list_open_tables(thd, thd->lex->select_lex->db, wild)) &&
       thd->is_fatal_error())
-    DBUG_RETURN(1);
+    return 1;
 
   for (; open_list; open_list = open_list->next) {
     restore_record(table, s->default_values);
@@ -3248,9 +3244,9 @@ static int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *) {
     table->field[1]->store(open_list->table, strlen(open_list->table), cs);
     table->field[2]->store((longlong)open_list->in_use, true);
     table->field[3]->store((longlong)open_list->locked, true);
-    if (schema_table_store_record(thd, table)) DBUG_RETURN(1);
+    if (schema_table_store_record(thd, table)) return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct schema_table_ref {
@@ -3275,15 +3271,15 @@ static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
   schema_table_ref *p_schema_table = (schema_table_ref *)p_table;
   const char *table_name = p_schema_table->table_name;
   ST_SCHEMA_TABLE *schema_table = plugin_data<ST_SCHEMA_TABLE *>(plugin);
-  DBUG_ENTER("find_schema_table_in_plugin");
+  DBUG_TRACE;
 
   if (!my_strcasecmp(system_charset_info, schema_table->table_name,
                      table_name)) {
     p_schema_table->schema_table = schema_table;
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -3302,20 +3298,20 @@ static bool find_schema_table_in_plugin(THD *, plugin_ref plugin,
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char *table_name) {
   schema_table_ref schema_table_a;
   ST_SCHEMA_TABLE *schema_table = schema_tables;
-  DBUG_ENTER("find_schema_table");
+  DBUG_TRACE;
 
   for (; schema_table->table_name; schema_table++) {
     if (!my_strcasecmp(system_charset_info, schema_table->table_name,
                        table_name))
-      DBUG_RETURN(schema_table);
+      return schema_table;
   }
 
   schema_table_a.table_name = table_name;
   if (plugin_foreach(thd, find_schema_table_in_plugin,
                      MYSQL_INFORMATION_SCHEMA_PLUGIN, &schema_table_a))
-    DBUG_RETURN(schema_table_a.schema_table);
+    return schema_table_a.schema_table;
 
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx) {
@@ -3350,7 +3346,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   ST_SCHEMA_TABLE *schema_table = table_list->schema_table;
   ST_FIELD_INFO *fields_info = schema_table->fields_info;
   CHARSET_INFO *cs = system_charset_info;
-  DBUG_ENTER("create_schema_table");
+  DBUG_TRACE;
 
   for (; fields_info->field_name; fields_info++) {
     switch (fields_info->field_type) {
@@ -3362,7 +3358,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
         if (!(item = new Item_return_int(
                   fields_info->field_name, fields_info->field_length,
                   fields_info->field_type, fields_info->value))) {
-          DBUG_RETURN(0);
+          return 0;
         }
         item->unsigned_flag = (fields_info->field_flags & MY_I_S_UNSIGNED);
         break;
@@ -3374,7 +3370,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
                                      strlen(fields_info->field_name));
         if (!(item =
                   new Item_temporal(fields_info->field_type, field_name, 0, 0)))
-          DBUG_RETURN(0);
+          return 0;
 
         if (fields_info->field_type == MYSQL_TYPE_TIMESTAMP ||
             fields_info->field_type == MYSQL_TYPE_DATETIME)
@@ -3388,13 +3384,13 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
                                      strlen(fields_info->field_name));
         if ((item = new Item_float(field_name, 0.0, NOT_FIXED_DEC,
                                    fields_info->field_length)) == NULL)
-          DBUG_RETURN(NULL);
+          return NULL;
         break;
       }
       case MYSQL_TYPE_DECIMAL:
       case MYSQL_TYPE_NEWDECIMAL:
         if (!(item = new Item_decimal((longlong)fields_info->value, false))) {
-          DBUG_RETURN(0);
+          return 0;
         }
         item->unsigned_flag = (fields_info->field_flags & MY_I_S_UNSIGNED);
         item->decimals = fields_info->field_length % 10;
@@ -3409,7 +3405,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
       case MYSQL_TYPE_BLOB:
         if (!(item = new Item_blob(fields_info->field_name,
                                    fields_info->field_length))) {
-          DBUG_RETURN(0);
+          return 0;
         }
         break;
       default:
@@ -3419,7 +3415,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
 
         if (!(item =
                   new Item_empty_string("", fields_info->field_length, cs))) {
-          DBUG_RETURN(0);
+          return 0;
         }
         item->item_name.copy(fields_info->field_name);
         break;
@@ -3429,7 +3425,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
     field_count++;
   }
   Temp_table_param *tmp_table_param = new (thd->mem_root) Temp_table_param;
-  if (!tmp_table_param) DBUG_RETURN(0);
+  if (!tmp_table_param) return 0;
 
   tmp_table_param->table_charset = cs;
   tmp_table_param->field_count = field_count;
@@ -3439,14 +3435,14 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
             thd, tmp_table_param, field_list, (ORDER *)0, 0, 0,
             select_lex->active_options() | TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR,
             table_list->alias)))
-    DBUG_RETURN(0);
+    return 0;
   my_bitmap_map *bitmaps =
       (my_bitmap_map *)thd->alloc(bitmap_buffer_size(field_count));
   bitmap_init(&table->def_read_set, bitmaps, field_count, false);
   table->read_set = &table->def_read_set;
   bitmap_clear_all(table->read_set);
   table_list->schema_table_param = tmp_table_param;
-  DBUG_RETURN(table);
+  return table;
 }
 
 /*
@@ -3520,9 +3516,9 @@ static int make_tmp_table_columns_format(THD *thd,
 
 bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
   TABLE *table;
-  DBUG_ENTER("mysql_schema_table");
+  DBUG_TRACE;
   if (!(table = table_list->schema_table->create_table(thd, table_list)))
-    DBUG_RETURN(1);
+    return 1;
   table->s->tmp_table = SYSTEM_TMP_TABLE;
   table_list->grant.privilege = SELECT_ACL;
   /*
@@ -3559,24 +3555,24 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
       for (transl = table_list->field_translation; transl < end; transl++) {
         if (!transl->item->fixed &&
             transl->item->fix_fields(thd, &transl->item))
-          DBUG_RETURN(true);
+          return true;
       }
 
       thd->want_privilege = want_privilege_saved;
       thd->mark_used_columns = save_mark_used_columns;
 
-      DBUG_RETURN(false);
+      return false;
     }
     List_iterator_fast<Item> it(sel->item_list);
     if (!(transl = (Field_translator *)(thd->stmt_arena->alloc(
               sel->item_list.elements * sizeof(Field_translator))))) {
-      DBUG_RETURN(true);
+      return true;
     }
     for (org_transl = transl; (item = it++); transl++) {
       transl->item = item;
       transl->name = item->item_name.ptr();
       if (!item->fixed && item->fix_fields(thd, &transl->item)) {
-        DBUG_RETURN(true);
+        return true;
       }
     }
 
@@ -3586,7 +3582,7 @@ bool mysql_schema_table(THD *thd, LEX *lex, TABLE_LIST *table_list) {
     table_list->field_translation_end = transl;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -3603,7 +3599,7 @@ bool make_schema_select(THD *thd, SELECT_LEX *sel,
                         enum enum_schema_tables schema_table_idx) {
   ST_SCHEMA_TABLE *schema_table = get_schema_table(schema_table_idx);
   LEX_STRING db, table;
-  DBUG_ENTER("make_schema_select");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
      We have to make non const db_name & table_name
@@ -3620,9 +3616,9 @@ bool make_schema_select(THD *thd, SELECT_LEX *sel,
                                   thd->get_protocol(), to_lex_cstring(db),
                                   to_lex_cstring(table), false),
                               nullptr, 0, TL_READ, MDL_SHARED_READ)) {
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -3734,10 +3730,10 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place) {
   THD *thd = join->thd;
   bool result = false;
-  DBUG_ENTER("get_schema_tables_result");
+  DBUG_TRACE;
 
   /* Check if the schema table is optimized away */
-  if (!join->qep_tab) DBUG_RETURN(result);
+  if (!join->qep_tab) return result;
 
   for (uint i = 0; i < join->tables; i++) {
     QEP_TAB *const tab = join->qep_tab + i;
@@ -3818,7 +3814,7 @@ bool get_schema_tables_result(JOIN *join,
       table_list->schema_table_state = executed_place;
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 struct run_hton_fill_schema_table_args {
@@ -3837,7 +3833,7 @@ static bool run_hton_fill_schema_table(THD *thd, plugin_ref plugin, void *arg) {
 }
 
 static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond) {
-  DBUG_ENTER("hton_fill_schema_table");
+  DBUG_TRACE;
 
   struct run_hton_fill_schema_table_args args;
   args.tables = tables;
@@ -3846,7 +3842,7 @@ static int hton_fill_schema_table(THD *thd, TABLE_LIST *tables, Item *cond) {
   plugin_foreach(thd, run_hton_fill_schema_table, MYSQL_STORAGE_ENGINE_PLUGIN,
                  &args);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 ST_FIELD_INFO engines_fields_info[] = {
@@ -4032,12 +4028,12 @@ ST_SCHEMA_TABLE schema_tables[] = {
 
 int initialize_schema_table(st_plugin_int *plugin) {
   ST_SCHEMA_TABLE *schema_table;
-  DBUG_ENTER("initialize_schema_table");
+  DBUG_TRACE;
 
   if (!(schema_table = (ST_SCHEMA_TABLE *)my_malloc(key_memory_ST_SCHEMA_TABLE,
                                                     sizeof(ST_SCHEMA_TABLE),
                                                     MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(1);
+    return 1;
   /* Historical Requirement */
   plugin->data = schema_table;  // shortcut for the future
   if (plugin->plugin->init) {
@@ -4052,18 +4048,18 @@ int initialize_schema_table(st_plugin_int *plugin) {
       LogErr(ERROR_LEVEL, ER_PLUGIN_INIT_FAILED, plugin->name.str);
       plugin->data = NULL;
       my_free(schema_table);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     /* Make sure the plugin name is not set inside the init() function. */
     schema_table->table_name = plugin->name.str;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int finalize_schema_table(st_plugin_int *plugin) {
   ST_SCHEMA_TABLE *schema_table = (ST_SCHEMA_TABLE *)plugin->data;
-  DBUG_ENTER("finalize_schema_table");
+  DBUG_TRACE;
 
   if (schema_table) {
     if (plugin->plugin->deinit) {
@@ -4075,7 +4071,7 @@ int finalize_schema_table(st_plugin_int *plugin) {
     }
     my_free(schema_table);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -4473,7 +4469,7 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
 
 void show_sql_type(enum_field_types type, uint16 metadata, String *str,
                    const CHARSET_INFO *field_cs) {
-  DBUG_ENTER("show_sql_type");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
 
   switch (type) {
@@ -4662,5 +4658,4 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     default:
       str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }
-  DBUG_VOID_RETURN;
 }

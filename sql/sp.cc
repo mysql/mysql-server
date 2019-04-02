@@ -254,7 +254,7 @@ Stored_routine_creation_ctx *Stored_routine_creation_ctx::load_from_db(
 
 static bool lock_routine_name(THD *thd, enum_sp_type type, sp_name *name,
                               enum_mdl_type mdl_lock_type) {
-  DBUG_ENTER("lock_routine_name");
+  DBUG_TRACE;
 
   DBUG_ASSERT(mdl_lock_type == MDL_SHARED_HIGH_PRIO ||
               mdl_lock_type == MDL_SHARED);
@@ -272,9 +272,9 @@ static bool lock_routine_name(THD *thd, enum_sp_type type, sp_name *name,
   // Acquire MDL locks
   if (thd->mdl_context.acquire_lock(&routine_request,
                                     thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -319,7 +319,7 @@ static void recursion_level_error(THD *thd, sp_head *sp) {
 
 static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
                                            sp_name *name, sp_head **sphp) {
-  DBUG_ENTER("db_find_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
@@ -327,8 +327,7 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
   *sphp = NULL;  // In case of errors
 
   // Grab shared MDL lock on routine object.
-  if (lock_routine_name(thd, type, name, MDL_SHARED))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+  if (lock_routine_name(thd, type, name, MDL_SHARED)) return SP_INTERNAL_ERROR;
 
   // Find routine in the data dictionary.
   enum_sp_return_code ret;
@@ -343,9 +342,9 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
     error = thd->dd_client()->acquire<dd::Procedure>(
         name->m_db.str, name->m_name.str, &routine);
 
-  if (error) DBUG_RETURN(SP_INTERNAL_ERROR);
+  if (error) return SP_INTERNAL_ERROR;
 
-  if (routine == nullptr) DBUG_RETURN(SP_DOES_NOT_EXISTS);
+  if (routine == nullptr) return SP_DOES_NOT_EXISTS;
 
   // prepare sp_chistics from the dd::routine object.
   st_sp_chistics sp_chistics;
@@ -362,9 +361,9 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
   // Create stored routine creation context from the dd::Routine object.
   Stored_program_creation_ctx *creation_ctx =
       Stored_routine_creation_ctx::create_routine_creation_ctx(routine);
-  if (creation_ctx == NULL) DBUG_RETURN(SP_INTERNAL_ERROR);
+  if (creation_ctx == NULL) return SP_INTERNAL_ERROR;
 
-  DBUG_EXECUTE_IF("fail_stored_routine_load", DBUG_RETURN(SP_PARSE_ERROR););
+  DBUG_EXECUTE_IF("fail_stored_routine_load", return SP_PARSE_ERROR;);
 
   /*
     Create sp_head object for the stored routine from the information obtained
@@ -376,7 +375,7 @@ static enum_sp_return_code db_find_routine(THD *thd, enum_sp_type type,
       return_type_str.c_str(), routine->definition().c_str(), &sp_chistics,
       routine->definer_user().c_str(), routine->definer_host().c_str(),
       routine->created(true), routine->last_altered(true), creation_ctx);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -710,7 +709,7 @@ static bool create_routine_precheck(THD *thd, sp_head *sp) {
 */
 
 bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
-  DBUG_ENTER("sp_create_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d  name: %.*s", static_cast<int>(sp->m_type),
                        static_cast<int>(sp->m_name.length), sp->m_name.str));
 
@@ -724,13 +723,13 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str)) {
     my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp->m_type),
              sp->m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
   if (create_routine_precheck(thd, sp)) {
     /* If this happens, an error should have been reported. */
-    DBUG_RETURN(true);
+    return true;
   }
 
   DBUG_EXECUTE_IF("fail_while_acquiring_routine_schema_obj",
@@ -743,11 +742,11 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
     DBUG_EXECUTE_IF("fail_while_acquiring_routine_schema_obj",
                     DBUG_SET("-d,fail_while_acquiring_dd_object"););
     // Error is reported by DD API framework.
-    DBUG_RETURN(true);
+    return true;
   }
   if (schema == nullptr) {
     my_error(ER_BAD_DB_ERROR, MYF(0), sp->m_db.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Create a stored routine.
@@ -802,7 +801,7 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
   // Invalidate stored routine cache.
   sp_cache_invalidate();
 
-  DBUG_RETURN(false);
+  return false;
 
 err_report_with_rollback:
   my_error(ER_SP_STORE_FAILED, MYF(0), SP_TYPE_STRING(sp->m_type),
@@ -817,7 +816,7 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -845,7 +844,7 @@ err_with_rollback:
 
 enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
                                     sp_name *name) {
-  DBUG_ENTER("sp_drop_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
@@ -857,7 +856,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
   MDL_key::enum_mdl_namespace mdl_type =
       (type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_DROP_FAILED);
+    return SP_DROP_FAILED;
 
   DEBUG_SYNC(thd, "after_acquiring_mdl_lock_on_routine");
 
@@ -871,9 +870,9 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
   else
     error = thd->dd_client()->acquire<dd::Procedure>(
         name->m_db.str, name->m_name.str, &routine);
-  if (error) DBUG_RETURN(SP_INTERNAL_ERROR);
+  if (error) return SP_INTERNAL_ERROR;
 
-  if (routine == nullptr) DBUG_RETURN(SP_DOES_NOT_EXISTS);
+  if (routine == nullptr) return SP_DOES_NOT_EXISTS;
   /*
     If definer has the SYSTEM_USER privilege then invoker can drop procedure
     only if latter also has same privilege.
@@ -882,7 +881,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
                   routine->definer_host().c_str());
   Security_context *sctx = thd->security_context();
   if (sctx->can_operate_with(definer, consts::system_user, true))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+    return SP_INTERNAL_ERROR;
 
   // Drop routine.
   if (thd->dd_client()->drop(routine)) goto err_with_rollback;
@@ -936,7 +935,7 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
     }
   }
 
-  DBUG_RETURN(SP_OK);
+  return SP_OK;
 
 err_with_rollback:
   trans_rollback_stmt(thd);
@@ -947,7 +946,7 @@ err_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(SP_DROP_FAILED);
+  return SP_DROP_FAILED;
 }
 
 /**
@@ -976,7 +975,7 @@ err_with_rollback:
 
 bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
                        st_sp_chistics *chistics) {
-  DBUG_ENTER("sp_update_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
@@ -989,7 +988,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
       (type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION : MDL_key::PROCEDURE;
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str)) {
     my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type), name->m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Check if routine exists.
@@ -1004,13 +1003,13 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
         name->m_db.str, name->m_name.str, &routine);
   if (error) {
     // Error is reported by DD API framework.
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (routine == nullptr) {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), SP_TYPE_STRING(type),
              thd->lex->spname->m_qname.str);
-    DBUG_RETURN(true);
+    return true;
   }
   /*
     If definer has the SYSTEM_USER privilege then invoker can alter procedure
@@ -1019,8 +1018,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
   Auth_id definer(routine->definer_user().c_str(),
                   routine->definer_host().c_str());
   Security_context *sctx = thd->security_context();
-  if (sctx->can_operate_with(definer, consts::system_user, true))
-    DBUG_RETURN(true);
+  if (sctx->can_operate_with(definer, consts::system_user, true)) return true;
 
   if (mysql_bin_log.is_open() && type == enum_sp_type::FUNCTION &&
       !trust_function_creators &&
@@ -1028,15 +1026,14 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
        chistics->daccess == SP_MODIFIES_SQL_DATA)) {
     if (!routine->is_deterministic()) {
       my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
   // Validate routine comment.
   if (chistics->comment.str) {
     // validate comment string to invalid utf8 characters.
-    if (is_invalid_string(chistics->comment, system_charset_info))
-      DBUG_RETURN(true);
+    if (is_invalid_string(chistics->comment, system_charset_info)) return true;
 
     // Check comment string length.
     if (check_string_char_length(
@@ -1044,7 +1041,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
             MYSQL_STORED_ROUTINE_COMMENT_LENGTH, system_charset_info, true)) {
       my_error(ER_TOO_LONG_ROUTINE_COMMENT, MYF(0), chistics->comment.str,
                MYSQL_STORED_ROUTINE_COMMENT_LENGTH);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -1072,7 +1069,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   sp_cache_invalidate();
 
-  DBUG_RETURN(false);
+  return false;
 
 err_report_with_rollback:
   my_error(ER_SP_CANT_ALTER, MYF(0), SP_TYPE_STRING(type),
@@ -1086,11 +1083,11 @@ err_report_with_rollback:
   */
   trans_rollback(thd);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool lock_db_routines(THD *thd, const dd::Schema &schema) {
-  DBUG_ENTER("lock_db_routines");
+  DBUG_TRACE;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -1099,7 +1096,7 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
 
   // Fetch stored routines of the schema.
   if (thd->dd_client()->fetch_schema_components(&schema, &routines))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     If lower_case_table_names == 2 then schema names should be lower cased for
@@ -1131,8 +1128,8 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
     mdl_requests.push_front(mdl_request);
   }
 
-  DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
-                                             thd->variables.lock_wait_timeout));
+  return thd->mdl_context.acquire_locks(&mdl_requests,
+                                        thd->variables.lock_wait_timeout);
 }
 
 /**
@@ -1146,7 +1143,7 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
 */
 
 enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
-  DBUG_ENTER("sp_drop_db_routines");
+  DBUG_TRACE;
 
   bool is_routine_dropped = false;
 
@@ -1157,7 +1154,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
 
   // Fetch stored routines of the schema.
   if (thd->dd_client()->fetch_schema_components(&schema, &routines))
-    DBUG_RETURN(SP_INTERNAL_ERROR);
+    return SP_INTERNAL_ERROR;
 
   enum_sp_return_code ret_code = SP_OK;
   for (const dd::Routine *routine : routines) {
@@ -1171,7 +1168,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
 
     DBUG_EXECUTE_IF("fail_drop_db_routines", {
       my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
-      DBUG_RETURN(SP_DROP_FAILED);
+      return SP_DROP_FAILED;
     });
 
     if (thd->dd_client()->drop(routine)) {
@@ -1184,7 +1181,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
 
     if (type == enum_sp_type::FUNCTION &&
         update_referencing_views_metadata(thd, &name))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+      return SP_INTERNAL_ERROR;
 
     is_routine_dropped = true;
 
@@ -1198,7 +1195,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
   // Invalidate the sp cache.
   if (is_routine_dropped) sp_cache_invalidate();
 
-  DBUG_RETURN(ret_code);
+  return ret_code;
 }
 
 /**
@@ -1215,7 +1212,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
 static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
                                                 sp_name *sp,
                                                 const dd::Routine *routine) {
-  DBUG_ENTER("show_create_routine_from_dd_routine");
+  DBUG_TRACE;
 
   /*
     Before WL#7897 changes, full access to routine information is provided to
@@ -1238,7 +1235,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
   if (!full_access &&
       check_some_routine_access(thd, sp->m_db.str, sp->m_name.str,
                                 type == enum_sp_type::PROCEDURE))
-    DBUG_RETURN(true);
+    return true;
 
   // prepare st_sp_chistics object from the dd::Routine.
   st_sp_chistics sp_chistics;
@@ -1260,7 +1257,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
           {routine->definer_user().c_str(), routine->definer_user().length()},
           {routine->definer_host().c_str(), routine->definer_host().length()},
           routine->sql_mode()))
-    DBUG_RETURN(true);
+    return true;
 
   // Prepare sql_mode string representation.
   LEX_STRING sql_mode;
@@ -1307,7 +1304,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
 
   if (thd->send_result_metadata(&fields,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(true);
+    return true;
 
   /* Send data. */
   Protocol *protocol = thd->get_protocol();
@@ -1341,7 +1338,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
 
   if (!err_status) my_eof(thd);
 
-  DBUG_RETURN(err_status);
+  return err_status;
 }
 
 /**
@@ -1360,7 +1357,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
 */
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
-  DBUG_ENTER("sp_show_create_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("name: %.*s", (int)name->m_name.length, name->m_name.str));
 
@@ -1370,7 +1367,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
   // Lock routine for read.
   if (lock_routine_name(thd, type, name, MDL_SHARED_HIGH_PRIO)) {
     my_error(ER_SP_LOAD_FAILED, MYF(0), name->m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Find routine in data dictionary.
@@ -1387,7 +1384,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
 
   if (error) {
     my_error(ER_SP_LOAD_FAILED, MYF(0), name->m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   // show create routine.
@@ -1400,10 +1397,10 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
              type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE",
              name->m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1425,14 +1422,14 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
 
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only) {
-  DBUG_ENTER("sp_find_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d  cache only %d",
                        static_cast<int>(name->m_db.length), name->m_db.str,
                        static_cast<int>(name->m_name.length), name->m_name.str,
                        static_cast<int>(type), cache_only));
 
   sp_head *sp = sp_cache_lookup(cp, name);
-  if (sp != NULL) DBUG_RETURN(sp);
+  if (sp != NULL) return sp;
 
   if (!cache_only) {
     if (db_find_routine(thd, type, name, &sp) == SP_OK) {
@@ -1441,7 +1438,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                           sp->m_recursion_level, sp->m_flags));
     }
   }
-  DBUG_RETURN(sp);
+  return sp;
 }
 
 /**
@@ -1460,14 +1457,14 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
 
 sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                           sp_cache **cp) {
-  DBUG_ENTER("sp_setup_routine");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d ",
                        static_cast<int>(name->m_db.length), name->m_db.str,
                        static_cast<int>(name->m_name.length), name->m_name.str,
                        static_cast<int>(type)));
 
   sp_head *sp = sp_cache_lookup(cp, name);
-  if (sp == NULL) DBUG_RETURN(NULL);
+  if (sp == NULL) return NULL;
 
   DBUG_PRINT("info", ("found: 0x%lx", (ulong)sp));
 
@@ -1483,9 +1480,9 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
     DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
     if (sp->m_first_free_instance->m_recursion_level > depth) {
       recursion_level_error(thd, sp);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
-    DBUG_RETURN(sp->m_first_free_instance);
+    return sp->m_first_free_instance;
   }
 
   /*
@@ -1497,7 +1494,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   ulong level = sp->m_last_cached_sp->m_recursion_level + 1;
   if (level > depth) {
     recursion_level_error(thd, sp);
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   const char *returns = "";
@@ -1515,7 +1512,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                       sp->m_chistics, sp->m_definer_user.str,
                       sp->m_definer_host.str, sp->m_created, sp->m_modified,
                       sp->get_creation_ctx()) != SP_OK)
-    DBUG_RETURN(NULL);
+    return NULL;
 
   sp->m_last_cached_sp->m_next_cached_sp = new_sp;
   new_sp->m_recursion_level = level;
@@ -1523,7 +1520,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
   sp->m_last_cached_sp = sp->m_first_free_instance = new_sp;
   DBUG_PRINT("info", ("added level: 0x%lx, level: %lu, flags %x", (ulong)new_sp,
                       new_sp->m_recursion_level, new_sp->m_flags));
-  DBUG_RETURN(new_sp);
+  return new_sp;
 }
 
 /**
@@ -1543,7 +1540,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
 bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
   TABLE_LIST *routine;
   bool sp_object_found;
-  DBUG_ENTER("sp_exists_routine");
+  DBUG_TRACE;
   for (routine = routines; routine; routine = routine->next_global) {
     sp_name *name;
     LEX_CSTRING lex_db;
@@ -1563,10 +1560,10 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc) {
     if (!sp_object_found) {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), is_proc ? "PROCEDURE" : "FUNCTION",
                routine->table_name);
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1902,18 +1899,18 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
   sp_cache **spc = (type == enum_sp_type::FUNCTION) ? &thd->sp_func_cache
                                                     : &thd->sp_proc_cache;
 
-  DBUG_ENTER("sp_cache_routine");
+  DBUG_TRACE;
 
   DBUG_ASSERT(type == enum_sp_type::FUNCTION ||
               type == enum_sp_type::PROCEDURE);
 
   *sp = sp_cache_lookup(spc, name);
 
-  if (lookup_only) DBUG_RETURN(SP_OK);
+  if (lookup_only) return SP_OK;
 
   if (*sp) {
     sp_cache_flush_obsolete(spc, sp);
-    if (*sp) DBUG_RETURN(SP_OK);
+    if (*sp) return SP_OK;
   }
 
   switch ((ret = db_find_routine(thd, type, name, sp))) {
@@ -1955,7 +1952,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
       }
       break;
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**

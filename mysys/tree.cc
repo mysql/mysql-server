@@ -104,7 +104,7 @@ static int test_rb_tree(TREE_ELEMENT *element);
 void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
                int size, qsort2_cmp compare, bool with_delete,
                tree_element_free free_element, const void *custom_arg) {
-  DBUG_ENTER("init_tree");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("tree: %p  size: %d", tree, size));
 
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
@@ -141,11 +141,10 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
   if (!(tree->with_delete = with_delete)) {
     init_alloc_root(key_memory_TREE, &tree->mem_root, default_alloc_size, 0);
   }
-  DBUG_VOID_RETURN;
 }
 
 static void free_tree(TREE *tree, myf free_flags) {
-  DBUG_ENTER("free_tree");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("tree: %p", tree));
 
   if (tree->root) /* If initialized */
@@ -165,8 +164,6 @@ static void free_tree(TREE *tree, myf free_flags) {
   tree->root = &tree->null_element;
   tree->elements_in_tree = 0;
   tree->allocated = 0;
-
-  DBUG_VOID_RETURN;
 }
 
 void delete_tree(TREE *tree) {

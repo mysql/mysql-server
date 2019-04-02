@@ -696,9 +696,9 @@ bool Explain::prepare_columns() {
 */
 
 bool Explain::send() {
-  DBUG_ENTER("Explain::send");
+  DBUG_TRACE;
 
-  if (fmt->begin_context(context_type, NULL)) DBUG_RETURN(true);
+  if (fmt->begin_context(context_type, NULL)) return true;
 
   /* Don't log this into the slow query log */
   explain_thd->server_status &=
@@ -708,7 +708,7 @@ bool Explain::send() {
 
   if (!ret) ret = fmt->end_context(context_type);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Explain::explain_id() {
@@ -1771,11 +1771,11 @@ bool Explain_table::explain_extra() {
 bool explain_no_table(THD *explain_thd, const THD *query_thd,
                       SELECT_LEX *select_lex, const char *message,
                       enum_parsing_context ctx) {
-  DBUG_ENTER("explain_no_table");
+  DBUG_TRACE;
   const bool ret = Explain_no_table(explain_thd, query_thd, select_lex, message,
                                     ctx, HA_POS_ERROR)
                        .send();
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1826,14 +1826,14 @@ static bool check_acl_for_explain(const TABLE_LIST *table_list) {
 bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
                                        const Modification_plan *plan,
                                        SELECT_LEX *select) {
-  DBUG_ENTER("explain_single_table_modification");
+  DBUG_TRACE;
   Query_result_send result;
   const bool other = (query_thd != explain_thd);
   bool ret;
 
   if (explain_thd->lex->explain_format->is_tree()) {
     // These kinds of queries don't have a JOIN with an iterator tree.
-    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, nullptr));
+    return ExplainIterator(explain_thd, query_thd, nullptr);
   }
 
   /**
@@ -1849,7 +1849,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
   */
   List<Item> dummy;
   if (result.prepare(explain_thd, dummy, explain_thd->lex->unit))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   explain_thd->lex->explain_format->send_headers(&result);
 
@@ -1864,7 +1864,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
          unit = unit->next_unit()) {
       // Derived tables and const subqueries are already optimized
       if (!unit->is_optimized() && unit->optimize(explain_thd))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
     }
   }
 
@@ -1901,7 +1901,7 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
 
     result.send_eof(explain_thd);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -2151,12 +2151,12 @@ static bool ExplainIterator(THD *ethd, const THD *query_thd,
 
 bool explain_query(THD *explain_thd, const THD *query_thd,
                    SELECT_LEX_UNIT *unit) {
-  DBUG_ENTER("explain_query");
+  DBUG_TRACE;
 
   const bool other = (explain_thd != query_thd);
 
   if (explain_thd->lex->explain_format->is_tree()) {
-    DBUG_RETURN(ExplainIterator(explain_thd, query_thd, unit));
+    return ExplainIterator(explain_thd, query_thd, unit);
   }
 
   Query_result *explain_result = NULL;
@@ -2170,10 +2170,10 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   if (other) {
     if (!((explain_result = new (explain_thd->mem_root) Query_result_send())))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
     List<Item> dummy;
     if (explain_result->prepare(explain_thd, dummy, explain_thd->lex->unit))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
   } else {
     DBUG_ASSERT(unit->is_optimized());
     if (explain_result->need_explain_interceptor())
@@ -2232,7 +2232,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
   if (other) destroy(explain_result);
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -2250,7 +2250,7 @@ bool explain_query(THD *explain_thd, const THD *query_thd,
 
 bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                         SELECT_LEX_UNIT *unit) {
-  DBUG_ENTER("mysql_explain_unit");
+  DBUG_TRACE;
   bool res = false;
   if (unit->is_union())
     res = unit->explain(explain_thd, query_thd);
@@ -2259,7 +2259,7 @@ bool mysql_explain_unit(THD *explain_thd, const THD *query_thd,
                                       unit->first_select(), CTX_JOIN);
   DBUG_ASSERT(res || !explain_thd->is_error());
   res |= explain_thd->is_error();
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**

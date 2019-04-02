@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ namespace dd {
   @return false - on success.
 */
 bool Raw_record_set::open() {
-  DBUG_ENTER("Raw_record_set::open");
+  DBUG_TRACE;
   uint index_no = 0;
 
   // Use specific index if key submitted.
@@ -56,7 +56,7 @@ bool Raw_record_set::open() {
 
   if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_key)
@@ -69,18 +69,18 @@ bool Raw_record_set::open() {
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
     DBUG_ASSERT(!m_current_record);
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Got unexpected error.
   if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_current_record = this;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -98,13 +98,13 @@ bool Raw_record_set::open() {
   @return true - On failure and my_error() is invoked.
 */
 bool Raw_record_set::next(Raw_record *&r) {
-  DBUG_ENTER("Raw_record_set::next");
+  DBUG_TRACE;
   int rc;
 
   if (!m_current_record) {
     m_current_record = NULL;
     r = NULL;
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (m_key)
@@ -117,7 +117,7 @@ bool Raw_record_set::next(Raw_record *&r) {
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
     m_current_record = NULL;
     r = NULL;
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Got unexpected error.
@@ -125,13 +125,13 @@ bool Raw_record_set::next(Raw_record *&r) {
     m_table->file->print_error(rc, MYF(0));
     m_current_record = NULL;
     r = NULL;
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_current_record = this;
   r = this;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

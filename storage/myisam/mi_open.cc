@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
   my_off_t key_root[HA_MAX_POSSIBLE_KEY], key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   ST_FILE_ID file_id = {0, 0};
-  DBUG_ENTER("mi_open_share");
+  DBUG_TRACE;
 
   m_info = NULL;
   kfile = -1;
@@ -125,7 +125,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     if (realpath_err || (*myisam_test_invalid_symlink)(name_buff) ||
         my_is_symlink(name_buff, &file_id)) {
       set_my_errno(HA_WRONG_CREATE_OPTION);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
   }
 
@@ -620,7 +620,7 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     intern_filename(name_buff, share->index_file_name);
     _myisam_log(MI_LOG_OPEN, m_info, (uchar *)name_buff, strlen(name_buff));
   }
-  DBUG_RETURN(m_info);
+  return m_info;
 
 err:
   save_errno = my_errno() ? my_errno() : HA_ERR_END_OF_FILE;
@@ -654,7 +654,7 @@ err:
   }
   if (!internal_table) mysql_mutex_unlock(&THR_LOCK_myisam);
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return NULL;
 } /* mi_open_share */
 
 uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf) {
@@ -797,7 +797,7 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite) {
   uchar *ptr = buff;
   uint i, keys = (uint)state->header.keys,
           key_blocks = state->header.max_block_size_index;
-  DBUG_ENTER("mi_state_info_write");
+  DBUG_TRACE;
 
   memcpy(ptr, &state->header, sizeof(state->header));
   ptr += sizeof(state->header);
@@ -872,10 +872,9 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite) {
   }
 
   if (pWrite & 1)
-    DBUG_RETURN(mysql_file_pwrite(file, buff, (size_t)(ptr - buff), 0L,
-                                  MYF(MY_NABP | MY_THREADSAFE)) != 0);
-  DBUG_RETURN(
-      mysql_file_write(file, buff, (size_t)(ptr - buff), MYF(MY_NABP)) != 0);
+    return mysql_file_pwrite(file, buff, (size_t)(ptr - buff), 0L,
+                             MYF(MY_NABP | MY_THREADSAFE)) != 0;
+  return mysql_file_write(file, buff, (size_t)(ptr - buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *mi_state_info_read(uchar *ptr, MI_STATE_INFO *state) {

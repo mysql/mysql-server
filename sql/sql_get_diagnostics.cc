@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da = thd->get_stmt_da();
   const Diagnostics_area *second_da = thd->get_stacked_da();
-  DBUG_ENTER("Sql_cmd_get_diagnostics::execute");
+  DBUG_TRACE;
 
   /* Push new Diagnostics Area, execute statement and pop. */
   thd->push_diagnostics_area(&new_stmt_da);
@@ -91,7 +91,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   /* Bail out early if statement succeeded. */
   if (!rc) {
     thd->get_stmt_da()->set_ok_status(0, 0, NULL);
-    DBUG_RETURN(false);
+    return false;
   }
 
   /* Statement failed, retrieve the error information for propagation. */
@@ -102,7 +102,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   /* In case of a fatal error, set it into the original DA.*/
   if (thd->is_fatal_error()) {
     first_da->set_error_status(sql_errno, message, sqlstate);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Otherwise, just append the new error as a exception condition. */
@@ -112,7 +112,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
   /* Appending might have failed. */
   if (!(rc = thd->is_error())) thd->get_stmt_da()->set_ok_status(0, 0, NULL);
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -128,7 +128,7 @@ bool Sql_cmd_get_diagnostics::execute(THD *thd) {
 bool Diagnostics_information_item::set_value(THD *thd, Item **value) {
   bool rc;
   Settable_routine_parameter *srp;
-  DBUG_ENTER("Diagnostics_information_item::set_value");
+  DBUG_TRACE;
 
   /* Get a settable reference to the target. */
   srp = m_target->get_settable_routine_parameter();
@@ -138,7 +138,7 @@ bool Diagnostics_information_item::set_value(THD *thd, Item **value) {
   /* Set variable/parameter value. */
   rc = srp->set_value(thd, thd->sp_runtime_ctx, value);
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -155,7 +155,7 @@ bool Statement_information::aggregate(THD *thd, const Diagnostics_area *da) {
   bool rv = false;
   Statement_information_item *stmt_info_item;
   List_iterator<Statement_information_item> it(*m_items);
-  DBUG_ENTER("Statement_information::aggregate");
+  DBUG_TRACE;
 
   /*
     Each specified target gets the value of each given
@@ -165,7 +165,7 @@ bool Statement_information::aggregate(THD *thd, const Diagnostics_area *da) {
     if ((rv = evaluate(thd, stmt_info_item, da))) break;
   }
 
-  DBUG_RETURN(rv);
+  return rv;
 }
 
 /**
@@ -182,7 +182,7 @@ bool Statement_information::aggregate(THD *thd, const Diagnostics_area *da) {
 Item *Statement_information_item::get_value(THD *thd,
                                             const Diagnostics_area *da) {
   Item *value = NULL;
-  DBUG_ENTER("Statement_information_item::get_value");
+  DBUG_TRACE;
 
   switch (m_name) {
     /*
@@ -204,7 +204,7 @@ Item *Statement_information_item::get_value(THD *thd,
       break;
   }
 
-  DBUG_RETURN(value);
+  return value;
 }
 
 /**
@@ -224,12 +224,12 @@ bool Condition_information::aggregate(THD *thd, const Diagnostics_area *da) {
   Condition_information_item *cond_info_item;
   Diagnostics_area::Sql_condition_iterator it_conds = da->sql_conditions();
   List_iterator_fast<Condition_information_item> it_items(*m_items);
-  DBUG_ENTER("Condition_information::aggregate");
+  DBUG_TRACE;
 
   /* Prepare the expression for evaluation. */
   if (!m_cond_number_expr->fixed &&
       m_cond_number_expr->fix_fields(thd, &m_cond_number_expr))
-    DBUG_RETURN(true);
+    return true;
 
   cond_number = m_cond_number_expr->val_int();
 
@@ -241,7 +241,7 @@ bool Condition_information::aggregate(THD *thd, const Diagnostics_area *da) {
   */
   if (cond_number < 1 || (ulonglong)cond_number > da->cond_count()) {
     my_error(ER_DA_INVALID_CONDITION_NUMBER, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Advance to the requested condition. */
@@ -254,7 +254,7 @@ bool Condition_information::aggregate(THD *thd, const Diagnostics_area *da) {
     if ((rv = evaluate(thd, cond_info_item, cond))) break;
   }
 
-  DBUG_RETURN(rv);
+  return rv;
 }
 
 /**
@@ -296,7 +296,7 @@ Item *Condition_information_item::get_value(THD *thd,
                                             const Sql_condition *cond) {
   String str;
   Item *value = NULL;
-  DBUG_ENTER("Condition_information_item::get_value");
+  DBUG_TRACE;
 
   switch (m_name) {
     case CLASS_ORIGIN:
@@ -342,5 +342,5 @@ Item *Condition_information_item::get_value(THD *thd,
       break;
   }
 
-  DBUG_RETURN(value);
+  return value;
 }

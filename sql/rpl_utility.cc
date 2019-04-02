@@ -119,7 +119,7 @@ static int compare(size_t a, size_t b) {
  */
 static int compare_lengths(Field *field, enum_field_types source_type,
                            uint16 metadata) {
-  DBUG_ENTER("compare_lengths");
+  DBUG_TRACE;
   size_t const source_length =
       max_display_length_for_field(source_type, metadata);
   size_t const target_length = field->max_display_length();
@@ -129,7 +129,7 @@ static int compare_lengths(Field *field, enum_field_types source_type,
                        (unsigned long)target_length, field->real_type()));
   int result = compare(source_length, target_length);
   DBUG_PRINT("result", ("%d", result));
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -139,7 +139,7 @@ static int compare_lengths(Field *field, enum_field_types source_type,
    @param order  The computed order of the conversion needed.
  */
 static bool is_conversion_ok(int order) {
-  DBUG_ENTER("is_conversion_ok");
+  DBUG_TRACE;
   bool allow_non_lossy, allow_lossy;
 
   allow_non_lossy = slave_type_conversions_options &
@@ -153,16 +153,16 @@ static bool is_conversion_ok(int order) {
   if (order < 0 && !allow_non_lossy) {
     /* !!! Add error message saying that non-lossy conversions need to be
      * allowed. */
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (order > 0 && !allow_lossy) {
     /* !!! Add error message saying that lossy conversions need to be allowed.
      */
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -228,7 +228,7 @@ inline bool time_cross_check(enum_field_types type1, enum_field_types type2) {
 static bool can_convert_field_to(Field *field, enum_field_types source_type,
                                  uint16 metadata, Relay_log_info *rli,
                                  uint16 mflags, int *order_var) {
-  DBUG_ENTER("can_convert_field_to");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   char field_type_buf[MAX_FIELD_WIDTH];
   String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
@@ -254,15 +254,15 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       DBUG_PRINT("debug",
                  ("Base types are identical, but there is no metadata"));
       *order_var = 0;
-      DBUG_RETURN(true);
+      return true;
     }
 
     DBUG_PRINT("debug",
                ("Base types are identical, doing field size comparison"));
     if (field->compatible_field_size(metadata, rli, mflags, order_var))
-      DBUG_RETURN(is_conversion_ok(*order_var));
+      return is_conversion_ok(*order_var);
     else
-      DBUG_RETURN(false);
+      return false;
   } else if (metadata == 0 &&
              (timestamp_cross_check(field->real_type(), source_type) ||
               datetime_cross_check(field->real_type(), source_type) ||
@@ -290,9 +290,9 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       to new TIME(0), TIMESTAMP(0), DATETIME(0).
     */
     *order_var = -1;
-    DBUG_RETURN(true);
+    return true;
   } else if (!slave_type_conversions_options)
-    DBUG_RETURN(false);
+    return false;
 
   /*
     Here, from and to will always be different. Since the types are
@@ -314,7 +314,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             DECIMAL, so we require lossy conversion.
           */
           *order_var = 1;
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
 
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_FLOAT:
@@ -325,11 +325,11 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
           else
             *order_var = compare_lengths(field, source_type, metadata);
           DBUG_ASSERT(*order_var != 0);
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
         }
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -350,10 +350,10 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
         case MYSQL_TYPE_LONGLONG:
           *order_var = compare_lengths(field, source_type, metadata);
           DBUG_ASSERT(*order_var != 0);
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -362,7 +362,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
       to convert bit types to anything else, this will return false.
      */
     case MYSQL_TYPE_BIT:
-      DBUG_RETURN(false);
+      return false;
 
     /*
       If all conversions are disabled, it is not allowed to convert
@@ -393,10 +393,10 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
             between different (string) types of the same length.
            */
           if (*order_var == 0) *order_var = -1;
-          DBUG_RETURN(is_conversion_ok(*order_var));
+          return is_conversion_ok(*order_var);
 
         default:
-          DBUG_RETURN(false);
+          return false;
       }
       break;
 
@@ -414,9 +414,9 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
     case MYSQL_TYPE_TIMESTAMP2:
     case MYSQL_TYPE_DATETIME2:
     case MYSQL_TYPE_TIME2:
-      DBUG_RETURN(false);
+      return false;
   }
-  DBUG_RETURN(false);  // To keep GCC happy
+  return false;  // To keep GCC happy
 }
 
 /**
@@ -588,7 +588,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
 
 TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
                                           TABLE *target_table) const {
-  DBUG_ENTER("table_def::create_conversion_table");
+  DBUG_TRACE;
 
   List<Create_field> field_list;
   TABLE *conv_table = nullptr;
@@ -613,7 +613,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli,
 
   for (uint col = 0; col < cols_to_create; ++col) {
     Create_field *field_def = new (thd->mem_root) Create_field();
-    if (field_list.push_back(field_def)) DBUG_RETURN(nullptr);
+    if (field_list.push_back(field_def)) return nullptr;
 
     uint decimals = 0;
     TYPELIB *interval = nullptr;
@@ -704,7 +704,7 @@ err:
                   ER_THD(thd, ER_SLAVE_CANT_CREATE_CONVERSION),
                   target_table->s->db.str, target_table->s->table_name.str);
   }
-  DBUG_RETURN(conv_table);
+  return conv_table;
 }
 
 #endif /* MYSQL_SERVER */
@@ -818,7 +818,7 @@ table_def::~table_def() {
  */
 
 void hash_slave_rows_free_entry::operator()(HASH_ROW_ENTRY *entry) const {
-  DBUG_ENTER("hash_slave_rows_free_entry::operator()");
+  DBUG_TRACE;
   if (entry) {
     if (entry->preamble) {
       entry->preamble->~HASH_ROW_PREAMBLE();
@@ -827,7 +827,6 @@ void hash_slave_rows_free_entry::operator()(HASH_ROW_ENTRY *entry) const {
     if (entry->positions) my_free(entry->positions);
     my_free(entry);
   }
-  DBUG_VOID_RETURN;
 }
 
 bool Hash_slave_rows::is_empty(void) { return m_hash.empty(); }
@@ -839,9 +838,9 @@ bool Hash_slave_rows::is_empty(void) { return m_hash.empty(); }
 bool Hash_slave_rows::init(void) { return false; }
 
 bool Hash_slave_rows::deinit(void) {
-  DBUG_ENTER("Hash_slave_rows::deinit");
+  DBUG_TRACE;
   m_hash.clear();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Hash_slave_rows::size() { return m_hash.size(); }
@@ -852,7 +851,7 @@ HASH_ROW_ENTRY *Hash_slave_rows::make_entry() {
 
 HASH_ROW_ENTRY *Hash_slave_rows::make_entry(const uchar *bi_start,
                                             const uchar *bi_ends) {
-  DBUG_ENTER("Hash_slave_rows::make_entry");
+  DBUG_TRACE;
 
   HASH_ROW_ENTRY *entry = (HASH_ROW_ENTRY *)my_malloc(
       key_memory_HASH_ROW_ENTRY, sizeof(HASH_ROW_ENTRY), MYF(0));
@@ -883,7 +882,7 @@ HASH_ROW_ENTRY *Hash_slave_rows::make_entry(const uchar *bi_start,
   entry->preamble = preamble;
   entry->positions = pos;
 
-  DBUG_RETURN(entry);
+  return entry;
 
 err:
   DBUG_PRINT("info", ("Hash_slave_rows::make_entry - malloc error"));
@@ -893,12 +892,12 @@ err:
     my_free(preamble);
   }
   if (pos) my_free(pos);
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
                           HASH_ROW_ENTRY *entry) {
-  DBUG_ENTER("Hash_slave_rows::put");
+  DBUG_TRACE;
 
   HASH_ROW_PREAMBLE *preamble = entry->preamble;
 
@@ -914,11 +913,11 @@ bool Hash_slave_rows::put(TABLE *table, MY_BITMAP *cols,
                  unique_ptr<HASH_ROW_ENTRY, hash_slave_rows_free_entry>(entry));
   DBUG_PRINT("debug",
              ("Added record to hash with key=%u", preamble->hash_value));
-  DBUG_RETURN(false);
+  return false;
 }
 
 HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
-  DBUG_ENTER("Hash_slave_rows::get");
+  DBUG_TRACE;
   uint key;
   HASH_ROW_ENTRY *entry = nullptr;
 
@@ -939,18 +938,18 @@ HASH_ROW_ENTRY *Hash_slave_rows::get(TABLE *table, MY_BITMAP *cols) {
     entry->preamble->is_search_state_inited = true;
   }
 
-  DBUG_RETURN(entry);
+  return entry;
 }
 
 bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
-  DBUG_ENTER("Hash_slave_rows::next");
+  DBUG_TRACE;
   DBUG_ASSERT(*entry);
 
-  if (*entry == nullptr) DBUG_RETURN(true);
+  if (*entry == nullptr) return true;
 
   HASH_ROW_PREAMBLE *preamble = (*entry)->preamble;
 
-  if (!preamble->is_search_state_inited) DBUG_RETURN(true);
+  if (!preamble->is_search_state_inited) return true;
 
   uint key = preamble->hash_value;
   const auto it = std::next(preamble->search_state);
@@ -980,19 +979,19 @@ bool Hash_slave_rows::next(HASH_ROW_ENTRY **entry) {
     *entry = nullptr;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Hash_slave_rows::del(HASH_ROW_ENTRY *entry) {
-  DBUG_ENTER("Hash_slave_rows::del");
+  DBUG_TRACE;
   DBUG_ASSERT(entry);
 
   erase_specific_element(&m_hash, entry->preamble->hash_value, entry);
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
-  DBUG_ENTER("Hash_slave_rows::make_hash_key");
+  DBUG_TRACE;
   ha_checksum crc = 0L;
 
   uchar *record = table->record[0];
@@ -1088,7 +1087,7 @@ uint Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols) {
   }
 
   DBUG_PRINT("debug", ("Created key=%u", crc));
-  DBUG_RETURN(crc);
+  return crc;
 }
 
 #endif

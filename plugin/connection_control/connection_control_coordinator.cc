@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ bool Connection_event_coordinator::register_event_subscriber(
     Connection_event_observer **subscriber,
     std::vector<opt_connection_control> *sys_vars,
     std::vector<stats_connection_control> *status_vars) {
-  DBUG_ENTER("Connection_event_coordinator::register_event_subscriber");
+  DBUG_TRACE;
   bool error = false;
   std::vector<opt_connection_control>::iterator sys_vars_it;
   std::vector<stats_connection_control>::iterator status_vars_it;
@@ -130,7 +130,7 @@ bool Connection_event_coordinator::register_event_subscriber(
         m_status_vars_subscription[*status_vars_it] = *subscriber;
     }
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -155,7 +155,7 @@ bool Connection_event_coordinator::register_event_subscriber(
 void Connection_event_coordinator::notify_event(
     MYSQL_THD thd, Error_handler *error_handler,
     const mysql_event_connection *connection_event) {
-  DBUG_ENTER("Connection_event_coordinator::notify_event");
+  DBUG_TRACE;
   std::vector<Connection_event_subscriber>::iterator it = m_subscribers.begin();
 
   while (it != m_subscribers.end()) {
@@ -165,8 +165,6 @@ void Connection_event_coordinator::notify_event(
 
     ++it;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -186,7 +184,7 @@ void Connection_event_coordinator::notify_event(
 void Connection_event_coordinator::notify_sys_var(
     Error_handler *error_handler, opt_connection_control variable,
     void *new_value) {
-  DBUG_ENTER("Connection_event_coordinator::notify_sys_var");
+  DBUG_TRACE;
   std::vector<Connection_event_subscriber>::iterator it = m_subscribers.begin();
 
   while (it != m_subscribers.end()) {
@@ -197,8 +195,6 @@ void Connection_event_coordinator::notify_sys_var(
     }
     ++it;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -216,7 +212,7 @@ void Connection_event_coordinator::notify_sys_var(
 bool Connection_event_coordinator::notify_status_var(
     Connection_event_observer **observer, stats_connection_control status_var,
     status_var_action action) {
-  DBUG_ENTER("Connection_event_coordinator::notify_status_var");
+  DBUG_TRACE;
   bool error = false;
 
   if (m_status_vars_subscription[status_var] == *observer) {
@@ -239,6 +235,6 @@ bool Connection_event_coordinator::notify_status_var(
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 }  // namespace connection_control

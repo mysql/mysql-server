@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,10 +43,10 @@ my_off_t mi_position(MI_INFO *info) { return info->lastpos; }
 int mi_status(MI_INFO *info, MI_ISAMINFO *x, uint flag) {
   MY_STAT state;
   MYISAM_SHARE *share = info->s;
-  DBUG_ENTER("mi_status");
+  DBUG_TRACE;
 
   x->recpos = info->lastpos;
-  if (flag == HA_STATUS_POS) DBUG_RETURN(0); /* Compatible with ISAM */
+  if (flag == HA_STATUS_POS) return 0; /* Compatible with ISAM */
   if (!(flag & HA_STATUS_NO_LOCK)) {
     mysql_mutex_lock(&share->intern_lock);
     (void)_mi_readinfo(info, F_RDLCK, 0);
@@ -99,7 +99,7 @@ int mi_status(MI_INFO *info, MI_ISAMINFO *x, uint flag) {
     if (!x->auto_increment) /* This shouldn't happen */
       x->auto_increment = ~(ulonglong)0;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -123,10 +123,9 @@ int mi_status(MI_INFO *info, MI_ISAMINFO *x, uint flag) {
 
 void mi_report_error(int errcode, const char *file_name) {
   size_t lgt;
-  DBUG_ENTER("mi_report_error");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("errcode %d, table '%s'", errcode, file_name));
 
   if ((lgt = strlen(file_name)) > 64) file_name += lgt - 64;
   my_error(errcode, MYF(ME_ERRORLOG), file_name);
-  DBUG_VOID_RETURN;
 }

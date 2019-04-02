@@ -64,7 +64,7 @@
 
 int my_redel(const char *org_name, const char *tmp_name, myf MyFlags) {
   int error = 1;
-  DBUG_ENTER("my_redel");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("org_name: '%s' tmp_name: '%s'  MyFlags: %d", org_name,
                     tmp_name, MyFlags));
 
@@ -86,7 +86,7 @@ int my_redel(const char *org_name, const char *tmp_name, myf MyFlags) {
 
   error = 0;
 end:
-  DBUG_RETURN(error);
+  return error;
 } /* my_redel */
 
 /* Copy stat from one file to another */

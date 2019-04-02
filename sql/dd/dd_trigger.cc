@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ static bool fill_in_dd_trigger_object(const ::Trigger *new_trigger,
 bool create_trigger(THD *thd, const ::Trigger *new_trigger,
                     enum_trigger_order_type ordering_clause,
                     const LEX_CSTRING &referenced_trigger_name) {
-  DBUG_ENTER("dd::create_trigger");
+  DBUG_TRACE;
 
   cache::Dictionary_client *dd_client = thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dd_client);
@@ -186,14 +186,14 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
 
   DBUG_EXECUTE_IF("create_trigger_fail", {
     my_error(ER_LOCK_DEADLOCK, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   });
 
   if (dd_client->acquire_for_modification(
           new_trigger->get_db_name().str,
           new_trigger->get_subject_table_name().str, &new_table)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
 
   DBUG_ASSERT(new_table != nullptr);
@@ -228,11 +228,11 @@ bool create_trigger(THD *thd, const ::Trigger *new_trigger,
   if (dd_trig_obj == nullptr)
     // NOTE: It's expected that an error is reported
     // by the dd::cache::Dictionary_client::add_trigger.
-    DBUG_RETURN(true);
+    return true;
 
-  if (fill_in_dd_trigger_object(new_trigger, dd_trig_obj)) DBUG_RETURN(true);
+  if (fill_in_dd_trigger_object(new_trigger, dd_trig_obj)) return true;
 
-  DBUG_RETURN(dd_client->update(new_table));
+  return dd_client->update(new_table);
 }
 
 /**
@@ -280,7 +280,7 @@ static enum_trigger_action_time_type convert_action_time_from_dd(
 bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
                    const char *table_name, const dd::Table &table,
                    List<::Trigger> *triggers) {
-  DBUG_ENTER("dd::load_triggers");
+  DBUG_TRACE;
 
   for (const auto &trigger : table.triggers()) {
     LEX_CSTRING db_name_str = {schema_name, strlen(schema_name)};
@@ -290,24 +290,24 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
     if (lex_string_strmake(mem_root, &definition,
                            trigger->action_statement().c_str(),
                            trigger->action_statement().length()))
-      DBUG_RETURN(true);
+      return true;
 
     if (lex_string_strmake(mem_root, &definition_utf8,
                            trigger->action_statement_utf8().c_str(),
                            trigger->action_statement_utf8().length()))
-      DBUG_RETURN(true);
+      return true;
 
     LEX_CSTRING definer_user;
     if (lex_string_strmake(mem_root, &definer_user,
                            trigger->definer_user().c_str(),
                            trigger->definer_user().length()))
-      DBUG_RETURN(true);
+      return true;
 
     LEX_CSTRING definer_host;
     if (lex_string_strmake(mem_root, &definer_host,
                            trigger->definer_host().c_str(),
                            trigger->definer_host().length()))
-      DBUG_RETURN(true);
+      return true;
 
     const CHARSET_INFO *client_cs =
         dd_get_mysql_charset(trigger->client_collation_id());
@@ -331,7 +331,7 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
                            strlen(schema_cs->name)) ||
         lex_string_strmake(mem_root, &trigger_name, trigger->name().c_str(),
                            trigger->name().length()))
-      DBUG_RETURN(true);
+      return true;
 
     ::Trigger *trigger_to_add = ::Trigger::create_from_dd(
         mem_root, trigger_name, db_name_str, subject_table_name, definition,
@@ -341,21 +341,21 @@ bool load_triggers(THD *thd, MEM_ROOT *mem_root, const char *schema_name,
         convert_action_time_from_dd(trigger->action_timing()),
         trigger->action_order(), trigger->created());
 
-    if (trigger_to_add == nullptr) DBUG_RETURN(true);
+    if (trigger_to_add == nullptr) return true;
 
     if (triggers->push_back(trigger_to_add, mem_root)) {
       destroy(trigger_to_add);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 // Only used by NDB
 bool table_has_triggers(THD *thd, const char *schema_name,
                         const char *table_name, bool *table_has_trigger) {
-  DBUG_ENTER("table_has_triggers");
+  DBUG_TRACE;
 
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -363,12 +363,12 @@ bool table_has_triggers(THD *thd, const char *schema_name,
 
   if (thd->dd_client()->acquire(schema_name, table_name, &table)) {
     // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
+    return true;
   }
 
   *table_has_trigger = (table != nullptr && table->has_trigger());
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 }  // namespace dd

@@ -139,7 +139,7 @@ static bool simplify_const_condition(THD *thd, Item **cond,
      as a SELECT statement, this note applies to those statements as well.
 */
 bool SELECT_LEX::prepare(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::prepare");
+  DBUG_TRACE;
 
   // We may do subquery transformation, or Item substitution:
   Prepare_error_tracker tracker(thd);
@@ -196,16 +196,16 @@ bool SELECT_LEX::prepare(THD *thd) {
   /* Check that all tables, fields, conds and order are ok */
 
   if (!(active_options() & OPTION_SETUP_TABLES_DONE)) {
-    if (setup_tables(thd, get_table_list(), false)) DBUG_RETURN(true);
+    if (setup_tables(thd, get_table_list(), false)) return true;
 
     if ((derived_table_count || table_func_count) &&
         resolve_placeholder_tables(thd, true))
-      DBUG_RETURN(true);
+      return true;
 
     // Wait with privilege checking until all derived tables are resolved.
     if (derived_table_count && !thd->derived_tables_processing &&
         check_view_privileges(thd, SELECT_ACL, SELECT_ACL))
-      DBUG_RETURN(true);
+      return true;
   }
 
   is_item_list_lookup = true;
@@ -213,7 +213,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   // Precompute and store the row types of NATURAL/USING joins.
   if (leaf_table_count >= 2 &&
       setup_natural_join_row_types(thd, join_list, &context))
-    DBUG_RETURN(true);
+    return true;
 
   Mem_root_array<Item_exists_subselect *> sj_candidates_local(thd->mem_root);
   set_sj_candidates(&sj_candidates_local);
@@ -229,15 +229,15 @@ bool SELECT_LEX::prepare(THD *thd) {
 
   resolve_place = RESOLVE_SELECT_LIST;
 
-  if (with_wild && setup_wild(thd)) DBUG_RETURN(true);
-  if (setup_base_ref_items(thd)) DBUG_RETURN(true); /* purecov: inspected */
+  if (with_wild && setup_wild(thd)) return true;
+  if (setup_base_ref_items(thd)) return true; /* purecov: inspected */
 
   // Initially, "all_fields" is the select list (after expansion of *).
   all_fields = fields_list;
 
   if (setup_fields(thd, base_ref_items, fields_list, thd->want_privilege,
                    &all_fields, true, false))
-    DBUG_RETURN(true);
+    return true;
 
   resolve_place = RESOLVE_NONE;
 
@@ -251,11 +251,11 @@ bool SELECT_LEX::prepare(THD *thd) {
   thd->want_privilege = SELECT_ACL;
 
   // Set up join conditions and WHERE clause
-  if (setup_conds(thd)) DBUG_RETURN(true);
+  if (setup_conds(thd)) return true;
 
   // Set up the GROUP BY clause
   int all_fields_count = all_fields.elements;
-  if (group_list.elements && setup_group(thd)) DBUG_RETURN(true);
+  if (group_list.elements && setup_group(thd)) return true;
   hidden_group_field_count = all_fields.elements - all_fields_count;
 
   // Allow local set functions in HAVING and ORDER BY
@@ -273,14 +273,14 @@ bool SELECT_LEX::prepare(THD *thd) {
     if (!m_having_cond->fixed &&
         (m_having_cond->fix_fields(thd, &m_having_cond) ||
          m_having_cond->check_cols(1)))
-      DBUG_RETURN(true);
+      return true;
 
     // Simplify the having condition if it is a const item
     if (m_having_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_having_cond->walk(&Item::is_non_const_over_literals,
                              enum_walk::POSTFIX, NULL) &&
         simplify_const_condition(thd, &m_having_cond))
-      DBUG_RETURN(true);
+      return true;
 
     having_fix_field = false;
     resolve_place = RESOLVE_NONE;
@@ -290,14 +290,14 @@ bool SELECT_LEX::prepare(THD *thd) {
 
   if (m_having_cond && olap == ROLLUP_TYPE &&
       resolve_rollup_item(thd, m_having_cond))
-    DBUG_RETURN(true);
+    return true;
 
   // Set up the ORDER BY clause
   all_fields_count = all_fields.elements;
   if (order_list.elements) {
     if (setup_order(thd, base_ref_items, get_table_list(), fields_list,
                     all_fields, order_list.first))
-      DBUG_RETURN(true);
+      return true;
   }
 
   hidden_order_field_count = all_fields.elements - all_fields_count;
@@ -333,10 +333,10 @@ bool SELECT_LEX::prepare(THD *thd) {
   if (m_windows.elements != 0 &&
       Window::setup_windows(thd, this, base_ref_items, get_table_list(),
                             fields_list, all_fields, m_windows))
-    DBUG_RETURN(true);
+    return true;
 
   if (order_list.elements && setup_order_final(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   thd->want_privilege = want_privilege_saved;
 
@@ -380,7 +380,7 @@ bool SELECT_LEX::prepare(THD *thd) {
                                         // Not normalizing a view
       !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
-    if (resolve_subquery(thd)) DBUG_RETURN(true);
+    if (resolve_subquery(thd)) return true;
   }
 
   /*
@@ -422,12 +422,12 @@ bool SELECT_LEX::prepare(THD *thd) {
   }
 
   // Setup full-text functions after resolving HAVING
-  if (has_ft_funcs() && setup_ftfuncs(thd, this)) DBUG_RETURN(true);
+  if (has_ft_funcs() && setup_ftfuncs(thd, this)) return true;
 
   if (query_result() && query_result()->prepare(thd, fields_list, unit))
-    DBUG_RETURN(true);
+    return true;
 
-  if (has_sj_candidates() && flatten_subqueries(thd)) DBUG_RETURN(true);
+  if (has_sj_candidates() && flatten_subqueries(thd)) return true;
 
   set_sj_candidates(NULL);
 
@@ -464,7 +464,7 @@ bool SELECT_LEX::prepare(THD *thd) {
       apply_local_transforms() is initiated only by the top query, and then
       recurses into subqueries.
     */
-    if (apply_local_transforms(thd, true)) DBUG_RETURN(true);
+    if (apply_local_transforms(thd, true)) return true;
   }
 
   /*
@@ -474,7 +474,7 @@ bool SELECT_LEX::prepare(THD *thd) {
   if (m_windows.elements != 0) Window::remove_unused_windows(thd, m_windows);
 
   DBUG_ASSERT(!thd->is_error());
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -532,11 +532,11 @@ bool check_right_lateral_join(TABLE_LIST *table_ref, table_map map) {
 */
 
 bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
-  DBUG_ENTER("SELECT_LEX::apply_local_transforms");
+  DBUG_TRACE;
 
   // No transformations required when creating a view only
   if (thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)
-    DBUG_RETURN(false);
+    return false;
 
   /*
     If query block contains one or more merged derived tables/views,
@@ -550,11 +550,11 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
        unit = unit->next_unit()) {
     for (SELECT_LEX *sl = unit->first_select(); sl; sl = sl->next_select()) {
       // Prune all subqueries, regardless of passed argument
-      if (sl->apply_local_transforms(thd, true)) DBUG_RETURN(true);
+      if (sl->apply_local_transforms(thd, true)) return true;
     }
     if (unit->fake_select_lex &&
         unit->fake_select_lex->apply_local_transforms(thd, false))
-      DBUG_RETURN(true);
+      return true;
   }
 
   if (first_execution && !thd->lex->is_view_context_analysis()) {
@@ -565,8 +565,8 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     // Convert all outer joins to inner joins if possible
     if (simplify_joins(thd, &top_join_list, true, false, &m_where_cond))
-      DBUG_RETURN(true);
-    if (record_join_nest_info(&top_join_list)) DBUG_RETURN(true);
+      return true;
+    if (record_join_nest_info(&top_join_list)) return true;
     build_bitmap_for_nested_joins(&top_join_list, 0);
 
     /*
@@ -596,7 +596,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
     if ((is_distinct() || is_grouped()) &&
         (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY) &&
         check_only_full_group_by(thd))
-      DBUG_RETURN(true);
+      return true;
   }
 
   fix_prepare_information(thd);
@@ -613,7 +613,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
       */
       if (prune_partitions(thd, tbl->table,
                            tbl->join_cond() ? tbl->join_cond() : m_where_cond))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
 
       if (tbl->table->all_partitions_pruned_away &&
           !tbl->is_inner_table_of_outer_join())
@@ -621,7 +621,7 @@ bool SELECT_LEX::apply_local_transforms(THD *thd, bool prune) {
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -692,7 +692,7 @@ static bool simplify_const_condition(THD *thd, Item **cond, bool remove_cond,
 bool Item_in_subselect::subquery_allows_materialization(
     THD *thd, SELECT_LEX *select_lex, const SELECT_LEX *outer) {
   const uint elements = unit->first_select()->item_list.elements;
-  DBUG_ENTER("subquery_allows_materialization");
+  DBUG_TRACE;
   DBUG_ASSERT(elements >= 1);
   DBUG_ASSERT(left_expr->cols() == elements);
 
@@ -779,13 +779,13 @@ bool Item_in_subselect::subquery_allows_materialization(
         cause = "cannot_handle_partial_matches";
       else {
         trace_mat.add("possible", true);
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
   DBUG_ASSERT(cause != NULL);
   trace_mat.add("possible", false).add_alnum("cause", cause);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -869,7 +869,7 @@ bool SELECT_LEX::check_view_privileges(THD *thd, ulong want_privilege_first,
 
 bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
                               bool select_insert) {
-  DBUG_ENTER("SELECT_LEX::setup_tables");
+  DBUG_TRACE;
 
   DBUG_ASSERT((select_insert && !tables->next_name_resolution_table) ||
               !tables ||
@@ -906,7 +906,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
     }
     if (tableno >= MAX_TABLES) {
       my_error(ER_TOO_MANY_TABLES, MYF(0), static_cast<int>(MAX_TABLES));
-      DBUG_RETURN(true);
+      return true;
     }
     tr->set_tableno(tableno);
     leaf_table_count++;  // Count the input tables of the query
@@ -924,7 +924,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
     if (table == NULL) continue;
     table->pos_in_table_list = tr;
     tr->reset();
-    if (tr->process_index_hints(thd, table)) DBUG_RETURN(true);
+    if (tr->process_index_hints(thd, table)) return true;
     if (table->part_info)  // Count number of partitioned tables
       partitioned_table_count++;
   }
@@ -936,7 +936,7 @@ bool SELECT_LEX::setup_tables(THD *thd, TABLE_LIST *tables,
   */
   if (opt_hints_qb && !select_insert) opt_hints_qb->check_unresolved(thd);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -984,7 +984,7 @@ void SELECT_LEX::remap_tables(THD *thd) {
 */
 
 bool SELECT_LEX::resolve_placeholder_tables(THD *thd, bool apply_semijoin) {
-  DBUG_ENTER("SELECT_LEX::resolve_placeholder_tables");
+  DBUG_TRACE;
 
   DBUG_ASSERT(derived_table_count > 0 || table_func_count > 0);
 
@@ -1025,7 +1025,7 @@ loop:
          (tl->is_derived() && tl->derived_unit()->m_lateral_deps)) ^
         do_tf_lateral)
       continue;
-    if (tl->resolve_derived(thd, apply_semijoin)) DBUG_RETURN(true);
+    if (tl->resolve_derived(thd, apply_semijoin)) return true;
     /*
       Merge the derived tables that do not require materialization into
       the current query block, if possible.
@@ -1033,7 +1033,7 @@ loop:
     */
     if (!thd->lex->is_view_context_analysis() && first_execution) {
       if (tl->is_mergeable() && merge_derived(thd, tl))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
     }
     if (tl->is_merged()) continue;
     // Prepare remaining derived tables for materialization
@@ -1046,11 +1046,11 @@ loop:
       @todo in WL#6570, eliminate tests of tl->table in this function.
     */
     if (tl->is_table_function()) {
-      if (tl->setup_table_function(thd)) DBUG_RETURN(true);
+      if (tl->setup_table_function(thd)) return true;
       continue;
     }
     if (tl->table == nullptr && tl->setup_materialized_derived(thd))
-      DBUG_RETURN(true);
+      return true;
     materialized_derived_table_count++;
   }
 
@@ -1072,12 +1072,12 @@ loop:
         continue;
       DBUG_ASSERT(!tl->is_merged());
       if (tl->is_table_function()) {
-        if (tl->setup_table_function(thd)) DBUG_RETURN(true);
+        if (tl->setup_table_function(thd)) return true;
       }
       if (tl->resolve_derived(thd, apply_semijoin))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
       if (tl->table == nullptr && tl->setup_materialized_derived(thd))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
       /*
         materialized_derived_table_count was incremented during preparation,
         so do not do it once more.
@@ -1090,7 +1090,7 @@ loop:
     goto loop;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1114,7 +1114,7 @@ loop:
 */
 
 bool SELECT_LEX::resolve_subquery(THD *thd) {
-  DBUG_ENTER("resolve_subquery");
+  DBUG_TRACE;
 
   bool chose_semijoin = false;
   bool deterministic = true;
@@ -1161,7 +1161,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
         in_predicate->left_expr->fix_fields(thd, &in_predicate->left_expr);
     thd->lex->set_current_select(this);
     thd->where = save_where;
-    if (result) DBUG_RETURN(true);
+    if (result) return true;
 
     /*
       Check if the left and right expressions have the same # of
@@ -1173,7 +1173,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
     */
     if (item_list.elements != in_predicate->left_expr->cols()) {
       my_error(ER_OPERAND_COLUMNS, MYF(0), in_predicate->left_expr->cols());
-      DBUG_RETURN(true);
+      return true;
     }
     if (in_predicate->left_expr->used_tables() & RAND_TABLE_BIT)
       deterministic = false;
@@ -1245,9 +1245,9 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
 
   if (!chose_semijoin && subq_predicate->select_transformer(thd, this) ==
                              Item_subselect::RES_ERROR)
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1261,7 +1261,7 @@ bool SELECT_LEX::resolve_subquery(THD *thd) {
 */
 
 bool SELECT_LEX::setup_wild(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::setup_wild");
+  DBUG_TRACE;
 
   DBUG_ASSERT(with_wild);
 
@@ -1298,7 +1298,7 @@ bool SELECT_LEX::setup_wild(THD *thd) {
       } else {
         if (insert_fields(thd, item_field->context, item_field->db_name,
                           item_field->table_name, &it, any_privileges))
-          DBUG_RETURN(true);
+          return true;
       }
       /*
         all_fields is a list that has the fields list as a tail.
@@ -1311,7 +1311,7 @@ bool SELECT_LEX::setup_wild(THD *thd) {
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1323,7 +1323,7 @@ bool SELECT_LEX::setup_wild(THD *thd) {
 */
 
 bool SELECT_LEX::setup_conds(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::setup_conds");
+  DBUG_TRACE;
 
   /*
     it_is_update set to true when tables of primary SELECT_LEX (SELECT_LEX
@@ -1347,14 +1347,14 @@ bool SELECT_LEX::setup_conds(THD *thd) {
     if ((!m_where_cond->fixed &&
          m_where_cond->fix_fields(thd, &m_where_cond)) ||
         m_where_cond->check_cols(1))
-      DBUG_RETURN(true);
+      return true;
 
     // Simplify the where condition if it's a const item
     if (m_where_cond->const_item() && !thd->lex->is_view_context_analysis() &&
         !m_where_cond->walk(&Item::is_non_const_over_literals,
                             enum_walk::POSTFIX, NULL) &&
         simplify_const_condition(thd, &m_where_cond))
-      DBUG_RETURN(true);
+      return true;
 
     resolve_place = SELECT_LEX::RESOLVE_NONE;
   }
@@ -1362,13 +1362,13 @@ bool SELECT_LEX::setup_conds(THD *thd) {
   // Resolve all join condition clauses
   if (top_join_list.elements > 0 &&
       setup_join_cond(thd, &top_join_list, it_is_update))
-    DBUG_RETURN(true);
+    return true;
 
   is_item_list_lookup = save_is_item_list_lookup;
 
   DBUG_ASSERT(thd->lex->current_select() == this);
   DBUG_ASSERT(!thd->is_error());
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1383,7 +1383,7 @@ bool SELECT_LEX::setup_conds(THD *thd) {
 
 bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
                                  bool in_update) {
-  DBUG_ENTER("SELECT_LEX::setup_join_cond");
+  DBUG_TRACE;
 
   List_iterator<TABLE_LIST> li(*tables);
   TABLE_LIST *tr;
@@ -1392,7 +1392,7 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
     // Traverse join conditions recursively
     if (tr->nested_join != NULL &&
         setup_join_cond(thd, &tr->nested_join->join_list, in_update))
-      DBUG_RETURN(true);
+      return true;
 
     Item **ref = tr->join_cond_ref();
     Item *join_cond = tr->join_cond();
@@ -1404,14 +1404,14 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
       thd->where = "on clause";
       if ((!join_cond->fixed && join_cond->fix_fields(thd, ref)) ||
           join_cond->check_cols(1))
-        DBUG_RETURN(true);
+        return true;
       cond_count++;
 
       if ((*ref)->const_item() && !thd->lex->is_view_context_analysis() &&
           !(*ref)->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                         NULL) &&
           simplify_const_condition(thd, ref, remove_cond))
-        DBUG_RETURN(true);
+        return true;
 
       resolve_place = SELECT_LEX::RESOLVE_NONE;
       resolve_nest = NULL;
@@ -1421,13 +1421,13 @@ bool SELECT_LEX::setup_join_cond(THD *thd, List<TABLE_LIST> *tables,
       TABLE_LIST *view = tr->top_table();
       if (view->is_view() && view->is_merged()) {
         if (view->prepare_check_option(thd))
-          DBUG_RETURN(true); /* purecov: inspected */
+          return true; /* purecov: inspected */
         tr->check_option = view->check_option;
       }
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1442,7 +1442,7 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list) {
   if (join_list == NULL) join_list = &top_join_list;
   List_iterator<TABLE_LIST> li(*join_list);
   TABLE_LIST *table;
-  DBUG_ENTER("reset_nj_counters");
+  DBUG_TRACE;
   while ((table = li++)) {
     NESTED_JOIN *nested_join;
     if ((nested_join = table->nested_join)) {
@@ -1450,7 +1450,6 @@ void SELECT_LEX::reset_nj_counters(List<TABLE_LIST> *join_list) {
       reset_nj_counters(&nested_join->join_list);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1600,7 +1599,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
   TABLE_LIST *prev_table = 0;
   List_iterator<TABLE_LIST> li(*join_list);
   const bool straight_join = active_options() & SELECT_STRAIGHT_JOIN;
-  DBUG_ENTER("simplify_joins");
+  DBUG_TRACE;
 
   /*
     Try to simplify join operations from join_list.
@@ -1652,7 +1651,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
                 false,  // not 'top' as it's not WHERE.
                 // SJ nests can dissolve into upper SJ or anti SJ nests:
                 in_sj || table->is_sj_or_aj_nest(), &join_cond, changelog))
-          DBUG_RETURN(true);
+          return true;
 
         if (join_cond != table->join_cond()) {
           DBUG_ASSERT(join_cond);
@@ -1665,7 +1664,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       if (simplify_joins(thd, &nested_join->join_list,
                          top,  // if it was WHERE it still is
                          in_sj || table->is_sj_or_aj_nest(), cond, changelog))
-        DBUG_RETURN(true);
+        return true;
       used_tables = nested_join->used_tables;
       not_null_tables = nested_join->not_null_tables;
     } else {
@@ -1703,7 +1702,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
 
           Item_cond_and *new_cond =
               down_cast<Item_cond_and *>(and_conds(i1, i2));
-          if (!new_cond) DBUG_RETURN(true);
+          if (!new_cond) return true;
           new_cond->apply_is_true();
           /*
             It is always a new item as both the upper-level condition and a
@@ -1711,7 +1710,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
           */
           DBUG_ASSERT(!new_cond->fixed);
           Item *cond_after_fix = new_cond;
-          if (new_cond->fix_fields(thd, &cond_after_fix)) DBUG_RETURN(true);
+          if (new_cond->fix_fields(thd, &cond_after_fix)) return true;
 
           if (new_cond == cond_after_fix) {
             /* If join condition has a pending rollback in THD::change_list */
@@ -1805,7 +1804,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
                          NULL)) {
         bool cond_value = true;
         if (simplify_const_condition(thd, cond, false, &cond_value))
-          DBUG_RETURN(true);
+          return true;
         if (!cond_value) clear_sj_expressions(nested_join);
       }
     }
@@ -1859,7 +1858,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
       opt_trace_print_expanded_query(thd, this, &trace_object);
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1879,7 +1878,7 @@ bool SELECT_LEX::simplify_joins(THD *thd, List<TABLE_LIST> *join_list, bool top,
 bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables) {
   TABLE_LIST *table;
   List_iterator<TABLE_LIST> li(*tables);
-  DBUG_ENTER("record_join_nest_info");
+  DBUG_TRACE;
 
   while ((table = li++)) {
     if (table->nested_join == NULL) {
@@ -1887,8 +1886,7 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables) {
       continue;
     }
 
-    if (record_join_nest_info(&table->nested_join->join_list))
-      DBUG_RETURN(true);
+    if (record_join_nest_info(&table->nested_join->join_list)) return true;
     /*
       sj_inner_tables is set properly later in pull_out_semijoin_tables().
       This assignment is required in case pull_out_semijoin_tables()
@@ -1897,12 +1895,11 @@ bool SELECT_LEX::record_join_nest_info(List<TABLE_LIST> *tables) {
     if (table->is_sj_or_aj_nest())
       table->sj_inner_tables = table->nested_join->used_tables;
 
-    if (table->is_sj_or_aj_nest() && sj_nests.push_back(table))
-      DBUG_RETURN(true);
+    if (table->is_sj_or_aj_nest() && sj_nests.push_back(table)) return true;
 
     if (table->join_cond()) outer_join |= table->nested_join->used_tables;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2465,7 +2462,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     THD *thd, Item_exists_subselect *subq_pred) {
   TABLE_LIST *emb_tbl_nest = NULL;
   List<TABLE_LIST> *emb_join_list = &top_join_list;
-  DBUG_ENTER("convert_subquery_to_semijoin");
+  DBUG_TRACE;
 
   DBUG_ASSERT(subq_pred->substype() == Item_subselect::IN_SUBS ||
               subq_pred->substype() == Item_subselect::EXISTS_SUBS);
@@ -2541,7 +2538,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       TABLE_LIST *const wrap_nest = TABLE_LIST::new_nested_join(
           thd->mem_root, "(sj-wrap)", outer_tbl->embedding,
           outer_tbl->join_list, this);
-      if (wrap_nest == NULL) DBUG_RETURN(true);
+      if (wrap_nest == NULL) return true;
 
       wrap_nest->nested_join->join_list.push_back(outer_tbl);
 
@@ -2656,7 +2653,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
     */
     TABLE_LIST *const wrap_nest = TABLE_LIST::new_nested_join(
         thd->mem_root, "(aj-left-nest)", emb_tbl_nest, emb_join_list, this);
-    if (wrap_nest == NULL) DBUG_RETURN(true);
+    if (wrap_nest == NULL) return true;
 
     // Go through tables of emb_join_list, insert them in wrap_nest
     List_iterator<TABLE_LIST> li(*emb_join_list);
@@ -2688,7 +2685,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   TABLE_LIST *const sj_nest = TABLE_LIST::new_nested_join(
       thd->mem_root, do_aj ? "(aj-nest)" : "(sj-nest)", emb_tbl_nest,
       emb_join_list, this);
-  if (sj_nest == NULL) DBUG_RETURN(true); /* purecov: inspected */
+  if (sj_nest == NULL) return true; /* purecov: inspected */
 
   NESTED_JOIN *const nested_join = sj_nest->nested_join;
 
@@ -2716,7 +2713,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   // Merge tables from underlying query block into this join nest
   if (sj_nest->merge_underlying_tables(subq_select))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   /*
     Add tables from subquery at end of leaf table chain.
@@ -2815,7 +2812,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       }
 
       Item_row *right_expr = new Item_row(header, ref_list);
-      if (!right_expr) DBUG_RETURN(true); /* purecov: inspected */
+      if (!right_expr) return true; /* purecov: inspected */
 
       nested_join->sj_outer_exprs.push_back(in_subq_pred->left_expr);
       nested_join->sj_inner_exprs.push_back(right_expr);
@@ -2836,10 +2833,9 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   */
   if (subq_select->where_cond() &&
       subq_select->decorrelate_condition(sj_nest, nullptr))
-    DBUG_RETURN(true);
+    return true;
 
-  if (decorrelate_join_conds(sj_nest, &subq_select->top_join_list))
-    DBUG_RETURN(true);
+  if (decorrelate_join_conds(sj_nest, &subq_select->top_join_list)) return true;
 
   // Unlink the subquery's query expression:
   subq_select->master_unit()->exclude_level();
@@ -2863,7 +2859,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   // Build semijoin condition using the inner/outer expression list
   if (build_sj_cond(thd, nested_join, subq_select, outer_tables_map, &sj_cond))
-    DBUG_RETURN(true);
+    return true;
 
   // Processing requires a non-empty semi-join condition:
   DBUG_ASSERT(sj_cond != nullptr);
@@ -2874,7 +2870,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
                                 "evaluating_constant_semijoin_conditions");
     sj_cond->apply_is_true();
     if (sj_cond->fix_fields(thd, &sj_cond))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
   }
 
   sj_nest->set_sj_or_aj_nest();
@@ -2918,18 +2914,18 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
   } else if (emb_tbl_nest) {
     // Inject semi-join condition into parent's join condition
     emb_tbl_nest->set_join_cond(and_items(emb_tbl_nest->join_cond(), sj_cond));
-    if (emb_tbl_nest->join_cond() == NULL) DBUG_RETURN(true);
+    if (emb_tbl_nest->join_cond() == NULL) return true;
     emb_tbl_nest->join_cond()->apply_is_true();
     if (!emb_tbl_nest->join_cond()->fixed &&
         emb_tbl_nest->join_cond()->fix_fields(thd,
                                               emb_tbl_nest->join_cond_ref()))
-      DBUG_RETURN(true);
+      return true;
   } else {
     // Inject semi-join condition into parent's WHERE condition
     m_where_cond = and_items(m_where_cond, sj_cond);
-    if (m_where_cond == NULL) DBUG_RETURN(true);
+    if (m_where_cond == NULL) return true;
     m_where_cond->apply_is_true();
-    if (m_where_cond->fix_fields(thd, &m_where_cond)) DBUG_RETURN(true);
+    if (m_where_cond->fix_fields(thd, &m_where_cond)) return true;
   }
 
   Item *cond = emb_tbl_nest ? emb_tbl_nest->join_cond() : m_where_cond;
@@ -2937,8 +2933,7 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
       !cond->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                   NULL)) {
     bool cond_value = true;
-    if (simplify_const_condition(thd, &cond, false, &cond_value))
-      DBUG_RETURN(true);
+    if (simplify_const_condition(thd, &cond, false, &cond_value)) return true;
     if (!cond_value) {
       /*
         Parent's condition is always FALSE. Thus:
@@ -2960,14 +2955,14 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 
   if (subq_select->ftfunc_list->elements &&
       add_ftfunc_list(subq_select->ftfunc_list))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   if (do_aj)
     has_aj_nests = true;
   else
     has_sj_nests = true;  // This query block has semi-join nests
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -2984,10 +2979,10 @@ bool SELECT_LEX::convert_subquery_to_semijoin(
 */
 
 bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
-  DBUG_ENTER("SELECT_LEX::merge_derived");
+  DBUG_TRACE;
 
   if (!derived_table->is_view_or_derived() || derived_table->is_merged())
-    DBUG_RETURN(false);
+    return false;
 
   SELECT_LEX_UNIT *const derived_unit = derived_table->derived_unit();
 
@@ -2999,7 +2994,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   // Check whether the outer query allows merged views
   if ((master_unit() == lex->unit && !lex->can_use_merged()) ||
       lex->can_not_use_merged())
-    DBUG_RETURN(false);
+    return false;
 
   /*
     @todo: The implementation of LEX::can_use_merged() currently avoids
@@ -3015,7 +3010,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   */
   if (derived_table->algorithm == VIEW_ALGORITHM_TEMPTABLE ||
       !derived_unit->is_mergeable())
-    DBUG_RETURN(false);
+    return false;
 
   if (derived_table->algorithm == VIEW_ALGORITHM_UNDEFINED) {
     const bool merge_heuristic =
@@ -3023,7 +3018,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
         derived_unit->merge_heuristic(thd->lex);
     if (!hint_table_state(thd, derived_table, DERIVED_MERGE_HINT_ENUM,
                           merge_heuristic ? OPTIMIZER_SWITCH_DERIVED_MERGE : 0))
-      DBUG_RETURN(false);
+      return false;
   }
 
   SELECT_LEX *const derived_select = derived_unit->first_select();
@@ -3033,11 +3028,11 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   */
   if ((active_options() & SELECT_STRAIGHT_JOIN) &&
       (derived_select->has_sj_nests || derived_select->has_aj_nests))
-    DBUG_RETURN(false);
+    return false;
 
   // Check that we have room for the merged tables in the table map:
   if (leaf_table_count + derived_select->leaf_table_count - 1 > MAX_TABLES)
-    DBUG_RETURN(false);
+    return false;
 
   derived_table->set_merged();
 
@@ -3083,13 +3078,13 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   // Add a nested join object to the derived table object
   if (!(derived_table->nested_join =
             (NESTED_JOIN *)thd->mem_calloc(sizeof(NESTED_JOIN))))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
   derived_table->nested_join->join_list
       .empty();  // Should be done by constructor!
 
   // Merge tables from underlying query block into this join nest
   if (derived_table->merge_underlying_tables(derived_select))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   // Replace derived table in leaf table list with underlying tables:
   for (TABLE_LIST **tl = &leaf_tables; *tl; tl = &(*tl)->next_leaf) {
@@ -3130,11 +3125,10 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   select_n_having_items += derived_select->select_n_having_items;
 
   // Merge the WHERE clause into the outer query block
-  if (derived_table->merge_where(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
+  if (derived_table->merge_where(thd)) return true; /* purecov: inspected */
 
   if (derived_table->create_field_translation(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   // Exclude the derived table query expression from query graph.
   derived_unit->exclude_level();
@@ -3206,7 +3200,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   // Add any full-text functions from derived table into outer query
   if (derived_select->ftfunc_list->elements &&
       add_ftfunc_list(derived_select->ftfunc_list))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   /*
     The "laterality" of this nest is not interesting anymore; it was
@@ -3214,7 +3208,7 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table) {
   */
   derived_unit->m_lateral_deps = 0;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -3315,7 +3309,7 @@ static bool replace_subcondition(THD *thd, Item **tree, Item *old_cond,
   @returns false if success, true if error
 */
 bool SELECT_LEX::flatten_subqueries(THD *thd) {
-  DBUG_ENTER("flatten_subqueries");
+  DBUG_TRACE;
 
   DBUG_ASSERT(has_sj_candidates());
 
@@ -3414,7 +3408,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
         !subq_pred->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                          NULL) &&
         simplify_const_condition(thd, &subq_pred, false, &cond_value))
-      DBUG_RETURN(true);
+      return true;
 
     if (!cond_value) {
       (*subq)->sj_selection = Item_exists_subselect::SJ_ALWAYS_FALSE;
@@ -3437,12 +3431,12 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
         (cond_value || (*subq)->can_do_aj)
             ? down_cast<Item *>(new (thd->mem_root) Item_func_true())
             : down_cast<Item *>(new (thd->mem_root) Item_func_false());
-    if (truth_item == nullptr) DBUG_RETURN(true);
+    if (truth_item == nullptr) return true;
     Item **tree = ((*subq)->embedding_join_nest == NULL)
                       ? &m_where_cond
                       : (*subq)->embedding_join_nest->join_cond_ref();
     if (replace_subcondition(thd, tree, *subq, truth_item, false))
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
   }
 
   /* Transform the selected subqueries into semi-join */
@@ -3454,7 +3448,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
         trace, oto0, oto1, (*subq)->unit->first_select()->select_number,
         "IN (SELECT)", (*subq)->can_do_aj ? "antijoin" : "semijoin");
     oto1.add("chosen", true);
-    if (convert_subquery_to_semijoin(thd, *subq)) DBUG_RETURN(true);
+    if (convert_subquery_to_semijoin(thd, *subq)) return true;
   }
   /*
     Finalize the subqueries that we did not convert,
@@ -3481,7 +3475,7 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
 
     thd->lex->set_current_select(save_select_lex);
 
-    if (res == Item_subselect::RES_ERROR) DBUG_RETURN(true);
+    if (res == Item_subselect::RES_ERROR) return true;
 
     (*subq)->changed = 1;
     (*subq)->fixed = 1;
@@ -3500,12 +3494,12 @@ bool SELECT_LEX::flatten_subqueries(THD *thd) {
                       ? ((*subq)->embedding_join_nest->join_cond_ref())
                       : &m_where_cond;
     if (replace_subcondition(thd, tree, *subq, substitute, do_fix_fields))
-      DBUG_RETURN(true);
+      return true;
     (*subq)->substitution = NULL;
   }
 
   sj_candidates->clear();
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool SELECT_LEX::is_in_select_list(Item *cand) {
@@ -3972,7 +3966,7 @@ bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
                  List<Item> &fields, List<Item> &all_fields, ORDER *order) {
-  DBUG_ENTER("setup_order");
+  DBUG_TRACE;
 
   DBUG_ASSERT(order);
 
@@ -3987,7 +3981,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
   for (uint number = 1; order; order = order->next, number++) {
     if (find_order_in_list(thd, ref_item_array, tables, order, fields,
                            all_fields, false, false))
-      DBUG_RETURN(true);
+      return true;
     if ((*order->item)->has_aggregation()) {
       /*
         Aggregated expressions in ORDER BY are not supported by SQL standard,
@@ -3999,7 +3993,7 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
       */
       if (for_union) {
         my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-        DBUG_RETURN(true);
+        return true;
       }
 
       /*
@@ -4011,16 +4005,16 @@ bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
       */
       if (!is_aggregated && select->agg_func_used()) {
         my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
-        DBUG_RETURN(true);
+        return true;
       }
     }
     if (for_union && (*order->item)->has_wf()) {
       // Window function in ORDER BY of UNION not supported, SQL2014 4.16.3
       my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -4068,18 +4062,18 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd) {
   @returns false if success, true if error
 */
 bool SELECT_LEX::setup_order_final(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::setup_order_final");
+  DBUG_TRACE;
   if (is_implicitly_grouped()) {
     // Result will contain zero or one row - ordering is redundant
     empty_order_list(this);
-    DBUG_RETURN(false);
+    return false;
   }
 
   if ((master_unit()->is_union() || master_unit()->fake_select_lex) &&
       this != master_unit()->fake_select_lex && !(braces && explicit_limit)) {
     // Part of UNION which requires global ordering may skip local order
     empty_order_list(this);
-    DBUG_RETURN(false);
+    return false;
   }
 
   for (ORDER *ord = order_list.first; ord; ord = ord->next) {
@@ -4092,10 +4086,10 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
     if (item->has_aggregation() ||
         (!item->m_is_window_function && item->has_wf())) {
       item->split_sum_func(thd, base_ref_items, all_fields);
-      if (thd->is_error()) DBUG_RETURN(true); /* purecov: inspected */
+      if (thd->is_error()) return true; /* purecov: inspected */
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -4111,31 +4105,31 @@ bool SELECT_LEX::setup_order_final(THD *thd) {
 */
 
 bool SELECT_LEX::setup_group(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::setup_group");
+  DBUG_TRACE;
   DBUG_ASSERT(group_list.elements);
 
   thd->where = "group statement";
   for (ORDER *group = group_list.first; group; group = group->next) {
     if (find_order_in_list(thd, base_ref_items, get_table_list(), group,
                            fields_list, all_fields, true, false))
-      DBUG_RETURN(true);
+      return true;
 
     Item *item = *group->item;
     if (item->has_aggregation() || item->has_wf()) {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), (*group->item)->full_name());
-      DBUG_RETURN(true);
+      return true;
     }
 
     else if (item->has_grouping_func()) {
       my_error(ER_WRONG_GROUP_FIELD, MYF(0), "GROUPING function");
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
   if (olap == ROLLUP_TYPE && resolve_rollup(thd))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /****************************************************************************
@@ -4386,9 +4380,9 @@ bool SELECT_LEX::resolve_rollup_item(THD *thd, Item *item) {
 */
 
 bool SELECT_LEX::resolve_rollup(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::resolve_rollup");
+  DBUG_TRACE;
   for (Item &item : all_fields) {
-    if (resolve_rollup_item(thd, &item)) DBUG_RETURN(true);
+    if (resolve_rollup_item(thd, &item)) return true;
   }
 
   /*
@@ -4408,13 +4402,13 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
     bool ret =
         (!order_item->fixed && (order_item->fix_fields(thd, order->item) ||
                                 (order_item = *order->item)->check_cols(1)));
-    if (ret) DBUG_RETURN(true); /* Wrong field. */
+    if (ret) return true; /* Wrong field. */
 
-    if (resolve_rollup_item(thd, order_item)) DBUG_RETURN(true);
+    if (resolve_rollup_item(thd, order_item)) return true;
   }
 
   thd->lex->allow_sum_func = saved_allow;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -4426,13 +4420,13 @@ bool SELECT_LEX::resolve_rollup(THD *thd) {
 */
 
 bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
-  DBUG_ENTER("SELECT_LEX::resolve_rollup_wfs");
+  DBUG_TRACE;
   for (Item &item : all_fields) {
-    if (resolve_rollup_item(thd, &item)) DBUG_RETURN(true);
+    if (resolve_rollup_item(thd, &item)) return true;
     if (item.type() == Item::SUM_FUNC_ITEM && item.m_is_window_function) {
       bool changed = false;
       if (change_group_ref_for_func(thd, &item, &changed))
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
       if (changed) item.update_used_tables();
     }
   }
@@ -4445,7 +4439,7 @@ bool SELECT_LEX::resolve_rollup_wfs(THD *thd) {
     itms haven't been added yet. Cf second loop in resolve_rollup.
   */
 
-  DBUG_RETURN(false);
+  return false;
 }
 /**
   @brief  validate_gc_assignment
@@ -4467,9 +4461,9 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
   Field **fld = NULL;
   MY_BITMAP *bitmap = table->write_set;
   bool use_table_field = false;
-  DBUG_ENTER("validate_gc_assignment");
+  DBUG_TRACE;
 
-  if (!values || (values->elements == 0)) DBUG_RETURN(false);
+  if (!values || (values->elements == 0)) return false;
 
   // If fields has no elements, we use all table fields
   if (fields->elements == 0) {
@@ -4509,10 +4503,10 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
     if (rfield->gcol_info && value->type() != Item::DEFAULT_VALUE_ITEM) {
       my_error(ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN, MYF(0),
                rfield->field_name, rfield->table->s->table_name.str);
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -4527,7 +4521,7 @@ bool validate_gc_assignment(List<Item> *fields, List<Item> *values,
 */
 
 void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables) {
-  DBUG_ENTER("delete_unused_merged_columns");
+  DBUG_TRACE;
 
   TABLE_LIST *tl;
   List_iterator<TABLE_LIST> li(*tables);
@@ -4565,8 +4559,6 @@ void SELECT_LEX::delete_unused_merged_columns(List<TABLE_LIST> *tables) {
     }
     delete_unused_merged_columns(&tl->nested_join->join_list);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**

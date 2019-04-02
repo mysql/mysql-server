@@ -355,7 +355,7 @@ Diagnostics_area::Diagnostics_area(bool allow_unlimited_conditions)
 Diagnostics_area::~Diagnostics_area() { free_root(&m_condition_root, MYF(0)); }
 
 void Diagnostics_area::reset_diagnostics_area() {
-  DBUG_ENTER("reset_diagnostics_area");
+  DBUG_TRACE;
 #ifdef DBUG_OFF
   set_overwrite_status(false);
   // Don't take chances in production.
@@ -368,19 +368,18 @@ void Diagnostics_area::reset_diagnostics_area() {
   set_is_sent(false);
   // Tiny reset in debug mode to see garbage right away.
   m_status = DA_EMPTY;
-  DBUG_VOID_RETURN;
 }
 
 void Diagnostics_area::set_ok_status(ulonglong affected_rows,
                                      ulonglong last_insert_id,
                                      const char *message_text) {
-  DBUG_ENTER("set_ok_status");
+  DBUG_TRACE;
   DBUG_ASSERT(!is_set());
   /*
     In production, refuse to overwrite an error or a custom response
     with an OK packet.
   */
-  if (is_error() || is_disabled()) DBUG_VOID_RETURN;
+  if (is_error() || is_disabled()) return;
 
   m_last_statement_cond_count = current_statement_cond_count();
   m_affected_rows = affected_rows;
@@ -390,18 +389,17 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
   else
     m_message_text[0] = '\0';
   m_status = DA_OK;
-  DBUG_VOID_RETURN;
 }
 
 void Diagnostics_area::set_eof_status(THD *thd) {
-  DBUG_ENTER("set_eof_status");
+  DBUG_TRACE;
   /* Only allowed to report eof if has not yet reported an error */
   DBUG_ASSERT(!is_set());
   /*
     In production, refuse to overwrite an error or a custom response
     with an EOF packet.
   */
-  if (is_error() || is_disabled()) DBUG_VOID_RETURN;
+  if (is_error() || is_disabled()) return;
 
   /*
     If inside a stored procedure, do not return the total
@@ -412,7 +410,6 @@ void Diagnostics_area::set_eof_status(THD *thd) {
       (thd->sp_runtime_ctx ? 0 : current_statement_cond_count());
 
   m_status = DA_EOF;
-  DBUG_VOID_RETURN;
 }
 
 void Diagnostics_area::set_error_status(THD *thd, uint mysql_errno) {
@@ -423,7 +420,7 @@ void Diagnostics_area::set_error_status(THD *thd, uint mysql_errno) {
 void Diagnostics_area::set_error_status(uint mysql_errno,
                                         const char *message_text,
                                         const char *returned_sqlstate) {
-  DBUG_ENTER("set_error_status");
+  DBUG_TRACE;
   /*
     Only allowed to report error if has not yet reported a success
     The only exception is when we flush the message to the client,
@@ -442,7 +439,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
     In production, refuse to overwrite a custom response with an
     ERROR packet.
   */
-  if (is_disabled()) DBUG_VOID_RETURN;
+  if (is_disabled()) return;
 #endif
 
   m_mysql_errno = mysql_errno;
@@ -451,7 +448,6 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
   strmake(m_message_text, message_text, sizeof(m_message_text) - 1);
 
   m_status = DA_ERROR;
-  DBUG_VOID_RETURN;
 }
 
 bool Diagnostics_area::has_sql_condition(const char *message_text,
@@ -658,7 +654,7 @@ Diagnostics_area *Diagnostics_area::pop_diagnostics_area() {
 
 void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
                   uint code, const char *message_text) {
-  DBUG_ENTER("push_warning");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("code: %d, msg: %s", code, message_text));
 
   /*
@@ -671,8 +667,6 @@ void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
   if (severity == Sql_condition::SL_ERROR) severity = Sql_condition::SL_WARNING;
 
   (void)thd->raise_condition(code, NULL, severity, message_text);
-
-  DBUG_VOID_RETURN;
 }
 
 void push_warning(THD *thd, uint code) {
@@ -692,7 +686,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
                          uint code, const char *format, ...) {
   va_list args;
   char warning[MYSQL_ERRMSG_SIZE];
-  DBUG_ENTER("push_warning_printf");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("warning: %u", code));
 
   DBUG_ASSERT(code != 0);
@@ -702,7 +696,6 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   vsnprintf(warning, sizeof(warning), format, args);
   va_end(args);
   push_warning(thd, severity, code, warning);
-  DBUG_VOID_RETURN;
 }
 
 void push_deprecated_warn(THD *thd, const char *old_syntax,
@@ -746,7 +739,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
   Diagnostics_area new_stmt_da(false);
   Diagnostics_area *first_da = thd->get_stmt_da();
   bool rc = false;
-  DBUG_ENTER("mysqld_show_warnings");
+  DBUG_TRACE;
 
   /* Push new Diagnostics Area, execute statement and pop. */
   thd->push_diagnostics_area(&new_stmt_da);
@@ -795,7 +788,7 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
 
   if (!rc) {
     my_eof(thd);
-    DBUG_RETURN(false);
+    return false;
   }
 
   /* Statement failed, retrieve the error information for propagation. */
@@ -806,13 +799,13 @@ bool mysqld_show_warnings(THD *thd, ulong levels_to_show) {
   /* In case of a fatal error, set it into the original DA.*/
   if (thd->is_fatal_error()) {
     first_da->set_error_status(sql_errno, message, sqlstate);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Otherwise, just append the new error as a exception condition. */
   first_da->push_warning(thd, sql_errno, sqlstate, Sql_condition::SL_ERROR,
                          message);
-  DBUG_RETURN(true);
+  return true;
 }
 
 ErrConvString::ErrConvString(double nr) {

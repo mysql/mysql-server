@@ -66,7 +66,7 @@ typedef Prealloced_array<FILEINFO, 100> Entries_array;
 /* We need this because program don't know with malloc we used */
 
 void my_dirend(MY_DIR *buffer) {
-  DBUG_ENTER("my_dirend");
+  DBUG_TRACE;
   if (buffer) {
     Entries_array *array = pointer_cast<Entries_array *>(
         (char *)buffer + ALIGN_SIZE(sizeof(MY_DIR)));
@@ -76,7 +76,6 @@ void my_dirend(MY_DIR *buffer) {
               MYF(0));
     my_free(buffer);
   }
-  DBUG_VOID_RETURN;
 } /* my_dirend */
 
 #if !defined(_WIN32)
@@ -93,7 +92,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   char tmp_path[FN_REFLEN + 2], *tmp_file;
   void *rawmem = NULL;
 
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' MyFlags: %d", path, MyFlags));
 
   dirp = opendir(directory_file_name(tmp_path, path));
@@ -145,7 +144,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
               [](const fileinfo &a, const fileinfo &b) {
                 return strcmp(a.name, b.name) < 0;
               });
-  DBUG_RETURN(result);
+  return result;
 
 error:
   set_my_errno(errno);
@@ -156,7 +155,7 @@ error:
     my_error(EE_DIR, MYF(0), path, my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  DBUG_RETURN((MY_DIR *)NULL);
+  return (MY_DIR *)NULL;
 } /* my_dir */
 
 /*
@@ -200,7 +199,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
   __int64 handle;
   void *rawmem = NULL;
 
-  DBUG_ENTER("my_dir");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("path: '%s' stat: %d  MyFlags: %d", path, MyFlags));
 
   /* Put LIB-CHAR as last path-character if not there */
@@ -279,7 +278,7 @@ MY_DIR *my_dir(const char *path, myf MyFlags) {
                 return strcmp(a.name, b.name) < 0;
               });
   DBUG_PRINT("exit", ("found %d files", result->number_off_files));
-  DBUG_RETURN(result);
+  return result;
 error:
   set_my_errno(errno);
   if (handle != -1) _findclose(handle);
@@ -289,7 +288,7 @@ error:
     my_error(EE_DIR, MYF(0), path, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
   }
-  DBUG_RETURN((MY_DIR *)NULL);
+  return (MY_DIR *)NULL;
 } /* my_dir */
 
 #endif /* _WIN32 */
@@ -300,25 +299,25 @@ error:
 ****************************************************************************/
 
 int my_fstat(File Filedes, MY_STAT *stat_area) {
-  DBUG_ENTER("my_fstat");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d", Filedes));
 #ifdef _WIN32
-  DBUG_RETURN(my_win_fstat(Filedes, stat_area));
+  return my_win_fstat(Filedes, stat_area);
 #else
-  DBUG_RETURN(fstat(Filedes, stat_area));
+  return fstat(Filedes, stat_area);
 #endif
 }
 
 MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags) {
-  DBUG_ENTER("my_stat");
+  DBUG_TRACE;
   DBUG_ASSERT(stat_area != nullptr);
   DBUG_PRINT("my", ("path: '%s'  stat_area: %p  MyFlags: %d", path, stat_area,
                     my_flags));
 
 #ifndef _WIN32
-  if (!stat(path, stat_area)) DBUG_RETURN(stat_area);
+  if (!stat(path, stat_area)) return stat_area;
 #else
-  if (!my_win_stat(path, stat_area)) DBUG_RETURN(stat_area);
+  if (!my_win_stat(path, stat_area)) return stat_area;
 #endif
 
   DBUG_PRINT("error", ("Got errno: %d from stat", errno));
@@ -329,5 +328,5 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags) {
     my_error(EE_STAT, MYF(0), path, my_errno(),
              my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
-  DBUG_RETURN(nullptr);
+  return nullptr;
 } /* my_stat */

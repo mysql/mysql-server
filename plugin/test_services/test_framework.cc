@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,8 +45,8 @@
 */
 
 static int test_services_plugin_init(void *) {
-  DBUG_ENTER("test_services_plugin_init");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /*
@@ -63,8 +63,8 @@ static int test_services_plugin_init(void *) {
 */
 
 static int test_services_plugin_deinit(void *) {
-  DBUG_ENTER("test_services_plugin_deinit");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 struct st_mysql_daemon test_services_plugin = {MYSQL_DAEMON_INTERFACE_VERSION};

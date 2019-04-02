@@ -112,7 +112,7 @@ Event_queue::~Event_queue() {
 */
 
 bool Event_queue::init_queue() {
-  DBUG_ENTER("Event_queue::init_queue");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("this: %p", this));
 
   LOCK_QUEUE_DATA();
@@ -123,11 +123,11 @@ bool Event_queue::init_queue() {
   }
 
   UNLOCK_QUEUE_DATA();
-  DBUG_RETURN(false);
+  return false;
 
 err:
   UNLOCK_QUEUE_DATA();
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -139,13 +139,11 @@ err:
 */
 
 void Event_queue::deinit_queue() {
-  DBUG_ENTER("Event_queue::deinit_queue");
+  DBUG_TRACE;
 
   LOCK_QUEUE_DATA();
   empty_queue();
   UNLOCK_QUEUE_DATA();
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -168,7 +166,7 @@ void Event_queue::deinit_queue() {
 
 bool Event_queue::create_event(THD *thd, Event_queue_element *new_element,
                                bool *created) {
-  DBUG_ENTER("Event_queue::create_event");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p et=%s.%s", thd, new_element->m_schema_name.str,
                        new_element->m_event_name.str));
 
@@ -176,7 +174,7 @@ bool Event_queue::create_event(THD *thd, Event_queue_element *new_element,
   new_element->compute_next_execution_time(thd);
   if (new_element->m_status != Event_parse_data::ENABLED) {
     *created = false;
-    DBUG_RETURN(false);
+    return false;
   }
 
   DBUG_PRINT("info", ("new event in the queue: %p", new_element));
@@ -187,7 +185,7 @@ bool Event_queue::create_event(THD *thd, Event_queue_element *new_element,
   mysql_cond_broadcast(&COND_queue_state);
   UNLOCK_QUEUE_DATA();
 
-  DBUG_RETURN(!*created);
+  return !*created;
 }
 
 /*
@@ -204,7 +202,7 @@ bool Event_queue::create_event(THD *thd, Event_queue_element *new_element,
 
 void Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                                Event_queue_element *new_element) {
-  DBUG_ENTER("Event_queue::update_event");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p  et=[%s.%s]", thd, dbname.str, name.str));
 
   if ((new_element->m_status == Event_parse_data::DISABLED) ||
@@ -231,8 +229,6 @@ void Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
 
   dbug_dump_queue(thd->query_start_in_secs());
   UNLOCK_QUEUE_DATA();
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -246,7 +242,7 @@ void Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
 */
 
 void Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
-  DBUG_ENTER("Event_queue::drop_event");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("thd: %p  db :%s  name: %s", thd, dbname.str, name.str));
 
   LOCK_QUEUE_DATA();
@@ -258,8 +254,6 @@ void Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name) {
     We don't signal here because the scheduler will catch the change
     next time it wakes up.
   */
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -282,7 +276,7 @@ void Event_queue::drop_matching_events(LEX_STRING pattern,
                                        bool (*comparator)(LEX_STRING,
                                                           Event_basic *)) {
   size_t i = 0;
-  DBUG_ENTER("Event_queue::drop_matching_events");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pattern=%s", pattern.str));
 
   while (i < queue.size()) {
@@ -318,8 +312,6 @@ void Event_queue::drop_matching_events(LEX_STRING pattern,
        we may not notify the scheduler and it will realize the change when it
        wakes up from timedwait.
   */
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -332,11 +324,10 @@ void Event_queue::drop_matching_events(LEX_STRING pattern,
 */
 
 void Event_queue::drop_schema_events(LEX_STRING schema) {
-  DBUG_ENTER("Event_queue::drop_schema_events");
+  DBUG_TRACE;
   LOCK_QUEUE_DATA();
   drop_matching_events(schema, event_basic_db_equal);
   UNLOCK_QUEUE_DATA();
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -353,7 +344,7 @@ void Event_queue::drop_schema_events(LEX_STRING schema) {
 */
 
 void Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name) {
-  DBUG_ENTER("Event_queue::find_n_remove_event");
+  DBUG_TRACE;
 
   for (size_t i = 0; i < queue.size(); ++i) {
     Event_queue_element *et = queue[i];
@@ -365,8 +356,6 @@ void Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name) {
       break;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -383,7 +372,7 @@ void Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name) {
 */
 
 void Event_queue::recalculate_activation_times(THD *thd) {
-  DBUG_ENTER("Event_queue::recalculate_activation_times");
+  DBUG_TRACE;
 
   LOCK_QUEUE_DATA();
   DBUG_PRINT("info", ("%u loaded events to be recalculated",
@@ -463,8 +452,6 @@ void Event_queue::recalculate_activation_times(THD *thd) {
          disk till next server restart.
          Please add code here to do it.
   */
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -479,15 +466,13 @@ void Event_queue::recalculate_activation_times(THD *thd) {
 */
 
 void Event_queue::empty_queue() {
-  DBUG_ENTER("Event_queue::empty_queue");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("Purging the queue. %u element(s)",
                        static_cast<unsigned>(queue.size())));
   LogErr(INFORMATION_LEVEL, ER_EVENT_PURGING_QUEUE,
          static_cast<unsigned>(queue.size()));
   /* empty the queue */
   queue.delete_elements();
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -500,7 +485,7 @@ void Event_queue::empty_queue() {
 
 void Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused))) {
 #ifndef DBUG_OFF
-  DBUG_ENTER("Event_queue::dbug_dump_queue");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("Dumping queue . Elements=%u",
                       static_cast<unsigned>(queue.size())));
   for (size_t i = 0; i < queue.size(); i++) {
@@ -516,7 +501,7 @@ void Event_queue::dbug_dump_queue(time_t now MY_ATTRIBUTE((unused))) {
          et->m_execution_count, (long)et->m_expression, (long)et->m_execute_at,
          (long)now, (int)(et->m_execute_at - now), et->m_execute_at <= now));
   }
-  DBUG_VOID_RETURN;
+  return;
 #endif
 }
 
@@ -541,7 +526,7 @@ bool Event_queue::get_top_for_execution_if_time(
   *event_name = nullptr;
   my_time_t last_executed = 0;
   int status = 0;
-  DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
+  DBUG_TRACE;
 
   LOCK_QUEUE_DATA();
   for (;;) {
@@ -640,7 +625,7 @@ end:
     // Acquire exclusive MDL lock on the event and it's parent schema.
     if (lock_object_name(thd, MDL_key::EVENT, (*event_name)->dbname.str,
                          (*event_name)->name.str))
-      DBUG_RETURN(true);
+      return true;
 
     (void)Event_db_repository::update_timing_fields_for_event(
         thd, (*event_name)->dbname, (*event_name)->name, last_executed,
@@ -649,7 +634,7 @@ end:
     thd->mdl_context.release_transactional_locks();
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*
@@ -663,7 +648,7 @@ end:
 */
 
 void Event_queue::lock_data(const char *func, uint line) {
-  DBUG_ENTER("Event_queue::lock_data");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   mutex_last_attempted_lock_in_func = func;
   mutex_last_attempted_lock_at_line = line;
@@ -676,8 +661,6 @@ void Event_queue::lock_data(const char *func, uint line) {
   mutex_last_locked_in_func = func;
   mutex_last_locked_at_line = line;
   mutex_queue_data_locked = true;
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -691,13 +674,12 @@ void Event_queue::lock_data(const char *func, uint line) {
 */
 
 void Event_queue::unlock_data(const char *func, uint line) {
-  DBUG_ENTER("Event_queue::unlock_data");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   mutex_last_unlocked_at_line = line;
   mutex_queue_data_locked = false;
   mutex_last_unlocked_in_func = func;
   mysql_mutex_unlock(&LOCK_event_queue);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -715,7 +697,7 @@ void Event_queue::unlock_data(const char *func, uint line) {
 void Event_queue::cond_wait(THD *thd, struct timespec *abstime,
                             const PSI_stage_info *stage, const char *src_func,
                             const char *src_file, uint src_line) {
-  DBUG_ENTER("Event_queue::cond_wait");
+  DBUG_TRACE;
   waiting_on_cond = true;
   mutex_last_unlocked_at_line = src_line;
   mutex_queue_data_locked = false;
@@ -743,8 +725,6 @@ void Event_queue::cond_wait(THD *thd, struct timespec *abstime,
   unlock_data(src_func, src_line);
   thd->exit_cond(NULL, src_func, src_file, src_line);
   lock_data(src_func, src_line);
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -755,7 +735,7 @@ void Event_queue::cond_wait(THD *thd, struct timespec *abstime,
 */
 
 void Event_queue::dump_internal_status() {
-  DBUG_ENTER("Event_queue::dump_internal_status");
+  DBUG_TRACE;
 
   /* element count */
   puts("");
@@ -781,8 +761,6 @@ void Event_queue::dump_internal_status() {
            time.month, time.day, time.hour, time.minute, time.second);
   else
     printf("Next activation : never");
-
-  DBUG_VOID_RETURN;
 }
 
 /**

@@ -620,7 +620,7 @@ bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item,
 }
 
 bool Item_bool_func2::resolve_type(THD *thd) {
-  DBUG_ENTER("Item_bool_func2::resolve_type");
+  DBUG_TRACE;
 
   max_length = 1;  // Function returns 0 or 1
 
@@ -634,7 +634,7 @@ bool Item_bool_func2::resolve_type(THD *thd) {
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
       agg_arg_charsets_for_comparison(cmp.cmp_collation, args, 2))
-    DBUG_RETURN(true);
+    return true;
 
   args[0]->cmp_context = args[1]->cmp_context =
       item_cmp_type(args[0]->result_type(), args[1]->result_type());
@@ -642,9 +642,9 @@ bool Item_bool_func2::resolve_type(THD *thd) {
 
   if (functype() == LIKE_FUNC)  // Disable conversion in case of LIKE function.
   {
-    if (set_cmp_func()) DBUG_RETURN(true);
+    if (set_cmp_func()) return true;
 
-    DBUG_RETURN(false);
+    return false;
   }
 
   /*
@@ -658,17 +658,17 @@ bool Item_bool_func2::resolve_type(THD *thd) {
   if ((func_type == LT_FUNC || func_type == LE_FUNC || func_type == GE_FUNC ||
        func_type == GT_FUNC || func_type == FT_FUNC) &&
       reject_geometry_args(arg_count, args, this))
-    DBUG_RETURN(true);
+    return true;
 
   if (!thd->lex->is_ps_or_view_context_analysis()) {
     bool cvt1, cvt2;
     if (convert_constant_arg(thd, args[0], &args[1], &cvt1) ||
         convert_constant_arg(thd, args[1], &args[0], &cvt2))
-      DBUG_RETURN(true);
-    if (cvt1 || cvt2) DBUG_RETURN(false);
+      return true;
+    if (cvt1 || cvt2) return false;
   }
-  if (set_cmp_func()) DBUG_RETURN(true);
-  DBUG_RETURN(false);
+  if (set_cmp_func()) return true;
+  return false;
 }
 
 void Arg_comparator::cleanup() {
@@ -2137,10 +2137,9 @@ void Item_in_optimizer::keep_top_level_cache() {
 }
 
 void Item_in_optimizer::cleanup() {
-  DBUG_ENTER("Item_in_optimizer::cleanup");
+  DBUG_TRACE;
   Item_bool_func::cleanup();
   if (!save_cache) cache = 0;
-  DBUG_VOID_RETURN;
 }
 
 bool Item_in_optimizer::is_null() {
@@ -3630,13 +3629,12 @@ void Item_func_case::print(const THD *thd, String *str,
 
 void Item_func_case::cleanup() {
   uint i;
-  DBUG_ENTER("Item_func_case::cleanup");
+  DBUG_TRACE;
   Item_func::cleanup();
   for (i = 0; i <= (uint)DECIMAL_RESULT; i++) {
     destroy(cmp_items[i]);
     cmp_items[i] = 0;
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -3972,10 +3970,9 @@ in_row::in_row(MEM_ROOT *mem_root, uint elements, cmp_item_row *cmp)
 }
 
 void in_row::set(uint pos, Item *item) {
-  DBUG_ENTER("in_row::set");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %u  item: %p", pos, item));
   base_pointers[pos]->store_value_by_template(tmp, item);
-  DBUG_VOID_RETURN;
 }
 
 void in_longlong::val_item(Item *item, packed_longlong *result) {
@@ -4094,14 +4091,13 @@ cmp_item *cmp_item_real::make_same() {
 cmp_item *cmp_item_row::make_same() { return new (*THR_MALLOC) cmp_item_row(); }
 
 cmp_item_row::~cmp_item_row() {
-  DBUG_ENTER("~cmp_item_row");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("this: %p", this));
   if (comparators) {
     for (uint i = 0; i < n; i++) {
       if (comparators[i]) destroy(comparators[i]);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -4135,7 +4131,7 @@ bool cmp_item_row::alloc_comparators(THD *thd, Item *item) {
 }
 
 void cmp_item_row::store_value(Item *item) {
-  DBUG_ENTER("cmp_item_row::store_value");
+  DBUG_TRACE;
   DBUG_ASSERT(comparators);
   if (comparators) {
     item->bring_value();
@@ -4145,7 +4141,6 @@ void cmp_item_row::store_value(Item *item) {
       item->null_value |= item->element_index(i)->null_value;
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 void cmp_item_row::store_value_by_template(cmp_item *t, Item *item) {
@@ -5529,7 +5524,7 @@ void Item_func_isnull::print(const THD *thd, String *str,
 
 longlong Item_is_not_null_test::val_int() {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ENTER("Item_is_not_null_test::val_int");
+  DBUG_TRACE;
   if (!used_tables_cache) {
     /*
      TODO: Currently this branch never executes, since used_tables_cache
@@ -5539,14 +5534,14 @@ longlong Item_is_not_null_test::val_int() {
     DBUG_ASSERT(false);
     owner->was_null |= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long)cached_value));
-    DBUG_RETURN(cached_value);
+    return cached_value;
   }
   if (args[0]->is_null()) {
     DBUG_PRINT("info", ("null"));
     owner->was_null |= 1;
-    DBUG_RETURN(0);
+    return 0;
   } else
-    DBUG_RETURN(1);
+    return 1;
 }
 
 /**

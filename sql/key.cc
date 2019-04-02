@@ -307,12 +307,12 @@ bool key_cmp_if_same(TABLE *table, const uchar *key, uint idx,
 
 void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
   String tmp;
-  DBUG_ENTER("field_unpack");
+  DBUG_TRACE;
   if (!max_length) max_length = field->pack_length();
   if (field) {
     if (field->is_null()) {
       to->append(STRING_WITH_LEN("NULL"));
-      DBUG_VOID_RETURN;
+      return;
     }
     const CHARSET_INFO *cs = field->charset();
     field->val_str(&tmp);
@@ -345,7 +345,6 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
     to->append(err.ptr());
   } else
     to->append(STRING_WITH_LEN("???"));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -364,7 +363,7 @@ void field_unpack(String *to, Field *field, uint max_length, bool prefix_key) {
 
 void key_unpack(String *to, TABLE *table, KEY *key) {
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
-  DBUG_ENTER("key_unpack");
+  DBUG_TRACE;
 
   to->length(0);
   KEY_PART_INFO *key_part_end = key->key_part + key->user_defined_key_parts;
@@ -381,7 +380,6 @@ void key_unpack(String *to, TABLE *table, KEY *key) {
                  (key_part->key_part_flag & HA_PART_KEY_SEG));
   }
   dbug_tmp_restore_column_map(table->read_set, old_map);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -588,7 +586,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
   ptrdiff_t first_diff = first_rec - rec0, sec_diff = second_rec - rec0;
   int result = 0;
   Field *field;
-  DBUG_ENTER("key_rec_cmp");
+  DBUG_TRACE;
 
   /* Assert that at least the first key part is read. */
   DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
@@ -607,8 +605,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       field = key_part->field;
 
       /* If not read, compare is done and equal! */
-      if (!bitmap_is_set(field->table->read_set, field->field_index))
-        DBUG_RETURN(0);
+      if (!bitmap_is_set(field->table->read_set, field->field_index)) return 0;
 
       if (key_part->null_bit) {
         /* The key_part can contain NULL values */
@@ -625,10 +622,10 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
           if (!sec_is_null)
             ; /* Fall through, no NULL fields */
           else {
-            DBUG_RETURN(sort_order);
+            return sort_order;
           }
         } else if (!sec_is_null) {
-          DBUG_RETURN(-sort_order);
+          return -sort_order;
         } else
           goto next_loop; /* Both were NULL */
       }
@@ -641,7 +638,7 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
       */
       if ((result = field->cmp_max(field->ptr + first_diff,
                                    field->ptr + sec_diff, key_part->length)))
-        DBUG_RETURN((sort_order < 0) ? -result : result);
+        return (sort_order < 0) ? -result : result;
     next_loop:
       key_part++;
       key_part_num++;
@@ -649,5 +646,5 @@ int key_rec_cmp(KEY **key, uchar *first_rec, uchar *second_rec) {
 
     key_info = *(key++);
   } while (key_info); /* no more keys to test */
-  DBUG_RETURN(0);
+  return 0;
 }

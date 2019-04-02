@@ -58,7 +58,7 @@ Commit_order_manager::~Commit_order_manager() {
 }
 
 void Commit_order_manager::register_trx(Slave_worker *worker) {
-  DBUG_ENTER("Commit_order_manager::register_trx");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&m_mutex);
 
@@ -66,7 +66,6 @@ void Commit_order_manager::register_trx(Slave_worker *worker) {
   queue_push(worker->id);
 
   mysql_mutex_unlock(&m_mutex);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -76,7 +75,7 @@ void Commit_order_manager::register_trx(Slave_worker *worker) {
   ahead and commit.
 */
 bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker, bool all) {
-  DBUG_ENTER("Commit_order_manager::wait_for_its_turn");
+  DBUG_TRACE;
 
   /*
     When prior transaction fail, current trx should stop and wait for signal
@@ -99,7 +98,7 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker, bool all) {
       if (unlikely(worker->found_order_commit_deadlock())) {
         mysql_mutex_unlock(&m_mutex);
         thd->EXIT_COND(&old_stage);
-        DBUG_RETURN(true);
+        return true;
       }
       mysql_cond_wait(cond, &m_mutex);
     }
@@ -118,11 +117,11 @@ bool Commit_order_manager::wait_for_its_turn(Slave_worker *worker, bool all) {
     }
   }
 
-  DBUG_RETURN(m_rollback_trx);
+  return m_rollback_trx;
 }
 
 void Commit_order_manager::unregister_trx(Slave_worker *worker) {
-  DBUG_ENTER("Commit_order_manager::unregister_trx");
+  DBUG_TRACE;
 
   if (m_workers[worker->id].status == OCS_SIGNAL) {
     DBUG_PRINT("info",
@@ -140,23 +139,19 @@ void Commit_order_manager::unregister_trx(Slave_worker *worker) {
 
     mysql_mutex_unlock(&m_mutex);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Commit_order_manager::report_rollback(Slave_worker *worker) {
-  DBUG_ENTER("Commit_order_manager::report_rollback");
+  DBUG_TRACE;
 
   (void)wait_for_its_turn(worker, true);
   /* No worker can set m_rollback_trx unless it is its turn to commit */
   m_rollback_trx = true;
   unregister_trx(worker);
-
-  DBUG_VOID_RETURN;
 }
 
 void Commit_order_manager::report_deadlock(Slave_worker *worker) {
-  DBUG_ENTER("Commit_order_manager::report_deadlock");
+  DBUG_TRACE;
   mysql_mutex_lock(&m_mutex);
   worker->report_order_commit_deadlock();
   DBUG_EXECUTE_IF("rpl_fake_cod_deadlock", {
@@ -165,5 +160,4 @@ void Commit_order_manager::report_deadlock(Slave_worker *worker) {
   });
   mysql_cond_signal(&m_workers[worker->id].cond);
   mysql_mutex_unlock(&m_mutex);
-  DBUG_VOID_RETURN;
 }

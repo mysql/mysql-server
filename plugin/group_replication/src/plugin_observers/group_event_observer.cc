@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,21 +50,18 @@ Group_events_observation_manager::~Group_events_observation_manager() {
 
 void Group_events_observation_manager::register_group_event_observer(
     Group_event_observer *observer) {
-  DBUG_ENTER("Group_events_observation_manager::register_group_event_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_events_observers.push_back(observer);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 void Group_events_observation_manager::unregister_group_event_observer(
     Group_event_observer *observer) {
-  DBUG_ENTER(
-      "Group_events_observation_manager::unregister_group_event_observer");
+  DBUG_TRACE;
   write_lock_observer_list();
   group_events_observers.remove(observer);
   unlock_observer_list();
-  DBUG_VOID_RETURN;
 }
 
 void Group_events_observation_manager::read_lock_observer_list() {

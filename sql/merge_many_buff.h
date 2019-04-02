@@ -51,17 +51,17 @@ bool merge_many_buff(THD *thd, Merge_param *param, Sort_buffer sort_buffer,
                      Merge_chunk_array chunk_array, size_t *p_num_chunks,
                      IO_CACHE *t_file) {
   IO_CACHE t_file2;
-  DBUG_ENTER("merge_many_buff");
+  DBUG_TRACE;
 
   size_t num_chunks = chunk_array.size();
   *p_num_chunks = num_chunks;
 
-  if (num_chunks <= MERGEBUFF2) DBUG_RETURN(false); /* purecov: inspected */
+  if (num_chunks <= MERGEBUFF2) return false; /* purecov: inspected */
 
   if (flush_io_cache(t_file) ||
       open_cached_file(&t_file2, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
                        MYF(MY_WME)))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   IO_CACHE *from_file = t_file;
   IO_CACHE *to_file = &t_file2;
@@ -97,7 +97,7 @@ cleanup:
   }
 
   *p_num_chunks = num_chunks;
-  DBUG_RETURN(num_chunks > MERGEBUFF2); /* Return true if interrupted */
+  return num_chunks > MERGEBUFF2; /* Return true if interrupted */
 } /* merge_many_buff */
 
 #endif  // MERGE_MANY_BUFF_INCLUDED

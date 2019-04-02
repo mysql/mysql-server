@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -669,7 +669,7 @@ dtuple_t *row_rec_to_index_entry(
   dtuple_t *entry;
   byte *buf;
   const rec_t *copy_rec;
-  DBUG_ENTER("row_rec_to_index_entry");
+  DBUG_TRACE;
 
   ut_ad(rec != NULL);
   ut_ad(heap != NULL);
@@ -687,7 +687,7 @@ dtuple_t *row_rec_to_index_entry(
 
   dtuple_set_info_bits(entry, rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
-  DBUG_RETURN(entry);
+  return entry;
 }
 
 /** Builds from a secondary index record a row reference with which we can

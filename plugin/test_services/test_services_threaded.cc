@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(with_log_message),
 
 /* The test cases for the log_message service. */
 static int test_log_plugin_error() {
-  DBUG_ENTER("test_log_plugin_error");
+  DBUG_TRACE;
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
                "This is the test plugin for services");
@@ -86,12 +86,12 @@ static int test_log_plugin_error() {
   LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                "This is an error from test plugin for services");
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* This fucntion is needed to be called in a thread. */
 static void *test_services(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_services");
+  DBUG_TRACE;
 
   int ret = 0;
 
@@ -115,16 +115,15 @@ static void *test_services(void *p MY_ATTRIBUTE((unused))) {
                  "Test services return code: %d", ret);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Creates the plugin context "con", which holds a pointer to the thread. */
 static int test_services_plugin_init(void *p) {
-  DBUG_ENTER("test_services_plugin_init");
+  DBUG_TRACE;
 
   int ret = 0;
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   struct test_services_context *con;
   my_thread_attr_t attr; /* Thread attributes */
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
@@ -142,12 +141,12 @@ static int test_services_plugin_init(void *p) {
   }
   plugin->data = (void *)con;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /* Clean up thread and frees plugin context "con". */
 static int test_services_plugin_deinit(void *p) {
-  DBUG_ENTER("test_services_plugin_deinit");
+  DBUG_TRACE;
   void *dummy_retval;
   struct st_plugin_int *plugin = (struct st_plugin_int *)p;
   struct test_services_context *con =
@@ -156,7 +155,7 @@ static int test_services_plugin_deinit(void *p) {
   my_thread_join(&con->test_services_thread, &dummy_retval);
   my_free(con);
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Mandatory structure describing the properties of the plugin. */

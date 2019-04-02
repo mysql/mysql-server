@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,7 @@
 void heap_clear(HP_INFO *info) { hp_clear(info->s); }
 
 void hp_clear(HP_SHARE *info) {
-  DBUG_ENTER("hp_clear");
+  DBUG_TRACE;
 
   if (info->block.levels)
     (void)hp_free_level(&info->block, info->block.levels, info->block.root,
@@ -47,7 +47,6 @@ void hp_clear(HP_SHARE *info) {
   info->blength = 1;
   info->changed = 0;
   info->del_link = 0;
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -82,7 +81,7 @@ void heap_clear_keys(HP_INFO *info) { hp_clear(info->s); }
 
 void hp_clear_keys(HP_SHARE *info) {
   uint key;
-  DBUG_ENTER("hp_clear_keys");
+  DBUG_TRACE;
 
   for (key = 0; key < info->keys; key++) {
     HP_KEYDEF *keyinfo = info->keydef + key;
@@ -98,7 +97,6 @@ void hp_clear_keys(HP_SHARE *info) {
     }
   }
   info->index_length = 0;
-  DBUG_VOID_RETURN;
 }
 
 /*

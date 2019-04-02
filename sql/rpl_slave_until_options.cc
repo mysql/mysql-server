@@ -61,13 +61,13 @@ int Until_position::init(const char *log_name, my_off_t log_pos) {
 }
 
 bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
-  DBUG_ENTER("Until_position::check_position");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("log_name='%s', log_pos=%llu", log_name, log_pos));
   DBUG_PRINT("info", ("until_log_name='%s', until_log_pos=%llu",
                       m_until_log_name, m_until_log_pos));
 
-  if (m_rli->is_mts_in_group() || m_rli->is_in_group()) DBUG_RETURN(false);
+  if (m_rli->is_mts_in_group() || m_rli->is_in_group()) return false;
 
   if (m_log_names_cmp_result == LOG_NAMES_CMP_UNKNOWN) {
     /*
@@ -75,7 +75,7 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
       any event yet, it could be that group_master_log_name is "". In that case,
       just wait for more events (as there is no sensible comparison to do).
     */
-    if (log_name == nullptr || strcmp("", log_name) == 0) DBUG_RETURN(false);
+    if (log_name == nullptr || strcmp("", log_name) == 0) return false;
 
     const char *basename = log_name + dirname_length(log_name);
     const char *q = (const char *)(fn_ext(basename) + 1);
@@ -95,18 +95,18 @@ bool Until_position::check_position(const char *log_name, my_off_t log_pos) {
       /* Base names do not match, so we abort */
       LogErr(ERROR_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_CONDITION_BAD,
              m_until_log_name, m_until_log_pos);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
   if (m_log_names_cmp_result == LOG_NAMES_CMP_LESS ||
       (m_log_names_cmp_result == LOG_NAMES_CMP_EQUAL &&
        log_pos < m_until_log_pos))
-    DBUG_RETURN(false);
+    return false;
 
   LogErr(INFORMATION_LEVEL, ER_SLAVE_SQL_THREAD_STOPPED_UNTIL_POSITION_REACHED,
          m_until_log_pos);
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Until_master_position::check_at_start_slave() {

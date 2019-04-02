@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,13 @@
 
 HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
   HP_INFO *info;
-  DBUG_ENTER("heap_open_from_share");
+  DBUG_TRACE;
 
   if (!(info = (HP_INFO *)my_malloc(
             hp_key_memory_HP_INFO,
             (uint)sizeof(HP_INFO) + 2 * share->max_key_length,
             MYF(MY_ZEROFILL)))) {
-    DBUG_RETURN(0);
+    return 0;
   }
   share->open_count++;
   /*
@@ -67,7 +67,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
 #endif
   DBUG_PRINT("exit", ("heap: %p  reclength: %d  records_in_block: %d", info,
                       share->reclength, share->block.records_in_block));
-  DBUG_RETURN(info);
+  return info;
 }
 
 /*
@@ -76,7 +76,7 @@ HP_INFO *heap_open_from_share(HP_SHARE *share, int mode) {
 
 HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode) {
   HP_INFO *info;
-  DBUG_ENTER("heap_open_from_share_and_register");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&THR_LOCK_heap);
   if ((info = heap_open_from_share(share, mode))) {
@@ -86,7 +86,7 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode) {
     share->open_count--;
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(info);
+  return info;
 }
 
 /**
@@ -115,20 +115,20 @@ void heap_release_share(HP_SHARE *share, bool single_instance) {
 HP_INFO *heap_open(const char *name, int mode) {
   HP_INFO *info;
   HP_SHARE *share;
-  DBUG_ENTER("heap_open");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&THR_LOCK_heap);
   if (!(share = hp_find_named_heap(name))) {
     set_my_errno(ENOENT);
     mysql_mutex_unlock(&THR_LOCK_heap);
-    DBUG_RETURN(0);
+    return 0;
   }
   if ((info = heap_open_from_share(share, mode))) {
     info->open_list.data = (void *)info;
     heap_open_list = list_add(heap_open_list, &info->open_list);
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(info);
+  return info;
 }
 
 /* map name to a heap-nr. If name isn't found return 0 */
@@ -136,15 +136,15 @@ HP_INFO *heap_open(const char *name, int mode) {
 HP_SHARE *hp_find_named_heap(const char *name) {
   LIST *pos;
   HP_SHARE *info;
-  DBUG_ENTER("heap_find");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s", name));
 
   for (pos = heap_share_list; pos; pos = pos->next) {
     info = (HP_SHARE *)pos->data;
     if (!strcmp(name, info->name)) {
       DBUG_PRINT("exit", ("Old heap_database: %p", info));
-      DBUG_RETURN(info);
+      return info;
     }
   }
-  DBUG_RETURN((HP_SHARE *)0);
+  return (HP_SHARE *)0;
 }

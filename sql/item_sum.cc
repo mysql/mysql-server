@@ -232,12 +232,12 @@ bool Item_sum::init_sum_func_check(THD *thd) {
 */
 
 bool Item_sum::check_sum_func(THD *thd, Item **ref) {
-  DBUG_ENTER("Item_sum::check_sum_func");
+  DBUG_TRACE;
 
   if (m_is_window_function) {
     update_used_tables();
     thd->lex->m_deny_window_func = save_deny_window_func;
-    DBUG_RETURN(false);
+    return false;
   }
 
   const nesting_map allow_sum_func = thd->lex->allow_sum_func;
@@ -295,7 +295,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
   */
   if (aggr_select == NULL || aggr_select->nest_level <= max_sum_func_level) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (aggr_select != base_select) {
@@ -370,7 +370,7 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
   thd->lex->in_sum_func = in_sum_func;
   thd->lex->m_deny_window_func = save_deny_window_func;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_sum::check_wf_semantics(THD *thd MY_ATTRIBUTE((unused)),
@@ -657,7 +657,7 @@ bool Item_sum::has_aggregate_ref_in_group_by(uchar *) {
 }
 
 Field *Item_sum::create_tmp_field(bool, TABLE *table) {
-  DBUG_ENTER("Item_sum::create_tmp_field");
+  DBUG_TRACE;
   Field *field;
   switch (result_type()) {
     case REAL_RESULT:
@@ -669,7 +669,7 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
                                                item_name.ptr(), unsigned_flag);
       break;
     case STRING_RESULT:
-      DBUG_RETURN(make_string_field(table));
+      return make_string_field(table);
     case DECIMAL_RESULT:
       field = Field_new_decimal::create_from_item(this);
       break;
@@ -677,10 +677,10 @@ Field *Item_sum::create_tmp_field(bool, TABLE *table) {
     default:
       // This case should never be choosen
       DBUG_ASSERT(0);
-      DBUG_RETURN(0);
+      return 0;
   }
   if (field) field->init(table);
-  DBUG_RETURN(field);
+  return field;
 }
 
 void Item_sum::update_used_tables() {
@@ -781,7 +781,7 @@ void Item_sum::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 
 bool Item_sum::reset_wf_state(uchar *arg) {
   if (!m_is_window_function) return false;
-  DBUG_ENTER("Item_sum::reset_wf_state");
+  DBUG_TRACE;
   bool *do_framing = (bool *)arg;
 
   if (*do_framing) {
@@ -789,7 +789,7 @@ bool Item_sum::reset_wf_state(uchar *arg) {
   } else {
     if (!framing()) clear();
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_sum::wf_common_init() {
@@ -1053,16 +1053,16 @@ bool Aggregator_distinct::setup(THD *thd) {
     List<Create_field> field_list;
     Create_field field_def; /* field definition */
     Item *arg;
-    DBUG_ENTER("Aggregator_distinct::setup");
+    DBUG_TRACE;
     /* It's legal to call setup() more than once when in a subquery */
-    if (tree) DBUG_RETURN(false);
+    if (tree) return false;
 
     /*
       Virtual table and the tree are created anew on each re-execution of
       PS/SP. Hence all further allocations are performed in the runtime
       mem_root.
     */
-    if (field_list.push_back(&field_def)) DBUG_RETURN(true);
+    if (field_list.push_back(&field_def)) return true;
 
     item_sum->null_value = item_sum->maybe_null = 1;
     item_sum->allow_group_via_temp_table = false;
@@ -1074,7 +1074,7 @@ bool Aggregator_distinct::setup(THD *thd) {
       (void)arg->val_int();
       if (arg->null_value) {
         const_distinct = CONST_NULL;
-        DBUG_RETURN(false);
+        return false;
       }
     }
 
@@ -1088,8 +1088,7 @@ bool Aggregator_distinct::setup(THD *thd) {
             : arg->decimals,
         arg->maybe_null, arg->unsigned_flag, 0);
 
-    if (!(table = create_tmp_table_from_fields(thd, field_list)))
-      DBUG_RETURN(true);
+    if (!(table = create_tmp_table_from_fields(thd, field_list))) return true;
 
     /* XXX: check that the case of CHAR(0) works OK */
     tree_key_length = table->s->reclength - table->s->null_bytes;
@@ -1104,7 +1103,7 @@ bool Aggregator_distinct::setup(THD *thd) {
         Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
                item_sum->ram_limitation(thd));
 
-    DBUG_RETURN(tree == 0);
+    return tree == 0;
   }
 }
 
@@ -1206,20 +1205,20 @@ bool Aggregator_distinct::add() {
 */
 
 void Aggregator_distinct::endup() {
-  DBUG_ENTER("Aggregator_distinct::endup");
+  DBUG_TRACE;
   /* prevent consecutive recalculations */
-  if (endup_done) DBUG_VOID_RETURN;
+  if (endup_done) return;
 
   if (const_distinct == CONST_NOT_NULL) {
     endup_done = true;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /* we are going to calculate the aggregate value afresh */
   item_sum->clear();
 
   /* The result will definitely be null : no more calculations needed */
-  if (const_distinct == CONST_NULL) DBUG_VOID_RETURN;
+  if (const_distinct == CONST_NULL) return;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
@@ -1267,7 +1266,6 @@ void Aggregator_distinct::endup() {
   }
   /* prevent consecutive recalculations */
   endup_done = true;
-  DBUG_VOID_RETURN;
 }
 
 String *Item_sum_num::val_str(String *str) { return val_string_from_real(str); }
@@ -1680,7 +1678,7 @@ bool Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg) {
 }
 
 Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
-  DBUG_ENTER("Item_sum_hybrid::create_tmp_field");
+  DBUG_TRACE;
   Field *field;
   if (args[0]->type() == Item::FIELD_ITEM) {
     field = ((Item_field *)args[0])->field;
@@ -1688,7 +1686,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
     if ((field = create_tmp_field_from_field(current_thd, field,
                                              item_name.ptr(), table, NULL)))
       field->flags &= ~NOT_NULL_FLAG;
-    DBUG_RETURN(field);
+    return field;
   }
   /*
     DATE/TIME fields have STRING_RESULT result types.
@@ -1712,10 +1710,10 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table) {
           Field_datetimef(maybe_null, item_name.ptr(), decimals);
       break;
     default:
-      DBUG_RETURN(Item_sum::create_tmp_field(group, table));
+      return Item_sum::create_tmp_field(group, table);
   }
   if (field) field->init(table);
-  DBUG_RETURN(field);
+  return field;
 }
 
 /***********************************************************************
@@ -1741,10 +1739,10 @@ Item_sum_sum::Item_sum_sum(THD *thd, Item_sum_sum *item)
 }
 
 Item *Item_sum_sum::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_sum::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_sum(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void Item_sum_sum::clear() {
@@ -1760,7 +1758,7 @@ void Item_sum_sum::clear() {
 }
 
 bool Item_sum_sum::resolve_type(THD *) {
-  DBUG_ENTER("Item_sum_sum::resolve_type");
+  DBUG_TRACE;
   maybe_null = true;
   null_value = true;
   decimals = args[0]->decimals;
@@ -1788,7 +1786,7 @@ bool Item_sum_sum::resolve_type(THD *) {
       DBUG_ASSERT(0);
   }
 
-  if (reject_geometry_args(arg_count, args, this)) DBUG_RETURN(true);
+  if (reject_geometry_args(arg_count, args, this)) return true;
 
   set_data_type_from_result(hybrid_type, max_length);
 
@@ -1801,7 +1799,7 @@ bool Item_sum_sum::resolve_type(THD *) {
                          : hybrid_type == INT_RESULT ? "INT_RESULT"
                                                      : "--ILLEGAL!!!--"),
               max_length, (int)decimals));
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_sum_sum::check_wf_semantics(THD *thd, SELECT_LEX *select,
@@ -1827,7 +1825,7 @@ bool Item_sum_sum::check_wf_semantics(THD *thd, SELECT_LEX *select,
 }
 
 bool Item_sum_sum::add() {
-  DBUG_ENTER("Item_sum_sum::add");
+  DBUG_TRACE;
   DBUG_ASSERT(!m_is_window_function);
   if (hybrid_type == DECIMAL_RESULT) {
     my_decimal value;
@@ -1842,7 +1840,7 @@ bool Item_sum_sum::add() {
     sum += aggr->arg_val_real();
     if (!aggr->arg_is_null(true)) null_value = 0;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 longlong Item_sum_sum::val_int() {
@@ -1870,10 +1868,10 @@ longlong Item_sum_sum::val_int() {
 }
 
 double Item_sum_sum::val_real() {
-  DBUG_ENTER("Item_sum_sum::val_real");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
   if (m_is_window_function) {
-    if (wf_common_init()) DBUG_RETURN(0.0);
+    if (wf_common_init()) return 0.0;
 
     if (hybrid_type == DECIMAL_RESULT) {
       my_decimal tmp;
@@ -1904,12 +1902,12 @@ double Item_sum_sum::val_real() {
       }
       null_value = (m_count == m_frame_null_count);
     }
-    DBUG_RETURN(sum);
+    return sum;
   } else {
     if (aggr) aggr->endup();
     if (hybrid_type == DECIMAL_RESULT)
       my_decimal2double(E_DEC_FATAL_ERROR, dec_buffs + curr_dec_buff, &sum);
-    DBUG_RETURN(sum);
+    return sum;
   }
 }
 
@@ -1981,10 +1979,10 @@ my_decimal *Item_sum_sum::val_decimal(my_decimal *val) {
 */
 
 bool Aggregator_distinct::unique_walk_function(void *element) {
-  DBUG_ENTER("Aggregator_distinct::unique_walk_function");
+  DBUG_TRACE;
   memcpy(table->field[0]->ptr, element, tree_key_length);
   item_sum->add();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 Aggregator_distinct::~Aggregator_distinct() {
@@ -2048,11 +2046,11 @@ bool Aggregator_distinct::arg_is_null(bool use_null_value) {
 }
 
 Item *Item_sum_count::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_count::copy_or_same");
+  DBUG_TRACE;
   Item *result = m_is_window_function ? this
                                       : new (thd->mem_root)
                                             Item_sum_count(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void Item_sum_count::clear() { count = 0; }
@@ -2065,10 +2063,10 @@ bool Item_sum_count::add() {
 }
 
 longlong Item_sum_count::val_int() {
-  DBUG_ENTER("Item_sum_count::val_int");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
   if (m_is_window_function) {
-    if (wf_common_init()) DBUG_RETURN(0);
+    if (wf_common_init()) return 0;
 
     DBUG_EXECUTE_IF(("enter"), {
       DBUG_PRINT("enter", ("Item_sum_count::val_int arg0 %p", args[0]));
@@ -2080,7 +2078,7 @@ longlong Item_sum_count::val_int() {
     });
 
     if (args[0]->is_null()) {
-      DBUG_RETURN(count);
+      return count;
     }
     if (m_window->do_inverse()) {
       if (count > 0) count--;
@@ -2089,18 +2087,17 @@ longlong Item_sum_count::val_int() {
     }
     null_value = false;
 
-    DBUG_RETURN(count);
+    return count;
   } else {
     if (aggr) aggr->endup();
-    DBUG_RETURN(count);
+    return count;
   }
 }
 
 void Item_sum_count::cleanup() {
-  DBUG_ENTER("Item_sum_count::cleanup");
+  DBUG_TRACE;
   count = 0;
   Item_sum_int::cleanup();
-  DBUG_VOID_RETURN;
 }
 
 bool Item_sum_avg::resolve_type(THD *thd) {
@@ -2127,14 +2124,14 @@ bool Item_sum_avg::resolve_type(THD *thd) {
 }
 
 Item *Item_sum_avg::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_avg::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_avg(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table) {
-  DBUG_ENTER("Item_sum_avg::create_tmp_field");
+  DBUG_TRACE;
   Field *field;
   if (group) {
     /*
@@ -2152,7 +2149,7 @@ Field *Item_sum_avg::create_tmp_field(bool group, TABLE *table) {
     field = new (*THR_MALLOC) Field_double(
         max_length, maybe_null, item_name.ptr(), decimals, false, true);
   if (field) field->init(table);
-  DBUG_RETURN(field);
+  return field;
 }
 
 void Item_sum_avg::clear() { Item_sum_sum::clear(); }
@@ -2190,7 +2187,7 @@ double Item_sum_avg::val_real() {
 }
 
 my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
-  DBUG_ENTER("Item_sum_avg::val_decimal");
+  DBUG_TRACE;
   my_decimal sum_buff, cnt;
   const my_decimal *sum_dec;
   DBUG_ASSERT(fixed == 1);
@@ -2198,12 +2195,12 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
   if (m_is_window_function) {
     if (hybrid_type != DECIMAL_RESULT) {
       my_decimal *result = val_decimal_from_real(val);
-      DBUG_RETURN(result);
+      return result;
     }
 
     if (wf_common_init()) {
       my_decimal_set_zero(val);
-      DBUG_RETURN(null_value ? nullptr : val);
+      return null_value ? nullptr : val;
     }
 
     /*
@@ -2251,12 +2248,12 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
     null_value = (m_count == m_frame_null_count);
     my_decimal tmp(*val);
     m_avg_dec.swap(tmp);  // save result
-    DBUG_RETURN(val);
+    return val;
   } else {
     if (aggr) aggr->endup();
     if (!m_count) {
       null_value = 1;
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     /*
@@ -2265,13 +2262,13 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val) {
      */
     if (hybrid_type != DECIMAL_RESULT) {
       my_decimal *result = val_decimal_from_real(val);
-      DBUG_RETURN(result);
+      return result;
     }
 
     sum_dec = dec_buffs + curr_dec_buff;
     int2my_decimal(E_DEC_FATAL_ERROR, m_count, 0, &cnt);
     my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
-    DBUG_RETURN(val);
+    return val;
   }
 }
 
@@ -2295,10 +2292,10 @@ double Item_sum_std::val_real() {
 }
 
 Item *Item_sum_std::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_std::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_std(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -2474,7 +2471,7 @@ bool Item_sum_variance::check_wf_semantics(THD *thd, SELECT_LEX *select,
 }
 
 bool Item_sum_variance::resolve_type(THD *) {
-  DBUG_ENTER("Item_sum_variance::resolve_type");
+  DBUG_TRACE;
   maybe_null = true;
   null_value = true;
 
@@ -2487,17 +2484,17 @@ bool Item_sum_variance::resolve_type(THD *) {
   set_data_type_double();
   hybrid_type = REAL_RESULT;
 
-  if (reject_geometry_args(arg_count, args, this)) DBUG_RETURN(true);
+  if (reject_geometry_args(arg_count, args, this)) return true;
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
-  DBUG_RETURN(false);
+  return false;
 }
 
 Item *Item_sum_variance::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_variance::copy_or_same");
+  DBUG_TRACE;
   Item *result = m_is_window_function ? this
                                       : new (thd->mem_root)
                                             Item_sum_variance(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -2506,7 +2503,7 @@ Item *Item_sum_variance::copy_or_same(THD *thd) {
   pass around.
 */
 Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table) {
-  DBUG_ENTER("Item_sum_variance::create_tmp_field");
+  DBUG_TRACE;
   Field *field;
   if (group) {
     /*
@@ -2523,7 +2520,7 @@ Field *Item_sum_variance::create_tmp_field(bool group, TABLE *table) {
 
   if (field != NULL) field->init(table);
 
-  DBUG_RETURN(field);
+  return field;
 }
 
 void Item_sum_variance::clear() { count = 0; }
@@ -2885,7 +2882,7 @@ void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
 }
 
 void Item_sum_hybrid::cleanup() {
-  DBUG_ENTER("Item_sum_hybrid::cleanup");
+  DBUG_TRACE;
   Item_sum::cleanup();
   forced_const = false;
   destroy(cmp);
@@ -2898,7 +2895,6 @@ void Item_sum_hybrid::cleanup() {
     If some results found it will be left unchanged.
   */
   was_values = true;
-  DBUG_VOID_RETURN;
 }
 
 void Item_sum_hybrid::no_rows_in_result() {
@@ -3077,24 +3073,24 @@ void Item_sum_bit::clear() {
 }
 
 Item *Item_sum_or::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_or::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_or(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 Item *Item_sum_xor::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_xor::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_xor(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 Item *Item_sum_and::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_sum_and::copy_or_same");
+  DBUG_TRACE;
   Item *result =
       m_is_window_function ? this : new (thd->mem_root) Item_sum_and(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 /************************************************************************
@@ -3284,7 +3280,7 @@ void Item_sum_bit::update_field() {
 */
 
 void Item_sum_sum::update_field() {
-  DBUG_ENTER("Item_sum_sum::update_field");
+  DBUG_TRACE;
   DBUG_ASSERT(aggr->Aggrtype() != Aggregator::DISTINCT_AGGREGATOR);
   if (hybrid_type == DECIMAL_RESULT) {
     my_decimal value, *arg_val = args[0]->val_decimal(&value);
@@ -3311,7 +3307,6 @@ void Item_sum_sum::update_field() {
     }
     float8store(res, old_nr);
   }
-  DBUG_VOID_RETURN;
 }
 
 void Item_sum_count::update_field() {
@@ -3324,7 +3319,7 @@ void Item_sum_count::update_field() {
 }
 
 void Item_sum_avg::update_field() {
-  DBUG_ENTER("Item_sum_avg::update_field");
+  DBUG_TRACE;
   longlong field_count;
   uchar *res = result_field->ptr;
 
@@ -3358,7 +3353,6 @@ void Item_sum_avg::update_field() {
       int8store(res, field_count);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 void Item_sum_hybrid::update_field() {
@@ -3706,15 +3700,14 @@ bool Item_udf_sum::itemize(Parse_context *pc, Item **res) {
 }
 
 void Item_udf_sum::clear() {
-  DBUG_ENTER("Item_udf_sum::clear");
+  DBUG_TRACE;
   udf.clear();
-  DBUG_VOID_RETURN;
 }
 
 bool Item_udf_sum::add() {
-  DBUG_ENTER("Item_udf_sum::add");
+  DBUG_TRACE;
   udf.add(&null_value);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Item_udf_sum::cleanup() {
@@ -3743,10 +3736,10 @@ Item *Item_sum_udf_float::copy_or_same(THD *thd) {
 
 double Item_sum_udf_float::val_real() {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ENTER("Item_sum_udf_float::val");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
-  DBUG_RETURN(udf.val(&null_value));
+  return udf.val(&null_value);
 }
 
 String *Item_sum_udf_float::val_str(String *str) {
@@ -3767,11 +3760,11 @@ longlong Item_sum_udf_decimal::val_int() { return val_int_from_decimal(); }
 
 my_decimal *Item_sum_udf_decimal::val_decimal(my_decimal *dec_buf) {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ENTER("Item_func_udf_decimal::val_decimal");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
 
-  DBUG_RETURN(udf.val_decimal(&null_value, dec_buf));
+  return udf.val_decimal(&null_value, dec_buf);
 }
 
 Item *Item_sum_udf_decimal::copy_or_same(THD *thd) {
@@ -3784,10 +3777,10 @@ Item *Item_sum_udf_int::copy_or_same(THD *thd) {
 
 longlong Item_sum_udf_int::val_int() {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ENTER("Item_sum_udf_int::val_int");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("result_type: %d  arg_count: %d", args[0]->result_type(),
                       arg_count));
-  DBUG_RETURN(udf.val_int(&null_value));
+  return udf.val_int(&null_value);
 }
 
 String *Item_sum_udf_int::val_str(String *str) {
@@ -3818,10 +3811,10 @@ my_decimal *Item_sum_udf_str::val_decimal(my_decimal *dec) {
 
 String *Item_sum_udf_str::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
-  DBUG_ENTER("Item_sum_udf_str::str");
+  DBUG_TRACE;
   String *res = udf.val_str(str, &str_value);
   null_value = !res;
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*****************************************************************************
@@ -3854,7 +3847,7 @@ String *Item_sum_udf_str::val_str(String *str) {
 
 int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
                                        const void *key2) {
-  DBUG_ENTER("group_concat_key_cmp_with_distinct");
+  DBUG_TRACE;
   const Item_func_group_concat *item_func =
       static_cast<const Item_func_group_concat *>(arg);
   TABLE *table = item_func->table;
@@ -3878,9 +3871,9 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
     uint offset = field->offset(field->table->record[0]) - table->s->null_bytes;
     int res = field->cmp(pointer_cast<const uchar *>(key1) + offset,
                          pointer_cast<const uchar *>(key2) + offset);
-    if (res) DBUG_RETURN(res);
+    if (res) return res;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -3889,7 +3882,7 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
 
 int group_concat_key_cmp_with_order(const void *arg, const void *key1,
                                     const void *key2) {
-  DBUG_ENTER("group_concat_key_cmp_with_order");
+  DBUG_TRACE;
   const Item_func_group_concat *grp_item =
       static_cast<const Item_func_group_concat *>(arg);
   const ORDER *order_item, *end;
@@ -3916,14 +3909,14 @@ int group_concat_key_cmp_with_order(const void *arg, const void *key1,
         (field->offset(field->table->record[0]) - table->s->null_bytes);
     int res = field->cmp(pointer_cast<const uchar *>(key1) + offset,
                          pointer_cast<const uchar *>(key2) + offset);
-    if (res) DBUG_RETURN(((order_item)->direction == ORDER_ASC) ? res : -res);
+    if (res) return ((order_item)->direction == ORDER_ASC) ? res : -res;
   }
   /*
     We can't return 0 because in that case the tree class would remove this
     item as double value. This would cause problems for case-changes and
     if the returned values are not the same we do the sort on.
   */
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -3932,7 +3925,7 @@ int group_concat_key_cmp_with_order(const void *arg, const void *key1,
 
 int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
                   void *item_arg) {
-  DBUG_ENTER("dump_leaf_key");
+  DBUG_TRACE;
   Item_func_group_concat *item = (Item_func_group_concat *)item_arg;
   TABLE *table = item->table;
   String tmp((char *)table->record[1], table->s->reclength,
@@ -4004,9 +3997,9 @@ int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
     */
     if (table && table->blob_storage)
       table->blob_storage->set_truncated_value(false);
-    DBUG_RETURN(1);
+    return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -4121,7 +4114,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
 }
 
 void Item_func_group_concat::cleanup() {
-  DBUG_ENTER("Item_func_group_concat::cleanup");
+  DBUG_TRACE;
   Item_sum::cleanup();
 
   /*
@@ -4158,7 +4151,6 @@ void Item_func_group_concat::cleanup() {
     if (order_array[i].is_position)
       args[arg_count_field + i] = order_array[i].item_ptr;
   }
-  DBUG_VOID_RETURN;
 }
 
 Field *Item_func_group_concat::make_string_field(TABLE *table_arg) {
@@ -4189,11 +4181,11 @@ Field *Item_func_group_concat::make_string_field(TABLE *table_arg) {
 }
 
 Item *Item_func_group_concat::copy_or_same(THD *thd) {
-  DBUG_ENTER("Item_func_group_concat::copy_or_same");
+  DBUG_TRACE;
   Item *result = m_is_window_function ? this
                                       : new (thd->mem_root)
                                             Item_func_group_concat(thd, this);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void Item_func_group_concat::clear() {
@@ -4314,7 +4306,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 }
 
 bool Item_func_group_concat::setup(THD *thd) {
-  DBUG_ENTER("Item_func_group_concat::setup");
+  DBUG_TRACE;
 
   List<Item> list;
   DBUG_ASSERT(thd->lex->current_select() == aggr_select);
@@ -4325,20 +4317,19 @@ bool Item_func_group_concat::setup(THD *thd) {
     Currently setup() can be called twice. Please add
     assertion here when this is fixed.
   */
-  if (table || tree) DBUG_RETURN(false);
+  if (table || tree) return false;
 
-  if (!(tmp_table_param = new (thd->mem_root) Temp_table_param))
-    DBUG_RETURN(true);
+  if (!(tmp_table_param = new (thd->mem_root) Temp_table_param)) return true;
 
   /* Push all not constant fields to the list and create a temp table */
   always_null = 0;
   for (uint i = 0; i < arg_count_field; i++) {
     Item *item = args[i];
-    if (list.push_back(item)) DBUG_RETURN(true);
+    if (list.push_back(item)) return true;
     if (item->const_item()) {
       if (item->is_null()) {
         always_null = 1;
-        DBUG_RETURN(false);
+        return false;
       }
     }
   }
@@ -4353,7 +4344,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   if (arg_count_order &&
       setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
                   list, all_fields, order_array.begin()))
-    DBUG_RETURN(true);
+    return true;
 
   count_field_types(aggr_select, tmp_table_param, all_fields, false, true);
   tmp_table_param->force_copy_fields = force_copy_fields;
@@ -4385,7 +4376,7 @@ bool Item_func_group_concat::setup(THD *thd) {
   if (!(table = create_tmp_table(thd, tmp_table_param, all_fields, NULL, false,
                                  true, aggr_select->active_options(),
                                  HA_POS_ERROR, "")))
-    DBUG_RETURN(true);
+    return true;
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows = 1;
 
@@ -4422,7 +4413,7 @@ bool Item_func_group_concat::setup(THD *thd) {
         Unique(group_concat_key_cmp_with_distinct, (void *)this,
                tree_key_length, ram_limitation(thd));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /* This is used by rollup to create a separate usable copy of the function */
@@ -4526,7 +4517,7 @@ bool Item_non_framing_wf::fix_fields(THD *thd, Item **items) {
 }
 
 longlong Item_row_number::val_int() {
-  DBUG_ENTER("Item_row_number::val_int");
+  DBUG_TRACE;
 
   if (m_window->at_partition_border() && !m_window->needs_buffering()) {
     clear();
@@ -4536,7 +4527,7 @@ longlong Item_row_number::val_int() {
 
   DBUG_PRINT("enter", ("Item_row_number::val_int  at border: %d ctr: %llu",
                        m_window->at_partition_border(), m_ctr));
-  DBUG_RETURN(m_ctr);
+  return m_ctr;
 }
 
 double Item_row_number::val_real() {
@@ -4576,7 +4567,7 @@ bool Item_rank::check_wf_semantics(THD *thd, SELECT_LEX *select,
 }
 
 longlong Item_rank::val_int() {
-  DBUG_ENTER("Item_rank::val_int");
+  DBUG_TRACE;
   if (m_window->at_partition_border() && !m_window->needs_buffering()) {
     clear();
   }
@@ -4603,7 +4594,7 @@ longlong Item_rank::val_int() {
     m_duplicates++;
   }
 
-  DBUG_RETURN(m_rank_ctr);
+  return m_rank_ctr;
 }
 
 double Item_rank::val_real() {
@@ -4657,23 +4648,23 @@ bool Item_cume_dist::check_wf_semantics(THD *, SELECT_LEX *,
 }
 
 double Item_cume_dist::val_real() {
-  DBUG_ENTER("Item_cume_dist::val_real");
+  DBUG_TRACE;
 
   if (!m_window->has_windowing_steps())
-    DBUG_RETURN(1.0);  // degenerate case, no real windowing
+    return 1.0;  // degenerate case, no real windowing
 
   double cume_dist = (double)m_window->last_rowno_in_peerset() /
                      m_window->last_rowno_in_cache();
 
-  DBUG_RETURN(cume_dist);
+  return cume_dist;
 }
 
 longlong Item_cume_dist::val_int() {
-  DBUG_ENTER("Item_cume_dist::val_int");
+  DBUG_TRACE;
 
   longlong result = (longlong)rint(val_real());
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 String *Item_cume_dist::val_str(String *buff) {
@@ -4710,10 +4701,10 @@ bool Item_percent_rank::check_wf_semantics(THD *, SELECT_LEX *,
 }
 
 double Item_percent_rank::val_real() {
-  DBUG_ENTER("Item_percent_rank::val_real");
+  DBUG_TRACE;
 
   if (!m_window->has_windowing_steps())
-    DBUG_RETURN(0.0);  // degenerate case, no real windowing
+    return 0.0;  // degenerate case, no real windowing
 
   if (m_window->rowno_being_visited() == m_window->rowno_in_partition()) {
     if (m_last_peer_visited) {
@@ -4727,20 +4718,20 @@ double Item_percent_rank::val_real() {
     if (m_window->rowno_being_visited() == m_window->last_rowno_in_peerset())
       m_last_peer_visited = true;
 
-    if (m_rank_ctr == 1) DBUG_RETURN(0);
+    if (m_rank_ctr == 1) return 0;
   }
 
   double percent_rank =
       (double)(m_rank_ctr - 1) / (m_window->last_rowno_in_cache() - 1);
-  DBUG_RETURN(percent_rank);
+  return percent_rank;
 }
 
 longlong Item_percent_rank::val_int() {
-  DBUG_ENTER("Item_percent_rank::val_int");
+  DBUG_TRACE;
 
   longlong result = (longlong)rint(val_real());
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 String *Item_percent_rank::val_str(String *buff) {

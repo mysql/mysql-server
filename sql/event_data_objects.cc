@@ -229,10 +229,9 @@ Event_queue_element_for_exec::~Event_queue_element_for_exec() {
 
 Event_basic::Event_basic()
     : m_schema_name(NULL_STR), m_event_name(NULL_STR), m_time_zone(nullptr) {
-  DBUG_ENTER("Event_basic::Event_basic");
+  DBUG_TRACE;
   /* init memory root */
   init_sql_alloc(key_memory_event_basic_root, &mem_root, 256, 512);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -243,9 +242,8 @@ Event_basic::Event_basic()
 */
 
 Event_basic::~Event_basic() {
-  DBUG_ENTER("Event_basic::~Event_basic");
+  DBUG_TRACE;
   free_root(&mem_root, MYF(0));
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -285,9 +283,8 @@ Event_queue_element::~Event_queue_element() {}
 */
 
 Event_timed::Event_timed() : m_created(0), m_modified(0), m_sql_mode(0) {
-  DBUG_ENTER("Event_timed::Event_timed");
+  DBUG_TRACE;
   init();
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -316,7 +313,7 @@ Event_job_data::Event_job_data() : m_sql_mode(0) {}
 */
 
 void Event_timed::init() {
-  DBUG_ENTER("Event_timed::init");
+  DBUG_TRACE;
 
   m_definer_user = NULL_CSTR;
   m_definer_host = NULL_CSTR;
@@ -324,13 +321,12 @@ void Event_timed::init() {
   m_comment = NULL_STR;
 
   m_sql_mode = 0;
-  DBUG_VOID_RETURN;
 }
 
 // Fill the Event_job_data members from the Data Dictionary Event Object.
 bool Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
                                      const char *schema_name) {
-  DBUG_ENTER("Event_job_data::fill_event_info");
+  DBUG_TRACE;
 
   m_schema_name = make_lex_string(&mem_root, schema_name);
   m_event_name = make_lex_string(&mem_root, event_obj.name());
@@ -345,23 +341,23 @@ bool Event_job_data::fill_event_info(THD *thd, const dd::Event &event_obj,
 
   m_definition = make_lex_string(&mem_root, event_obj.definition());
 
-  if (m_time_zone == NULL) DBUG_RETURN(true);
+  if (m_time_zone == NULL) return true;
 
   Event_creation_ctx::create_event_creation_ctx(event_obj, &m_creation_ctx);
-  if (m_creation_ctx == nullptr) DBUG_RETURN(true);
+  if (m_creation_ctx == nullptr) return true;
 
   m_definer_user = make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host = make_lex_cstring(&mem_root, event_obj.definer_host());
 
   m_sql_mode = event_obj.sql_mode();
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 // Fill the Event_queue_element members from the Data Dictionary Event Object.
 bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
                                           const char *schema_name) {
-  DBUG_ENTER("Even_queue_element::fill_event_info");
+  DBUG_TRACE;
 
   m_schema_name = make_lex_string(&mem_root, schema_name);
   m_event_name = make_lex_string(&mem_root, event_obj.name());
@@ -375,7 +371,7 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   String str(event_obj.time_zone().c_str(), &my_charset_latin1);
   m_time_zone = my_tz_find(thd, &str);
 
-  if (m_time_zone == NULL) DBUG_RETURN(true);
+  if (m_time_zone == NULL) return true;
 
   m_starts_null = event_obj.is_starts_null();
   if (!m_starts_null) m_starts = event_obj.starts();
@@ -411,16 +407,16 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_originator = event_obj.originator();
   m_on_completion = dd::get_old_on_completion(event_obj.on_completion());
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 // Fill the Event_timed members from the Data Dictionary Event Object.
 bool Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
                                   const char *schema_name) {
-  DBUG_ENTER("Event_timed::fill_event_info");
+  DBUG_TRACE;
 
   if (Event_queue_element::fill_event_info(thd, event_obj, schema_name))
-    DBUG_RETURN(true);
+    return true;
 
   m_definition = make_lex_string(&mem_root, event_obj.definition());
   m_definition_utf8 = make_lex_string(&mem_root, event_obj.definition_utf8());
@@ -433,7 +429,7 @@ bool Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
                         m_schema_name.str, m_event_name.str);
   }
 
-  if (m_creation_ctx == nullptr) DBUG_RETURN(true);
+  if (m_creation_ctx == nullptr) return true;
 
   m_definer_user = make_lex_cstring(&mem_root, event_obj.definer_user());
   m_definer_host = make_lex_cstring(&mem_root, event_obj.definer_host());
@@ -444,7 +440,7 @@ bool Event_timed::fill_event_info(THD *thd, const dd::Event &event_obj,
   m_comment = make_lex_string(&mem_root, event_obj.comment());
   m_sql_mode = event_obj.sql_mode();
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -488,7 +484,7 @@ static my_time_t add_interval(MYSQL_TIME *ltime, const Time_zone *time_zone,
 static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
                           my_time_t start, my_time_t time_now, int i_value,
                           interval_type i_type) {
-  DBUG_ENTER("get_next_time");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("start: %lu  now: %lu", (long)start, (long)time_now));
 
   DBUG_ASSERT(start <= time_now);
@@ -534,7 +530,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
        We should return an error here so SHOW EVENTS/ SELECT FROM I_S.EVENTS
        would give an error then.
       */
-      DBUG_RETURN(1);
+      return 1;
       break;
     case INTERVAL_LAST:
       DBUG_ASSERT(0);
@@ -673,7 +669,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
 
 done:
   DBUG_PRINT("info", ("next_time: %ld", (long)next_time));
-  DBUG_RETURN(next_time == 0);
+  return next_time == 0;
 }
 
 /*
@@ -686,7 +682,7 @@ done:
 
 bool Event_queue_element::compute_next_execution_time(THD *thd) {
   my_time_t time_now;
-  DBUG_ENTER("Event_queue_element::compute_next_execution_time");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("starts: %lu  ends: %lu  last_executed: %lu  this: %p",
               (long)m_starts, (long)m_ends, (long)m_last_executed, this));
@@ -866,10 +862,10 @@ bool Event_queue_element::compute_next_execution_time(THD *thd) {
   }
 ret:
   DBUG_PRINT("info", ("ret: 0 execute_at: %lu", (long)m_execute_at));
-  DBUG_RETURN(false);
+  return false;
 err:
   DBUG_PRINT("info", ("ret=1"));
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -917,13 +913,13 @@ int Event_timed::get_create_event(const THD *thd, String *buf) {
   String expr_buf(tmp_buf, sizeof(tmp_buf), system_charset_info);
   expr_buf.length(0);
 
-  DBUG_ENTER("get_create_event");
+  DBUG_TRACE;
   DBUG_PRINT("ret_info", ("body_len=[%d]body=[%s]", (int)m_definition.length,
                           m_definition.str));
 
   if (m_expression && Events::reconstruct_interval_expression(
                           &expr_buf, m_interval, m_expression))
-    DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
+    return EVEX_MICROSECOND_UNSUP;
 
   buf->append(STRING_WITH_LEN("CREATE "));
   append_definer(thd, buf, m_definer_user, m_definer_host);
@@ -966,7 +962,7 @@ int Event_timed::get_create_event(const THD *thd, String *buf) {
   buf->append(STRING_WITH_LEN(" DO "));
   buf->append(m_definition.str, m_definition.length);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -977,14 +973,14 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 44;
 
-  DBUG_ENTER("Event_job_data::construct_sp_sql");
+  DBUG_TRACE;
 
   /*
     Allocate a large enough buffer on the thread execution memory
     root to avoid multiple [re]allocations on system heap
   */
   buffer.length = STATIC_SQL_LENGTH + m_event_name.length + m_definition.length;
-  if (!(buffer.str = (char *)thd->alloc(buffer.length))) DBUG_RETURN(true);
+  if (!(buffer.str = (char *)thd->alloc(buffer.length))) return true;
 
   sp_sql->set(buffer.str, buffer.length, system_charset_info);
   sp_sql->length(0);
@@ -1009,7 +1005,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
 
   sp_sql->append(m_definition.str, m_definition.length);
 
-  DBUG_RETURN(thd->is_fatal_error());
+  return thd->is_fatal_error();
 }
 
 /**
@@ -1027,7 +1023,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   sql_digest_state *parent_digest = thd->m_digest;
   PSI_statement_locker *parent_locker = thd->m_statement_psi;
 
-  DBUG_ENTER("Event_job_data::execute");
+  DBUG_TRACE;
 
   mysql_reset_thd_for_next_command(thd);
 
@@ -1204,7 +1200,7 @@ end:
   DBUG_PRINT("info", ("EXECUTED %s.%s  ret: %d", m_schema_name.str,
                       m_event_name.str, ret));
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -1218,11 +1214,11 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
   const uint STATIC_SQL_LENGTH = 14;
   int ret = 0;
 
-  DBUG_ENTER("construct_drop_event_sql");
+  DBUG_TRACE;
 
   buffer.length =
       STATIC_SQL_LENGTH + event_name.length * 2 + schema_name.length * 2;
-  if (!(buffer.str = (char *)thd->alloc(buffer.length))) DBUG_RETURN(true);
+  if (!(buffer.str = (char *)thd->alloc(buffer.length))) return true;
 
   sp_sql->set(buffer.str, buffer.length, system_charset_info);
   sp_sql->length(0);
@@ -1234,7 +1230,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
 
   // Set query id for DROP EVENT constructed by the Event Scheduler..
   thd->set_query_id(next_query_id());
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*

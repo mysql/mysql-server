@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,18 +61,18 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
                    size_t Count MY_ATTRIBUTE((unused))) {
   ulong read_length;
   NET *net = current_thd->get_protocol_classic()->get_net();
-  DBUG_ENTER("_my_b_net_read");
+  DBUG_TRACE;
 
   if (!info->end_of_file)
-    DBUG_RETURN(1); /* because my_b_get (no _) takes 1 byte at a time */
+    return 1; /* because my_b_get (no _) takes 1 byte at a time */
   read_length = my_net_read(net);
   if (read_length == packet_error) {
     info->error = -1;
-    DBUG_RETURN(1);
+    return 1;
   }
   if (read_length == 0) {
     info->end_of_file = 0; /* End of file from client */
-    DBUG_RETURN(1);
+    return 1;
   }
   /* to set up stuff for my_b_get (no _) */
   info->read_end = (info->read_pos = net->read_pos) + read_length;
@@ -88,5 +88,5 @@ int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 
   info->read_pos++;
 
-  DBUG_RETURN(0);
+  return 0;
 }

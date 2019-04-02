@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -474,12 +474,12 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   uint nod_flag;
   uchar *page_buf;
   int res;
-  DBUG_ENTER("rtree_insert_req");
+  DBUG_TRACE;
 
   if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length +
                                       MI_MAX_KEY_BUFF))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
@@ -534,10 +534,10 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   }
 
 ok:
-  DBUG_RETURN(res);
+  return res;
 
 err1:
-  DBUG_RETURN(-1); /* purecov: inspected */
+  return -1; /* purecov: inspected */
 }
 
 /*
@@ -555,18 +555,18 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
   int res;
   my_off_t new_page;
-  DBUG_ENTER("rtree_insert_level");
+  DBUG_TRACE;
 
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     if ((old_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
-      DBUG_RETURN(-1);
+      return -1;
     info->buff_used = 1;
     mi_putint(info->buff, 2, 0);
     res = rtree_add_key(info, keyinfo, key, key_length, info->buff, NULL);
     if (_mi_write_keypage(info, keyinfo, old_root, DFLT_INIT_HITS, info->buff))
-      DBUG_RETURN(1);
+      return 1;
     info->s->state.key_root[keynr] = old_root;
-    DBUG_RETURN(res);
+    return res;
   }
 
   switch ((res = rtree_insert_req(info, keyinfo, key, key_length, old_root,
@@ -612,7 +612,7 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
 
       break;
     err1:
-      DBUG_RETURN(-1); /* purecov: inspected */
+      return -1; /* purecov: inspected */
     }
     default:
     case -1: /* error */
@@ -620,7 +620,7 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       break;
     }
   }
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -632,11 +632,11 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
 */
 
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
-  DBUG_ENTER("rtree_insert");
-  DBUG_RETURN((!key_length ||
-               (rtree_insert_level(info, keynr, key, key_length, -1) == -1))
-                  ? -1
-                  : 0);
+  DBUG_TRACE;
+  return (!key_length ||
+          (rtree_insert_level(info, keynr, key, key_length, -1) == -1))
+             ? -1
+             : 0;
 }
 
 /*
@@ -649,7 +649,7 @@ int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
 
 static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page,
                                     int level) {
-  DBUG_ENTER("rtree_fill_reinsert_list");
+  DBUG_TRACE;
   DBUG_PRINT("rtree", ("page: %lu  level: %d", (ulong)page, level));
   if (ReinsertList->n_pages == ReinsertList->m_pages) {
     ReinsertList->m_pages += REINSERT_BUFFER_INC;
@@ -663,10 +663,10 @@ static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page,
   ReinsertList->pages[ReinsertList->n_pages].offs = page;
   ReinsertList->pages[ReinsertList->n_pages].level = level;
   ReinsertList->n_pages++;
-  DBUG_RETURN(0);
+  return 0;
 
 err1:
-  DBUG_RETURN(-1); /* purecov: inspected */
+  return -1; /* purecov: inspected */
 }
 
 /*
@@ -688,11 +688,11 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   uint nod_flag;
   uchar *page_buf;
   int res;
-  DBUG_ENTER("rtree_delete_req");
+  DBUG_TRACE;
 
   if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
@@ -792,10 +792,10 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   res = 1;
 
 ok:
-  DBUG_RETURN(res);
+  return res;
 
 err1:
-  DBUG_RETURN(-1); /* purecov: inspected */
+  return -1; /* purecov: inspected */
 }
 
 /*
@@ -811,11 +811,11 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
   stPageList ReinsertList;
   my_off_t old_root;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
-  DBUG_ENTER("rtree_delete");
+  DBUG_TRACE;
 
   if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     set_my_errno(HA_ERR_END_OF_FILE);
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
   }
   DBUG_PRINT("rtree", ("starting deletion at root page: %lu", (ulong)old_root));
 
@@ -828,7 +828,7 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
     case 2: /* empty */
     {
       info->s->state.key_root[keynr] = HA_OFFSET_ERROR;
-      DBUG_RETURN(0);
+      return 0;
     }
     case 0: /* deleted */
     {
@@ -892,20 +892,20 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
         info->s->state.key_root[keynr] = new_root;
       }
       info->update = HA_STATE_DELETED;
-      DBUG_RETURN(0);
+      return 0;
 
     err1:
-      DBUG_RETURN(-1); /* purecov: inspected */
+      return -1; /* purecov: inspected */
     }
     case 1: /* not found */
     {
       set_my_errno(HA_ERR_KEY_NOT_FOUND);
-      DBUG_RETURN(-1); /* purecov: inspected */
+      return -1; /* purecov: inspected */
     }
     default:
     case -1: /* error */
     {
-      DBUG_RETURN(-1); /* purecov: inspected */
+      return -1; /* purecov: inspected */
     }
   }
 }

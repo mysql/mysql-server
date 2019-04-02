@@ -209,11 +209,11 @@ static int assign_condition_item(MEM_ROOT *mem_root, const char *name, THD *thd,
   String *str;
   bool truncated;
 
-  DBUG_ENTER("assign_condition_item");
+  DBUG_TRACE;
 
   if (set->is_null()) {
     thd->raise_error_printf(ER_WRONG_VALUE_FOR_VAR, name, "NULL");
-    DBUG_RETURN(1);
+    return 1;
   }
 
   str = set->val_str(&str_value);
@@ -221,13 +221,13 @@ static int assign_condition_item(MEM_ROOT *mem_root, const char *name, THD *thd,
   if (truncated) {
     if (thd->is_strict_mode()) {
       thd->raise_error_printf(ER_COND_ITEM_TOO_LONG, name);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     thd->raise_warning_printf(WARN_COND_ITEM_TRUNCATED, name);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
@@ -259,7 +259,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd,
   String *member;
   const LEX_STRING *name;
 
-  DBUG_ENTER("Sql_cmd_common_signal::eval_signal_informations");
+  DBUG_TRACE;
 
   for (i = CIN_FIRST_PROPERTY; i <= CIN_LAST_PROPERTY; i++) {
     set = m_set_signal_information->m_item[i];
@@ -356,13 +356,13 @@ end:
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool Sql_cmd_signal::execute(THD *thd) {
   Sql_condition cond(thd->mem_root);
 
-  DBUG_ENTER("Sql_cmd_signal::execute");
+  DBUG_TRACE;
 
   /*
     WL#2110 SIGNAL specification says:
@@ -383,7 +383,7 @@ bool Sql_cmd_signal::execute(THD *thd) {
   DBUG_ASSERT(thd->lex->query_tables == NULL);
 
   eval_defaults(thd, &cond);
-  if (eval_signal_informations(thd, &cond)) DBUG_RETURN(true);
+  if (eval_signal_informations(thd, &cond)) return true;
 
   /* SIGNAL should not signal SL_NOTE */
   DBUG_ASSERT((cond.severity() == Sql_condition::SL_WARNING) ||
@@ -398,10 +398,10 @@ bool Sql_cmd_signal::execute(THD *thd) {
 
   if (cond.severity() == Sql_condition::SL_WARNING) {
     my_ok(thd);
-    DBUG_RETURN(false);
+    return false;
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -417,12 +417,12 @@ bool Sql_cmd_signal::execute(THD *thd) {
 bool Sql_cmd_resignal::execute(THD *thd) {
   sp_rcontext::Handler_call_frame *frame = NULL;
 
-  DBUG_ENTER("Sql_cmd_resignal::execute");
+  DBUG_TRACE;
 
   if (!thd->sp_runtime_ctx ||
       !(frame = thd->sp_runtime_ctx->current_handler_frame())) {
     thd->raise_error(ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER);
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd->pop_diagnostics_area();
@@ -514,5 +514,5 @@ bool Sql_cmd_resignal::execute(THD *thd) {
   */
   da->reset_diagnostics_area();
 
-  DBUG_RETURN(thd->is_error());
+  return thd->is_error();
 }

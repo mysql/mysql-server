@@ -1744,8 +1744,8 @@ class Item : public Parse_tree_node {
   type_conversion_status save_str_value_in_field(Field *field, String *result);
 
   virtual Field *get_tmp_table_field() {
-    DBUG_ENTER("Item::get_tmp_table_field");
-    DBUG_RETURN(0);
+    DBUG_TRACE;
+    return 0;
   }
   /* This is also used to create fields in CREATE ... SELECT: */
   virtual Field *tmp_table_field(TABLE *) { return 0; }
@@ -1930,9 +1930,9 @@ class Item : public Parse_tree_node {
   }
   virtual void set_runtime_created() { runtime_item = true; }
   virtual Item *get_tmp_table_item(THD *thd) {
-    DBUG_ENTER("Item::get_tmp_table_item");
+    DBUG_TRACE;
     Item *result = copy_or_same(thd);
-    DBUG_RETURN(result);
+    return result;
   }
 
   static const CHARSET_INFO *default_charset();
@@ -4550,9 +4550,9 @@ class Item_result_field : public Item {
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
   void save_in_result_field(bool no_conversions) override {
-    DBUG_ENTER("Item_result_field::save_in_result_field");
+    DBUG_TRACE;
     save_in_field(result_field, no_conversions);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void cleanup() override;
@@ -4873,10 +4873,10 @@ class Item_view_ref final : public Item_ref {
 
   bool eq(const Item *item, bool) const override;
   Item *get_tmp_table_item(THD *thd) override {
-    DBUG_ENTER("Item_view_ref::get_tmp_table_item");
+    DBUG_TRACE;
     Item *item = Item_ref::get_tmp_table_item(thd);
     item->item_name = item_name;
-    DBUG_RETURN(item);
+    return item;
   }
   Ref_Type ref_type() const override { return VIEW_REF; }
 
@@ -5946,13 +5946,13 @@ class Item_cache_row final : public Item_cache {
   void bring_value() override;
   void keep_array() override { save_array = true; }
   void cleanup() override {
-    DBUG_ENTER("Item_cache_row::cleanup");
+    DBUG_TRACE;
     Item_cache::cleanup();
     if (save_array)
       memset(values, 0, item_count * sizeof(Item **));
     else
       values = 0;
-    DBUG_VOID_RETURN;
+    return;
   }
   bool cache_value() override;
 };

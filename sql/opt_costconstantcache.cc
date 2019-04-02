@@ -68,7 +68,7 @@ Cost_constant_cache::~Cost_constant_cache() {
 }
 
 void Cost_constant_cache::init() {
-  DBUG_ENTER("Cost_constant_cache::init");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_inited == false);
 
@@ -82,16 +82,14 @@ void Cost_constant_cache::init() {
   update_current_cost_constants(cost_constants);
 
   m_inited = true;
-
-  DBUG_VOID_RETURN;
 }
 
 void Cost_constant_cache::close() {
-  DBUG_ENTER("Cost_constant_cache::close");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_inited);
 
-  if (m_inited == false) DBUG_VOID_RETURN; /* purecov: inspected */
+  if (m_inited == false) return; /* purecov: inspected */
 
   // Release the current cost constant set
   if (current_cost_constants) {
@@ -106,12 +104,10 @@ void Cost_constant_cache::close() {
   mysql_mutex_destroy(&LOCK_cost_const);
 
   m_inited = false;
-
-  DBUG_VOID_RETURN;
 }
 
 void Cost_constant_cache::reload() {
-  DBUG_ENTER("Cost_constant_cache::reload");
+  DBUG_TRACE;
   DBUG_ASSERT(m_inited = true);
 
   // Create cost constants from the constants defined in the source code
@@ -122,8 +118,6 @@ void Cost_constant_cache::reload() {
 
   // Set this to be the current set of cost constants
   update_current_cost_constants(cost_constants);
-
-  DBUG_VOID_RETURN;
 }
 
 Cost_model_constants *Cost_constant_cache::create_defaults() const {
@@ -242,7 +236,7 @@ static void report_engine_cost_warnings(const LEX_CSTRING &se_name,
 
 static void read_server_cost_constants(THD *thd, TABLE *table,
                                        Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_server_cost_constants");
+  DBUG_TRACE;
 
   /*
     The server constant table has the following columns:
@@ -291,8 +285,6 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   } else {
     LogErr(WARNING_LEVEL, ER_SERVER_COST_FAILED_TO_READ);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -308,7 +300,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
 
 static void read_engine_cost_constants(THD *thd, TABLE *table,
                                        Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_engine_cost_constants");
+  DBUG_TRACE;
 
   /*
     The engine constant table has the following columns:
@@ -371,8 +363,6 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   } else {
     LogErr(WARNING_LEVEL, ER_ENGINE_COST_FAILED_TO_READ);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -385,7 +375,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
 */
 
 static void read_cost_constants(Cost_model_constants *cost_constants) {
-  DBUG_ENTER("read_cost_constants");
+  DBUG_TRACE;
 
   /*
     This function creates its own THD. If there exists a current THD this needs
@@ -431,8 +421,6 @@ static void read_cost_constants(Cost_model_constants *cost_constants) {
 
   // If the caller already had a THD, this must be restored
   if (orig_thd) orig_thd->store_globals();
-
-  DBUG_VOID_RETURN;
 }
 
 void init_optimizer_cost_module(bool enable_plugins) {

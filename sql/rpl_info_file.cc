@@ -59,36 +59,32 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
 Rpl_info_file::Rpl_info_file(const int nparam, const char *param_pattern_fname,
                              const char *param_info_fname, bool indexed_arg)
     : Rpl_info_handler(nparam), info_fd(-1), name_indexed(indexed_arg) {
-  DBUG_ENTER("Rpl_info_file::Rpl_info_file");
+  DBUG_TRACE;
 
   fn_format(pattern_fname, param_pattern_fname, mysql_data_home, "", 4 + 32);
   fn_format(info_fname, param_info_fname, mysql_data_home, "", 4 + 32);
-
-  DBUG_VOID_RETURN;
 }
 
 Rpl_info_file::~Rpl_info_file() {
-  DBUG_ENTER("Rpl_info_file::~Rpl_info_file");
+  DBUG_TRACE;
 
   do_end_info();
-
-  DBUG_VOID_RETURN;
 }
 
 int Rpl_info_file::do_init_info(uint instance) {
-  DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
+  DBUG_TRACE;
 
   char fname_local[FN_REFLEN];
   char *pos = my_stpcpy(fname_local, pattern_fname);
   if (name_indexed) sprintf(pos, "%u", instance);
 
   fn_format(info_fname, fname_local, mysql_data_home, "", 4 + 32);
-  DBUG_RETURN(do_init_info());
+  return do_init_info();
 }
 
 int Rpl_info_file::do_init_info() {
   int error = 0;
-  DBUG_ENTER("Rpl_info_file::do_init_info");
+  DBUG_TRACE;
 
   /* does info file exist ? */
   enum_return_check ret_check = do_check_info();
@@ -138,7 +134,7 @@ int Rpl_info_file::do_init_info() {
     }
   } else
     error = 1;
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_file::do_prepare_info_for_read() {
@@ -216,10 +212,10 @@ bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
   char *pos = nullptr;
   enum_return_check last_check = REPOSITORY_EXISTS;
 
-  DBUG_ENTER("Rpl_info_file::do_count_info");
+  DBUG_TRACE;
 
   if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed)))
-    DBUG_RETURN(true);
+    return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
     pos = my_stpcpy(fname_local, param_pattern);
@@ -235,13 +231,13 @@ bool Rpl_info_file::do_count_info(const int nparam, const char *param_pattern,
   }
   delete info;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 int Rpl_info_file::do_flush_info(const bool force) {
   int error = 0;
 
-  DBUG_ENTER("Rpl_info_file::do_flush_info");
+  DBUG_TRACE;
 
   if (flush_io_cache(&info_file)) error = 1;
   if (!error && (force || (sync_period && ++(sync_counter) >= sync_period))) {
@@ -249,32 +245,30 @@ int Rpl_info_file::do_flush_info(const bool force) {
     sync_counter = 0;
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Rpl_info_file::do_end_info() {
-  DBUG_ENTER("Rpl_info_file::do_end_info");
+  DBUG_TRACE;
 
   if (info_fd >= 0) {
     if (my_b_inited(&info_file)) end_io_cache(&info_file);
     my_close(info_fd, MYF(MY_WME));
     info_fd = -1;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 int Rpl_info_file::do_remove_info() {
   MY_STAT stat_area;
   int error = 0;
 
-  DBUG_ENTER("Rpl_info_file::do_remove_info");
+  DBUG_TRACE;
 
   if (my_stat(info_fname, &stat_area, MYF(0)) &&
       my_delete(info_fname, MYF(MY_WME)))
     error = 1;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_file::do_clean_info() {
@@ -294,10 +288,10 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
   char *pos = nullptr;
   enum_return_check last_check = REPOSITORY_EXISTS;
 
-  DBUG_ENTER("Rpl_info_file::do_count_info");
+  DBUG_TRACE;
 
   if (!(info = new Rpl_info_file(nparam, param_pattern, "", indexed)))
-    DBUG_RETURN(true);
+    return true;
 
   for (i = 1; last_check == REPOSITORY_EXISTS; i++) {
     pos = my_stpcpy(fname_local, param_pattern);
@@ -313,7 +307,7 @@ int Rpl_info_file::do_reset_info(const int nparam, const char *param_pattern,
   }
   delete info;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Rpl_info_file::do_set_info(const int, const char *value) {
@@ -432,7 +426,7 @@ uint Rpl_info_file::do_get_rpl_info_type() { return INFO_REPOSITORY_FILE; }
 int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
                           const char *default_val) {
   size_t length;
-  DBUG_ENTER("init_strvar_from_file");
+  DBUG_TRACE;
 
   if ((length = my_b_gets(f, var, max_size))) {
     char *last_p = var + length - 1;
@@ -447,12 +441,12 @@ int init_strvar_from_file(char *var, size_t max_size, IO_CACHE *f,
       while (((c = my_b_get(f)) != '\n' && c != my_b_EOF))
         ;
     }
-    DBUG_RETURN(0);
+    return 0;
   } else if (default_val) {
     strmake(var, default_val, max_size - 1);
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 int init_intvar_from_file(int *var, IO_CACHE *f, int default_val) {
@@ -463,16 +457,16 @@ int init_intvar_from_file(int *var, IO_CACHE *f, int default_val) {
     INT_MAX    +2,147,483,647
   */
   char buf[32];
-  DBUG_ENTER("init_intvar_from_file");
+  DBUG_TRACE;
 
   if (my_b_gets(f, buf, sizeof(buf))) {
     *var = atoi(buf);
-    DBUG_RETURN(0);
+    return 0;
   } else if (default_val) {
     *var = default_val;
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 int init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
@@ -483,16 +477,16 @@ int init_ulongvar_from_file(ulong *var, IO_CACHE *f, ulong default_val) {
                 64 bit compiler   +18,446,744,073,709,551,615
   */
   char buf[32];
-  DBUG_ENTER("init_ulongvar_from_file");
+  DBUG_TRACE;
 
   if (my_b_gets(f, buf, sizeof(buf))) {
     *var = strtoul(buf, 0, 10);
-    DBUG_RETURN(0);
+    return 0;
   } else if (default_val) {
     *var = default_val;
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
@@ -508,18 +502,18 @@ int init_floatvar_from_file(float *var, IO_CACHE *f, float default_val) {
     crash the server.
   */
   char buf[64];
-  DBUG_ENTER("init_floatvar_from_file");
+  DBUG_TRACE;
 
   if (my_b_gets(f, buf, sizeof(buf))) {
     if (sscanf(buf, "%f", var) != 1)
-      DBUG_RETURN(1);
+      return 1;
     else
-      DBUG_RETURN(0);
+      return 0;
   } else if (default_val != 0.0) {
     *var = default_val;
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -550,10 +544,10 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
   uint num_items;  // number of items of `arr'
   size_t read_size;
 
-  DBUG_ENTER("init_dynarray_intvar_from_file");
+  DBUG_TRACE;
 
   if ((read_size = my_b_gets(f, buf_act, size)) == 0) {
-    DBUG_RETURN(false);  // no line in master.info
+    return false;  // no line in master.info
   }
   if (read_size + 1 == size && buf[size - 2] != '\n') {
     /*
@@ -571,7 +565,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
     size_t max_size = (1 + num_items) * (sizeof(long) * 3 + 1) + 1;
     if (!(buf_act = (char *)my_malloc(key_memory_Rpl_info_file_buffer, max_size,
                                       MYF(MY_WME))))
-      DBUG_RETURN(true);
+      return true;
     *buffer_act = buf_act;
     memcpy(buf_act, buf, read_size);
     snd_size = my_b_gets(f, buf_act + read_size, max_size - read_size);
@@ -580,8 +574,8 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
       /*
         failure to make the 2nd read or short read again
       */
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }

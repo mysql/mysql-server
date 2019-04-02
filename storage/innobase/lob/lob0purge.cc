@@ -45,14 +45,12 @@ namespace lob {
 @param[in]	uf	the update vector of concerned field. */
 static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
                                   ref_t &ref, const upd_field_t *uf) {
-  DBUG_ENTER("rollback_from_undolog");
+  DBUG_TRACE;
 
   trx_t *trx = nullptr;
 
   dberr_t err = apply_undolog(ctx->get_mtr(), trx, index, ref, uf);
   ut_a(err == DB_SUCCESS);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Rollback modification of a uncompressed LOB.
@@ -67,7 +65,7 @@ static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
 static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
                      undo_no_t undo_no, ref_t &ref, ulint rec_type,
                      const upd_field_t *uf) {
-  DBUG_ENTER("lob::rollback");
+  DBUG_TRACE;
 
   ut_ad(ctx->m_rollback);
 
@@ -76,7 +74,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     been a small change done to LOB.  Apply the undo log on the
     LOB.*/
     rollback_from_undolog(ctx, index, ref, uf);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   mtr_t *mtr = ctx->get_mtr();
@@ -123,7 +121,6 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ref.set_length(0, mtr);
 
   DBUG_EXECUTE_IF("crash_endof_lob_rollback", DBUG_SUICIDE(););
-  DBUG_VOID_RETURN;
 }
 
 /** Rollback modification of a compressed LOB.
@@ -315,7 +312,7 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
            undo_no_t undo_no, ref_t ref, ulint rec_type,
            const upd_field_t *uf) {
-  DBUG_ENTER("lob::purge");
+  DBUG_TRACE;
 
   mtr_t *mtr = ctx->get_mtr();
   const bool is_rollback = ctx->m_rollback;
@@ -325,19 +322,19 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     record with some unwritten off-page columns. There is
     nothing to free then. */
     ut_a(ctx->m_rollback);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (!ref.is_owner() || ref.page_no() == FIL_NULL || ref.length() == 0 ||
       (ctx->m_rollback && ref.is_inherited())) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (!is_rollback && uf != nullptr && uf->lob_diffs != nullptr &&
       uf->lob_diffs->size() > 0) {
     /* Undo record contains LOB diffs.  So purge shouldn't look
     at the LOB. */
-    DBUG_VOID_RETURN;
+    return;
   }
 
   space_id_t space_id = ref.space_id();
@@ -355,12 +352,12 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       page_type == FIL_PAGE_SDI_BLOB || page_type == FIL_PAGE_SDI_ZBLOB) {
     lob::Deleter free_blob(*ctx);
     free_blob.destroy();
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (page_type == FIL_PAGE_TYPE_ZLOB_FIRST) {
     z_purge(ctx, index, trxid, undo_no, ref, rec_type);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   first_page_t first(mtr, index);
@@ -370,7 +367,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   if (is_rollback) {
     rollback(ctx, index, trxid, undo_no, ref, rec_type, uf);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   trx_id_t last_trx_id = first.get_last_trx_id();
@@ -421,8 +418,6 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   ref.set_page_no(FIL_NULL, mtr);
   ref.set_length(0, mtr);
-
-  DBUG_VOID_RETURN;
 }
 
 } /* namespace lob */

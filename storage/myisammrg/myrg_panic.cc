@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,14 +35,14 @@ int myrg_panic(enum ha_panic_function flag) {
   int error = 0;
   LIST *list_element, *next_open;
   MYRG_INFO *info;
-  DBUG_ENTER("myrg_panic");
+  DBUG_TRACE;
 
   for (list_element = myrg_open_list; list_element; list_element = next_open) {
     next_open = list_element->next; /* Save if close */
     info = (MYRG_INFO *)list_element->data;
     if (flag == HA_PANIC_CLOSE && myrg_close(info)) error = my_errno();
   }
-  if (myrg_open_list && flag != HA_PANIC_CLOSE) DBUG_RETURN(mi_panic(flag));
+  if (myrg_open_list && flag != HA_PANIC_CLOSE) return mi_panic(flag);
   if (error) set_my_errno(error);
-  DBUG_RETURN(error);
+  return error;
 }

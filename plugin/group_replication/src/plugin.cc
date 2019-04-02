@@ -362,7 +362,7 @@ bool plugin_get_group_member_stats(
 }
 
 int plugin_group_replication_start(char **) {
-  DBUG_ENTER("plugin_group_replication_start");
+  DBUG_TRACE;
 
   MUTEX_LOCK(lock, &lv.plugin_running_mutex);
   int error = 0;
@@ -482,7 +482,7 @@ int plugin_group_replication_start(char **) {
     goto err;  // leave the decision for later
   }
 
-  DBUG_RETURN(initialize_plugin_and_join(PSESSION_DEDICATED_THREAD, NULL));
+  return initialize_plugin_and_join(PSESSION_DEDICATED_THREAD, NULL);
 
 err:
 
@@ -491,13 +491,13 @@ err:
     terminate_wait_on_start_process();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int initialize_plugin_and_join(
     enum_plugin_con_isolation sql_api_isolation,
     Delayed_initialization_thread *delayed_init_thd) {
-  DBUG_ENTER("initialize_plugin_and_join");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -636,11 +636,11 @@ err:
   delete sql_command_interface;
   lv.plugin_is_auto_starting_on_install = false;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int configure_group_member_manager() {
-  DBUG_ENTER("configure_group_member_manager");
+  DBUG_TRACE;
   char *hostname = NULL;
   char *uuid = NULL;
   uint port = 0U;
@@ -658,7 +658,7 @@ int configure_group_member_manager() {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_FAILED_TO_CALL_GRP_COMMUNICATION_INTERFACE);
-    DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
+    return GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
     /* purecov: end */
   }
 
@@ -666,7 +666,7 @@ int configure_group_member_manager() {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP, uuid,
                  ov.group_name_var);
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+    return GROUP_REPLICATION_CONFIGURATION_ERROR;
   }
   // Configure Group Member Manager
   lv.plugin_version = server_version;
@@ -732,7 +732,7 @@ int configure_group_member_manager() {
                ov.single_primary_mode_var ? "true" : "false",
                ov.auto_increment_increment_var);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void init_compatibility_manager() {
@@ -915,7 +915,7 @@ int leave_group() {
 }
 
 int plugin_group_replication_stop(char **error_message) {
-  DBUG_ENTER("plugin_group_replication_stop");
+  DBUG_TRACE;
 
   MUTEX_LOCK(lock, &lv.plugin_running_mutex);
 
@@ -943,7 +943,7 @@ int plugin_group_replication_stop(char **error_message) {
   shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running()) {
     shared_plugin_stop_lock->release_write_lock();
-    DBUG_RETURN(0);
+    return 0;
   }
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPING);
 
@@ -1004,11 +1004,11 @@ int plugin_group_replication_stop(char **error_message) {
   transaction_consistency_manager->unregister_transaction_observer();
   transaction_consistency_manager->clear();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int initialize_plugin_modules(gr_modules::mask modules_to_init) {
-  DBUG_ENTER("initialize_plugin_modules");
+  DBUG_TRACE;
   int ret = 0;
 
   DBUG_EXECUTE_IF("group_replication_rejoin_short_retry",
@@ -1020,14 +1020,14 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     Registry module.
   */
   if (modules_to_init[gr_modules::REGISTRY_MODULE]) {
-    if ((ret = initialize_registry_module())) DBUG_RETURN(ret);
+    if ((ret = initialize_registry_module())) return ret;
   }
 
   /*
     Group Member Manager module.
   */
   if (modules_to_init[gr_modules::GROUP_MEMBER_MANAGER]) {
-    if ((ret = configure_group_member_manager())) DBUG_RETURN(ret);
+    if ((ret = configure_group_member_manager())) return ret;
   }
 
   /*
@@ -1037,7 +1037,7 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     if (check_async_channel_running_on_secondary()) {
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_START_ON_SECONDARY_WITH_ASYNC_CHANNELS);
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
@@ -1054,7 +1054,7 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     Recovery module.
   */
   if (modules_to_init[gr_modules::RECOVERY_MODULE]) {
-    if ((ret = initialize_recovery_module())) DBUG_RETURN(ret);
+    if ((ret = initialize_recovery_module())) return ret;
   }
 
   /*
@@ -1063,7 +1063,7 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
   if (modules_to_init[gr_modules::APPLIER_MODULE]) {
     // we can only start the applier if the log has been initialized
     if (configure_and_start_applier_module())
-      DBUG_RETURN(GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR);
+      return GROUP_REPLICATION_REPLICATION_APPLIER_INIT_ERROR;
   }
 
   /*
@@ -1118,7 +1118,7 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
         ov.components_stop_timeout_var);
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
@@ -1314,7 +1314,7 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
 }
 
 bool attempt_rejoin() {
-  DBUG_ENTER("attempt_rejoin");
+  DBUG_TRACE;
   bool ret = true;
   Gcs_operations::enum_leave_state state = Gcs_operations::ERROR_WHEN_LEAVING;
   int error = 0;
@@ -1434,7 +1434,7 @@ bool attempt_rejoin() {
 
 end:
   gcs_module->remove_view_notifer(view_change_notifier);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
@@ -1678,7 +1678,7 @@ int plugin_group_replication_deinit(void *p) {
 }
 
 static int plugin_group_replication_check_uninstall(void *) {
-  DBUG_ENTER("plugin_group_replication_check_uninstall");
+  DBUG_TRACE;
 
   int result = 0;
 
@@ -1697,18 +1697,18 @@ static int plugin_group_replication_check_uninstall(void *) {
              " PLUGIN group_replication.");
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 static bool init_group_sidno() {
-  DBUG_ENTER("init_group_sidno");
+  DBUG_TRACE;
   rpl_sid group_sid;
 
   if (group_sid.parse(ov.group_name_var, strlen(ov.group_name_var)) !=
       RETURN_STATUS_OK) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_PARSE_THE_GRP_NAME);
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
@@ -1716,17 +1716,17 @@ static bool init_group_sidno() {
   if (lv.group_sidno <= 0) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_GRP);
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 void declare_plugin_running() { lv.group_replication_running = true; }
 
 int configure_and_start_applier_module() {
-  DBUG_ENTER("configure_and_start_applier_module");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -1736,7 +1736,7 @@ int configure_and_start_applier_module() {
     {
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_APPLIER_NOT_STARTED_DUE_TO_RUNNING_PREV_SHUTDOWN);
-      DBUG_RETURN(error);
+      return error;
     } else {
       // clean a possible existent pipeline
       applier_module->terminate_applier_pipeline();
@@ -1759,7 +1759,7 @@ int configure_and_start_applier_module() {
     applier_module->terminate_applier_pipeline();
     delete applier_module;
     applier_module = NULL;
-    DBUG_RETURN(error);
+    return error;
   }
 
   lv.known_server_reset = false;
@@ -1774,7 +1774,7 @@ int configure_and_start_applier_module() {
   } else
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_APPLIER_INITIALIZED);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void initialize_group_partition_handler() {
@@ -1806,7 +1806,7 @@ int terminate_applier_module() {
 }
 
 int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
-  DBUG_ENTER("build_gcs_parameters");
+  DBUG_TRACE;
   int result = 0;
   st_server_ssl_variables sv;
 
@@ -1950,11 +1950,11 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
 
 end:
   sv.deinit();
-  DBUG_RETURN(result);
+  return result;
 }
 
 int configure_group_communication() {
-  DBUG_ENTER("configure_group_communication");
+  DBUG_TRACE;
 
   // GCS interface parameters.
   Gcs_interface_parameters gcs_module_parameters;
@@ -1964,7 +1964,7 @@ int configure_group_communication() {
   // Configure GCS.
   if (gcs_module->configure(gcs_module_parameters)) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
-    DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR);
+    return GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
   }
   LogPluginErr(
       INFORMATION_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF,
@@ -1975,18 +1975,18 @@ int configure_group_communication() {
       ov.communication_max_message_size_var, ov.message_cache_size_var);
 
 end:
-  DBUG_RETURN(err);
+  return err;
 }
 
 int start_group_communication() {
-  DBUG_ENTER("start_group_communication");
+  DBUG_TRACE;
 
   view_change_notifier->start_view_modification();
 
   if (gcs_module->join(*events_handler, *events_handler, view_change_notifier))
-    DBUG_RETURN(GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR);
+    return GROUP_REPLICATION_COMMUNICATION_LAYER_JOIN_ERROR;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool check_async_channel_running_on_secondary() {
@@ -2068,18 +2068,18 @@ bool server_engine_initialized() {
 void register_server_reset_master() { lv.known_server_reset = true; }
 
 bool get_allow_local_lower_version_join() {
-  DBUG_ENTER("get_allow_local_lower_version_join");
-  DBUG_RETURN(ov.allow_local_lower_version_join_var);
+  DBUG_TRACE;
+  return ov.allow_local_lower_version_join_var;
 }
 
 ulong get_transaction_size_limit() {
-  DBUG_ENTER("get_transaction_size_limit");
-  DBUG_RETURN(ov.transaction_size_limit_var);
+  DBUG_TRACE;
+  return ov.transaction_size_limit_var;
 }
 
 bool is_plugin_waiting_to_set_server_read_mode() {
-  DBUG_ENTER("is_plugin_waiting_to_set_server_read_mode");
-  DBUG_RETURN(lv.plugin_is_waiting_to_set_server_read_mode);
+  DBUG_TRACE;
+  return lv.plugin_is_waiting_to_set_server_read_mode;
 }
 
 void set_enforce_update_everywhere_checks(bool option) {
@@ -2109,7 +2109,7 @@ SERVICE_TYPE(registry) * get_plugin_registry() { return lv.reg_srv; }
     @retval 1 in case of failure
  */
 static int check_if_server_properly_configured() {
-  DBUG_ENTER("check_if_server_properly_configured");
+  DBUG_TRACE;
 
   // Struct that holds startup and runtime requirements
   Trans_context_info startup_pre_reqs;
@@ -2119,34 +2119,34 @@ static int check_if_server_properly_configured() {
 
   if (!startup_pre_reqs.binlog_enabled) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_DISABLED);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.binlog_checksum_options !=
       binary_log::BINLOG_CHECKSUM_ALG_OFF) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.binlog_format != BINLOG_FORMAT_ROW) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_BINLOG_FORMAT);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.gtid_mode != GTID_MODE_ON) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_GTID_MODE_OFF);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.log_slave_updates != true) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.transaction_write_set_extraction == HASH_ALGORITHM_OFF) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE);
-    DBUG_RETURN(1);
+    return 1;
   } else {
     lv.write_set_extraction_algorithm =
         startup_pre_reqs.transaction_write_set_extraction;
@@ -2155,13 +2155,13 @@ static int check_if_server_properly_configured() {
   if (startup_pre_reqs.mi_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.rli_repository_type != 1)  // INFO_REPOSITORY_TABLE
   {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_RELAY_LOG_INFO_REPO_MUST_BE_TABLE);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (startup_pre_reqs.parallel_applier_workers > 0) {
@@ -2169,13 +2169,13 @@ static int check_if_server_properly_configured() {
         CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK) {
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER);
-      DBUG_RETURN(1);
+      return 1;
     }
 
     if (!startup_pre_reqs.parallel_applier_preserve_commit_order) {
       LogPluginErr(WARNING_LEVEL,
                    ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET);
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
@@ -2183,7 +2183,7 @@ static int check_if_server_properly_configured() {
     LogPluginErr(
         ERROR_LEVEL,
         ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   lv.gr_lower_case_table_names = startup_pre_reqs.lower_case_table_names;
@@ -2196,7 +2196,7 @@ static int check_if_server_properly_configured() {
 
   lv.gr_default_table_encryption = startup_pre_reqs.default_table_encryption;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -2222,7 +2222,7 @@ static int plugin_running_mutex_trylock() {
 }
 
 static int check_group_name_string(const char *str, bool is_var_update) {
-  DBUG_ENTER("check_group_name_string");
+  DBUG_TRACE;
 
   if (!str) {
     if (!is_var_update)
@@ -2230,7 +2230,7 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     else
       my_message(ER_WRONG_VALUE_FOR_VAR, "The group name option is mandatory",
                  MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(1);
+    return 1;
   }
 
   size_t length = strlen(str);
@@ -2241,7 +2241,7 @@ static int check_group_name_string(const char *str, bool is_var_update) {
       my_message(ER_WRONG_VALUE_FOR_VAR,
                  "The group name is not a valid UUID, its length is too big",
                  MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (!binary_log::Uuid::is_valid(str, length)) {
@@ -2250,20 +2250,20 @@ static int check_group_name_string(const char *str, bool is_var_update) {
     } else
       my_message(ER_WRONG_VALUE_FOR_VAR, "The group name is not a valid UUID",
                  MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_group_name(MYSQL_THD thd, SYS_VAR *, void *save,
                             struct st_mysql_value *value) {
-  DBUG_ENTER("check_group_name");
+  DBUG_TRACE;
 
   char buff[NAME_CHAR_LEN];
   const char *str;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -2271,7 +2271,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *, void *save,
         ER_GROUP_REPLICATION_RUNNING,
         "The group name cannot be changed when Group Replication is running",
         MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   (*(const char **)save) = NULL;
@@ -2281,18 +2281,18 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *, void *save,
     str = thd->strmake(str, length);
   else {
     mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
-    DBUG_RETURN(1);                               /* purecov: inspected */
+    return 1;                                     /* purecov: inspected */
   }
 
   if (check_group_name_string(str, true)) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(const char **)save = str;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -2301,7 +2301,7 @@ static int check_group_name(MYSQL_THD thd, SYS_VAR *, void *save,
 
 static int check_flow_control_min_quota_long(longlong value,
                                              bool is_var_update) {
-  DBUG_ENTER("check_flow_control_min_quota_long");
+  DBUG_TRACE;
 
   if (value > ov.flow_control_max_quota_var &&
       ov.flow_control_max_quota_var > 0) {
@@ -2314,15 +2314,15 @@ static int check_flow_control_min_quota_long(longlong value,
           "group_replication_flow_control_min_quota cannot be larger than "
           "group_replication_flow_control_max_quota",
           MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_flow_control_min_recovery_quota_long(longlong value,
                                                       bool is_var_update) {
-  DBUG_ENTER("check_flow_control_min_recovery_quota_long");
+  DBUG_TRACE;
 
   if (value > ov.flow_control_max_quota_var &&
       ov.flow_control_max_quota_var > 0) {
@@ -2335,15 +2335,15 @@ static int check_flow_control_min_recovery_quota_long(longlong value,
                  "group_replication_flow_control_min_recovery_quota cannot be "
                  "larger than group_replication_flow_control_max_quota",
                  MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_flow_control_max_quota_long(longlong value,
                                              bool is_var_update) {
-  DBUG_ENTER("check_flow_control_max_quota_long");
+  DBUG_TRACE;
 
   if (value > 0 && ((value < ov.flow_control_min_quota_var &&
                      ov.flow_control_min_quota_var != 0) ||
@@ -2359,61 +2359,61 @@ static int check_flow_control_max_quota_long(longlong value,
                  "group_replication_flow_control_min_recovery_quota",
                  MYF(0));
 
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_flow_control_min_quota(MYSQL_THD, SYS_VAR *, void *save,
                                         struct st_mysql_value *value) {
-  DBUG_ENTER("check_flow_control_min_quota");
+  DBUG_TRACE;
 
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (check_flow_control_min_quota_long(in_val, true)) DBUG_RETURN(1);
+  if (check_flow_control_min_quota_long(in_val, true)) return 1;
 
   *(longlong *)save = (in_val < 0) ? 0
                                    : (in_val < MAX_FLOW_CONTROL_THRESHOLD)
                                          ? in_val
                                          : MAX_FLOW_CONTROL_THRESHOLD;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_flow_control_min_recovery_quota(MYSQL_THD, SYS_VAR *,
                                                  void *save,
                                                  struct st_mysql_value *value) {
-  DBUG_ENTER("check_flow_control_min_recovery_quota");
+  DBUG_TRACE;
 
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (check_flow_control_min_recovery_quota_long(in_val, true)) DBUG_RETURN(1);
+  if (check_flow_control_min_recovery_quota_long(in_val, true)) return 1;
 
   *(longlong *)save = (in_val < 0) ? 0
                                    : (in_val < MAX_FLOW_CONTROL_THRESHOLD)
                                          ? in_val
                                          : MAX_FLOW_CONTROL_THRESHOLD;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR *, void *save,
                                         struct st_mysql_value *value) {
-  DBUG_ENTER("check_flow_control_max_quota");
+  DBUG_TRACE;
 
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (check_flow_control_max_quota_long(in_val, true)) DBUG_RETURN(1);
+  if (check_flow_control_max_quota_long(in_val, true)) return 1;
 
   *(longlong *)save = (in_val < 0) ? 0
                                    : (in_val < MAX_FLOW_CONTROL_THRESHOLD)
                                          ? in_val
                                          : MAX_FLOW_CONTROL_THRESHOLD;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -2422,10 +2422,10 @@ static int check_flow_control_max_quota(MYSQL_THD, SYS_VAR *, void *save,
 
 static int check_sysvar_ulong_timeout(MYSQL_THD, SYS_VAR *var, void *save,
                                       struct st_mysql_value *value) {
-  DBUG_ENTER("check_sysvar_ulong_timeout");
+  DBUG_TRACE;
   longlong minimum = 0;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (!strcmp("group_replication_components_stop_timeout", var->name))
     minimum = 2;
@@ -2440,14 +2440,14 @@ static int check_sysvar_ulong_timeout(MYSQL_THD, SYS_VAR *var, void *save,
                                 : LONG_TIMEOUT;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_recovery_retry_count(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                         const void *save) {
-  DBUG_ENTER("update_recovery_retry_count");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -2457,15 +2457,14 @@ static void update_recovery_retry_count(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR *,
                                                void *var_ptr,
                                                const void *save) {
-  DBUG_ENTER("update_recovery_reconnect_interval");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -2475,16 +2474,15 @@ static void update_recovery_reconnect_interval(MYSQL_THD, SYS_VAR *,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 // Recovery SSL options
 
 static void update_ssl_use(MYSQL_THD, SYS_VAR *, void *var_ptr,
                            const void *save) {
-  DBUG_ENTER("update_ssl_use");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   bool use_ssl_val = *static_cast<const bool *>(save);
   *static_cast<bool *>(var_ptr) = use_ssl_val;
@@ -2494,12 +2492,11 @@ static void update_ssl_use(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_recovery_ssl_string(const char *str, const char *var_name,
                                      bool is_var_update) {
-  DBUG_ENTER("check_recovery_ssl_string");
+  DBUG_TRACE;
 
   if (strlen(str) > FN_REFLEN) {
     if (!is_var_update)
@@ -2510,17 +2507,17 @@ static int check_recovery_ssl_string(const char *str, const char *var_name,
                  "The given value for recovery ssl option is invalid"
                  " as its length is beyond the limit",
                  MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void *save,
                                      struct st_mysql_value *value) {
-  DBUG_ENTER("check_recovery_ssl_option");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str = NULL;
@@ -2532,25 +2529,25 @@ static int check_recovery_ssl_option(MYSQL_THD thd, SYS_VAR *var, void *save,
     str = thd->strmake(str, length);
   else {
     mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
-    DBUG_RETURN(1);                               /* purecov: inspected */
+    return 1;                                     /* purecov: inspected */
   }
 
   if (str != NULL && check_recovery_ssl_string(str, var->name, true)) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(const char **)save = str;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
                                        const void *save) {
-  DBUG_ENTER("update_recovery_ssl_option");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   const char *new_option_val = *static_cast<char *const *>(save);
   *static_cast<const char **>(var_ptr) = new_option_val;
@@ -2594,14 +2591,13 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static void update_recovery_get_public_key(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                            const void *save) {
-  DBUG_ENTER("update_recovery_get_public_key");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   bool get_public_key = *static_cast<const bool *>(save);
   *static_cast<bool *>(var_ptr) = get_public_key;
@@ -2611,15 +2607,14 @@ static void update_recovery_get_public_key(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static void update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR *,
                                                 void *var_ptr,
                                                 const void *save) {
-  DBUG_ENTER("update_ssl_server_cert_verification");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   bool ssl_verify_server_cert = *static_cast<const bool *>(save);
   *static_cast<bool *>(var_ptr) = ssl_verify_server_cert;
@@ -2630,13 +2625,12 @@ static void update_ssl_server_cert_verification(MYSQL_THD, SYS_VAR *,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 // Recovery threshold update method
 static int check_recovery_completion_policy(MYSQL_THD, SYS_VAR *, void *save,
                                             struct st_mysql_value *value) {
-  DBUG_ENTER("check_recovery_completion_policy");
+  DBUG_TRACE;
 
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str;
@@ -2645,7 +2639,7 @@ static int check_recovery_completion_policy(MYSQL_THD, SYS_VAR *, void *save,
   long result;
   int length;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
     length = sizeof(buff);
@@ -2659,18 +2653,18 @@ static int check_recovery_completion_policy(MYSQL_THD, SYS_VAR *, void *save,
   *(long *)save = result;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 static void update_recovery_completion_policy(MYSQL_THD, SYS_VAR *,
                                               void *var_ptr, const void *save) {
-  DBUG_ENTER("update_recovery_completion_policy");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -2681,16 +2675,15 @@ static void update_recovery_completion_policy(MYSQL_THD, SYS_VAR *,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 // Component timeout update method
 
 static void update_component_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                      const void *save) {
-  DBUG_ENTER("update_component_timeout");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -2712,17 +2705,16 @@ static void update_component_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_auto_increment_increment(MYSQL_THD, SYS_VAR *, void *save,
                                           struct st_mysql_value *value) {
-  DBUG_ENTER("check_auto_increment_increment");
+  DBUG_TRACE;
 
   longlong in_val;
   value->val_int(value, &in_val);
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -2730,7 +2722,7 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR *, void *save,
                "The group auto_increment_increment cannot be changed"
                " when Group Replication is running",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (in_val > MAX_AUTO_INCREMENT_INCREMENT ||
@@ -2745,12 +2737,12 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR *, void *save,
        << MIN_AUTO_INCREMENT_INCREMENT << " and "
        << MAX_AUTO_INCREMENT_INCREMENT << " inclusive.";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(longlong *)save = in_val;
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 // Communication layer options.
@@ -2758,13 +2750,13 @@ static int check_auto_increment_increment(MYSQL_THD, SYS_VAR *, void *save,
 static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
                                             void *save,
                                             struct st_mysql_value *value) {
-  DBUG_ENTER("check_ip_whitelist_preconditions");
+  DBUG_TRACE;
 
   char buff[IP_WHITELIST_STR_BUFFER_LENGTH];
   const char *str;
   int length = sizeof(buff);
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -2772,7 +2764,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
                "The IP whitelist cannot be set while Group Replication "
                "is running",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   (*(const char **)save) = NULL;
@@ -2782,7 +2774,7 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
   else  // NULL value is not allowed
   {
     mysql_mutex_unlock(&lv.plugin_running_mutex); /* purecov: inspected */
-    DBUG_RETURN(1);                               /* purecov: inspected */
+    return 1;                                     /* purecov: inspected */
   }
 
   // remove trailing whitespaces
@@ -2796,20 +2788,20 @@ static int check_ip_whitelist_preconditions(MYSQL_THD thd, SYS_VAR *,
                "when specifying \"AUTOMATIC\" the list contains no "
                "other values.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(const char **)save = str;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
                                        struct st_mysql_value *value) {
-  DBUG_ENTER("check_compression_threshold");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -2820,7 +2812,7 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
                "The compression threshold cannot be set while "
                "Group Replication is running",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (in_val > MAX_COMPRESSION_THRESHOLD || in_val < 0) {
@@ -2830,21 +2822,21 @@ static int check_compression_threshold(MYSQL_THD, SYS_VAR *, void *save,
        << " is not within the range of "
           "accepted values for the option compression_threshold!";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(longlong *)save = in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
                                                 void *save,
                                                 struct st_mysql_value *value) {
-  DBUG_ENTER("check_communication_max_message_size");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -2856,7 +2848,7 @@ static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
         "The communication_max_message_size option cannot be set while Group "
         "Replication is running",
         MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (in_val > static_cast<longlong>(MAX_COMMUNICATION_MAX_MESSAGE_SIZE) ||
@@ -2869,18 +2861,18 @@ static int check_communication_max_message_size(MYSQL_THD, SYS_VAR *,
           "fragmentation, or specify a value up to "
        << MAX_COMMUNICATION_MAX_MESSAGE_SIZE << ".";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(longlong *)save = in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
                                struct st_mysql_value *value) {
-  DBUG_ENTER("check_force_members");
+  DBUG_TRACE;
   int error = 0;
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str = NULL;
@@ -2892,7 +2884,7 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
   if (lv.force_members_running) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SUPPORTS_ONLY_ONE_FORCE_MEMBERS_SET);
     mysql_mutex_unlock(&lv.force_members_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
   lv.force_members_running = true;
   mysql_mutex_unlock(&lv.force_members_running_mutex);
@@ -2935,12 +2927,12 @@ end:
   lv.force_members_running = false;
   mysql_mutex_unlock(&lv.force_members_running_mutex);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR *, void *save,
                                             struct st_mysql_value *value) {
-  DBUG_ENTER("check_gtid_assignment_block_size");
+  DBUG_TRACE;
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -2950,7 +2942,7 @@ static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR *, void *save,
                "The GTID assignment block size cannot be set while "
                "Group Replication is running",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (in_val > MAX_GTID_ASSIGNMENT_BLOCK_SIZE ||
@@ -2963,17 +2955,17 @@ static int check_gtid_assignment_block_size(MYSQL_THD, SYS_VAR *, void *save,
        << MIN_GTID_ASSIGNMENT_BLOCK_SIZE << " and "
        << MAX_GTID_ASSIGNMENT_BLOCK_SIZE << " inclusive.";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(longlong *)save = in_val;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static bool get_bool_value_using_type_lib(struct st_mysql_value *value,
                                           bool &resulting_value) {
-  DBUG_ENTER("get_bool_value_using_type_lib");
+  DBUG_TRACE;
   longlong value_to_check;
 
   if (MYSQL_VALUE_TYPE_STRING == value->value_type(value)) {
@@ -2984,14 +2976,14 @@ static bool get_bool_value_using_type_lib(struct st_mysql_value *value,
     const char *text_value =
         value->val_str(value, text_buffer, &text_buffer_size);
 
-    if (NULL == text_value) DBUG_RETURN(false);
+    if (NULL == text_value) return false;
 
     // Return index inside bool_type_allowed_values array
     // (first element start with index 1)
     value_to_check = find_type(text_value, &ov.plugin_bool_typelib_t, flags);
 
     if (0 == value_to_check) {
-      DBUG_RETURN(false);
+      return false;
     }
 
     // Move the index value to 0,1 values (OFF, ON)
@@ -3003,33 +2995,32 @@ static bool get_bool_value_using_type_lib(struct st_mysql_value *value,
 
   resulting_value = value_to_check > 0 ? true : false;
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 static int check_sysvar_bool(MYSQL_THD, SYS_VAR *, void *save,
                              struct st_mysql_value *value) {
-  DBUG_ENTER("check_sysvar_bool");
+  DBUG_TRACE;
   bool in_val;
 
-  if (!get_bool_value_using_type_lib(value, in_val)) DBUG_RETURN(1);
+  if (!get_bool_value_using_type_lib(value, in_val)) return 1;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   *(bool *)save = in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
                                      struct st_mysql_value *value) {
-  DBUG_ENTER("check_single_primary_mode");
+  DBUG_TRACE;
   bool single_primary_mode_val;
 
-  if (!get_bool_value_using_type_lib(value, single_primary_mode_val))
-    DBUG_RETURN(1);
+  if (!get_bool_value_using_type_lib(value, single_primary_mode_val)) return 1;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -3040,7 +3031,7 @@ static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
         "group_replication_switch_to_single_primary_mode([member_uuid]) OR "
         "group_replication_switch_to_multi_primary_mode() UDF.",
         MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (single_primary_mode_val && ov.enforce_update_everywhere_checks_var) {
@@ -3049,25 +3040,25 @@ static int check_single_primary_mode(MYSQL_THD, SYS_VAR *, void *save,
                "Cannot turn ON single_primary_mode while "
                "enforce_update_everywhere_checks is enabled.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(bool *)save = single_primary_mode_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_enforce_update_everywhere_checks(
     MYSQL_THD, SYS_VAR *, void *save, struct st_mysql_value *value) {
-  DBUG_ENTER("check_enforce_update_everywhere_checks");
+  DBUG_TRACE;
   bool enforce_update_everywhere_checks_val;
 
   if (!get_bool_value_using_type_lib(value,
                                      enforce_update_everywhere_checks_val))
-    DBUG_RETURN(1);
+    return 1;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   if (plugin_is_group_replication_running()) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -3075,7 +3066,7 @@ static int check_enforce_update_everywhere_checks(
                "Cannot turn ON/OFF update everywhere checks mode while "
                "Group Replication is running.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (ov.single_primary_mode_var && enforce_update_everywhere_checks_val) {
@@ -3084,19 +3075,19 @@ static int check_enforce_update_everywhere_checks(
                "Cannot enable enforce_update_everywhere_checks while "
                "single_primary_mode is enabled.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(bool *)save = enforce_update_everywhere_checks_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int check_communication_debug_options(MYSQL_THD thd, SYS_VAR *,
                                              void *save,
                                              struct st_mysql_value *value) {
-  DBUG_ENTER("check_communication_debug_options");
+  DBUG_TRACE;
 
   char buff[STRING_BUFFER_USUAL_SIZE];
   const char *str = NULL;
@@ -3104,21 +3095,21 @@ static int check_communication_debug_options(MYSQL_THD thd, SYS_VAR *,
 
   (*(const char **)save) = NULL;
   if ((str = value->val_str(value, buff, &length)) == NULL)
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
   std::string debug_options(str);
-  if (gcs_module->set_debug_options(debug_options)) DBUG_RETURN(1);
+  if (gcs_module->set_debug_options(debug_options)) return 1;
   (*(const char **)save) =
       thd->strmake(debug_options.c_str(), debug_options.length());
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_unreachable_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                        const void *save) {
-  DBUG_ENTER("update_unreachable_timeout");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -3128,14 +3119,13 @@ static void update_unreachable_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_member_weight(MYSQL_THD, SYS_VAR *, void *save,
                                struct st_mysql_value *value) {
-  DBUG_ENTER("check_member_weight");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -3147,7 +3137,7 @@ static int check_member_weight(MYSQL_THD, SYS_VAR *, void *save,
                "The member weight for primary elections cannot be changed "
                "during group configuration changes.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(uint *)save =
@@ -3156,14 +3146,14 @@ static int check_member_weight(MYSQL_THD, SYS_VAR *, void *save,
           : (in_val < MAX_MEMBER_WEIGHT) ? in_val : MAX_MEMBER_WEIGHT;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_member_weight(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                  const void *save) {
-  DBUG_ENTER("update_member_weight");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   uint in_val = *static_cast<const uint *>(save);
   *static_cast<uint *>(var_ptr) = in_val;
@@ -3173,14 +3163,13 @@ static void update_member_weight(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *save,
                                       struct st_mysql_value *value) {
-  DBUG_ENTER("check_member_expel_timeout");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong in_val;
   value->val_int(value, &in_val);
@@ -3188,20 +3177,20 @@ static int check_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *save,
   if ((in_val < MIN_MEMBER_EXPEL_TIMEOUT) ||
       (in_val > MAX_MEMBER_EXPEL_TIMEOUT)) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(longlong *)save = in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                         const void *save) {
-  DBUG_ENTER("update_member_expel_timeout");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -3209,7 +3198,7 @@ static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
 
   if (ov.group_name_var == NULL) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   gcs_module_parameters.add_parameter("group_name",
@@ -3226,14 +3215,13 @@ static void update_member_expel_timeout(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *save,
                                   struct st_mysql_value *value) {
-  DBUG_ENTER("check_autorejoin_tries");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong in_val = 0;
   value->val_int(value, &in_val);
@@ -3244,25 +3232,25 @@ static int check_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *save,
                "Cannot update the number of auto-rejoin retry attempts when "
                "an auto-rejoin process is already running.",
                MYF(0));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (in_val < 0 || in_val > lv.MAX_AUTOREJOIN_TRIES) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(uint *)save = in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                     const void *save) {
-  DBUG_ENTER("update_autorejoin_tries");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   uint in_val = *static_cast<const uint *>(save);
   *static_cast<uint *>(var_ptr) = in_val;
@@ -3277,14 +3265,13 @@ static void update_autorejoin_tries(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 static int check_message_cache_size(MYSQL_THD, SYS_VAR *var, void *save,
                                     struct st_mysql_value *value) {
-  DBUG_ENTER("check_message_cache_size");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_RETURN(1);
+  if (plugin_running_mutex_trylock()) return 1;
 
   longlong orig;
   ulonglong in_val;
@@ -3308,20 +3295,20 @@ static int check_message_cache_size(MYSQL_THD, SYS_VAR *var, void *save,
        << " and " << MAX_MESSAGE_CACHE_SIZE << " inclusive.";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   *(ulong *)save = (ulong)in_val;
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
                                       const void *save) {
-  DBUG_ENTER("update_message_cache_size");
+  DBUG_TRACE;
 
-  if (plugin_running_mutex_trylock()) DBUG_VOID_RETURN;
+  if (plugin_running_mutex_trylock()) return;
 
   ulong in_val = *static_cast<const ulong *>(save);
   *static_cast<ulong *>(var_ptr) = in_val;
@@ -3331,7 +3318,6 @@ static void update_message_cache_size(MYSQL_THD, SYS_VAR *, void *var_ptr,
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
-  DBUG_VOID_RETURN;
 }
 
 // Base plugin variables

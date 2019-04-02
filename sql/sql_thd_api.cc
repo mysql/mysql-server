@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -542,7 +542,7 @@ int thd_allow_batch(MYSQL_THD thd) {
 }
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all) {
-  DBUG_ENTER("thd_mark_transaction_to_rollback");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
@@ -552,7 +552,6 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all) {
     specifically.
   */
   thd->mark_transaction_to_rollback((all != 0));
-  DBUG_VOID_RETURN;
 }
 
 //////////////////////////////////////////////////////////
@@ -641,13 +640,11 @@ void thd_wait_end(MYSQL_THD thd) {
    called.
 */
 void thd_report_row_lock_wait(THD *self, THD *wait_for) {
-  DBUG_ENTER("thd_report_row_lock_wait");
+  DBUG_TRACE;
 
   if (self != NULL && wait_for != NULL && is_mts_worker(self) &&
       is_mts_worker(wait_for))
     commit_order_manager_check_deadlock(self, wait_for);
-
-  DBUG_VOID_RETURN;
 }
 
 /**

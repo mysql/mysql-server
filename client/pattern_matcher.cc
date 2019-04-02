@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,12 +37,12 @@
 */
 size_t Pattern_matcher::add_patterns(const std::string &patterns,
                                      char delimiter) {
-  DBUG_ENTER("Pattern_matcher::add_patterns");
+  DBUG_TRACE;
   size_t length = patterns.length();
   size_t pattern_count = 0;
 
   // we don't parse empty patterns
-  if (length == 0) DBUG_RETURN(pattern_count);
+  if (length == 0) return pattern_count;
 
   size_t first = 0;
   size_t last = 0;
@@ -60,7 +60,7 @@ size_t Pattern_matcher::add_patterns(const std::string &patterns,
     first = last + 1;
   } while (last != length);
 
-  DBUG_RETURN(pattern_count);
+  return pattern_count;
 }
 
 /**
@@ -75,18 +75,18 @@ size_t Pattern_matcher::add_patterns(const std::string &patterns,
 */
 bool Pattern_matcher::is_matching(const std::string &text,
                                   const CHARSET_INFO *info) const {
-  DBUG_ENTER("Pattern_matcher::is_matching");
+  DBUG_TRACE;
 
   // traverse all patterns, return true on first match
   for (auto &pattern : m_patterns) {
     if (info->coll->wildcmp(info, text.c_str(), text.c_str() + text.length(),
                             pattern.c_str(), pattern.c_str() + pattern.length(),
                             WILD_ESCAPE, WILD_ONE, WILD_MANY) == 0) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
   // none of the patterns matched
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**

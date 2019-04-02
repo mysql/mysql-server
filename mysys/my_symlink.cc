@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags) {
 #else
   int result = 0;
   int length;
-  DBUG_ENTER("my_readlink");
+  DBUG_TRACE;
 
   if ((length = readlink(filename, to, FN_REFLEN - 1)) < 0) {
     /* Don't give an error if this wasn't a symlink */
@@ -87,7 +87,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags) {
   } else
     to[length] = 0;
   DBUG_PRINT("exit", ("result: %d", result));
-  DBUG_RETURN(result);
+  return result;
 #endif /* !_WIN32 */
 }
 
@@ -96,7 +96,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags) {
 #ifndef _WIN32
 int my_symlink(const char *content, const char *linkname, myf MyFlags) {
   int result;
-  DBUG_ENTER("my_symlink");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("content: %s  linkname: %s", content, linkname));
 
   result = 0;
@@ -110,7 +110,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags) {
     }
   } else if ((MyFlags & MY_SYNC_DIR) && my_sync_dir_by_file(linkname, MyFlags))
     result = -1;
-  DBUG_RETURN(result);
+  return result;
 }
 #endif /* !_WIN32 */
 
@@ -139,7 +139,7 @@ int my_is_symlink(const char *filename, ST_FILE_ID *file_id) {
 int my_realpath(char *to, const char *filename, myf MyFlags) {
 #ifndef _WIN32
   int result = 0;
-  DBUG_ENTER("my_realpath");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("executing realpath"));
   unique_ptr_free<char> ptr(realpath(filename, nullptr));
@@ -161,7 +161,7 @@ int my_realpath(char *to, const char *filename, myf MyFlags) {
     my_load_path(to, filename, NullS);
     result = -1;
   }
-  DBUG_RETURN(result);
+  return result;
 #else
   int ret = GetFullPathName(filename, FN_REFLEN, to, NULL);
   if (ret == 0 || ret > FN_REFLEN) {

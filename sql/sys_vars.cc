@@ -1270,8 +1270,8 @@ static Sys_var_enum rbr_exec_mode(
 
 static bool check_binlog_row_image(sys_var *self MY_ATTRIBUTE((unused)),
                                    THD *thd, set_var *var) {
-  DBUG_ENTER("check_binlog_row_image");
-  if (check_session_admin(self, thd, var)) DBUG_RETURN(true);
+  DBUG_TRACE;
+  if (check_session_admin(self, thd, var)) return true;
   if (var->save_result.ulonglong_value == BINLOG_ROW_IMAGE_FULL) {
     if ((var->is_global_persist() &&
          global_system_variables.binlog_row_value_options != 0) ||
@@ -1284,7 +1284,7 @@ static bool check_binlog_row_image(sys_var *self MY_ATTRIBUTE((unused)),
           "binlog_row_image=FULL", "PARTIAL_JSON");
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 static const char *binlog_row_image_names[] = {"MINIMAL", "NOBLOB", "FULL",
@@ -3200,7 +3200,7 @@ static bool check_require_secure_transport(
 static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
   bool result = true;
   bool new_read_only = read_only;  // make a copy before releasing a mutex
-  DBUG_ENTER("sys_var_opt_readonly::update");
+  DBUG_TRACE;
 
   if (read_only == false || read_only == opt_readonly) {
     if (opt_super_readonly && !read_only) {
@@ -3208,7 +3208,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       super_read_only = false;
     }
     opt_readonly = read_only;
-    DBUG_RETURN(false);
+    return false;
   }
 
   if (check_read_only(self, thd, 0))  // just in case
@@ -3226,7 +3226,7 @@ static bool fix_read_only(sys_var *self, THD *thd, enum_var_type) {
       super_read_only = false;
     }
     opt_readonly = read_only;
-    DBUG_RETURN(false);
+    return false;
   }
 
   /*
@@ -3262,19 +3262,19 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   read_only = opt_readonly;
-  DBUG_RETURN(result);
+  return result;
 }
 
 static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
-  DBUG_ENTER("sys_var_opt_super_readonly::update");
+  DBUG_TRACE;
 
   /* return if no changes: */
-  if (super_read_only == opt_super_readonly) DBUG_RETURN(false);
+  if (super_read_only == opt_super_readonly) return false;
 
   /* return immediately if turning super_read_only OFF: */
   if (super_read_only == false) {
     opt_super_readonly = false;
-    DBUG_RETURN(false);
+    return false;
   }
   bool result = true;
   bool new_super_read_only =
@@ -3293,7 +3293,7 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   */
   if (thd->global_read_lock.is_acquired()) {
     opt_super_readonly = super_read_only;
-    DBUG_RETURN(false);
+    return false;
   }
 
   /* now we're turning ON super_read_only: */
@@ -3315,7 +3315,7 @@ end_with_mutex_unlock:
   mysql_mutex_lock(&LOCK_global_system_variables);
 end:
   super_read_only = opt_super_readonly;
-  DBUG_RETURN(result);
+  return result;
 }
 
 static Sys_var_bool Sys_require_secure_transport(
@@ -3760,7 +3760,7 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var) {
 }
 
 bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_gtid_next::session_update");
+  DBUG_TRACE;
   char buf[Gtid::MAX_TEXT_LENGTH + 1];
   // Get the value
   String str(buf, sizeof(buf), &my_charset_latin1);
@@ -3774,23 +3774,23 @@ bool Sys_var_gtid_next::session_update(THD *thd, set_var *var) {
     res = var->value->val_str(&str)->c_ptr_safe();
   if (!res) {
     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name.str, "NULL");
-    DBUG_RETURN(true);
+    return true;
   }
   global_sid_lock->rdlock();
   Gtid_specification spec;
   if (spec.parse(global_sid_map, res) != RETURN_STATUS_OK) {
     global_sid_lock->unlock();
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool ret = set_gtid_next(thd, spec);
   // set_gtid_next releases global_sid_lock
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 #ifdef HAVE_GTID_NEXT_LIST
 bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_gtid_set::session_update");
+  DBUG_TRACE;
   Gtid_set_or_null *gsn = (Gtid_set_or_null *)session_var_ptr(thd);
   char *value = var->save_result.string_value.str;
   if (value == NULL)
@@ -3799,7 +3799,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
     Gtid_set *gs = gsn->set_non_null(global_sid_map);
     if (gs == NULL) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // allocation failed
-      DBUG_RETURN(true);
+      return true;
     }
     /*
       If string begins with '+', add to the existing set, otherwise
@@ -3816,10 +3816,10 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
     global_sid_lock->unlock();
     if (ret != RETURN_STATUS_OK) {
       gsn->set_null();
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 #endif  // HAVE_GTID_NEXT_LIST
 
@@ -3877,7 +3877,7 @@ static void issue_deprecation_warnings_gtid_mode(
   have been checked and only if there is no error raised.
 */
 bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_gtid_mode::global_update");
+  DBUG_TRACE;
   bool ret = true;
 
   /*
@@ -3915,7 +3915,7 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     my_error(ER_CANT_SET_GTID_MODE, MYF(0), get_gtid_mode_string(new_gtid_mode),
              "there is a concurrent operation that disallows changes to "
              "@@GLOBAL.GTID_MODE");
-    DBUG_RETURN(ret);
+    return ret;
   }
 
   channel_map.wrlock();
@@ -4096,11 +4096,11 @@ err:
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
   gtid_mode_lock->unlock();
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Sys_var_enforce_gtid_consistency::global_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_enforce_gtid_consistency::global_update");
+  DBUG_TRACE;
   bool ret = true;
 
   /*
@@ -4171,7 +4171,7 @@ end:
   ret = false;
 err:
   global_sid_lock->unlock();
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static Sys_var_enum_binlog_checksum Binlog_checksum_enum(
@@ -5899,10 +5899,10 @@ static Sys_var_bool Sys_pseudo_slave_mode(
 
 #ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
-  DBUG_ENTER("check_gtid_next_list");
+  DBUG_TRACE;
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "GTID_NEXT_LIST");
   if (check_session_admin_outside_trx_outside_sf_outside_sp(self, thd, var))
-    DBUG_RETURN(true);
+    return true;
   /*
     @todo: move this check into the set function and hold the lock on
     gtid_mode_lock until the operation has completed, so that we are
@@ -5913,7 +5913,7 @@ static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var) {
       var->save_result.string_value.str != NULL)
     my_error(ER_CANT_SET_GTID_NEXT_LIST_TO_NON_NULL_WHEN_GTID_MODE_IS_OFF,
              MYF(0));
-  DBUG_RETURN(false);
+  return false;
 }
 
 static bool update_gtid_next_list(sys_var *self, THD *thd, enum_var_type type) {
@@ -5949,7 +5949,7 @@ static Sys_var_gtid_executed Sys_gtid_executed(
     "in the current, ongoing transaction.");
 
 static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
-  DBUG_ENTER("check_gtid_purged");
+  DBUG_TRACE;
 
   /*
     GTID_PURGED must not be set / updated when GR is running (it goes against
@@ -5957,22 +5957,22 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var) {
   */
   if (is_group_replication_running()) {
     my_error(ER_UPDATE_GTID_PURGED_WITH_GR, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!var->value ||
       check_session_admin_outside_trx_outside_sf_outside_sp(self, thd, var))
-    DBUG_RETURN(true);
+    return true;
 
   if (var->value->result_type() != STRING_RESULT ||
       !var->save_result.string_value.str)
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_gtid_purged::global_update");
+  DBUG_TRACE;
   bool error = false;
 
   global_sid_lock->wrlock();
@@ -6022,7 +6022,7 @@ end:
   my_free(previous_gtid_purged);
   my_free(current_gtid_executed);
   my_free(current_gtid_purged);
-  DBUG_RETURN(error);
+  return error;
 }
 
 Gtid_set *gtid_purged;
@@ -6090,20 +6090,20 @@ static Sys_var_enum Sys_block_encryption_mode(
     DEFAULT(my_aes_128_ecb));
 
 static bool check_track_session_sys_vars(sys_var *, THD *thd, set_var *var) {
-  DBUG_ENTER("check_sysvar_change_reporter");
-  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)
-                  ->check(thd, var));
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)
+      ->check(thd, var);
+  return false;
 }
 
 static bool update_track_session_sys_vars(sys_var *, THD *thd,
                                           enum_var_type type) {
-  DBUG_ENTER("check_sysvar_change_reporter");
+  DBUG_TRACE;
   /* Populate map only for session variable. */
   if (type == OPT_SESSION)
-    DBUG_RETURN(
-        thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->update(thd));
-  DBUG_RETURN(false);
+    return thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)
+        ->update(thd);
+  return false;
 }
 
 static Sys_var_charptr Sys_track_session_sys_vars(
@@ -6116,9 +6116,8 @@ static Sys_var_charptr Sys_track_session_sys_vars(
     ON_UPDATE(update_track_session_sys_vars));
 
 static bool update_session_track_schema(sys_var *, THD *thd, enum_var_type) {
-  DBUG_ENTER("update_session_track_schema");
-  DBUG_RETURN(
-      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd));
+  DBUG_TRACE;
+  return thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd);
 }
 
 static Sys_var_bool Sys_session_track_schema(
@@ -6128,9 +6127,9 @@ static Sys_var_bool Sys_session_track_schema(
     ON_UPDATE(update_session_track_schema));
 
 static bool update_session_track_tx_info(sys_var *, THD *thd, enum_var_type) {
-  DBUG_ENTER("update_session_track_tx_info");
-  DBUG_RETURN(
-      thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)->update(thd));
+  DBUG_TRACE;
+  return thd->session_tracker.get_tracker(TRANSACTION_INFO_TRACKER)
+      ->update(thd);
 }
 
 static const char *session_track_transaction_info_names[] = {
@@ -6151,9 +6150,9 @@ static Sys_var_enum Sys_session_track_transaction_info(
 
 static bool update_session_track_state_change(sys_var *, THD *thd,
                                               enum_var_type) {
-  DBUG_ENTER("update_session_track_state_change");
-  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
-                  ->update(thd));
+  DBUG_TRACE;
+  return thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+      ->update(thd);
 }
 
 static Sys_var_bool Sys_session_track_state_change(
@@ -6163,7 +6162,7 @@ static Sys_var_bool Sys_session_track_state_change(
     ON_UPDATE(update_session_track_state_change));
 
 static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
-  DBUG_ENTER("handle_offline_mode");
+  DBUG_TRACE;
   DEBUG_SYNC(thd, "after_lock_offline_mode_acquire");
 
   if (mysqld_offline_mode()) {
@@ -6173,7 +6172,7 @@ static bool handle_offline_mode(sys_var *, THD *thd, enum_var_type) {
     mysql_mutex_lock(&LOCK_global_system_variables);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 static Sys_var_bool Sys_offline_mode("offline_mode",
@@ -6313,9 +6312,9 @@ static Sys_var_enum Sys_resultset_metadata(
 
 static bool check_binlog_row_value_options(sys_var *self, THD *thd,
                                            set_var *var) {
-  DBUG_ENTER("check_binlog_row_value_options");
+  DBUG_TRACE;
   if (check_session_admin_outside_trx_outside_sf_outside_sp(self, thd, var))
-    DBUG_RETURN(true);
+    return true;
   if (var->save_result.ulonglong_value != 0) {
     const char *msg = NULL;
     int code = ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED;
@@ -6362,7 +6361,7 @@ static bool check_binlog_row_value_options(sys_var *self, THD *thd,
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 const char *binlog_row_value_options_names[] = {"PARTIAL_JSON", 0};
@@ -6544,24 +6543,24 @@ static Sys_var_enum Sys_group_replication_consistency(
     NOT_IN_BINLOG, ON_CHECK(check_group_replication_consistency), ON_UPDATE(0));
 
 static bool check_binlog_encryption_admin(sys_var *, THD *thd, set_var *) {
-  DBUG_ENTER("check_binlog_encryption_admin");
+  DBUG_TRACE;
   if (!thd->security_context()->check_access(SUPER_ACL) &&
       !(thd->security_context()
             ->has_global_grant(STRING_WITH_LEN("BINLOG_ENCRYPTION_ADMIN"))
             .first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER or BINLOG_ENCRYPTION_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
-  DBUG_ENTER("Sys_var_binlog_encryption::global_update");
+  DBUG_TRACE;
 
   /* No-op if trying to set to current value */
   bool new_value = var->save_result.ulonglong_value;
-  if (new_value == rpl_encryption.is_enabled()) DBUG_RETURN(false);
+  if (new_value == rpl_encryption.is_enabled()) return false;
 
   /* Set the option new value */
   bool res = false;
@@ -6569,7 +6568,7 @@ bool Sys_var_binlog_encryption::global_update(THD *thd, set_var *var) {
     res = rpl_encryption.enable(thd);
   else
     rpl_encryption.disable(thd);
-  DBUG_RETURN(res);
+  return res;
 }
 
 static Sys_var_binlog_encryption Sys_binlog_encryption(

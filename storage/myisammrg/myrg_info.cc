@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ ulonglong myrg_position(MYRG_INFO *info) {
 
 int myrg_status(MYRG_INFO *info, MYMERGE_INFO *x, int flag) {
   MYRG_TABLE *current_table;
-  DBUG_ENTER("myrg_status");
+  DBUG_TRACE;
 
   if (!(current_table = info->current_table) &&
       info->open_tables != info->end_table)
@@ -87,5 +87,5 @@ int myrg_status(MYRG_INFO *info, MYMERGE_INFO *x, int flag) {
     }
     x->rec_per_key = info->rec_per_key_part;
   }
-  DBUG_RETURN(0);
+  return 0;
 }

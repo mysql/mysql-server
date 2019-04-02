@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ Recovery_message::Recovery_message(const uchar *buf, size_t len)
 
 void Recovery_message::decode_payload(const unsigned char *buffer,
                                       const unsigned char *) {
-  DBUG_ENTER("Recovery_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -51,13 +51,11 @@ void Recovery_message::decode_payload(const unsigned char *buffer,
 
   decode_payload_item_string(&slider, &payload_item_type, &member_uuid,
                              &payload_item_length);
-
-  DBUG_VOID_RETURN;
 }
 
 void Recovery_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Recovery_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 recovery_message_type_aux = (uint16)recovery_message_type;
   encode_payload_item_int2(buffer, PIT_RECOVERY_MESSAGE_TYPE,
@@ -65,6 +63,4 @@ void Recovery_message::encode_payload(
 
   encode_payload_item_string(buffer, PIT_MEMBER_UUID, member_uuid.c_str(),
                              member_uuid.length());
-
-  DBUG_VOID_RETURN;
 }

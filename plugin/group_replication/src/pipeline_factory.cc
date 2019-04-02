@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,7 @@
 
 int get_pipeline(Handler_pipeline_type pipeline_type,
                  Event_handler **pipeline) {
-  DBUG_ENTER("get_pipeline(pipeline_type, pipeline)");
+  DBUG_TRACE;
 
   Handler_id *handler_list = NULL;
   int num_handlers = get_pipeline_configuration(pipeline_type, &handler_list);
@@ -41,12 +41,12 @@ int get_pipeline(Handler_pipeline_type pipeline_type,
     delete[] handler_list;
   }
   // when there are no handlers, the pipeline is not valid
-  DBUG_RETURN(error || num_handlers == 0);
+  return error || num_handlers == 0;
 }
 
 int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
                                Handler_id **pipeline_conf) {
-  DBUG_ENTER("get_pipeline_configuration");
+  DBUG_TRACE;
   /*
     When a new pipeline is defined the developer shall define here what are
     the handlers that belong to it and their order.
@@ -57,19 +57,19 @@ int get_pipeline_configuration(Handler_pipeline_type pipeline_type,
       (*pipeline_conf)[0] = CATALOGING_HANDLER;
       (*pipeline_conf)[1] = CERTIFICATION_HANDLER;
       (*pipeline_conf)[2] = SQL_THREAD_APPLICATION_HANDLER;
-      DBUG_RETURN(3);
+      return 3;
     default:
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_UNKNOWN_GRP_RPL_APPLIER_PIPELINE_REQUESTED);
       /* purecov: end */
   }
-  DBUG_RETURN(0); /* purecov: inspected */
+  return 0; /* purecov: inspected */
 }
 
 int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
                        int num_handlers) {
-  DBUG_ENTER("configure_pipeline(pipeline, handler_list[], num_handlers)");
+  DBUG_TRACE;
   int error = 0;
 
   for (int i = 0; i < num_handlers; ++i) {
@@ -104,7 +104,7 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
       {
         LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_NOT_INITIALIZED);
       }
-      DBUG_RETURN(1);
+      return 1;
       /* purecov: end */
     }
 
@@ -122,7 +122,7 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
         if (handler_list[i] == handler_list[z]) {
           LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_IS_IN_USE);
           delete handler;
-          DBUG_RETURN(1);
+          return 1;
         }
 
         // check to see if no other handler has the same role
@@ -133,7 +133,7 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
           /* purecov: begin inspected */
           LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_HANDLER_ROLE_IS_IN_USE);
           delete handler;
-          DBUG_RETURN(1);
+          return 1;
           /* purecov: end */
         }
       }
@@ -142,12 +142,12 @@ int configure_pipeline(Event_handler **pipeline, Handler_id handler_list[],
     if ((error = handler->initialize())) {
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_APPLIER_HANDLER);
-      DBUG_RETURN(error);
+      return error;
       /* purecov: end */
     }
 
     // Add the handler to the pipeline
     Event_handler::append_handler(pipeline, handler);
   }
-  DBUG_RETURN(0);
+  return 0;
 }

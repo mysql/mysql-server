@@ -58,18 +58,18 @@ static void srv_session_error_handler(void *, unsigned int sql_errno,
 }
 
 int Sql_service_interface::open_session() {
-  DBUG_ENTER("Sql_service_interface::open_session");
+  DBUG_TRACE;
 
   m_session = NULL;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
     m_session = srv_session_open(srv_session_error_handler, NULL);
-    if (m_session == NULL) DBUG_RETURN(1); /* purecov: inspected */
+    if (m_session == NULL) return 1; /* purecov: inspected */
   } else {
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Sql_service_interface::open_thread_session(void *plugin_ptr) {
@@ -104,7 +104,7 @@ long Sql_service_interface::execute_internal(
     Sql_resultset *rset, enum cs_text_or_binary cs_txt_bin,
     const CHARSET_INFO *cs_charset, COM_DATA cmd,
     enum enum_server_command cmd_type) {
-  DBUG_ENTER("Sql_service_interface::execute_internal");
+  DBUG_TRACE;
   long err = 0;
 
   if (!m_session) {
@@ -112,7 +112,7 @@ long Sql_service_interface::execute_internal(
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_SQL_SERVICE_COMM_SESSION_NOT_INITIALIZED,
                  cmd.com_query.query);
-    DBUG_RETURN(-1);
+    return -1;
     /* purecov: end */
   }
 
@@ -121,7 +121,7 @@ long Sql_service_interface::execute_internal(
     LogPluginErr(INFORMATION_LEVEL,
                  ER_GRP_RPL_SQL_SERVICE_SERVER_SESSION_KILLED,
                  cmd.com_query.query);
-    DBUG_RETURN(-1);
+    return -1;
     /* purecov: end */
   }
 
@@ -154,17 +154,17 @@ long Sql_service_interface::execute_internal(
     }
 
     delete ctx;
-    DBUG_RETURN(err);
+    return err;
     /* purecov: end */
   }
 
   err = rset->sql_errno();
   delete ctx;
-  DBUG_RETURN(err);
+  return err;
 }
 
 long Sql_service_interface::execute_query(std::string sql_string) {
-  DBUG_ENTER("Sql_service_interface::execute");
+  DBUG_TRACE;
   DBUG_ASSERT(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   Sql_resultset rset;
@@ -174,14 +174,14 @@ long Sql_service_interface::execute_query(std::string sql_string) {
 
   long err = execute_internal(&rset, m_txt_or_bin, m_charset, cmd, COM_QUERY);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 long Sql_service_interface::execute_query(std::string sql_string,
                                           Sql_resultset *rset,
                                           enum cs_text_or_binary cs_txt_or_bin,
                                           const CHARSET_INFO *cs_charset) {
-  DBUG_ENTER("Sql_service_interface::execute");
+  DBUG_TRACE;
   DBUG_ASSERT(sql_string.length() <= UINT_MAX);
   COM_DATA cmd;
   cmd.com_query.query = sql_string.c_str();
@@ -189,7 +189,7 @@ long Sql_service_interface::execute_query(std::string sql_string,
 
   long err = execute_internal(rset, cs_txt_or_bin, cs_charset, cmd, COM_QUERY);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 long Sql_service_interface::execute(COM_DATA cmd,
@@ -197,11 +197,11 @@ long Sql_service_interface::execute(COM_DATA cmd,
                                     Sql_resultset *rset,
                                     enum cs_text_or_binary cs_txt_or_bin,
                                     const CHARSET_INFO *cs_charset) {
-  DBUG_ENTER("Sql_service_interface::execute");
+  DBUG_TRACE;
 
   long err = execute_internal(rset, cs_txt_or_bin, cs_charset, cmd, cmd_type);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 int Sql_service_interface::wait_for_session_server(ulong total_timeout) {

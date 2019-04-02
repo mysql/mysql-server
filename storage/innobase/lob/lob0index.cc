@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -90,7 +90,7 @@ fil_addr_t index_entry_t::make_old_version_current(dict_index_t *index,
 page or DATA page.  That LOB page will be freed if it is DATA page.  A FIRST
 page should not be freed. */
 void index_entry_t::purge(dict_index_t *index) {
-  DBUG_ENTER("index_entry_t::purge");
+  DBUG_TRACE;
 
   page_no_t page_no = get_page_no();
 
@@ -114,8 +114,6 @@ void index_entry_t::purge(dict_index_t *index) {
   set_trx_id_modifier(0);
   set_trx_undo_no(0);
   set_data_len(0);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Purge the current entry.

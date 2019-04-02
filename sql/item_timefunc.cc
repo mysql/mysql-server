@@ -209,7 +209,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
   const char *ptr = format->format.str;
   const char *end = ptr + format->format.length;
   const CHARSET_INFO *cs = &my_charset_bin;
-  DBUG_ENTER("extract_date_time");
+  DBUG_TRACE;
 
   if (!sub_pattern_end) memset(l_time, 0, sizeof(*l_time));
 
@@ -380,14 +380,14 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
           */
           if (extract_date_time(&time_ampm_format, val, (uint)(val_end - val),
                                 l_time, cached_timestamp_type, &val, "time"))
-            DBUG_RETURN(1);
+            return 1;
           break;
 
           /* Time in 24-hour notation */
         case 'T':
           if (extract_date_time(&time_24hrs_format, val, (uint)(val_end - val),
                                 l_time, cached_timestamp_type, &val, "time"))
-            DBUG_RETURN(1);
+            return 1;
           break;
 
           /* Conversion specifiers that match classes of characters */
@@ -421,7 +421,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
   */
   if (sub_pattern_end) {
     *sub_pattern_end = val;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (yearday > 0) {
@@ -485,7 +485,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
       }
     } while (++val != val_end);
   }
-  DBUG_RETURN(0);
+  return 0;
 
 err : {
   char buff[128];
@@ -495,7 +495,7 @@ err : {
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
                       date_time_type, buff, "str_to_date");
 }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -3138,7 +3138,7 @@ bool Item_func_internal_update_time::resolve_type(THD *thd) {
 
 bool Item_func_internal_update_time::get_date(
     MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Item_func_internal_update_time::get_date");
+  DBUG_TRACE;
 
   String schema_name;
   String *schema_name_ptr;
@@ -3199,12 +3199,12 @@ bool Item_func_internal_update_time::get_date(
     if (unixtime) {
       null_value = 0;
       thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)unixtime);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
   null_value = 1;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Item_func_internal_check_time::resolve_type(THD *thd) {
@@ -3217,7 +3217,7 @@ bool Item_func_internal_check_time::resolve_type(THD *thd) {
 
 bool Item_func_internal_check_time::get_date(
     MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Item_func_internal_check_time::get_date");
+  DBUG_TRACE;
 
   String schema_name;
   String *schema_name_ptr;
@@ -3246,7 +3246,7 @@ bool Item_func_internal_check_time::get_date(
     // Convert longlong time to MYSQL_TIME format
     if (my_longlong_to_datetime_with_warn(stat_data, &time, MYF(0))) {
       null_value = 1;
-      DBUG_RETURN(true);
+      return true;
     }
 
     // Convert MYSQL_TIME to epoc second according to local time_zone as
@@ -3281,10 +3281,10 @@ bool Item_func_internal_check_time::get_date(
     if (unixtime) {
       null_value = 0;
       thd->variables.time_zone->gmt_sec_to_TIME(ltime, (my_time_t)unixtime);
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
   null_value = 1;
-  DBUG_RETURN(true);
+  return true;
 }

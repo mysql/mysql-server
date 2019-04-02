@@ -71,7 +71,7 @@ Role_activation::Role_activation(
     @retval true  Failure. Error is raised.
 */
 bool Role_activation::activate() {
-  DBUG_ENTER("Role_activation::activate_role");
+  DBUG_TRACE;
   bool set_role_status = true;
   switch (m_type) {
     case role_enum::ROLE_DEFAULT:
@@ -88,7 +88,7 @@ bool Role_activation::activate() {
     default:
       set_role_status = activate_role_none();
   }
-  DBUG_RETURN(set_role_status);
+  return set_role_status;
 }
 
 /**
@@ -99,21 +99,21 @@ bool Role_activation::activate() {
     @retval true Error
 */
 bool Role_activation::activate_role_none() {
-  DBUG_ENTER("Role_activation::activate_role_none");
+  DBUG_TRACE;
   m_sctx->clear_active_roles();
   m_sctx->clear_db_restrictions();
   m_sctx->checkout_access_maps();
   ulong new_db_access = m_sctx->db_acl(m_thd->db());
   m_sctx->cache_current_db_access(new_db_access);
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
   ACL_USER *user =
       find_acl_user(m_sctx->priv_host().str, m_sctx->priv_user().str, true);
   if (user) {
     m_sctx->set_master_access(user->access,
                               acl_restrictions->find_restrictions(user));
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -124,10 +124,10 @@ bool Role_activation::activate_role_none() {
     @retval true Error
 */
 bool Role_activation::activate_role_default() {
-  DBUG_ENTER("Role_activation::activate_role_default");
+  DBUG_TRACE;
   bool ret = false;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs authids;
   List_of_auth_id_refs backup_active_list;
@@ -180,7 +180,7 @@ bool Role_activation::activate_role_default() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -191,9 +191,9 @@ bool Role_activation::activate_role_default() {
     @retval true Error
 */
 bool Role_activation::activate_role_all() {
-  DBUG_ENTER("Role_activation::activate_role_all");
+  DBUG_TRACE;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
 
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs backup_active_list;
@@ -270,7 +270,7 @@ bool Role_activation::activate_role_all() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -281,10 +281,10 @@ bool Role_activation::activate_role_all() {
     @retval true Error
 */
 bool Role_activation::activate_role_name() {
-  DBUG_ENTER("Role_activation::activate_role_name");
+  DBUG_TRACE;
   bool ret = false;
   Acl_cache_lock_guard acl_cache_lock(m_thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(m_raise_error)) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock(m_raise_error)) return true;
 
   List_of_auth_id_refs *active_list = m_sctx->get_active_roles();
   List_of_auth_id_refs backup_active_list;
@@ -322,7 +322,7 @@ bool Role_activation::activate_role_name() {
     std::copy(backup_active_list.begin(), backup_active_list.end(),
               std::back_inserter(*active_list));
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 }  // namespace Roles

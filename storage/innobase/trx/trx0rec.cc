@@ -848,7 +848,7 @@ static void trx_undo_get_mbr_from_ext(trx_t *trx, dict_index_t *index,
 static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
                                              upd_field_t *uf,
                                              lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("trx_undo_read_blob_update");
+  DBUG_TRACE;
 
   /* Read one byte of flags. */
   uint8_t flag = *undo_ptr;
@@ -861,7 +861,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
   ulint N = mach_read_next_compressed(&undo_ptr);
 
   if (N == 0) {
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   /* Read the LOB first page number*/
@@ -925,7 +925,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
     DBUG_LOG("lob", lob_diff);
   }
 
-  DBUG_RETURN(undo_ptr);
+  return undo_ptr;
 }
 
 /** Write the partial update information about LOBs to the undo log record.
@@ -945,7 +945,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
                                          byte *undo_ptr, const byte *field,
                                          ulint flen, const upd_t *update,
                                          upd_field_t *fld, mtr_t *mtr) {
-  DBUG_ENTER("trx_undo_report_blob_update");
+  DBUG_TRACE;
 
   /* Access the LOB reference object. */
   byte *field_ref = const_cast<byte *>(field) + flen - lob::ref_t::SIZE;
@@ -954,7 +954,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
 
   /* Check if enough space for flag and vector length. */
   if (trx_undo_left(undo_page, undo_ptr) < 6) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   /* Write one byte of flags. */
@@ -964,7 +964,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   if (fld == nullptr || update == nullptr) {
     /* Write the size of the vector as 0. */
     undo_ptr += mach_write_compressed(undo_ptr, 0);
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   /* Find the Binary_diff object */
@@ -974,7 +974,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   if (bdiff_v == nullptr || !update->is_partially_updated(fld->field_no)) {
     /* Write the size of the vector as 0. */
     undo_ptr += mach_write_compressed(undo_ptr, 0);
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   const ulint bytes_changed = upd_t::get_total_modified_bytes(*bdiff_v);
@@ -987,14 +987,14 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
     /* This is not a small change.  So write the size of the vector as
     0 and bailout. */
     undo_ptr += mach_write_compressed(undo_ptr, 0);
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   const page_size_t page_size = dict_table_page_size(index->table);
   if (page_size.is_compressed()) {
     /* This is compressed LOB. Not yet supporting. */
     undo_ptr += mach_write_compressed(undo_ptr, 0);
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   trx_id_t last_trx_id;
@@ -1009,7 +1009,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   /* Only the page type FIL_PAGE_TYPE_LOB_FIRST is supported here. */
   if (f_page_type != FIL_PAGE_TYPE_LOB_FIRST) {
     undo_ptr += mach_write_compressed(undo_ptr, 0);
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   /* Only for small changes to the BLOB, we do regular undo logging. */
@@ -1019,13 +1019,13 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
   undo_ptr += mach_write_compressed(undo_ptr, N);
 
   if (N == 0) {
-    DBUG_RETURN(undo_ptr);
+    return undo_ptr;
   }
 
   /* Check if there is enough space for lob_version, last_trx_id
   and last_undo_no. */
   if (trx_undo_left(undo_page, undo_ptr) < 20) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   /* Write the LOB first page number*/
@@ -1044,7 +1044,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
     const Binary_diff &bdiff = bdiff_v->at(i);
 
     if (trx_undo_left(undo_page, undo_ptr) < 10) {
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
     /* Write the offset. */
@@ -1054,7 +1054,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
     undo_ptr += mach_write_compressed(undo_ptr, bdiff.length());
 
     if (trx_undo_left(undo_page, undo_ptr) < bdiff.length()) {
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
     /* Write the old data. */
@@ -1072,7 +1072,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
 
     /* Check if there is enough space for n_entry */
     if (trx_undo_left(undo_page, undo_ptr) < 5) {
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
     /* Write the number of LOB index entries modified. */
@@ -1081,7 +1081,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
     for (lob::List_iem_t::iterator iter = entries.begin();
          iter != entries.end(); ++iter) {
       if (trx_undo_left(undo_page, undo_ptr) < 10) {
-        DBUG_RETURN(nullptr);
+        return nullptr;
       }
 
       /* Write the modifier trx id of the LOB index entry. */
@@ -1092,7 +1092,7 @@ static byte *trx_undo_report_blob_update(page_t *undo_page, dict_index_t *index,
     }
   }
 
-  DBUG_RETURN(undo_ptr);
+  return undo_ptr;
 }
 
 /**********************************************************************/ /**
@@ -1118,7 +1118,7 @@ static ulint trx_undo_page_report_modify(
                           virtual column info */
     mtr_t *mtr)           /*!< in: mtr */
 {
-  DBUG_ENTER("trx_undo_page_report_modify");
+  DBUG_TRACE;
 
   dict_table_t *table;
   ulint first_free;
@@ -1157,7 +1157,7 @@ static ulint trx_undo_page_report_modify(
     /* NOTE: the value 50 must be big enough so that the general
     fields written below fit on the undo log page */
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Reserve 2 bytes for the pointer to the next undo log record */
@@ -1234,14 +1234,14 @@ static ulint trx_undo_page_report_modify(
     ut_ad(index->get_col(i)->ord_part);
 
     if (trx_undo_left(undo_page, ptr) < 5) {
-      DBUG_RETURN(0);
+      return 0;
     }
 
     ptr += mach_write_compressed(ptr, flen);
 
     if (flen != UNIV_SQL_NULL) {
       if (trx_undo_left(undo_page, ptr) < flen) {
-        DBUG_RETURN(0);
+        return 0;
       }
 
       ut_memcpy(ptr, field, flen);
@@ -1254,7 +1254,7 @@ static ulint trx_undo_page_report_modify(
 
   if (update) {
     if (trx_undo_left(undo_page, ptr) < 5) {
-      DBUG_RETURN(0);
+      return 0;
     }
 
     ulint n_updated = upd_get_n_fields(update);
@@ -1290,7 +1290,7 @@ static ulint trx_undo_page_report_modify(
 
       /* Write field number to undo log */
       if (trx_undo_left(undo_page, ptr) < 5) {
-        DBUG_RETURN(0);
+        return 0;
       }
 
       if (is_virtual) {
@@ -1315,7 +1315,7 @@ static ulint trx_undo_page_report_modify(
         ptr = trx_undo_log_v_idx(undo_page, table, fld->field_no, ptr,
                                  first_v_col);
         if (ptr == NULL) {
-          DBUG_RETURN(0);
+          return 0;
         }
         first_v_col = false;
 
@@ -1334,7 +1334,7 @@ static ulint trx_undo_page_report_modify(
       }
 
       if (trx_undo_left(undo_page, ptr) < 15) {
-        DBUG_RETURN(0);
+        return 0;
       }
 
       if (!is_virtual && rec_offs_nth_extern(offsets, pos)) {
@@ -1364,7 +1364,7 @@ static ulint trx_undo_page_report_modify(
 
       if (flen != UNIV_SQL_NULL) {
         if (trx_undo_left(undo_page, ptr) < flen) {
-          DBUG_RETURN(0);
+          return 0;
         }
 
         ut_memcpy(ptr, field, flen);
@@ -1375,7 +1375,7 @@ static ulint trx_undo_page_report_modify(
                                             update, fld, mtr);
 
           if (ptr == nullptr) {
-            DBUG_RETURN(0);
+            return 0;
           }
         }
       }
@@ -1389,14 +1389,14 @@ static ulint trx_undo_page_report_modify(
         }
 
         if (trx_undo_left(undo_page, ptr) < 15) {
-          DBUG_RETURN(0);
+          return 0;
         }
 
         ptr += mach_write_compressed(ptr, flen);
 
         if (flen != UNIV_SQL_NULL) {
           if (trx_undo_left(undo_page, ptr) < flen) {
-            DBUG_RETURN(0);
+            return 0;
           }
 
           ut_memcpy(ptr, field, flen);
@@ -1432,7 +1432,7 @@ static ulint trx_undo_page_report_modify(
     undo_ptr->update_undo->del_marks = TRUE;
 
     if (trx_undo_left(undo_page, ptr) < 5) {
-      DBUG_RETURN(0);
+      return 0;
     }
 
     /* Reserve 2 bytes to write the number of bytes the stored
@@ -1451,7 +1451,7 @@ static ulint trx_undo_page_report_modify(
 
         /* Write field number to undo log */
         if (trx_undo_left(undo_page, ptr) < 5 + 15) {
-          DBUG_RETURN(0);
+          return 0;
         }
 
         pos = index->get_col_pos(col_no);
@@ -1490,7 +1490,7 @@ static ulint trx_undo_page_report_modify(
 
         if (flen != UNIV_SQL_NULL && spatial_status != SPATIAL_ONLY) {
           if (trx_undo_left(undo_page, ptr) < flen) {
-            DBUG_RETURN(0);
+            return 0;
           }
 
           ut_memcpy(ptr, field, flen);
@@ -1499,7 +1499,7 @@ static ulint trx_undo_page_report_modify(
 
         if (spatial_status != SPATIAL_NONE) {
           if (trx_undo_left(undo_page, ptr) < DATA_MBR_LEN) {
-            DBUG_RETURN(0);
+            return 0;
           }
 
           for (int i = 0; i < SPDIMS * 2; i++) {
@@ -1522,7 +1522,7 @@ static ulint trx_undo_page_report_modify(
         /* Write field number to undo log.
         Make sure there is enought space in log */
         if (trx_undo_left(undo_page, ptr) < 5) {
-          DBUG_RETURN(0);
+          return 0;
         }
 
         pos += REC_MAX_N_FIELDS;
@@ -1533,7 +1533,7 @@ static ulint trx_undo_page_report_modify(
         first_v_col = false;
 
         if (!ptr) {
-          DBUG_RETURN(0);
+          return 0;
         }
 
         if (update) {
@@ -1564,7 +1564,7 @@ static ulint trx_undo_page_report_modify(
 
         if (flen != UNIV_SQL_NULL) {
           if (trx_undo_left(undo_page, ptr) < flen) {
-            DBUG_RETURN(0);
+            return 0;
           }
 
           ut_memcpy(ptr, field, flen);
@@ -1583,7 +1583,7 @@ static ulint trx_undo_page_report_modify(
   /*----------------------------------------*/
   /* Write pointers to the previous and the next undo log records */
   if (trx_undo_left(undo_page, ptr) < 2) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   mach_write_to_2(ptr, first_free);
@@ -1596,7 +1596,7 @@ static ulint trx_undo_page_report_modify(
   /* Write to the REDO log about this change in the UNDO log */
 
   trx_undof_page_add_undo_rec_log(undo_page, first_free, ptr - undo_page, mtr);
-  DBUG_RETURN(first_free);
+  return first_free;
 }
 
 /** Reads from an undo log update record the system field values of the old
@@ -1648,7 +1648,7 @@ byte *trx_undo_update_rec_get_update(
     lob::undo_vers_t *lob_undo, /*!< out: LOB undo information. */
     type_cmpl_t &type_cmpl)     /*!< out: type compilation info */
 {
-  DBUG_ENTER("trx_undo_update_rec_get_update");
+  DBUG_TRACE;
 
   upd_field_t *upd_field;
   upd_t *update;
@@ -1726,7 +1726,7 @@ byte *trx_undo_update_rec_get_update(
 
       ut_ad(0);
       *upd = NULL;
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     upd_field = upd_get_nth_field(update, i);
@@ -1807,7 +1807,7 @@ byte *trx_undo_update_rec_get_update(
     *upd = update;
   }
 
-  DBUG_RETURN(const_cast<byte *>(ptr));
+  return const_cast<byte *>(ptr);
 }
 
 /** Builds a partial row from an update undo log record, for purge.
@@ -2330,7 +2330,7 @@ bool trx_undo_prev_version_build(
     const dict_index_t *const index, ulint *offsets, mem_heap_t *heap,
     rec_t **old_vers, mem_heap_t *v_heap, const dtuple_t **vrow, ulint v_status,
     lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("trx_undo_prev_version_build");
+  DBUG_TRACE;
 
   trx_undo_rec_t *undo_rec = NULL;
   dtuple_t *entry;
@@ -2359,7 +2359,7 @@ bool trx_undo_prev_version_build(
 
   if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
     /* The record rec is the first inserted version */
-    DBUG_RETURN(true);
+    return true;
   }
 
   rec_trx_id = row_get_rec_trx_id(rec, index, offsets);
@@ -2378,7 +2378,7 @@ bool trx_undo_prev_version_build(
     } else {
       /* The undo record may already have been purged,
       during purge or semi-consistent read. */
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -2390,7 +2390,7 @@ bool trx_undo_prev_version_build(
     /* The table should have been rebuilt, but purge has
     not yet removed the undo log records for the
     now-dropped old table (table_id). */
-    DBUG_RETURN(true);
+    return true;
   }
 
   ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr, &info_bits);
@@ -2457,7 +2457,7 @@ bool trx_undo_prev_version_build(
       if (missing_extern) {
         /* treat as a fresh insert, not to
         cause assertion error at the caller. */
-        DBUG_RETURN(true);
+        return true;
       }
     }
 
@@ -2533,7 +2533,7 @@ bool trx_undo_prev_version_build(
     update->reset();
   }
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Read virtual column value from undo log

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -405,15 +405,15 @@ ulonglong Table_statistics::read_stat(
     Object_id se_private_id, const char *ts_se_private_data,
     const char *tbl_se_private_data, const ulonglong &table_stat_data,
     const ulonglong &cached_timestamp, enum_table_stats_type stype) {
-  DBUG_ENTER("Table_statistics::read_stat");
+  DBUG_TRACE;
   ulonglong result;
 
   // Stop we have see and error already for this table.
-  if (check_error_for_key(schema_name_ptr, table_name_ptr)) DBUG_RETURN(0);
+  if (check_error_for_key(schema_name_ptr, table_name_ptr)) return 0;
 
   // Check if we can directly use the value passed from mysql.stats tables.
   if (!is_persistent_statistics_expired(thd, cached_timestamp)) {
-    DBUG_RETURN(table_stat_data);
+    return table_stat_data;
   }
 
   /*
@@ -423,7 +423,7 @@ ulonglong Table_statistics::read_stat(
   */
   if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
       is_stat_cached_in_mem(schema_name_ptr, table_name_ptr, partition_name))
-    DBUG_RETURN(get_stat(stype));
+    return get_stat(stype);
 
   // NOTE: read_stat() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
@@ -475,7 +475,7 @@ ulonglong Table_statistics::read_stat(
   // correspond to the errors which were filtered out in fill_table().
   da->copy_non_errors_from_da(thd, &tmp_da);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 // Fetch stats from SE
@@ -486,7 +486,7 @@ ulonglong Table_statistics::read_stat_from_SE(
     Object_id se_private_id, const char *ts_se_private_data,
     const char *tbl_se_private_data, enum_table_stats_type stype,
     handlerton *hton) {
-  DBUG_ENTER("Table_statistics::read_stat_from_SE");
+  DBUG_TRACE;
 
   ulonglong return_value = 0;
 
@@ -496,7 +496,7 @@ ulonglong Table_statistics::read_stat_from_SE(
   // No engines implement these statistics retrieval. We always return zero.
   if (stype == enum_table_stats_type::CHECK_TIME ||
       stype == enum_table_stats_type::CHECKSUM)
-    DBUG_RETURN(0);
+    return 0;
 
   //
   // Get statistics from SE
@@ -589,7 +589,7 @@ ulonglong Table_statistics::read_stat_from_SE(
       error = -1;
     }
 
-    if (error == 0) DBUG_RETURN(return_value);
+    if (error == 0) return return_value;
   }
 
   // If we have a error, push a warning and clear the DA.
@@ -610,7 +610,7 @@ ulonglong Table_statistics::read_stat_from_SE(
     thd->clear_error();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 // Fetch stats by opening the table.
@@ -619,7 +619,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
     const String &index_name_ptr, const char *partition_name,
     const String &column_name_ptr, uint column_ordinal_position,
     enum_table_stats_type stype) {
-  DBUG_ENTER("Table_statistics::read_stat_by_open_table");
+  DBUG_TRACE;
   ulonglong return_value = 0;
   ulonglong error = 0;
   ha_statistics ha_stat;
@@ -878,7 +878,7 @@ end:
       thd->transaction_rollback_request)
     thd->transaction_rollback_request = false;
 
-  DBUG_RETURN(error == 0 ? return_value : error);
+  return error == 0 ? return_value : error;
 }
 
 }  // namespace info_schema

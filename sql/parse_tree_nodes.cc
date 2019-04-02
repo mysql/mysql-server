@@ -562,7 +562,7 @@ Sql_cmd *PT_select_stmt::make_cmd(THD *thd) {
 static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
                                             TABLE_LIST *tables) {
   TABLE_LIST *match = NULL;
-  DBUG_ENTER("multi_delete_table_match");
+  DBUG_TRACE;
 
   for (TABLE_LIST *elem = tables; elem; elem = elem->next_local) {
     int cmp;
@@ -583,7 +583,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 
     if (match) {
       my_error(ER_NONUNIQ_TABLE, MYF(0), elem->alias);
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     match = elem;
@@ -592,7 +592,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
   if (!match)
     my_error(ER_UNKNOWN_TABLE, MYF(0), tbl->table_name, "MULTI DELETE");
 
-  DBUG_RETURN(match);
+  return match;
 }
 
 /**
@@ -607,7 +607,7 @@ static TABLE_LIST *multi_delete_table_match(TABLE_LIST *tbl,
 
 static bool multi_delete_link_tables(Parse_context *pc,
                                      SQL_I_List<TABLE_LIST> *delete_tables) {
-  DBUG_ENTER("multi_delete_link_tables");
+  DBUG_TRACE;
 
   TABLE_LIST *tables = pc->select->table_list.first;
 
@@ -615,7 +615,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
        target_tbl = target_tbl->next_local) {
     /* All tables in aux_tables must be found in FROM PART */
     TABLE_LIST *walk = multi_delete_table_match(target_tbl, tables);
-    if (!walk) DBUG_RETURN(true);
+    if (!walk) return true;
     if (!walk->is_derived()) {
       target_tbl->table_name = walk->table_name;
       target_tbl->table_name_length = walk->table_name_length;
@@ -627,7 +627,7 @@ static bool multi_delete_link_tables(Parse_context *pc,
     walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_descriptor().type));
     target_tbl->correspondent_table = walk;  // Remember corresponding table
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool PT_delete::add_table(Parse_context *pc, Table_ident *table) {

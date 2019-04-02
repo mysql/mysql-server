@@ -47,7 +47,7 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
   uint keys = create_info->keys;
   ulong min_records = create_info->min_records;
   ulong max_records = create_info->max_records;
-  DBUG_ENTER("heap_create");
+  DBUG_TRACE;
 
   if (!create_info->single_instance) {
     mysql_mutex_lock(&THR_LOCK_heap);
@@ -230,11 +230,11 @@ int heap_create(const char *name, HP_CREATE_INFO *create_info, HP_SHARE **res,
   }
 
   *res = share;
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   if (!create_info->single_instance) mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(1);
+  return 1;
 } /* heap_create */
 
 static int keys_compare(const void *a, const void *b, const void *c) {
@@ -285,7 +285,7 @@ static inline void heap_try_free(HP_SHARE *share) {
 int heap_delete_table(const char *name) {
   int result;
   HP_SHARE *share;
-  DBUG_ENTER("heap_delete_table");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&THR_LOCK_heap);
   if ((share = hp_find_named_heap(name))) {
@@ -296,15 +296,14 @@ int heap_delete_table(const char *name) {
     set_my_errno(result);
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void heap_drop_table(HP_INFO *info) {
-  DBUG_ENTER("heap_drop_table");
+  DBUG_TRACE;
   mysql_mutex_lock(&THR_LOCK_heap);
   heap_try_free(info->s);
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_VOID_RETURN;
 }
 
 void hp_free(HP_SHARE *share) {

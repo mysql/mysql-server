@@ -82,22 +82,22 @@
 int channel_stop(Master_info *mi, int threads_to_stop, long timeout);
 
 int initialize_channel_service_interface() {
-  DBUG_ENTER("initialize_channel_service_interface");
+  DBUG_TRACE;
 
   // master info and relay log repositories must be TABLE
   if (opt_mi_repository_id != INFO_REPOSITORY_TABLE ||
       opt_rli_repository_id != INFO_REPOSITORY_TABLE) {
     LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_TABLES_AS_INFO_REPOSITORIES);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   // server id must be different from 0
   if (server_id == 0) {
     LogErr(ERROR_LEVEL, ER_RPL_CHANNELS_REQUIRE_NON_ZERO_SERVER_ID);
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void set_mi_settings(Master_info *mi,
@@ -244,7 +244,7 @@ static void set_mi_ssl_options(LEX_MASTER_INFO *lex_mi,
 }
 
 int channel_create(const char *channel, Channel_creation_info *channel_info) {
-  DBUG_ENTER("channel_create");
+  DBUG_TRACE;
 
   Master_info *mi = nullptr;
   int error = 0;
@@ -255,14 +255,14 @@ int channel_create(const char *channel, Channel_creation_info *channel_info) {
 
   // Don't create default channels
   if (!strcmp(channel_map.get_default_channel(), channel))
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR);
+    return RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR;
 
   /* Service channels are not supposed to use sql_slave_skip_counter */
   mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
   if (sql_slave_skip_counter > 0)
     error = RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
   mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
   channel_map.wrlock();
 
@@ -353,12 +353,12 @@ err:
 
   delete lex_mi;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_start(const char *channel, Channel_connection_info *connection_info,
                   int threads_to_start, int wait_for_connection) {
-  DBUG_ENTER("channel_start(channel, threads_to_start, wait_for_connection");
+  DBUG_TRACE;
   int error = 0;
   int thread_mask = 0;
   LEX_MASTER_INFO lex_mi;
@@ -371,7 +371,7 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   if (sql_slave_skip_counter > 0)
     error = RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE;
   mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
   channel_map.wrlock();
 
@@ -455,7 +455,7 @@ err:
     delete_surrogate_thread(thd);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_stop(Master_info *mi, int threads_to_stop, long timeout) {
@@ -508,7 +508,7 @@ end:
 }
 
 int channel_stop(const char *channel, int threads_to_stop, long timeout) {
-  DBUG_ENTER("channel_stop(channel, stop_receiver, stop_applier, timeout");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -518,7 +518,7 @@ int channel_stop(const char *channel, int threads_to_stop, long timeout) {
 
   channel_map.unlock();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_stop_all(int threads_to_stop, long timeout,
@@ -568,7 +568,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
 }
 
 int channel_purge_queue(const char *channel, bool reset_all) {
-  DBUG_ENTER("channel_purge_queue(channel, only_purge");
+  DBUG_TRACE;
 
   channel_map.wrlock();
 
@@ -576,7 +576,7 @@ int channel_purge_queue(const char *channel, bool reset_all) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   bool thd_init = init_thread_context();
@@ -589,13 +589,13 @@ int channel_purge_queue(const char *channel, bool reset_all) {
     clean_thread_context();
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool channel_is_active(const char *channel,
                        enum_channel_thread_types thd_type) {
   int thread_mask = 0;
-  DBUG_ENTER("channel_is_active(channel, thd_type");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -603,7 +603,7 @@ bool channel_is_active(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
 
   init_thread_mask(&thread_mask, mi, 0 /* not inverse*/);
@@ -612,21 +612,21 @@ bool channel_is_active(const char *channel,
 
   switch (thd_type) {
     case CHANNEL_NO_THD:
-      DBUG_RETURN(true);  // return true as the channel exists
+      return true;  // return true as the channel exists
     case CHANNEL_RECEIVER_THREAD:
-      DBUG_RETURN(thread_mask & SLAVE_IO);
+      return thread_mask & SLAVE_IO;
     case CHANNEL_APPLIER_THREAD:
-      DBUG_RETURN(thread_mask & SLAVE_SQL);
+      return thread_mask & SLAVE_SQL;
     default:
       DBUG_ASSERT(0);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thd_type,
                           unsigned long **thread_id) {
-  DBUG_ENTER("channel_get_thread_id(channel, thread_type ,*thread_id");
+  DBUG_TRACE;
 
   int number_threads = -1;
 
@@ -636,7 +636,7 @@ int channel_get_thread_id(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   switch (thd_type) {
@@ -712,11 +712,11 @@ int channel_get_thread_id(const char *channel,
 
   channel_map.unlock();
 
-  DBUG_RETURN(number_threads);
+  return number_threads;
 }
 
 long long channel_get_last_delivered_gno(const char *channel, int sidno) {
-  DBUG_ENTER("channel_get_last_delivered_gno(channel, sidno)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -724,7 +724,7 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   rpl_gno last_gno = 0;
@@ -747,17 +747,17 @@ long long channel_get_last_delivered_gno(const char *channel, int sidno) {
 
   channel_map.unlock();
 
-  DBUG_RETURN(last_gno);
+  return last_gno;
 }
 
 int channel_add_executed_gtids_to_received_gtids(const char *channel) {
-  DBUG_ENTER("channel_add_executed_gtids_to_received_gtids(channel)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   global_sid_lock->wrlock();
@@ -768,13 +768,13 @@ int channel_add_executed_gtids_to_received_gtids(const char *channel) {
   global_sid_lock->unlock();
   channel_map.unlock();
 
-  DBUG_RETURN(return_status != RETURN_STATUS_OK);
+  return return_status != RETURN_STATUS_OK;
 }
 
 int channel_queue_packet(const char *channel, const char *buf,
                          unsigned long event_len) {
   int result;
-  DBUG_ENTER("channel_queue_packet(channel, event_buffer, event_len)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -782,18 +782,18 @@ int channel_queue_packet(const char *channel, const char *buf,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
   channel_map.unlock();
 
   result = queue_event(mi, buf, event_len, false /*flush_master_info*/);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_wait_until_apply_queue_applied(const char *channel,
                                            double timeout) {
-  DBUG_ENTER("channel_wait_until_apply_queue_applied(channel, timeout)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -801,7 +801,7 @@ int channel_wait_until_apply_queue_applied(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
@@ -824,18 +824,17 @@ int channel_wait_until_apply_queue_applied(const char *channel,
   my_free(retrieved_gtid_set_buf);
   mi->dec_reference();
 
-  if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
-  if (error == -2) DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+  if (error == -1) return REPLICATION_THREAD_WAIT_TIMEOUT_ERROR;
+  if (error == -2) return REPLICATION_THREAD_WAIT_NO_INFO_ERROR;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_wait_until_transactions_applied(const char *channel,
                                             const char *gtid_set,
                                             double timeout,
                                             bool update_THD_status) {
-  DBUG_ENTER(
-      "channel_wait_until_transactions_applied(channel, gtid_set, timeout)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -843,9 +842,8 @@ int channel_wait_until_transactions_applied(const char *channel,
 
   if (mi == nullptr) {
     channel_map.unlock(); /* purecov: inspected */
-    DBUG_RETURN(
-        RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR); /* purecov:
-                                                               inspected */
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR; /* purecov:
+                                                                  inspected */
   }
 
   mi->inc_reference();
@@ -855,14 +853,14 @@ int channel_wait_until_transactions_applied(const char *channel,
                                          update_THD_status);
   mi->dec_reference();
 
-  if (error == -1) DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);
-  if (error == -2) DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
+  if (error == -1) return REPLICATION_THREAD_WAIT_TIMEOUT_ERROR;
+  if (error == -2) return REPLICATION_THREAD_WAIT_NO_INFO_ERROR;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int channel_is_applier_waiting(const char *channel) {
-  DBUG_ENTER("channel_is_applier_waiting(channel)");
+  DBUG_TRACE;
   int result = RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
 
   channel_map.rdlock();
@@ -871,7 +869,7 @@ int channel_is_applier_waiting(const char *channel) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(result);
+    return result;
   }
 
   unsigned long *thread_ids = nullptr;
@@ -905,11 +903,11 @@ end:
   channel_map.unlock();
   my_free(thread_ids);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
-  DBUG_ENTER("channel_is_applier_thread_waiting(thread_id, worker)");
+  DBUG_TRACE;
   int result = -1;
 
   Find_thd_with_id find_thd_with_id(thread_id);
@@ -928,11 +926,11 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int channel_flush(const char *channel) {
-  DBUG_ENTER("channel_flush(channel)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -940,18 +938,18 @@ int channel_flush(const char *channel) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   bool error = (flush_relay_logs(mi, mi->info_thd) == 1);
 
   channel_map.unlock();
 
-  DBUG_RETURN(error ? 1 : 0);
+  return error ? 1 : 0;
 }
 
 int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
-  DBUG_ENTER("channel_get_retrieved_gtid_set(channel,retrieved_set)");
+  DBUG_TRACE;
 
   channel_map.rdlock();
 
@@ -959,7 +957,7 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
 
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
   }
 
   mi->inc_reference();
@@ -972,19 +970,19 @@ int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set) {
 
   mi->dec_reference();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;
-  DBUG_ENTER("channel_is_stopping(channel, thd_type");
+  DBUG_TRACE;
 
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
 
   switch (thd_type) {
@@ -1002,24 +1000,24 @@ bool channel_is_stopping(const char *channel,
 
   channel_map.unlock();
 
-  DBUG_RETURN(is_stopping);
+  return is_stopping;
 }
 
 bool is_partial_transaction_on_channel_relay_log(const char *channel) {
-  DBUG_ENTER("is_partial_transaction_on_channel_relay_log(channel)");
+  DBUG_TRACE;
   channel_map.rdlock();
   Master_info *mi = channel_map.get_mi(channel);
   if (mi == nullptr) {
     channel_map.unlock();
-    DBUG_RETURN(false);
+    return false;
   }
   bool ret = mi->transaction_parser.is_inside_transaction();
   channel_map.unlock();
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool is_any_slave_channel_running(int thread_mask) {
-  DBUG_ENTER("is_any_slave_channel_running");
+  DBUG_TRACE;
   Master_info *mi = nullptr;
   bool is_running;
 
@@ -1036,7 +1034,7 @@ bool is_any_slave_channel_running(int thread_mask) {
         mysql_mutex_unlock(&mi->run_lock);
         if (is_running) {
           channel_map.unlock();
-          DBUG_RETURN(true);
+          return true;
         }
       }
 
@@ -1046,19 +1044,19 @@ bool is_any_slave_channel_running(int thread_mask) {
         mysql_mutex_unlock(&mi->rli->run_lock);
         if (is_running) {
           channel_map.unlock();
-          DBUG_RETURN(true);
+          return true;
         }
       }
     }
   }
 
   channel_map.unlock();
-  DBUG_RETURN(false);
+  return false;
 }
 
 enum_slave_channel_status
 has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
-  DBUG_ENTER("has_any_slave_channel_open_temp_table_or_is_its_applier_running");
+  DBUG_TRACE;
   Master_info *mi = nullptr;
   bool is_applier_running = false;
   bool has_open_temp_tables = false;
@@ -1100,9 +1098,9 @@ has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
   channel_map.unlock();
 
   if (has_open_temp_tables)
-    DBUG_RETURN(SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE);
+    return SLAVE_CHANNEL_HAS_OPEN_TEMPORARY_TABLE;
   else if (is_applier_running)
-    DBUG_RETURN(SLAVE_CHANNEL_APPLIER_IS_RUNNING);
+    return SLAVE_CHANNEL_APPLIER_IS_RUNNING;
 
-  DBUG_RETURN(SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE);
+  return SLAVE_CHANNEL_NO_APPLIER_RUNNING_AND_NO_OPEN_TEMPORARY_TABLE;
 }

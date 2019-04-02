@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,19 +71,19 @@ COM_DATA cmd;
 int row_count = 0;
 static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                      const CHARSET_INFO *resultcs) {
-  DBUG_ENTER("sql_start_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   row_count = 0;
   sql_num_cols = num_cols;
   sql_resultcs = resultcs;
-  DBUG_RETURN(false);
+  return false;
 };
 
 static int sql_field_metadata(void *ctx, struct st_send_field *field,
                               const CHARSET_INFO *charset) {
-  DBUG_ENTER("sql_field_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("field->db_name: %s", field->db_name));
   DBUG_PRINT("info", ("field->table_name: %s", field->table_name));
   DBUG_PRINT("info", ("field->org_table_name: %s", field->org_table_name));
@@ -105,63 +105,62 @@ static int sql_field_metadata(void *ctx, struct st_send_field *field,
   sql_field[col_count].decimals = field->decimals;
   sql_field[col_count].type = field->type;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 static int sql_end_result_metadata(void *ctx, uint server_status,
                                    uint warn_count) {
-  DBUG_ENTER("sql_end_result_metadata");
+  DBUG_TRACE;
   sql_num_meta_rows = row_count;
   row_count = 0;
-  DBUG_RETURN(false);
+  return false;
 };
 
 static int sql_start_row(void *ctx) {
-  DBUG_ENTER("sql_start_row");
+  DBUG_TRACE;
   col_count = 0;
-  DBUG_RETURN(false);
+  return false;
 };
 
 static int sql_end_row(void *ctx) {
-  DBUG_ENTER("sql_end_row");
+  DBUG_TRACE;
   row_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 static void sql_abort_row(void *ctx) {
-  DBUG_ENTER("sql_abort_row");
+  DBUG_TRACE;
   col_count = 0;
-  DBUG_VOID_RETURN;
 };
 
 static ulong sql_get_client_capabilities(void *ctx) {
-  DBUG_ENTER("sql_get_client_capabilities");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 };
 
 static int sql_get_null(void *ctx) {
-  DBUG_ENTER("sql_get_null");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 };
 
 longlong test_int[64][64];
 
 static int sql_get_integer(void *ctx, longlong value) {
-  DBUG_ENTER("sql_get_integer");
+  DBUG_TRACE;
   test_int[col_count][row_count] = value;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 longlong test_longlong[64][64];
 uint test_is_unsigned[64][64];
 
 static int sql_get_longlong(void *ctx, longlong value, uint is_unsigned) {
-  DBUG_ENTER("sql_get_longlong");
+  DBUG_TRACE;
   test_longlong[col_count][row_count] = value;
   test_is_unsigned[col_count][row_count] = is_unsigned;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 struct st_test_decimal_t {
@@ -172,7 +171,7 @@ struct st_test_decimal_t {
 char test_dec_str[256][64][64];
 
 static int sql_get_decimal(void *ctx, const decimal_t *value) {
-  DBUG_ENTER("sql_get_decimal");
+  DBUG_TRACE;
   test_decimal[col_count][row_count].intg = value->intg;
   test_decimal[col_count][row_count].frac = value->frac;
   test_decimal[col_count][row_count].len = value->len;
@@ -184,17 +183,17 @@ static int sql_get_decimal(void *ctx, const decimal_t *value) {
   //                (int*)&value->len, value->frac,
   //                value->intg+value->frac,'\0');
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 double test_double[64][64];
 uint32 test_decimals[64][64];
 static int sql_get_double(void *ctx, double value, uint32 decimals) {
-  DBUG_ENTER("sql_get_double");
+  DBUG_TRACE;
   test_double[col_count][row_count] = value;
   test_decimals[col_count][row_count] = decimals;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 struct st_test_date {
@@ -205,7 +204,7 @@ struct st_test_date {
 } test_date[64][64];
 
 static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
-  DBUG_ENTER("sql_get_date");
+  DBUG_TRACE;
   test_date[col_count][row_count].year = value->year;
   test_date[col_count][row_count].month = value->month;
   test_date[col_count][row_count].day = value->day;
@@ -216,7 +215,7 @@ static int sql_get_date(void *ctx, const MYSQL_TIME *value) {
   test_date[col_count][row_count].second_part = value->second_part;
   test_date[col_count][row_count].neg = value->neg;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 struct st_my_time {
@@ -228,7 +227,7 @@ struct st_my_time {
 } test_time[64][64];
 
 static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  DBUG_ENTER("sql_get_time");
+  DBUG_TRACE;
   test_time[col_count][row_count].year = value->year;
   test_time[col_count][row_count].month = value->month;
   test_time[col_count][row_count].day = value->day;
@@ -240,7 +239,7 @@ static int sql_get_time(void *ctx, const MYSQL_TIME *value, uint decimals) {
   test_time[col_count][row_count].neg = value->neg;
   test_time[col_count][row_count].decimals = decimals;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 struct st_my_datetime {
@@ -252,7 +251,7 @@ struct st_my_datetime {
 } test_datetime[64][64];
 
 static int sql_get_datetime(void *ctx, const MYSQL_TIME *value, uint decimals) {
-  DBUG_ENTER("sql_get_datetime");
+  DBUG_TRACE;
   test_datetime[col_count][row_count].year = value->year;
   test_datetime[col_count][row_count].month = value->month;
   test_datetime[col_count][row_count].day = value->day;
@@ -264,18 +263,18 @@ static int sql_get_datetime(void *ctx, const MYSQL_TIME *value, uint decimals) {
   test_datetime[col_count][row_count].neg = value->neg;
   test_datetime[col_count][row_count].decimals = decimals;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 char sql_str_value[1024][64][64];
 size_t sql_str_len[64][64];
 static int sql_get_string(void *ctx, const char *const value, size_t length,
                           const CHARSET_INFO *const valuecs) {
-  DBUG_ENTER("sql_get_string");
+  DBUG_TRACE;
   strncpy(sql_str_value[col_count][row_count], value, length);
   sql_str_len[col_count][row_count] = length;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 };
 
 uint sql_server_status = 0;
@@ -285,13 +284,12 @@ ulonglong sql_affected_rows = 0;
 static void sql_handle_ok(void *ctx, uint server_status,
                           uint statement_warn_count, ulonglong affected_rows,
                           ulonglong last_insert_id, const char *const message) {
-  DBUG_ENTER("sql_handle_ok");
+  DBUG_TRACE;
   sql_server_status = server_status;
   //  strcpy(msg,(char*)message);
   sql_affected_rows = affected_rows;
   sql_num_rows = row_count;
   row_count = 0;
-  DBUG_VOID_RETURN;
 };
 
 uint sql_error = 0;
@@ -300,7 +298,7 @@ char sql_state[64];
 static void sql_handle_error(void *ctx, uint sql_errno,
                              const char *const err_msg,
                              const char *const sqlstate) {
-  DBUG_ENTER("sql_handle_error");
+  DBUG_TRACE;
   sql_error = sql_errno;
   if (sql_error) {
     strcpy(sql_errormsg, (char *)err_msg);
@@ -308,13 +306,9 @@ static void sql_handle_error(void *ctx, uint sql_errno,
   }
   sql_num_rows = row_count;
   row_count = 0;
-  DBUG_VOID_RETURN;
 };
 
-static void sql_shutdown(void *ctx, int shutdown_server) {
-  DBUG_ENTER("sql_shutdown");
-  DBUG_VOID_RETURN;
-};
+static void sql_shutdown(void *ctx, int shutdown_server) { DBUG_TRACE; };
 
 struct st_protocol_cbs sql_cbs = {sql_start_result_metadata,
                                   sql_field_metadata,
@@ -460,7 +454,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
 /****************************************************************************************/
 
 int test_sql(void *p) {
-  DBUG_ENTER("test_sql");
+  DBUG_TRACE;
 
   /* Open session 1 */
   WRITE_STR(
@@ -528,7 +522,7 @@ int test_sql(void *p) {
   if (session_ret) {
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_2 failed.");
   }
-  DBUG_RETURN(session_ret);
+  return session_ret;
 }
 
 static void create_log_file(const char *log_name) {
@@ -541,9 +535,8 @@ static void create_log_file(const char *log_name) {
 }
 
 static int test_sql_service_plugin_init(void *p) {
-  DBUG_ENTER("test_sql_service_plugin_init");
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  DBUG_TRACE;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file("test_sql_2_sessions");
@@ -552,14 +545,14 @@ static int test_sql_service_plugin_init(void *p) {
   test_sql(p);
 
   my_close(outfile, MYF(0));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql_service_plugin_deinit");
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon test_sql_service_plugin = {

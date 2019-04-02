@@ -342,7 +342,7 @@ static struct my_command_data command_data[] = {
 
 int main(int argc, char *argv[]) {
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   int command, rc = 0;
 
   command = do_handle_options(argc, argv);
@@ -351,9 +351,9 @@ int main(int argc, char *argv[]) {
 
   if (rc != 0) {
     my_perror("operation failed.");
-    DBUG_RETURN(1);
+    return 1;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -363,7 +363,7 @@ int main(int argc, char *argv[]) {
 
 */
 static int do_handle_options(int argc, char *argv[]) {
-  DBUG_ENTER("do_handle_options");
+  DBUG_TRACE;
 
   const char *command_list[MAX_COMMAND_LIMIT + 1];
   char **saved_argv = argv;
@@ -423,7 +423,7 @@ static int do_handle_options(int argc, char *argv[]) {
 
 done:
   my_free(ptr);
-  DBUG_RETURN(command);
+  return command;
 
 error:
   my_free(ptr);
@@ -432,7 +432,7 @@ error:
 }
 
 static int execute_commands(int command) {
-  DBUG_ENTER("execute_commands");
+  DBUG_TRACE;
   int rc = 0;
 
   if ((rc = check_and_create_login_file())) goto done;
@@ -471,7 +471,7 @@ static int execute_commands(int command) {
 done:
   my_close(g_fd, MYF(MY_WME));
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -482,7 +482,7 @@ done:
 */
 
 static int set_command(void) {
-  DBUG_ENTER("set_command");
+  DBUG_TRACE;
 
   DYNAMIC_STRING file_buf, path_buf;
 
@@ -556,16 +556,16 @@ static int set_command(void) {
 done:
   dynstr_free(&file_buf);
   dynstr_free(&path_buf);
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   dynstr_free(&file_buf);
   dynstr_free(&path_buf);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 static int remove_command(void) {
-  DBUG_ENTER("remove_command");
+  DBUG_TRACE;
 
   DYNAMIC_STRING file_buf, path_buf;
 
@@ -597,12 +597,12 @@ static int remove_command(void) {
 done:
   dynstr_free(&file_buf);
   dynstr_free(&path_buf);
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   dynstr_free(&file_buf);
   dynstr_free(&path_buf);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -613,7 +613,7 @@ error:
 */
 
 static int print_command(void) {
-  DBUG_ENTER("print_command");
+  DBUG_TRACE;
   DYNAMIC_STRING file_buf;
 
   init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
@@ -627,11 +627,11 @@ static int print_command(void) {
 
 done:
   dynstr_free(&file_buf);
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   dynstr_free(&file_buf);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -643,7 +643,7 @@ error:
 */
 
 static bool check_and_create_login_file(void) {
-  DBUG_ENTER("check_and_create_login_file");
+  DBUG_TRACE;
 
   MY_STAT stat_info;
 
@@ -746,10 +746,10 @@ static bool check_and_create_login_file(void) {
     if (read_login_key() == -1) goto error;
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 error:
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -763,7 +763,7 @@ error:
 */
 
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
-  DBUG_ENTER("print_login_path");
+  DBUG_TRACE;
 
   char *start = NULL, *end = NULL, temp = '\0';
 
@@ -790,7 +790,7 @@ static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
   if (temp != '\0') *end = temp;
 
 done:
-  DBUG_VOID_RETURN;
+  return;
 }
 
 /**
@@ -801,7 +801,7 @@ done:
 */
 
 static void mask_password_and_print(char *buf) {
-  DBUG_ENTER("mask_password_and_print");
+  DBUG_TRACE;
   const char *password_str = "\npassword = ", *mask = "*****";
   char *next = NULL;
 
@@ -823,8 +823,6 @@ static void mask_password_and_print(char *buf) {
   while (*buf) putc(*(buf++), stdout);
   // And a new line.. if required.
   if (*(buf - 1) != '\n') putc('\n', stdout);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -854,7 +852,7 @@ static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name) {
 */
 static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
                           const char *option_name) {
-  DBUG_ENTER("remove_option");
+  DBUG_TRACE;
 
   char *start = NULL, *end = NULL;
   char *search_str;
@@ -902,7 +900,6 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
 
 done:
   my_free(search_str);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -914,7 +911,7 @@ done:
 */
 
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
-  DBUG_ENTER("remove_login_path");
+  DBUG_TRACE;
 
   char *start = NULL, *end = NULL;
   int to_move, len, diff;
@@ -941,7 +938,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name) {
   file_buf->length -= len;
 
 done:
-  DBUG_VOID_RETURN;
+  return;
 }
 
 /**
@@ -955,7 +952,7 @@ done:
 */
 
 static int reset_login_file(bool gen_key) {
-  DBUG_ENTER("reset_login_file");
+  DBUG_TRACE;
 
   if (my_chsize(g_fd, 0, 0, MYF(MY_WME))) {
     verbose_msg("Error while truncating the file.\n");
@@ -970,10 +967,10 @@ static int reset_login_file(bool gen_key) {
 
   if (add_header() == -1) goto error;
 
-  DBUG_RETURN(0);
+  return 0;
 
 error:
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -990,7 +987,7 @@ error:
 
 static char *locate_login_path(DYNAMIC_STRING *file_buf,
                                const char *path_name) {
-  DBUG_ENTER("locate_login_path");
+  DBUG_TRACE;
 
   char *addr = NULL;
   DYNAMIC_STRING dy_path_name;
@@ -1011,7 +1008,7 @@ static char *locate_login_path(DYNAMIC_STRING *file_buf,
   }
 
   dynstr_free(&dy_path_name);
-  DBUG_RETURN(addr);
+  return addr;
 }
 
 /**
@@ -1031,7 +1028,7 @@ static char *locate_login_path(DYNAMIC_STRING *file_buf,
 */
 
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf) {
-  DBUG_ENTER("encrypt_and_write_file");
+  DBUG_TRACE;
 
   bool done = false;
   char cipher[MY_LINE_MAX], *tmp = NULL;
@@ -1088,11 +1085,11 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf) {
   /* Update file_size */
   file_size = bytes_read;
 
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   my_perror("couldn't encrypt the file");
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1107,7 +1104,7 @@ error:
 */
 
 static int read_and_decrypt_file(DYNAMIC_STRING *file_buf) {
-  DBUG_ENTER("read_and_decrypt_file");
+  DBUG_TRACE;
 
   char cipher[MY_LINE_MAX], plain[MY_LINE_MAX];
   uchar len_buf[MAX_CIPHER_STORE_LEN];
@@ -1136,11 +1133,11 @@ static int read_and_decrypt_file(DYNAMIC_STRING *file_buf) {
   }
 
   verbose_msg("Successfully decrypted the login file.\n");
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   my_perror("couldn't decrypt the file");
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1157,15 +1154,15 @@ error:
 
 static int encrypt_buffer(const char *plain, int plain_len, char cipher[],
                           const int aes_len) {
-  DBUG_ENTER("encrypt_buffer");
+  DBUG_TRACE;
 
   if (my_aes_encrypt((const unsigned char *)plain, plain_len,
                      (unsigned char *)cipher, (const unsigned char *)my_key,
                      LOGIN_KEY_LEN, my_aes_128_ecb, NULL) == aes_len)
-    DBUG_RETURN(aes_len);
+    return aes_len;
 
   verbose_msg("Error! Couldn't encrypt the buffer.\n");
-  DBUG_RETURN(-1); /* Error */
+  return -1; /* Error */
 }
 
 /**
@@ -1180,17 +1177,17 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[],
 */
 
 static int decrypt_buffer(const char *cipher, int cipher_len, char plain[]) {
-  DBUG_ENTER("decrypt_buffer");
+  DBUG_TRACE;
   int aes_length;
 
   if ((aes_length =
            my_aes_decrypt((const unsigned char *)cipher, cipher_len,
                           (unsigned char *)plain, (const unsigned char *)my_key,
                           LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) > 0)
-    DBUG_RETURN(aes_length);
+    return aes_length;
 
   verbose_msg("Error! Couldn't decrypt the buffer.\n");
-  DBUG_RETURN(-1); /* Error */
+  return -1; /* Error */
 }
 
 /**
@@ -1202,7 +1199,7 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[]) {
 */
 
 static int add_header(void) {
-  DBUG_ENTER("add_header");
+  DBUG_TRACE;
 
   /* Reserved for future use. */
   const char unused[] = {'\0', '\0', '\0', '\0'};
@@ -1216,11 +1213,11 @@ static int add_header(void) {
     goto error;
 
   verbose_msg("Key successfully written to the file.\n");
-  DBUG_RETURN(MY_LOGIN_HEADER_LEN);
+  return MY_LOGIN_HEADER_LEN;
 
 error:
   my_perror("file write operation failed");
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -1228,15 +1225,13 @@ error:
 */
 
 void generate_login_key() {
-  DBUG_ENTER("generate_login_key");
+  DBUG_TRACE;
   struct rand_struct rnd;
 
   verbose_msg("Generating a new key.\n");
   /* Get a sequence of random non-printable ASCII */
   for (uint i = 0; i < LOGIN_KEY_LEN; i++)
     my_key[i] = (char)((int)(my_rnd_ssl(&rnd) * 100000) % 32);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -1247,7 +1242,7 @@ void generate_login_key() {
 */
 
 static int read_login_key(void) {
-  DBUG_ENTER("read_login_key");
+  DBUG_TRACE;
 
   verbose_msg("Reading the login key.\n");
   /* Move past the unused buffer. */
@@ -1259,25 +1254,23 @@ static int read_login_key(void) {
     goto error; /* Error while reading. */
 
   verbose_msg("Login key read successfully.\n");
-  DBUG_RETURN(0);
+  return 0;
 
 error:
   my_perror("file read operation failed");
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 static void verbose_msg(const char *fmt, ...) {
-  DBUG_ENTER("verbose_msg");
+  DBUG_TRACE;
   va_list args;
 
-  if (!opt_verbose) DBUG_VOID_RETURN;
+  if (!opt_verbose) return;
 
   va_start(args, fmt);
   vfprintf(stderr, fmt, args);
   va_end(args);
   fflush(stderr);
-
-  DBUG_VOID_RETURN;
 }
 
 static void my_perror(const char *msg) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 
 int hp_panic(enum ha_panic_function flag) {
   LIST *element, *next_open;
-  DBUG_ENTER("hp_panic");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&THR_LOCK_heap);
   for (element = heap_open_list; element; element = next_open) {
@@ -55,5 +55,5 @@ int hp_panic(enum ha_panic_function flag) {
     }
   }
   mysql_mutex_unlock(&THR_LOCK_heap);
-  DBUG_RETURN(0);
+  return 0;
 } /* hp_panic */

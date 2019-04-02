@@ -396,7 +396,7 @@ static bool acquire_mdl(THD *thd, MDL_key::enum_mdl_namespace lock_namespace,
                         enum_mdl_type lock_type,
                         enum_mdl_duration lock_duration,
                         MDL_ticket **out_mdl_ticket) {
-  DBUG_ENTER("dd::acquire_mdl");
+  DBUG_TRACE;
 
   MDL_request mdl_request;
   MDL_REQUEST_INIT(&mdl_request, lock_namespace, schema_name, table_name,
@@ -439,14 +439,14 @@ static bool acquire_mdl(THD *thd, MDL_key::enum_mdl_namespace lock_namespace,
          thd->mdl_context.try_acquire_lock(bl_request)) ||
         (bl_request != nullptr &&
          thd->mdl_context.try_acquire_lock(grl_request))) {
-      DBUG_RETURN(true);
+      return true;
     }
   } else if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   if (out_mdl_ticket) *out_mdl_ticket = mdl_request.ticket;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool acquire_shared_table_mdl(THD *thd, const char *schema_name,
@@ -525,11 +525,9 @@ bool acquire_exclusive_schema_mdl(THD *thd, const char *schema_name,
 }
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket) {
-  DBUG_ENTER("dd::release_mdl");
+  DBUG_TRACE;
 
   thd->mdl_context.release_lock(mdl_ticket);
-
-  DBUG_VOID_RETURN;
 }
 
 /* purecov: begin deadcode */

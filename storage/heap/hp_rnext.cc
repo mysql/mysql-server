@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@ int heap_rnext(HP_INFO *info, uchar *record) {
   uchar *pos;
   HP_SHARE *share = info->s;
   HP_KEYDEF *keyinfo;
-  DBUG_ENTER("heap_rnext");
+  DBUG_TRACE;
 
   if (info->lastinx < 0) {
     set_my_errno(HA_ERR_WRONG_INDEX);
-    DBUG_RETURN(HA_ERR_WRONG_INDEX);
+    return HA_ERR_WRONG_INDEX;
   }
 
   keyinfo = share->keydef + info->lastinx;
@@ -103,9 +103,9 @@ int heap_rnext(HP_INFO *info, uchar *record) {
   if (!pos) {
     info->update = HA_STATE_NEXT_FOUND; /* For heap_rprev */
     if (my_errno() == HA_ERR_KEY_NOT_FOUND) set_my_errno(HA_ERR_END_OF_FILE);
-    DBUG_RETURN(my_errno());
+    return my_errno();
   }
   memcpy(record, pos, (size_t)share->reclength);
   info->update = HA_STATE_AKTIV | HA_STATE_NEXT_FOUND;
-  DBUG_RETURN(0);
+  return 0;
 }

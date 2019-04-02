@@ -755,20 +755,20 @@ int Group_action_coordinator::signal_action_terminated() {
 }
 
 int Group_action_coordinator::launch_group_action_handler_thread() {
-  DBUG_ENTER("Group_action_coordinator::launch_group_action_handler_thread()");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&group_thread_run_lock);
 
   if (action_handler_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&group_thread_run_lock); /* purecov: inspected */
-    DBUG_RETURN(0);                             /* purecov: inspected */
+    return 0;                                   /* purecov: inspected */
   }
 
   if (mysql_thread_create(key_GR_THD_group_action_coordinator,
                           &action_execution_pthd, get_connection_attrib(),
                           launch_handler_thread, (void *)this)) {
     mysql_mutex_unlock(&group_thread_run_lock); /* purecov: inspected */
-    DBUG_RETURN(1);                             /* purecov: inspected */
+    return 1;                                   /* purecov: inspected */
   }
   action_handler_thd_state.set_created();
 
@@ -779,11 +779,11 @@ int Group_action_coordinator::launch_group_action_handler_thread() {
   }
   mysql_mutex_unlock(&group_thread_run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_action_coordinator::execute_group_action_handler() {
-  DBUG_ENTER("Group_action_coordinator::execute_group_action_handler()");
+  DBUG_TRACE;
   int error = 0;
 
   THD *thd = NULL;
@@ -898,7 +898,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   my_thread_end();
   delete thd;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Group_action_coordinator::after_view_change(
@@ -950,7 +950,7 @@ int Group_action_coordinator::before_message_handling(
 }
 
 void Group_action_coordinator::kill_transactions_and_leave() {
-  DBUG_ENTER("Group_action_coordinator::kill_transactions_and_leave");
+  DBUG_TRACE;
 
   Notification_context ctx;
 
@@ -1048,6 +1048,4 @@ void Group_action_coordinator::kill_transactions_and_leave() {
                              ->get_execution_message());
     abort_plugin_process(error_message.c_str());
   }
-
-  DBUG_VOID_RETURN;
 }

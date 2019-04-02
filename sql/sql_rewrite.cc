@@ -230,7 +230,7 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
     @retval false   Otherwise
 */
 bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
-  DBUG_ENTER("rewrite_query");
+  DBUG_TRACE;
   std::unique_ptr<I_rewriter> rw = nullptr;
   bool rewrite = false;
 
@@ -292,7 +292,7 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
   }
   if (rw) rewrite = rw->rewrite();
 
-  DBUG_RETURN(rewrite);
+  return rewrite;
 }
 }  // anonymous namespace
 
@@ -319,14 +319,13 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params) {
 */
 void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
                          Rewrite_params *params /*= nullptr*/) {
-  DBUG_ENTER("mysql_rewrite_query");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   String *rlb = &thd->rewritten_query;
   rlb->mem_free();
   if (thd->lex->contains_plaintext_password) {
     rewrite_query(thd, type, params);
   }
-  DBUG_VOID_RETURN;
 }
 /**
   Provides the default interface to rewrite the ACL query.

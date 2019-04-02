@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -195,15 +195,15 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ulint n_ext;
   dberr_t err;
 
-  DBUG_ENTER("row_upd_check_references_constraints");
+  DBUG_TRACE;
 
   /* TODO: NEWDD: WL#6049 Ignore FK on DD system tables for now */
   if (table->is_dd_table) {
-    DBUG_RETURN(DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   if (table->referenced_set.empty()) {
-    DBUG_RETURN(DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   trx = thr_get_trx(thr);
@@ -278,7 +278,7 @@ func_exit:
   mem_heap_free(heap);
 
   DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Creates an update node for a query graph.
@@ -1015,7 +1015,7 @@ static void row_upd_index_replace_new_col_val_func(
     bool is_sdi,
 #endif /* UNIV_DEBUG */
     const page_size_t &page_size) {
-  DBUG_ENTER("row_upd_index_replace_new_col_val_func");
+  DBUG_TRACE;
 
   ulint len;
   const byte *data;
@@ -1023,7 +1023,7 @@ static void row_upd_index_replace_new_col_val_func(
   dfield_copy_data(dfield, &uf->new_val);
 
   if (dfield_is_null(dfield)) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   len = dfield_get_len(dfield);
@@ -1053,7 +1053,7 @@ static void row_upd_index_replace_new_col_val_func(
       dfield_dup(dfield, heap);
     }
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   switch (uf->orig_len) {
@@ -1089,8 +1089,6 @@ static void row_upd_index_replace_new_col_val_func(
       dfield_set_ext(dfield);
       break;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Replaces the new column values stored in the update vector to the index
@@ -1112,7 +1110,7 @@ void row_upd_index_replace_new_col_vals_index_pos(
     mem_heap_t *heap) /*!< in: memory heap for allocating and
                       copying the new values */
 {
-  DBUG_ENTER("row_upd_index_replace_new_col_vals_index_pos");
+  DBUG_TRACE;
 
   ulint i;
   ulint n_fields;
@@ -1161,8 +1159,6 @@ void row_upd_index_replace_new_col_vals_index_pos(
                                         dict_index_is_sdi(index), page_size);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Replaces the new column values stored in the update vector to the index
@@ -2842,7 +2838,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
                        que_thr_t *thr)   /*!< in: query thread */
 {
   dberr_t err = DB_SUCCESS;
-  DBUG_ENTER("row_upd");
+  DBUG_TRACE;
 
   ut_ad(node != NULL);
   ut_ad(thr != NULL);
@@ -2876,7 +2872,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       err = row_upd_clust_step(node, thr);
 
       if (err != DB_SUCCESS) {
-        DBUG_RETURN(err);
+        return err;
       }
   }
 
@@ -2884,7 +2880,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
 
   if (node->index == NULL ||
       (!node->is_delete && (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
-    DBUG_RETURN(DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
@@ -2901,7 +2897,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       err = row_upd_sec_step(node, thr);
 
       if (err != DB_SUCCESS) {
-        DBUG_RETURN(err);
+        return err;
       }
     }
 
@@ -2922,7 +2918,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
 
   node->state = UPD_NODE_UPDATE_CLUSTERED;
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Updates a row in a table. This is a high-level function used in SQL
@@ -2935,7 +2931,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
   que_node_t *parent;
   dberr_t err = DB_SUCCESS;
   trx_t *trx;
-  DBUG_ENTER("row_upd_step");
+  DBUG_TRACE;
 
   ut_ad(thr);
 
@@ -2977,7 +2973,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
 
       thr->run_node = sel_node;
 
-      DBUG_RETURN(thr);
+      return thr;
     }
   }
 
@@ -2998,7 +2994,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
 
     thr->run_node = parent;
 
-    DBUG_RETURN(thr);
+    return thr;
   }
 
   /* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
@@ -3009,7 +3005,7 @@ error_handling:
   trx->error_state = err;
 
   if (err != DB_SUCCESS) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   /* DO THE TRIGGER ACTIONS HERE */
@@ -3026,7 +3022,7 @@ error_handling:
 
   node->state = UPD_NODE_UPDATE_CLUSTERED;
 
-  DBUG_RETURN(thr);
+  return thr;
 }
 
 std::ostream &upd_field_t::print(std::ostream &out) const {

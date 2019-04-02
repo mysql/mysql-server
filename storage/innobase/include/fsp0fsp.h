@@ -877,14 +877,12 @@ inline const char *xdes_mem_t::state_name() const {
 @param[in]	mtr	the mini-transaction context. */
 inline void fsp_header_size_update(fsp_header_t *header, ulint size,
                                    mtr_t *mtr) {
-  DBUG_ENTER("fsp_header_size_update");
+  DBUG_TRACE;
 
   DBUG_LOG("ib_log", "old_size=" << mach_read_from_4(header + FSP_SIZE)
                                  << ", new_size=" << size);
 
   mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Check if a specified page is inode page or not. This is used for

@@ -1433,7 +1433,7 @@ static bool wait_pidfile(char *pidfile, time_t last_modified,
   char buff[FN_REFLEN];
   int error = 1;
   uint count = 0;
-  DBUG_ENTER("wait_pidfile");
+  DBUG_TRACE;
 
   system_filename(buff, pidfile);
   do {
@@ -1465,7 +1465,7 @@ static bool wait_pidfile(char *pidfile, time_t last_modified,
             "Warning;  Aborted waiting on pid file: '%s' after %d seconds\n",
             buff, count - 1);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*

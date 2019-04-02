@@ -64,41 +64,41 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   char *buff, *end, *sign;
   File_parser *parser;
   File file;
-  DBUG_ENTER("sql_parse_prepare");
+  DBUG_TRACE;
 
   if (!mysql_file_stat(key_file_fileparser, file_name->str, &stat_info,
                        MYF(MY_WME))) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (stat_info.st_size > INT_MAX - 1) {
     my_error(ER_FPARSER_TOO_BIG_FILE, MYF(0), file_name->str);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (!(parser = new (mem_root) File_parser)) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (!(buff = (char *)mem_root->Alloc(static_cast<size_t>(stat_info.st_size) +
                                        1))) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if ((file = mysql_file_open(key_file_fileparser, file_name->str, O_RDONLY,
                               MYF(MY_WME))) < 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if ((len = mysql_file_read(file, (uchar *)buff,
                              static_cast<size_t>(stat_info.st_size),
                              MYF(MY_WME))) == MY_FILE_ERROR) {
     mysql_file_close(file, MYF(MY_WME));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (mysql_file_close(file, MYF(MY_WME))) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   end = buff + len;
@@ -121,14 +121,14 @@ File_parser *sql_parse_prepare(const LEX_STRING *file_name, MEM_ROOT *mem_root,
   parser->start = sign + 1;
   parser->content_ok = 1;
 
-  DBUG_RETURN(parser);
+  return parser;
 
 frm_error:
   if (bad_format_errors) {
     my_error(ER_FPARSER_BAD_HEADER, MYF(0), file_name->str);
-    DBUG_RETURN(0);
+    return 0;
   } else
-    DBUG_RETURN(parser);  // upper level have to check parser->ok()
+    return parser;  // upper level have to check parser->ok()
 }
 
 /**
@@ -348,7 +348,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
   const char *eol;
   LEX_STRING *str;
   List<LEX_STRING> *list;
-  DBUG_ENTER("File_parser::parse");
+  DBUG_TRACE;
 
   while (ptr < end && found < required) {
     const char *line = ptr;
@@ -356,7 +356,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
       // it is comment
       if (!(ptr = strchr(ptr, '\n'))) {
         my_error(ER_FPARSER_EOF_IN_COMMENT, MYF(0), line);
-        DBUG_RETURN(true);
+        return true;
       }
       ptr++;
     } else {
@@ -390,7 +390,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
                                    (LEX_STRING *)(base + parameter->offset)))) {
               my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                        parameter->name.str, line);
-              DBUG_RETURN(true);
+              return true;
             }
             break;
           }
@@ -400,7 +400,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
                       (LEX_STRING *)(base + parameter->offset)))) {
               my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                        parameter->name.str, line);
-              DBUG_RETURN(true);
+              return true;
             }
             break;
           }
@@ -408,7 +408,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
             if (!(eol = strchr(ptr, '\n'))) {
               my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                        parameter->name.str, line);
-              DBUG_RETURN(true);
+              return true;
             }
             {
               int not_used;
@@ -425,7 +425,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
             if (ptr[PARSE_FILE_TIMESTAMPLENGTH] != '\n') {
               my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0),
                        parameter->name.str, line);
-              DBUG_RETURN(true);
+              return true;
             }
             memcpy(val->str, ptr, PARSE_FILE_TIMESTAMPLENGTH);
             val->str[val->length = PARSE_FILE_TIMESTAMPLENGTH] = '\0';
@@ -464,12 +464,12 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
             my_error(ER_FPARSER_ERROR_IN_PARAMETER, MYF(0), parameter->name.str,
                      line);
           list_err:
-            DBUG_RETURN(true);
+            return true;
           }
           case FILE_OPTIONS_ULLLIST:
             if (get_file_options_ulllist(ptr, end, line, base, parameter,
                                          mem_root))
-              DBUG_RETURN(true);
+              return true;
             break;
           default:
             DBUG_ASSERT(0);  // never should happened
@@ -477,12 +477,12 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
       } else {
         ptr = line;
         if (hook->process_unknown_string(ptr, base, mem_root, end)) {
-          DBUG_RETURN(true);
+          return true;
         }
         // skip unknown parameter
         if (!(ptr = strchr(ptr, '\n'))) {
           my_error(ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER, MYF(0), line);
-          DBUG_RETURN(true);
+          return true;
         }
         ptr++;
       }
@@ -495,7 +495,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
     contains less parameters.
   */
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -519,7 +519,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
 bool File_parser_dummy_hook::process_unknown_string(
     const char *&unknown_key MY_ATTRIBUTE((unused)), uchar *, MEM_ROOT *,
     const char *) {
-  DBUG_ENTER("file_parser_dummy_hook::process_unknown_string");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("Unknown key: '%60s'", unknown_key));
-  DBUG_RETURN(false);
+  return false;
 }

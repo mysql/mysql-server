@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ void Open_dictionary_tables_ctx::add_table(const String_type &name) {
 }
 
 bool Open_dictionary_tables_ctx::open_tables() {
-  DBUG_ENTER("Open_dictionary_tables_ctx::open_tables");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!m_tables.empty());
 
@@ -104,7 +104,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
        (m_ignore_global_read_lock ? MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0));
   uint counter;
 
-  if (::open_tables(m_thd, &table_list, &counter, flags)) DBUG_RETURN(true);
+  if (::open_tables(m_thd, &table_list, &counter, flags)) return true;
 
   /*
     Data-dictionary tables must use storage engine supporting attachable
@@ -118,13 +118,13 @@ bool Open_dictionary_tables_ctx::open_tables() {
   for (TABLE_LIST *t = table_list; t; t = t->next_global) {
     DBUG_ASSERT(t->table->file->ha_table_flags() &
                 HA_ATTACHABLE_TRX_COMPATIBLE);
-    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING)) DBUG_RETURN(true);
+    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING)) return true;
   }
 
   // Lock the tables.
-  if (lock_tables(m_thd, table_list, counter, flags)) DBUG_RETURN(true);
+  if (lock_tables(m_thd, table_list, counter, flags)) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 Raw_table *Open_dictionary_tables_ctx::get_table(

@@ -92,14 +92,14 @@ void session_disconnect_callback(const PSI_thread_attrs *) {
 }
 
 Resource_group_mgr *Resource_group_mgr::instance() {
-  DBUG_ENTER("Resource_group_mgr::instance()");
+  DBUG_TRACE;
 
   // Created during server startup. So no locking required.
   if (m_instance == nullptr) {
     m_instance = new (std::nothrow) Resource_group_mgr;
     DBUG_ASSERT(m_instance != nullptr);
   }
-  DBUG_RETURN(m_instance);
+  return m_instance;
 }
 
 /**
@@ -137,7 +137,7 @@ static inline bool persist_resource_group(
 }
 
 static bool deserialize_resource_groups(THD *thd) {
-  DBUG_ENTER("deserialize_resource_groups");
+  DBUG_TRACE;
 
   /*
     Associate flag SYSTEM_THREAD_DD_INITIALIZE with THD context.
@@ -150,7 +150,7 @@ static bool deserialize_resource_groups(THD *thd) {
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   if (thd->dd_client()->fetch_global_components(&resource_group_vec))
-    DBUG_RETURN(true);
+    return true;
 
   bool usr_default_in_dd = false;
   bool sys_default_in_dd = false;
@@ -169,7 +169,7 @@ static bool deserialize_resource_groups(THD *thd) {
       if (resource_group_ptr == nullptr) {
         LogErr(ERROR_LEVEL, ER_FAILED_TO_DESERIALIZE_RESOURCE_GROUP,
                resource_group->name().c_str());
-        DBUG_RETURN(true);
+        return true;
       }
 
       resource_group_ptr_vec.push_back(resource_group_ptr);
@@ -187,7 +187,7 @@ static bool deserialize_resource_groups(THD *thd) {
                                     *resource_group_ptr)) {
         LogErr(WARNING_LEVEL, ER_FAILED_TO_UPDATE_RESOURCE_GROUP,
                resource_group_ptr->name().c_str());
-        DBUG_RETURN(true);
+        return true;
       }
 
       LogErr(WARNING_LEVEL, ER_RESOURCE_GROUP_VALIDATION_FAILED,
@@ -197,13 +197,13 @@ static bool deserialize_resource_groups(THD *thd) {
 
   if (persist_resource_group(thd, *res_grp_mgr->usr_default_resource_group(),
                              usr_default_in_dd))
-    DBUG_RETURN(true);
+    return true;
 
   if (persist_resource_group(thd, *res_grp_mgr->sys_default_resource_group(),
                              sys_default_in_dd))
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 Resource_group *Resource_group_mgr::deserialize_resource_group(
@@ -247,7 +247,7 @@ Resource_group *Resource_group_mgr::deserialize_resource_group(
 bool Resource_group_mgr::acquire_shared_mdl_for_resource_group(
     THD *thd, const char *res_grp_name, enum_mdl_duration lock_duration,
     MDL_ticket **ticket, bool try_acquire) {
-  DBUG_ENTER("acquire_shared_mdl_for_resource_group");
+  DBUG_TRACE;
 
   MDL_key mdl_key;
   dd::Resource_group::create_mdl_key(res_grp_name, &mdl_key);
@@ -261,7 +261,7 @@ bool Resource_group_mgr::acquire_shared_mdl_for_resource_group(
                                &mdl_request, thd->variables.lock_wait_timeout);
   if (!res && ticket != nullptr) *ticket = mdl_request.ticket;
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 void Resource_group_mgr::deinit() {
@@ -280,16 +280,16 @@ void Resource_group_mgr::deinit() {
 }
 
 bool Resource_group_mgr::post_init() {
-  DBUG_ENTER("Resource_group_mgr::post_init");
+  DBUG_TRACE;
 
-  if (!m_resource_group_support) DBUG_RETURN(false);
+  if (!m_resource_group_support) return false;
 
   if (!m_thread_priority_available)
     LogErr(INFORMATION_LEVEL, ER_THREAD_PRIORITY_IGNORED);
 
   // Create temporary THD to read Resource groups from disk.
   std::unique_ptr<THD> thd(new (std::nothrow) THD());
-  if (thd.get() == nullptr) DBUG_RETURN(true);
+  if (thd.get() == nullptr) return true;
 
   thd->thread_stack = reinterpret_cast<char *>(&thd);
   thd->store_globals();
@@ -300,11 +300,11 @@ bool Resource_group_mgr::post_init() {
 
   bool res = deserialize_resource_groups(thd.get());
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Resource_group_mgr::init() {
-  DBUG_ENTER("Resource_group_mgr::init");
+  DBUG_TRACE;
 
 #ifndef WITH_PERFSCHEMA_STORAGE_ENGINE
   // WITH_PERFSCHEMA_STORAGE_ENGINE is always set.
@@ -313,7 +313,7 @@ bool Resource_group_mgr::init() {
 
   if (!platform::is_platform_supported()) {
     m_unsupport_reason = "Platform Unsupported";
-    DBUG_RETURN(false);
+    return false;
   }
 
 #ifdef DISABLE_PSI_THREAD
@@ -321,7 +321,7 @@ bool Resource_group_mgr::init() {
   m_resource_group_support = false;
   LogErr(INFORMATION_LEVEL, ER_RESOURCE_GROUP_IS_DISABLED);
   m_unsupport_reason = "Server compiled with DISABLE_PSI_THREAD";
-  DBUG_RETURN(false);
+  return false;
 #endif
 
   m_resource_group_support = true;
@@ -333,14 +333,14 @@ bool Resource_group_mgr::init() {
   if (!m_registry_svc) {
     LogErr(WARNING_LEVEL,
            ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION, "registry");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_registry_svc->acquire("pfs_resource_group_v3", &m_h_res_grp_svc)) {
     LogErr(WARNING_LEVEL,
            ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
            "pfs_resource_group_v3");
-    DBUG_RETURN(true);
+    return true;
   }
   m_resource_group_svc =
       reinterpret_cast<SERVICE_TYPE(pfs_resource_group_v3) *>(m_h_res_grp_svc);
@@ -349,7 +349,7 @@ bool Resource_group_mgr::init() {
     LogErr(WARNING_LEVEL,
            ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION,
            "pfs_notification_v3");
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_notify_svc = reinterpret_cast<SERVICE_TYPE(pfs_notification_v3) *>(
@@ -365,7 +365,7 @@ bool Resource_group_mgr::init() {
   if (m_notify_handle == 0) {
     LogErr(WARNING_LEVEL, ER_PFS_NOTIFICATION_FUNCTION_REGISTER_FAILED,
            "Thread creation");
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_resource_group_hash =
@@ -373,7 +373,7 @@ bool Resource_group_mgr::init() {
           &my_charset_utf8_tolower_ci, PSI_INSTRUMENT_ME);
   if (m_resource_group_hash == nullptr) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP_HASH);
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_usr_default_resource_group = new (std::nothrow) Resource_group(
@@ -384,7 +384,7 @@ bool Resource_group_mgr::init() {
            "USR_default");
     delete m_resource_group_hash;
     m_resource_group_hash = nullptr;
-    DBUG_RETURN(true);
+    return true;
   }
 
   m_sys_default_resource_group = new (std::nothrow) Resource_group(
@@ -397,7 +397,7 @@ bool Resource_group_mgr::init() {
     m_resource_group_hash = nullptr;
     delete m_usr_default_resource_group;
     m_usr_default_resource_group = nullptr;
-    DBUG_RETURN(true);
+    return true;
   }
 
   add_resource_group(
@@ -407,7 +407,7 @@ bool Resource_group_mgr::init() {
 
   // Initialize number of VCPUs.
   m_num_vcpus = platform::num_vcpus();
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Resource_group_mgr::move_resource_group(Resource_group *from_res_grp,
@@ -453,7 +453,7 @@ void Resource_group_mgr::destroy_instance() {
 
 Resource_group *Resource_group_mgr::get_resource_group(
     const std::string &resource_group_name) {
-  DBUG_ENTER("Resource_group_mgr::get_resource_group");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_resource_group_support);
 
@@ -465,43 +465,41 @@ Resource_group *Resource_group_mgr::get_resource_group(
     resource_group = resource_group_iter->second.get();
   mysql_rwlock_unlock(&m_map_rwlock);
 
-  DBUG_RETURN(resource_group);
+  return resource_group;
 }
 
 bool Resource_group_mgr::add_resource_group(
     std::unique_ptr<Resource_group> resource_group_ptr) {
-  DBUG_ENTER("Resource_group_mgr::add_resource_group");
+  DBUG_TRACE;
   DBUG_ASSERT(m_resource_group_support);
 
   mysql_rwlock_wrlock(&m_map_rwlock);
   m_resource_group_hash->emplace(resource_group_ptr->name(),
                                  std::move(resource_group_ptr));
   mysql_rwlock_unlock(&m_map_rwlock);
-  DBUG_RETURN(false);
+  return false;
 }
 
 void Resource_group_mgr::remove_resource_group(const std::string &name) {
-  DBUG_ENTER("Resource_group_mgr::remove_resource_group");
+  DBUG_TRACE;
   DBUG_ASSERT(m_resource_group_support);
 
   mysql_rwlock_wrlock(&m_map_rwlock);
   m_resource_group_hash->erase(name);
   mysql_rwlock_unlock(&m_map_rwlock);
-
-  DBUG_VOID_RETURN;
 }
 
 Resource_group *Resource_group_mgr::create_and_add_in_resource_group_hash(
     const LEX_CSTRING &name, Type type, bool enabled,
     std::unique_ptr<std::vector<Range>> vcpu_range_vector, int priority) {
-  DBUG_ENTER("resourcegroups::create_in_memory_resource_group");
+  DBUG_TRACE;
   DBUG_ASSERT(m_resource_group_support);
 
   auto resource_group_ptr =
       new (std::nothrow) Resource_group(std::string(name.str), type, enabled);
   if (resource_group_ptr == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   auto thr_res_ctrl = resource_group_ptr->controller();
@@ -512,7 +510,7 @@ Resource_group *Resource_group_mgr::create_and_add_in_resource_group_hash(
   Resource_group_mgr::instance()->add_resource_group(
       std::unique_ptr<Resource_group>(resource_group_ptr));
 
-  DBUG_RETURN(resource_group_ptr);
+  return resource_group_ptr;
 }
 
 #ifndef DBUG_OFF

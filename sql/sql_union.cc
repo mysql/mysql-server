@@ -379,7 +379,7 @@ class Change_current_select {
 */
 
 bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
-  DBUG_ENTER("SELECT_LEX_UNIT::prepare_fake_select_lex");
+  DBUG_TRACE;
 
   DBUG_ASSERT(thd_arg->lex->current_select() == fake_select_lex);
 
@@ -432,9 +432,9 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
     result_table_list.set_recursive_reference();
   }
 
-  if (fake_select_lex->prepare(thd_arg)) DBUG_RETURN(true);
+  if (fake_select_lex->prepare(thd_arg)) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -452,7 +452,7 @@ bool SELECT_LEX_UNIT::prepare_fake_select_lex(THD *thd_arg) {
 bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
                               ulonglong added_options,
                               ulonglong removed_options) {
-  DBUG_ENTER("SELECT_LEX_UNIT::prepare");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!is_prepared());
   Change_current_select save_select(thd);
@@ -689,11 +689,11 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
   // Query blocks are prepared, update the state
   set_prepared();
 
-  DBUG_RETURN(false);
+  return false;
 
 err:
   (void)cleanup(thd, false);
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -705,7 +705,7 @@ err:
 */
 
 bool SELECT_LEX_UNIT::optimize(THD *thd) {
-  DBUG_ENTER("SELECT_LEX_UNIT::optimize");
+  DBUG_TRACE;
 
   DBUG_ASSERT(is_prepared() && !is_optimized());
 
@@ -715,9 +715,9 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
     thd->lex->set_current_select(sl);
 
     // LIMIT is required for optimization
-    if (set_limit(thd, sl)) DBUG_RETURN(true); /* purecov: inspected */
+    if (set_limit(thd, sl)) return true; /* purecov: inspected */
 
-    if (sl->optimize(thd)) DBUG_RETURN(true);
+    if (sl->optimize(thd)) return true;
 
     /*
       Accumulate estimated number of rows.
@@ -749,8 +749,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
   if (fake_select_lex) {
     thd->lex->set_current_select(fake_select_lex);
 
-    if (set_limit(thd, fake_select_lex))
-      DBUG_RETURN(true); /* purecov: inspected */
+    if (set_limit(thd, fake_select_lex)) return true; /* purecov: inspected */
 
     /*
       In EXPLAIN command, constant subqueries that do not use any
@@ -768,10 +767,10 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
                 fake_select_lex->where_cond() == NULL &&
                 fake_select_lex->having_cond() == NULL);
 
-    if (fake_select_lex->optimize(thd)) DBUG_RETURN(true);
+    if (fake_select_lex->optimize(thd)) return true;
   }
   set_optimized();  // All query blocks optimized, update the state
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -784,7 +783,7 @@ bool SELECT_LEX_UNIT::optimize(THD *thd) {
 */
 
 bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
-  DBUG_ENTER("SELECT_LEX_UNIT::explain");
+  DBUG_TRACE;
 
 #ifndef DBUG_OFF
   SELECT_LEX *lex_select_save = query_thd->lex->current_select();
@@ -798,13 +797,13 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
               outer_select()->join == nullptr ||
               outer_select()->join->zero_result_cause);
 
-  if (fmt->begin_context(CTX_UNION)) DBUG_RETURN(true);
+  if (fmt->begin_context(CTX_UNION)) return true;
 
   for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
-    if (fmt->begin_context(CTX_QUERY_SPEC)) DBUG_RETURN(true);
+    if (fmt->begin_context(CTX_QUERY_SPEC)) return true;
     if (explain_query_specification(explain_thd, query_thd, sl, CTX_JOIN) ||
         fmt->end_context(CTX_QUERY_SPEC))
-      DBUG_RETURN(true);
+      return true;
   }
 
   if (fake_select_lex != NULL) {
@@ -815,10 +814,10 @@ bool SELECT_LEX_UNIT::explain(THD *explain_thd, const THD *query_thd) {
   if (!other)
     DBUG_ASSERT(current_thd->lex->current_select() == lex_select_save);
 
-  if (ret) DBUG_RETURN(true);
+  if (ret) return true;
   fmt->end_context(CTX_UNION);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1134,10 +1133,10 @@ class Recursive_executor {
 */
 
 bool SELECT_LEX_UNIT::execute(THD *thd) {
-  DBUG_ENTER("SELECT_LEX_UNIT::exec");
+  DBUG_TRACE;
   DBUG_ASSERT(is_optimized());
 
-  if (is_executed() && !uncacheable) DBUG_RETURN(false);
+  if (is_executed() && !uncacheable) return false;
 
   /*
     Even if we return "true" the statement might continue
@@ -1160,10 +1159,10 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     }
     if (table && table->is_created())  // reset UNION tmp table
     {
-      if (union_result->reset()) DBUG_RETURN(true); /* purecov: inspected */
+      if (union_result->reset()) return true; /* purecov: inspected */
       table->file->info(HA_STATUS_VARIABLE);
       if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
-        DBUG_RETURN(true);    /* purecov: inspected */
+        return true;          /* purecov: inspected */
       if (table->hash_field)  // Prepare for duplicate elimination
         table->file->ha_index_init(0, false);
     }
@@ -1187,12 +1186,12 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     JOIN *join = first_select()->join;
     DBUG_ASSERT(join && join->is_optimized());
     join->exec();
-    DBUG_RETURN(join->error);
+    return join->error;
   }
 
   Recursive_executor recursive_executor(this, thd);
   if (recursive_executor.initialize(table))
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   bool status = false;  // Execution error status
 
@@ -1202,7 +1201,7 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
       thd->lex->set_current_select(sl);
 
       // Set limit and offset for each execution:
-      if (set_limit(thd, sl)) DBUG_RETURN(true); /* purecov: inspected */
+      if (set_limit(thd, sl)) return true; /* purecov: inspected */
 
       // Execute this query block
       sl->join->exec();
@@ -1212,30 +1211,29 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
         // This is UNION DISTINCT, so there should be a fake_select_lex
         DBUG_ASSERT(fake_select_lex != NULL);
         if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
-          DBUG_RETURN(true); /* purecov: inspected */
+          return true; /* purecov: inspected */
         table->no_keyread = 1;
       }
 
-      if (status) DBUG_RETURN(true);
+      if (status) return true;
 
       if (union_result && union_result->flush())
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
     }
 
     if (fake_select_lex != NULL) {
       thd->lex->set_current_select(fake_select_lex);
       if (table->hash_field)  // Prepare for access method of JOIN::exec
         table->file->ha_index_or_rnd_end();
-      if (set_limit(thd, fake_select_lex))
-        DBUG_RETURN(true); /* purecov: inspected */
+      if (set_limit(thd, fake_select_lex)) return true; /* purecov: inspected */
       JOIN *join = fake_select_lex->join;
       if (recursive_executor.prepare_for_scan())
-        DBUG_RETURN(true); /* purecov: inspected */
+        return true; /* purecov: inspected */
       join->exec();
       status = join->error != 0;
-      if (status) DBUG_RETURN(true);
+      if (status) return true;
       if (recursive_executor.save_scan_position())
-        DBUG_RETURN(true);    /* purecov: inspected */
+        return true;          /* purecov: inspected */
       if (table->hash_field)  // Prepare for duplicate elimination
         table->file->ha_index_init(0, false);
     }
@@ -1246,12 +1244,12 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
     int error = table->file->info(HA_STATUS_VARIABLE);
     if (error) {
       table->file->print_error(error, MYF(0)); /* purecov: inspected */
-      DBUG_RETURN(true);                       /* purecov: inspected */
+      return true;                             /* purecov: inspected */
     }
     thd->current_found_rows = (ulonglong)table->file->stats.records;
   }
 
-  DBUG_RETURN(status);
+  return status;
 }
 
 /**
@@ -1264,11 +1262,11 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
 */
 
 bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
-  DBUG_ENTER("SELECT_LEX_UNIT::cleanup");
+  DBUG_TRACE;
 
   DBUG_ASSERT(thd == current_thd);
 
-  if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) DBUG_RETURN(false);
+  if (cleaned >= (full ? UC_CLEAN : UC_PART_CLEAN)) return false;
 
   cleaned = (full ? UC_CLEAN : UC_PART_CLEAN);
 
@@ -1298,7 +1296,7 @@ bool SELECT_LEX_UNIT::cleanup(THD *thd, bool full) {
     thus be preserved for the next execution, if this is a prepared statement.
   */
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 #ifndef DBUG_OFF
@@ -1508,7 +1506,7 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list) {
 */
 
 bool SELECT_LEX::cleanup(THD *thd, bool full) {
-  DBUG_ENTER("SELECT_LEX::cleanup()");
+  DBUG_TRACE;
 
   bool error = false;
   if (join) {
@@ -1534,7 +1532,7 @@ bool SELECT_LEX::cleanup(THD *thd, bool full) {
     while ((w = li++)) w->cleanup(thd);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void SELECT_LEX::cleanup_all_joins() {

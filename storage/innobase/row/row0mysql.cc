@@ -146,14 +146,13 @@ void row_mysql_prebuilt_free_blob_heap(
     row_prebuilt_t *prebuilt) /*!< in: prebuilt struct of a
                               ha_innobase:: table handle */
 {
-  DBUG_ENTER("row_mysql_prebuilt_free_blob_heap");
+  DBUG_TRACE;
 
   DBUG_PRINT("row_mysql_prebuilt_free_blob_heap",
              ("blob_heap freeing: %p", prebuilt->blob_heap));
 
   mem_heap_free(prebuilt->blob_heap);
   prebuilt->blob_heap = NULL;
-  DBUG_VOID_RETURN;
 }
 
 /** Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
@@ -761,7 +760,7 @@ row_prebuilt_t *row_create_prebuilt(
     ulint mysql_row_len) /*!< in: length in bytes of a row in
                          the MySQL format */
 {
-  DBUG_ENTER("row_create_prebuilt");
+  DBUG_TRACE;
 
   row_prebuilt_t *prebuilt;
   mem_heap_t *heap;
@@ -904,7 +903,7 @@ Max size Secondary index: 16 * 8 bytes + PK = 256 bytes. */
   prebuilt->m_no_prefetch = false;
   prebuilt->m_read_virtual_key = false;
 
-  DBUG_RETURN(prebuilt);
+  return prebuilt;
 }
 
 /** Free a prebuilt struct for a MySQL table handle. */
@@ -912,7 +911,7 @@ void row_prebuilt_free(
     row_prebuilt_t *prebuilt, /*!< in, own: prebuilt struct */
     ibool dict_locked)        /*!< in: TRUE=data dictionary locked */
 {
-  DBUG_ENTER("row_prebuilt_free");
+  DBUG_TRACE;
 
   ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
@@ -978,8 +977,6 @@ void row_prebuilt_free(
   prebuilt->m_lob_undo.destroy();
 
   mem_heap_free(prebuilt->heap);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Updates the transaction pointers in query graphs stored in the prebuilt
@@ -1710,7 +1707,7 @@ upd_node_t *row_create_update_node_for_mysql(
 {
   upd_node_t *node;
 
-  DBUG_ENTER("row_create_update_node_for_mysql");
+  DBUG_TRACE;
 
   node = upd_node_create(heap);
 
@@ -1739,7 +1736,7 @@ upd_node_t *row_create_update_node_for_mysql(
   node->table_sym = NULL;
   node->col_assign_list = NULL;
 
-  DBUG_RETURN(node);
+  return node;
 }
 
 /** Gets pointer to a prebuilt update vector used in updates. If the update
@@ -1801,7 +1798,7 @@ static dberr_t row_fts_update_or_delete(
   upd_node_t *node = prebuilt->upd_node;
   doc_id_t old_doc_id = prebuilt->fts_doc_id;
 
-  DBUG_ENTER("row_fts_update_or_delete");
+  DBUG_TRACE;
 
   ut_a(dict_table_has_fts_index(prebuilt->table));
 
@@ -1820,7 +1817,7 @@ static dberr_t row_fts_update_or_delete(
     row_fts_do_update(trx, table, old_doc_id, new_doc_id);
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Initialize the Doc ID system for FK table with FTS index */
@@ -2222,7 +2219,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   ulint fk_depth = 0;
   bool got_s_lock = false;
 
-  DBUG_ENTER("row_update_for_mysql_using_upd_graph");
+  DBUG_TRACE;
 
   ut_ad(trx);
   ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
@@ -2239,7 +2236,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
            " the MySQL datadir, or have you used DISCARD"
            " TABLESPACE? "
         << TROUBLESHOOTING_MSG;
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   /* Allow to modify hardcoded DD tables in some scenario to
@@ -2248,7 +2245,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
       !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
         dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
     ib::error(ER_IB_MSG_985) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
-    DBUG_RETURN(DB_READ_ONLY);
+    return DB_READ_ONLY;
   }
 
   DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
@@ -2370,14 +2367,14 @@ run_again:
 
   trx->op_info = "";
 
-  DBUG_RETURN(err);
+  return err;
 
 error:
   if (got_s_lock) {
     row_mysql_unfreeze_data_dictionary(trx);
   }
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Does an update or delete of a row for MySQL.
@@ -3017,7 +3014,7 @@ dberr_t row_table_add_foreign_constraints(trx_t *trx, const char *sql_string,
                                           const dd::Table *dd_table) {
   dberr_t err;
 
-  DBUG_ENTER("row_table_add_foreign_constraints");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
   ut_a(sql_string);
@@ -3074,7 +3071,7 @@ func_exit:
   trx->op_info = "";
   trx->dict_operation = TRX_DICT_OP_NONE;
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Drops a table for MySQL as a background operation. MySQL relies on Unix
@@ -3786,7 +3783,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   bool file_per_table = false;
   aux_name_vec_t aux_vec;
 
-  DBUG_ENTER("row_drop_table_for_mysql");
+  DBUG_TRACE;
   DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
 
   ut_a(name != NULL);
@@ -4156,7 +4153,7 @@ funct_exit:
     fts_free_aux_names(&aux_vec);
   }
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Checks if a table name contains the string "/#sql" which denotes temporary

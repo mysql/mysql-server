@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@
 
 namespace resourcegroups {
 bool Thread_resource_control::validate(const Type &type) const {
-  DBUG_ENTER("Thread_resource_control::validate");
+  DBUG_TRACE;
 
   auto mgr_ptr = Resource_group_mgr::instance();
   bool result = false;
@@ -68,11 +68,11 @@ bool Thread_resource_control::validate(const Type &type) const {
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool Thread_resource_control::apply_control() {
-  DBUG_ENTER("Thread_resource_control::apply_control");
+  DBUG_TRACE;
 
   bool ret = false;
   std::vector<resourcegroups::platform::cpu_id_t> cpu_ids;
@@ -87,11 +87,11 @@ bool Thread_resource_control::apply_control() {
     ret = resourcegroups::platform::unbind_thread() ||
           resourcegroups::platform::set_thread_priority(m_priority);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Thread_resource_control::apply_control(my_thread_os_id_t thread_os_id) {
-  DBUG_ENTER("Thread_resource_control::apply_control");
+  DBUG_TRACE;
 
   bool ret = false;
   std::vector<resourcegroups::platform::cpu_id_t> cpu_ids;
@@ -108,6 +108,6 @@ bool Thread_resource_control::apply_control(my_thread_os_id_t thread_os_id) {
         resourcegroups::platform::unbind_thread(thread_os_id) ||
         resourcegroups::platform::set_thread_priority(m_priority, thread_os_id);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 }  // namespace resourcegroups

@@ -1764,10 +1764,10 @@ class Item_func_in final : public Item_func_opt_neg {
   }
 
   void cleanup() override {
-    DBUG_ENTER("Item_func_in::cleanup");
+    DBUG_TRACE;
     Item_int_func::cleanup();
     cleanup_arrays();
-    DBUG_VOID_RETURN;
+    return;
   }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
   void print(const THD *thd, String *str,

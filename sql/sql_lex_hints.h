@@ -102,10 +102,10 @@ class Hint_scanner {
   void syntax_warning(const char *msg) const;
 
   int get_next_token() {
-    DBUG_ENTER("Hint_scanner::get_next_token");
+    DBUG_TRACE;
     prev_token = scan();
     add_hint_token_digest();
-    DBUG_RETURN(prev_token);
+    return prev_token;
   }
 
  protected:

@@ -233,7 +233,7 @@ Master_info::~Master_info() {
 }
 
 void Master_info::request_rotate(THD *thd) {
-  DBUG_ENTER("Master_info::request_rotate(THD*)");
+  DBUG_TRACE;
   MUTEX_LOCK(lock, &this->rotate_lock);
   this->rotate_requested.store(true);
 
@@ -251,12 +251,10 @@ void Master_info::request_rotate(THD *thd) {
 
   while (this->rotate_requested.load() && !thd->killed)
     mysql_cond_wait(&this->rotate_cond, &this->rotate_lock);
-
-  DBUG_VOID_RETURN;
 }
 
 void Master_info::clear_rotate_requests() {
-  DBUG_ENTER("Master_info::clear_rotate_requests()");
+  DBUG_TRACE;
   MUTEX_LOCK(lock, &this->rotate_lock);
 
   if (this->rotate_requested.load()) {
@@ -275,8 +273,6 @@ void Master_info::clear_rotate_requests() {
           !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
     });
   }
-
-  DBUG_VOID_RETURN;
 }
 
 bool Master_info::is_rotate_requested() {
@@ -302,27 +298,23 @@ bool Master_info::shall_ignore_server_id(ulong s_id) {
 }
 
 void Master_info::init_master_log_pos() {
-  DBUG_ENTER("Master_info::init_master_log_pos");
+  DBUG_TRACE;
 
   master_log_name[0] = 0;
   master_log_pos = BIN_LOG_HEADER_SIZE;  // skip magic number
   flushed_relay_log_info.log_file_name[0] = 0;
   flushed_relay_log_info.pos = 0;
-
-  DBUG_VOID_RETURN;
 }
 
 void Master_info::end_info() {
-  DBUG_ENTER("Master_info::end_info");
+  DBUG_TRACE;
 
-  if (!inited) DBUG_VOID_RETURN;
+  if (!inited) return;
 
   handler->end_info();
 
   inited = 0;
   reset = true;
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -344,7 +336,7 @@ void Master_info::end_info() {
 */
 
 int Master_info::flush_info(bool force) {
-  DBUG_ENTER("Master_info::flush_info");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("master_pos: %lu", (ulong)master_log_pos));
 
   bool skip_flushing = !inited;
@@ -355,7 +347,7 @@ int Master_info::flush_info(bool force) {
   */
   if (force && reset) skip_flushing = false;
 
-  if (skip_flushing) DBUG_RETURN(0);
+  if (skip_flushing) return 0;
 
   /*
     We update the sync_period at this point because only here we
@@ -371,11 +363,11 @@ int Master_info::flush_info(bool force) {
 
   update_flushed_relay_log_info();
 
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_WRITING_MASTER_CONFIGURATION);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 void Master_info::set_relay_log_info(Relay_log_info *info) { rli = info; }
@@ -385,10 +377,10 @@ void Master_info::set_relay_log_info(Relay_log_info *info) { rli = info; }
   Master_info.
 */
 int Master_info::mi_init_info() {
-  DBUG_ENTER("Master_info::mi_init_info");
+  DBUG_TRACE;
   enum_return_check check_return = ERROR_CHECKING_REPOSITORY;
 
-  if (inited) DBUG_RETURN(0);
+  if (inited) return 0;
 
   mysql = nullptr;
   file_id = 1;
@@ -406,13 +398,13 @@ int Master_info::mi_init_info() {
   reset = false;
   if (flush_info(true)) goto err;
 
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   handler->end_info();
   inited = 0;
   LogErr(ERROR_LEVEL, ER_RPL_ERROR_READING_MASTER_CONFIGURATION);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 size_t Master_info::get_number_info_mi_fields() {
@@ -437,7 +429,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   int temp_auto_position = 0;
   int temp_get_public_key = 0;
 
-  DBUG_ENTER("Master_info::read_info");
+  DBUG_TRACE;
 
   /*
      Starting from 4.1.x master.info has new format. Now its
@@ -460,7 +452,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
 
   if (from->prepare_info_for_read() ||
       from->get_info(master_log_name, sizeof(master_log_name), ""))
-    DBUG_RETURN(true);
+    return true;
 
   lines = strtoul(master_log_name, &first_non_digit, 10);
 
@@ -468,7 +460,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
       lines >= LINES_IN_MASTER_INFO_WITH_SSL) {
     /* Seems to be new format => read master log name */
     if (from->get_info(master_log_name, sizeof(master_log_name), ""))
-      DBUG_RETURN(true);
+      return true;
   } else
     lines = 7;
 
@@ -478,7 +470,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
       from->get_info(password, sizeof(password), (char *)0) ||
       from->get_info((int *)&port, (int)MYSQL_PORT) ||
       from->get_info((int *)&connect_retry, (int)DEFAULT_CONNECT_RETRY))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     If file has ssl part use it even if we have server without
@@ -493,7 +485,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
         from->get_info(ssl_cert, sizeof(ssl_cert), (char *)0) ||
         from->get_info(ssl_cipher, sizeof(ssl_cipher), (char *)0) ||
         from->get_info(ssl_key, sizeof(ssl_key), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   /*
@@ -501,7 +493,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT) {
-    if (from->get_info(&temp_ssl_verify_server_cert, 0)) DBUG_RETURN(true);
+    if (from->get_info(&temp_ssl_verify_server_cert, 0)) return true;
   }
 
   /*
@@ -509,14 +501,14 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_MASTER_HEARTBEAT_PERIOD) {
-    if (from->get_info(&heartbeat_period, (float)0.0)) DBUG_RETURN(true);
+    if (from->get_info(&heartbeat_period, (float)0.0)) return true;
   }
 
   /*
     Starting from 5.5 master_bind might be in the file
   */
   if (lines >= LINE_FOR_MASTER_BIND) {
-    if (from->get_info(bind_addr, sizeof(bind_addr), "")) DBUG_RETURN(true);
+    if (from->get_info(bind_addr, sizeof(bind_addr), "")) return true;
   }
 
   /*
@@ -524,53 +516,52 @@ bool Master_info::read_info(Rpl_info_handler *from) {
     in the file
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS) {
-    if (from->get_info(ignore_server_ids, (Server_ids *)nullptr))
-      DBUG_RETURN(true);
+    if (from->get_info(ignore_server_ids, (Server_ids *)nullptr)) return true;
   }
 
   /* Starting from 5.5 the master_uuid may be in the repository. */
   if (lines >= LINE_FOR_MASTER_UUID) {
     if (from->get_info(master_uuid, sizeof(master_uuid), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   /* Starting from 5.5 the master_retry_count may be in the repository. */
   retry_count = master_retry_count;
   if (lines >= LINE_FOR_MASTER_RETRY_COUNT) {
-    if (from->get_info(&retry_count, master_retry_count)) DBUG_RETURN(true);
+    if (from->get_info(&retry_count, master_retry_count)) return true;
   }
 
   if (lines >= LINE_FOR_SSL_CRLPATH) {
     if (from->get_info(ssl_crl, sizeof(ssl_crl), (char *)0) ||
         from->get_info(ssl_crlpath, sizeof(ssl_crlpath), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   if (lines >= LINE_FOR_AUTO_POSITION) {
-    if (from->get_info(&temp_auto_position, 0)) DBUG_RETURN(true);
+    if (from->get_info(&temp_auto_position, 0)) return true;
   }
 
   if (lines >= LINE_FOR_CHANNEL) {
-    if (from->get_info(channel, sizeof(channel), (char *)0)) DBUG_RETURN(true);
+    if (from->get_info(channel, sizeof(channel), (char *)0)) return true;
   }
 
   if (lines >= LINE_FOR_TLS_VERSION) {
     if (from->get_info(tls_version, sizeof(tls_version), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   if (lines >= LINE_FOR_PUBLIC_KEY_PATH) {
     if (from->get_info(public_key_path, sizeof(public_key_path), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   if (lines >= LINE_FOR_GET_PUBLIC_KEY) {
-    if (from->get_info(&temp_get_public_key, 0)) DBUG_RETURN(true);
+    if (from->get_info(&temp_get_public_key, 0)) return true;
   }
 
   if (lines >= LINE_FOR_NETWORK_NAMESPACE) {
     if (from->get_info(network_namespace, sizeof(network_namespace), (char *)0))
-      DBUG_RETURN(true);
+      return true;
   }
 
   ssl = (bool)temp_ssl;
@@ -583,19 +574,19 @@ bool Master_info::read_info(Rpl_info_handler *from) {
   if (ssl) LogErr(WARNING_LEVEL, ER_RPL_SSL_INFO_IN_MASTER_INFO_IGNORED);
 #endif /* HAVE_OPENSSL */
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Master_info::set_info_search_keys(Rpl_info_handler *to) {
-  DBUG_ENTER("Master_info::set_info_search_keys");
+  DBUG_TRACE;
 
-  if (to->set_info(LINE_FOR_CHANNEL - 1, channel)) DBUG_RETURN(true);
+  if (to->set_info(LINE_FOR_CHANNEL - 1, channel)) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Master_info::write_info(Rpl_info_handler *to) {
-  DBUG_ENTER("Master_info::write_info");
+  DBUG_TRACE;
 
   /*
      In certain cases this code may create master.info files that seems
@@ -619,13 +610,13 @@ bool Master_info::write_info(Rpl_info_handler *to) {
       to->set_info(channel) || to->set_info(tls_version) ||
       to->set_info(public_key_path) || to->set_info(get_public_key) ||
       to->set_info(network_namespace))
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 void Master_info::set_password(const char *password_arg) {
-  DBUG_ENTER("Master_info::set_password");
+  DBUG_TRACE;
 
   DBUG_ASSERT(password_arg);
 
@@ -633,13 +624,11 @@ void Master_info::set_password(const char *password_arg) {
     strmake(start_password, password_arg, sizeof(start_password) - 1);
   else if (password_arg)
     strmake(password, password_arg, sizeof(password) - 1);
-
-  DBUG_VOID_RETURN;
 }
 
 bool Master_info::get_password(char *password_arg, size_t *password_arg_size) {
   bool ret = true;
-  DBUG_ENTER("Master_info::get_password");
+  DBUG_TRACE;
 
   if (password_arg && start_user_configured) {
     *password_arg_size = strlen(start_password);
@@ -650,17 +639,16 @@ bool Master_info::get_password(char *password_arg, size_t *password_arg_size) {
     strmake(password_arg, password, sizeof(password) - 1);
     ret = false;
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 void Master_info::reset_start_info() {
-  DBUG_ENTER("Master_info::reset_start_info");
+  DBUG_TRACE;
   start_plugin_auth[0] = 0;
   start_plugin_dir[0] = 0;
   start_user_configured = false;
   start_user[0] = 0;
   start_password[0] = 0;
-  DBUG_VOID_RETURN;
 }
 
 void Master_info::channel_rdlock() {

@@ -53,14 +53,13 @@ static const char *event_parser_state_names[] = {"None", "GTID", "DDL", "DML",
    This method initialize the boundary parser state.
 */
 void Transaction_boundary_parser::reset() {
-  DBUG_ENTER("Transaction_boundary_parser::reset");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("transaction boundary parser is changing state "
                       "from '%s' to '%s'",
                       event_parser_state_names[current_parser_state],
                       event_parser_state_names[EVENT_PARSER_NONE]));
   current_parser_state = EVENT_PARSER_NONE;
   last_parser_state = EVENT_PARSER_NONE;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -84,10 +83,10 @@ void Transaction_boundary_parser::reset() {
 bool Transaction_boundary_parser::feed_event(
     const char *buf, size_t length, const Format_description_event *fd_event,
     bool throw_warnings) {
-  DBUG_ENTER("Transaction_boundary_parser::feed_event");
+  DBUG_TRACE;
   enum_event_boundary_type event_boundary_type =
       get_event_boundary_type(buf, length, fd_event, throw_warnings);
-  DBUG_RETURN(update_state(event_boundary_type, throw_warnings));
+  return update_state(event_boundary_type, throw_warnings);
 }
 
 /**
@@ -108,7 +107,7 @@ Transaction_boundary_parser::enum_event_boundary_type
 Transaction_boundary_parser::get_event_boundary_type(
     const char *buf, size_t length, const Format_description_event *fd_event,
     bool throw_warnings) {
-  DBUG_ENTER("Transaction_boundary_parser::get_event_boundary_type");
+  DBUG_TRACE;
 
   Log_event_type event_type;
   enum_event_boundary_type boundary_type = EVENT_BOUNDARY_TYPE_ERROR;
@@ -252,7 +251,7 @@ Transaction_boundary_parser::get_event_boundary_type(
   } /* End of switch(event_type) */
 
 end:
-  DBUG_RETURN(boundary_type);
+  return boundary_type;
 }
 
 /**
@@ -269,7 +268,7 @@ end:
 */
 bool Transaction_boundary_parser::update_state(
     enum_event_boundary_type event_boundary_type, bool throw_warnings) {
-  DBUG_ENTER("Transaction_boundary_parser::update_state");
+  DBUG_TRACE;
 
   enum_event_parser_state new_parser_state = EVENT_PARSER_NONE;
 
@@ -454,5 +453,5 @@ bool Transaction_boundary_parser::update_state(
   last_parser_state = current_parser_state;
   current_parser_state = new_parser_state;
 
-  DBUG_RETURN(error);
+  return error;
 }

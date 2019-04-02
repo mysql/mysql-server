@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,17 +71,17 @@ extern "C" int init_queue(QUEUE *queue, PSI_memory_key psi_key,
                           bool max_at_top,
                           int (*compare)(void *, uchar *, uchar *),
                           void *first_cmp_arg) {
-  DBUG_ENTER("init_queue");
+  DBUG_TRACE;
   if ((queue->root = (uchar **)my_malloc(
            psi_key, (max_elements + 1) * sizeof(void *), MYF(MY_WME))) == 0)
-    DBUG_RETURN(1);
+    return 1;
   queue->elements = 0;
   queue->compare = compare;
   queue->first_cmp_arg = first_cmp_arg;
   queue->max_elements = max_elements;
   queue->offset_to_key = offset_to_key;
   queue_set_max_at_top(queue, max_at_top);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -111,14 +111,14 @@ extern "C" int reinit_queue(QUEUE *queue, PSI_memory_key psi_key,
                             bool max_at_top,
                             int (*compare)(void *, uchar *, uchar *),
                             void *first_cmp_arg) {
-  DBUG_ENTER("reinit_queue");
+  DBUG_TRACE;
   queue->elements = 0;
   queue->compare = compare;
   queue->first_cmp_arg = first_cmp_arg;
   queue->offset_to_key = offset_to_key;
   queue_set_max_at_top(queue, max_at_top);
   resize_queue(queue, psi_key, max_elements);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -141,16 +141,16 @@ extern "C" int reinit_queue(QUEUE *queue, PSI_memory_key psi_key,
 static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
                         uint max_elements) {
   uchar **new_root;
-  DBUG_ENTER("resize_queue");
-  if (queue->max_elements == max_elements) DBUG_RETURN(0);
+  DBUG_TRACE;
+  if (queue->max_elements == max_elements) return 0;
   if ((new_root = (uchar **)my_realloc(psi_key, (void *)queue->root,
                                        (max_elements + 1) * sizeof(void *),
                                        MYF(MY_WME))) == 0)
-    DBUG_RETURN(1);
+    return 1;
   set_if_smaller(queue->elements, max_elements);
   queue->max_elements = max_elements;
   queue->root = new_root;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -168,10 +168,9 @@ static int resize_queue(QUEUE *queue, PSI_memory_key psi_key,
 */
 
 void delete_queue(QUEUE *queue) {
-  DBUG_ENTER("delete_queue");
+  DBUG_TRACE;
   my_free(queue->root);
   queue->root = NULL;
-  DBUG_VOID_RETURN;
 }
 
 /* Code for insert, search and delete of elements */

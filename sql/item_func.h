@@ -3320,7 +3320,7 @@ class Item_func_match final : public Item_real_func {
   bool itemize(Parse_context *pc, Item **res) override;
 
   void cleanup() override {
-    DBUG_ENTER("Item_func_match::cleanup");
+    DBUG_TRACE;
     Item_real_func::cleanup();
     if (!master && ft_handler) {
       ft_handler->please->close_search(ft_handler);
@@ -3330,7 +3330,7 @@ class Item_func_match final : public Item_real_func {
     concat_ws = NULL;
     table_ref = NULL;  // required by Item_func_match::eq()
     master = NULL;
-    DBUG_VOID_RETURN;
+    return;
   }
   Item *key_item() const override { return against; }
   enum Functype functype() const override { return FT_FUNC; }

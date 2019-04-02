@@ -1614,14 +1614,14 @@ static void dict_stats_analyze_index(
   ib_uint64_t total_pages;
   mtr_t mtr;
   ulint size;
-  DBUG_ENTER("dict_stats_analyze_index");
+  DBUG_TRACE;
 
   DBUG_PRINT("info", ("index: %s, online status: %d", index->name(),
                       dict_index_get_online_status(index)));
 
   /* Disable update statistic for Rtree */
   if (dict_index_is_spatial(index)) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name());
@@ -1645,7 +1645,7 @@ static void dict_stats_analyze_index(
   switch (size) {
     case ULINT_UNDEFINED:
       dict_stats_assert_initialized_index(index);
-      DBUG_VOID_RETURN;
+      return;
     case 0:
       /* The root node of the tree is a leaf */
       size = 1;
@@ -1698,7 +1698,7 @@ static void dict_stats_analyze_index(
     mtr_commit(&mtr);
 
     dict_stats_assert_initialized_index(index);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /* For each level that is being scanned in the btree, this contains the
@@ -1880,7 +1880,6 @@ static void dict_stats_analyze_index(
   UT_DELETE_ARRAY(n_diff_data);
 
   dict_stats_assert_initialized_index(index);
-  DBUG_VOID_RETURN;
 }
 
 /** Calculates new estimates for table and index statistics. This function
@@ -2659,7 +2658,7 @@ static dberr_t dict_stats_fetch_from_ps(
 /** Fetches or calculates new estimates for index statistics. */
 void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 {
-  DBUG_ENTER("dict_stats_update_for_index");
+  DBUG_TRACE;
 
   ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2669,14 +2668,12 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
     dict_table_stats_unlock(index->table, RW_X_LATCH);
     index_id_t index_id(index->space, index->id);
     dict_stats_save(index->table, &index_id);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   dict_table_stats_lock(index->table, RW_X_LATCH);
   dict_stats_update_transient_for_index(index);
   dict_table_stats_unlock(index->table, RW_X_LATCH);
-
-  DBUG_VOID_RETURN;
 }
 
 /** Calculates new estimates for table and index statistics. The statistics

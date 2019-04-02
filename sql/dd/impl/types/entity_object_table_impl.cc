@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,7 +50,7 @@ class Raw_record;
 bool Entity_object_table_impl::restore_object_from_record(
     Open_dictionary_tables_ctx *otx, const Raw_record &record,
     Entity_object **o) const {
-  DBUG_ENTER("Entity_object_table_impl::restore_object_from_record");
+  DBUG_TRACE;
 
   // Create object instance.
 
@@ -64,12 +64,12 @@ bool Entity_object_table_impl::restore_object_from_record(
   if (obj->impl()->restore_attributes(record) ||
       obj->impl()->restore_children(otx) || obj->impl()->validate()) {
     *o = NULL;
-    DBUG_RETURN(true);
+    return true;
   }
 
   *o = obj.release();
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

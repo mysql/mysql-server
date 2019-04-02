@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "sql_string.h"
 
 bool Query_result_do::send_data(THD *thd, List<Item> &items) {
-  DBUG_ENTER("Query_result_do::send_data");
+  DBUG_TRACE;
 
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
@@ -41,10 +41,10 @@ bool Query_result_do::send_data(THD *thd, List<Item> &items) {
 
   // Evaluate all fields, but do not send them
   for (Item *item = it++; item; item = it++) {
-    if (item->evaluate(thd, &str_buffer)) DBUG_RETURN(true);
+    if (item->evaluate(thd, &str_buffer)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Query_result_do::send_eof(THD *thd) {

@@ -563,7 +563,7 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length,
 
 bool net_send_error(THD *thd, uint sql_errno, const char *err) {
   bool error;
-  DBUG_ENTER("net_send_error");
+  DBUG_TRACE;
 
   DBUG_ASSERT(!thd->sp_runtime_ctx);
   DBUG_ASSERT(sql_errno);
@@ -585,7 +585,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
 
   thd->get_stmt_da()->set_overwrite_status(false);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -602,7 +602,7 @@ bool net_send_error(THD *thd, uint sql_errno, const char *err) {
 */
 
 bool net_send_error(NET *net, uint sql_errno, const char *err) {
-  DBUG_ENTER("net_send_error");
+  DBUG_TRACE;
 
   DBUG_ASSERT(sql_errno && err);
 
@@ -612,7 +612,7 @@ bool net_send_error(NET *net, uint sql_errno, const char *err) {
       net, sql_errno, err, mysql_errno_to_sqlstate(sql_errno), false, 0,
       global_system_variables.character_set_results);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /* clang-format off */
@@ -826,12 +826,12 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
   bool state_changed = false;
 
   bool error = false;
-  DBUG_ENTER("net_send_ok");
+  DBUG_TRACE;
 
   if (!net->vio)  // hack for re-parsing queries
   {
     DBUG_PRINT("info", ("vio present: NO"));
-    DBUG_RETURN(false);
+    return false;
   }
 
   start = buff;
@@ -912,7 +912,7 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
     net->last_errno = ER_NET_OK_PACKET_TOO_LARGE;
     my_error(ER_NET_OK_PACKET_TOO_LARGE, MYF(0));
     DBUG_PRINT("info", ("OK packet too large"));
-    DBUG_RETURN(1);
+    return 1;
   }
   error = my_net_write(net, start, (size_t)(pos - start));
   if (!error) error = net_flush(net);
@@ -920,7 +920,7 @@ bool net_send_ok(THD *thd, uint server_status, uint statement_warn_count,
   thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
@@ -1006,7 +1006,7 @@ static uchar eof_buff[1] = {(uchar)254}; /* Marker for end of fields */
 bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count) {
   NET *net = thd->get_protocol_classic()->get_net();
   bool error = false;
-  DBUG_ENTER("net_send_eof");
+  DBUG_TRACE;
   /* Set to true if no active vio, to work well in case of --init-file */
   if (net->vio != 0) {
     thd->get_stmt_da()->set_overwrite_status(true);
@@ -1015,7 +1015,7 @@ bool net_send_eof(THD *thd, uint server_status, uint statement_warn_count) {
     thd->get_stmt_da()->set_overwrite_status(false);
     DBUG_PRINT("info", ("EOF sent, so no more error sending allowed"));
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -1162,7 +1162,7 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   char converted_err[MYSQL_ERRMSG_SIZE];
   char buff[2 + 1 + SQLSTATE_LENGTH + MYSQL_ERRMSG_SIZE], *pos;
 
-  DBUG_ENTER("net_send_error_packet");
+  DBUG_TRACE;
 
   if (net->vio == 0) {
     if (bootstrap) {
@@ -1170,7 +1170,7 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
       my_message_local(ERROR_LEVEL, EE_NET_SEND_ERROR_IN_BOOTSTRAP, sql_errno,
                        err);
     }
-    DBUG_RETURN(false);
+    return false;
   }
 
   int2store(buff, sql_errno);
@@ -1187,9 +1187,8 @@ static bool net_send_error_packet(NET *net, uint sql_errno, const char *err,
   /* Converted error message is always null-terminated. */
   length = (uint)(strmake(pos, converted_err, MYSQL_ERRMSG_SIZE - 1) - buff);
 
-  DBUG_RETURN(net_write_command(net, uchar{255},
-                                pointer_cast<const uchar *>(""), 0,
-                                pointer_cast<uchar *>(buff), length));
+  return net_write_command(net, uchar{255}, pointer_cast<const uchar *>(""), 0,
+                           pointer_cast<uchar *>(buff), length);
 }
 
 /**
@@ -1266,13 +1265,13 @@ void Protocol_classic::init(THD *thd_arg) {
 bool Protocol_classic::send_ok(uint server_status, uint statement_warn_count,
                                ulonglong affected_rows,
                                ulonglong last_insert_id, const char *message) {
-  DBUG_ENTER("Protocol_classic::send_ok");
+  DBUG_TRACE;
   const bool retval =
       net_send_ok(m_thd, server_status, statement_warn_count, affected_rows,
                   last_insert_id, message, false);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -1282,7 +1281,7 @@ bool Protocol_classic::send_ok(uint server_status, uint statement_warn_count,
 */
 
 bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
-  DBUG_ENTER("Protocol_classic::send_eof");
+  DBUG_TRACE;
   bool retval;
   /*
     Normally end of statement reply is signaled by OK packet, but in case
@@ -1298,7 +1297,7 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
     retval = net_send_eof(m_thd, server_status, statement_warn_count);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -1309,12 +1308,12 @@ bool Protocol_classic::send_eof(uint server_status, uint statement_warn_count) {
 
 bool Protocol_classic::send_error(uint sql_errno, const char *err_msg,
                                   const char *sql_state) {
-  DBUG_ENTER("Protocol_classic::send_error");
+  DBUG_TRACE;
   const bool retval =
       net_send_error_packet(m_thd, sql_errno, err_msg, sql_state);
   // Reclaim some memory
   convert.shrink(m_thd->variables.net_buffer_length);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 void Protocol_classic::set_read_timeout(ulong read_timeout) {
@@ -2562,7 +2561,7 @@ int Protocol_classic::read_packet() {
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd) {
-  DBUG_ENTER("Protocol_classic::parse_packet");
+  DBUG_TRACE;
   switch (cmd) {
     case COM_INIT_DB: {
       data->com_init_db.db_name =
@@ -2756,12 +2755,12 @@ bool Protocol_classic::parse_packet(union COM_DATA *data,
       break;
   }
 
-  DBUG_RETURN(false);
+  return false;
 
 malformed:
   my_error(ER_MALFORMED_PACKET, MYF(0));
   bad_packet = true;
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool Protocol_classic::create_command(COM_DATA *com_data,
@@ -2824,7 +2823,7 @@ bool Protocol_classic::flush() { return net_flush(&m_thd->net); }
 
 bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
                                        uint param_count, ulong cond_count) {
-  DBUG_ENTER("Protocol_classic::store_ps_status");
+  DBUG_TRACE;
 
   uchar buff[13];
   buff[0] = 0; /* OK packet indicator */
@@ -2839,16 +2838,16 @@ bool Protocol_classic::store_ps_status(ulong stmt_id, uint column_count,
     /* Store resultset metadata flag. */
     buff[12] = static_cast<uchar>(m_thd->variables.resultset_metadata);
 
-    DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff)));
+    return my_net_write(&m_thd->net, buff, sizeof(buff));
   }
-  DBUG_RETURN(my_net_write(&m_thd->net, buff, sizeof(buff) - 1));
+  return my_net_write(&m_thd->net, buff, sizeof(buff) - 1);
 }
 
 bool Protocol_classic::get_compression() { return m_thd->net.compress; }
 
 bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
                                              const CHARSET_INFO *cs) {
-  DBUG_ENTER("Protocol_classic::start_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("num_cols %u, flags %u", num_cols_arg, flags));
   uint num_cols = num_cols_arg;
   result_cs = cs;
@@ -2888,11 +2887,11 @@ bool Protocol_classic::start_result_metadata(uint num_cols_arg, uint flags,
   count = 0;
 #endif
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Protocol_classic::end_result_metadata() {
-  DBUG_ENTER("Protocol_classic::end_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("num_cols %u, flags %u", field_count, sending_flags));
   send_metadata = false;
   if (sending_flags & SEND_EOF) {
@@ -2906,11 +2905,11 @@ bool Protocol_classic::end_result_metadata() {
       if (write_eof_packet(
               m_thd, &m_thd->net, m_thd->server_status,
               m_thd->get_stmt_da()->current_statement_cond_count())) {
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /* clang-format off */
@@ -3037,7 +3036,7 @@ bool Protocol_classic::end_result_metadata() {
 
 bool Protocol_classic::send_field_metadata(Send_field *field,
                                            const CHARSET_INFO *item_charset) {
-  DBUG_ENTER("Protocol_classic::send_field_metadata");
+  DBUG_TRACE;
   char *pos;
   const CHARSET_INFO *cs = system_charset_info;
   const CHARSET_INFO *thd_charset = m_thd->variables.character_set_results;
@@ -3126,15 +3125,14 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   // Text protocol sends fields as varchar
   field_types[count++] = field->field ? MYSQL_TYPE_VAR_STRING : field->type;
 #endif
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Protocol_classic::end_row() {
-  DBUG_ENTER("Protocol_classic::end_row");
+  DBUG_TRACE;
   if (m_thd->get_protocol()->connection_alive())
-    DBUG_RETURN(
-        my_net_write(&m_thd->net, (uchar *)packet->ptr(), packet->length()));
-  DBUG_RETURN(0);
+    return my_net_write(&m_thd->net, (uchar *)packet->ptr(), packet->length());
+  return 0;
 }
 
 /**
@@ -3797,24 +3795,24 @@ static ulong get_param_length(uchar *packet, ulong packet_left_len,
 */
 ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
                        ulong packet_left_len, ulong *header_len, bool *err) {
-  DBUG_ENTER("get_ps_param_len");
+  DBUG_TRACE;
   *header_len = 0;
 
   switch (type) {
     case MYSQL_TYPE_TINY:
       *err = (packet_left_len < 1);
-      DBUG_RETURN(1);
+      return 1;
     case MYSQL_TYPE_SHORT:
       *err = (packet_left_len < 2);
-      DBUG_RETURN(2);
+      return 2;
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_LONG:
       *err = (packet_left_len < 4);
-      DBUG_RETURN(4);
+      return 4;
     case MYSQL_TYPE_DOUBLE:
     case MYSQL_TYPE_LONGLONG:
       *err = (packet_left_len < 8);
-      DBUG_RETURN(8);
+      return 8;
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_DATE:
@@ -3827,7 +3825,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
       *err = ((param_length == 0 && *header_len == 0) ||
               (packet_left_len < *header_len + param_length));
       DBUG_PRINT("info", ("ret=%lu ", param_length));
-      DBUG_RETURN(param_length);
+      return param_length;
     }
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
@@ -3841,7 +3839,7 @@ ulong get_ps_param_len(enum enum_field_types type, uchar *packet,
       if (param_length > packet_left_len - *header_len)
         param_length = packet_left_len - *header_len;
       DBUG_PRINT("info", ("ret=%lu", param_length));
-      DBUG_RETURN(param_length);
+      return param_length;
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,7 @@ static inline uint get_first_not_set(uint32 value, uint word_pos) {
 
 bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
                  bool thread_safe) {
-  DBUG_ENTER("bitmap_init");
+  DBUG_TRACE;
   if (!buf) {
     uint size_in_bytes = bitmap_buffer_size(n_bits);
     uint extra = 0;
@@ -162,7 +162,7 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
 
     if (!(buf = (my_bitmap_map *)my_malloc(key_memory_MY_BITMAP_bitmap,
                                            size_in_bytes + extra, MYF(MY_WME))))
-      DBUG_RETURN(1);
+      return 1;
 
     if (thread_safe) {
       map->mutex = (mysql_mutex_t *)((char *)buf + size_in_bytes);
@@ -180,18 +180,17 @@ bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
   map->n_bits = n_bits;
   create_last_word_mask(map);
   bitmap_clear_all(map);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void bitmap_free(MY_BITMAP *map) {
-  DBUG_ENTER("bitmap_free");
+  DBUG_TRACE;
   if (map->bitmap) {
     if (map->mutex) mysql_mutex_destroy(map->mutex);
 
     my_free(map->bitmap);
     map->bitmap = 0;
   }
-  DBUG_VOID_RETURN;
 }
 
 /*

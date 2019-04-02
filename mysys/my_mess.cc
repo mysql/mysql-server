@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@
 */
 void my_message_stderr(uint error MY_ATTRIBUTE((unused)), const char *str,
                        myf MyFlags) {
-  DBUG_ENTER("my_message_stderr");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("message: %s", str));
   (void)fflush(stdout);
   if (MyFlags & ME_BELL) (void)fputc('\007', stderr);
@@ -81,5 +81,4 @@ void my_message_stderr(uint error MY_ATTRIBUTE((unused)), const char *str,
   (void)fputs(str, stderr);
   (void)fputc('\n', stderr);
   (void)fflush(stderr);
-  DBUG_VOID_RETURN;
 }

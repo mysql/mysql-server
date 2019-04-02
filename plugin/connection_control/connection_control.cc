@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@ MYSQL_PLUGIN connection_control_plugin_info = 0;
 static int connection_control_notify(MYSQL_THD thd,
                                      mysql_event_class_t event_class,
                                      const void *event) {
-  DBUG_ENTER("connection_control_notify");
+  DBUG_TRACE;
   try {
     if (event_class == MYSQL_AUDIT_CONNECTION_CLASS) {
       const struct mysql_event_connection *connection_event =
@@ -92,7 +92,7 @@ static int connection_control_notify(MYSQL_THD thd,
     /* Happily ignore any bad behavior */
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**

@@ -41,12 +41,11 @@
 Mutex_cond_array::Mutex_cond_array(Checkable_rwlock *_global_lock)
     : global_lock(_global_lock),
       m_array(key_memory_Mutex_cond_array_Mutex_cond) {
-  DBUG_ENTER("Mutex_cond_array::Mutex_cond_array");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
 Mutex_cond_array::~Mutex_cond_array() {
-  DBUG_ENTER("Mutex_cond_array::~Mutex_cond_array");
+  DBUG_TRACE;
   // destructor should only be called when no other thread may access object
   // global_lock->assert_no_lock();
   // need to hold lock before calling get_max_sidno
@@ -61,19 +60,17 @@ Mutex_cond_array::~Mutex_cond_array() {
     }
   }
   global_lock->unlock();
-  DBUG_VOID_RETURN;
 }
 
 void Mutex_cond_array::enter_cond(THD *thd, int n, PSI_stage_info *stage,
                                   PSI_stage_info *old_stage) const {
-  DBUG_ENTER("Mutex_cond_array::enter_cond");
+  DBUG_TRACE;
   Mutex_cond *mutex_cond = get_mutex_cond(n);
   thd->ENTER_COND(&mutex_cond->cond, &mutex_cond->mutex, stage, old_stage);
-  DBUG_VOID_RETURN;
 }
 
 enum_return_status Mutex_cond_array::ensure_index(int n) {
-  DBUG_ENTER("Mutex_cond_array::ensure_index");
+  DBUG_TRACE;
   global_lock->assert_some_wrlock();
   int max_index = get_max_index();
   if (n > max_index) {

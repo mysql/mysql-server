@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
-  DBUG_ENTER("lock_srs");
+  DBUG_TRACE;
   DBUG_ASSERT(srid != 0);
 
   char id_str[11];  // uint32 => max 10 digits + \0
@@ -70,11 +70,11 @@ bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type) {
                                       m_thd->variables.lock_wait_timeout)) {
     /* purecov: begin inspected */
     // If locking fails, an error has already been flagged.
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Srs_fetcher::acquire(gis::srid_t srid,

@@ -2542,7 +2542,7 @@ static void srv_master_sleep(void) {
 
 /** The master thread controlling the server. */
 void srv_master_thread() {
-  DBUG_ENTER("srv_master_thread");
+  DBUG_TRACE;
 
   srv_slot_t *slot;
   ulint old_activity_count = srv_get_activity_count();

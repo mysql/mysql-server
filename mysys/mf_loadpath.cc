@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,7 @@ char *my_load_path(char *to, const char *path, const char *own_path_prefix) {
   int cur_prefix_len;
   const char *buff_ptr = path;
 
-  DBUG_ENTER("my_load_path");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("path: %s  prefix: %s", path,
                        own_path_prefix ? own_path_prefix : ""));
 
@@ -94,5 +94,5 @@ char *my_load_path(char *to, const char *path, const char *own_path_prefix) {
   my_stpnmov(to, buff_ptr, FN_REFLEN);
   to[FN_REFLEN - 1] = '\0';
   DBUG_PRINT("exit", ("to: %s", to));
-  DBUG_RETURN(to);
+  return to;
 } /* my_load_path */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Event_parse_data {
         execute_at_null(true),
         item_expression(NULL),
         expression(0) {
-    DBUG_ENTER("Event_parse_data::Event_parse_data");
+    DBUG_TRACE;
 
     /* Actually in the parser STARTS is always set */
     starts = ends = execute_at = 0;
@@ -118,7 +118,7 @@ class Event_parse_data {
     comment.str = NULL;
     comment.length = 0;
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ~Event_parse_data() {}

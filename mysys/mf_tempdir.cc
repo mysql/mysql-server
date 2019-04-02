@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
   const char *end;
   char *copy;
   char buff[FN_REFLEN];
-  DBUG_ENTER("init_tmpdir");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
   Prealloced_array<char *, 10> full_list(key_memory_MY_TMPDIR_full_list);
@@ -71,20 +71,20 @@ bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
     if (!(copy = my_strndup(key_memory_MY_TMPDIR_full_list, buff, length,
                             MYF(MY_WME))) ||
         full_list.push_back(copy))
-      DBUG_RETURN(true);
+      return true;
     pathlist = end + 1;
   } while (*end);
 
   tmpdir->list = static_cast<char **>(
       my_malloc(key_memory_MY_TMPDIR_full_list,
                 sizeof(char *) * full_list.size(), MYF(MY_WME)));
-  if (tmpdir->list == NULL) DBUG_RETURN(true);
+  if (tmpdir->list == NULL) return true;
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
   memcpy(tmpdir->list, &full_list[0], sizeof(char *) * full_list.size());
   tmpdir->max = full_list.size() - 1;
   tmpdir->cur = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 char *my_tmpdir(MY_TMPDIR *tmpdir) {

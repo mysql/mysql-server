@@ -38,7 +38,7 @@ const char *Multisource_info::group_replication_channel_names[] = {
     "group_replication_applier", "group_replication_recovery"};
 
 bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
-  DBUG_ENTER("Multisource_info::add_mi");
+  DBUG_TRACE;
 
   m_channel_map_lock->assert_some_wrlock();
 
@@ -61,7 +61,7 @@ bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
         rep_channel_map.insert(
             replication_channel_map::value_type(type, mi_map()));
 
-    if (!map_ret.second) DBUG_RETURN(true);
+    if (!map_ret.second) return true;
 
     map_it = rep_channel_map.find(type);
   }
@@ -69,7 +69,7 @@ bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
   ret = map_it->second.insert(mi_map::value_type(channel_name, mi));
 
   /* If a map insert fails, ret.second is false */
-  if (!ret.second) DBUG_RETURN(true);
+  if (!ret.second) return true;
 
   /* Save the pointer for the default_channel to avoid searching it */
   if (!strcmp(channel_name, get_default_channel())) default_channel_mi = mi;
@@ -79,11 +79,11 @@ bool Multisource_info::add_mi(const char *channel_name, Master_info *mi) {
 #endif
   current_mi_count++;
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 Master_info *Multisource_info::get_mi(const char *channel_name) {
-  DBUG_ENTER("Multisource_info::get_mi");
+  DBUG_TRACE;
 
   m_channel_map_lock->assert_some_lock();
 
@@ -102,19 +102,19 @@ Master_info *Multisource_info::get_mi(const char *channel_name) {
       it == map_it->second.end()) {
     map_it = rep_channel_map.find(GROUP_REPLICATION_CHANNEL);
     if (map_it == rep_channel_map.end()) {
-      DBUG_RETURN(0);
+      return 0;
     }
     it = map_it->second.find(channel_name);
     if (it == map_it->second.end()) {
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 
-  DBUG_RETURN(it->second);
+  return it->second;
 }
 
 void Multisource_info::delete_mi(const char *channel_name) {
-  DBUG_ENTER("Multisource_info::delete_mi");
+  DBUG_TRACE;
 
   m_channel_map_lock->assert_some_wrlock();
 
@@ -169,8 +169,6 @@ void Multisource_info::delete_mi(const char *channel_name) {
     }
     delete mi;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 bool Multisource_info::is_group_replication_channel_name(const char *channel,
@@ -185,7 +183,7 @@ bool Multisource_info::is_group_replication_channel_name(const char *channel,
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi) {
-  DBUG_ENTER("Multisource_info::add_mi_to_rpl_pfs_mi");
+  DBUG_TRACE;
 
   m_channel_map_lock->assert_some_wrlock();
 
@@ -199,7 +197,7 @@ bool Multisource_info::add_mi_to_rpl_pfs_mi(Master_info *mi) {
       break;
     }
   }
-  DBUG_RETURN(res);
+  return res;
 }
 
 int Multisource_info::get_index_from_rpl_pfs_mi(const char *channel_name) {
@@ -216,17 +214,17 @@ int Multisource_info::get_index_from_rpl_pfs_mi(const char *channel_name) {
 }
 
 Master_info *Multisource_info::get_mi_at_pos(uint pos) {
-  DBUG_ENTER("Multisource_info::get_mi_at_pos");
+  DBUG_TRACE;
 
   m_channel_map_lock->assert_some_lock();
 
-  if (pos < MAX_CHANNELS) DBUG_RETURN(rpl_pfs_mi[pos]);
+  if (pos < MAX_CHANNELS) return rpl_pfs_mi[pos];
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 Rpl_filter *Rpl_channel_filters::create_filter(const char *channel_name) {
-  DBUG_ENTER("Rpl_channel_filters::create_filter");
+  DBUG_TRACE;
 
   Rpl_filter *rpl_filter;
   filter_map::iterator it;
@@ -248,14 +246,14 @@ Rpl_filter *Rpl_channel_filters::create_filter(const char *channel_name) {
       !ret.second) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_ADD_RPL_FILTER, channel_name);
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
-  DBUG_RETURN(rpl_filter);
+  return rpl_filter;
 }
 
 void Rpl_channel_filters::delete_filter(Rpl_filter *rpl_filter) {
-  DBUG_ENTER("Rpl_channel_filters::delete_filter");
+  DBUG_TRACE;
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->wrlock();
@@ -269,12 +267,10 @@ void Rpl_channel_filters::delete_filter(Rpl_filter *rpl_filter) {
       reset_pfs_view();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
       m_channel_to_filter_lock->unlock();
-      DBUG_VOID_RETURN;
+      return;
     }
   }
   m_channel_to_filter_lock->unlock();
-
-  DBUG_VOID_RETURN;
 }
 
 void Rpl_channel_filters::discard_group_replication_filters() {
@@ -296,7 +292,7 @@ void Rpl_channel_filters::discard_group_replication_filters() {
 }
 
 void Rpl_channel_filters::discard_all_unattached_filters() {
-  DBUG_ENTER("Rpl_channel_filters::delete_all_unattached_filters");
+  DBUG_TRACE;
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->wrlock();
@@ -324,12 +320,10 @@ void Rpl_channel_filters::discard_all_unattached_filters() {
   reset_pfs_view();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
   m_channel_to_filter_lock->unlock();
-
-  DBUG_VOID_RETURN;
 }
 
 Rpl_filter *Rpl_channel_filters::get_channel_filter(const char *channel_name) {
-  DBUG_ENTER("Rpl_channel_filters::get_channel_filter");
+  DBUG_TRACE;
   filter_map::iterator it;
   Rpl_filter *rpl_filter = nullptr;
 
@@ -346,13 +340,13 @@ Rpl_filter *Rpl_channel_filters::get_channel_filter(const char *channel_name) {
     m_channel_to_filter_lock->unlock();
   }
 
-  DBUG_RETURN(rpl_filter);
+  return rpl_filter;
 }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 
 void Rpl_channel_filters::reset_pfs_view() {
-  DBUG_ENTER("Rpl_channel_filters::reset_pfs_view");
+  DBUG_TRACE;
   m_channel_to_filter_lock->assert_some_wrlock();
 
   rpl_pfs_filter_vec.clear();
@@ -364,31 +358,29 @@ void Rpl_channel_filters::reset_pfs_view() {
     it->second->put_filters_into_vector(rpl_pfs_filter_vec, it->first.c_str());
     it->second->unlock();
   }
-
-  DBUG_VOID_RETURN;
 }
 
 Rpl_pfs_filter *Rpl_channel_filters::get_filter_at_pos(uint pos) {
-  DBUG_ENTER("Rpl_channel_filters::get_filter_at_pos");
+  DBUG_TRACE;
   m_channel_to_filter_lock->assert_some_rdlock();
   Rpl_pfs_filter *res = nullptr;
 
   if (pos < rpl_pfs_filter_vec.size()) res = &rpl_pfs_filter_vec[pos];
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 uint Rpl_channel_filters::get_filter_count() {
-  DBUG_ENTER("Rpl_channel_filters::get_filter_count");
+  DBUG_TRACE;
   m_channel_to_filter_lock->assert_some_rdlock();
 
-  DBUG_RETURN(rpl_pfs_filter_vec.size());
+  return rpl_pfs_filter_vec.size();
 }
 
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 bool Rpl_channel_filters::build_do_and_ignore_table_hashes() {
-  DBUG_ENTER("Rpl_channel_filters::build_do_and_ignore_table_hashes()");
+  DBUG_TRACE;
 
   /* Traverse the filter map. */
   m_channel_to_filter_lock->rdlock();
@@ -397,12 +389,12 @@ bool Rpl_channel_filters::build_do_and_ignore_table_hashes() {
     if (it->second->build_do_table_hash() ||
         it->second->build_ignore_table_hash()) {
       LogErr(ERROR_LEVEL, ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES);
-      DBUG_RETURN(-1);
+      return -1;
     }
   }
   m_channel_to_filter_lock->unlock();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */

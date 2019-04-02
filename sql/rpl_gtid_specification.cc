@@ -32,7 +32,7 @@
 
 enum_return_status Gtid_specification::parse(Sid_map *sid_map,
                                              const char *text) {
-  DBUG_ENTER("Gtid_specification::parse");
+  DBUG_TRACE;
   DBUG_ASSERT(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0) {
     type = AUTOMATIC_GTID;
@@ -50,24 +50,24 @@ enum_return_status Gtid_specification::parse(Sid_map *sid_map,
 }
 
 bool Gtid_specification::is_valid(const char *text) {
-  DBUG_ENTER("Gtid_specification::is_valid");
+  DBUG_TRACE;
   DBUG_ASSERT(text != nullptr);
   if (my_strcasecmp(&my_charset_latin1, text, "AUTOMATIC") == 0)
-    DBUG_RETURN(true);
+    return true;
   else if (my_strcasecmp(&my_charset_latin1, text, "ANONYMOUS") == 0)
-    DBUG_RETURN(true);
+    return true;
   else
-    DBUG_RETURN(Gtid::is_valid(text));
+    return Gtid::is_valid(text);
 }
 
 #endif  // ifdef MYSQL_SERVER
 
 int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
-  DBUG_ENTER("Gtid_specification::to_string(char*)");
+  DBUG_TRACE;
   switch (type) {
     case AUTOMATIC_GTID:
       strcpy(buf, "AUTOMATIC");
-      DBUG_RETURN(9);
+      return 9;
     case NOT_YET_DETERMINED_GTID:
       /*
         This can happen if user issues SELECT @@SESSION.GTID_NEXT
@@ -75,20 +75,20 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const {
         Format_description_log_event.
       */
       strcpy(buf, "NOT_YET_DETERMINED");
-      DBUG_RETURN(18);
+      return 18;
     case ANONYMOUS_GTID:
       strcpy(buf, "ANONYMOUS");
-      DBUG_RETURN(9);
+      return 9;
     /*
       UNDEFINED_GTID must be printed like ASSIGNED_GTID because of
       SELECT @@SESSION.GTID_NEXT.
     */
     case UNDEFINED_GTID:
     case ASSIGNED_GTID:
-      DBUG_RETURN(gtid.to_string(*sid, buf));
+      return gtid.to_string(*sid, buf);
   }
   DBUG_ASSERT(0);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -98,7 +98,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
                     latching any further pages */
     ulint mode)     /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
-  DBUG_ENTER("row_undo_mod_clust_low");
+  DBUG_TRACE;
 
   DBUG_LOG("undo", "undo_no=" << node->undo_no);
 
@@ -149,7 +149,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_clust_low(
     ut_a(!dummy_big_rec);
   }
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Purges a clustered index record after undo if possible.

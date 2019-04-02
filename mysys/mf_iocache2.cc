@@ -72,19 +72,19 @@
 */
 int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
   size_t bytes_in_cache;
-  DBUG_ENTER("my_b_copy_to_file");
+  DBUG_TRACE;
 
   /* Reinit the cache to read from the beginning of the cache */
-  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) DBUG_RETURN(1);
+  if (reinit_io_cache(cache, READ_CACHE, 0L, false, false)) return 1;
   bytes_in_cache = my_b_bytes_in_cache(cache);
   do {
     if (my_fwrite(file, cache->read_pos, bytes_in_cache,
                   MYF(MY_WME | MY_NABP)) == (size_t)-1)
-      DBUG_RETURN(1);
+      return 1;
     cache->read_pos = cache->read_end;
   } while ((bytes_in_cache = my_b_fill(cache)));
-  if (cache->error == -1) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (cache->error == -1) return 1;
+  return 0;
 }
 
 /*
@@ -94,7 +94,7 @@ int my_b_copy_to_file(IO_CACHE *cache, FILE *file) {
 
 void my_b_seek(IO_CACHE *info, my_off_t pos) {
   my_off_t offset;
-  DBUG_ENTER("my_b_seek");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("pos: %lu", (ulong)pos));
 
   /*
@@ -113,7 +113,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset < (ulonglong)(info->read_end - info->buffer)) {
       /* The read is in the current buffer; Reuse it */
       info->read_pos = info->buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     } else {
       /* Force a new read on next my_b_read */
       info->read_pos = info->read_end = info->buffer;
@@ -123,7 +123,7 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
     if ((ulonglong)offset <=
         (ulonglong)(info->write_end - info->write_buffer)) {
       info->write_pos = info->write_buffer + offset;
-      DBUG_VOID_RETURN;
+      return;
     }
     (void)flush_io_cache(info);
     /* Correct buffer end so that we write in increments of IO_SIZE */
@@ -132,7 +132,6 @@ void my_b_seek(IO_CACHE *info, my_off_t pos) {
   }
   info->pos_in_file = pos;
   info->seek_not_done = 1;
-  DBUG_VOID_RETURN;
 }
 
 /*

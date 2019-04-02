@@ -2203,7 +2203,7 @@ class THD : public MDL_context_owner,
    */
   /**@{*/
   void set_trans_pos(const char *file, my_off_t pos) {
-    DBUG_ENTER("THD::set_trans_pos");
+    DBUG_TRACE;
     DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
     if (file) {
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
@@ -2223,27 +2223,27 @@ class THD : public MDL_context_owner,
                ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
                 "m_trans_end_pos: %llu",
                 m_trans_log_file, m_trans_fixed_log_file, m_trans_end_pos));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void get_trans_pos(const char **file_var, my_off_t *pos_var) const {
-    DBUG_ENTER("THD::get_trans_pos");
+    DBUG_TRACE;
     if (file_var) *file_var = m_trans_log_file;
     if (pos_var) *pos_var = m_trans_end_pos;
     DBUG_PRINT("return",
                ("file: %s, pos: %llu", file_var ? *file_var : "<none>",
                 pos_var ? *pos_var : 0));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const {
-    DBUG_ENTER("THD::get_trans_fixed_pos");
+    DBUG_TRACE;
     if (file_var) *file_var = m_trans_fixed_log_file;
     if (pos_var) *pos_var = m_trans_end_pos;
     DBUG_PRINT("return",
                ("file: %s, pos: %llu", file_var ? *file_var : "<none>",
                 pos_var ? *pos_var : 0));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**@}*/
@@ -2542,7 +2542,7 @@ class THD : public MDL_context_owner,
                   const PSI_stage_info *stage, PSI_stage_info *old_stage,
                   const char *src_function, const char *src_file,
                   int src_line) {
-    DBUG_ENTER("THD::enter_cond");
+    DBUG_TRACE;
     mysql_mutex_assert_owner(mutex);
     /*
       Sic: We don't lock LOCK_current_cond here.
@@ -2552,12 +2552,12 @@ class THD : public MDL_context_owner,
     current_mutex = mutex;
     current_cond = cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void exit_cond(const PSI_stage_info *stage, const char *src_function,
                  const char *src_file, int src_line) {
-    DBUG_ENTER("THD::exit_cond");
+    DBUG_TRACE;
     /*
       current_mutex must be unlocked _before_ LOCK_current_cond is
       locked (if that would not be the case, you'll get a deadlock if someone
@@ -2569,7 +2569,7 @@ class THD : public MDL_context_owner,
     current_cond = NULL;
     mysql_mutex_unlock(&LOCK_current_cond);
     enter_stage(stage, NULL, src_function, src_file, src_line);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   virtual int is_killed() const final { return killed; }
@@ -2763,10 +2763,10 @@ class THD : public MDL_context_owner,
     mechanism. In future this function will be removed.
   */
   inline void clear_error() {
-    DBUG_ENTER("clear_error");
+    DBUG_TRACE;
     if (get_stmt_da()->is_error()) get_stmt_da()->reset_diagnostics_area();
     is_slave_error = false;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   bool is_classic_protocol() const {
@@ -2998,7 +2998,7 @@ class THD : public MDL_context_owner,
     decide_logging_format should call them. /Sven
   */
   inline void set_current_stmt_binlog_format_row_if_mixed() {
-    DBUG_ENTER("set_current_stmt_binlog_format_row_if_mixed");
+    DBUG_TRACE;
     /*
       This should only be called from decide_logging_format.
 
@@ -3019,20 +3019,20 @@ class THD : public MDL_context_owner,
     if ((variables.binlog_format == BINLOG_FORMAT_MIXED) && (in_sub_stmt == 0))
       set_current_stmt_binlog_format_row();
 
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void set_current_stmt_binlog_format_row() {
-    DBUG_ENTER("set_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     current_stmt_binlog_format = BINLOG_FORMAT_ROW;
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void clear_current_stmt_binlog_format_row() {
-    DBUG_ENTER("clear_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     current_stmt_binlog_format = BINLOG_FORMAT_STMT;
-    DBUG_VOID_RETURN;
+    return;
   }
   inline void reset_current_stmt_binlog_format_row() {
-    DBUG_ENTER("reset_current_stmt_binlog_format_row");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("in_sub_stmt: %d, system_thread: %s", in_sub_stmt != 0,
                          show_system_thread(system_thread)));
     if (in_sub_stmt == 0) {
@@ -3041,7 +3041,7 @@ class THD : public MDL_context_owner,
       else
         clear_current_stmt_binlog_format_row();
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**

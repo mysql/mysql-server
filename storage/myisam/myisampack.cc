@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -386,20 +386,20 @@ static void get_options(int *argc, char ***argv) {
 static MI_INFO *open_isam_file(char *name, int mode) {
   MI_INFO *isam_file;
   MYISAM_SHARE *share;
-  DBUG_ENTER("open_isam_file");
+  DBUG_TRACE;
 
   if (!(isam_file = mi_open(
             name, mode,
             (opt_wait ? HA_OPEN_WAIT_IF_LOCKED : HA_OPEN_ABORT_IF_LOCKED)))) {
     (void)fprintf(stderr, "%s gave error %d on open\n", name, my_errno());
-    DBUG_RETURN(0);
+    return 0;
   }
   share = isam_file->s;
   if (share->options & HA_OPTION_COMPRESS_RECORD && !join_table) {
     if (!force_pack) {
       (void)fprintf(stderr, "%s is already compressed\n", name);
       (void)mi_close(isam_file);
-      DBUG_RETURN(0);
+      return 0;
     }
     if (verbose) puts("Recompressing already compressed table");
     share->options &= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
@@ -409,10 +409,10 @@ static MI_INFO *open_isam_file(char *name, int mode) {
        share->state.state.data_file_length < 1024)) {
     (void)fprintf(stderr, "%s is too small to compress\n", name);
     (void)mi_close(isam_file);
-    DBUG_RETURN(0);
+    return 0;
   }
   (void)mi_lock_database(isam_file, F_WRLCK);
-  DBUG_RETURN(isam_file);
+  return isam_file;
 }
 
 static bool open_isam_files(PACK_MRG_INFO *mrg, char **names, uint count) {
@@ -465,7 +465,7 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
   my_off_t old_length, new_length, tot_elements;
   HUFF_COUNTS *huff_counts;
   HUFF_TREE *huff_trees;
-  DBUG_ENTER("compress");
+  DBUG_TRACE;
 
   isam_file = mrg->file[0]; /* Take this as an example */
   share = isam_file->s;
@@ -676,7 +676,7 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
   if (error) {
     (void)fprintf(stderr, "Aborting: %s is not compressed\n", org_name);
     (void)my_delete(new_name, MYF(MY_WME));
-    DBUG_RETURN(-1);
+    return -1;
   }
   if (write_loop || verbose) {
     if (old_length)
@@ -685,7 +685,7 @@ static int compress(PACK_MRG_INFO *mrg, char *result_table) {
     else
       puts("Empty file saved in compressed format");
   }
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   free_counts_and_tree_and_queue(huff_trees, trees, huff_counts, fields);
@@ -693,7 +693,7 @@ err:
   if (join_isam_file >= 0) (void)my_close(join_isam_file, MYF(0));
   mrg_close(mrg);
   (void)fprintf(stderr, "Aborted: %s is not compressed\n", org_name);
-  DBUG_RETURN(-1);
+  return -1;
 }
 
 /**
@@ -713,7 +713,7 @@ err:
 static int create_dest_frm(char *source_table, char *dest_table) {
   char source_name[FN_REFLEN], dest_name[FN_REFLEN];
 
-  DBUG_ENTER("create_dest_frm");
+  DBUG_TRACE;
 
   (void)fn_format(source_name, source_table, "", FRM_EXT,
                   MY_UNPACK_FILENAME | MY_RESOLVE_SYMLINKS);
@@ -728,7 +728,7 @@ static int create_dest_frm(char *source_table, char *dest_table) {
   */
   (void)my_copy(source_name, dest_name, MYF(MY_DONT_OVERWRITE_FILE));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /* Init a huff_count-struct for each field and init it */
@@ -803,7 +803,7 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
   bool static_row_size;
   HUFF_COUNTS *count, *end_count;
   TREE_ELEMENT *element;
-  DBUG_ENTER("get_statistic");
+  DBUG_TRACE;
 
   reclength = mrg->file[0]->s->base.reclength;
   record = (uchar *)my_alloca(reclength);
@@ -1058,7 +1058,7 @@ static int get_statistic(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
 
   mrg->records = record_count;
   mrg->max_blob_length = max_blob_length;
-  DBUG_RETURN(error != HA_ERR_END_OF_FILE);
+  return error != HA_ERR_END_OF_FILE;
 }
 
 static int compare_huff_elements(void *not_used MY_ATTRIBUTE((unused)),
@@ -1075,7 +1075,7 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
                          my_off_t records) {
   uint space_fields, fill_zero_fields, field_count[(int)FIELD_enum_val_count];
   my_off_t old_length, new_length, length;
-  DBUG_ENTER("check_counts");
+  DBUG_TRACE;
 
   memset(field_count, 0, sizeof(field_count));
   space_fields = fill_zero_fields = 0;
@@ -1252,7 +1252,6 @@ static void check_counts(HUFF_COUNTS *huff_counts, uint trees,
         fill_zero_fields, field_count[FIELD_SKIP_PRESPACE],
         field_count[FIELD_SKIP_ENDSPACE], field_count[FIELD_INTERVALL],
         field_count[FIELD_ZERO]);
-  DBUG_VOID_RETURN;
 }
 
 /* Test if we can use space-compression and empty-field-compression */
@@ -1321,21 +1320,21 @@ static int test_space_compress(HUFF_COUNTS *huff_counts, my_off_t records,
 static HUFF_TREE *make_huff_trees(HUFF_COUNTS *huff_counts, uint trees) {
   uint tree;
   HUFF_TREE *huff_tree;
-  DBUG_ENTER("make_huff_trees");
+  DBUG_TRACE;
 
   if (!(huff_tree = (HUFF_TREE *)my_malloc(PSI_NOT_INSTRUMENTED,
                                            trees * sizeof(HUFF_TREE),
                                            MYF(MY_WME | MY_ZEROFILL))))
-    DBUG_RETURN(0);
+    return 0;
 
   for (tree = 0; tree < trees; tree++) {
     if (make_huff_tree(huff_tree + tree, huff_counts + tree)) {
       while (tree--) my_free(huff_tree[tree].element_buffer);
       my_free(huff_tree);
-      DBUG_RETURN(0);
+      return 0;
     }
   }
-  DBUG_RETURN(huff_tree);
+  return huff_tree;
 }
 
 /*
@@ -1592,7 +1591,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
   uint i, found, bits_packed, first, last;
   my_off_t bytes_packed;
   HUFF_ELEMENT element_buffer[256];
-  DBUG_ENTER("calc_packed_length");
+  DBUG_TRACE;
 
   /*
     WARNING: We use a small hack for efficiency: Instead of placing
@@ -1620,7 +1619,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
       queue.root[found] = (uchar *)&huff_counts->counts[i];
     }
   }
-  if (!found) DBUG_RETURN(0); /* Empty tree */
+  if (!found) return 0; /* Empty tree */
   /*
     If there is only a single byte value in this field in all records,
     add a second element with zero incidence. This is required to enter
@@ -1685,7 +1684,7 @@ static my_off_t calc_packed_length(HUFF_COUNTS *huff_counts,
     queue.root[1] = (uchar *)new_huff_el;
     queue_replaced(&queue);
   }
-  DBUG_RETURN(bytes_packed + (bits_packed + 7) / 8);
+  return bytes_packed + (bits_packed + 7) / 8;
 }
 
 /* Remove trees that don't give any compression */
@@ -2211,11 +2210,10 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
   HUFF_TREE *tree;
   MI_INFO *isam_file = mrg->file[0];
   uint pack_version = (uint)isam_file->s->pack.version;
-  DBUG_ENTER("compress_isam_file");
+  DBUG_TRACE;
 
   /* Allocate a buffer for the records (excluding blobs). */
-  if (!(record = (uchar *)my_alloca(isam_file->s->base.reclength)))
-    DBUG_RETURN(-1);
+  if (!(record = (uchar *)my_alloca(isam_file->s->base.reclength))) return -1;
 
   end_count = huff_counts + isam_file->s->base.fields;
   min_record_length = (uint)~0;
@@ -2542,7 +2540,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
   mrg->ref_length = max_pack_length;
   mrg->min_pack_length = max_record_length ? min_record_length : 0;
   mrg->max_pack_length = max_record_length;
-  DBUG_RETURN(error || error_on_write || flush_buffer(~(ulong)0));
+  return error || error_on_write || flush_buffer(~(ulong)0);
 }
 
 static char *make_new_name(char *new_name, char *old_name) {
@@ -2677,7 +2675,7 @@ static int save_state(MI_INFO *isam_file, PACK_MRG_INFO *mrg,
   MYISAM_SHARE *share = isam_file->s;
   uint options = mi_uint2korr(share->state.header.options);
   uint key;
-  DBUG_ENTER("save_state");
+  DBUG_TRACE;
 
   options |= HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA;
   mi_int2store(share->state.header.options, options);
@@ -2712,7 +2710,7 @@ static int save_state(MI_INFO *isam_file, PACK_MRG_INFO *mrg,
   share->global_changed = 0;
   (void)my_chsize(share->kfile, share->base.keystart, 0, MYF(0));
   if (share->base.keys) isamchk_neaded = 1;
-  DBUG_RETURN(mi_state_info_write(share->kfile, &share->state, 1 + 2));
+  return mi_state_info_write(share->kfile, &share->state, 1 + 2);
 }
 
 static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
@@ -2720,7 +2718,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
   MI_STATE_INFO state;
   MI_INFO *isam_file = mrg->file[0];
   uint options;
-  DBUG_ENTER("save_state_mrg");
+  DBUG_TRACE;
 
   state = isam_file->s->state;
   options = (mi_uint2korr(state.header.options) | HA_OPTION_COMPRESS_RECORD |
@@ -2741,7 +2739,7 @@ static int save_state_mrg(File file, PACK_MRG_INFO *mrg, my_off_t new_length,
   state.state.checksum = crc;
   if (isam_file->s->base.keys) isamchk_neaded = 1;
   state.changed = STATE_CHANGED | STATE_NOT_ANALYZED; /* Force check of table */
-  DBUG_RETURN(mi_state_info_write(file, &state, 1 + 2));
+  return mi_state_info_write(file, &state, 1 + 2);
 }
 
 /* reset for mrg_rrnd */
@@ -2837,7 +2835,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count) {
   my_off_t **end_sort_p;
   my_off_t *sort_counts[256];
   my_off_t total;
-  DBUG_ENTER("fakebigcodes");
+  DBUG_TRACE;
 
   for (count = huff_counts; count < end_count; count++) {
     /*
@@ -2884,7 +2882,6 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count) {
     end_sort_p = sort_counts + 256;
     while (cur_sort_p < end_sort_p) **(cur_sort_p++) = 1;
   }
-  DBUG_VOID_RETURN;
 }
 
 #endif

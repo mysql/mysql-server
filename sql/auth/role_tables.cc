@@ -70,7 +70,7 @@ extern Role_index_map *g_authid_to_vertex;
 #define MYSQL_DEFAULT_ROLE_FIELD_ROLE_USER 3
 
 TABLE *open_role_edges_table(THD *thd) {
-  DBUG_ENTER("open_role_edges_table");
+  DBUG_TRACE;
   TABLE_LIST tablelst;
   tablelst.init_one_table(STRING_WITH_LEN("mysql"),
                           STRING_WITH_LEN("role_edges"), "role_edges", TL_WRITE,
@@ -80,14 +80,14 @@ TABLE *open_role_edges_table(THD *thd) {
   if (open_and_lock_tables(thd, &tablelst, MYSQL_LOCK_IGNORE_TIMEOUT)) {
     DBUG_PRINT("error", ("An error occurred while trying to open the "
                          "mysql.roles_edges table"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_RETURN(tablelst.table);
+  return tablelst.table;
 }
 
 TABLE *open_default_role_table(THD *thd) {
-  DBUG_ENTER("open_role_edges_table");
+  DBUG_TRACE;
   TABLE_LIST tablelst;
   tablelst.init_one_table(STRING_WITH_LEN("mysql"),
                           STRING_WITH_LEN("default_roles"), "default_roles",
@@ -97,23 +97,22 @@ TABLE *open_default_role_table(THD *thd) {
   if (open_and_lock_tables(thd, &tablelst, MYSQL_LOCK_IGNORE_TIMEOUT)) {
     DBUG_PRINT("error", ("En error occurred while trying to open the "
                          "mysql.roles_edges table"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_RETURN(tablelst.table);
+  return tablelst.table;
 }
 
 bool modify_role_edges_in_table(THD *thd, TABLE *table,
                                 const Auth_id_ref &from_user,
                                 const Auth_id_ref &to_user,
                                 bool with_admin_option, bool delete_option) {
-  DBUG_ENTER("modify_role_edges_in_table");
+  DBUG_TRACE;
   int ret = 0;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES))
-    DBUG_RETURN(true);
+  if (table_intact.check(table, ACL_TABLES::TABLE_ROLE_EDGES)) return true;
 
   table->use_all_columns();
 
@@ -142,7 +141,7 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
       ret = table->file->ha_delete_row(table->record[0]);
     } else if (ret == HA_ERR_KEY_NOT_FOUND) {
       /* If the key didn't exist the record is already gone and all is well. */
-      DBUG_RETURN(false);
+      return false;
     }
   } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
     /* Insert new edge into table */
@@ -152,20 +151,19 @@ bool modify_role_edges_in_table(THD *thd, TABLE *table,
                 from_user.second.str, to_user.first.str, to_user.second.str));
     ret = table->file->ha_write_row(table->record[0]);
   }
-  DBUG_RETURN(ret != 0);
+  return ret != 0;
 }
 
 bool modify_default_roles_in_table(THD *thd, TABLE *table,
                                    const Auth_id_ref &auth_id,
                                    const Auth_id_ref &role,
                                    bool delete_option) {
-  DBUG_ENTER("modify_default_roles_in_table");
+  DBUG_TRACE;
   int ret = 0;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES))
-    DBUG_RETURN(true);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DEFAULT_ROLES)) return true;
 
   table->use_all_columns();
   table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]->store(
@@ -195,7 +193,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
                         role.second.str));
     ret = table->file->ha_write_row(table->record[0]);
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -212,7 +210,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 */
 
 bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
-  DBUG_ENTER("populate_roles_caches");
+  DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   READ_RECORD read_record_info;
   TABLE *roles_edges_table = tablelst[0].table;
@@ -230,7 +228,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
                          /*ignore_not_found_rows=*/false)) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
-      DBUG_RETURN(true);
+      return true;
     }
 
     ACL_USER *acl_role;
@@ -260,7 +258,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
                         "Unknown authorization identifier `%s`@`%s`", MYF(0),
                         to_user, to_host);
         rebuild_vertex_index(thd);
-        DBUG_RETURN(true);
+        return true;
       }
       grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
     }
@@ -277,7 +275,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
                default_role_table->s->table_name.str);
 
       rebuild_vertex_index(thd);
-      DBUG_RETURN(true);
+      return true;
     }
     g_default_roles->clear();
     while (!(read_rec_errcode = read_record_info->Read())) {
@@ -303,5 +301,5 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     opt_mandatory_roles_cache = false;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }

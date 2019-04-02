@@ -64,13 +64,13 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   uchar *start;
   HA_KEYSEG *keyseg;
   bool is_ft = info->s->keyinfo[keynr].flag & HA_FULLTEXT;
-  DBUG_ENTER("_mi_make_key");
+  DBUG_TRACE;
 
   if (info->s->keyinfo[keynr].flag & HA_SPATIAL) {
     /*
       TODO: nulls processing
     */
-    DBUG_RETURN(sp_make_key(info, keynr, key, record, filepos));
+    return sp_make_key(info, keynr, key, record, filepos);
   }
 
   start = key;
@@ -173,7 +173,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key, const uchar *record,
   DBUG_DUMP("key", (uchar *)start, (uint)(key - start) + keyseg->length);
   DBUG_EXECUTE("key", _mi_print_key(DBUG_FILE, info->s->keyinfo[keynr].seg,
                                     start, (uint)(key - start)););
-  DBUG_RETURN((uint)(key - start)); /* Return keylength */
+  return (uint)(key - start); /* Return keylength */
 } /* _mi_make_key */
 
 /*
@@ -199,7 +199,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
   uchar *start_key = key;
   HA_KEYSEG *keyseg;
   bool is_ft = info->s->keyinfo[keynr].flag & HA_FULLTEXT;
-  DBUG_ENTER("_mi_pack_key");
+  DBUG_TRACE;
 
   /* "one part" rtree key is 2*SPDIMS part key in MyISAM */
   if (info->s->keyinfo[keynr].key_alg == HA_KEY_ALG_RTREE)
@@ -265,7 +265,7 @@ uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, const uchar *old,
   }
   if (last_used_keyseg) *last_used_keyseg = keyseg;
 
-  DBUG_RETURN((uint)(key - start_key));
+  return (uint)(key - start_key);
 } /* _mi_pack_key */
 
 /*
@@ -295,7 +295,7 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
   uchar *pos;
   HA_KEYSEG *keyseg;
   uchar *blob_ptr;
-  DBUG_ENTER("_mi_put_key_in_record");
+  DBUG_TRACE;
 
   blob_ptr = info->lastkey2;        /* Place to put blob parts */
   const uchar *key = info->lastkey; /* KEy that was read */
@@ -377,10 +377,10 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr, bool unpack_blobs,
       key += keyseg->length;
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 
 err:
-  DBUG_RETURN(1); /* Crashed row */
+  return 1; /* Crashed row */
 } /* _mi_put_key_in_record */
 
 /* Here when key reads are used */

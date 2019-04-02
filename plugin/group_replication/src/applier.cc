@@ -92,7 +92,7 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
                                          rpl_sidno group_sidno,
                                          ulonglong gtid_assignment_block_size,
                                          Shared_writelock *shared_stop_lock) {
-  DBUG_ENTER("Applier_module::setup_applier_module");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -104,7 +104,7 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
   pipeline = NULL;
 
   if ((error = get_pipeline(pipeline_type, &pipeline))) {
-    DBUG_RETURN(error);
+    return error;
   }
 
   reset_applier_logs = reset_logs;
@@ -113,11 +113,11 @@ int Applier_module::setup_applier_module(Handler_pipeline_type pipeline_type,
 
   shared_stop_write_lock = shared_stop_lock;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_module::purge_applier_queue_and_restart_applier_module() {
-  DBUG_ENTER("Applier_module::purge_applier_queue_and_restart_applier_module");
+  DBUG_TRACE;
   int error = 0;
 
   /*
@@ -135,7 +135,7 @@ int Applier_module::purge_applier_queue_and_restart_applier_module() {
   Pipeline_action *stop_action = new Handler_stop_action();
   error = pipeline->handle_action(stop_action);
   delete stop_action;
-  if (error) DBUG_RETURN(error); /* purecov: inspected */
+  if (error) return error; /* purecov: inspected */
 
   /* Purge the relay logs and initialize the channel*/
   Handler_applier_configuration_action *applier_conf_action =
@@ -145,7 +145,7 @@ int Applier_module::purge_applier_queue_and_restart_applier_module() {
 
   error = pipeline->handle_action(applier_conf_action);
   delete applier_conf_action;
-  if (error) DBUG_RETURN(error); /* purecov: inspected */
+  if (error) return error; /* purecov: inspected */
 
   channel_observation_manager_list
       ->get_channel_observation_manager(GROUP_CHANNEL_OBSERVATION_MANAGER_POS)
@@ -156,11 +156,11 @@ int Applier_module::purge_applier_queue_and_restart_applier_module() {
   error = pipeline->handle_action(start_action);
   delete start_action;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Applier_module::setup_pipeline_handlers() {
-  DBUG_ENTER("Applier_module::setup_pipeline_handlers");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -172,7 +172,7 @@ int Applier_module::setup_pipeline_handlers() {
 
   error = pipeline->handle_action(applier_conf_action);
   delete applier_conf_action;
-  if (error) DBUG_RETURN(error); /* purecov: inspected */
+  if (error) return error; /* purecov: inspected */
 
   Handler_certifier_configuration_action *cert_conf_action =
       new Handler_certifier_configuration_action(group_replication_sidno,
@@ -182,7 +182,7 @@ int Applier_module::setup_pipeline_handlers() {
 
   delete cert_conf_action;
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Applier_module::set_applier_thread_context() {
@@ -388,7 +388,7 @@ int Applier_module::apply_leaving_members_action_packet(
 }
 
 int Applier_module::applier_thread_handle() {
-  DBUG_ENTER("ApplierModule::applier_thread_handle()");
+  DBUG_TRACE;
 
   // set the thread context
   set_applier_thread_context();
@@ -548,11 +548,11 @@ end:
   applier_thread_is_exiting = true;
   my_thread_exit(0);
 
-  DBUG_RETURN(local_applier_error); /* purecov: inspected */
+  return local_applier_error; /* purecov: inspected */
 }
 
 int Applier_module::initialize_applier_thread() {
-  DBUG_ENTER("Applier_module::initialize_applier_thd");
+  DBUG_TRACE;
 
   // avoid concurrency calls against stop invocations
   mysql_mutex_lock(&run_lock);
@@ -567,7 +567,7 @@ int Applier_module::initialize_applier_thread() {
                            (void *)this))) {
     applier_thd_state.set_terminated();
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
-    DBUG_RETURN(1);                /* purecov: inspected */
+    return 1;                      /* purecov: inspected */
   }
 
   while (applier_thd_state.is_alive_not_running() && !applier_error) {
@@ -586,7 +586,7 @@ int Applier_module::initialize_applier_thread() {
   }
 
   mysql_mutex_unlock(&run_lock);
-  DBUG_RETURN(applier_error);
+  return applier_error;
 }
 
 int Applier_module::terminate_applier_pipeline() {
@@ -605,7 +605,7 @@ int Applier_module::terminate_applier_pipeline() {
 }
 
 int Applier_module::terminate_applier_thread() {
-  DBUG_ENTER("Applier_module::terminate_applier_thread");
+  DBUG_TRACE;
 
   /* This lock code needs to be re-written from scratch*/
   mysql_mutex_lock(&run_lock);
@@ -652,7 +652,7 @@ int Applier_module::terminate_applier_thread() {
     } else if (applier_thd_state.is_thread_alive())  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(1);
+      return 1;
     }
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
   }
@@ -677,11 +677,11 @@ delete_pipeline:
 
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Applier_module::inform_of_applier_stop(char *channel_name, bool aborted) {
-  DBUG_ENTER("Applier_module::inform_of_applier_stop");
+  DBUG_TRACE;
 
   if (!strcmp(channel_name, applier_module_channel_name) && aborted &&
       applier_thd_state.is_thread_alive()) {
@@ -695,13 +695,11 @@ void Applier_module::inform_of_applier_stop(char *channel_name, bool aborted) {
     // also awake the applier in case it is suspended
     awake_applier_module();
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Applier_module::leave_group_on_failure() {
   Notification_context ctx;
-  DBUG_ENTER("Applier_module::leave_group_on_failure");
+  DBUG_TRACE;
 
   LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_EXECUTION_FATAL_ERROR);
 
@@ -751,15 +749,13 @@ void Applier_module::leave_group_on_failure() {
 
   kill_pending_transactions(set_read_mode, false, leave_state,
                             &view_change_notifier);
-
-  DBUG_VOID_RETURN;
 }
 
 void Applier_module::kill_pending_transactions(
     bool set_read_mode, bool threaded_sql_session,
     Gcs_operations::enum_leave_state leave_state,
     Plugin_gcs_view_modification_notifier *view_notifier) {
-  DBUG_ENTER("Applier_module::kill_pending_transactions");
+  DBUG_TRACE;
 
   // Stop any more transactions from waiting
   bool already_locked = shared_stop_write_lock->try_grab_write_lock();
@@ -814,8 +810,6 @@ void Applier_module::kill_pending_transactions(
       !should_continue_autorejoin) {
     abort_plugin_process("Fatal error during execution of Group Replication");
   }
-
-  DBUG_VOID_RETURN;
 }
 
 int Applier_module::wait_for_applier_complete_suspension(
@@ -870,7 +864,7 @@ void Applier_module::interrupt_applier_suspension_wait() {
 }
 
 bool Applier_module::is_applier_thread_waiting() {
-  DBUG_ENTER("Applier_module::is_applier_thread_waiting");
+  DBUG_TRACE;
   Event_handler *event_applier = NULL;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
 
@@ -878,12 +872,12 @@ bool Applier_module::is_applier_thread_waiting() {
 
   bool result = ((Applier_handler *)event_applier)->is_applier_thread_waiting();
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int Applier_module::wait_for_applier_event_execution(
     double timeout, bool check_and_purge_partial_transactions) {
-  DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
+  DBUG_TRACE;
   int error = 0;
   Event_handler *event_applier = NULL;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
@@ -904,7 +898,7 @@ int Applier_module::wait_for_applier_event_execution(
       error = purge_applier_queue_and_restart_applier_module();
     }
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Applier_module::get_retrieved_gtid_set(std::string &retrieved_set) {
@@ -922,7 +916,7 @@ bool Applier_module::get_retrieved_gtid_set(std::string &retrieved_set) {
 int Applier_module::wait_for_applier_event_execution(std::string &retrieved_set,
                                                      double timeout,
                                                      bool update_THD_status) {
-  DBUG_ENTER("Applier_module::wait_for_applier_event_execution");
+  DBUG_TRACE;
   int error = 0;
   Event_handler *event_applier = NULL;
   Event_handler::get_handler_by_role(pipeline, APPLIER, &event_applier);
@@ -933,13 +927,13 @@ int Applier_module::wait_for_applier_event_execution(std::string &retrieved_set,
                                           update_THD_status);
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Applier_module::wait_for_current_events_execution(
     std::shared_ptr<Continuation> checkpoint_condition, bool *abort_flag,
     bool update_THD_status) {
-  DBUG_ENTER("Applier_module::wait_for_current_events_execution");
+  DBUG_TRACE;
   applier_module->queue_and_wait_on_queue_checkpoint(checkpoint_condition);
   std::string current_retrieve_set;
   if (applier_module->get_retrieved_gtid_set(current_retrieve_set)) return true;
@@ -951,11 +945,11 @@ bool Applier_module::wait_for_current_events_execution(
 
     /* purecov: begin inspected */
     if (error == -2) {  // error when waiting
-      DBUG_RETURN(true);
+      return true;
     }
     /* purecov: end */
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 Certification_handler *Applier_module::get_certification_handler() {

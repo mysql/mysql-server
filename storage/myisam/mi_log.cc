@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@ ulong myisam_pid = 0;
 int mi_log(int activate_log) {
   int error = 0;
   char buff[FN_REFLEN];
-  DBUG_ENTER("mi_log");
+  DBUG_TRACE;
 
   log_type = activate_log;
   if (activate_log) {
@@ -59,13 +59,13 @@ int mi_log(int activate_log) {
                mi_key_file_log,
                fn_format(buff, myisam_log_filename, "", ".log", 4), 0,
                (O_RDWR | O_APPEND), MYF(0))) < 0)
-        DBUG_RETURN(my_errno());
+        return my_errno();
     }
   } else if (myisam_log_file >= 0) {
     error = mysql_file_close(myisam_log_file, MYF(0)) ? my_errno() : 0;
     myisam_log_file = -1;
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /* Logging of records and commands on logfile */

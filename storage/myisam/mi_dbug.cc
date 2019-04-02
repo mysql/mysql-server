@@ -178,7 +178,7 @@ bool check_table_is_closed(const char *name, const char *where) {
   char filename[FN_REFLEN];
   char buf[FN_REFLEN * 2];
   LIST *pos;
-  DBUG_ENTER("check_table_is_closed");
+  DBUG_TRACE;
 
   (void)fn_format(filename, name, "", MI_NAME_IEXT, 4 + 16 + 32);
   mysql_mutex_lock(&THR_LOCK_myisam);
@@ -191,11 +191,11 @@ bool check_table_is_closed(const char *name, const char *where) {
         snprintf(buf, sizeof(buf) - 1, "Table: %s is open on %s", name, where);
         my_message_local(WARNING_LEVEL, EE_DEBUG_INFO, buf);
         DBUG_PRINT("warning", ("Table: %s is open on %s", name, where));
-        DBUG_RETURN(1);
+        return 1;
       }
     }
   }
   mysql_mutex_unlock(&THR_LOCK_myisam);
-  DBUG_RETURN(0);
+  return 0;
 }
 #endif /* EXTRA_DEBUG */

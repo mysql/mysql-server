@@ -137,7 +137,7 @@ unsigned long time_entered;
 {
   struct stack_t *t;
 
-  DBUG_ENTER("push");
+  DBUG_TRACE;
   if (++stacktop > STACKSIZ) {
     fprintf(DBUG_FILE, "%s: stack overflow (%s:%d)\n", my_name, __FILE__,
             __LINE__);
@@ -148,7 +148,6 @@ unsigned long time_entered;
   t->pos = name_pos;
   t->time = time_entered;
   t->children = 0;
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -164,7 +163,7 @@ unsigned long *child_time;
   struct stack_t *temp;
   unsigned int rtnval;
 
-  DBUG_ENTER("pop");
+  DBUG_TRACE;
 
   if (stacktop < 1) {
     rtnval = 0;
@@ -176,7 +175,7 @@ unsigned long *child_time;
     DBUG_PRINT("pop", ("%d %lu %lu", *name_pos, *time_entered, *child_time));
     rtnval = stacktop--;
   }
-  DBUG_RETURN(rtnval);
+  return rtnval;
 }
 
 /*
@@ -217,14 +216,14 @@ char *strsave(s) char *s;
   char *retval;
   unsigned int len;
 
-  DBUG_ENTER("strsave");
+  DBUG_TRACE;
   DBUG_PRINT("strsave", ("%s", s));
   if (!s || (len = strlen(s)) == 0) {
-    DBUG_RETURN(0);
+    return 0;
   }
   MALLOC(retval, ++len, char);
   strcpy(retval, s);
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /*
@@ -238,7 +237,7 @@ unsigned int add(m_name) char *m_name;
   unsigned int ind = 0;
   int cmp;
 
-  DBUG_ENTER("add");
+  DBUG_TRACE;
   if (n_items == 0) { /* First item to be added */
     s_table[0].pos = ind;
     s_table[0].lchild = s_table[0].rchild = MAXPROCS;
@@ -247,7 +246,7 @@ unsigned int add(m_name) char *m_name;
     modules[n_items].m_time = 0;
     modules[n_items].m_calls = 0;
     modules[n_items].m_stkuse = 0;
-    DBUG_RETURN(n_items++);
+    return n_items++;
   }
   while ((cmp = strcmp(m_name, modules[ind].name))) {
     if (cmp < 0) { /* In left subtree */
@@ -263,7 +262,7 @@ unsigned int add(m_name) char *m_name;
 #ifdef notdef
         modules[n_items].name = strsave(m_name);
         modules[n_items].m_time = modules[n_items].m_calls = 0;
-        DBUG_RETURN(n_items++);
+        return n_items++;
 #else
         goto addit;
 #endif
@@ -282,7 +281,7 @@ unsigned int add(m_name) char *m_name;
 #ifdef notdef
         modules[n_items].name = strsave(m_name);
         modules[n_items].m_time = modules[n_items].m_calls = 0;
-        DBUG_RETURN(n_items++);
+        return n_items++;
 #else
         goto addit;
 #endif
@@ -290,7 +289,7 @@ unsigned int add(m_name) char *m_name;
       ind = s_table[ind].rchild; /* else traverse r-tree */
     }
   }
-  DBUG_RETURN(ind);
+  return ind;
 }
 
 /*
@@ -312,7 +311,7 @@ void process(inf) FILE *inf;
   unsigned long oldchild;
   struct stack_t *t;
 
-  DBUG_ENTER("process");
+  DBUG_TRACE;
   while (fgets(buf, BUFSIZ, inf) != NULL) {
     switch (buf[0]) {
       case 'E':
@@ -412,7 +411,6 @@ void process(inf) FILE *inf;
     tot_time += local_time;
     tot_calls++;
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -421,7 +419,7 @@ void process(inf) FILE *inf;
 
 void out_header(outf) FILE *outf;
 {
-  DBUG_ENTER("out_header");
+  DBUG_TRACE;
   if (verbose) {
     fprintf(outf, "Profile of Execution\n");
     fprintf(outf, "Execution times are in milliseconds\n\n");
@@ -441,7 +439,6 @@ void out_header(outf) FILE *outf;
         outf,
         "   %%time     sec   #call ms/call  %%calls  weight   stack  name\n");
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -451,13 +448,12 @@ void out_header(outf) FILE *outf;
 void out_trailer(outf, sum_calls, sum_time) FILE *outf;
 unsigned long int sum_calls, sum_time;
 {
-  DBUG_ENTER("out_trailer");
+  DBUG_TRACE;
   if (verbose) {
     fprintf(outf, "======\t==========\t===========\t==========\t========\n");
     fprintf(outf, "%6ld\t%10.2f\t%11ld\t%10.2f\t\t%-15s\n", sum_calls, 100.0,
             sum_time, 100.0, "Totals");
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -478,7 +474,7 @@ unsigned long int *called, *timed;
   double per_calls = 0.0;
   double ms_per_call, local_ftime;
 
-  DBUG_ENTER("out_item");
+  DBUG_TRACE;
 
   if (tot_time > 0) {
     per_time = (double)(local_time * 100) / (double)tot_time;
@@ -501,7 +497,6 @@ unsigned long int *called, *timed;
   }
   *called = calls;
   *timed = local_time;
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -516,7 +511,7 @@ unsigned long int *s_calls, *s_time;
 {
   unsigned long int calls, local_time;
 
-  DBUG_ENTER("out_body");
+  DBUG_TRACE;
   DBUG_PRINT("out_body", ("%lu,%lu", *s_calls, *s_time));
   if (root == MAXPROCS) {
     DBUG_PRINT("out_body", ("%lu,%lu", *s_calls, *s_time));
@@ -531,7 +526,6 @@ unsigned long int *s_calls, *s_time;
     }
     DBUG_PRINT("out_body", ("%lu,%lu", *s_calls, *s_time));
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -543,7 +537,7 @@ void output(outf) FILE *outf;
   unsigned long int sum_calls = 0;
   unsigned long int sum_time = 0;
 
-  DBUG_ENTER("output");
+  DBUG_TRACE;
   if (n_items == 0) {
     fprintf(outf, "%s: No functions to trace\n", my_name);
     exit(EX_DATAERR);
@@ -551,7 +545,6 @@ void output(outf) FILE *outf;
   out_header(outf);
   out_body(outf, 0, &sum_calls, &sum_time);
   out_trailer(outf, sum_calls, sum_time);
-  DBUG_VOID_RETURN;
 }
 
 #define usage() fprintf(DBUG_FILE, "Usage: %s [-v] [prof-file]\n", my_name)
@@ -567,7 +560,7 @@ int main(int argc, char **argv) {
 
   my_thread_global_init();
   {
-    DBUG_ENTER("main");
+    DBUG_TRACE;
     DBUG_PROCESS(argv[0]);
     my_name = argv[0];
     while ((c = getopt(argc, argv, "#:v")) != EOF) {
@@ -585,7 +578,7 @@ int main(int argc, char **argv) {
     }
     if (badflg) {
       usage();
-      DBUG_RETURN(EX_USAGE);
+      return EX_USAGE;
     }
     if (optind < argc) {
       FILEOPEN(infile, argv[optind], "r");
@@ -594,6 +587,6 @@ int main(int argc, char **argv) {
     }
     process(infile);
     output(outfile);
-    DBUG_RETURN(EX_OK);
+    return EX_OK;
   }
 }

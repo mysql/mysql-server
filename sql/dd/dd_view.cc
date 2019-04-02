@@ -218,7 +218,7 @@ static dd::View::enum_security_type dd_get_new_view_security_type(
 
 static bool fill_dd_view_columns(THD *thd, View *view_obj,
                                  const TABLE_LIST *view) {
-  DBUG_ENTER("fill_dd_view_columns");
+  DBUG_TRACE;
 
   // Helper class which takes care restoration of THD::variables.sql_mode and
   // delete handler created for dummy table.
@@ -255,7 +255,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
                                   ha_default_temp_handlerton(thd));
   if (file == nullptr) {
     my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), view->db, view->table_name);
-    DBUG_RETURN(true);
+    return true;
   }
 
   Context_handler ctx_handler(thd, file);
@@ -315,7 +315,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
     }
     if (!tmp_field) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-      DBUG_RETURN(true);
+      return true;
     }
 
     // We have to take into account both the real table's fields and
@@ -331,7 +331,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         new (thd->mem_root) Create_field(tmp_field, orig_field);
     if (cr_field == nullptr) {
       my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (is_sp_func_item) cr_field->field_name = item->item_name.ptr();
@@ -344,7 +344,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
         name = static_cast<char *>(
             strmake_root(thd->mem_root, value.c_str(), value.length()));
       }
-      if (!name) DBUG_RETURN(true); /* purecov: inspected */
+      if (!name) return true; /* purecov: inspected */
       cr_field->field_name = name;
     }
 
@@ -359,8 +359,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
   }
 
   // Fill view columns information from the Create_field objects.
-  DBUG_RETURN(
-      fill_dd_columns_from_create_fields(thd, view_obj, create_fields, file));
+  return fill_dd_columns_from_create_fields(thd, view_obj, create_fields, file);
 }
 
 /**
@@ -374,7 +373,7 @@ static bool fill_dd_view_columns(THD *thd, View *view_obj,
 
 static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
                                 const TABLE_LIST *query_tables) {
-  DBUG_ENTER("fill_dd_view_tables");
+  DBUG_TRACE;
 
   for (const TABLE_LIST *table = query_tables; table != nullptr;
        table = table->next_global) {
@@ -426,8 +425,6 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
     view_table_obj->set_table_name(
         String_type(table_name.str, table_name.length));
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -440,7 +437,7 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
 
 static void fill_dd_view_routines(View *view_obj,
                                   Query_tables_list *routines_ctx) {
-  DBUG_ENTER("fill_dd_view_routines");
+  DBUG_TRACE;
 
   // View stored functions. We need only directly used routines.
   for (Sroutine_hash_entry *rt = routines_ctx->sroutines_list.first;
@@ -463,8 +460,6 @@ static void fill_dd_view_routines(View *view_obj,
     // View routine name
     view_sf_obj->set_routine_name(String_type(rt->name(), rt->name_length()));
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**

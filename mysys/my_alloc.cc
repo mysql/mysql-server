@@ -54,7 +54,7 @@
 #endif
 
 MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
-  DBUG_ENTER("MEM_ROOT::AllocBlock");
+  DBUG_TRACE;
 
   if (m_max_capacity != 0 && (m_allocated_size > m_max_capacity ||
                               length > m_max_capacity - m_allocated_size)) {
@@ -63,7 +63,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
                static_cast<ulonglong>(m_max_capacity));
       // NOTE: No early return; we will abort the query at the next safe point.
     } else {
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
   }
 
@@ -72,7 +72,7 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
                 MYF(MY_WME | ME_FATALERROR)));
   if (new_block == nullptr) {
     if (m_error_handler) (m_error_handler)();
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   m_allocated_size += length;
@@ -80,11 +80,11 @@ MEM_ROOT::Block *MEM_ROOT::AllocBlock(size_t length) {
   // Make the default block size 50% larger next time.
   // This ensures O(1) total mallocs (assuming Clear() is not called).
   m_block_size += m_block_size / 2;
-  DBUG_RETURN(new_block);
+  return new_block;
 }
 
 void *MEM_ROOT::AllocSlow(size_t length) {
-  DBUG_ENTER("MEM_ROOT::alloc");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p", this));
 
   // We need to allocate a new block to satisfy this allocation;
@@ -98,7 +98,7 @@ void *MEM_ROOT::AllocSlow(size_t length) {
     // since the new block isn't going to be used for the next allocation
     // anyway, we can just as well keep the previous one.
     Block *new_block = AllocBlock(length);
-    if (new_block == nullptr) DBUG_RETURN(nullptr);
+    if (new_block == nullptr) return nullptr;
 
     if (m_current_block == nullptr) {
       // This is the only block, so it has to be the current block, too.
@@ -115,14 +115,13 @@ void *MEM_ROOT::AllocSlow(size_t length) {
       m_current_block->prev = new_block;
     }
 
-    DBUG_RETURN(pointer_cast<char *>(new_block) +
-                ALIGN_SIZE(sizeof(*new_block)));
+    return pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
   } else {
     // The normal case: Throw away the current block, allocate a new block,
     // and use that to satisfy the new allocation.
     const size_t new_block_size = m_block_size;
     Block *new_block = AllocBlock(new_block_size);  // Will modify block_size.
-    if (new_block == nullptr) DBUG_RETURN(nullptr);
+    if (new_block == nullptr) return nullptr;
 
     new_block->prev = m_current_block;
     m_current_block = new_block;
@@ -131,16 +130,16 @@ void *MEM_ROOT::AllocSlow(size_t length) {
         pointer_cast<char *>(new_block) + ALIGN_SIZE(sizeof(*new_block));
     m_current_free_start = new_mem + length;
     m_current_free_end = new_mem + new_block_size;
-    DBUG_RETURN(new_mem);
+    return new_mem;
   }
 }
 
 void MEM_ROOT::Clear() {
-  DBUG_ENTER("MEM_ROOT::Clear()");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p", this));
 
   // Already cleared, or memset() to zero, so just ignore.
-  if (m_current_block == nullptr) DBUG_VOID_RETURN;
+  if (m_current_block == nullptr) return;
 
   Block *start = m_current_block;
 
@@ -151,19 +150,18 @@ void MEM_ROOT::Clear() {
   m_allocated_size = 0;
 
   FreeBlocks(start);
-  DBUG_VOID_RETURN;
 }
 
 void MEM_ROOT::ClearForReuse() {
-  DBUG_ENTER("MEM_ROOT::ClearForReuse()");
+  DBUG_TRACE;
 
   if (MEM_ROOT_SINGLE_CHUNKS) {
     Clear();
-    DBUG_VOID_RETURN;
+    return;
   }
 
   // Already cleared, or memset() to zero, so just ignore.
-  if (m_current_block == nullptr) DBUG_VOID_RETURN;
+  if (m_current_block == nullptr) return;
 
   // Keep the last block, which is usually the biggest one.
   m_current_free_start = pointer_cast<char *>(m_current_block) +
@@ -173,7 +171,6 @@ void MEM_ROOT::ClearForReuse() {
   m_allocated_size = m_current_free_end - m_current_free_start;
 
   FreeBlocks(start);
-  DBUG_VOID_RETURN;
 }
 
 void MEM_ROOT::FreeBlocks(Block *start) {
@@ -187,14 +184,12 @@ void MEM_ROOT::FreeBlocks(Block *start) {
 }
 
 void MEM_ROOT::Claim() {
-  DBUG_ENTER("MEM_ROOT::Claim()");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("root: %p", this));
 
   for (Block *block = m_current_block; block != nullptr; block = block->prev) {
     my_claim(block);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -220,7 +215,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   va_list args;
   char **ptr, *start, *res;
   size_t tot_length, length;
-  DBUG_ENTER("multi_alloc_root");
+  DBUG_TRACE;
 
   va_start(args, root);
   tot_length = 0;
@@ -231,7 +226,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
   va_end(args);
 
   if (!(start = static_cast<char *>(root->Alloc(tot_length))))
-    DBUG_RETURN(0); /* purecov: inspected */
+    return 0; /* purecov: inspected */
 
   va_start(args, root);
   res = start;
@@ -241,7 +236,7 @@ void *multi_alloc_root(MEM_ROOT *root, ...) {
     res += ALIGN_SIZE(length);
   }
   va_end(args);
-  DBUG_RETURN((void *)start);
+  return (void *)start;
 }
 
 char *strdup_root(MEM_ROOT *root, const char *str) {

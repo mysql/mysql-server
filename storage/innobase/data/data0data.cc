@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -473,7 +473,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
                                   ulint *n_ext)    /*!< in/out: number of
                                                    externally stored columns */
 {
-  DBUG_ENTER("dtuple_convert_big_rec");
+  DBUG_TRACE;
 
   mem_heap_t *heap;
   big_rec_t *vector;
@@ -485,7 +485,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
   ulint local_prefix_len;
 
   if (!index->is_clustered()) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   if (!dict_table_has_atomic_blobs(index->table)) {
@@ -577,7 +577,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
 
       mem_heap_free(heap);
 
-      DBUG_RETURN(NULL);
+      return NULL;
     }
 
     /* Move data from field longest_i to big rec vector.
@@ -665,7 +665,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
   }
 
   ut_ad(n_fields == vector->n_fields);
-  DBUG_RETURN(vector);
+  return vector;
 }
 
 /** Puts back to entry the data stored in vector. Note that to ensure the

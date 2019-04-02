@@ -100,7 +100,7 @@ bool Autorejoin_thread::abort_rejoin() {
 }
 
 int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
-  DBUG_ENTER("Autorejoin_thread::start_autorejoin");
+  DBUG_TRACE;
   int ret = 0;
 
   mysql_mutex_lock(&m_run_lock);
@@ -145,7 +145,7 @@ int Autorejoin_thread::start_autorejoin(uint attempts, ulonglong timeout) {
 
 end:
   mysql_mutex_unlock(&m_run_lock);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Autorejoin_thread::is_autorejoin_ongoing() {

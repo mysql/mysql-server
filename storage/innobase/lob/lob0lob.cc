@@ -177,7 +177,7 @@ int zReader::setup_zstream() {
 /** Fetch the BLOB.
 @return DB_SUCCESS on success, DB_FAIL on error. */
 dberr_t zReader::fetch() {
-  DBUG_ENTER("zReader::fetch");
+  DBUG_TRACE;
 
   dberr_t err = DB_SUCCESS;
 
@@ -239,7 +239,7 @@ end_of_blob:
   inflateEnd(&m_stream);
   mem_heap_free(m_heap);
   UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_stream.total_out);
-  DBUG_RETURN(err);
+  return err;
 }
 
 #ifdef UNIV_DEBUG
@@ -1087,7 +1087,7 @@ mark as extern storage in a record inserted for an update.
 @return number of flagged external columns */
 ulint btr_push_update_extern_fields(dtuple_t *tuple, const upd_t *update,
                                     mem_heap_t *heap) {
-  DBUG_ENTER("btr_push_update_extern_fields");
+  DBUG_TRACE;
 
   ulint n_pushed = 0;
   ulint n;
@@ -1152,7 +1152,7 @@ ulint btr_push_update_extern_fields(dtuple_t *tuple, const upd_t *update,
     }
   }
 
-  DBUG_RETURN(n_pushed);
+  return n_pushed;
 }
 
 /** Gets the externally stored size of a record, in units of a database page.

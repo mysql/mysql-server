@@ -246,14 +246,13 @@ done:
 */
 
 static int test_services_plugin_init(void *p) {
-  DBUG_ENTER("test_services_plugin_init");
+  DBUG_TRACE;
   int rc;
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
   rc = test_plugin_registry(reinterpret_cast<MYSQL_PLUGIN>(p)) ? 1 : 0;
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -267,8 +266,8 @@ static int test_services_plugin_init(void *p) {
 
 static int test_services_plugin_deinit(void *) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_ENTER("test_services_plugin_deinit");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 static struct st_mysql_daemon test_services_plugin_registry = {

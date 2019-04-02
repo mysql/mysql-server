@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,10 +239,10 @@ typedef struct xid_t {
   long get_format_id() const { return formatID; }
 
   void set_format_id(long v) {
-    DBUG_ENTER("xid_t::set_format_id");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("SETTING XID_STATE formatID: %ld", v));
     formatID = v;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   long get_gtrid_length() const { return gtrid_length; }
@@ -268,13 +268,13 @@ typedef struct xid_t {
   }
 
   void set(long f, const char *g, long gl, const char *b, long bl) {
-    DBUG_ENTER("xid_t::set");
+    DBUG_TRACE;
     DBUG_PRINT("debug", ("SETTING XID_STATE formatID: %ld", f));
     formatID = f;
     memcpy(data, g, gtrid_length = gl);
     bqual_length = bl;
     if (bl > 0) memcpy(data + gl, b, bl);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   my_xid get_my_xid() const;

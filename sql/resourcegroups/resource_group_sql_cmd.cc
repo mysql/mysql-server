@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -79,7 +79,7 @@ namespace {
 
 static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
                                                      const char *res_grp_name) {
-  DBUG_ENTER("acquire_exclusive_mdl_for_resource_group");
+  DBUG_TRACE;
 
   MDL_key mdl_key;
   dd::Resource_group::create_mdl_key(res_grp_name, &mdl_key);
@@ -89,9 +89,9 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
                           MDL_TRANSACTION);
   if (thd->mdl_context.acquire_lock(&mdl_request,
                                     thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -110,25 +110,25 @@ static bool acquire_exclusive_mdl_for_resource_group(THD *thd,
 bool validate_vcpu_range_vector(
     std::vector<resourcegroups::Range> *vcpu_range_vector,
     const Mem_root_array<resourcegroups::Range> *cpu_list, uint32_t num_vcpus) {
-  DBUG_ENTER("resourcegroups::validate_vcpu_range_vector");
+  DBUG_TRACE;
   for (auto vcpu_range : *cpu_list) {
     if (vcpu_range.m_start > vcpu_range.m_end) {
       my_error(ER_INVALID_VCPU_RANGE, MYF(0), vcpu_range.m_start,
                vcpu_range.m_end);
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (vcpu_range.m_start >= num_vcpus || vcpu_range.m_end >= num_vcpus) {
       my_error(ER_INVALID_VCPU_ID, MYF(0),
                vcpu_range.m_start >= num_vcpus ? vcpu_range.m_start
                                                : vcpu_range.m_end);
-      DBUG_RETURN(true);
+      return true;
     }
 
     vcpu_range_vector->emplace_back(
         resourcegroups::Range(vcpu_range.m_start, vcpu_range.m_end));
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -186,18 +186,18 @@ inline bool is_default_resource_group(const char *res_grp_name) {
 }  // Anonymous namespace
 
 bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd) {
-  DBUG_ENTER("resourcegroups::Sql_cmd_create_resource_group::execute");
+  DBUG_TRACE;
 
-  if (check_readonly(thd, true)) DBUG_RETURN(true);
+  if (check_readonly(thd, true)) return true;
 
   Security_context *sctx = thd->security_context();
   if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "RESOURCE_GROUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Resource group name validation.
-  if (is_invalid_string(m_name, system_charset_info)) DBUG_RETURN(true);
+  if (is_invalid_string(m_name, system_charset_info)) return true;
 
   // VCPU IDs list validation.
   uint32_t num_vcpus =
@@ -208,53 +208,52 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd) {
       new (std::nothrow) std::vector<Range>);
   if (vcpu_range_vector == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (validate_vcpu_range_vector(vcpu_range_vector.get(), m_cpu_list,
                                  num_vcpus))
-    DBUG_RETURN(true);
+    return true;
 
   if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   // Acquire exclusive lock on the resource group name.
-  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
-    DBUG_RETURN(true);
+  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
 
   auto res_grp_mgr = Resource_group_mgr::instance();
   // Check whether resource group exists in-memory.
   if (res_grp_mgr->get_resource_group(m_name.str) != nullptr) {
     my_error(ER_RESOURCE_GROUP_EXISTS, MYF(0), m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   bool resource_group_exists;
   // Check the disk also for existence of resource group.
   if (dd::resource_group_exists(thd->dd_client(), dd::String_type(m_name.str),
                                 &resource_group_exists))
-    DBUG_RETURN(true);
+    return true;
 
   if (resource_group_exists) {
     my_error(ER_RESOURCE_GROUP_EXISTS, MYF(0), m_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
 
   auto resource_group_ptr = res_grp_mgr->create_and_add_in_resource_group_hash(
       m_name, m_type, m_enabled, std::move(vcpu_range_vector), m_priority);
 
-  if (resource_group_ptr == nullptr) DBUG_RETURN(true);
+  if (resource_group_ptr == nullptr) return true;
 
   Disable_autocommit_guard autocommit_guard(thd);
   if (dd::create_resource_group(thd, *resource_group_ptr)) {
     Resource_group_mgr::instance()->remove_resource_group(
         std::string(m_name.str));
-    DBUG_RETURN(true);
+    return true;
   }
 
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -309,37 +308,36 @@ static inline resourcegroups::Resource_group *check_and_load_resource_group(
 }
 
 bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
-  DBUG_ENTER("resourcegroups::Sql_cmd_alter_resource_group::execute");
+  DBUG_TRACE;
 
-  if (check_readonly(thd, true)) DBUG_RETURN(true);
+  if (check_readonly(thd, true)) return true;
 
   Security_context *sctx = thd->security_context();
   if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "RESOURCE_GROUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Resource group name validation.
-  if (is_invalid_string(m_name, system_charset_info)) DBUG_RETURN(true);
+  if (is_invalid_string(m_name, system_charset_info)) return true;
 
   // Disallow altering USR_default & SYS_default resource group.
   if (is_default_resource_group(m_name.str)) {
     my_error(ER_DISALLOWED_OPERATION, MYF(0), "Alter",
              "default resource groups.");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   // Acquire exclusive lock on the resource group name.
-  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
-    DBUG_RETURN(true);
+  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
 
   auto resource_group = check_and_load_resource_group(thd, m_name);
 
-  if (resource_group == nullptr) DBUG_RETURN(true);
+  if (resource_group == nullptr) return true;
 
   // VCPU IDs list validation.
   uint32_t num_vcpus = Resource_group_mgr::instance()->num_vcpus();
@@ -349,21 +347,21 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
       new (std::nothrow) std::vector<Range>);
   if (vcpu_range_vector == nullptr) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (validate_vcpu_range_vector(vcpu_range_vector.get(), m_cpu_list,
                                  num_vcpus))
-    DBUG_RETURN(true);
+    return true;
 
   if (validate_resource_group_priority(thd, &m_priority, m_name,
                                        resource_group->type()))
-    DBUG_RETURN(true);
+    return true;
 
   // FORCE option is not paired with DISABLE option.
   if (m_force && (!m_use_enable || m_enable)) {
     my_error(ER_INVALID_USE_OF_FORCE_OPTION, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   Thread_resource_control *thr_res_ctrl = resource_group->controller();
@@ -387,7 +385,7 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
   // Update on-disk resource group.
   Disable_autocommit_guard autocommit_guard(thd);
   dd::String_type name(m_name.str);
-  if (update_resource_group(thd, name, *resource_group)) DBUG_RETURN(true);
+  if (update_resource_group(thd, name, *resource_group)) return true;
 
   /*
     Reapply controls on threads if there was some change in
@@ -422,41 +420,40 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
     }
   }
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
-  DBUG_ENTER("resourcegroups::Sql_cmd_drop_resource_group::execute");
+  DBUG_TRACE;
 
-  if (check_readonly(thd, true)) DBUG_RETURN(true);
+  if (check_readonly(thd, true)) return true;
 
   Security_context *sctx = thd->security_context();
   if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "RESOURCE_GROUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Resource group name validation.
-  if (is_invalid_string(m_name, system_charset_info)) DBUG_RETURN(true);
+  if (is_invalid_string(m_name, system_charset_info)) return true;
 
   // Disallow dropping USR_default & SYS_default resource group.
   if (is_default_resource_group(m_name.str)) {
     my_error(ER_DISALLOWED_OPERATION, MYF(0), "Drop operation ",
              "default resource groups.");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
       acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   // Acquire exclusive lock on the resource group name.
-  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
-    DBUG_RETURN(true);
+  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
 
   auto resource_group = check_and_load_resource_group(thd, m_name);
 
-  if (resource_group == nullptr) DBUG_RETURN(true);
+  if (resource_group == nullptr) return true;
 
   if (resource_group->is_bound_to_threads()) {
     if (m_force)  // move all threads to the default resource group.
@@ -466,20 +463,20 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
       resource_group->clear();
     } else {
       my_error(ER_RESOURCE_GROUP_BUSY, MYF(0), m_name.str);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
   // Remove from on-disk resource group.
   Disable_autocommit_guard autocommit_guard(thd);
-  if (dd::drop_resource_group(thd, m_name.str)) DBUG_RETURN(true);
+  if (dd::drop_resource_group(thd, m_name.str)) return true;
 
   // Remove from in-memory hash the resource group.
   if (resource_group != nullptr)
     Resource_group_mgr::instance()->remove_resource_group(m_name.str);
 
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -621,28 +618,27 @@ static bool check_resource_group_set_privilege(Security_context *sctx) {
 }
 
 bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
-  DBUG_ENTER("resourcegroups::Sql_cmd_set_resource_group::execute");
+  DBUG_TRACE;
 
   Security_context *sctx = thd->security_context();
-  if (check_resource_group_set_privilege(sctx)) DBUG_RETURN(true);
+  if (check_resource_group_set_privilege(sctx)) return true;
 
   // Acquire exclusive lock on the resource group name to synchronize with hint.
-  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
-    DBUG_RETURN(true);
+  if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str)) return true;
 
   auto resource_group = check_and_load_resource_group(thd, m_name);
-  if (resource_group == nullptr) DBUG_RETURN(true);
+  if (resource_group == nullptr) return true;
 
   if ((resource_group->type() == Type::SYSTEM_RESOURCE_GROUP) &&
       !sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "RESOURCE_GROUP_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!resource_group->enabled()) {
     my_error(ER_RESOURCE_GROUP_DISABLED, MYF(0),
              resource_group->name().c_str());
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (m_thread_id_list == nullptr || m_thread_id_list->empty()) {
@@ -655,7 +651,7 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
                resource_group->name().c_str(), pfs_thread_id,
                "System resource group can't be applied to user thread.");
-      DBUG_RETURN(true);
+      return true;
     }
 
     auto res_grp_mgr = resourcegroups::Resource_group_mgr::instance();
@@ -673,14 +669,14 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
                resource_group->name().c_str(), pfs_thread_id,
                "Unable to acquire MDL lock.");
-      DBUG_RETURN(true);
+      return true;
     }
 
     if (resource_group->controller()->apply_control()) {
       my_error(ER_RESOURCE_GROUP_BIND_FAILED, MYF(0),
                resource_group->name().c_str(), pfs_thread_id,
                "Failed to apply thread resource controls");
-      DBUG_RETURN(true);
+      return true;
     }
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -701,7 +697,7 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
     if (m_thread_id_list->size() == 1 &&
         check_and_apply_resource_grp(thd, m_thread_id_list->at(0),
                                      resource_group, true))
-      DBUG_RETURN(true);
+      return true;
     else
       for (const auto &thread_id : *m_thread_id_list)
         (void)check_and_apply_resource_grp(thd, thread_id, resource_group,
@@ -709,15 +705,15 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd) {
   }
 
   my_ok(thd);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool resourcegroups::Sql_cmd_set_resource_group::prepare(THD *thd) {
-  DBUG_ENTER("Sql_cmd_set_resource_group::prepare");
+  DBUG_TRACE;
 
-  if (Sql_cmd::prepare(thd)) DBUG_RETURN(true);
+  if (Sql_cmd::prepare(thd)) return true;
 
   bool rc = check_resource_group_set_privilege(thd->security_context());
 
-  DBUG_RETURN(rc);
+  return rc;
 }

@@ -132,7 +132,7 @@ bool Rotate_innodb_master_key::execute() {
 }
 
 bool Rotate_binlog_master_key::execute() {
-  DBUG_ENTER("Rotate_binlog_master_key::execute");
+  DBUG_TRACE;
 
   MUTEX_LOCK(lock, &LOCK_rotate_binlog_master_key);
 
@@ -142,18 +142,18 @@ bool Rotate_binlog_master_key::execute() {
            .first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER or BINLOG_ENCRYPTION_ADMIN");
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (!rpl_encryption.is_enabled()) {
     my_error(ER_RPL_ENCRYPTION_CANNOT_ROTATE_BINLOG_MASTER_KEY, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (rpl_encryption.remove_remaining_seqnos_from_keyring()) DBUG_RETURN(true);
+  if (rpl_encryption.remove_remaining_seqnos_from_keyring()) return true;
 
-  if (rpl_encryption.rotate_master_key()) DBUG_RETURN(true);
+  if (rpl_encryption.rotate_master_key()) return true;
 
   my_ok(m_thd);
-  DBUG_RETURN(false);
+  return false;
 }

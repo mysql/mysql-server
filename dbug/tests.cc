@@ -8,26 +8,25 @@ char *push1 = 0;
 #include <string.h>
 
 const char *func3() {
-  DBUG_ENTER("func3");
-  DBUG_RETURN(DBUG_EVALUATE("ret3", "ok", "ko"));
+  DBUG_TRACE;
+  return DBUG_EVALUATE("ret3", "ok", "ko");
 }
 
 void func2() {
   const char *s;
-  DBUG_ENTER("func2");
+  DBUG_TRACE;
   s = func3();
   DBUG_PRINT("info", ("s=%s", s));
-  DBUG_VOID_RETURN;
 }
 
 int func1() {
-  DBUG_ENTER("func1");
+  DBUG_TRACE;
   func2();
   if (push1) {
     DBUG_PUSH(push1);
     fprintf(DBUG_FILE, "=> push1\n");
   }
-  DBUG_RETURN(10);
+  return 10;
 }
 
 int main(int argc, char *argv[]) {
@@ -47,7 +46,7 @@ int main(int argc, char *argv[]) {
       DBUG_PUSH(argv[i]);
   }
   {
-    DBUG_ENTER("main");
+    DBUG_TRACE;
     DBUG_PROCESS("dbug-tests");
     func1();
     DBUG_EXECUTE_IF("dump", {
@@ -69,6 +68,6 @@ int main(int argc, char *argv[]) {
       DBUG_PRINT("explain", ("dbug explained: %s", s));
     }
     func2();
-    DBUG_RETURN(0);
+    return 0;
   }
 }

@@ -153,22 +153,22 @@ uint find_type2(const TYPELIB *typelib, const char *x, size_t length,
                 const CHARSET_INFO *cs) {
   int pos;
   const char *j;
-  DBUG_ENTER("find_type2");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("x: '%.*s'  lib: 0x%p", static_cast<int>(length), x, typelib));
 
   if (!typelib->count) {
     DBUG_PRINT("exit", ("no count"));
-    DBUG_RETURN(0);
+    return 0;
   }
 
   for (pos = 0; (j = typelib->type_names[pos]); pos++) {
     if (!my_strnncoll(cs, (const uchar *)x, length, (const uchar *)j,
                       typelib->type_lengths[pos]))
-      DBUG_RETURN(pos + 1);
+      return pos + 1;
   }
   DBUG_PRINT("exit", ("Couldn't find type"));
-  DBUG_RETURN(0);
+  return 0;
 } /* find_type */
 
 /*

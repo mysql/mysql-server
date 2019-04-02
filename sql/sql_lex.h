@@ -2232,10 +2232,10 @@ class Query_tables_list {
     BINLOG_STMT_FLAG_UNSAFE_* flags in @c enum_binlog_stmt_flag.
   */
   inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
-    DBUG_ENTER("set_stmt_unsafe");
+    DBUG_TRACE;
     DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
     binlog_stmt_flags |= (1U << unsafe_type);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2247,10 +2247,10 @@ class Query_tables_list {
     where flag is a member of enum_binlog_stmt_unsafe.
   */
   inline void set_stmt_unsafe_flags(uint32 flags) {
-    DBUG_ENTER("set_stmt_unsafe_flags");
+    DBUG_TRACE;
     DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
     binlog_stmt_flags |= flags;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2260,8 +2260,8 @@ class Query_tables_list {
     from this function has bit (1<<flag) set to 1.
   */
   inline uint32 get_stmt_unsafe_flags() const {
-    DBUG_ENTER("get_stmt_unsafe_flags");
-    DBUG_RETURN(binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS);
+    DBUG_TRACE;
+    return binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS;
   }
 
   /**
@@ -2281,10 +2281,10 @@ class Query_tables_list {
     the slave SQL thread.
   */
   inline void set_stmt_row_injection() {
-    DBUG_ENTER("set_stmt_row_injection");
+    DBUG_TRACE;
     binlog_stmt_flags |=
         (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   enum enum_stmt_accessed_table {
@@ -2395,13 +2395,13 @@ class Query_tables_list {
                            e.g. temporary, transactional, non-transactional.
   */
   inline void set_stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
-    DBUG_ENTER("LEX::set_stmt_accessed_table");
+    DBUG_TRACE;
 
     DBUG_ASSERT(accessed_table >= 0 &&
                 accessed_table < STMT_ACCESS_TABLE_COUNT);
     stmt_accessed_table_flag |= (1U << accessed_table);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -2416,12 +2416,12 @@ class Query_tables_list {
       @retval false otherwise
   */
   inline bool stmt_accessed_table(enum_stmt_accessed_table accessed_table) {
-    DBUG_ENTER("LEX::stmt_accessed_table");
+    DBUG_TRACE;
 
     DBUG_ASSERT(accessed_table >= 0 &&
                 accessed_table < STMT_ACCESS_TABLE_COUNT);
 
-    DBUG_RETURN((stmt_accessed_table_flag & (1U << accessed_table)) != 0);
+    return (stmt_accessed_table_flag & (1U << accessed_table)) != 0;
   }
 
   /*

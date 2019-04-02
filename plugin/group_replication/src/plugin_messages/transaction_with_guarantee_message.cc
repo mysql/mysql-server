@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ my_off_t Transaction_with_guarantee_message::length() { return m_data.size(); }
 
 void Transaction_with_guarantee_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_with_guarantee_message::encode_payload");
+  DBUG_TRACE;
 
   encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
                                       m_data.size());
@@ -51,14 +51,12 @@ void Transaction_with_guarantee_message::encode_payload(
   char consistency_level_aux = static_cast<char>(m_consistency_level);
   encode_payload_item_char(buffer, PIT_TRANSACTION_CONSISTENCY_LEVEL,
                            consistency_level_aux);
-
-  DBUG_VOID_RETURN;
 }
 
 /* purecov: begin inspected */
 void Transaction_with_guarantee_message::decode_payload(
     const unsigned char *buffer, const unsigned char *) {
-  DBUG_ENTER("Transaction_with_guarantee_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -73,16 +71,13 @@ void Transaction_with_guarantee_message::decode_payload(
   m_consistency_level = static_cast<enum_group_replication_consistency_level>(
       consistency_level_aux);
   DBUG_ASSERT(m_consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
-
-  DBUG_VOID_RETURN;
 }
 /* purecov: end */
 
 enum_group_replication_consistency_level
 Transaction_with_guarantee_message::decode_and_get_consistency_level(
     const unsigned char *buffer, size_t) {
-  DBUG_ENTER(
-      "Transaction_with_guarantee_message::decode_and_get_consistency_level");
+  DBUG_TRACE;
 
   // Get first payload item pointer and size.
   const unsigned char *payload_data = NULL;
@@ -99,5 +94,5 @@ Transaction_with_guarantee_message::decode_and_get_consistency_level(
           consistency_level_aux);
   DBUG_ASSERT(consistency_level >= GROUP_REPLICATION_CONSISTENCY_AFTER);
 
-  DBUG_RETURN(consistency_level);
+  return consistency_level;
 }

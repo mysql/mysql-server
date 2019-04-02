@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -99,13 +99,13 @@ void unregister_all_dynamic_privileges(void) {
 */
 
 bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
-  DBUG_ENTER("populate_dynamic_privilege_caches");
+  DBUG_TRACE;
   bool error = false;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   Acl_table_intact table_intact(thd);
 
   if (table_intact.check(tablelst[0].table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
-    DBUG_RETURN(true);
+    return true;
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
@@ -114,7 +114,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
                        /*ignore_not_found_rows=*/false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
-    DBUG_RETURN(true);
+    return true;
   }
   int read_rec_errcode;
   MEM_ROOT tmp_mem;
@@ -128,7 +128,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
         "dynamic_privilege_register.mysql_server", r);
     if (!service.is_valid()) {
-      DBUG_RETURN(true);
+      return true;
     }
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
     while (!error && !(read_rec_errcode = read_record_info->Read())) {
@@ -179,7 +179,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     get_global_acl_cache()->increase_version();
   }  // exit scope
   mysql_plugin_registry_release(r);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -205,13 +205,12 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
                                         const LEX_CSTRING &privilege,
                                         bool with_grant_option,
                                         bool delete_option) {
-  DBUG_ENTER("modify_dynamic_privileges_in_table");
+  DBUG_TRACE;
   int ret = 0;
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-  if (table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
-    DBUG_RETURN(true);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV)) return true;
 
   table->use_all_columns();
   table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]->store(
@@ -234,7 +233,7 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
       ret = table->file->ha_delete_row(table->record[0]);
     } else if (ret == HA_ERR_KEY_NOT_FOUND) {
       /* If the key didn't exist the record is already gone and all is well. */
-      DBUG_RETURN(false);
+      return false;
     }
   } else if (ret == HA_ERR_KEY_NOT_FOUND && !delete_option) {
     /* Insert new edge into table */
@@ -244,7 +243,7 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
                 (with_grant_option == true ? "WITH GRANT OPTION" : "")));
     ret = table->file->ha_write_row(table->record[0]);
   }
-  DBUG_RETURN(ret != 0);
+  return ret != 0;
 }
 
 bool iterate_all_dynamic_privileges(THD *thd,

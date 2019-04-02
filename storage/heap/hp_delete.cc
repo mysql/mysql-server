@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,13 +33,13 @@ int heap_delete(HP_INFO *info, const uchar *record) {
   uchar *pos;
   HP_SHARE *share = info->s;
   HP_KEYDEF *keydef, *end, *p_lastinx;
-  DBUG_ENTER("heap_delete");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("info: %p  record: %p", info, record));
 
   test_active(info);
 
   if (info->opt_flag & READ_CHECK_USED && hp_rectest(info, record))
-    DBUG_RETURN(my_errno()); /* Record changed */
+    return my_errno(); /* Record changed */
   share->changed = 1;
 
   if (--(share->records) < share->blength >> 1) share->blength >>= 1;
@@ -62,10 +62,10 @@ int heap_delete(HP_INFO *info, const uchar *record) {
   DBUG_EXECUTE("check_heap", heap_check_heap(info, 0););
 #endif
 
-  DBUG_RETURN(0);
+  return 0;
 err:
   if (++(share->records) == share->blength) share->blength += share->blength;
-  DBUG_RETURN(my_errno());
+  return my_errno();
 }
 
 /*
@@ -111,7 +111,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   ulong blength, pos2, pos_hashnr, lastpos_hashnr, key_pos;
   HASH_INFO *lastpos, *gpos, *pos, *pos3, *empty, *last_ptr;
   HP_SHARE *share = info->s;
-  DBUG_ENTER("hp_delete_key");
+  DBUG_TRACE;
 
   blength = share->blength;
   if (share->records + 1 == blength) blength += blength;
@@ -131,7 +131,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     gpos = pos;
     if (!(pos = pos->next_key)) {
       set_my_errno(HA_ERR_CRASHED);
-      DBUG_RETURN(HA_ERR_CRASHED); /* This shouldn't happend */
+      return HA_ERR_CRASHED; /* This shouldn't happend */
     }
   }
 
@@ -154,7 +154,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     keyinfo->hash_buckets--;
 
   if (empty == lastpos) /* deleted last hash key */
-    DBUG_RETURN(0);
+    return 0;
 
   /* Move the last key (lastpos) */
   lastpos_hashnr = lastpos->hash;
@@ -164,7 +164,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   if (pos == empty) /* Move to empty position. */
   {
     empty[0] = lastpos[0];
-    DBUG_RETURN(0);
+    return 0;
   }
   pos_hashnr = pos->hash;
   /* pos3 is where the pos should be */
@@ -174,7 +174,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     empty[0] = pos[0];             /* Save it here */
     pos[0] = lastpos[0];           /* This shold be here */
     hp_movelink(pos, pos3, empty); /* Fix link to pos */
-    DBUG_RETURN(0);
+    return 0;
   }
   pos2 = hp_mask(lastpos_hashnr, blength, share->records + 1);
   if (pos2 == hp_mask(pos_hashnr, blength,
@@ -182,7 +182,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
     if (pos2 != share->records) {
       empty[0] = lastpos[0];
       hp_movelink(lastpos, pos, empty);
-      DBUG_RETURN(0);
+      return 0;
     }
     pos3 = pos; /* Link pos->next after lastpos */
     /*
@@ -202,5 +202,5 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *record,
   empty[0] = lastpos[0];
   hp_movelink(pos3, empty, pos->next_key);
   pos->next_key = empty;
-  DBUG_RETURN(0);
+  return 0;
 }

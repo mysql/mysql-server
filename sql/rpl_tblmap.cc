@@ -66,18 +66,18 @@ table_mapping::~table_mapping() {
 }
 
 Mapped_table *table_mapping::get_table(ulonglong table_id) {
-  DBUG_ENTER("table_mapping::get_table(ulonglong)");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_id: %llu", table_id));
   auto it = m_table_ids.find(table_id);
   if (it != m_table_ids.end()) {
     entry *e = it->second;
     DBUG_PRINT("info", ("tid %llu -> table %p (%s)", table_id, e->table,
                         MAYBE_TABLE_NAME(e->table)));
-    DBUG_RETURN(e->table);
+    return e->table;
   }
 
   DBUG_PRINT("info", ("tid %llu is not mapped!", table_id));
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 /*
@@ -98,14 +98,14 @@ int table_mapping::expand() {
 }
 
 int table_mapping::set_table(ulonglong table_id, Mapped_table *table) {
-  DBUG_ENTER("table_mapping::set_table(ulonglong, Mapped_table*)");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table_id: %llu  table: %p (%s)", table_id, table,
                        MAYBE_TABLE_NAME(table)));
   entry *e;
   auto it = m_table_ids.find(table_id);
   if (it == m_table_ids.end()) {
     if (m_free == 0 && expand())
-      DBUG_RETURN(ERR_MEMORY_ALLOCATION);  // Memory allocation failed
+      return ERR_MEMORY_ALLOCATION;  // Memory allocation failed
     e = m_free;
     m_free = m_free->next;
   } else {
@@ -121,7 +121,7 @@ int table_mapping::set_table(ulonglong table_id, Mapped_table *table) {
 
   DBUG_PRINT("info", ("tid %llu -> table %p (%s)", table_id, e->table,
                       MAYBE_TABLE_NAME(e->table)));
-  DBUG_RETURN(0);  // All OK
+  return 0;  // All OK
 }
 
 int table_mapping::remove_table(ulonglong table_id) {
@@ -141,7 +141,7 @@ int table_mapping::remove_table(ulonglong table_id) {
   memory), and empties the hash.
 */
 void table_mapping::clear_tables() {
-  DBUG_ENTER("table_mapping::clear_tables()");
+  DBUG_TRACE;
   for (const auto &key_and_value : m_table_ids) {
     entry *e = key_and_value.second;
 #ifndef MYSQL_SERVER
@@ -151,5 +151,4 @@ void table_mapping::clear_tables() {
     m_free = e;
   }
   m_table_ids.clear();
-  DBUG_VOID_RETURN;
 }

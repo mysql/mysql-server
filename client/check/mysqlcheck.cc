@@ -425,7 +425,7 @@ static int get_options(int *argc, char ***argv, MEM_ROOT *alloc) {
 } /* get_options */
 
 static int dbConnect(char *host, char *user, char *passwd) {
-  DBUG_ENTER("dbConnect");
+  DBUG_TRACE;
   if (verbose) {
     fprintf(stderr, "# Connecting to %s...\n", host ? host : "localhost");
   }
@@ -433,7 +433,7 @@ static int dbConnect(char *host, char *user, char *passwd) {
   if (opt_compress) mysql_options(&mysql_connection, MYSQL_OPT_COMPRESS, NullS);
   if (SSL_SET_OPTIONS(&mysql_connection)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
-    DBUG_RETURN(1);
+    return 1;
   }
   if (opt_protocol)
     mysql_options(&mysql_connection, MYSQL_OPT_PROTOCOL, (char *)&opt_protocol);
@@ -464,10 +464,10 @@ static int dbConnect(char *host, char *user, char *passwd) {
   if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd, NULL,
                                   opt_mysql_port, opt_mysql_unix_port, 0))) {
     DBerror(&mysql_connection, "when trying to connect");
-    DBUG_RETURN(1);
+    return 1;
   }
   mysql_connection.reconnect = 1;
-  DBUG_RETURN(0);
+  return 0;
 } /* dbConnect */
 
 static void dbDisconnect(char *host) {
@@ -477,11 +477,10 @@ static void dbDisconnect(char *host) {
 } /* dbDisconnect */
 
 static void DBerror(MYSQL *mysql, string when) {
-  DBUG_ENTER("DBerror");
+  DBUG_TRACE;
   my_printf_error(0, "Got error: %d: %s %s", MYF(0), mysql_errno(mysql),
                   mysql_error(mysql), when.c_str());
   safe_exit(EX_MYSQLERR);
-  DBUG_VOID_RETURN;
 } /* DBerror */
 
 static void safe_exit(int error) {

@@ -88,14 +88,14 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
   int findpos = 0; /* guarded by find */
   const char *i;
   const char *j;
-  DBUG_ENTER("find_type");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("x: '%s'  lib: %p", x, typelib));
 
   DBUG_ASSERT(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_ALLOW_NUMBER |
                           FIND_TYPE_NO_OVERWRITE | FIND_TYPE_COMMA_TERM)));
   if (!typelib->count) {
     DBUG_PRINT("exit", ("no count"));
-    DBUG_RETURN(0);
+    return 0;
   }
   find = 0;
   for (pos = 0; (j = typelib->type_names[pos]); pos++) {
@@ -108,7 +108,7 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
     if (!*j) {
       while (*i == ' ') i++; /* skip_end_space */
       if (!*i || ((flags & FIND_TYPE_COMMA_TERM) && is_field_separator(*i)))
-        DBUG_RETURN(pos + 1);
+        return pos + 1;
     }
     if ((!*i && (!(flags & FIND_TYPE_COMMA_TERM) || !is_field_separator(*i))) &&
         (!*j || !(flags & FIND_TYPE_NO_PREFIX))) {
@@ -122,12 +122,12 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
     find = 1;
   else if (find == 0 || !x[0]) {
     DBUG_PRINT("exit", ("Couldn't find type"));
-    DBUG_RETURN(0);
+    return 0;
   } else if (find != 1 || (flags & FIND_TYPE_NO_PREFIX)) {
     DBUG_PRINT("exit", ("Too many possybilities"));
-    DBUG_RETURN(-1);
+    return -1;
   }
-  DBUG_RETURN(findpos + 1);
+  return findpos + 1;
 } /* find_type */
 
 /**
@@ -138,12 +138,11 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
 */
 
 void make_type(char *to, uint nr, TYPELIB *typelib) {
-  DBUG_ENTER("make_type");
+  DBUG_TRACE;
   if (!nr)
     to[0] = 0;
   else
     (void)my_stpcpy(to, get_type(typelib, nr - 1));
-  DBUG_VOID_RETURN;
 } /* make_type */
 
 /**
@@ -176,12 +175,12 @@ my_ulonglong find_typeset(const char *x, TYPELIB *lib, int *err) {
   my_ulonglong result;
   int find;
   const char *i;
-  DBUG_ENTER("find_set");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("x: '%s'  lib: %p", x, lib));
 
   if (!lib->count) {
     DBUG_PRINT("exit", ("no count"));
-    DBUG_RETURN(0);
+    return 0;
   }
   result = 0;
   *err = 0;
@@ -191,12 +190,11 @@ my_ulonglong find_typeset(const char *x, TYPELIB *lib, int *err) {
     while (*x && !is_field_separator(*x)) x++;
     if (x[0] && x[1]) /* skip separator if found */
       x++;
-    if ((find = find_type(i, lib, FIND_TYPE_COMMA_TERM) - 1) < 0)
-      DBUG_RETURN(0);
+    if ((find = find_type(i, lib, FIND_TYPE_COMMA_TERM) - 1) < 0) return 0;
     result |= (1ULL << find);
   }
   *err = 0;
-  DBUG_RETURN(result);
+  return result;
 } /* find_set */
 
 /**

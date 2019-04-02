@@ -279,12 +279,11 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
                             struct st_mysql_ftparser *parser) {
   MYSQL_FTPARSER_PARAM *param;
   MY_FTB_PARAM ftb_param;
-  DBUG_ENTER("_ftb_parse_query");
+  DBUG_TRACE;
   DBUG_ASSERT(parser);
 
-  if (ftb->state != FTB::UNINITIALIZED) DBUG_RETURN(0);
-  if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 0)))
-    DBUG_RETURN(1);
+  if (ftb->state != FTB::UNINITIALIZED) return 0;
+  if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 0))) return 1;
 
   ftb_param.ftb = ftb;
   ftb_param.depth = 0;
@@ -299,7 +298,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   param->length = len;
   param->flags = 0;
   param->mode = MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
-  DBUG_RETURN(parser->parse(param));
+  return parser->parse(param);
 }
 
 static int _ftb_no_dupes_cmp(const void *, const void *a, const void *b) {
@@ -651,11 +650,10 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
                              FTB_EXPR *ftbe, struct st_mysql_ftparser *parser) {
   MY_FTB_PHRASE_PARAM ftb_param;
   MYSQL_FTPARSER_PARAM *param;
-  DBUG_ENTER("_ftb_check_phrase");
+  DBUG_TRACE;
   DBUG_ASSERT(parser);
 
-  if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 1)))
-    DBUG_RETURN(0);
+  if (!(param = ftparser_call_initializer(ftb->info, ftb->keynr, 1))) return 0;
 
   ftb_param.phrase = ftbe->phrase;
   ftb_param.document = ftbe->document;
@@ -672,8 +670,8 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->length = len;
   param->flags = 0;
   param->mode = MYSQL_FTPARSER_WITH_STOPWORDS;
-  if (unlikely(parser->parse(param))) DBUG_RETURN(-1);
-  DBUG_RETURN(ftb_param.match ? 1 : 0);
+  if (unlikely(parser->parse(param))) return -1;
+  return ftb_param.match ? 1 : 0;
 }
 
 static int _ftb_climb_the_tree(FTB *ftb, FTB_WORD *ftbw,

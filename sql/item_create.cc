@@ -1132,7 +1132,7 @@ Item *Create_udf_func::create_func(THD *thd, LEX_STRING name,
 
 Item *Create_udf_func::create(THD *thd, udf_func *udf,
                               PT_item_list *item_list) {
-  DBUG_ENTER("Create_udf_func::create");
+  DBUG_TRACE;
 
   DBUG_ASSERT((udf->type == UDFTYPE_FUNCTION) ||
               (udf->type == UDFTYPE_AGGREGATE));
@@ -1168,7 +1168,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
     default:
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "UDF return type");
   }
-  DBUG_RETURN(func);
+  return func;
 }
 
 Create_sp_func Create_sp_func::s_singleton;

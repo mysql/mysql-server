@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -833,12 +833,11 @@ Used to fill tables for each test.
 void fill_tables(const char **query_list, unsigned query_count) {
   int rc;
   const char **query;
-  DBUG_ENTER("fill_tables");
+  DBUG_TRACE;
   for (query = query_list; query < query_list + query_count; ++query) {
     rc = mysql_query(mysql, *query);
     myquery(rc);
   }
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -872,7 +871,7 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
   int rc;
   unsigned i;
   MYSQL_RES *metadata;
-  DBUG_ENTER("stmt_fetch_init");
+  DBUG_TRACE;
 
   /* Save query and statement number for error messages */
   fetch->stmt_no = stmt_no_arg;
@@ -924,7 +923,6 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
   fetch->is_open = true;
 
   /* Ready for reading rows */
-  DBUG_VOID_RETURN;
 }
 
 /* Fetch and print one row from cursor */
@@ -932,7 +930,7 @@ static void stmt_fetch_init(Stmt_fetch *fetch, unsigned stmt_no_arg,
 static int stmt_fetch_fetch_row(Stmt_fetch *fetch) {
   int rc;
   unsigned i;
-  DBUG_ENTER("stmt_fetch_fetch_row");
+  DBUG_TRACE;
 
   if ((rc = mysql_stmt_fetch(fetch->handle)) == 0) {
     ++fetch->row_count;
@@ -944,19 +942,18 @@ static int stmt_fetch_fetch_row(Stmt_fetch *fetch) {
     }
   } else
     fetch->is_open = false;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 static void stmt_fetch_close(Stmt_fetch *fetch) {
   unsigned i;
-  DBUG_ENTER("stmt_fetch_close");
+  DBUG_TRACE;
 
   for (i = 0; i < fetch->column_count; ++i) free(fetch->out_data[i]);
   free(fetch->out_data);
   free(fetch->out_data_length);
   free(fetch->bind_array);
   mysql_stmt_close(fetch->handle);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -975,7 +972,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
   Stmt_fetch *fetch_array =
       (Stmt_fetch *)calloc(1, sizeof(Stmt_fetch) * query_count);
   Stmt_fetch *fetch;
-  DBUG_ENTER("fetch_n");
+  DBUG_TRACE;
 
   for (fetch = fetch_array; fetch < fetch_array + query_count; ++fetch) {
     /* Init will exit(1) in case of error */
@@ -1022,7 +1019,7 @@ bool fetch_n(const char **query_list, unsigned query_count,
   for (fetch = fetch_array; fetch < fetch_array + query_count; ++fetch)
     stmt_fetch_close(fetch);
   free(fetch_array);
-  DBUG_RETURN(error_count != 0);
+  return error_count != 0;
 }
 
 /* Separate thread query to test some cases */

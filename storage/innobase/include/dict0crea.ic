@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -53,7 +53,7 @@ dberr_t dict_create_add_foreign_id(
     const char *name,        /*!< in: table name */
     dict_foreign_t *foreign) /*!< in/out: foreign key */
 {
-  DBUG_ENTER("dict_create_add_foreign_id");
+  DBUG_TRACE;
 
   if (foreign->id == NULL) {
     /* Generate a new constraint id */
@@ -84,7 +84,7 @@ dberr_t dict_create_add_foreign_id(
         /* Server has already done this check,
         So assert here */
         ut_ad(0);
-        DBUG_RETURN(DB_IDENTIFIER_TOO_LONG);
+        return DB_IDENTIFIER_TOO_LONG;
       }
     }
     foreign->id = id;
@@ -92,7 +92,7 @@ dberr_t dict_create_add_foreign_id(
     DBUG_PRINT("dict_create_add_foreign_id", ("generated foreign id: %s", id));
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Compose a column number for a virtual column, stored in the "POS" field

@@ -705,7 +705,7 @@ class Slave_worker : public Relay_log_info {
     @return 1 if an error was encountered, 0 otherwise.
   */
   int set_rli_description_event(Format_description_log_event *fdle) {
-    DBUG_ENTER("Slave_worker::set_rli_description_event");
+    DBUG_TRACE;
 
     if (fdle) {
       /*
@@ -787,7 +787,7 @@ class Slave_worker : public Relay_log_info {
         } else if (in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
-          DBUG_RETURN(1);
+          return 1;
         }
       }
       adapt_to_master_version_updown(fdle->get_product_version(),
@@ -806,7 +806,7 @@ class Slave_worker : public Relay_log_info {
     }
     rli_description_event = fdle;
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   inline void reset_gaq_index() { gaq_index = c_rli->gaq->size; }

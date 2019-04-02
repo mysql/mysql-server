@@ -198,14 +198,14 @@ template <typename T>
 static bool prepare_view_tables_list(THD *thd, const char *db,
                                      const char *tbl_or_sf_name,
                                      std::vector<TABLE_LIST *> *views) {
-  DBUG_ENTER("prepare_view_tables_list");
+  DBUG_TRACE;
   std::vector<dd::Object_id> view_ids;
   std::set<dd::Object_id> prepared_view_ids;
 
   // Fetch all views using db.tbl_or_sf_name (Base table/ View/ Stored function)
   if (thd->dd_client()->fetch_referencing_views_object_id<T>(db, tbl_or_sf_name,
                                                              &view_ids))
-    DBUG_RETURN(true);
+    return true;
 
   for (uint idx = 0; idx < view_ids.size(); idx++) {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -218,13 +218,13 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       // by the same statement (e.g. RENAME TABLE).
       if (thd->dd_client()->acquire_uncached_uncommitted(view_ids.at(idx),
                                                          &view))
-        DBUG_RETURN(true);
+        return true;
       if (!view) continue;
 
       dd::Schema *schema = nullptr;
       if (thd->dd_client()->acquire_uncached_uncommitted(view->schema_id(),
                                                          &schema))
-        DBUG_RETURN(true);
+        return true;
       if (!schema) continue;
       view_name = view->name();
       schema_name = schema->name();
@@ -234,15 +234,15 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
     if (prepared_view_ids.find(view_ids.at(idx)) == prepared_view_ids.end()) {
       // Prepare TABLE_LIST object for the view and push_back
       TABLE_LIST *vw = new (thd->mem_root) TABLE_LIST;
-      if (vw == nullptr) DBUG_RETURN(true);
+      if (vw == nullptr) return true;
 
       const char *db_name = strmake_root(thd->mem_root, schema_name.c_str(),
                                          schema_name.length());
-      if (db_name == nullptr) DBUG_RETURN(true);
+      if (db_name == nullptr) return true;
 
       const char *vw_name =
           strmake_root(thd->mem_root, view_name.c_str(), view_name.length());
-      if (vw_name == nullptr) DBUG_RETURN(true);
+      if (vw_name == nullptr) return true;
 
       vw->init_one_table(db_name, schema_name.length(), vw_name,
                          view_name.length(), vw_name, TL_IGNORE, MDL_EXCLUSIVE);
@@ -254,11 +254,11 @@ static bool prepare_view_tables_list(THD *thd, const char *db,
       // Fetch all views using schema_name.view_name
       if (thd->dd_client()->fetch_referencing_views_object_id<dd::View_table>(
               schema_name.c_str(), view_name.c_str(), &view_ids))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -288,7 +288,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
                                    const char *tbl_or_sf_name,
                                    std::vector<TABLE_LIST *> *views_list,
                                    bool commit_dd_changes) {
-  DBUG_ENTER("mark_all_views_invalid");
+  DBUG_TRACE;
   DBUG_ASSERT(!views_list->empty());
 
   // Acquire lock on all the views.
@@ -303,7 +303,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   }
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     In the time gap of listing referencing views and acquiring MDL lock on them
@@ -313,8 +313,8 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
   */
   std::vector<TABLE_LIST *> updated_views_list;
   if (prepare_view_tables_list<T>(thd, db, tbl_or_sf_name, &updated_views_list))
-    DBUG_RETURN(true);
-  if (updated_views_list.empty()) DBUG_RETURN(false);
+    return true;
+  if (updated_views_list.empty()) return false;
 
   // Update state of the views as invalid.
   for (auto view : *views_list) {
@@ -332,10 +332,10 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
     if (update_status &&
         dd::update_view_status(thd, view->get_db_name(), view->get_table_name(),
                                false, commit_dd_changes))
-      DBUG_RETURN(true);
+      return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -362,7 +362,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
 static bool open_views_and_update_metadata(
     THD *thd, const std::vector<TABLE_LIST *> *views, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("open_views_and_update_metadata");
+  DBUG_TRACE;
 
   if (!commit_dd_changes) {
     /*
@@ -378,13 +378,13 @@ static bool open_views_and_update_metadata(
                        MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
       if (thd->mdl_context.acquire_lock(&schema_request,
                                         thd->variables.lock_wait_timeout))
-        DBUG_RETURN(true);
+        return true;
 
       MDL_REQUEST_INIT_BY_KEY(&view_request, &view->mdl_request.key,
                               MDL_EXCLUSIVE, MDL_STATEMENT);
       if (thd->mdl_context.acquire_lock(&view_request,
                                         thd->variables.lock_wait_timeout))
-        DBUG_RETURN(true);
+        return true;
     }
   }
 
@@ -433,14 +433,14 @@ static bool open_views_and_update_metadata(
           if (dd::update_view_status(thd, view->get_db_name(),
                                      view->get_table_name(), false,
                                      commit_dd_changes))
-            DBUG_RETURN(true);
+            return true;
         }
       } else if (error_handler.is_view_error_handled() == false) {
         // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
         // ER_LOCK_WAIT_TIMEOUT.
         DBUG_EXECUTE_IF("enable_stack_overrun_simulation",
                         { DBUG_SET("-d,simulate_stack_overrun"); });
-        DBUG_RETURN(true);
+        return true;
       }
       continue;
     }
@@ -465,11 +465,11 @@ static bool open_views_and_update_metadata(
         if (dd::update_view_status(thd, view->get_db_name(),
                                    view->get_table_name(), false,
                                    commit_dd_changes))
-          DBUG_RETURN(true);
+          return true;
       } else if (error_handler.is_view_error_handled() == false) {
         // ER_STACK_OVERRUN_NEED_MORE, ER_LOCK_DEADLOCK or
         // ER_LOCK_WAIT_TIMEOUT.
-        DBUG_RETURN(true);
+        return true;
       }
       continue;
     }
@@ -498,14 +498,14 @@ static bool open_views_and_update_metadata(
     thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
     if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
                            view_query.length()))
-      DBUG_RETURN(true);
+      return true;
 
     // Update view metadata in the data-dictionary tables.
     view->updatable_view = is_updatable_view(thd, view);
     dd::View *new_view = nullptr;
     if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
                                                    &new_view))
-      DBUG_RETURN(true);
+      return true;
     DBUG_ASSERT(new_view != nullptr);
     bool res = dd::update_view(thd, new_view, view);
 
@@ -522,7 +522,7 @@ static bool open_views_and_update_metadata(
       view_lex->unit->cleanup(thd, true);
       lex_end(view_lex);
       thd->lex = org_lex;
-      DBUG_RETURN(true);
+      return true;
     }
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->get_db_name(),
                      view->get_table_name(), false);
@@ -533,7 +533,7 @@ static bool open_views_and_update_metadata(
   }
   DEBUG_SYNC(thd, "after_updating_view_metadata");
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -550,7 +550,7 @@ static bool open_views_and_update_metadata(
 
 static bool is_view_metadata_update_needed(THD *thd, const char *db,
                                            const char *name) {
-  DBUG_ENTER("is_view_metadata_update_needed");
+  DBUG_TRACE;
 
   /*
     View metadata update is needed if table is not a temporary or dictionary
@@ -598,7 +598,7 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
       break;
   }
 
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -670,35 +670,35 @@ static bool update_referencing_views_metadata(
     THD *thd, const char *db, const char *table_name, const char *new_db,
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
 
   // Update metadata for view's referencing table.
   if (is_view_metadata_update_needed(thd, db, table_name)) {
     // Prepare list of all views referencing the table.
     if (update_view_metadata<dd::View_table>(
             thd, db, table_name, commit_dd_changes, uncommitted_tables))
-      DBUG_RETURN(true);
+      return true;
 
     // Open views and update views metadata.
     if (new_db != nullptr && new_table_name != nullptr &&
         update_view_metadata<dd::View_table>(
             thd, new_db, new_table_name, commit_dd_changes, uncommitted_tables))
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool update_referencing_views_metadata(
     THD *thd, const TABLE_LIST *table, const char *new_db,
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(table != nullptr);
 
   bool error = update_referencing_views_metadata(
       thd, table->get_db_name(), table->get_table_name(), new_db,
       new_table_name, commit_dd_changes, uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool update_referencing_views_metadata(
@@ -711,17 +711,17 @@ bool update_referencing_views_metadata(
 bool update_referencing_views_metadata(
     THD *thd, const char *db_name, const char *table_name,
     bool commit_dd_changes, Uncommitted_tables_guard *uncommitted_tables) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(db_name && table_name);
 
   bool error = update_referencing_views_metadata(
       thd, db_name, table_name, nullptr, nullptr, commit_dd_changes,
       uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
-  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_TRACE;
   DBUG_ASSERT(spname);
 
   /*
@@ -732,7 +732,7 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   Uncommitted_tables_guard uncommitted_tables(thd);
   bool error = update_view_metadata<dd::View_routine>(
       thd, spname->m_db.str, spname->m_name.str, false, &uncommitted_tables);
-  DBUG_RETURN(error);
+  return error;
 }
 
 std::string push_view_warning_or_error(THD *thd, const char *db,

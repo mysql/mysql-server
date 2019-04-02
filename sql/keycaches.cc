@@ -48,14 +48,13 @@ static uchar *find_named(I_List<NAMED_ILINK> *list, const char *name,
 
 void NAMED_ILIST::delete_elements() {
   NAMED_ILINK *element;
-  DBUG_ENTER("NAMED_ILIST::delete_elements");
+  DBUG_TRACE;
   while ((element = get())) {
     end_key_cache(pointer_cast<KEY_CACHE *>(element->data),
                   true);  // Can never fail
     my_free(element->data);
     delete element;
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Key cache functions */
@@ -73,7 +72,7 @@ KEY_CACHE *get_key_cache(const LEX_CSTRING *cache_name) {
 
 KEY_CACHE *create_key_cache(const char *name, size_t length) {
   KEY_CACHE *key_cache;
-  DBUG_ENTER("create_key_cache");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %.*s", static_cast<int>(length), name));
 
   if ((key_cache =
@@ -94,7 +93,7 @@ KEY_CACHE *create_key_cache(const char *name, size_t length) {
       key_cache->param_age_threshold = dflt_key_cache_var.param_age_threshold;
     }
   }
-  DBUG_RETURN(key_cache);
+  return key_cache;
 }
 
 KEY_CACHE *get_or_create_key_cache(const char *name, size_t length) {

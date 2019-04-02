@@ -325,14 +325,14 @@ static int examine_log(const char *file_name, char **table_names) {
   enum ha_extra_function extra_command;
   TREE tree;
   struct file_info file_info, *curr_file_info;
-  DBUG_ENTER("examine_log");
+  DBUG_TRACE;
 
-  if ((file = my_open(file_name, O_RDONLY, MYF(MY_WME))) < 0) DBUG_RETURN(1);
+  if ((file = my_open(file_name, O_RDONLY, MYF(MY_WME))) < 0) return 1;
   write_file = 0;
   if (write_filename) {
     if (!(write_file = my_fopen(write_filename, O_WRONLY, MYF(MY_WME)))) {
       my_close(file, MYF(0));
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
@@ -613,8 +613,8 @@ static int examine_log(const char *file_name, char **table_names) {
   delete_tree(&tree);
   (void)end_io_cache(&cache);
   (void)my_close(file, MYF(0));
-  if (write_file && my_fclose(write_file, MYF(MY_WME))) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+  if (write_file && my_fclose(write_file, MYF(MY_WME))) return 1;
+  return 0;
 
 err:
   fflush(stdout);
@@ -633,11 +633,11 @@ end:
   (void)end_io_cache(&cache);
   (void)my_close(file, MYF(0));
   if (write_file) (void)my_fclose(write_file, MYF(MY_WME));
-  DBUG_RETURN(1);
+  return 1;
 }
 
 static int read_string(IO_CACHE *file, uchar **to, uint length) {
-  DBUG_ENTER("read_string");
+  DBUG_TRACE;
 
   if (*to) my_free(*to);
   if (!(*to = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, length + 1,
@@ -645,10 +645,10 @@ static int read_string(IO_CACHE *file, uchar **to, uint length) {
       my_b_read(file, (uchar *)*to, length)) {
     if (*to) my_free(*to);
     *to = 0;
-    DBUG_RETURN(1);
+    return 1;
   }
   *((uchar *)*to + length) = '\0';
-  DBUG_RETURN(0);
+  return 0;
 } /* read_string */
 
 static int file_info_compare(const void *, const void *a, const void *b) {
@@ -699,14 +699,13 @@ static int test_when_accessed(void *v_key, element_count,
 
 static void file_info_free(void *v_fileinfo, TREE_FREE, const void *) {
   file_info *fileinfo = static_cast<file_info *>(v_fileinfo);
-  DBUG_ENTER("file_info_free");
+  DBUG_TRACE;
   if (update) {
     if (!fileinfo->closed) (void)mi_close(fileinfo->isam);
     if (fileinfo->record) my_free(fileinfo->record);
   }
   my_free(fileinfo->name);
   my_free(fileinfo->show_name);
-  DBUG_VOID_RETURN;
 }
 
 static int close_some_file(TREE *tree) {

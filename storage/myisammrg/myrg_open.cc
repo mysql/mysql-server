@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
   uint found_merge_insert_method = 0;
   size_t name_buff_length;
   bool bad_children = false;
-  DBUG_ENTER("myrg_open");
+  DBUG_TRACE;
 
   memset(&file, 0, sizeof(file));
   if ((fd = mysql_file_open(rg_key_file_MRG,
@@ -174,7 +174,7 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking) {
   mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
-  DBUG_RETURN(m_info);
+  return m_info;
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
@@ -192,7 +192,7 @@ err:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -229,7 +229,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   IO_CACHE file_cache;
   char parent_name_buff[FN_REFLEN * 2];
   char child_name_buff[FN_REFLEN];
-  DBUG_ENTER("myrg_parent_open");
+  DBUG_TRACE;
 
   rc = 1;
   errpos = 0;
@@ -316,7 +316,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   myrg_open_list = list_add(myrg_open_list, &m_info->open_list);
   mysql_mutex_unlock(&THR_LOCK_open);
 
-  DBUG_RETURN(m_info);
+  return m_info;
 
   /* purecov: begin inspected */
 err:
@@ -332,7 +332,7 @@ err:
       (void)mysql_file_close(fd, MYF(0));
   }
   set_my_errno(save_errno);
-  DBUG_RETURN(NULL);
+  return NULL;
   /* purecov: end */
 }
 
@@ -374,7 +374,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   uint min_keys;
   bool bad_children = false;
   bool first_child = true;
-  DBUG_ENTER("myrg_attach_children");
+  DBUG_TRACE;
   DBUG_PRINT("myrg", ("handle_locking: %d", handle_locking));
 
   /*
@@ -462,7 +462,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   m_info->last_used_table = m_info->open_tables;
   m_info->children_attached = true;
   mysql_mutex_unlock(&m_info->mutex);
-  DBUG_RETURN(0);
+  return 0;
 
 bad_children:
   set_my_errno(HA_ERR_WRONG_MRG_TABLE_DEF);
@@ -475,7 +475,7 @@ err:
   }
   mysql_mutex_unlock(&m_info->mutex);
   set_my_errno(save_errno);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**
@@ -492,7 +492,7 @@ err:
 */
 
 int myrg_detach_children(MYRG_INFO *m_info) {
-  DBUG_ENTER("myrg_detach_children");
+  DBUG_TRACE;
   /* For symmetry with myrg_attach_children() we use the mutex here. */
   mysql_mutex_lock(&m_info->mutex);
   if (m_info->tables) {
@@ -505,5 +505,5 @@ int myrg_detach_children(MYRG_INFO *m_info) {
   m_info->data_file_length = 0;
   m_info->options = 0;
   mysql_mutex_unlock(&m_info->mutex);
-  DBUG_RETURN(0);
+  return 0;
 }

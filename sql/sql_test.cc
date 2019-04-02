@@ -121,7 +121,7 @@ static void print_cached_tables(void) {
 
 void TEST_join(JOIN *join) {
   uint i, ref;
-  DBUG_ENTER("TEST_join");
+  DBUG_TRACE;
   DBUG_ASSERT(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
@@ -166,7 +166,6 @@ void TEST_join(JOIN *join) {
     }
   }
   DBUG_UNLOCK_FILE;
-  DBUG_VOID_RETURN;
 }
 
 #endif /* !DBUG_OFF */
@@ -590,7 +589,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl) {
 
 int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
                                        TABLE_LIST *first_leaf) {
-  DBUG_ENTER("Dbug_table_list_dumper::dump_graph");
+  DBUG_TRACE;
   char filename[500];
   int no = 0;
   do {
@@ -605,7 +604,7 @@ int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
   /* Ok, found an unoccupied name, create the file */
   if (!(out = fopen(filename, "wt"))) {
     DBUG_PRINT("tree_dump", ("Failed to create output file"));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   DBUG_PRINT("tree_dump", ("dumping tree to %s", filename));
@@ -647,7 +646,7 @@ int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
     //    fprintf(out, "%s", current_thd->query);
     fclose(out);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #endif

@@ -1248,7 +1248,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
   const rec_t *rec;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_check_sys_tablespaces");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1305,7 +1305,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
 
   mtr_commit(&mtr);
 
-  DBUG_RETURN(max_space_id);
+  return max_space_id;
 }
 
 /** Read and return 5 integer fields from a SYS_TABLES record.
@@ -1394,7 +1394,7 @@ space_id_t dict_check_sys_tables(bool validate) {
   const rec_t *rec;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_check_sys_tables");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1548,7 +1548,7 @@ space_id_t dict_check_sys_tables(bool validate) {
 
   mtr_commit(&mtr);
 
-  DBUG_RETURN(max_space_id);
+  return max_space_id;
 }
 
 /** Loads definitions for table columns. */
@@ -2121,7 +2121,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
   table_name_t table_name;
   dict_table_t *result;
 
-  DBUG_ENTER("dict_load_table");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_table", ("loading table: '%s'", name));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -2145,7 +2145,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /** Opens a tablespace for dict_load_table_one()
@@ -2299,7 +2299,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   const char *err_msg;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_load_table_one");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -2363,7 +2363,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
     mtr_commit(&mtr);
     mem_heap_free(heap);
 
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLES__NAME, &len);
@@ -2534,7 +2534,7 @@ func_exit:
 
   ut_ad(err != DB_SUCCESS || dict_foreign_set_validate(*table));
 
-  DBUG_RETURN(table);
+  return table;
 }
 
 /** Loads a table object based on the table id.
@@ -2799,7 +2799,7 @@ stack. */
   dict_table_t *ref_table;
   size_t id_len;
 
-  DBUG_ENTER("dict_load_foreign");
+  DBUG_TRACE;
   DBUG_PRINT("dict_load_foreign",
              ("id: '%s', check_recursive: %d", id, check_recursive));
 
@@ -2837,7 +2837,7 @@ stack. */
     mtr_commit(&mtr);
     mem_heap_free(heap2);
 
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_FOREIGN__ID, &len);
@@ -2855,7 +2855,7 @@ stack. */
     mtr_commit(&mtr);
     mem_heap_free(heap2);
 
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   /* Read the table names and the number of columns associated
@@ -2917,7 +2917,7 @@ stack. */
     dict_sys->size += new_size - old_size;
 
     dict_foreign_remove_from_cache(foreign);
-    DBUG_RETURN(DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   ut_a(for_table || ref_table);
@@ -2930,8 +2930,8 @@ stack. */
   a new foreign key constraint but loading one from the data
   dictionary. */
 
-  DBUG_RETURN(dict_foreign_add_to_cache(foreign, col_names, check_charsets,
-                                        true, ignore_err));
+  return dict_foreign_add_to_cache(foreign, col_names, check_charsets, true,
+                                   ignore_err);
 }
 
 /** Loads foreign key constraints where the table is either the foreign key
@@ -2971,7 +2971,7 @@ foreign key constraints. */
   dberr_t err;
   mtr_t mtr;
 
-  DBUG_ENTER("dict_load_foreigns");
+  DBUG_TRACE;
 
   ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2981,7 +2981,7 @@ foreign key constraints. */
     /* No foreign keys defined yet in this database */
 
     ib::info(ER_IB_MSG_212) << "No foreign key system tables in the database";
-    DBUG_RETURN(DB_ERROR);
+    return DB_ERROR;
   }
 
   ut_ad(!dict_table_is_comp(sys_foreign));
@@ -3067,7 +3067,7 @@ loop:
   if (err != DB_SUCCESS) {
     btr_pcur_close(&pcur);
 
-    DBUG_RETURN(err);
+    return err;
   }
 
   mtr_start(&mtr);
@@ -3095,7 +3095,7 @@ load_next_index:
     goto start_load;
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Load all tablespaces during upgrade */

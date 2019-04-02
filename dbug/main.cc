@@ -5,7 +5,7 @@ char *argv[];
 {
   int result, ix;
   extern int factorial(int);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
   for (ix = 1; ix < argc && argv[ix][0] == '-'; ix++) {
     switch (argv[ix][1]) {
@@ -19,5 +19,5 @@ char *argv[];
     result = factorial(atoi(argv[ix]));
     printf("%d\n", result);
   }
-  DBUG_RETURN(0);
+  return 0;
 }

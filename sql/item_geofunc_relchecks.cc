@@ -184,7 +184,7 @@ longlong Item_func_spatial_mbr_rel::val_int() {
 }
 
 longlong Item_func_spatial_rel::val_int() {
-  DBUG_ENTER("Item_func_spatial_rel::val_int");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
   String tmp_value1;
   String tmp_value2;
@@ -220,7 +220,7 @@ longlong Item_func_spatial_rel::val_int() {
   if (g1->get_srid() != 0) {
     bool srs_exists = false;
     if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
-      DBUG_RETURN(error_int());  // Error has already been flagged.
+      return error_int();  // Error has already been flagged.
 
     if (!srs_exists) {
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -248,10 +248,10 @@ longlong Item_func_spatial_rel::val_int() {
     handle_gis_exception(func_name());
   }
 
-  if (had_except || had_error || null_value) DBUG_RETURN(error_int());
+  if (had_except || had_error || null_value) return error_int();
 
 exit:
-  DBUG_RETURN(tres);
+  return tres;
 }
 
 /**
@@ -1229,7 +1229,7 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
 }
 
 longlong Item_func_spatial_relation::val_int() {
-  DBUG_ENTER("Item_func_spatial_relation::val_int");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed);
 
   String tmp_value1;
@@ -1240,13 +1240,13 @@ longlong Item_func_spatial_relation::val_int() {
   if ((null_value =
            (!res1 || args[0]->null_value || !res2 || args[1]->null_value))) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (res1 == nullptr || res2 == nullptr) {
     DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_int());
+    return error_int();
   }
 
   const dd::Spatial_reference_system *srs1 = nullptr;
@@ -1258,27 +1258,27 @@ longlong Item_func_spatial_relation::val_int() {
           current_thd->dd_client()));
   if (gis::parse_geometry(current_thd, func_name(), res1, &srs1, &g1) ||
       gis::parse_geometry(current_thd, func_name(), res2, &srs2, &g2)) {
-    DBUG_RETURN(error_int());
+    return error_int();
   }
 
   gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
   gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
   if (srid1 != srid2) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
-    DBUG_RETURN(error_int());
+    return error_int();
   }
 
   bool result;
   bool error = eval(srs1, g1.get(), g2.get(), &result, &null_value);
 
-  if (error) DBUG_RETURN(error_int());
+  if (error) return error_int();
 
   if (null_value) {
     DBUG_ASSERT(maybe_null);
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool Item_func_st_contains::eval(const dd::Spatial_reference_system *srs,

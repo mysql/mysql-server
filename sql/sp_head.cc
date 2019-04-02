@@ -2363,7 +2363,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
-  DBUG_ENTER("sp_head::execute_trigger");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
   Security_context *save_ctx = NULL;
@@ -2378,7 +2378,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
   DBUG_ASSERT(m_chistics->suid != SP_IS_NOT_SUID);
   if (m_security_ctx.change_security_context(thd, definer_user, definer_host,
                                              &m_db, &save_ctx))
-    DBUG_RETURN(true);
+    return true;
 
   /*
     Fetch information about table-level privileges for subject table into
@@ -2400,7 +2400,7 @@ bool sp_head::execute_trigger(THD *thd, const LEX_CSTRING &db_name,
              thd->security_context()->host_or_ip().str, table_name.str);
 
     m_security_ctx.restore_security_context(thd, save_ctx);
-    DBUG_RETURN(true);
+    return true;
   }
   /*
     Optimizer trace note: we needn't explicitly test here that the connected
@@ -2460,7 +2460,7 @@ err_with_cleanup:
 
   if (thd->killed) thd->send_kill_message();
 
-  DBUG_RETURN(err_status);
+  return err_status;
 }
 
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
@@ -2476,7 +2476,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   Query_arena call_arena(&call_mem_root, Query_arena::STMT_INITIALIZED_FOR_SP);
   Query_arena backup_arena;
 
-  DBUG_ENTER("sp_head::execute_function");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("function %s", m_name.str));
 
   // Resetting THD::where to its default value
@@ -2494,7 +2494,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
     */
     my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "FUNCTION", m_qname.str,
              m_root_parsing_ctx->context_var_count(), argcount);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -2687,7 +2687,7 @@ err_with_cleanup:
       !thd->binlog_evt_union.do_union)
     thd->issue_unsafe_warnings();
 
-  DBUG_RETURN(err_status);
+  return err_status;
 }
 
 bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
@@ -2700,7 +2700,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
   bool save_enable_slow_log = false;
   bool save_log_general = false;
 
-  DBUG_ENTER("sp_head::execute_procedure");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
   // Argument count has been validated in prepare function.
@@ -2710,7 +2710,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
     // Create a temporary old context. We need it to pass OUT-parameter values.
     parent_sp_runtime_ctx = sp_rcontext::create(thd, m_root_parsing_ctx, NULL);
 
-    if (!parent_sp_runtime_ctx) DBUG_RETURN(true);
+    if (!parent_sp_runtime_ctx) return true;
 
     parent_sp_runtime_ctx->sp = 0;
     thd->sp_runtime_ctx = parent_sp_runtime_ctx;
@@ -2727,7 +2727,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
 
     if (!sp_runtime_ctx_saved) ::destroy(parent_sp_runtime_ctx);
 
-    DBUG_RETURN(true);
+    return true;
   }
 
   proc_runtime_ctx->sp = this;
@@ -2910,7 +2910,7 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args) {
       !thd->binlog_evt_union.do_union)
     thd->issue_unsafe_warnings();
 
-  DBUG_RETURN(err_status);
+  return err_status;
 }
 
 bool sp_head::reset_lex(THD *thd) {

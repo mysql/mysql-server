@@ -483,7 +483,7 @@ bool register_privilege(const char *priv_name) {
   To be called when the InnoDB handlerton is initialized.
 */
 void redo_log_archive_init() {
-  DBUG_ENTER("redo_log_archive_init");
+  DBUG_TRACE;
   /* Do not acquire the logwriter mutex at this early stage. */
   redo_log_archive_produce_blocks = false;
   if (redo_log_archive_initialized) {
@@ -513,7 +513,6 @@ void redo_log_archive_init() {
   } else {
     redo_log_archive_initialized = true;
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -528,7 +527,7 @@ void redo_log_archive_init() {
     @retval       true          failure
 */
 static bool drop_remnants(bool force) {
-  DBUG_ENTER("drop_remnants");
+  DBUG_TRACE;
   /* Do not start if a comsumer is still lurking around. */
   if (redo_log_archive_consume_running) {
     /* purecov: begin inspected */
@@ -540,7 +539,7 @@ static bool drop_remnants(bool force) {
     LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
            (logmsgpfx + redo_log_archive_recorded_error).c_str());
     if (terminate_consumer(/*rapid*/ true) && !force) {
-      DBUG_RETURN(true);
+      return true;
     }
     /* purecov: end */
   }
@@ -562,7 +561,7 @@ static bool drop_remnants(bool force) {
                              redo_log_archive_file_pathname.c_str(), NULL);
     /* purecov: end */
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -570,7 +569,7 @@ static bool drop_remnants(bool force) {
   To be called when the InnoDB handlerton is de-initialized.
 */
 void redo_log_archive_deinit() {
-  DBUG_ENTER("redo_log_archive_deinit");
+  DBUG_TRACE;
   redo_log_archive_initialized = false;
   /* Do not acquire the logwriter mutex at this late stage. */
   redo_log_archive_produce_blocks = false;
@@ -592,7 +591,6 @@ void redo_log_archive_deinit() {
   redo_log_archive_queue.drop();
   mutex_exit(&redo_log_archive_admin_mutex);
   mutex_free(&redo_log_archive_admin_mutex);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -654,21 +652,21 @@ int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
     @retval       true          failure
 */
 static bool verify_redo_log_archive_privilege(THD *thd) {
-  DBUG_ENTER("verify_redo_log_archive_privilege");
+  DBUG_TRACE;
   if (thd == nullptr) {
     /* service interface does not allow this. */
     /* purecov: begin inspected */
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
   auto sctx = thd->security_context();
   const char privilege[]{"INNODB_REDO_LOG_ARCHIVE"};
   if (!(sctx->has_global_grant(STRING_WITH_LEN(privilege)).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), privilege);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -681,7 +679,7 @@ static bool verify_redo_log_archive_privilege(THD *thd) {
     @retval       true          failure
 */
 static bool get_labeled_directory(const char *label, std::string *dir) {
-  DBUG_ENTER("get_labeled_directory");
+  DBUG_TRACE;
   DBUG_PRINT("redo_log_archive",
              ("label: '%s'  dirs: '%s'", label, redo_log_archive_dirs));
   size_t label_len = strlen(label);
@@ -711,7 +709,7 @@ static bool get_labeled_directory(const char *label, std::string *dir) {
   }
   if (ptr == nullptr) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_LABEL_NOT_FOUND, MYF(0), label);
-    DBUG_RETURN(true);
+    return true;
   }
   /* Search semi-colon. */
   const char *terminator = strchr(ptr, ';');
@@ -719,7 +717,7 @@ static bool get_labeled_directory(const char *label, std::string *dir) {
     /* validate_redo_log_archive_dirs() does not allow this. */
     /* purecov: begin inspected */
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_DIR_EMPTY, MYF(0), label);
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
   dir->assign(ptr, (terminator != nullptr) ? (terminator - ptr) : strlen(ptr));
@@ -728,7 +726,7 @@ static bool get_labeled_directory(const char *label, std::string *dir) {
   LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
          (logmsgpfx + "selected dir '" + dir + "'").c_str());
 #endif /* DEBUG_REDO_LOG_ARCHIVE_EXTRA_LOG */
-  DBUG_RETURN(false);
+  return false;
 }
 
 #ifndef _WIN32
@@ -740,14 +738,14 @@ static bool get_labeled_directory(const char *label, std::string *dir) {
     @retval       true          failure
 */
 static bool verify_no_world_permissions(const Fil_path &path) {
-  DBUG_ENTER("verify_no_world_permissions");
+  DBUG_TRACE;
   struct stat statbuf;
   int ret = stat(path.abs_path().c_str(), &statbuf);
   if ((ret != 0) || ((statbuf.st_mode & S_IRWXO) != 0)) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_DIR_PERMISSIONS, MYF(0), path());
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 #endif /* _WIN32 */
 
@@ -796,7 +794,7 @@ static std::string delimit_dir_name(const std::string &path_name) {
 static void append_path(const char *variable_name, const char *path_name,
                         std::vector<std::string> *variables,
                         std::vector<Fil_path> *directories) {
-  DBUG_ENTER("append_path");
+  DBUG_TRACE;
 #ifdef DEBUG_REDO_LOG_ARCHIVE_EXTRA
   DBUG_PRINT("redo_log_archive",
              ("append_path '%s' '%s'", variable_name, path_name));
@@ -817,7 +815,6 @@ static void append_path(const char *variable_name, const char *path_name,
       directories->push_back(path);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -828,7 +825,7 @@ static void append_path(const char *variable_name, const char *path_name,
     @retval       true          failure
 */
 static bool verify_no_server_directory(const Fil_path &path) {
-  DBUG_ENTER("verify_no_server_directory");
+  DBUG_TRACE;
 
   /* Collect server directories as normalized absolute real path names. */
   std::vector<std::string> variables;
@@ -907,14 +904,14 @@ static bool verify_no_server_directory(const Fil_path &path) {
 #endif /* DEBUG_REDO_LOG_ARCHIVE_EXTRA_LOG */
       my_error(ER_INNODB_REDO_LOG_ARCHIVE_DIR_CLASH, MYF(0), path(),
                variables[idx].c_str(), compare_path());
-      DBUG_RETURN(true);
+      return true;
     }
   }
 #ifdef DEBUG_REDO_LOG_ARCHIVE_EXTRA_LOG
   LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
          (logmsgpfx + "no match").c_str());
 #endif /* DEBUG_REDO_LOG_ARCHIVE_EXTRA_LOG */
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -924,7 +921,7 @@ static bool verify_no_server_directory(const Fil_path &path) {
 */
 static void construct_file_pathname(const Fil_path &path,
                                     std::string *file_pathname) {
-  DBUG_ENTER("construct_file_pathname");
+  DBUG_TRACE;
   file_pathname->assign(path.path());
   if (file_pathname->empty() || (file_pathname->back() != OS_PATH_SEPARATOR)) {
     file_pathname->push_back(OS_PATH_SEPARATOR); /* purecov: inspected */
@@ -936,7 +933,6 @@ static void construct_file_pathname(const Fil_path &path,
   DBUG_PRINT("redo_log_archive",
              ("redo log archive file '%s'", file_pathname->c_str()));
 #endif /* DEBUG_REDO_LOG_ARCHIVE_EXTRA */
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -956,14 +952,14 @@ static void construct_file_pathname(const Fil_path &path,
 static bool construct_secure_file_path_name(THD *thd, const char *label,
                                             const char *subdir,
                                             std::string *file_pathname) {
-  DBUG_ENTER("construct_secure_file_path_name");
+  DBUG_TRACE;
 
   /* 'label' must not be NULL, but can be empty. */
   if (label == nullptr) {
     /* mysqlbackup component does not allow this. */
     /* purecov: begin inspected */
     my_error(ER_INVALID_USE_OF_NULL, MYF(0));
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
@@ -976,7 +972,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
   if ((redo_log_archive_dirs == nullptr) ||
       (redo_log_archive_dirs[0] == '\0')) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_DIRS_INVALID, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -985,7 +981,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
   */
   std::string directory;
   if (get_labeled_directory(label, &directory)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -995,7 +991,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
   if ((subdir != nullptr) && (subdir[0] != '\0')) {
     if (Fil_path::type_of_path(subdir) != Fil_path::file_name_only) {
       my_error(ER_INNODB_REDO_LOG_ARCHIVE_START_SUBDIR_PATH, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
     if (directory.back() != OS_PATH_SEPARATOR) {
       directory.push_back(OS_PATH_SEPARATOR);
@@ -1014,7 +1010,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
   Fil_path subdir_path(directory, /*normalize*/ false);
   if (!subdir_path.is_directory_and_exists()) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_NO_SUCH_DIR, MYF(0), subdir_path());
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -1022,7 +1018,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
     server directory.
   */
   if (verify_no_server_directory(subdir_path)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
 #ifndef _WIN32
@@ -1030,7 +1026,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
     Security measure: The directory must not grant permissions to everyone.
   */
   if (verify_no_world_permissions(subdir_path)) {
-    DBUG_RETURN(true);
+    return true;
   }
 #endif /* _WIN32 */
 
@@ -1040,7 +1036,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
   */
   construct_file_pathname(subdir_path, file_pathname);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1059,7 +1055,7 @@ static bool construct_secure_file_path_name(THD *thd, const char *label,
     @retval       true          failure
 */
 static bool terminate_consumer(bool rapid) {
-  DBUG_ENTER("terminate_consumer");
+  DBUG_TRACE;
   if (rapid) {
     redo_log_archive_consume_complete = true;
     redo_log_archive_queue.deinit();
@@ -1106,10 +1102,10 @@ static bool terminate_consumer(bool rapid) {
            (logmsgpfx + redo_log_archive_recorded_error).c_str());
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_FAILED, MYF(0),
              redo_log_archive_recorded_error.c_str());
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1117,13 +1113,13 @@ static bool terminate_consumer(bool rapid) {
 */
 static bool redo_log_archive_start(THD *thd, const char *label,
                                    const char *subdir) {
-  DBUG_ENTER("redo_log_archive_start");
+  DBUG_TRACE;
   DBUG_PRINT("redo_log_archive", ("label: '%s'  subdir: '%s'",
                                   (label == nullptr) ? "[NULL]" : label,
                                   (subdir == nullptr) ? "[NULL]" : subdir));
   /* Security measure: Require the redo log archive privilege. */
   if (verify_redo_log_archive_privilege(thd)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Synchronize with with other threads while using global objects. */
@@ -1138,14 +1134,14 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_ACTIVE, MYF(0),
              redo_log_archive_file_pathname.c_str());
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Drop potential left-over resources to avoid leaks. */
   if (drop_remnants(/*force*/ false)) {
     /* purecov: begin inspected */
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
@@ -1155,7 +1151,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   std::string file_pathname;
   if (construct_secure_file_path_name(thd, label, subdir, &file_pathname)) {
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Get current session. */
@@ -1192,7 +1188,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_FILE_CREATE, MYF(0),
              file_pathname.c_str(), os_errno, errbuf);
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
   DBUG_PRINT("redo_log_archive", ("Created redo_log_archive_file_pathname '%s'",
                                   file_pathname.c_str()));
@@ -1210,7 +1206,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), "redo_log_archive_consume_event",
              "redo_log_archive_start");
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
   os_event_reset(consume_event);
   DBUG_PRINT("redo_log_archive", ("Created consume_event"));
@@ -1275,11 +1271,11 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     redo_log_archive_queue.deinit();
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT, MYF(0));
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
   mutex_exit(&redo_log_archive_admin_mutex);
   DBUG_PRINT("redo_log_archive", ("Redo log archiving started"));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1301,13 +1297,13 @@ static bool redo_log_archive_start(THD *thd, const char *label,
       => Stop quickly and record an error for the next stop operation.
 */
 static bool redo_log_archive_stop(THD *thd) {
-  DBUG_ENTER("redo_log_archive_stop");
+  DBUG_TRACE;
 
   /*
     Security measure: Require the redo log archive privilege.
   */
   if (verify_redo_log_archive_privilege(thd)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* Synchronize with with other threads while using global objects. */
@@ -1326,11 +1322,11 @@ static bool redo_log_archive_stop(THD *thd) {
                redo_log_archive_recorded_error.c_str());
       /* Do not clear the error, it may be wanted by another session again. */
       mutex_exit(&redo_log_archive_admin_mutex);
-      DBUG_RETURN(true);
+      return true;
     }
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_INACTIVE, MYF(0));
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
 
   /*
@@ -1341,7 +1337,7 @@ static bool redo_log_archive_stop(THD *thd) {
       (redo_log_archive_thd != thd)) {
     my_error(ER_INNODB_REDO_LOG_ARCHIVE_SESSION, MYF(0));
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
   }
 
   DBUG_PRINT("redo_log_archive", ("Stopping redo log archiving on '%s'",
@@ -1360,7 +1356,7 @@ static bool redo_log_archive_stop(THD *thd) {
   mutex_enter(&redo_log_archive_admin_mutex);
 
   if (terminate_consumer(/*rapid*/ false)) {
-    DBUG_RETURN(true); /* purecov: inspected */
+    return true; /* purecov: inspected */
   }
   redo_log_archive_queue.deinit();
   /*
@@ -1412,12 +1408,12 @@ static bool redo_log_archive_stop(THD *thd) {
              redo_log_archive_recorded_error.c_str());
     /* Do not clear the error, it may be wanted by another session again. */
     mutex_exit(&redo_log_archive_admin_mutex);
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
   mutex_exit(&redo_log_archive_admin_mutex);
   /* Success */
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -1496,7 +1492,7 @@ void redo_log_archive_produce(const byte *write_buf, const size_t write_size) {
   Write the blocks to the redo log archive file sequentially.
 */
 static void redo_log_archive_consumer() {
-  DBUG_ENTER("redo_log_archive_consume");
+  DBUG_TRACE;
   /* Synchronize with with other threads while using global objects. */
   mutex_enter(&redo_log_archive_admin_mutex);
 
@@ -1517,7 +1513,7 @@ static void redo_log_archive_consumer() {
                .c_str());
     mutex_exit(&redo_log_archive_admin_mutex);
     DBUG_PRINT("redo_log_archive", ("Other consumer is running"));
-    DBUG_VOID_RETURN;
+    return;
     /* purecov: end */
   }
   DBUG_EXECUTE_IF("innodb_redo_log_archive_start_timeout",
@@ -1551,7 +1547,7 @@ static void redo_log_archive_consumer() {
                .c_str());
     mutex_exit(&redo_log_archive_admin_mutex);
     DBUG_PRINT("redo_log_archive", ("Consumer is already marked complete"));
-    DBUG_VOID_RETURN;
+    return;
   }
   mutex_exit(&redo_log_archive_admin_mutex);
 
@@ -1659,7 +1655,6 @@ static void redo_log_archive_consumer() {
   }
   mutex_exit(&redo_log_archive_admin_mutex);
   DBUG_PRINT("redo_log_archive", ("Redo log archive log consumer stopped"));
-  DBUG_VOID_RETURN;
 }
 
 /**

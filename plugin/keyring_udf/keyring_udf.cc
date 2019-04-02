@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,15 +44,15 @@
 static bool is_keyring_udf_initialized = false;
 
 static int keyring_udf_init(void *) {
-  DBUG_ENTER("keyring_udf_init");
+  DBUG_TRACE;
   is_keyring_udf_initialized = true;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int keyring_udf_deinit(void *) {
-  DBUG_ENTER("keyring_udf_deinit");
+  DBUG_TRACE;
   is_keyring_udf_initialized = false;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon keyring_udf_decriptor = {MYSQL_DAEMON_INTERFACE_VERSION};

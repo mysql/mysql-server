@@ -121,7 +121,7 @@ static void report_errors(SSL *ssl) {
   int line, flags = 0;
   char buf[512];
 
-  DBUG_ENTER("report_errors");
+  DBUG_TRACE;
 
   while ((l = ERR_get_error_line_data(&file, &line, &data, &flags))) {
     DBUG_PRINT("error", ("OpenSSL: %s:%s:%d:%s\n", ERR_error_string(l, buf),
@@ -133,7 +133,6 @@ static void report_errors(SSL *ssl) {
                ("error: %s", ERR_error_string(SSL_get_error(ssl, l), buf)));
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));
-  DBUG_VOID_RETURN;
 }
 
 #endif
@@ -267,7 +266,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
   SSL *ssl = static_cast<SSL *>(vio->ssl_arg);
   unsigned long ssl_errno_not_used;
 
-  DBUG_ENTER("vio_ssl_read");
+  DBUG_TRACE;
 
   while (1) {
     enum enum_vio_io_event event;
@@ -289,11 +288,11 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
     if (!vio->is_blocking_flag) {
       switch (event) {
         case VIO_IO_EVENT_READ:
-          DBUG_RETURN(VIO_SOCKET_WANT_READ);
+          return VIO_SOCKET_WANT_READ;
         case VIO_IO_EVENT_WRITE:
-          DBUG_RETURN(VIO_SOCKET_WANT_WRITE);
+          return VIO_SOCKET_WANT_WRITE;
         default:
-          DBUG_RETURN(VIO_SOCKET_ERROR);
+          return VIO_SOCKET_ERROR;
       }
     }
 
@@ -301,7 +300,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
     if (vio_socket_io_wait(vio, event)) break;
   }
 
-  DBUG_RETURN(ret < 0 ? -1 : ret);
+  return ret < 0 ? -1 : ret;
 }
 #endif
 
@@ -310,7 +309,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
   SSL *ssl = static_cast<SSL *>(vio->ssl_arg);
   unsigned long ssl_errno_not_used;
 
-  DBUG_ENTER("vio_ssl_write");
+  DBUG_TRACE;
 
   while (1) {
     enum enum_vio_io_event event;
@@ -332,11 +331,11 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
     if (!vio->is_blocking_flag) {
       switch (event) {
         case VIO_IO_EVENT_READ:
-          DBUG_RETURN(VIO_SOCKET_WANT_READ);
+          return VIO_SOCKET_WANT_READ;
         case VIO_IO_EVENT_WRITE:
-          DBUG_RETURN(VIO_SOCKET_WANT_WRITE);
+          return VIO_SOCKET_WANT_WRITE;
         default:
-          DBUG_RETURN(VIO_SOCKET_ERROR);
+          return VIO_SOCKET_ERROR;
       }
     }
 
@@ -344,13 +343,13 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
     if (vio_socket_io_wait(vio, event)) break;
   }
 
-  DBUG_RETURN(ret < 0 ? -1 : ret);
+  return ret < 0 ? -1 : ret;
 }
 
 int vio_ssl_shutdown(Vio *vio) {
   int r = 0;
   SSL *ssl = (SSL *)vio->ssl_arg;
-  DBUG_ENTER("vio_ssl_shutdown");
+  DBUG_TRACE;
 
   if (ssl) {
     /*
@@ -380,7 +379,7 @@ int vio_ssl_shutdown(Vio *vio) {
         break;
     }
   }
-  DBUG_RETURN(vio_shutdown(vio));
+  return vio_shutdown(vio);
 }
 
 void vio_ssl_delete(Vio *vio) {
@@ -421,7 +420,7 @@ typedef int (*ssl_handshake_func_t)(SSL *);
 
 static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
                                  unsigned long *ssl_errno_holder) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   size_t ret = -1;
 
   vio->ssl_arg = ssl;
@@ -451,11 +450,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
     if (!vio->is_blocking_flag) {
       switch (event) {
         case VIO_IO_EVENT_READ:
-          DBUG_RETURN(VIO_SOCKET_WANT_READ);
+          return VIO_SOCKET_WANT_READ;
         case VIO_IO_EVENT_WRITE:
-          DBUG_RETURN(VIO_SOCKET_WANT_WRITE);
+          return VIO_SOCKET_WANT_WRITE;
         default:
-          DBUG_RETURN(VIO_SOCKET_ERROR);
+          return VIO_SOCKET_ERROR;
       }
     }
 
@@ -465,7 +464,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
 
   vio->ssl_arg = NULL;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
@@ -479,7 +478,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   int j, n;
 #endif
 
-  DBUG_ENTER("ssl_do");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("ptr: %p, sd: %d  ctx: %p", ptr, sd, ptr->ssl_context));
 
   if (!sslptr) {
@@ -490,7 +489,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     if (!(ssl = SSL_new(ptr->ssl_context))) {
       DBUG_PRINT("error", ("SSL_new failure"));
       *ssl_errno_holder = ERR_get_error();
-      DBUG_RETURN(1);
+      return 1;
     }
 
     DBUG_PRINT("info", ("ssl: %p timeout: %ld", ssl, timeout));
@@ -544,13 +543,13 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   size_t loop_ret;
   if ((loop_ret = ssl_handshake_loop(vio, ssl, func, ssl_errno_holder))) {
     if (loop_ret != VIO_SOCKET_ERROR) {
-      DBUG_RETURN((int)loop_ret);  // Don't free SSL
+      return (int)loop_ret;  // Don't free SSL
     }
 
     DBUG_PRINT("error", ("SSL_connect/accept failure"));
     SSL_free(ssl);
     *sslptr = nullptr;
-    DBUG_RETURN((int)VIO_SOCKET_ERROR);
+    return (int)VIO_SOCKET_ERROR;
   }
 
   /*
@@ -558,7 +557,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     change type, set sd to the fd used when connecting
     and set pointer to the SSL structure
   */
-  if (vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), ssl, 0)) DBUG_RETURN(1);
+  if (vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), ssl, 0)) return 1;
   if (sslptr != &ssl) {
     *sslptr = nullptr;
   }
@@ -589,21 +588,21 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   }
 #endif
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int sslaccept(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
               unsigned long *ssl_errno_holder) {
-  DBUG_ENTER("sslaccept");
+  DBUG_TRACE;
   int ret = ssl_do(ptr, vio, timeout, SSL_accept, ssl_errno_holder, nullptr);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int sslconnect(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
                unsigned long *ssl_errno_holder, SSL **ssl) {
-  DBUG_ENTER("sslconnect");
+  DBUG_TRACE;
   int ret = ssl_do(ptr, vio, timeout, SSL_connect, ssl_errno_holder, ssl);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool vio_ssl_has_data(Vio *vio) {

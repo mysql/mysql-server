@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
   char *start, *prog;
   const char *end;
   size_t to_length;
-  DBUG_ENTER("my_path");
+  DBUG_TRACE;
 
   start = to; /* Return this */
   if (progname &&
@@ -90,7 +90,7 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
     (void)my_stpcpy(to, own_pathname_part);
   }
   DBUG_PRINT("exit", ("to: '%s'", start));
-  DBUG_RETURN(start);
+  return start;
 } /* my_path */
 
 /* test if file without filename is found in path */

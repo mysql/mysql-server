@@ -124,14 +124,14 @@ bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
 }
 
 bool Regexp_facade::Reset(Item *subject_expr, int start) {
-  DBUG_ENTER("Regexp_facade::Reset");
+  DBUG_TRACE;
 
   if (m_engine == nullptr ||
       EvalExprToCharset(subject_expr, &m_current_subject, start - 1))
-    DBUG_RETURN(true);
+    return true;
 
   m_engine->Reset(m_current_subject);
-  DBUG_RETURN(false);
+  return false;
 }
 
 int Regexp_facade::ConvertCodePointToLibPosition(int position) const {
@@ -151,15 +151,15 @@ int Regexp_facade::ConvertLibPositionToCodePoint(int position) const {
 
 Mysql::Nullable<bool> Regexp_facade::Matches(Item *subject_expr, int start,
                                              int occurrence) {
-  DBUG_ENTER("Regexp_facade::Find");
+  DBUG_TRACE;
 
-  if (Reset(subject_expr, start)) DBUG_RETURN(Mysql::Nullable<bool>());
+  if (Reset(subject_expr, start)) return Mysql::Nullable<bool>();
 
   /*
     As far as ICU is concerned, we always start on position 0, since we
     didn't convert the characters before 'start'.
   */
-  DBUG_RETURN(m_engine->Matches(0, occurrence));
+  return m_engine->Matches(0, occurrence);
 }
 
 Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
@@ -174,19 +174,19 @@ Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
 
 String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
                                int64_t start, int occurrence, String *result) {
-  DBUG_ENTER("Regexp_facade::Replace");
+  DBUG_TRACE;
   String replacement_buf;
   std::u16string replacement(MAX_FIELD_WIDTH, '\0');
 
-  if (EvalExprToCharset(replacement_expr, &replacement)) DBUG_RETURN(nullptr);
+  if (EvalExprToCharset(replacement_expr, &replacement)) return nullptr;
 
-  if (Reset(subject_expr)) DBUG_RETURN(nullptr);
+  if (Reset(subject_expr)) return nullptr;
 
   const std::u16string &result_buffer = m_engine->Replace(
       replacement, ConvertCodePointToLibPosition(start), occurrence);
   result->set(pointer_cast<const char *>(result_buffer.data()),
               result_buffer.size() * sizeof(UChar), regexp_lib_charset);
-  DBUG_RETURN(result);
+  return result;
 }
 
 String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
@@ -202,12 +202,12 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
 }
 
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
-  DBUG_ENTER("Regexp_facade::SetupEngine");
+  DBUG_TRACE;
 
   std::u16string pattern;
   if (EvalExprToCharset(pattern_expr, &pattern)) {
     m_engine = nullptr;
-    DBUG_RETURN(false);
+    return false;
   }
 
   // Actually compile the regular expression.
@@ -216,7 +216,7 @@ bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
       opt_regexp_time_limit);
 
   // If something went wrong, an error was raised.
-  DBUG_RETURN(m_engine->IsError());
+  return m_engine->IsError();
 }
 
 }  // namespace regexp

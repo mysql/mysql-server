@@ -63,11 +63,11 @@ inline bool Session_consistency_gtids_ctx::shall_collect(const THD *thd) {
 
 bool Session_consistency_gtids_ctx::notify_after_transaction_commit(
     const THD *thd) {
-  DBUG_ENTER("Rpl_consistency_ctx::notify_after_transaction_commit");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   bool res = false;
 
-  if (!shall_collect(thd)) DBUG_RETURN(res);
+  if (!shall_collect(thd)) return res;
 
   if (m_curr_session_track_gtids == ALL_GTIDS) {
     /*
@@ -84,16 +84,16 @@ bool Session_consistency_gtids_ctx::notify_after_transaction_commit(
     if (!res) notify_ctx_change_listener();
   }
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
     const THD *thd) {
-  DBUG_ENTER("Rpl_consistency_ctx::notify_after_gtid_executed_update");
+  DBUG_TRACE;
   DBUG_ASSERT(thd);
   bool res = false;
 
-  if (!shall_collect(thd)) DBUG_RETURN(res);
+  if (!shall_collect(thd)) return res;
 
   if (m_curr_session_track_gtids == OWN_GTID) {
     DBUG_ASSERT(get_gtid_mode(GTID_MODE_LOCK_SID) != GTID_MODE_OFF);
@@ -127,13 +127,13 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
 
     if (!res) notify_ctx_change_listener();
   }
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Session_consistency_gtids_ctx::notify_after_response_packet(
     const THD *thd) {
   int res = false;
-  DBUG_ENTER("Rpl_consistency_ctx::notify_after_response_packet");
+  DBUG_TRACE;
 
   if (m_gtid_set && !m_gtid_set->is_empty()) m_gtid_set->clear();
 
@@ -143,7 +143,7 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
    a SET SESSION session_track_gtids=...;).
    */
   m_curr_session_track_gtids = thd->variables.session_track_gtids;
-  DBUG_RETURN(res);
+  return res;
 }
 
 void Session_consistency_gtids_ctx::register_ctx_change_listener(

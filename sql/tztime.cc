@@ -891,9 +891,9 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   uint i;
   int shift = 0;
 
-  DBUG_ENTER("TIME_to_gmt_sec");
+  DBUG_TRACE;
 
-  if (!validate_timestamp_range(*t)) DBUG_RETURN(0);
+  if (!validate_timestamp_range(*t)) return 0;
 
   /* We need this for correct leap seconds handling */
   if (t->second < SECS_PER_MIN)
@@ -933,7 +933,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
       This means that source time can't be represented as my_time_t due to
       limited my_time_t range.
     */
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* binary search for our range */
@@ -947,7 +947,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   if (shift) {
     if (local_t > (my_time_t)(TIMESTAMP_MAX_VALUE - shift * SECS_PER_DAY +
                               sp->revtis[i].rt_offset - saved_seconds)) {
-      DBUG_RETURN(0); /* my_time_t overflow */
+      return 0; /* my_time_t overflow */
     }
     local_t += shift * SECS_PER_DAY;
   }
@@ -967,7 +967,7 @@ static my_time_t TIME_to_gmt_sec(const MYSQL_TIME *t, const TIME_ZONE_INFO *sp,
   /* check for TIMESTAMP_MAX_VALUE was already done above */
   if (local_t < TIMESTAMP_MIN_VALUE) local_t = 0;
 
-  DBUG_RETURN(static_cast<my_time_t>(local_t));
+  return static_cast<my_time_t>(local_t);
 }
 
 /*
@@ -1496,7 +1496,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   bool return_val = 1;
   LEX_CSTRING db = {C_STRING_WITH_LEN("mysql")};
   int res;
-  DBUG_ENTER("my_tz_init");
+  DBUG_TRACE;
 
 #ifdef HAVE_PSI_INTERFACE
   init_tz_psi_keys();
@@ -1505,7 +1505,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   /*
     To be able to run this from boot, we allocate a temporary THD
   */
-  if (!(thd = new THD)) DBUG_RETURN(1);
+  if (!(thd = new THD)) return 1;
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
 
@@ -1647,7 +1647,7 @@ end_with_cleanup:
   default_tz =
       default_tz_name ? global_system_variables.time_zone : my_tz_SYSTEM;
 
-  DBUG_RETURN(return_val);
+  return return_val;
 }
 
 /*
@@ -1720,7 +1720,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   TIME_ZONE_INFO tmp_tz_info;
   memset(&tmp_tz_info, 0, sizeof(TIME_ZONE_INFO));
 
-  DBUG_ENTER("tz_load_from_open_tables");
+  DBUG_TRACE;
 
   /*
     Let us find out time zone id by its name (there is only one index
@@ -1916,7 +1916,7 @@ static Time_zone *tz_load_from_open_tables(const String *tz_name,
   if (!(alloc_buff = (char *)tz_storage.Alloc(sizeof(TIME_ZONE_INFO) +
                                               tz_name->length() + 1))) {
     LogErr(ERROR_LEVEL, ER_TZ_OOM_LOADING_TIME_ZONE_DESCRIPTION);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Move the temporary tz_info into the allocated area */
@@ -1982,7 +1982,7 @@ end:
 
   if (table && table->file->inited) (void)table->file->ha_index_end();
 
-  DBUG_RETURN(return_val);
+  return return_val;
 }
 
 /*
@@ -2098,11 +2098,11 @@ static bool str_to_offset(const char *str, size_t length, long *offset) {
 Time_zone *my_tz_find(THD *thd, const String *name) {
   Time_zone *result_tz = 0;
   long offset;
-  DBUG_ENTER("my_tz_find");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("time zone name='%s'",
                        name ? ((String *)name)->c_ptr_safe() : "NULL"));
 
-  if (!name || name->is_empty()) DBUG_RETURN(0);
+  if (!name || name->is_empty()) return 0;
 
   mysql_mutex_lock(&tz_LOCK);
 
@@ -2140,7 +2140,7 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
 
   mysql_mutex_unlock(&tz_LOCK);
 
-  DBUG_RETURN(result_tz);
+  return result_tz;
 }
 
 /**

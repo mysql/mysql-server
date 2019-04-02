@@ -112,7 +112,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rlp_info_table::do_init_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
 
@@ -165,7 +165,7 @@ end:
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_table::do_flush_info(const bool force) {
@@ -175,10 +175,9 @@ int Rpl_info_table::do_flush_info(const bool force) {
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_flush_info");
+  DBUG_TRACE;
 
-  if (!(force || (sync_period && ++(sync_counter) >= sync_period)))
-    DBUG_RETURN(0);
+  if (!(force || (sync_period && ++(sync_counter) >= sync_period))) return 0;
 
   THD *thd = access->create_thd();
 
@@ -267,7 +266,7 @@ end:
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Rpl_info_table::do_remove_info() { return do_clean_info(); }
@@ -279,7 +278,7 @@ int Rpl_info_table::do_clean_info() {
   sql_mode_t saved_mode;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_remove_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
 
@@ -317,7 +316,7 @@ end:
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -342,10 +341,9 @@ int Rpl_info_table::do_reset_info(uint nparam, const char *param_schema,
   THD *thd = nullptr;
   int handler_error = 0;
 
-  DBUG_ENTER("Rpl_info_table::do_reset_info");
+  DBUG_TRACE;
 
-  if (!(info = new Rpl_info_table(nparam, param_schema, param_table)))
-    DBUG_RETURN(1);
+  if (!(info = new Rpl_info_table(nparam, param_schema, param_table))) return 1;
 
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -413,7 +411,7 @@ end:
   thd->variables.option_bits = saved_options;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(error);
+  return error;
 }
 
 enum_return_check Rpl_info_table::do_check_info() {
@@ -422,7 +420,7 @@ enum_return_check Rpl_info_table::do_check_info() {
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
 
-  DBUG_ENTER("Rpl_info_table::do_check_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -463,7 +461,7 @@ end:
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode = saved_mode;
   access->drop_thd(thd);
-  DBUG_RETURN(return_check);
+  return return_check;
 }
 
 enum_return_check Rpl_info_table::do_check_info(uint instance) {
@@ -472,7 +470,7 @@ enum_return_check Rpl_info_table::do_check_info(uint instance) {
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
 
-  DBUG_ENTER("Rpl_info_table::do_check_info");
+  DBUG_TRACE;
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -518,7 +516,7 @@ end:
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode = saved_mode;
   access->drop_thd(thd);
-  DBUG_RETURN(return_check);
+  return return_check;
 }
 
 bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
@@ -530,10 +528,10 @@ bool Rpl_info_table::do_count_info(uint nparam, const char *param_schema,
   Rpl_info_table *info = nullptr;
   THD *thd = nullptr;
 
-  DBUG_ENTER("Rpl_info_table::do_count_info");
+  DBUG_TRACE;
 
   if (!(info = new Rpl_info_table(nparam, param_schema, param_table)))
-    DBUG_RETURN(true);
+    return true;
 
   thd = info->access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -571,7 +569,7 @@ end:
   thd->variables.sql_mode = saved_mode;
   info->access->drop_thd(thd);
   delete info;
-  DBUG_RETURN(error);
+  return error;
 }
 
 void Rpl_info_table::do_end_info() {}
@@ -703,9 +701,8 @@ bool Rpl_info_table::do_update_is_transactional() {
   TABLE *table = nullptr;
   Open_tables_backup backup;
 
-  DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
-  DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
-                  { DBUG_RETURN(true); });
+  DBUG_TRACE;
+  DBUG_EXECUTE_IF("simulate_update_is_transactional_error", { return true; });
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -728,11 +725,11 @@ end:
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table) {
-  DBUG_ENTER("Rpl_info_table::verify_table_primary_key_fields");
+  DBUG_TRACE;
   KEY *key_info = table->key_info;
   bool error;
 
@@ -767,5 +764,5 @@ bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table) {
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }

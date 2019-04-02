@@ -67,7 +67,7 @@ bool Query_result_send::send_result_set_metadata(THD *thd, List<Item> &list,
 }
 
 void Query_result_send::abort_result_set(THD *thd) {
-  DBUG_ENTER("Query_result_send::abort_result_set");
+  DBUG_TRACE;
 
   if (is_result_set_started && thd->sp_runtime_ctx) {
     /*
@@ -81,23 +81,22 @@ void Query_result_send::abort_result_set(THD *thd) {
     */
     thd->sp_runtime_ctx->end_partial_result_set = true;
   }
-  DBUG_VOID_RETURN;
 }
 
 /* Send data to client. Returns 0 if ok */
 
 bool Query_result_send::send_data(THD *thd, List<Item> &items) {
   Protocol *protocol = thd->get_protocol();
-  DBUG_ENTER("Query_result_send::send_data");
+  DBUG_TRACE;
 
   protocol->start_row();
   if (thd->send_result_set_row(&items)) {
     protocol->abort_row();
-    DBUG_RETURN(true);
+    return true;
   }
 
   thd->inc_sent_row_count(1);
-  DBUG_RETURN(protocol->end_row());
+  return protocol->end_row();
 }
 
 bool Query_result_send::send_eof(THD *thd) {
@@ -333,7 +332,7 @@ bool Query_result_export::start_execution(THD *thd) {
    (int)(uchar)(x) == line_sep_char || !(x))
 
 bool Query_result_export::send_data(THD *thd, List<Item> &items) {
-  DBUG_ENTER("Query_result_export::send_data");
+  DBUG_TRACE;
   char buff[MAX_FIELD_WIDTH], null_buff[2], space[MAX_FIELD_WIDTH];
   char cvt_buff[MAX_FIELD_WIDTH];
   String cvt_str(cvt_buff, sizeof(cvt_buff), write_cs);
@@ -618,9 +617,9 @@ bool Query_result_export::send_data(THD *thd, List<Item> &items) {
                  pointer_cast<const uchar *>(exchange->line.line_term->ptr()),
                  exchange->line.line_term->length()))
     goto err;
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Query_result_export::cleanup(THD *thd) {
@@ -648,7 +647,7 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
   String tmp(buff, sizeof(buff), &my_charset_bin), *res;
   tmp.length(0);
   Item *item;
-  DBUG_ENTER("Query_result_dump::send_data");
+  DBUG_TRACE;
 
   if (row_count++ > 1) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
@@ -666,9 +665,9 @@ bool Query_result_dump::send_data(THD *, List<Item> &items) {
       goto err;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 err:
-  DBUG_RETURN(true);
+  return true;
 }
 
 /***************************************************************************
@@ -696,16 +695,16 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
   List_iterator<Item> it(items);
   Item *item;
   PT_select_var *mv;
-  DBUG_ENTER("Query_dumpvar::send_data");
+  DBUG_TRACE;
 
   if (row_count++) {
     my_error(ER_TOO_MANY_ROWS, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
   while ((mv = var_li++) && (item = it++)) {
     if (mv->is_local()) {
       if (thd->sp_runtime_ctx->set_variable(thd, mv->get_offset(), &item))
-        DBUG_RETURN(true);
+        return true;
     } else {
       /*
         Create Item_func_set_user_vars with delayed non-constness. We
@@ -716,12 +715,12 @@ bool Query_dumpvar::send_data(THD *thd, List<Item> &items) {
        */
       Item_func_set_user_var *suv =
           new Item_func_set_user_var(mv->name, item, true);
-      if (suv->fix_fields(thd, 0)) DBUG_RETURN(true);
+      if (suv->fix_fields(thd, 0)) return true;
       suv->save_item_result(item);
-      if (suv->update()) DBUG_RETURN(true);
+      if (suv->update()) return true;
     }
   }
-  DBUG_RETURN(thd->is_error());
+  return thd->is_error();
 }
 
 bool Query_dumpvar::send_eof(THD *thd) {

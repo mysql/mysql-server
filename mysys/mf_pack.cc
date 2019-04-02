@@ -83,7 +83,7 @@ size_t cleanup_dirname(char *to, const char *from) {
 #ifdef _WIN32
   CHARSET_INFO *fs = fs_character_set();
 #endif
-  DBUG_ENTER("cleanup_dirname");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("from: '%s'", from));
 
   start = buff;
@@ -171,7 +171,7 @@ size_t cleanup_dirname(char *to, const char *from) {
   buff[FN_REFLEN - 1] = '\0';
   (void)my_stpcpy(to, buff);
   DBUG_PRINT("exit", ("to: '%s'", to));
-  DBUG_RETURN((size_t)(pos - buff));
+  return (size_t)(pos - buff);
 } /* cleanup_dirname */
 
 /**
@@ -201,7 +201,7 @@ size_t cleanup_dirname(char *to, const char *from) {
 size_t normalize_dirname(char *to, const char *from) {
   size_t length;
   char buff[FN_REFLEN];
-  DBUG_ENTER("normalize_dirname");
+  DBUG_TRACE;
 
   /*
     Despite the name, this actually converts the name to the system's
@@ -222,7 +222,7 @@ size_t normalize_dirname(char *to, const char *from) {
 
   length = cleanup_dirname(to, buff);
 
-  DBUG_RETURN(length);
+  return length;
 }
 
 /**
@@ -251,7 +251,7 @@ size_t normalize_dirname(char *to, const char *from) {
 size_t unpack_dirname(char *to, const char *from) {
   size_t length, h_length;
   char buff[FN_REFLEN + 1 + 4], *suffix;
-  DBUG_ENTER("unpack_dirname");
+  DBUG_TRACE;
 
   length = normalize_dirname(buff, from);
 
@@ -268,7 +268,7 @@ size_t unpack_dirname(char *to, const char *from) {
       }
     }
   }
-  DBUG_RETURN(system_filename(to, buff)); /* Fix for open */
+  return system_filename(to, buff); /* Fix for open */
 } /* unpack_dirname */
 
 /**
@@ -323,7 +323,7 @@ static std::string expand_tilde(char **path) {
 size_t unpack_filename(char *to, const char *from) {
   size_t length, n_length, buff_length;
   char buff[FN_REFLEN];
-  DBUG_ENTER("unpack_filename");
+  DBUG_TRACE;
 
   length = dirname_part(buff, from, &buff_length); /* copy & convert dirname */
   n_length = unpack_dirname(buff, buff);
@@ -332,7 +332,7 @@ size_t unpack_filename(char *to, const char *from) {
     length = system_filename(to, buff); /* Fix to usably filename */
   } else
     length = system_filename(to, from); /* Fix to usably filename */
-  DBUG_RETURN(length);
+  return length;
 } /* unpack_filename */
 
 /**

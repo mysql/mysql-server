@@ -473,7 +473,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
   THD *thd = current_thd;
   ulong aes_opmode;
   iv_argument iv_arg;
-  DBUG_ENTER("Item_func_aes_encrypt::val_str");
+  DBUG_TRACE;
 
   sptr = args[0]->val_str(str);            // String to encrypt
   key = args[1]->val_str(&tmp_key_value);  // key
@@ -486,7 +486,7 @@ String *Item_func_aes_encrypt::val_str(String *str) {
     const unsigned char *iv_str =
         iv_arg.retrieve_iv_ptr((enum my_aes_opmode)aes_opmode, arg_count, args,
                                func_name(), thd, &null_value);
-    if (null_value) DBUG_RETURN(NULL);
+    if (null_value) return NULL;
 
     // Calculate result length
     aes_length =
@@ -503,12 +503,12 @@ String *Item_func_aes_encrypt::val_str(String *str) {
                          iv_str) == aes_length) {
         // We got the expected result length
         tmp_value.length(static_cast<size_t>(aes_length));
-        DBUG_RETURN(&tmp_value);
+        return &tmp_value;
       }
     }
   }
   null_value = 1;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool Item_func_aes_encrypt::resolve_type(THD *thd) {
@@ -538,7 +538,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
   THD *thd = current_thd;
   ulong aes_opmode;
   iv_argument iv_arg;
-  DBUG_ENTER("Item_func_aes_decrypt::val_str");
+  DBUG_TRACE;
 
   sptr = args[0]->val_str(str);            // String to decrypt
   key = args[1]->val_str(&tmp_key_value);  // Key
@@ -550,7 +550,7 @@ String *Item_func_aes_decrypt::val_str(String *str) {
     const unsigned char *iv_str =
         iv_arg.retrieve_iv_ptr((enum my_aes_opmode)aes_opmode, arg_count, args,
                                func_name(), thd, &null_value);
-    if (null_value) DBUG_RETURN(NULL);
+    if (null_value) return NULL;
     str_value.set_charset(&my_charset_bin);
     if (!str_value.alloc(sptr->length()))  // Ensure that memory is free
     {
@@ -563,13 +563,13 @@ String *Item_func_aes_decrypt::val_str(String *str) {
       if (length >= 0)  // if we got correct data data
       {
         str_value.length((uint)length);
-        DBUG_RETURN(&str_value);
+        return &str_value;
       }
     }
   }
   // Bad parameters. No memory or bad data will all go here
   null_value = 1;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool Item_func_aes_decrypt::resolve_type(THD *) {
@@ -883,13 +883,13 @@ bool Item_func_statement_digest::resolve_type(THD *thd) {
   @return The same string object, or nullptr in case of error or null return.
 */
 String *Item_func_statement_digest::val_str_ascii(String *buf) {
-  DBUG_ENTER("Item_func_statement_digest::val_str_ascii");
+  DBUG_TRACE;
 
   String *statement_string = args[0]->val_str(buf);
 
   // This function is non-nullable, meaning it doesn't return NULL, unless the
   // argument is NULL.
-  if (statement_string == nullptr) DBUG_RETURN(null_return_str());
+  if (statement_string == nullptr) return null_return_str();
   null_value = false;
 
   uchar digest[DIGEST_HASH_SIZE];
@@ -897,14 +897,14 @@ String *Item_func_statement_digest::val_str_ascii(String *buf) {
     THD *thd = current_thd;
     Thd_parse_modifier thd_mod(thd, m_token_buffer);
 
-    if (parse(thd, args[0], statement_string)) DBUG_RETURN(error_str());
+    if (parse(thd, args[0], statement_string)) return error_str();
     compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
   }
 
-  if (buf->reserve(DIGEST_HASH_TO_STRING_LENGTH)) DBUG_RETURN(error_str());
+  if (buf->reserve(DIGEST_HASH_TO_STRING_LENGTH)) return error_str();
   buf->length(DIGEST_HASH_TO_STRING_LENGTH);
   DIGEST_HASH_TO_STRING(digest, buf->c_ptr_quick());
-  DBUG_RETURN(buf);
+  return buf;
 }
 
 bool Item_func_statement_digest_text::resolve_type(THD *thd) {
@@ -915,23 +915,23 @@ bool Item_func_statement_digest_text::resolve_type(THD *thd) {
 }
 
 String *Item_func_statement_digest_text::val_str(String *buf) {
-  DBUG_ENTER("Item_func_statement_digest_text::val_str_ascii");
+  DBUG_TRACE;
 
   String *statement_string = args[0]->val_str(buf);
 
   // This function is non-nullable, meaning it doesn't return NULL, unless the
   // argument is NULL.
-  if (statement_string == nullptr) DBUG_RETURN(null_return_str());
+  if (statement_string == nullptr) return null_return_str();
   null_value = false;
 
   THD *thd = current_thd;
   Thd_parse_modifier thd_mod(thd, m_token_buffer);
 
-  if (parse(thd, args[0], statement_string)) DBUG_RETURN(error_str());
+  if (parse(thd, args[0], statement_string)) return error_str();
 
   compute_digest_text(&thd->m_digest->m_digest_storage, buf);
 
-  DBUG_RETURN(buf);
+  return buf;
 }
 
 /**
@@ -4035,7 +4035,7 @@ bool Item_func_gtid_subtract::resolve_type(THD *) {
 }
 
 String *Item_func_gtid_subtract::val_str_ascii(String *str) {
-  DBUG_ENTER("Item_func_gtid_subtract::val_str_ascii");
+  DBUG_TRACE;
   String *str1, *str2;
   const char *charp1, *charp2;
   enum_return_status status;
@@ -4062,13 +4062,13 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
           null_value = false;
           set1.to_string(str->ptr());
           str->length(length);
-          DBUG_RETURN(str);
+          return str;
         }
       }
     }
   }
   null_value = true;
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -4086,7 +4086,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str) {
 
  */
 String *Item_func_get_dd_column_privileges::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_dd_column_privileges::val_str");
+  DBUG_TRACE;
 
   std::ostringstream oss("");
 
@@ -4137,7 +4137,7 @@ String *Item_func_get_dd_column_privileges::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /**
@@ -4158,7 +4158,7 @@ String *Item_func_get_dd_column_privileges::val_str(String *str) {
 
  */
 String *Item_func_get_dd_create_options::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_dd_create_options::val_str");
+  DBUG_TRACE;
 
   // Read tables.options
   String option;
@@ -4167,7 +4167,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
 
   if ((option_ptr = args[0]->val_str(&option)) == nullptr) {
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read required values from properties
@@ -4181,7 +4181,7 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
     if (DBUG_EVALUATE_IF("continue_on_property_string_parse_failure", 0, 1))
       DBUG_ASSERT(false);
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read used_flags
@@ -4319,11 +4319,11 @@ String *Item_func_get_dd_create_options::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 String *Item_func_internal_get_comment_or_error::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_get_comment_or_error::val_str");
+  DBUG_TRACE;
   null_value = false;
 
   // Read arguements
@@ -4341,7 +4341,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
   if (table_type_ptr == nullptr || schema_ptr == nullptr ||
       view_ptr == nullptr || comment_ptr == nullptr) {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   THD *thd = current_thd;
@@ -4357,10 +4357,10 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
       LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
              options_ptr->c_ptr_safe());
       DBUG_ASSERT(false);
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
-    if (view_options->get("view_valid", &is_view_valid)) DBUG_RETURN(nullptr);
+    if (view_options->get("view_valid", &is_view_valid)) return nullptr;
 
     if (is_view_valid == false && thd->lex->sql_command != SQLCOM_SHOW_TABLES) {
       oss << push_view_warning_or_error(current_thd, schema_ptr->c_ptr_safe(),
@@ -4379,7 +4379,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
   }
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /*
@@ -4388,7 +4388,7 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
   when the option string is empty.
 */
 String *Item_func_get_partition_nodegroup::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_partition_nodegroup::val_str");
+  DBUG_TRACE;
   null_value = false;
 
   String options;
@@ -4407,7 +4407,7 @@ String *Item_func_get_partition_nodegroup::val_str(String *str) {
              options_ptr->c_ptr_safe());
       DBUG_ASSERT(false);
       str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-      DBUG_RETURN(str);
+      return str;
     }
 
     if (view_options->exists("nodegroup_id")) {
@@ -4424,11 +4424,11 @@ String *Item_func_get_partition_nodegroup::val_str(String *str) {
   // Copy the value to output string.
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 String *Item_func_internal_tablespace_type::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_tablespace_type::val_str");
+  DBUG_TRACE;
   dd::String_type result;
 
   THD *thd = current_thd;
@@ -4438,14 +4438,14 @@ String *Item_func_internal_tablespace_type::val_str(String *str) {
         dd::info_schema::enum_tablespace_stats_type::TS_TYPE, &result);
     str->copy(result.c_str(), result.length(), system_charset_info);
 
-    DBUG_RETURN(str);
+    return str;
   }
 
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 String *Item_func_internal_tablespace_logfile_group_name::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_tablespace_logfile_group_name::val_str");
+  DBUG_TRACE;
   dd::String_type result;
 
   THD *thd = current_thd;
@@ -4458,17 +4458,17 @@ String *Item_func_internal_tablespace_logfile_group_name::val_str(String *str) {
       str->copy(result.c_str(), result.length(), system_charset_info);
     else {
       null_value = true;
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
-    DBUG_RETURN(str);
+    return str;
   }
 
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 String *Item_func_internal_tablespace_status::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_tablespace_status::val_str");
+  DBUG_TRACE;
   dd::String_type result;
 
   THD *thd = current_thd;
@@ -4478,14 +4478,14 @@ String *Item_func_internal_tablespace_status::val_str(String *str) {
         dd::info_schema::enum_tablespace_stats_type::TS_STATUS, &result);
     str->copy(result.c_str(), result.length(), system_charset_info);
 
-    DBUG_RETURN(str);
+    return str;
   }
 
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 String *Item_func_internal_tablespace_row_format::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_tablespace_row_format::val_str");
+  DBUG_TRACE;
   dd::String_type result;
 
   THD *thd = current_thd;
@@ -4497,17 +4497,17 @@ String *Item_func_internal_tablespace_row_format::val_str(String *str) {
       str->copy(result.c_str(), result.length(), system_charset_info);
     else {
       null_value = true;
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
-    DBUG_RETURN(str);
+    return str;
   }
 
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 String *Item_func_internal_tablespace_extra::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_tablespace_extra::val_str");
+  DBUG_TRACE;
   dd::String_type result;
 
   THD *thd = current_thd;
@@ -4519,13 +4519,13 @@ String *Item_func_internal_tablespace_extra::val_str(String *str) {
       str->copy(result.c_str(), result.length(), system_charset_info);
     else {
       null_value = true;
-      DBUG_RETURN(nullptr);
+      return nullptr;
     }
 
-    DBUG_RETURN(str);
+    return str;
   }
 
-  DBUG_RETURN(nullptr);
+  return nullptr;
 }
 
 /**
@@ -4541,7 +4541,7 @@ String *Item_func_internal_tablespace_extra::val_str(String *str) {
 
  */
 String *Item_func_get_dd_tablespace_private_data::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_dd_tablespace_private_data::val_str");
+  DBUG_TRACE;
 
   // Read tablespaces.se_private_data
   String option;
@@ -4549,7 +4549,7 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str) {
   std::ostringstream oss("");
   if ((option_ptr = args[0]->val_str(&option)) == nullptr) {
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read required values from properties
@@ -4562,7 +4562,7 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str) {
            option_ptr->c_ptr_safe());
     DBUG_ASSERT(false);
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read used_flags
@@ -4591,7 +4591,7 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /**
@@ -4607,7 +4607,7 @@ String *Item_func_get_dd_tablespace_private_data::val_str(String *str) {
 
  */
 String *Item_func_get_dd_index_private_data::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_dd_index_private_data::val_str");
+  DBUG_TRACE;
 
   // Read indexes.se_private_data
   String option;
@@ -4615,7 +4615,7 @@ String *Item_func_get_dd_index_private_data::val_str(String *str) {
   std::ostringstream oss("");
   if ((option_ptr = args[0]->val_str(&option)) == nullptr) {
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read required values from properties
@@ -4628,7 +4628,7 @@ String *Item_func_get_dd_index_private_data::val_str(String *str) {
            option_ptr->c_ptr_safe());
     DBUG_ASSERT(false);
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read used_flags
@@ -4664,7 +4664,7 @@ String *Item_func_get_dd_index_private_data::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /**
@@ -4694,7 +4694,7 @@ CHARSET_INFO *mysqld_collation_get_by_name(const char *name,
 }
 
 String *Item_func_convert_cpu_id_mask::val_str(String *str) {
-  DBUG_ENTER("Item_func_convert_cpu_id_mask::val_str");
+  DBUG_TRACE;
   null_value = false;
 
   String cpu_mask;
@@ -4702,7 +4702,7 @@ String *Item_func_convert_cpu_id_mask::val_str(String *str) {
 
   if (cpu_mask_str == nullptr || cpu_mask_str->length() == 0) {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   std::ostringstream oss("");
@@ -4733,7 +4733,7 @@ String *Item_func_convert_cpu_id_mask::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), &my_charset_bin);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 void Item_func_current_role::cleanup() {
@@ -4801,7 +4801,7 @@ void Item_func_roles_graphml::cleanup() {
       string get_dd_property_key_value(dd.table.options, key)
  */
 String *Item_func_get_dd_property_key_value::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_dd_property_key_value::val_str");
+  DBUG_TRACE;
 
   // Read tables.options
   String properties;
@@ -4814,7 +4814,7 @@ String *Item_func_get_dd_property_key_value::val_str(String *str) {
 
   if (key_ptr == nullptr || properties_ptr == nullptr) {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   // Read required values from properties
@@ -4827,7 +4827,7 @@ String *Item_func_get_dd_property_key_value::val_str(String *str) {
            properties_ptr->c_ptr_safe());
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
     null_value = true;
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read the value at key
@@ -4838,12 +4838,12 @@ String *Item_func_get_dd_property_key_value::val_str(String *str) {
     oss << value;
   } else {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /**
@@ -4858,7 +4858,7 @@ String *Item_func_get_dd_property_key_value::val_str(String *str) {
     returns the original property string if key is not found.
  */
 String *Item_func_remove_dd_property_key::val_str(String *str) {
-  DBUG_ENTER("Item_func_get_remove_dd_property_key::val_str");
+  DBUG_TRACE;
 
   // Read tables.options
   String properties;
@@ -4871,7 +4871,7 @@ String *Item_func_remove_dd_property_key::val_str(String *str) {
 
   if (key_ptr == nullptr || properties_ptr == nullptr) {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   // Read required values from properties
@@ -4883,7 +4883,7 @@ String *Item_func_remove_dd_property_key::val_str(String *str) {
     LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
            properties_ptr->c_ptr_safe());
     str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-    DBUG_RETURN(str);
+    return str;
   }
 
   // Read the value at key
@@ -4893,7 +4893,7 @@ String *Item_func_remove_dd_property_key::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }
 
 /*
@@ -4930,7 +4930,7 @@ String *Item_func_convert_interval_to_user_interval::val_str(String *str) {
   @return returns a pointer to the string containing column options.
  */
 String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
-  DBUG_ENTER("Item_func_internal_get_dd_column_extra::val_str");
+  DBUG_TRACE;
 
   std::ostringstream oss("");
   null_value = false;
@@ -4947,7 +4947,7 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
   if (args[0]->is_null() || args[1]->is_null() || args[2]->is_null() ||
       args[4]->is_null()) {
     null_value = true;
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   bool is_not_generated_column = args[0]->val_int();
@@ -4981,7 +4981,7 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
       LogErr(WARNING_LEVEL, ER_WARN_PROPERTY_STRING_PARSE_FAILED,
              properties_ptr->c_ptr_safe());
       str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
-      DBUG_RETURN(str);
+      return str;
     }
 
     if (p->exists("not_secondary")) {
@@ -4992,5 +4992,5 @@ String *Item_func_internal_get_dd_column_extra::val_str(String *str) {
 
   str->copy(oss.str().c_str(), oss.str().length(), system_charset_info);
 
-  DBUG_RETURN(str);
+  return str;
 }

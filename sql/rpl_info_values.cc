@@ -39,11 +39,11 @@ Rpl_info_values::Rpl_info_values(int param_ninfo)
   @retval true Failure
 */
 bool Rpl_info_values::init() {
-  DBUG_ENTER("Rpl_info_values::init");
+  DBUG_TRACE;
 
-  if (!value && !(value = new String[ninfo])) DBUG_RETURN(true);
+  if (!value && !(value = new String[ninfo])) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 Rpl_info_values::~Rpl_info_values() { delete[] value; }

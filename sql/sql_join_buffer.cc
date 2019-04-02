@@ -622,7 +622,7 @@ void JOIN_CACHE::restore_virtual_gcol_base_cols() {
 */
 
 int JOIN_CACHE_BNL::init() {
-  DBUG_ENTER("JOIN_CACHE::init");
+  DBUG_TRACE;
 
   /*
     If there is a previous cache, start with the corresponding table, otherwise:
@@ -641,7 +641,7 @@ int JOIN_CACHE_BNL::init() {
 
   calc_record_fields();
 
-  if (alloc_fields(0)) DBUG_RETURN(1);
+  if (alloc_fields(0)) return 1;
 
   create_flag_fields();
 
@@ -651,7 +651,7 @@ int JOIN_CACHE_BNL::init() {
 
   set_constants();
 
-  if (alloc_buffer()) DBUG_RETURN(1);
+  if (alloc_buffer()) return 1;
 
   reset_cache(true);
 
@@ -673,7 +673,7 @@ int JOIN_CACHE_BNL::init() {
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -703,7 +703,7 @@ int JOIN_CACHE_BNL::init() {
 */
 
 int JOIN_CACHE_BKA::init() {
-  DBUG_ENTER("JOIN_CACHE_BKA::init");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   m_read_only = false;
 #endif
@@ -756,7 +756,7 @@ int JOIN_CACHE_BKA::init() {
     cache = cache->prev_cache;
   } while (cache);
 
-  if (alloc_fields(external_key_arg_fields)) DBUG_RETURN(1);
+  if (alloc_fields(external_key_arg_fields)) return 1;
 
   create_flag_fields();
 
@@ -825,11 +825,11 @@ int JOIN_CACHE_BKA::init() {
 
   set_constants();
 
-  if (alloc_buffer()) DBUG_RETURN(1);
+  if (alloc_buffer()) return 1;
 
   reset_cache(true);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -1036,10 +1036,10 @@ uint JOIN_CACHE_BKA::aux_buffer_min_size() const {
 */
 
 bool JOIN_CACHE_BKA::skip_index_tuple(range_seq_t rseq, char *range_info) {
-  DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
+  DBUG_TRACE;
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)rseq;
   cache->get_record_by_pos((uchar *)range_info);
-  DBUG_RETURN(!qep_tab->cache_idx_cond->val_int());
+  return !qep_tab->cache_idx_cond->val_int();
 }
 
 /*
@@ -1063,9 +1063,9 @@ bool JOIN_CACHE_BKA::skip_index_tuple(range_seq_t rseq, char *range_info) {
 */
 
 static bool bka_skip_index_tuple(range_seq_t rseq, char *range_info) {
-  DBUG_ENTER("bka_skip_index_tuple");
+  DBUG_TRACE;
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)rseq;
-  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
+  return cache->skip_index_tuple(rseq, range_info);
 }
 
 /**
@@ -1685,7 +1685,7 @@ void JOIN_CACHE::restore_last_record() {
 
 enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last) {
   enum_nested_loop_state rc = NESTED_LOOP_OK;
-  DBUG_ENTER("JOIN_CACHE::join_records");
+  DBUG_TRACE;
 
   table_map saved_status_bits[3] = {0, 0, 0};
   for (int cnt = 1; cnt <= static_cast<int>(tables); cnt++) {
@@ -1813,7 +1813,7 @@ finish:
   }
   reset_cache(true);
   DBUG_ASSERT(!qep_tab->table()->has_null_row());
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -2129,10 +2129,10 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last) {
   uint cnt;
   enum_nested_loop_state rc = NESTED_LOOP_OK;
   bool is_first_inner = qep_tab->idx() == qep_tab->first_unmatched;
-  DBUG_ENTER("JOIN_CACHE::join_null_complements");
+  DBUG_TRACE;
 
   /* Return at once if there are no records in the join buffer */
-  if (!records) DBUG_RETURN(NESTED_LOOP_OK);
+  if (!records) return NESTED_LOOP_OK;
 
   cnt = records - (is_key_access() ? 0 : skip_last);
 
@@ -2166,7 +2166,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last) {
   }
 
 finish:
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*
@@ -2189,10 +2189,10 @@ finish:
 */
 
 static range_seq_t bka_range_seq_init(void *init_param, uint, uint) {
-  DBUG_ENTER("bka_range_seq_init");
+  DBUG_TRACE;
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)init_param;
   cache->reset_cache(false);
-  DBUG_RETURN((range_seq_t)init_param);
+  return (range_seq_t)init_param;
 }
 
 /*
@@ -2217,7 +2217,7 @@ static range_seq_t bka_range_seq_init(void *init_param, uint, uint) {
 */
 
 static uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
-  DBUG_ENTER("bka_range_seq_next");
+  DBUG_TRACE;
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)rseq;
   TABLE_REF *ref = &cache->qep_tab->ref();
   key_range *start_key = &range->start_key;
@@ -2228,9 +2228,9 @@ static uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
     range->end_key.flag = HA_READ_AFTER_KEY;
     range->ptr = (char *)cache->get_curr_rec();
     range->range_flag = EQ_RANGE;
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /*
@@ -2260,10 +2260,10 @@ static uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 
 static bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info,
                                       uchar *) {
-  DBUG_ENTER("bka_range_seq_skip_record");
+  DBUG_TRACE;
   JOIN_CACHE_BKA *cache = (JOIN_CACHE_BKA *)rseq;
   bool res = cache->get_match_flag_by_pos((uchar *)range_info);
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*
@@ -2602,12 +2602,12 @@ int JOIN_CACHE_BKA_UNIQUE::init() {
   int rc = 0;
   TABLE_REF *ref = &qep_tab->ref();
 
-  DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::init");
+  DBUG_TRACE;
 
   hash_table = 0;
   key_entries = 0;
 
-  if ((rc = JOIN_CACHE_BKA::init())) DBUG_RETURN(rc);
+  if ((rc = JOIN_CACHE_BKA::init())) return rc;
 
   key_length = ref->key_length;
 
@@ -2654,7 +2654,7 @@ int JOIN_CACHE_BKA_UNIQUE::init() {
     for (; copy < copy_end; copy++) data_fields_offset += copy->length;
   }
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 void JOIN_CACHE_BKA_UNIQUE::reset_cache(bool for_writing) {
@@ -2923,10 +2923,10 @@ void JOIN_CACHE_BKA_UNIQUE::cleanup_hash_table() {
 */
 
 static range_seq_t bka_unique_range_seq_init(void *init_param, uint, uint) {
-  DBUG_ENTER("bka_unique_range_seq_init");
+  DBUG_TRACE;
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)init_param;
   cache->reset_cache(false);
-  DBUG_RETURN((range_seq_t)init_param);
+  return (range_seq_t)init_param;
 }
 
 /*
@@ -2952,7 +2952,7 @@ static range_seq_t bka_unique_range_seq_init(void *init_param, uint, uint) {
 
 static uint bka_unique_range_seq_next(range_seq_t rseq,
                                       KEY_MULTI_RANGE *range) {
-  DBUG_ENTER("bka_unique_range_seq_next");
+  DBUG_TRACE;
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)rseq;
   TABLE_REF *ref = &cache->qep_tab->ref();
   key_range *start_key = &range->start_key;
@@ -2963,9 +2963,9 @@ static uint bka_unique_range_seq_next(range_seq_t rseq,
     range->end_key.flag = HA_READ_AFTER_KEY;
     range->ptr = (char *)cache->get_curr_key_chain();
     range->range_flag = EQ_RANGE;
-    DBUG_RETURN(0);
+    return 0;
   }
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /*
@@ -2993,10 +2993,10 @@ static uint bka_unique_range_seq_next(range_seq_t rseq,
 
 static bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
                                              uchar *) {
-  DBUG_ENTER("bka_unique_range_seq_skip_record");
+  DBUG_TRACE;
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)rseq;
   bool res = cache->check_all_match_flags_for_key((uchar *)range_info);
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -3042,7 +3042,7 @@ static bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
 
 bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq,
                                              char *range_info) {
-  DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::skip_index_tuple");
+  DBUG_TRACE;
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)rseq;
   uchar *last_rec_ref_ptr = cache->get_next_rec_ref((uchar *)range_info);
   uchar *next_rec_ref_ptr = last_rec_ref_ptr;
@@ -3050,9 +3050,9 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq,
     next_rec_ref_ptr = cache->get_next_rec_ref(next_rec_ref_ptr);
     uchar *rec_ptr = next_rec_ref_ptr + cache->rec_fields_offset;
     cache->get_record_by_pos(rec_ptr);
-    if (qep_tab->cache_idx_cond->val_int()) DBUG_RETURN(false);
+    if (qep_tab->cache_idx_cond->val_int()) return false;
   } while (next_rec_ref_ptr != last_rec_ref_ptr);
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*
@@ -3076,9 +3076,9 @@ bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq,
 */
 
 static bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info) {
-  DBUG_ENTER("bka_unique_skip_index_tuple");
+  DBUG_TRACE;
   JOIN_CACHE_BKA_UNIQUE *cache = (JOIN_CACHE_BKA_UNIQUE *)rseq;
-  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
+  return cache->skip_index_tuple(rseq, range_info);
 }
 
 /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -148,7 +148,7 @@ bool Table_partitions::get_partition_table_id(THD *thd,
                                               const String_type &engine,
                                               ulonglong se_private_id,
                                               Object_id *oid) {
-  DBUG_ENTER("Table_partitions::get_partition_table_id");
+  DBUG_TRACE;
 
   DBUG_ASSERT(oid);
   *oid = INVALID_OBJECT_ID;
@@ -166,12 +166,12 @@ bool Table_partitions::get_partition_table_id(THD *thd,
   // Find record by the object-key.
   std::unique_ptr<Raw_record> r;
   if (t->find_record(*k, r)) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (r.get()) *oid = read_table_id(*r.get());
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

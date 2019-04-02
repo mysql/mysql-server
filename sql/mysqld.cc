@@ -1925,7 +1925,7 @@ class Call_close_conn : public Do_THD_Impl {
 };
 
 static void close_connections(void) {
-  DBUG_ENTER("close_connections");
+  DBUG_TRACE;
   (void)RUN_HOOK(server_state, before_server_shutdown, (NULL));
 
   Per_thread_connection_handler::kill_blocked_pthreads();
@@ -2007,8 +2007,6 @@ static void close_connections(void) {
 
   delete_slave_info_objects();
   DBUG_PRINT("quit", ("close_connections thread"));
-
-  DBUG_VOID_RETURN;
 }
 
 bool signal_restart_server() {
@@ -2036,11 +2034,11 @@ bool signal_restart_server() {
 }
 
 void kill_mysql(void) {
-  DBUG_ENTER("kill_mysql");
+  DBUG_TRACE;
 
   if (!mysqld_server_started) {
     mysqld_process_must_end_at_startup = true;
-    DBUG_VOID_RETURN;
+    return;
   }
 #if defined(_WIN32)
   {
@@ -2061,11 +2059,10 @@ void kill_mysql(void) {
   }
 #endif
   DBUG_PRINT("quit", ("After pthread_kill"));
-  DBUG_VOID_RETURN;
 }
 
 static void unireg_abort(int exit_code) {
-  DBUG_ENTER("unireg_abort");
+  DBUG_TRACE;
 
   if (errno) {
     sysd::notify("ERRNO=", errno, "\n");
@@ -2927,7 +2924,7 @@ extern "C" void *shared_mem_conn_event_handler(void *arg) {
 void setup_conn_event_handler_threads() {
   my_thread_handle hThread;
 
-  DBUG_ENTER("handle_connections_methods");
+  DBUG_TRACE;
 
   if ((!have_tcpip || opt_disable_networking) && !opt_enable_shared_memory &&
       !opt_enable_named_pipe) {
@@ -2972,7 +2969,6 @@ void setup_conn_event_handler_threads() {
   while (handler_count > 0)
     mysql_cond_wait(&COND_handler_count, &LOCK_handler_count);
   mysql_mutex_unlock(&LOCK_handler_count);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -2985,7 +2981,7 @@ void setup_conn_event_handler_threads() {
 */
 
 static BOOL WINAPI console_event_handler(DWORD type) {
-  DBUG_ENTER("console_event_handler");
+  DBUG_TRACE;
   if (type == CTRL_C_EVENT) {
     /*
       Do not shutdown before startup is finished and shutdown
@@ -2997,9 +2993,9 @@ static BOOL WINAPI console_event_handler(DWORD type) {
       kill_mysql();
     else
       LogErr(WARNING_LEVEL, ER_NOT_RIGHT_NOW);
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 #ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
@@ -3097,7 +3093,7 @@ static void empty_signal_handler(int sig MY_ATTRIBUTE((unused))) {}
 }
 
 void my_init_signals() {
-  DBUG_ENTER("my_init_signals");
+  DBUG_TRACE;
   struct sigaction sa;
   (void)sigemptyset(&sa.sa_mask);
 
@@ -3160,13 +3156,12 @@ void my_init_signals() {
   */
   if (!(test_flags & TEST_SIGINT)) (void)sigaddset(&mysqld_signal_mask, SIGINT);
   pthread_sigmask(SIG_SETMASK, &mysqld_signal_mask, NULL);
-  DBUG_VOID_RETURN;
 }
 
 static void start_signal_handler() {
   int error;
   my_thread_attr_t thr_attr;
-  DBUG_ENTER("start_signal_handler");
+  DBUG_TRACE;
 
   (void)my_thread_attr_init(&thr_attr);
   (void)pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
@@ -3203,7 +3198,6 @@ static void start_signal_handler() {
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
   (void)my_thread_attr_destroy(&thr_attr);
-  DBUG_VOID_RETURN;
 }
 
 /** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
@@ -3342,7 +3336,7 @@ extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 void my_message_sql(uint error, const char *str, myf MyFlags) {
   THD *thd = current_thd;
-  DBUG_ENTER("my_message_sql");
+  DBUG_TRACE;
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
 
   DBUG_ASSERT(str != NULL);
@@ -3381,7 +3375,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
-  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
+  DBUG_EXECUTE_IF("simulate_out_of_memory", return;);
 
   /*
     Caller wishes to send to both the client and the error-log.
@@ -3447,8 +3441,6 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
                      : error)
         .lookup(ER_SERVER_NO_SESSION_TO_SEND_TO, error, str);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 extern "C" void *my_str_malloc_mysqld(size_t size);
@@ -4135,7 +4127,7 @@ static void init_com_statement_info() {
  */
 static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
                                             const char *def, const char *ext) {
-  DBUG_ENTER("rpl_make_log_name");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", (opt && opt[0]) ? opt : "",
                        def, ext));
   char buff[FN_REFLEN];
@@ -4159,9 +4151,9 @@ static inline const char *rpl_make_log_name(PSI_memory_key key, const char *opt,
     mysql_real_data_home_ptr = mysql_real_data_home;
 
   if (fn_format(buff, base, mysql_real_data_home_ptr, ext, options))
-    DBUG_RETURN(my_strdup(key, buff, MYF(0)));
+    return my_strdup(key, buff, MYF(0));
   else
-    DBUG_RETURN(NULL);
+    return NULL;
 }
 
 int init_common_variables() {
@@ -4911,11 +4903,11 @@ static int init_server_auto_options() {
        0, 0},
       {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-  DBUG_ENTER("init_server_auto_options");
+  DBUG_TRACE;
 
   if (NULL == fn_format(fname, "auto.cnf", mysql_data_home, "",
                         MY_UNPACK_FILENAME | MY_SAFE_PATH))
-    DBUG_RETURN(1);
+    return 1;
 
   /* load_defaults require argv[0] is not null */
   char **argv = &name_ptr;
@@ -4931,11 +4923,10 @@ static int init_server_auto_options() {
 
   /* load all options in 'auto.cnf'. */
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL))
-    DBUG_RETURN(1);
+  if (my_load_defaults(fname, groups, &argc, &argv, &alloc, NULL)) return 1;
 
   if (handle_options(&argc, &argv, auto_options, mysqld_get_one_option))
-    DBUG_RETURN(1);
+    return 1;
 
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid) {
@@ -4972,10 +4963,10 @@ static int init_server_auto_options() {
     }
   }
 
-  if (flush) DBUG_RETURN(flush_auto_options(fname));
-  DBUG_RETURN(0);
+  if (flush) return flush_auto_options(fname);
+  return 0;
 err:
-  DBUG_RETURN(1);
+  return 1;
 }
 
 static bool initialize_storage_engine(const char *se_name, const char *se_kind,
@@ -5081,7 +5072,7 @@ static void setup_error_log() {
 }
 
 static int init_server_components() {
-  DBUG_ENTER("init_server_components");
+  DBUG_TRACE;
   /*
     We need to call each of these following functions to ensure that
     all things are initialized so that unireg_abort() doesn't fail
@@ -5348,7 +5339,7 @@ static int init_server_components() {
   process_key_caches(&ha_init_key_cache);
 
   /* Allow storage engine to give real error messages */
-  if (ha_init_errors()) DBUG_RETURN(1);
+  if (ha_init_errors()) return 1;
 
   if (gtid_server_init()) {
     LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_GTID);
@@ -5799,7 +5790,7 @@ static int init_server_components() {
 
   init_max_user_conn();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #ifdef _WIN32
@@ -5831,7 +5822,7 @@ extern "C" void *handle_shutdown_and_restart(void *arg) {
 }
 
 static void create_shutdown_and_restart_thread() {
-  DBUG_ENTER("create_shutdown_and_restart_thread");
+  DBUG_TRACE;
 
   const char *errmsg;
   my_thread_attr_t thr_attr;
@@ -5867,7 +5858,7 @@ static void create_shutdown_and_restart_thread() {
   max_day_name_length variable values in consistent state.
 */
 static void test_lc_time_sz() {
-  DBUG_ENTER("test_lc_time_sz");
+  DBUG_TRACE;
   for (MY_LOCALE **loc = my_locales; *loc; loc++) {
     size_t max_month_len = 0;
     size_t max_day_len = 0;
@@ -5888,7 +5879,6 @@ static void test_lc_time_sz() {
       DBUG_ASSERT(0);
     }
   }
-  DBUG_VOID_RETURN;
 }
 #endif  // DBUG_OFF
 
@@ -7231,20 +7221,20 @@ int mysqld_main(int argc, char **argv) {
 
 static bool read_init_file(char *file_name) {
   MYSQL_FILE *file;
-  DBUG_ENTER("read_init_file");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: %s", file_name));
 
   LogErr(INFORMATION_LEVEL, ER_BEG_INITFILE, file_name);
 
   if (!(file =
             mysql_file_fopen(key_file_init, file_name, O_RDONLY, MYF(MY_WME))))
-    DBUG_RETURN(true);
+    return true;
   (void)bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
   mysql_file_fclose(file, MYF(MY_WME));
 
   LogErr(INFORMATION_LEVEL, ER_END_INITFILE, file_name);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /****************************************************************************
@@ -8606,7 +8596,7 @@ static void print_help() {
 }
 
 static void usage(void) {
-  DBUG_ENTER("usage");
+  DBUG_TRACE;
   if (!(default_charset_info = get_charset_by_csname(
             default_character_set_name, MY_CS_PRIMARY, MYF(MY_WME))))
     exit(MYSQLD_ABORT_EXIT);
@@ -8657,7 +8647,6 @@ because execution stopped before plugins were initialized.");
 To see what values a running MySQL server is using, type\n\
 'mysqladmin variables' instead of 'mysqld --verbose --help'.");
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -8844,13 +8833,13 @@ static int mysql_init_variables() {
     1    Error
 */
 static bool is_rpl_global_filter_setting(char *argument) {
-  DBUG_ENTER("is_rpl_global_filter_setting");
+  DBUG_TRACE;
 
   bool res = false;
   char *p = strchr(argument, ':');
   if (p == NULL) res = true;
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -8861,7 +8850,7 @@ static bool is_rpl_global_filter_setting(char *argument) {
   @param argument The setting of startup option --replicate-*.
 */
 void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
-  DBUG_ENTER("parse_filter_arg");
+  DBUG_TRACE;
 
   char *p = strchr(argument, ':');
 
@@ -8875,8 +8864,6 @@ void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
   *channel_name = argument;
   *filter_val = p + 1;
   *p = 0;
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -8892,13 +8879,13 @@ void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
     1    Error
 */
 static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
-  DBUG_ENTER("parse_replicate_rewrite_db");
+  DBUG_TRACE;
   char *p;
   *key = argument;
 
   if (!(p = strstr(argument, "->"))) {
     LogErr(ERROR_LEVEL, ER_RPL_REWRITEDB_MISSING_ARROW);
-    DBUG_RETURN(1);
+    return 1;
   }
   *val = p + 2;
 
@@ -8907,15 +8894,15 @@ static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
 
   if (!**key) {
     LogErr(ERROR_LEVEL, ER_RPL_REWRITEDB_EMPTY_FROM);
-    DBUG_RETURN(1);
+    return 1;
   }
   while (**val && my_isspace(mysqld_charset, **val)) (*val)++;
   if (!**val) {
     LogErr(ERROR_LEVEL, ER_RPL_REWRITEDB_EMPTY_TO);
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 bool mysqld_get_one_option(int optid,
@@ -9997,7 +9984,7 @@ static int test_if_case_insensitive(const char *dir_name) {
   char buff[FN_REFLEN], buff2[FN_REFLEN];
   MY_STAT stat_info;
   const char *const tmp_file_name = "mysqld_tmp_file_case_insensitive_test";
-  DBUG_ENTER("test_if_case_insensitive");
+  DBUG_TRACE;
 
   fn_format(buff, tmp_file_name, dir_name, ".lower-test",
             MY_UNPACK_FILENAME | MY_REPLACE_EXT | MY_REPLACE_DIR);
@@ -10007,14 +9994,14 @@ static int test_if_case_insensitive(const char *dir_name) {
   if ((file = mysql_file_create(key_file_casetest, buff, 0666, O_RDWR,
                                 MYF(0))) < 0) {
     LogErr(WARNING_LEVEL, ER_CANT_CREATE_TEST_FILE, buff);
-    DBUG_RETURN(-1);
+    return -1;
   }
   mysql_file_close(file, MYF(0));
   if (mysql_file_stat(key_file_casetest, buff2, &stat_info, MYF(0)))
     result = 1;  // Can access file
   mysql_file_delete(key_file_casetest, buff, MYF(MY_WME));
   DBUG_PRINT("exit", ("result: %d", result));
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**

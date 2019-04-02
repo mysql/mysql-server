@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -532,7 +532,7 @@ class Shared_writelock {
  public:
   Shared_writelock(Checkable_rwlock *arg)
       : shared_write_lock(arg), write_lock_in_use(false) {
-    DBUG_ENTER("Shared_writelock::Shared_writelock");
+    DBUG_TRACE;
 
     DBUG_ASSERT(arg != NULL);
 
@@ -540,7 +540,7 @@ class Shared_writelock {
                      MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_GR_COND_write_lock_protection, &write_lock_protection);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   virtual ~Shared_writelock() {
@@ -635,12 +635,12 @@ class Plugin_waitlock {
         key_lock(lock_key),
         key_cond(cond_key),
         wait_status(false) {
-    DBUG_ENTER("Plugin_waitlock::Plugin_waitlock");
+    DBUG_TRACE;
 
     mysql_mutex_init(key_lock, wait_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond, wait_cond);
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -667,14 +667,14 @@ class Plugin_waitlock {
     Blocks the calling thread
   */
   void start_waitlock() {
-    DBUG_ENTER("Plugin_waitlock::start_waitlock");
+    DBUG_TRACE;
     mysql_mutex_lock(wait_lock);
     while (wait_status) {
       DBUG_PRINT("sleep", ("Waiting in Plugin_waitlock::start_waitlock()"));
       mysql_cond_wait(wait_cond, wait_lock);
     }
     mysql_mutex_unlock(wait_lock);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,11 +101,11 @@ struct SAFE_HASH {
 */
 
 static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value) {
-  DBUG_ENTER("safe_hash");
+  DBUG_TRACE;
   mysql_rwlock_init(key_SAFE_HASH_lock, &hash->lock);
   hash->default_value = default_value;
   hash->root = 0;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -133,7 +133,7 @@ static void safe_hash_free(SAFE_HASH *hash) {
 
 static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length) {
   uchar *result;
-  DBUG_ENTER("safe_hash_search");
+  DBUG_TRACE;
   mysql_rwlock_rdlock(&hash->lock);
   auto it = hash->hash.find(string(pointer_cast<const char *>(key), length));
   if (it == hash->hash.end())
@@ -142,7 +142,7 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length) {
     result = it->second->data;
   mysql_rwlock_unlock(&hash->lock);
   DBUG_PRINT("exit", ("data: %p", result));
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -169,7 +169,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
                           uchar *data) {
   SAFE_HASH_ENTRY *entry;
   bool error = 0;
-  DBUG_ENTER("safe_hash_set");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("key: %.*s  data: %p", length, key, data));
   string key_str(pointer_cast<const char *>(key), length);
 
@@ -214,7 +214,7 @@ static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
 
 end:
   mysql_rwlock_unlock(&hash->lock);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -235,7 +235,7 @@ end:
 static void safe_hash_change(SAFE_HASH *hash, uchar *old_data,
                              uchar *new_data) {
   SAFE_HASH_ENTRY *entry, *next;
-  DBUG_ENTER("safe_hash_set");
+  DBUG_TRACE;
 
   mysql_rwlock_wrlock(&hash->lock);
 
@@ -251,7 +251,6 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data,
   }
 
   mysql_rwlock_unlock(&hash->lock);
-  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,12 +155,11 @@ static char reserved_map[256] = {
 */
 
 int check_if_legal_tablename(const char *name) {
-  DBUG_ENTER("check_if_legal_tablename");
-  DBUG_RETURN(name[0] != 0 && name[1] != 0 &&
-              (reserved_map[(uchar)name[0]] & 1) &&
-              (reserved_map[(uchar)name[1]] & 2) &&
-              (reserved_map[(uchar)name[2]] & 4) &&
-              str_list_find(&reserved_names[1], name));
+  DBUG_TRACE;
+  return name[0] != 0 && name[1] != 0 && (reserved_map[(uchar)name[0]] & 1) &&
+         (reserved_map[(uchar)name[1]] & 2) &&
+         (reserved_map[(uchar)name[2]] & 4) &&
+         str_list_find(&reserved_names[1], name);
 }
 
 #ifdef _WIN32
@@ -238,14 +237,14 @@ bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
 int check_if_legal_filename(const char *path) {
   const char *end;
   const char **reserved_name;
-  DBUG_ENTER("check_if_legal_filename");
+  DBUG_TRACE;
 
-  if (!is_filename_allowed(path, strlen(path), true)) DBUG_RETURN(1);
+  if (!is_filename_allowed(path, strlen(path), true)) return 1;
 
   path += dirname_length(path); /* To start of filename */
   if (!(end = strchr(path, FN_EXTCHAR))) end = strend(path);
   if (path == end || (uint)(end - path) > MAX_RESERVED_NAME_LENGTH)
-    DBUG_RETURN(0); /* Simplify inner loop */
+    return 0; /* Simplify inner loop */
 
   for (reserved_name = reserved_names; *reserved_name; reserved_name++) {
     const char *reserved = *reserved_name; /* never empty */
@@ -253,10 +252,10 @@ int check_if_legal_filename(const char *path) {
 
     do {
       if (*reserved != my_toupper(&my_charset_latin1, *name)) break;
-      if (++name == end && !reserved[1]) DBUG_RETURN(1); /* Found wrong path */
+      if (++name == end && !reserved[1]) return 1; /* Found wrong path */
     } while (*++reserved);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #endif /* defined(_WIN32) */

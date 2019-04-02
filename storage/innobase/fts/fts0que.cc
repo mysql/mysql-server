@@ -1387,7 +1387,7 @@ static dberr_t fts_merge_doc_ids(
 {
   const ib_rbt_node_t *node;
 
-  DBUG_ENTER("fts_merge_doc_ids");
+  DBUG_TRACE;
 
   ut_a(!query->intersection);
 
@@ -1412,7 +1412,7 @@ static dberr_t fts_merge_doc_ids(
         fts_query_process_doc_id(query, ranking->doc_id, ranking->rank);
 
     if (query->error != DB_SUCCESS) {
-      DBUG_RETURN(query->error);
+      return query->error;
     }
 
     /* Merge words. Don't need to take operator into account. */
@@ -1430,7 +1430,7 @@ static dberr_t fts_merge_doc_ids(
     query->intersection = NULL;
   }
 
-  DBUG_RETURN(DB_SUCCESS);
+  return DB_SUCCESS;
 }
 
 /** Skip non-whitespace in a string. Move ptr to the next word boundary.
@@ -2726,7 +2726,7 @@ static dberr_t fts_query_visitor(
   fts_query_t *query = static_cast<fts_query_t *>(arg);
 
   ut_a(node);
-  DBUG_ENTER("fts_query_visitor");
+  DBUG_TRACE;
   DBUG_PRINT("fts", ("nodetype: %s", fts_ast_node_type_get(node->type)));
 
   token.f_n_char = 0;
@@ -2804,7 +2804,7 @@ static dberr_t fts_query_visitor(
     query->multi_exist = true;
   }
 
-  DBUG_RETURN(query->error);
+  return query->error;
 }
 
 /** Process (nested) sub-expression, create a new result set to store the
@@ -2824,7 +2824,7 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   bool will_be_ignored = false;
   bool multi_exist;
 
-  DBUG_ENTER("fts_ast_visit_sub_exp");
+  DBUG_TRACE;
 
   ut_a(node->type == FTS_AST_SUBEXP_LIST);
 
@@ -2859,7 +2859,7 @@ static dberr_t fts_ast_visit_sub_exp(fts_ast_node_t *node,
   /* Free current result set. Result already merged into parent. */
   fts_query_free_doc_ids(query, subexpr_doc_ids);
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 #if 0
@@ -3301,10 +3301,10 @@ float fts_retrieve_ranking(
   ib_rbt_bound_t parent;
   fts_ranking_t new_ranking;
 
-  DBUG_ENTER("fts_retrieve_ranking");
+  DBUG_TRACE;
 
   if (!result || !result->rankings_by_id) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   new_ranking.doc_id = doc_id;
@@ -3315,10 +3315,10 @@ float fts_retrieve_ranking(
 
     ranking = rbt_value(fts_ranking_t, parent.last);
 
-    DBUG_RETURN(ranking->rank);
+    return ranking->rank;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /** Create the result and copy the data to it. */
@@ -3331,7 +3331,7 @@ static fts_result_t *fts_query_prepare_result(
   const ib_rbt_node_t *node;
   bool result_is_null = false;
 
-  DBUG_ENTER("fts_query_prepare_result");
+  DBUG_TRACE;
 
   if (result == NULL) {
     result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
@@ -3376,7 +3376,7 @@ static fts_result_t *fts_query_prepare_result(
       if (query->total_size > fts_result_cache_limit) {
         query->error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
         fts_query_free_result(result);
-        DBUG_RETURN(NULL);
+        return NULL;
       }
     }
 
@@ -3397,7 +3397,7 @@ static fts_result_t *fts_query_prepare_result(
                                               word_freq->idf);
     }
 
-    DBUG_RETURN(result);
+    return result;
   }
 
   ut_a(rbt_size(query->doc_ids) > 0);
@@ -3422,7 +3422,7 @@ static fts_result_t *fts_query_prepare_result(
       if (query->total_size > fts_result_cache_limit) {
         query->error = DB_FTS_EXCEED_RESULT_CACHE_LIMIT;
         fts_query_free_result(result);
-        DBUG_RETURN(NULL);
+        return NULL;
       }
     }
   }
@@ -3434,7 +3434,7 @@ static fts_result_t *fts_query_prepare_result(
     query->doc_ids = NULL;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /** Get the result of the query. Calculate the similarity coefficient. */
@@ -3442,7 +3442,7 @@ static fts_result_t *fts_query_get_result(
     fts_query_t *query,   /*!< in: query instance */
     fts_result_t *result) /*!< in: result */
 {
-  DBUG_ENTER("fts_query_get_result");
+  DBUG_TRACE;
 
   if (rbt_size(query->doc_ids) > 0 || query->flags == FTS_OPT_RANKING) {
     /* Copy the doc ids to the result. */
@@ -3452,7 +3452,7 @@ static fts_result_t *fts_query_get_result(
     result = static_cast<fts_result_t *>(ut_zalloc_nokey(sizeof(*result)));
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /** FTS Query free resources and reset. */
@@ -3528,7 +3528,7 @@ static fts_ast_node_t *fts_query_parse(
   int error;
   fts_ast_state_t state;
   bool mode = query->boolean_mode;
-  DBUG_ENTER("fts_query_parse");
+  DBUG_TRACE;
 
   memset(&state, 0x0, sizeof(state));
 
@@ -3561,7 +3561,7 @@ static fts_ast_node_t *fts_query_parse(
     }
   }
 
-  DBUG_RETURN(state.root);
+  return state.root;
 }
 
 /** FTS Query optimization

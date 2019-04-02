@@ -1093,13 +1093,13 @@ class Log_event {
      @see do_shall_skip
    */
   enum_skip_reason shall_skip(Relay_log_info *rli) {
-    DBUG_ENTER("Log_event::shall_skip");
+    DBUG_TRACE;
     enum_skip_reason ret = do_shall_skip(rli);
     DBUG_PRINT("info", ("skip reason=%d=%s", ret,
                         ret == EVENT_SKIP_NOT
                             ? "NOT"
                             : ret == EVENT_SKIP_IGNORE ? "IGNORE" : "COUNT"));
-    DBUG_RETURN(ret);
+    return ret;
   }
 
   /**
@@ -1729,11 +1729,9 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
                        const Format_description_event *description_event)
       : binary_log::XA_prepare_event(buf, description_event),
         Xid_apply_log_event(header(), footer()) {
-    DBUG_ENTER(
-        "XA_prepare_log_event::XA_prepare_log_event(const char*, const "
-        "Format_description_log_event *)");
+    DBUG_TRACE;
     xid = nullptr;
-    DBUG_VOID_RETURN;
+    return;
   }
   Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
   size_t get_data_size() override {
@@ -1844,10 +1842,8 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
                  const Format_description_event *description_event)
       : binary_log::Stop_event(buf, description_event),
         Log_event(header(), footer()) {
-    DBUG_ENTER(
-        "Stop_log_event::Stop_log_event(const char*, const "
-        "Format_description_log_event *)");
-    DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    return;
   }
 
   ~Stop_log_event() override {}
@@ -2202,12 +2198,10 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
         Log_event(header(), footer()) {
-    DBUG_ENTER(
-        "Unknown_log_event::Unknown_log_event(const char *, const "
-        "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
+    DBUG_TRACE;
+    if (!is_valid()) return;
     common_header->set_is_valid(true);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   ~Unknown_log_event() override {}
@@ -3308,12 +3302,12 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
-    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
     DBUG_ASSERT(message == nullptr && message_length == 0);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Incident_log_event(THD *thd_arg, enum_incident incident_arg,
@@ -3321,7 +3315,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
       : binary_log::Incident_event(incident_arg),
         Log_event(thd_arg, LOG_EVENT_NO_FILTER_F, Log_event::EVENT_NO_CACHE,
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
-    DBUG_ENTER("Incident_log_event::Incident_log_event");
+    DBUG_TRACE;
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
@@ -3330,11 +3324,11 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
                                       msg.length + 1, MYF(MY_WME)))) {
       // The allocation failed. Mark this binlog event as invalid.
       common_header->set_is_valid(false);
-      DBUG_VOID_RETURN;
+      return;
     }
     strmake(message, msg.str, msg.length);
     message_length = msg.length;
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 
@@ -3400,9 +3394,9 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
   Ignorable_log_event(THD *thd_arg)
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, Log_event::EVENT_STMT_CACHE,
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
-    DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
+    DBUG_TRACE;
     common_header->set_is_valid(true);
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 
@@ -3463,7 +3457,7 @@ class Rows_query_log_event : public Ignorable_log_event,
 #ifdef MYSQL_SERVER
   Rows_query_log_event(THD *thd_arg, const char *query, size_t query_len)
       : Ignorable_log_event(thd_arg) {
-    DBUG_ENTER("Rows_query_log_event::Rows_query_log_event");
+    DBUG_TRACE;
     common_header->type_code = binary_log::ROWS_QUERY_LOG_EVENT;
     if (!(m_rows_query =
               (char *)my_malloc(key_memory_Rows_query_log_event_rows_query,
@@ -3471,7 +3465,7 @@ class Rows_query_log_event : public Ignorable_log_event,
       return;
     snprintf(m_rows_query, query_len + 1, "%s", query);
     DBUG_PRINT("enter", ("%s", m_rows_query));
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif
 

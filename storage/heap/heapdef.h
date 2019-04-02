@@ -48,7 +48,7 @@ extern LIST *heap_open_list, *heap_share_list;
 #define test_active(info)                  \
   if (!(info->update & HA_STATE_AKTIV)) {  \
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD); \
-    DBUG_RETURN(-1);                       \
+    return -1;                             \
   }
 #define hp_find_hash(A, B) ((HASH_INFO *)hp_find_block((A), (B)))
 

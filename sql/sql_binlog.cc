@@ -126,7 +126,7 @@ static int check_event_type(int type, Relay_log_info *rli) {
 */
 
 void mysql_client_binlog_statement(THD *thd) {
-  DBUG_ENTER("mysql_client_binlog_statement");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("binlog base64: '%*s'",
                       (int)(thd->lex->binlog_stmt_arg.length < 2048
                                 ? thd->lex->binlog_stmt_arg.length
@@ -137,13 +137,13 @@ void mysql_client_binlog_statement(THD *thd) {
   if (!(sctx->check_access(SUPER_ACL) ||
         sctx->has_global_grant(STRING_WITH_LEN("BINLOG_ADMIN")).first)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or BINLOG_ADMIN");
-    DBUG_VOID_RETURN;
+    return;
   }
 
   size_t coded_len = thd->lex->binlog_stmt_arg.length;
   if (!coded_len) {
     my_error(ER_SYNTAX_ERROR, MYF(0));
-    DBUG_VOID_RETURN;
+    return;
   }
   size_t decoded_len = base64_needed_decoded_length(coded_len);
 
@@ -310,5 +310,4 @@ end:
   }
   thd->variables.option_bits = thd_options;
   my_free(buf);
-  DBUG_VOID_RETURN;
 }

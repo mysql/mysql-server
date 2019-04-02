@@ -125,7 +125,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
                                   Open_dictionary_tables_ctx *otx,
                                   Raw_table *table, Object_key *key,
                                   Compare comp) {
-  DBUG_ENTER("Collection::restore_items");
+  DBUG_TRACE;
 
   // NOTE: if this assert is firing, that means the table was not registered
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
@@ -136,7 +136,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   std::unique_ptr<Object_key> key_holder(key);
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
@@ -149,7 +149,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
     if (item->restore_attributes(*r) || rs->next(r)) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -175,7 +175,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   for (auto item : m_items) {
     if (item->restore_children(otx) || item->validate()) {
       clear_all_items();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -184,7 +184,7 @@ bool Collection<T>::restore_items(Parent_item *parent,
   // So we need to sort the elements in m_item based on ordinal position.
   std::sort(m_items.begin(), m_items.end(), comp);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
@@ -203,14 +203,14 @@ bool Collection<T>::restore_items(Parent_item *parent,
 
 template <typename T>
 bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
-  DBUG_ENTER("Collection::store_items");
+  DBUG_TRACE;
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items from m_removed_items.
 
   for (auto *removed : m_removed_items) {
-    if (removed->validate() || removed->drop(otx)) DBUG_RETURN(true);
+    if (removed->validate() || removed->drop(otx)) return true;
   }
 
   delete_container_pointers(m_removed_items);
@@ -218,42 +218,42 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx) {
   // Add new items and update existing if needed.
 
   for (Collection<T>::impl_type *item : m_items) {
-    if (item->validate() || item->store(otx)) DBUG_RETURN(true);
+    if (item->validate() || item->store(otx)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>
 bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
                                Raw_table *table, Object_key *key) const {
-  DBUG_ENTER("Collection::drop_items");
+  DBUG_TRACE;
 
   // Make sure key gets deleted
   std::unique_ptr<Object_key> key_holder(key);
 
-  if (empty()) DBUG_RETURN(false);
+  if (empty()) return false;
 
   // Drop items
 
   for (const Collection<T>::impl_type *item : m_items) {
-    if (item->drop_children(otx)) DBUG_RETURN(true);
+    if (item->drop_children(otx)) return true;
   }
 
   std::unique_ptr<Raw_record_set> rs;
-  if (table->open_record_set(key, rs)) DBUG_RETURN(true);
+  if (table->open_record_set(key, rs)) return true;
 
   // Process records.
 
   Raw_record *r = rs->current_record();
   while (r) {
     // Drop the item record from DD table
-    if (r->drop()) DBUG_RETURN(true);
+    if (r->drop()) return true;
 
-    if (rs->next(r)) DBUG_RETURN(true);
+    if (rs->next(r)) return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 template <typename T>

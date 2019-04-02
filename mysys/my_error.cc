@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -215,7 +215,7 @@ const char *my_get_err_msg(int nr) {
 void my_error(int nr, myf MyFlags, ...) {
   const char *format;
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d", nr, MyFlags, errno));
 
   if (!(format = my_get_err_msg(nr)))
@@ -247,7 +247,6 @@ void my_error(int nr, myf MyFlags, ...) {
   }
 
   (*error_handler_hook)(nr, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -265,7 +264,7 @@ void my_error(int nr, myf MyFlags, ...) {
 void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
   va_list args;
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_printf_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  Format: %s", error,
                     MyFlags, errno, format));
 
@@ -273,7 +272,6 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
   (void)vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   (*error_handler_hook)(error, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -290,13 +288,12 @@ void my_printf_error(uint error, const char *format, myf MyFlags, ...) {
 
 void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap) {
   char ebuff[ERRMSGSIZE];
-  DBUG_ENTER("my_printv_error");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s", error,
                     MyFlags, errno, format));
 
   (void)vsnprintf(ebuff, sizeof(ebuff), format, ap);
   (*error_handler_hook)(error, ebuff, MyFlags);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -446,7 +443,7 @@ void my_error_unregister_all(void) {
 void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
   char buff[1024];
   size_t len;
-  DBUG_ENTER("my_message_local_stderr");
+  DBUG_TRACE;
 
   len = snprintf(
       buff, sizeof(buff), "[%s] ",
@@ -454,8 +451,6 @@ void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
   vsnprintf(buff + len, sizeof(buff) - len, EE(ecode), args);
 
   my_message_stderr(0, buff, MYF(0));
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -476,11 +471,9 @@ void my_message_local_stderr(enum loglevel ll, uint ecode, va_list args) {
 */
 void my_message_local(enum loglevel ll, uint ecode, ...) {
   va_list args;
-  DBUG_ENTER("my_message_local");
+  DBUG_TRACE;
 
   va_start(args, ecode);
   (*local_message_hook)(ll, ecode, args);
   va_end(args);
-
-  DBUG_VOID_RETURN;
 }

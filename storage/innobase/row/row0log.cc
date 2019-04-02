@@ -214,7 +214,7 @@ struct row_log_t {
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
-  DBUG_ENTER("row_log_tmpfile");
+  DBUG_TRACE;
   if (log->fd < 0) {
     log->fd = row_merge_file_create_low(log->path);
     DBUG_EXECUTE_IF("row_log_tmpfile_fail",
@@ -225,7 +225,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
     }
   }
 
-  DBUG_RETURN(log->fd);
+  return log->fd;
 }
 
 /** Allocate the memory for the log buffer.
@@ -233,30 +233,29 @@ static MY_ATTRIBUTE((warn_unused_result)) int row_log_tmpfile(row_log_t *log) {
 @return true if success, false if not */
 static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
     row_log_buf_t &log_buf) {
-  DBUG_ENTER("row_log_block_allocate");
+  DBUG_TRACE;
   if (log_buf.block == NULL) {
-    DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", DBUG_RETURN(false););
+    DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
     log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
                         .allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
 
     if (log_buf.block == NULL) {
-      DBUG_RETURN(false);
+      return false;
     }
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Free the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation */
 static void row_log_block_free(row_log_buf_t &log_buf) {
-  DBUG_ENTER("row_log_block_free");
+  DBUG_TRACE;
   if (log_buf.block != NULL) {
     ut_allocator<byte>(mem_key_row_log_buf)
         .deallocate_large(log_buf.block, &log_buf.block_pfx);
     log_buf.block = NULL;
   }
-  DBUG_VOID_RETURN;
 }
 
 /** Logs an operation to a secondary index that is (or was) being created. */
@@ -1215,7 +1214,7 @@ void row_log_table_blob_free(
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
-  DBUG_ENTER("row_log_table_blob_free");
+  DBUG_TRACE;
 
   ut_ad(index->is_clustered());
   ut_ad(dict_index_is_online_ddl(index));
@@ -1223,7 +1222,7 @@ void row_log_table_blob_free(
   ut_ad(page_no != FIL_NULL);
 
   if (index->online_log->error != DB_SUCCESS) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   page_no_map *blobs = index->online_log->blobs;
@@ -1248,8 +1247,6 @@ void row_log_table_blob_free(
     p.first->second.blob_free(log_pos);
   }
 #undef log_pos
-
-  DBUG_VOID_RETURN;
 }
 
 /** Notes that a BLOB is being allocated during online ALTER TABLE. */
@@ -1257,7 +1254,7 @@ void row_log_table_blob_alloc(
     dict_index_t *index, /*!< in/out: clustered index, X-latched */
     page_no_t page_no)   /*!< in: starting page number of the BLOB */
 {
-  DBUG_ENTER("row_log_table_blob_alloc");
+  DBUG_TRACE;
 
   ut_ad(index->is_clustered());
   ut_ad(dict_index_is_online_ddl(index));
@@ -1267,7 +1264,7 @@ void row_log_table_blob_alloc(
   ut_ad(page_no != FIL_NULL);
 
   if (index->online_log->error != DB_SUCCESS) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /* Only track allocations if the same page has been freed
@@ -1280,8 +1277,6 @@ void row_log_table_blob_alloc(
       p->second.blob_alloc(index->online_log->tail.total);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Converts a log record to a table row.
@@ -2857,7 +2852,7 @@ bool row_log_allocate(
     const char *path)     /*!< in: where to create temporary file */
 {
   row_log_t *log;
-  DBUG_ENTER("row_log_allocate");
+  DBUG_TRACE;
 
   ut_ad(!dict_index_is_online_ddl(index));
   ut_ad(index->is_clustered() == !!table);
@@ -2870,7 +2865,7 @@ bool row_log_allocate(
   log = static_cast<row_log_t *>(ut_malloc_nokey(sizeof *log));
 
   if (log == NULL) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   log->fd = -1;
@@ -2900,7 +2895,7 @@ bool row_log_allocate(
   atomic operations in both cases. */
   MONITOR_ATOMIC_INC(MONITOR_ONLINE_CREATE_INDEX);
 
-  DBUG_RETURN(true);
+  return true;
 }
 
 /** Free the row log for an index that was being created online. */
@@ -3565,7 +3560,7 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
   dberr_t error;
   row_log_t *log;
   row_merge_dup_t dup = {index, table, NULL, 0};
-  DBUG_ENTER("row_log_apply");
+  DBUG_TRACE;
 
   ut_ad(dict_index_is_online_ddl(index));
   ut_ad(!index->is_clustered());
@@ -3602,5 +3597,5 @@ dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
 
   row_log_free(log);
 
-  DBUG_RETURN(error);
+  return error;
 }

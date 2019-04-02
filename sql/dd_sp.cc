@@ -57,7 +57,7 @@
 
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                                          st_sp_chistics *sp_chistics) {
-  DBUG_ENTER("prepare_sp_chistics_from_dd_routine");
+  DBUG_TRACE;
 
   sp_chistics->detistic = routine->is_deterministic();
 
@@ -90,8 +90,6 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                             routine->comment().length()};
   } else
     sp_chistics->comment = EMPTY_CSTR;
-
-  DBUG_VOID_RETURN;
 }
 
 static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
@@ -128,7 +126,7 @@ static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
 static void prepare_type_string_from_dd_param(THD *thd,
                                               const dd::Parameter *param,
                                               String *type_str) {
-  DBUG_ENTER("prepare_type_string_from_dd_param");
+  DBUG_TRACE;
 
   // ENUM/SET elements.
   TYPELIB *interval = NULL;
@@ -187,13 +185,11 @@ static void prepare_type_string_from_dd_param(THD *thd,
       type_str->append(field->charset()->name);
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void prepare_return_type_string_from_dd_routine(
     THD *thd, const dd::Routine *routine, dd::String_type *return_type_str) {
-  DBUG_ENTER("prepare_return_type_string_from_dd_routine");
+  DBUG_TRACE;
 
   *return_type_str = "";
 
@@ -217,13 +213,11 @@ void prepare_return_type_string_from_dd_routine(
       *return_type_str = type_str.ptr();
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
                                            dd::String_type *params_str) {
-  DBUG_ENTER("prepare_params_string_from_dd_routine");
+  DBUG_TRACE;
 
   *params_str = "";
 
@@ -275,6 +269,4 @@ void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
   }
 
   if (params_ss.str().length()) *params_str = params_ss.str();
-
-  DBUG_VOID_RETURN;
 }

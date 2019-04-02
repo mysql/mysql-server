@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ int wild_compare_full(const char *str, int strlen, const char *wildstr,
   const char *strend = str + strlen;
   const char *wildend = wildstr + wildlen;
   char cmp;
-  DBUG_ENTER("wild_compare");
+  DBUG_TRACE;
 
   while (wildstr < wildend) {
     /*
@@ -62,12 +62,11 @@ int wild_compare_full(const char *str, int strlen, const char *wildstr,
           be considered as pattern, there should be a escape char in input
           string too.
         */
-        if (str_is_pattern && str < strend && *str++ != w_prefix)
-          DBUG_RETURN(1);
+        if (str_is_pattern && str < strend && *str++ != w_prefix) return 1;
       }
-      if (str == strend || *wildstr++ != *str++) DBUG_RETURN(1);
+      if (str == strend || *wildstr++ != *str++) return 1;
     }
-    if (wildstr == wildend) DBUG_RETURN(str < strend);
+    if (wildstr == wildend) return str < strend;
     /*
       Skip one char if wildcard is w_one. If expression string can be
       considered as pattern, any char in expression string except of w_many can
@@ -75,7 +74,7 @@ int wild_compare_full(const char *str, int strlen, const char *wildstr,
     */
     if (*wildstr++ == w_one) {
       if (str == strend || (str_is_pattern && *str == w_many))
-        DBUG_RETURN(1); /* One char; skip */
+        return 1; /* One char; skip */
       if (*str++ == w_prefix && str_is_pattern) str++;
     } else { /* Found '*' */
       /*
@@ -91,10 +90,10 @@ int wild_compare_full(const char *str, int strlen, const char *wildstr,
           if (str_is_pattern && str + 1 < strend && *str == w_prefix)
             str += 2;
           else if (str == strend)
-            DBUG_RETURN(1);
+            return 1;
         }
       }
-      if (wildstr == wildend) DBUG_RETURN(0); /* '*' as last char: OK */
+      if (wildstr == wildend) return 0; /* '*' as last char: OK */
       if ((cmp = *wildstr) == w_prefix && wildstr + 1 < wildend &&
           !str_is_pattern)
         cmp = wildstr[1];
@@ -106,16 +105,16 @@ int wild_compare_full(const char *str, int strlen, const char *wildstr,
           all matched by w_many.
         */
         while (str < strend && *str != cmp) str++;
-        if (str == strend) DBUG_RETURN(1);
+        if (str == strend) return 1;
         // Recursively call ourselves until we find a match.
         if (wild_compare_full(str, strend - str, wildstr, wildend - wildstr,
                               str_is_pattern, w_prefix, w_one, w_many) == 0)
-          DBUG_RETURN(0);
+          return 0;
       }
       /* We will never come here */
     }
   }
-  DBUG_RETURN(str < strend);
+  return str < strend;
 } /* wild_compare */
 
 int wild_compare(const char *str, int strlen, const char *wildstr, int wildlen,

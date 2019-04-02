@@ -202,7 +202,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   List<LEX_USER> *old_default_roles = lex->default_roles;
   bool hide_password_hash = false;
 
-  DBUG_ENTER("mysql_show_create_user");
+  DBUG_TRACE;
   if (are_both_users_same) {
     TABLE_LIST t1;
     t1.init_one_table(STRING_WITH_LEN("mysql"), STRING_WITH_LEN("user"), "user",
@@ -212,7 +212,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
   }
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock()) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock()) return true;
 
   if (!(acl_user =
             find_acl_user(user_name->host.str, user_name->user.str, true))) {
@@ -220,7 +220,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     log_user(thd, &wrong_users, user_name, wrong_users.length() > 0);
     my_error(ER_CANNOT_USER, MYF(0), "SHOW CREATE USER",
              wrong_users.c_ptr_safe());
-    DBUG_RETURN(true);
+    return true;
   }
   /* fill in plugin, auth_str from acl_user */
   user_name->auth.str = acl_user->credentials[PRIMARY_CRED].m_auth_string.str;
@@ -357,7 +357,7 @@ err:
 
   lex->alter_password = alter_info;
   my_eof(thd);
-  DBUG_RETURN(error);
+  return error;
 }
 
 #include "sql/tztime.h"  // Time_zone
@@ -1323,7 +1323,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   int ret;
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
 
-  DBUG_ENTER("change_password");
+  DBUG_TRACE;
   DBUG_ASSERT(lex_user && lex_user->host.str);
   DBUG_PRINT("enter", ("host: '%s'  user: '%s' current_password: '%s' \
                        new_password: '%s'",
@@ -1332,7 +1332,7 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
 
   if (check_change_password(thd, lex_user->host.str, lex_user->user.str,
                             retain_current_password))
-    DBUG_RETURN(true);
+    return true;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   /*
@@ -1344,11 +1344,11 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   if ((ret = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(ret != 1);
+    return ret != 1;
 
   if (!acl_cache_lock.lock()) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   table = tables[ACL_TABLES::TABLE_USER].table;
@@ -1358,13 +1358,13 @@ bool change_password(THD *thd, LEX_USER *lex_user, char *new_password,
   if (acl_user == nullptr) {
     my_error(ER_PASSWORD_NO_MATCH, MYF(0));
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   DBUG_ASSERT(acl_user->plugin.length != 0);
   is_role = acl_user->is_role;
 
-  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) DBUG_RETURN(true);
+  if (!(combo = (LEX_USER *)thd->alloc(sizeof(LEX_USER)))) return true;
 
   combo->user.str = lex_user->user.str;
   combo->host.str = lex_user->host.str;
@@ -1442,7 +1442,7 @@ end:
       thd->is_error() || result, lex_user->user.str, lex_user->host.str,
       authentication_plugin.c_str(), is_role, NULL, NULL);
 
-  DBUG_RETURN(result || commit_result);
+  return result || commit_result;
 }
 
 namespace {
@@ -1469,7 +1469,7 @@ void remove_matching_grants(T *hash, Matcher &matches) {
 
 template <class T, class Matcher>
 bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
-  DBUG_ENTER("rename_matching_grants");
+  DBUG_TRACE;
 
   using Elem = typename T::value_type::second_type::element_type;
 
@@ -1484,7 +1484,7 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
   for (auto it = hash->begin(); it != hash->end();) {
     Elem *grant_name = it->second.get();
     if (matches(grant_name->user, grant_name->host.get_host())) {
-      if (acl_grant_name.push_back(it->second.release())) DBUG_RETURN(true);
+      if (acl_grant_name.push_back(it->second.release())) return true;
       it = hash->erase(it);
     } else
       ++it;
@@ -1500,7 +1500,7 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
     hash->emplace(grant_name->hash_key,
                   unique_ptr_destroy_only<Elem>(grant_name));
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 }  // namespace
@@ -1536,7 +1536,7 @@ bool rename_matching_grants(T *hash, Matcher &matches, LEX_USER *user_to) {
 static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to,
                                bool on_drop_role_priv) {
-  DBUG_ENTER("handle_grant_struct");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("scan struct: %u  search: '%s'@'%s'", struct_no,
                       user_from->user.str, user_from->host.str));
 
@@ -1566,7 +1566,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
             char command[128];
             get_privilege_desc(command, sizeof(command), CREATE_USER_ACL);
             my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
-            DBUG_RETURN(-1);
+            return -1;
           }
           acl_restrictions->remove_restrictions(acl_user);
           acl_users->erase(idx);
@@ -1615,7 +1615,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         remove_matching_grants(column_priv_hash.get(), matches);
       else if (user_to) {
         if (rename_matching_grants(column_priv_hash.get(), matches, user_to))
-          DBUG_RETURN(-1);
+          return -1;
       } else
         search_for_matching_grant(column_priv_hash.get(), matches);
       break;
@@ -1625,7 +1625,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         remove_matching_grants(proc_priv_hash.get(), matches);
       else if (user_to) {
         if (rename_matching_grants(proc_priv_hash.get(), matches, user_to))
-          DBUG_RETURN(-1);
+          return -1;
       } else
         search_for_matching_grant(proc_priv_hash.get(), matches);
       break;
@@ -1635,7 +1635,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         remove_matching_grants(func_priv_hash.get(), matches);
       else if (user_to) {
         if (rename_matching_grants(func_priv_hash.get(), matches, user_to))
-          DBUG_RETURN(-1);
+          return -1;
       } else
         search_for_matching_grant(func_priv_hash.get(), matches);
       break;
@@ -1664,14 +1664,14 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       break;
 
     default:
-      DBUG_RETURN(-1);
+      return -1;
   }
 
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("loop", ("scan struct: %u  result %d", struct_no, result));
 #endif
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1704,7 +1704,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   int found;
   int ret;
   Acl_table_intact table_intact(thd);
-  DBUG_ENTER("handle_grant_data");
+  DBUG_TRACE;
 
   if (drop) {
     /*
@@ -1715,7 +1715,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     if (revoke_all_roles_from_user(
             thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table,
             tables[ACL_TABLES::TABLE_DEFAULT_ROLES].table, user_from)) {
-      DBUG_RETURN(-1);
+      return -1;
     }
     /* Remove all associated dynamic privileges on a best effort basis */
     Update_dynamic_privilege_table update_table(
@@ -1728,7 +1728,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_USER, drop,
                                   user_from, user_to)) < 0) {
     /* Handle of table failed, don't touch the in-memory array. */
-    DBUG_RETURN(-1);
+    return -1;
   } else {
     /* Handle user array. */
     if ((ret = handle_grant_struct(USER_ACL, drop, user_from, user_to,
@@ -1747,7 +1747,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   if ((found = handle_grant_table(thd, tables, ACL_TABLES::TABLE_DB, drop,
                                   user_from, user_to)) < 0) {
     /* Handle of table failed, don't touch the in-memory array. */
-    DBUG_RETURN(-1);
+    return -1;
   } else {
     /* Handle db array. */
     if ((((ret = handle_grant_struct(DB_ACL, drop, user_from, user_to,
@@ -1773,7 +1773,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     /* Handle of table failed, don't touch in-memory array. */
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_routine_table",
                     DBUG_SET("-d,wl7158_handle_grant_table_2"););
-    DBUG_RETURN(-1);
+    return -1;
   } else {
     /* Handle procs array. */
     if ((((ret = handle_grant_struct(PROC_PRIVILEGES_HASH, drop, user_from,
@@ -1812,7 +1812,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_tables_table",
                     DBUG_SET("-d,wl7158_handle_grant_table_2"););
     /* Handle of table failed, don't touch columns and in-memory array. */
-    DBUG_RETURN(-1);
+    return -1;
   } else {
     if (found && !result) {
       result = 1; /* At least one record found. */
@@ -1829,7 +1829,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
       DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_columns_table",
                       DBUG_SET("-d,wl7158_handle_grant_table_2"););
       /* Handle of table failed, don't touch the in-memory array. */
-      DBUG_RETURN(-1);
+      return -1;
     } else {
       /* Handle columns hash. */
       if ((((ret = handle_grant_struct(COLUMN_PRIVILEGES_HASH, drop, user_from,
@@ -1859,7 +1859,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
       DBUG_EXECUTE_IF("mysql_handle_grant_data_fail_on_proxies_priv_table",
                       DBUG_SET("-d,wl7158_handle_grant_table_2"););
       /* Handle of table failed, don't touch the in-memory array. */
-      DBUG_RETURN(-1);
+      return -1;
     } else {
       /* Handle proxies_priv array. */
       if (((ret = handle_grant_struct(PROXY_USERS_ACL, drop, user_from, user_to,
@@ -1876,13 +1876,13 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
     bool row_existed;
     if (handle_password_history_table(thd, tables, drop, user_from, user_to,
                                       &row_existed))
-      DBUG_RETURN(-1);
+      return -1;
     else if (row_existed)
-      DBUG_RETURN(1);
+      return 1;
   }
 
 end:
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -1910,7 +1910,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
   bool is_anonymous_user = false;
   std::set<LEX_USER *> extra_users;
   std::set<LEX_USER *> reset_users;
-  DBUG_ENTER("mysql_create_user");
+  DBUG_TRACE;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
@@ -1924,16 +1924,16 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
 
   /* CREATE USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
+    return result != 1;
 
   if (!acl_cache_lock.lock()) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   while ((tmp_user_name = user_list++)) {
@@ -2099,7 +2099,7 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -2124,7 +2124,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   sql_mode_t old_sql_mode = thd->variables.sql_mode;
   bool transactional_tables;
   std::set<LEX_USER *> audit_users;
-  DBUG_ENTER("mysql_drop_user");
+  DBUG_TRACE;
 
   /*
     Make sure that none of the authids we're about to drop is used as a
@@ -2146,16 +2146,16 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
 
   /* DROP USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
+    return result != 1;
 
   if (!acl_cache_lock.lock()) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   get_mandatory_roles(&mandatory_roles);
@@ -2169,7 +2169,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
       std::string out;
       authid.auth_str(&out);
       my_error(ER_MANDATORY_ROLE, MYF(0), out.c_str());
-      DBUG_RETURN(true);
+      return true;
     }
   }
   user_list.rewind();
@@ -2238,7 +2238,7 @@ bool mysql_drop_user(THD *thd, List<LEX_USER> &list, bool if_exists,
   }
 
   thd->variables.sql_mode = old_sql_mode;
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -2263,12 +2263,12 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   std::unique_ptr<Security_context> orig_sctx = nullptr;
   bool transactional_tables;
-  DBUG_ENTER("mysql_rename_user");
+  DBUG_TRACE;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
-  if (!acl_cache_lock.lock()) DBUG_RETURN(true);
+  if (!acl_cache_lock.lock()) return true;
 
-  if (check_system_user_privilege(thd, list)) DBUG_RETURN(true);
+  if (check_system_user_privilege(thd, list)) return true;
 
   /* Is this auth id a role id? */
   {
@@ -2283,7 +2283,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
       }
       if (is_role_id(authid)) {
         my_error(ER_RENAME_ROLE, MYF(0));
-        DBUG_RETURN(true);
+        return true;
       }
     }
     // We have to unlock ACL cache before taking table locks
@@ -2300,11 +2300,11 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
 
   /* RENAME USER may be skipped on replication client. */
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
+    return result != 1;
 
   if (!acl_cache_lock.lock()) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   while ((tmp_user_from = user_list++)) {
@@ -2412,7 +2412,7 @@ bool mysql_rename_user(THD *thd, List<LEX_USER> &list) {
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -2443,7 +2443,7 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   std::set<LEX_USER *> audit_users;
   std::set<LEX_USER *> reset_users;
 
-  DBUG_ENTER("mysql_alter_user");
+  DBUG_TRACE;
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
 
@@ -2456,16 +2456,16 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
   Save_and_Restore_binlog_format_state binlog_format_state(thd);
 
   if ((result = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
+    return result != 1;
 
   if (!acl_cache_lock.lock()) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   if (check_system_user_privilege(thd, list)) {
     commit_and_close_mysql_tables(thd);
-    DBUG_RETURN(true);
+    return true;
   }
 
   is_privileged_user = is_privileged_user_for_credential_change(thd);
@@ -2657,5 +2657,5 @@ bool mysql_alter_user(THD *thd, List<LEX_USER> &list, bool if_exists) {
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }

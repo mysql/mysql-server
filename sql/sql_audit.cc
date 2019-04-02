@@ -1059,7 +1059,7 @@ static bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg) {
 */
 int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
                                 unsigned long event_subclass) {
-  DBUG_ENTER("mysql_audit_acquire_plugins");
+  DBUG_TRACE;
   unsigned long global_mask = mysql_global_audit_mask[event_class];
 
   if (thd && !check_audit_mask(global_mask, event_subclass) &&
@@ -1102,7 +1102,7 @@ int mysql_audit_acquire_plugins(THD *thd, mysql_event_class_t event_class,
   }
 
   /* Check whether there is a plugin registered for this event. */
-  DBUG_RETURN(check_audit_mask(global_mask, event_subclass) ? 1 : 0);
+  return check_audit_mask(global_mask, event_subclass) ? 1 : 0;
 }
 
 /**

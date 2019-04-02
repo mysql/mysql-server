@@ -134,14 +134,14 @@ static bool iter_storage_engines_register(THD *, plugin_ref plugin, void *arg) {
 }
 
 int table_log_status::make_row() {
-  DBUG_ENTER("table_log_status::make_row");
+  DBUG_TRACE;
   THD *thd = current_thd;
 
   /* Report an error if THD has no BACKUP_ADMIN privilege */
   Security_context *sctx = thd->security_context();
   if (!sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
-    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+    return HA_ERR_RECORD_DELETED;
   }
 
   /* Lock instance to collect log information */
@@ -307,7 +307,7 @@ end:
     }
   }
 
-  DBUG_RETURN(error ? HA_ERR_RECORD_DELETED : 0);
+  return error ? HA_ERR_RECORD_DELETED : 0;
 }
 
 int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),

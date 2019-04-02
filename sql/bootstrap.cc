@@ -113,7 +113,7 @@ Command_iterator *Command_iterator::current_iterator = NULL;
 static bool handle_bootstrap_impl(THD *thd) {
   std::string query;
 
-  DBUG_ENTER("handle_bootstrap");
+  DBUG_TRACE;
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
   Key_length_error_handler error_handler;
@@ -311,7 +311,7 @@ static bool handle_bootstrap_impl(THD *thd) {
     thd->variables.option_bits |= OPTION_BIN_LOG;
   }
 
-  DBUG_RETURN(bootstrap_error);
+  return bootstrap_error;
 }
 
 /**
@@ -359,7 +359,7 @@ static void *handle_bootstrap(void *arg) {
 
 bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
                           enum_thread_type thread_type) {
-  DBUG_ENTER("bootstrap");
+  DBUG_TRACE;
 
   THD *thd = new THD;
   thd->system_thread = thread_type;
@@ -416,7 +416,7 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
     LogErr(WARNING_LEVEL, ER_BOOTSTRAP_CANT_THREAD, errno).os_errno(errno);
     thd->release_resources();
     delete thd;
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
   /* Wait for thread to die */
@@ -424,6 +424,6 @@ bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
   // Free Items that were created during this execution.
   thd->free_items();
   delete thd;
-  DBUG_RETURN(bootstrap_error);
+  return bootstrap_error;
 }
 }  // namespace bootstrap

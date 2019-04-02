@@ -101,7 +101,7 @@ Multi_primary_migration_action::execute_action(
   bool action_terminated = false;
   int error = 0;
 
-  DBUG_ENTER("Multi_primary_migration_action::execute_action");
+  DBUG_TRACE;
 
   /**
     Wait for all packets in the applier module to be consumed.
@@ -225,16 +225,16 @@ end:
                          mode_is_set);
 
   if ((!multi_primary_switch_aborted && !error) || action_terminated)
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_TERMINATED);
+    return Group_action::GROUP_ACTION_RESULT_TERMINATED;
 
   if (action_killed) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_KILLED);
+    return Group_action::GROUP_ACTION_RESULT_KILLED;
   }
   if (error) {
-    DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ERROR);
+    return Group_action::GROUP_ACTION_RESULT_ERROR;
   }
 
-  DBUG_RETURN(Group_action::GROUP_ACTION_RESULT_ABORTED);
+  return Group_action::GROUP_ACTION_RESULT_ABORTED;
 }
 
 bool Multi_primary_migration_action::stop_action_execution(bool killed) {

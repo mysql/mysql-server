@@ -111,7 +111,7 @@ static File outfile;
 
 static void test_session(void *p) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_session");
+  DBUG_TRACE;
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
 
@@ -137,13 +137,11 @@ static void test_session(void *p) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_close_%d failed.", nb_sessions - 1 - i);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 static void test_session_non_reverse(void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_session_non_reverse");
+  DBUG_TRACE;
 
   /* Session declarations */
   MYSQL_SESSION sessions[MAX_SESSIONS];
@@ -171,13 +169,11 @@ static void test_session_non_reverse(void *p MY_ATTRIBUTE((unused))) {
 
   session_count = srv_session_info_session_count();
   WRITE_VAL("Number of open sessions: %d\n", session_count);
-
-  DBUG_VOID_RETURN;
 }
 
 static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_session_only_open");
+  DBUG_TRACE;
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
 
@@ -202,7 +198,6 @@ static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
                               &my_charset_utf8_general_ci, &sql_cbs,
                               CS_TEXT_REPRESENTATION, ctx);
   delete ctx;
-  DBUG_VOID_RETURN;
 }
 
 struct test_thread_context {
@@ -262,9 +257,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 
 static int test_session_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_session_service_plugin_init");
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  DBUG_TRACE;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
@@ -283,14 +277,14 @@ static int test_session_service_plugin_init(void *p) {
   test_in_spawned_thread(p, test_session_only_open);
 
   my_close(outfile, MYF(0));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_session_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_session_service_plugin_deinit");
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon test_session_service_plugin = {

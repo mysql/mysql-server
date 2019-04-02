@@ -387,16 +387,16 @@ class Security_context {
 inline LEX_CSTRING Security_context::host_or_ip() const {
   LEX_CSTRING host_or_ip;
 
-  DBUG_ENTER("Security_context::host_or_ip");
+  DBUG_TRACE;
 
   host_or_ip.str = m_host_or_ip.ptr();
   host_or_ip.length = m_host_or_ip.length();
 
-  DBUG_RETURN(host_or_ip);
+  return host_or_ip;
 }
 
 inline void Security_context::set_host_or_ip_ptr() {
-  DBUG_ENTER("Security_context::set_host_or_ip_ptr");
+  DBUG_TRACE;
 
   /*
   Set host_or_ip to either host or ip if they are available else set it to
@@ -406,28 +406,24 @@ inline void Security_context::set_host_or_ip_ptr() {
       m_host.length() ? m_host.ptr() : (m_ip.length() ? m_ip.ptr() : "");
 
   m_host_or_ip.set(host_or_ip, strlen(host_or_ip), system_charset_info);
-
-  DBUG_VOID_RETURN;
 }
 
 inline void Security_context::set_host_or_ip_ptr(
     const char *host_or_ip_arg, const int host_or_ip_arg_length) {
-  DBUG_ENTER("Security_context::set_host_or_ip_ptr");
+  DBUG_TRACE;
 
   m_host_or_ip.set(host_or_ip_arg, host_or_ip_arg_length, system_charset_info);
-
-  DBUG_VOID_RETURN;
 }
 
 inline LEX_CSTRING Security_context::external_user() const {
   LEX_CSTRING ext_user;
 
-  DBUG_ENTER("Security_context::external_user");
+  DBUG_TRACE;
 
   ext_user.str = m_external_user.ptr();
   ext_user.length = m_external_user.length();
 
-  DBUG_RETURN(ext_user);
+  return ext_user;
 }
 
 inline ulong Security_context::master_access() const { return m_master_access; }
@@ -437,10 +433,9 @@ inline const Restrictions Security_context::restrictions() const {
 }
 
 inline void Security_context::set_master_access(ulong master_access) {
-  DBUG_ENTER("set_master_access");
+  DBUG_TRACE;
   m_master_access = master_access;
   DBUG_PRINT("info", ("Cached master access is %lu", m_master_access));
-  DBUG_VOID_RETURN;
 }
 
 inline void Security_context::set_master_access(

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ static void do_ssl_stuff(TH_ARGS *args) {
   Vio *server_vio;
   int err;
   unsigned long ssl_error;
-  DBUG_ENTER("do_ssl_stuff");
+  DBUG_TRACE;
 
   server_vio = vio_new(args->sd, VIO_TYPE_TCPIP, TRUE);
 
@@ -67,7 +67,6 @@ static void do_ssl_stuff(TH_ARGS *args) {
   err = write(server_vio->sd, (uchar *)s, strlen(s));
   sslaccept(args->ssl_acceptor, server_vio, 60L, &ssl_error);
   err = server_vio->write(server_vio, (uchar *)s, strlen(s));
-  DBUG_VOID_RETURN;
 }
 
 static void *client_thread(void *arg) {

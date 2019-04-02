@@ -2839,7 +2839,7 @@ type_conversion_status Field_new_decimal::reset() {
 
 void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
                                               bool sign) const {
-  DBUG_ENTER("Field_new_decimal::set_value_on_overflow");
+  DBUG_TRACE;
   max_my_decimal(decimal_value, precision, decimals());
   if (sign) {
     if (unsigned_flag)
@@ -2847,7 +2847,6 @@ void Field_new_decimal::set_value_on_overflow(my_decimal *decimal_value,
     else
       decimal_value->sign(true);
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -2868,7 +2867,7 @@ type_conversion_status Field_new_decimal::store_value(
     const my_decimal *decimal_value) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error = TYPE_OK;
-  DBUG_ENTER("Field_new_decimal::store_value");
+  DBUG_TRACE;
 #ifndef DBUG_OFF
   {
     char dbug_buff[DECIMAL_MAX_STR_LENGTH + 2];
@@ -2902,14 +2901,14 @@ type_conversion_status Field_new_decimal::store_value(
     my_decimal2binary(E_DEC_FATAL_ERROR, &buff, ptr, precision, dec);
   }
   DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr, bin_size););
-  DBUG_RETURN((err != E_DEC_OK) ? decimal_err_to_type_conv_status(err) : error);
+  return (err != E_DEC_OK) ? decimal_err_to_type_conv_status(err) : error;
 }
 
 type_conversion_status Field_new_decimal::store(
     const char *from, size_t length, const CHARSET_INFO *charset_arg) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   my_decimal decimal_value;
-  DBUG_ENTER("Field_new_decimal::store(char*)");
+  DBUG_TRACE;
 
   int err =
       str2my_decimal(E_DEC_FATAL_ERROR & ~(E_DEC_OVERFLOW | E_DEC_BAD_NUM),
@@ -2924,7 +2923,7 @@ type_conversion_status Field_new_decimal::store(
         ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
         ER_THD(table->in_use, ER_TRUNCATED_WRONG_VALUE_FOR_FIELD), "decimal",
         errmsg.ptr(), field_name, da->current_row_for_condition());
-    DBUG_RETURN(decimal_err_to_type_conv_status(err));
+    return decimal_err_to_type_conv_status(err);
   }
 
   if (err != 0)
@@ -2937,7 +2936,7 @@ type_conversion_status Field_new_decimal::store(
 #endif
 
   type_conversion_status store_stat = store_value(&decimal_value);
-  DBUG_RETURN(err != 0 ? decimal_err_to_type_conv_status(err) : store_stat);
+  return err != 0 ? decimal_err_to_type_conv_status(err) : store_stat;
 }
 
 type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
@@ -2971,22 +2970,22 @@ type_conversion_status store_internal_with_error_check(Field_new_decimal *field,
 
 type_conversion_status Field_new_decimal::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  DBUG_ENTER("Field_new_decimal::store(double)");
+  DBUG_TRACE;
   my_decimal decimal_value;
 
   int conv_err = double2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, nr,
                                    &decimal_value);
-  DBUG_RETURN(store_internal_with_error_check(this, conv_err, &decimal_value));
+  return store_internal_with_error_check(this, conv_err, &decimal_value);
 }
 
 type_conversion_status Field_new_decimal::store(longlong nr,
                                                 bool unsigned_val) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  DBUG_ENTER("Field_new_decimal::store(double, unsigned_val)");
+  DBUG_TRACE;
   my_decimal decimal_value;
   int conv_err = int2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW, nr,
                                 unsigned_val, &decimal_value);
-  DBUG_RETURN(store_internal_with_error_check(this, conv_err, &decimal_value));
+  return store_internal_with_error_check(this, conv_err, &decimal_value);
 }
 
 type_conversion_status Field_new_decimal::store_decimal(
@@ -3020,10 +3019,10 @@ longlong Field_new_decimal::val_int() const {
 
 my_decimal *Field_new_decimal::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  DBUG_ENTER("Field_new_decimal::val_decimal");
+  DBUG_TRACE;
   binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value, precision, dec);
   DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr, bin_size););
-  DBUG_RETURN(decimal_value);
+  return decimal_value;
 }
 
 String *Field_new_decimal::val_str(
@@ -4104,30 +4103,30 @@ void Field_longlong::sql_type(String &res) const {
 
 uchar *Field_real::pack(uchar *to, const uchar *from, uint max_length,
                         bool low_byte_first) const {
-  DBUG_ENTER("Field_real::pack");
+  DBUG_TRACE;
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first) {
     unsigned len = std::min(pack_length(), max_length);
     for (unsigned i = 0; i < len; ++i) {
       to[i] = from[pack_length() - i - 1];
     }
-    DBUG_RETURN(to + pack_length());
+    return to + pack_length();
   } else
 #endif
-    DBUG_RETURN(Field::pack(to, from, max_length, low_byte_first));
+    return Field::pack(to, from, max_length, low_byte_first);
 }
 
 const uchar *Field_real::unpack(uchar *to, const uchar *from, uint param_data,
                                 bool low_byte_first) {
-  DBUG_ENTER("Field_real::unpack");
+  DBUG_TRACE;
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first) {
     const uchar *dptr = from + pack_length();
     while (dptr-- > from) *to++ = *dptr;
-    DBUG_RETURN(from + pack_length());
+    return from + pack_length();
   } else
 #endif
-    DBUG_RETURN(Field::unpack(to, from, param_data, low_byte_first));
+    return Field::unpack(to, from, param_data, low_byte_first);
 }
 
 type_conversion_status Field_real::store_time(
@@ -7398,10 +7397,10 @@ int Field_blob::key_cmp(const uchar *a, const uchar *b) const {
    @returns number of bytes written to metadata_ptr
 */
 int Field_blob::do_save_field_metadata(uchar *metadata_ptr) const {
-  DBUG_ENTER("Field_blob::do_save_field_metadata");
+  DBUG_TRACE;
   *metadata_ptr = pack_length_no_ptr();
   DBUG_PRINT("debug", ("metadata: %u (pack_length_no_ptr)", *metadata_ptr));
-  DBUG_RETURN(1);
+  return 1;
 }
 
 uint32 Field_blob::sort_length() const { return 0xFFFFFFFFu; }
@@ -7507,7 +7506,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from, uint max_length,
 */
 const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
                                 bool low_byte_first) {
-  DBUG_ENTER("Field_blob::unpack");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("from: %p;"
                        " param_data: %u; low_byte_first: %d",
                        from, param_data, low_byte_first));
@@ -7520,7 +7519,7 @@ const uchar *Field_blob::unpack(uchar *, const uchar *from, uint param_data,
                     length, field_charset);
   DBUG_DUMP("field", ptr, pack_length() /* len bytes + ptr bytes */);
   DBUG_DUMP("value", get_ptr(), length /* the blob value length */);
-  DBUG_RETURN(from + master_packlength + length);
+  return from + master_packlength + length;
 }
 
 uint Field_blob::max_packed_col_length() {
@@ -7862,7 +7861,7 @@ type_conversion_status Field_json::store(Field_json *field) {
 }
 
 bool Field_json::val_json(Json_wrapper *wr) const {
-  DBUG_ENTER("Field_json::val_json");
+  DBUG_TRACE;
   ASSERT_COLUMN_MARKED_FOR_READ;
 
   String tmp;
@@ -7872,12 +7871,12 @@ bool Field_json::val_json(Json_wrapper *wr) const {
   if (v.type() == json_binary::Value::ERROR) {
     /* purecov: begin inspected */
     my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-    DBUG_RETURN(true);
+    return true;
     /* purecov: end */
   }
 
   *wr = Json_wrapper(v);
-  DBUG_RETURN(false);
+  return false;
 }
 
 longlong Field_json::val_int() const {
@@ -7931,11 +7930,11 @@ my_decimal *Field_json::val_decimal(my_decimal *decimal_value) const {
 }
 
 bool Field_json::pack_diff(uchar **to, ulonglong value_format) const {
-  DBUG_ENTER("Field_json::pack_diff");
+  DBUG_TRACE;
 
   const Json_diff_vector *diff_vector;
   get_diff_vector_and_length(value_format, &diff_vector);
-  if (diff_vector == nullptr) DBUG_RETURN(true);
+  if (diff_vector == nullptr) return true;
 
   // We know the caller has allocated enough space, but we don't
   // know how much it is.  So just say that it is large, to
@@ -7952,7 +7951,7 @@ bool Field_json::pack_diff(uchar **to, ulonglong value_format) const {
   DBUG_ASSERT(*to == (uchar *)to_string.ptr());
 
   *to += to_string.length();
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Field_json::is_before_image_equal_to_after_image() const {
@@ -7966,12 +7965,12 @@ bool Field_json::is_before_image_equal_to_after_image() const {
 
 longlong Field_json::get_diff_vector_and_length(
     ulonglong value_options, const Json_diff_vector **diff_vector_p) const {
-  DBUG_ENTER("Field_json::get_diff_vector_and_length");
+  DBUG_TRACE;
 
   if (is_null()) {
     DBUG_PRINT("info", ("Returning 0 because field is NULL"));
     if (diff_vector_p) *diff_vector_p = nullptr;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   longlong length_of_full_format = const_cast<Field_json *>(this)->get_length();
@@ -8054,11 +8053,11 @@ longlong Field_json::get_diff_vector_and_length(
   DBUG_ASSERT(length >= 0);
 
   if (diff_vector_p != nullptr) *diff_vector_p = diff_vector;
-  DBUG_RETURN(length);
+  return length;
 }
 
 bool Field_json::unpack_diff(const uchar **from) {
-  DBUG_ENTER("Field_json::unpack_diff");
+  DBUG_TRACE;
 
   // Use a temporary mem_root so that the thread does not hold the
   // memory for the Json_diff_vector until the end of the statement.
@@ -8072,7 +8071,7 @@ bool Field_json::unpack_diff(const uchar **from) {
   // sufficiently big to hold the whole diff_vector.
   if (diff_vector.read_binary(pointer_cast<const char **>(from), table,
                               field_name))
-    DBUG_RETURN(true);
+    return true;
 
   // Apply
   switch (apply_json_diffs(this, &diff_vector)) {
@@ -8080,13 +8079,13 @@ bool Field_json::unpack_diff(const uchar **from) {
       my_error(ER_COULD_NOT_APPLY_JSON_DIFF, MYF(0),
                (int)table->s->table_name.length, table->s->table_name.str,
                field_name);
-      DBUG_RETURN(true);
+      return true;
     case enum_json_diff_status::ERROR:
-      DBUG_RETURN(true); /* purecov: inspected */
+      return true; /* purecov: inspected */
     case enum_json_diff_status::SUCCESS:
       break;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Field_json::get_date(MYSQL_TIME *ltime, my_time_flags_t) const {
@@ -8641,53 +8640,53 @@ uint Field_enum::is_equal(const Create_field *new_field) const {
 
 uchar *Field_enum::pack(uchar *to, const uchar *from, uint max_length,
                         bool low_byte_first) const {
-  DBUG_ENTER("Field_enum::pack");
+  DBUG_TRACE;
   DBUG_PRINT("debug", ("packlength: %d", packlength));
   DBUG_DUMP("from", from, packlength);
 
   switch (packlength) {
     case 1:
       *to = *from;
-      DBUG_RETURN(to + 1);
+      return to + 1;
     case 2:
-      DBUG_RETURN(pack_int16(to, from, max_length, low_byte_first));
+      return pack_int16(to, from, max_length, low_byte_first);
     case 3:
-      DBUG_RETURN(pack_int24(to, from, max_length, low_byte_first));
+      return pack_int24(to, from, max_length, low_byte_first);
     case 4:
-      DBUG_RETURN(pack_int32(to, from, max_length, low_byte_first));
+      return pack_int32(to, from, max_length, low_byte_first);
     case 8:
-      DBUG_RETURN(pack_int64(to, from, max_length, low_byte_first));
+      return pack_int64(to, from, max_length, low_byte_first);
     default:
       DBUG_ASSERT(0);
   }
   MY_ASSERT_UNREACHABLE();
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 const uchar *Field_enum::unpack(uchar *to, const uchar *from, uint,
                                 bool low_byte_first) {
-  DBUG_ENTER("Field_enum::unpack");
+  DBUG_TRACE;
   DBUG_PRINT("debug", ("packlength: %d", packlength));
   DBUG_DUMP("from", from, packlength);
 
   switch (packlength) {
     case 1:
       *to = *from;
-      DBUG_RETURN(from + 1);
+      return from + 1;
 
     case 2:
-      DBUG_RETURN(unpack_int16(to, from, low_byte_first));
+      return unpack_int16(to, from, low_byte_first);
     case 3:
-      DBUG_RETURN(unpack_int24(to, from, low_byte_first));
+      return unpack_int24(to, from, low_byte_first);
     case 4:
-      DBUG_RETURN(unpack_int32(to, from, low_byte_first));
+      return unpack_int32(to, from, low_byte_first);
     case 8:
-      DBUG_RETURN(unpack_int64(to, from, low_byte_first));
+      return unpack_int64(to, from, low_byte_first);
     default:
       DBUG_ASSERT(0);
   }
   MY_ASSERT_UNREACHABLE();
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /**
@@ -8757,7 +8756,7 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
       bit_ofs(bit_ofs_arg),
       bit_len(len_arg & 7),
       bytes_in_rec(len_arg / 8) {
-  DBUG_ENTER("Field_bit::Field_bit");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("ptr_arg: %p, null_ptr_arg: %p, len_arg: %u, bit_len: "
                        "%u, bytes_in_rec: %u",
                        ptr_arg, null_ptr_arg, len_arg, bit_len, bytes_in_rec));
@@ -8767,7 +8766,6 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
     (two bit fields that are not null, may have same ptr and m_null_ptr)
   */
   if (!null_ptr_arg) null_bit = bit_ofs_arg;
-  DBUG_VOID_RETURN;
 }
 
 void Field_bit::hash(ulong *nr, ulong *nr2) const {
@@ -9017,7 +9015,7 @@ size_t Field_bit::get_key_image(uchar *buff, size_t length, imagetype) const {
    @returns number of bytes written to metadata_ptr
 */
 int Field_bit::do_save_field_metadata(uchar *metadata_ptr) const {
-  DBUG_ENTER("Field_bit::do_save_field_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("debug", ("bit_len: %d, bytes_in_rec: %d", bit_len, bytes_in_rec));
   /*
     Since this class and Field_bit_as_char have different ideas of
@@ -9026,7 +9024,7 @@ int Field_bit::do_save_field_metadata(uchar *metadata_ptr) const {
    */
   metadata_ptr[0] = field_length % 8;
   metadata_ptr[1] = field_length / 8;
-  DBUG_RETURN(2);
+  return 2;
 }
 
 /**
@@ -9067,7 +9065,7 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata) const {
 bool Field_bit::compatible_field_size(uint field_metadata,
                                       Relay_log_info *MY_ATTRIBUTE((unused)),
                                       uint16 mflags, int *order_var) const {
-  DBUG_ENTER("Field_bit::compatible_field_size");
+  DBUG_TRACE;
   DBUG_ASSERT((field_metadata >> 16) == 0);
   uint from_bit_len = 8 * (field_metadata >> 8) + (field_metadata & 0xff);
   uint to_bit_len = max_display_length();
@@ -9087,7 +9085,7 @@ bool Field_bit::compatible_field_size(uint field_metadata,
   }
 
   *order_var = compare(from_bit_len, to_bit_len);
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Field_bit::sql_type(String &res) const {
@@ -9145,7 +9143,7 @@ uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
 */
 const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
                                bool MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("Field_bit::unpack");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("to: %p, from: %p, param_data: 0x%x", to, from, param_data));
   DBUG_PRINT("debug", ("bit_ptr: %p, bit_len: %u, bit_ofs: %u", bit_ptr,
@@ -9172,7 +9170,7 @@ const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
       from++;
     }
     memcpy(to, from, bytes_in_rec);
-    DBUG_RETURN(from + bytes_in_rec);
+    return from + bytes_in_rec;
   }
 
   /*
@@ -9197,7 +9195,7 @@ const uchar *Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
     value[new_len - len] = value[new_len - len] & ((1U << from_bit_len) - 1);
   bitmap_set_bit(table->write_set, field_index);
   store(value, new_len, system_charset_info);
-  DBUG_RETURN(from + len);
+  return from + len;
 }
 
 void Field_bit::set_default() {
@@ -9690,7 +9688,7 @@ uint32 Field_blob::char_length() const {
 */
 
 bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
-  DBUG_ENTER("copy_blob_value");
+  DBUG_TRACE;
 
   // Testing memory allocation failure
   DBUG_EXECUTE_IF("simulate_blob_memory_allocation_fail",
@@ -9700,7 +9698,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
   size_t ulen = get_length(ptr);
 
   char *blob_value = (char *)mem_root->Alloc(ulen);
-  if (!blob_value) DBUG_RETURN(true);
+  if (!blob_value) return true;
 
   // Copy Data
   memcpy(blob_value, get_ptr(), ulen);
@@ -9711,7 +9709,7 @@ bool Field_blob::copy_blob_value(MEM_ROOT *mem_root) {
   // Set 'value' with the duplicated data
   value.set(blob_value, ulen, value.charset());
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -9922,15 +9920,15 @@ bool Field::maybe_null() const {
 uint Field::null_offset() const { return null_offset(table->record[0]); }
 
 uchar *Field::pack(uchar *to, const uchar *from) const {
-  DBUG_ENTER("Field::pack");
+  DBUG_TRACE;
   uchar *result = this->pack(to, from, UINT_MAX, table->s->db_low_byte_first);
-  DBUG_RETURN(result);
+  return result;
 }
 
 const uchar *Field::unpack(uchar *to, const uchar *from) {
-  DBUG_ENTER("Field::unpack");
+  DBUG_TRACE;
   const uchar *result = unpack(to, from, 0U, table->s->db_low_byte_first);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void Field::init(TABLE *table_arg) {

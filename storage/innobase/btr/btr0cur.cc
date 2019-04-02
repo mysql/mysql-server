@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -670,7 +670,7 @@ void btr_cur_search_to_nth_level(
   bool mbr_adj = false;
   bool found = false;
 
-  DBUG_ENTER("btr_cur_search_to_nth_level");
+  DBUG_TRACE;
 
 #ifdef BTR_CUR_ADAPT
   btr_search_t *info;
@@ -798,7 +798,7 @@ void btr_cur_search_to_nth_level(
     ut_ad(cursor->low_match != ULINT_UNDEFINED || mode != PAGE_CUR_LE);
     btr_cur_n_sea++;
 
-    DBUG_VOID_RETURN;
+    return;
   }
 #endif /* BTR_CUR_HASH_ADAPT */
 #endif /* BTR_CUR_ADAPT */
@@ -1704,8 +1704,6 @@ func_exit:
     /* remember that we will need to adjust parent MBR */
     cursor->rtr_info->mbr_adj = true;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Searches an index tree and positions a tree cursor on a given level.
@@ -1748,7 +1746,7 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   ulint *offsets = offsets_;
   rec_offs_init(offsets_);
 
-  DBUG_ENTER("btr_cur_search_to_nth_level_with_no_latch");
+  DBUG_TRACE;
 
   ut_ad(index->table->is_intrinsic());
   ut_ad(level == 0 || mode == PAGE_CUR_LE);
@@ -1850,8 +1848,6 @@ void btr_cur_search_to_nth_level_with_no_latch(dict_index_t *index, ulint level,
   if (heap != NULL) {
     mem_heap_free(heap);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /** Opens a cursor at either end of an index. */
@@ -3834,7 +3830,7 @@ dberr_t btr_cur_pessimistic_update(
     mtr_t *mtr) /*!< in/out: mini-transaction; must be
                 committed before latching any further pages */
 {
-  DBUG_ENTER("btr_cur_pessimistic_update");
+  DBUG_TRACE;
   big_rec_t *big_rec_vec = NULL;
   big_rec_t *dummy_big_rec;
   dict_index_t *index;
@@ -3903,7 +3899,7 @@ dberr_t btr_cur_pessimistic_update(
         dtuple_big_rec_free(big_rec_vec);
       }
 
-      DBUG_RETURN(err);
+      return err;
   }
 
   rec = btr_cur_get_rec(cursor);
@@ -4189,7 +4185,7 @@ return_after_reservations:
 
   *big_rec = big_rec_vec;
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /*==================== B-TREE DELETE MARK AND UNMARK ===============*/
@@ -4696,7 +4692,7 @@ ibool btr_cur_pessimistic_delete(
     /*!< in: undo record type. */
     mtr_t *mtr) /*!< in: mtr */
 {
-  DBUG_ENTER("btr_cur_pessimistic_delete");
+  DBUG_TRACE;
 
   DBUG_LOG("btr", "rollback=" << rollback << ", trxid=" << trx_id);
 
@@ -4738,7 +4734,7 @@ ibool btr_cur_pessimistic_delete(
     if (!success) {
       *err = DB_OUT_OF_FILE_SPACE;
 
-      DBUG_RETURN(FALSE);
+      return FALSE;
     }
   }
 
@@ -4819,7 +4815,7 @@ ibool btr_cur_pessimistic_delete(
         *err = DB_ERROR;
 
         mem_heap_free(heap);
-        DBUG_RETURN(FALSE);
+        return FALSE;
       }
 
       ut_d(parent_latched = true);
@@ -4872,7 +4868,7 @@ return_after_reservations:
     fil_space_release_free_extents(index->space, n_reserved);
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /** Adds path information to the cursor for the current page, for which

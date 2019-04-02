@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,14 +37,14 @@ int main(int argc, char **argv) {
   int fd = -1;
   char *hh = "hshshsh\n";
 
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
   DBUG_PUSH("d:t");
 
   fd = open("/dev/tty", O_WRONLY);
   if (fd < 0) {
     perror("open");
-    DBUG_RETURN(1);
+    return 1;
   }
   fs = new VioFd(fd);
   ss = new VioSocket(fd);
@@ -55,5 +55,5 @@ int main(int argc, char **argv) {
   delete fs;
   delete ss;
 
-  DBUG_RETURN(0);
+  return 0;
 }

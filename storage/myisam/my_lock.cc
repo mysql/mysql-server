@@ -68,7 +68,7 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
   int i;
   int timeout_millis = timeout_sec * 1000;
 
-  DBUG_ENTER("win_lock");
+  DBUG_TRACE;
 
   liOffset.QuadPart = start;
   liLength.QuadPart = length;
@@ -78,14 +78,14 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
 
   if (locktype == F_UNLCK) {
     if (UnlockFileEx(hFile, 0, liLength.LowPart, liLength.HighPart, &ov))
-      DBUG_RETURN(0);
+      return 0;
     /*
       For compatibility with fcntl implementation, ignore error,
       if region was not locked
     */
     if (GetLastError() == ERROR_NOT_LOCKED) {
       SetLastError(0);
-      DBUG_RETURN(0);
+      return 0;
     }
     goto error;
   } else if (locktype == F_RDLCK)
@@ -120,7 +120,7 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
 
   if (timeout_sec == WIN_LOCK_INFINITE) {
     if (LockFileEx(hFile, dwFlags, 0, liLength.LowPart, liLength.HighPart, &ov))
-      DBUG_RETURN(0);
+      return 0;
     goto error;
   }
 
@@ -129,7 +129,7 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
   /* Try lock in a loop, until the lock is acquired or timeout happens */
   for (i = 0;; i += WIN_LOCK_SLEEP_MILLIS) {
     if (LockFileEx(hFile, dwFlags, 0, liLength.LowPart, liLength.HighPart, &ov))
-      DBUG_RETURN(0);
+      return 0;
 
     if (GetLastError() != ERROR_LOCK_VIOLATION) goto error;
 
@@ -139,11 +139,11 @@ static int win_lock(File fd, int locktype, my_off_t start, my_off_t length,
 
   /* timeout */
   errno = EAGAIN;
-  DBUG_RETURN(-1);
+  return -1;
 
 error:
   my_osmaperr(GetLastError());
-  DBUG_RETURN(-1);
+  return -1;
 }
 #endif
 
@@ -157,9 +157,9 @@ error:
 */
 
 int my_lock(File fd, int locktype, myf MyFlags) {
-  DBUG_ENTER("my_lock");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Op: %d  MyFlags: %d", fd, locktype, MyFlags));
-  if (my_disable_locking) DBUG_RETURN(0);
+  if (my_disable_locking) return 0;
 
 #if defined(_WIN32)
   {
@@ -169,7 +169,7 @@ int my_lock(File fd, int locktype, myf MyFlags) {
     else
       timeout_sec = WIN_LOCK_INFINITE;
 
-    if (win_lock(fd, locktype, 0, 0x3FFFFFFF, timeout_sec) == 0) DBUG_RETURN(0);
+    if (win_lock(fd, locktype, 0, 0x3FFFFFFF, timeout_sec) == 0) return 0;
   }
 #else
   {
@@ -186,7 +186,7 @@ int my_lock(File fd, int locktype, myf MyFlags) {
       sig_return alarm_signal;
 
       if (fcntl(fd, F_SETLK, &lock) != -1) /* Check if we can lock */
-        DBUG_RETURN(0);                    /* Ok, file locked */
+        return 0;                          /* Ok, file locked */
       DBUG_PRINT("info", ("Was locked, trying with alarm"));
       my_have_got_alarm = 0;
       alarm_old = alarm(my_time_to_wait_for_lock);
@@ -198,10 +198,10 @@ int my_lock(File fd, int locktype, myf MyFlags) {
       }
       (void)signal(SIGALRM, alarm_signal);
       (void)alarm(alarm_old);
-      if (value != -1) DBUG_RETURN(0);
+      if (value != -1) return 0;
       if (errno == EINTR) errno = EAGAIN;
     } else if (fcntl(fd, F_SETLKW, &lock) != -1) /* Wait until a lock */
-      DBUG_RETURN(0);
+      return 0;
   }
 #endif /* _WIN32 */
 
@@ -218,5 +218,5 @@ int my_lock(File fd, int locktype, myf MyFlags) {
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_PRINT("error", ("my_errno: %d (%d)", my_errno(), errno));
-  DBUG_RETURN(-1);
+  return -1;
 } /* my_lock */

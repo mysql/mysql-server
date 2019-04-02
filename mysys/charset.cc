@@ -395,7 +395,7 @@ error:
 char *get_charsets_dir(char *buf) {
   const char *sharedir = SHAREDIR;
   char *res;
-  DBUG_ENTER("get_charsets_dir");
+  DBUG_TRACE;
 
   if (charsets_dir != NULL)
     strmake(buf, charsets_dir, FN_REFLEN - 1);
@@ -409,7 +409,7 @@ char *get_charsets_dir(char *buf) {
   }
   res = convert_dirname(buf, buf, NullS);
   DBUG_PRINT("info", ("charsets dir: '%s'", buf));
-  DBUG_RETURN(res);
+  return res;
 }
 
 CHARSET_INFO *all_charsets[MY_ALL_CHARSETS_SIZE] = {NULL};
@@ -643,7 +643,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
                                      myf flags) {
   uint cs_number;
   CHARSET_INFO *cs;
-  DBUG_ENTER("get_charset_by_csname");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("name: '%s'", cs_name));
 
   std::call_once(charsets_initialized, init_available_charsets);
@@ -657,7 +657,7 @@ CHARSET_INFO *my_charset_get_by_name(MY_CHARSET_LOADER *loader,
     my_error(EE_UNKNOWN_CHARSET, MYF(0), cs_name, index_file);
   }
 
-  DBUG_RETURN(cs);
+  return cs;
 }
 
 CHARSET_INFO *get_charset_by_csname(const char *cs_name, uint cs_flags,

@@ -3316,7 +3316,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
   DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
   ibuf_use_t use = static_cast<ibuf_use_t>(innodb_change_buffering);
 
-  DBUG_ENTER("ibuf_insert");
+  DBUG_TRACE;
 
   DBUG_PRINT("ibuf", ("op: %d, space: " UINT32PF ", page_no: " UINT32PF, op,
                       page_id.space(), page_id.page_no()));
@@ -3334,7 +3334,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
         case IBUF_USE_NONE:
         case IBUF_USE_DELETE:
         case IBUF_USE_DELETE_MARK:
-          DBUG_RETURN(FALSE);
+          return FALSE;
         case IBUF_USE_INSERT:
         case IBUF_USE_INSERT_DELETE_MARK:
         case IBUF_USE_ALL:
@@ -3345,7 +3345,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
       switch (use) {
         case IBUF_USE_NONE:
         case IBUF_USE_INSERT:
-          DBUG_RETURN(FALSE);
+          return FALSE;
         case IBUF_USE_DELETE_MARK:
         case IBUF_USE_DELETE:
         case IBUF_USE_INSERT_DELETE_MARK:
@@ -3359,7 +3359,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
         case IBUF_USE_NONE:
         case IBUF_USE_INSERT:
         case IBUF_USE_INSERT_DELETE_MARK:
-          DBUG_RETURN(FALSE);
+          return FALSE;
         case IBUF_USE_DELETE_MARK:
         case IBUF_USE_DELETE:
         case IBUF_USE_ALL:
@@ -3398,7 +3398,7 @@ check_watch:
       is being buffered, have this request executed
       directly on the page in the buffer pool after the
       buffered entries for this page have been merged. */
-      DBUG_RETURN(FALSE);
+      return FALSE;
     }
   }
 
@@ -3407,7 +3407,7 @@ skip_watch:
 
   if (entry_size >=
       page_get_free_space_of_empty(dict_table_is_comp(index->table)) / 2) {
-    DBUG_RETURN(FALSE);
+    return FALSE;
   }
 
   err = ibuf_insert_low(BTR_MODIFY_PREV, op, no_counter, entry, entry_size,
@@ -3425,12 +3425,12 @@ skip_watch:
                             page_no, index->name);
     #endif
     */
-    DBUG_RETURN(TRUE);
+    return TRUE;
 
   } else {
     ut_a(err == DB_STRONG_FAIL || err == DB_TOO_BIG_RECORD);
 
-    DBUG_RETURN(FALSE);
+    return FALSE;
   }
 }
 
@@ -3452,11 +3452,11 @@ static rec_t *ibuf_insert_to_index_page_low(
   const page_t *bitmap_page;
   ulint old_bits;
   rec_t *rec;
-  DBUG_ENTER("ibuf_insert_to_index_page_low");
+  DBUG_TRACE;
 
   rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, 0, mtr);
   if (rec != NULL) {
-    DBUG_RETURN(rec);
+    return rec;
   }
 
   /* Page reorganization or recompression should already have
@@ -3473,7 +3473,7 @@ static rec_t *ibuf_insert_to_index_page_low(
 
   rec = page_cur_tuple_insert(page_cur, entry, index, offsets, &heap, 0, mtr);
   if (rec != NULL) {
-    DBUG_RETURN(rec);
+    return rec;
   }
 
   page = buf_block_get_frame(block);
@@ -3502,7 +3502,7 @@ static rec_t *ibuf_insert_to_index_page_low(
   ib::error(ER_IB_MSG_610) << BUG_REPORT_MSG;
 
   ut_ad(0);
-  DBUG_RETURN(NULL);
+  return NULL;
 }
 
 /************************************************************************
@@ -3522,7 +3522,7 @@ static void ibuf_insert_to_index_page(
   ulint *offsets;
   mem_heap_t *heap;
 
-  DBUG_ENTER("ibuf_insert_to_index_page");
+  DBUG_TRACE;
 
   DBUG_PRINT("ibuf", ("page " UINT32PF ":" UINT32PF, block->page.id.space(),
                       block->page.id.page_no()));
@@ -3570,7 +3570,7 @@ static void ibuf_insert_to_index_page(
            " your tables. "
         << BUG_REPORT_MSG;
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   low_match = page_cur_search(block, index, entry, &page_cur);
@@ -3672,8 +3672,6 @@ static void ibuf_insert_to_index_page(
   }
 updated_in_place:
   mem_heap_free(heap);
-
-  DBUG_VOID_RETURN;
 }
 
 /** During merge, sets the delete mark on a record for a secondary index

@@ -80,7 +80,7 @@ static SYS_VAR *test_services_sysvars[] = {MYSQL_SYSVAR(nb_sessions), NULL};
 
 static void test_session(void *p) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_session");
+  DBUG_TRACE;
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
   bool session_ret = false;
@@ -123,8 +123,6 @@ static void test_session(void *p) {
       LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
                       "srv_session_close_%d failed.", i);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 struct test_thread_context {
@@ -184,9 +182,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 
 static int test_sql_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
-  DBUG_ENTER("test_sql_service_plugin_init");
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  DBUG_TRACE;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
@@ -196,13 +193,13 @@ static int test_sql_service_plugin_init(void *p) {
 
   my_close(outfile, MYF(0));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_sql_service_plugin_deinit(void *) {
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_ENTER("test_sql_service_plugin_deinit");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 struct st_mysql_daemon test_session_service_plugin = {

@@ -158,7 +158,7 @@ static void report_errors() {
   const char *data;
   int line, flags;
 
-  DBUG_ENTER("report_errors");
+  DBUG_TRACE;
 
   // Note: WolfSSL returns failures to read data as negative int values
   while (static_cast<int>(
@@ -169,7 +169,6 @@ static void report_errors() {
                          file, line, (flags & ERR_TXT_STRING) ? data : ""));
 #endif
   }
-  DBUG_VOID_RETURN;
 }
 
 static const char *ssl_error_string[] = {
@@ -192,7 +191,7 @@ const char *sslGetErrString(enum enum_ssl_init_error e) {
 static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
                               const char *key_file,
                               enum enum_ssl_init_error *error) {
-  DBUG_ENTER("vio_set_cert_stuff");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("ctx: %p  cert_file: %s  key_file: %s", ctx, cert_file,
                        key_file));
 
@@ -208,7 +207,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
     my_message_local(ERROR_LEVEL, EE_SSL_ERROR_FROM_FILE,
                      sslGetErrString(*error), cert_file);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (key_file &&
@@ -219,7 +218,7 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
     my_message_local(ERROR_LEVEL, EE_SSL_ERROR_FROM_FILE,
                      sslGetErrString(*error), key_file);
-    DBUG_RETURN(1);
+    return 1;
   }
 
   /*
@@ -231,10 +230,10 @@ static int vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file,
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
     my_message_local(ERROR_LEVEL, EE_SSL_ERROR, sslGetErrString(*error));
-    DBUG_RETURN(1);
+    return 1;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 #ifndef HAVE_WOLFSSL
@@ -557,7 +556,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   int ret_set_cipherlist = 0;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
-  DBUG_ENTER("new_VioSSLFd");
+  DBUG_TRACE;
   DBUG_PRINT(
       "enter",
       ("key_file: '%s'  cert_file: '%s'  ca_file: '%s'  ca_path: '%s'  "
@@ -571,7 +570,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     *error = SSL_TLS_VERSION_INVALID;
     DBUG_PRINT("error", ("TLS version invalid : %s", sslGetErrString(*error)));
     report_errors();
-    DBUG_RETURN(0);
+    return 0;
   }
 
   ssl_ctx_options = (ssl_ctx_options | ssl_ctx_flags) &
@@ -583,7 +582,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
                     );
   if (!(ssl_fd = ((struct st_VioSSLFd *)my_malloc(
             key_memory_vio_ssl_fd, sizeof(struct st_VioSSLFd), MYF(0)))))
-    DBUG_RETURN(0);
+    return 0;
 
   if (!(ssl_fd->ssl_context = SSL_CTX_new(is_client ?
 #ifdef HAVE_TLSv13
@@ -598,7 +597,7 @@ static struct st_VioSSLFd *new_VioSSLFd(
     DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
     report_errors();
     my_free(ssl_fd);
-    DBUG_RETURN(0);
+    return 0;
   }
 
 #ifdef HAVE_TLSv13
@@ -709,14 +708,14 @@ static struct st_VioSSLFd *new_VioSSLFd(
 
   DBUG_PRINT("exit", ("OK 1"));
 
-  DBUG_RETURN(ssl_fd);
+  return ssl_fd;
 
 error:
   DBUG_PRINT("error", ("%s", sslGetErrString(*error)));
   report_errors();
   SSL_CTX_free(ssl_fd->ssl_context);
   my_free(ssl_fd);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /************************ VioSSLConnectorFd

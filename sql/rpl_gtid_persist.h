@@ -206,7 +206,7 @@ class Gtid_table_persistor {
     @retval 2 Push an error to client.
   */
   int warn_or_err_on_explicit_modification(THD *thd, TABLE_LIST *table) {
-    DBUG_ENTER("Gtid_table_persistor::warn_or_err_on_explicit_modification");
+    DBUG_TRACE;
 
     if (!thd->is_operating_gtid_table_implicitly &&
         table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE &&
@@ -219,7 +219,7 @@ class Gtid_table_persistor {
         */
         thd->raise_error_printf(ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                 table->table_name);
-        DBUG_RETURN(2);
+        return 2;
       } else {
         /*
           Push a warning to client if user is modifying the gtid_executed
@@ -227,11 +227,11 @@ class Gtid_table_persistor {
         */
         thd->raise_warning_printf(ER_WARN_ON_MODIFYING_GTID_EXECUTED_TABLE,
                                   table->table_name);
-        DBUG_RETURN(1);
+        return 1;
       }
     }
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
  private:

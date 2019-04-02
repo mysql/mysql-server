@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,14 +27,14 @@
 long set_persist_only_variable(
     std::string &name, std::string &value,
     Sql_service_command_interface *command_interface) {
-  DBUG_ENTER("set_persist_only_variable(name,value,interface)");
+  DBUG_TRACE;
   long error = 0;
 
-  DBUG_EXECUTE_IF("group_replication_var_persist_error", { DBUG_RETURN(1); });
+  DBUG_EXECUTE_IF("group_replication_var_persist_error", { return 1; });
 
   DBUG_ASSERT(command_interface != NULL);
 
   error = command_interface->set_persist_only_variable(name, value);
 
-  DBUG_RETURN(error);
+  return error;
 }

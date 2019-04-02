@@ -59,7 +59,7 @@ Migrate_keyring::Migrate_keyring() {
 bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
                            char *destination_plugin, char *user, char *host,
                            char *password, char *socket, ulong port) {
-  DBUG_ENTER("Migrate_keyring::init");
+  DBUG_TRACE;
 
   std::size_t found = std::string::npos;
   string equal("=");
@@ -69,12 +69,12 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   if (!source_plugin) {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
              "Invalid --keyring-migration-source option.");
-    DBUG_RETURN(true);
+    return true;
   }
   if (!destination_plugin) {
     my_error(ER_KEYRING_MIGRATION_FAILURE, MYF(0),
              "Invalid --keyring-migration-destination option.");
-    DBUG_RETURN(true);
+    return true;
   }
   m_source_plugin_option = source_plugin;
   m_destination_plugin_option = destination_plugin;
@@ -89,7 +89,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   else {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Invalid source plugin option value.");
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* extract plugin name from the specified destination plugin option */
@@ -102,7 +102,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   else {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Invalid destination plugin option value.");
-    DBUG_RETURN(true);
+    return true;
   }
 
   /* if connect options are provided then initiate connection */
@@ -121,7 +121,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
     if (!mysql_real_connect(mysql, host, user, password, "", port, socket, 0)) {
       LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
              "Connection to server failed.");
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -135,7 +135,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   m_argv[m_argc] = const_cast<char *>(m_internal_option.c_str());
   /* update m_argc, m_argv */
   m_argv[++m_argc] = nullptr;
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -156,7 +156,7 @@ bool Migrate_keyring::init(int argc, char **argv, char *source_plugin,
   @return 1 Failure
 */
 bool Migrate_keyring::execute() {
-  DBUG_ENTER("Migrate_keyring::execute");
+  DBUG_TRACE;
 
   char **tmp_m_argv;
 
@@ -188,11 +188,11 @@ bool Migrate_keyring::execute() {
         {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
     my_getopt_skip_unknown = 0;
     my_getopt_use_args_separator = true;
-    if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL)) DBUG_RETURN(true);
+    if (handle_options(&m_argc, &tmp_m_argv, no_opts, NULL)) return true;
 
     if (m_argc > 1) {
       LogErr(WARNING_LEVEL, ER_KEYRING_MIGRATION_EXTRA_OPTIONS);
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -201,14 +201,14 @@ bool Migrate_keyring::execute() {
 
   /* Enable access to keyring service APIs */
   if (migrate_connect_options) enable_keyring_operations();
-  DBUG_RETURN(false);
+  return false;
 
 error:
   /*
    Enable keyring_operations in case of error
   */
   if (migrate_connect_options) enable_keyring_operations();
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -220,7 +220,7 @@ error:
   @return 1 Failure
 */
 bool Migrate_keyring::load_plugin(enum_plugin_type plugin_type) {
-  DBUG_ENTER("Migrate_keyring::load_plugin");
+  DBUG_TRACE;
 
   char *keyring_plugin = NULL;
   char *plugin_name = NULL;
@@ -253,7 +253,7 @@ bool Migrate_keyring::load_plugin(enum_plugin_type plugin_type) {
 
     plugin_unlock(0, plugin);
   }
-  DBUG_RETURN(false);
+  return false;
 
 error:
   if (is_source_plugin)
@@ -262,7 +262,7 @@ error:
   else
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to load destination keyring plugin.");
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -278,7 +278,7 @@ error:
   @return 1 Failure
 */
 bool Migrate_keyring::fetch_and_store_keys() {
-  DBUG_ENTER("Migrate_keyring::fetch_keys");
+  DBUG_TRACE;
 
   bool error = false;
   char key_id[MAX_KEY_LEN] = {0};
@@ -292,7 +292,7 @@ bool Migrate_keyring::fetch_and_store_keys() {
   if (key_iterator == NULL) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Initializing source keyring iterator failed.");
-    DBUG_RETURN(true);
+    return true;
   }
   while (!error) {
     if (m_source_plugin_handle->mysql_key_iterator_get_key(key_iterator, key_id,
@@ -341,7 +341,7 @@ bool Migrate_keyring::fetch_and_store_keys() {
     }
   }
   m_source_plugin_handle->mysql_key_iterator_deinit(key_iterator);
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -351,14 +351,14 @@ bool Migrate_keyring::fetch_and_store_keys() {
   @return 1 Failure
 */
 bool Migrate_keyring::disable_keyring_operations() {
-  DBUG_ENTER("Migrate_keyring::disable_keyring_operations");
+  DBUG_TRACE;
   const char query[] = "SET GLOBAL KEYRING_OPERATIONS=0";
   if (mysql && mysql_real_query(mysql, query, strlen(query))) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to disable keyring_operations variable.");
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -368,14 +368,14 @@ bool Migrate_keyring::disable_keyring_operations() {
   @return 1 Failure
 */
 bool Migrate_keyring::enable_keyring_operations() {
-  DBUG_ENTER("Migrate_keyring::enable_keyring_operations");
+  DBUG_TRACE;
   const char query[] = "SET GLOBAL KEYRING_OPERATIONS=1";
   if (mysql && mysql_real_query(mysql, query, strlen(query))) {
     LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATE_FAILED,
            "Failed to enable keyring_operations variable.");
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**

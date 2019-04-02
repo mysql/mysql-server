@@ -41,11 +41,11 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   uint pack_key_length, use_key_length, nextflag;
   uint myisam_search_flag;
   int res = 0;
-  DBUG_ENTER("mi_rkey");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("base: %p  buf: %p  inx: %d  search_flag: %d", info, buf,
                        inx, search_flag));
 
-  if ((inx = _mi_check_index(info, inx)) < 0) DBUG_RETURN(my_errno());
+  if ((inx = _mi_check_index(info, inx)) < 0) return my_errno();
 
   info->update &= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   info->last_key_func = search_flag;
@@ -157,7 +157,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
           if (share->concurrent_insert)
             mysql_rwlock_unlock(&share->key_root_lock[inx]);
           set_my_errno(HA_ERR_KEY_NOT_FOUND);
-          DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+          return HA_ERR_KEY_NOT_FOUND;
         }
         /*
           Error if no row found within the data file. (Bug #29838)
@@ -184,11 +184,11 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   info->set_rnext_same_key = true;
 
   /* Check if we don't want to have record back, only error message */
-  if (!buf) DBUG_RETURN(info->lastpos == HA_OFFSET_ERROR ? my_errno() : 0);
+  if (!buf) return info->lastpos == HA_OFFSET_ERROR ? my_errno() : 0;
 
   if (!(*info->read_record)(info, info->lastpos, buf)) {
     info->update |= HA_STATE_AKTIV; /* Record is read */
-    DBUG_RETURN(0);
+    return 0;
   }
 
   info->lastpos = HA_OFFSET_ERROR; /* Didn't find key */
@@ -202,5 +202,5 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   if (search_flag == HA_READ_AFTER_KEY)
     info->update |= HA_STATE_NEXT_FOUND; /* Previous gives last row */
 err:
-  DBUG_RETURN(my_errno());
+  return my_errno();
 } /* _mi_rkey */

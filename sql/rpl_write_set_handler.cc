@@ -96,7 +96,7 @@ static void check_foreign_key(
     THD *thd,
 #endif
     std::map<std::string, std::string> &foreign_key_map) {
-  DBUG_ENTER("check_foreign_key");
+  DBUG_TRACE;
   DBUG_ASSERT(!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS));
   DBUG_ASSERT(table->s->foreign_keys > 0);
 
@@ -163,8 +163,6 @@ static void check_foreign_key(
     for (uint c = 0; c < fk[i].columns; c++)
       foreign_key_map[fk[i].column_name[c].str] = pke_prefix;
   }
-
-  DBUG_VOID_RETURN;
 }
 
 #ifndef DBUG_OFF
@@ -406,7 +404,7 @@ static void debug_check_for_write_sets(
 */
 
 static void generate_hash_pke(const std::string &pke, THD *thd) {
-  DBUG_ENTER("generate_hash_pke");
+  DBUG_TRACE;
   DBUG_ASSERT(thd->variables.transaction_write_set_extraction !=
               HASH_ALGORITHM_OFF);
 
@@ -415,11 +413,10 @@ static void generate_hash_pke(const std::string &pke, THD *thd) {
   thd->get_transaction()->get_transaction_write_set_ctx()->add_write_set(hash);
 
   DBUG_PRINT("info", ("pke: %s; hash: %llu", pke.c_str(), hash));
-  DBUG_VOID_RETURN;
 }
 
 void add_pke(TABLE *table, THD *thd, uchar *record) {
-  DBUG_ENTER("add_pke");
+  DBUG_TRACE;
   DBUG_ASSERT(record == table->record[0] || record == table->record[1]);
   /*
     The next section extracts the primary key equivalent of the rows that are
@@ -622,6 +619,4 @@ void add_pke(TABLE *table, THD *thd, uchar *record) {
   }
 
   if (!writeset_hashes_added) ws_ctx->set_has_missing_keys();
-
-  DBUG_VOID_RETURN;
 }

@@ -1766,7 +1766,7 @@ void log_sink_buffer_flush(enum log_sink_buffer_flush_mode mode) {
 int log_line_submit(log_line *ll) {
   log_item_iter iter_save;
 
-  DBUG_ENTER("log_line_submit");
+  DBUG_TRACE;
 
   /*
     The log-services we'll call below are likely to change the default
@@ -1989,7 +1989,7 @@ int log_line_submit(log_line *ll) {
 
   ll->iter = iter_save;
 
-  DBUG_RETURN(ll->count);
+  return ll->count;
 }
 
 /**

@@ -234,7 +234,7 @@ class Multisource_info {
     @return The number of channels or 0 if empty.
   */
   inline size_t get_num_instances(bool all = false) {
-    DBUG_ENTER("Multisource_info::get_num_instances");
+    DBUG_TRACE;
 
     m_channel_map_lock->assert_some_lock();
 
@@ -247,15 +247,15 @@ class Multisource_info {
            map_it++) {
         count += map_it->second.size();
       }
-      DBUG_RETURN(count);
+      return count;
     } else  // Return only the slave channels
     {
       map_it = rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
 
       if (map_it == rep_channel_map.end())
-        DBUG_RETURN(0);
+        return 0;
       else
-        DBUG_RETURN(map_it->second.size());
+        return map_it->second.size();
     }
   }
 

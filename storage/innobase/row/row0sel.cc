@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2762,7 +2762,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
                                    const mysql_row_templ_t *templ,
                                    ulint sec_field_no,
                                    lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_store_mysql_field_func");
+  DBUG_TRACE;
 
   const byte *data;
   ulint len;
@@ -2836,7 +2836,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       ut_a((!prebuilt->idx_cond &&
             prebuilt->m_mysql_handler->end_range != NULL) ||
            (prebuilt->trx->isolation_level == TRX_ISO_READ_UNCOMMITTED));
-      DBUG_RETURN(FALSE);
+      return FALSE;
     }
 
     if (lob_undo != nullptr) {
@@ -2877,7 +2877,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       memcpy(mysql_rec + templ->mysql_col_offset,
              (const byte *)prebuilt->default_rec + templ->mysql_col_offset,
              templ->mysql_col_len);
-      DBUG_RETURN(TRUE);
+      return TRUE;
     }
 
     if (DATA_LARGE_MTYPE(templ->type) || DATA_GEOMETRY_MTYPE(templ->type)) {
@@ -2920,7 +2920,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
         ~(byte)templ->mysql_null_bit_mask;
   }
 
-  DBUG_RETURN(TRUE);
+  return TRUE;
 }
 
 ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
@@ -2931,7 +2931,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   ulint i;
   std::vector<const dict_col_t *> template_col;
 
-  DBUG_ENTER("row_sel_store_mysql_rec");
+  DBUG_TRACE;
 
   ut_ad(rec_clust || index == prebuilt->index);
   ut_ad(!rec_clust || index->is_clustered());
@@ -3041,7 +3041,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
 
     if (!row_sel_store_mysql_field(mysql_rec, prebuilt, rec, index, offsets,
                                    field_no, templ, sec_field_no, lob_undo)) {
-      DBUG_RETURN(FALSE);
+      return FALSE;
     }
   }
 
@@ -3058,7 +3058,7 @@ ibool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
     }
   }
 
-  DBUG_RETURN(TRUE);
+  return TRUE;
 }
 
 /** Builds a previous version of a clustered index record for a consistent read
@@ -3085,7 +3085,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                                       mem_heap_t **offset_heap,
                                       rec_t **old_vers, const dtuple_t **vrow,
                                       mtr_t *mtr, lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_build_prev_vers_for_mysql");
+  DBUG_TRACE;
 
   dberr_t err;
 
@@ -3099,7 +3099,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       rec, mtr, clust_index, offsets, read_view, offset_heap,
       prebuilt->old_vers_heap, old_vers, vrow, lob_undo);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Helper class to cache clust_rec and old_ver */
@@ -3147,7 +3147,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
     que_thr_t *thr, const rec_t **out_rec, ulint **offsets,
     mem_heap_t **offset_heap, const dtuple_t **vrow, mtr_t *mtr,
     lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_sel_get_clust_rec_for_mysql");
+  DBUG_TRACE;
 
   dict_index_t *clust_index;
   const rec_t *clust_rec;
@@ -3398,7 +3398,7 @@ func_exit:
   }
 
 err_exit:
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Restores cursor position after it has been stored. We have to take into
@@ -4260,7 +4260,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
                         row_prebuilt_t *prebuilt, ulint match_mode,
                         ulint direction) {
-  DBUG_ENTER("row_search_mvcc");
+  DBUG_TRACE;
 
   dict_index_t *index = prebuilt->index;
   ibool comp = dict_table_is_comp(index->table);
@@ -4316,7 +4316,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   So anything related to traditional index query would not apply to
   it. */
   if (prebuilt->index->type & DICT_FTS) {
-    DBUG_RETURN(DB_END_OF_INDEX);
+    return DB_END_OF_INDEX;
   }
 
 #ifdef UNIV_DEBUG
@@ -4327,16 +4327,16 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 #endif /* UNIV_DEBUG */
 
   if (dict_table_is_discarded(prebuilt->table)) {
-    DBUG_RETURN(DB_TABLESPACE_DELETED);
+    return DB_TABLESPACE_DELETED;
 
   } else if (prebuilt->table->ibd_file_missing) {
-    DBUG_RETURN(DB_TABLESPACE_NOT_FOUND);
+    return DB_TABLESPACE_NOT_FOUND;
 
   } else if (!prebuilt->index_usable) {
-    DBUG_RETURN(DB_MISSING_HISTORY);
+    return DB_MISSING_HISTORY;
 
   } else if (prebuilt->index->is_corrupted()) {
-    DBUG_RETURN(DB_CORRUPTION);
+    return DB_CORRUPTION;
   }
 
   /* We need to get the virtual column values stored in secondary
@@ -5851,7 +5851,7 @@ func_exit:
 
   ut_a(!trx->has_search_latch);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Count rows in a R-Tree leaf level.

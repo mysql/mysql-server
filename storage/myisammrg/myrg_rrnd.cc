@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,14 +46,14 @@ static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
 int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
   int error;
   MI_INFO *isam_info;
-  DBUG_ENTER("myrg_rrnd");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("offset: %lu", (ulong)filepos));
 
   if (filepos == HA_OFFSET_ERROR) {
     if (!info->current_table) {
       if (info->open_tables == info->end_table) { /* No tables */
         set_my_errno(HA_ERR_END_OF_FILE);
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
+        return HA_ERR_END_OF_FILE;
       }
       isam_info = (info->current_table = info->open_tables)->table;
       filepos = isam_info->s->pack.header_length;
@@ -68,9 +68,8 @@ int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
       if ((error = (*isam_info->s->read_rnd)(isam_info, (uchar *)buf,
                                              (my_off_t)filepos, 1)) !=
           HA_ERR_END_OF_FILE)
-        DBUG_RETURN(error);
-      if (info->current_table + 1 == info->end_table)
-        DBUG_RETURN(HA_ERR_END_OF_FILE);
+        return error;
+      if (info->current_table + 1 == info->end_table) return HA_ERR_END_OF_FILE;
       info->current_table++;
       info->last_used_table = info->current_table;
       info->current_table->file_offset =
@@ -86,9 +85,9 @@ int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
       find_table(info->open_tables, info->end_table - 1, filepos);
   isam_info = info->current_table->table;
   isam_info->update &= HA_STATE_CHANGED;
-  DBUG_RETURN((*isam_info->s->read_rnd)(
+  return (*isam_info->s->read_rnd)(
       isam_info, (uchar *)buf,
-      (my_off_t)(filepos - info->current_table->file_offset), 0));
+      (my_off_t)(filepos - info->current_table->file_offset), 0);
 }
 
 /* Find which table to use according to file-pos */
@@ -96,7 +95,7 @@ int myrg_rrnd(MYRG_INFO *info, uchar *buf, ulonglong filepos) {
 static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
                               ulonglong pos) {
   MYRG_TABLE *mid;
-  DBUG_ENTER("find_table");
+  DBUG_TRACE;
 
   while (start != end) {
     mid = start + ((uint)(end - start) + 1) / 2;
@@ -107,5 +106,5 @@ static MYRG_TABLE *find_table(MYRG_TABLE *start, MYRG_TABLE *end,
   }
   DBUG_PRINT("info",
              ("offset: %lu, table: %s", (ulong)pos, start->table->filename));
-  DBUG_RETURN(start);
+  return start;
 }

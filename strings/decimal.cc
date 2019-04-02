@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1045,12 +1045,12 @@ int decimal2double(const decimal_t *from, double *to) {
 int double2decimal(double from, decimal_t *to) {
   char buff[FLOATING_POINT_BUFFER];
   int res;
-  DBUG_ENTER("double2decimal");
+  DBUG_TRACE;
   const char *end = buff + my_gcvt(from, MY_GCVT_ARG_DOUBLE,
                                    (int)sizeof(buff) - 1, buff, NULL);
   res = string2decimal(buff, to, &end);
   DBUG_PRINT("exit", ("res: %d", res));
-  DBUG_RETURN(res);
+  return res;
 }
 
 static int ull2dec(ulonglong from, decimal_t *to) {

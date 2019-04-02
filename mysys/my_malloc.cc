@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -234,7 +234,7 @@ static void *my_raw_malloc(size_t size, myf my_flags) {
 */
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
   void *point;
-  DBUG_ENTER("my_realloc");
+  DBUG_TRACE;
   DBUG_PRINT("my", ("ptr: %p  size: %lu  my_flags: %d", oldpoint, (ulong)size,
                     my_flags));
 
@@ -244,7 +244,7 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
       !((my_flags & MY_FREE_ON_ERROR) && (my_flags & MY_HOLD_ON_ERROR)));
   DBUG_EXECUTE_IF("simulate_out_of_memory", point = NULL; goto end;);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
-    DBUG_RETURN(my_raw_malloc(size, my_flags));
+    return my_raw_malloc(size, my_flags);
 #if defined(MY_MSCRT_DEBUG)
   point = _realloc_dbg(oldpoint, size, _CLIENT_BLOCK, __FILE__, __LINE__);
 #else
@@ -254,7 +254,7 @@ static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags) {
 end:
 #endif
   if (point == NULL) {
-    if (my_flags & MY_HOLD_ON_ERROR) DBUG_RETURN(oldpoint);
+    if (my_flags & MY_HOLD_ON_ERROR) return oldpoint;
     if (my_flags & MY_FREE_ON_ERROR) my_free(oldpoint);
     set_my_errno(errno);
     if (my_flags & (MY_FAE + MY_WME))
@@ -263,7 +263,7 @@ end:
                     DBUG_SET("-d,simulate_out_of_memory"););
   }
   DBUG_PRINT("exit", ("ptr: %p", point));
-  DBUG_RETURN(point);
+  return point;
 }
 #endif
 

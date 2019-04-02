@@ -109,7 +109,7 @@ enum_gtid_consistency_mode get_gtid_consistency_mode() {
 #endif
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
-  DBUG_ENTER("Gtid::parse");
+  DBUG_TRACE;
   rpl_sid sid;
   const char *s = text;
 
@@ -156,16 +156,16 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
 }
 
 int Gtid::to_string(const rpl_sid &sid, char *buf) const {
-  DBUG_ENTER("Gtid::to_string");
+  DBUG_TRACE;
   char *s = buf + sid.to_string(buf);
   *s = ':';
   s++;
   s += format_gno(s, gno);
-  DBUG_RETURN((int)(s - buf));
+  return (int)(s - buf);
 }
 
 int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
-  DBUG_ENTER("Gtid::to_string");
+  DBUG_TRACE;
   int ret;
   if (sid_map != nullptr) {
     Checkable_rwlock *lock = sid_map->get_sid_lock();
@@ -191,40 +191,40 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
 #endif
     ret = sprintf(buf, "%d:%lld", sidno, gno);
   }
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Gtid::is_valid(const char *text) {
-  DBUG_ENTER("Gtid::is_valid");
+  DBUG_TRACE;
   const char *s = text;
   SKIP_WHITESPACE();
   if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH)) {
     DBUG_PRINT("info",
                ("not a uuid at char %d in '%s'", (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   s += binary_log::Uuid::TEXT_LENGTH;
   SKIP_WHITESPACE();
   if (*s != ':') {
     DBUG_PRINT("info",
                ("missing colon at char %d in '%s'", (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   s++;
   SKIP_WHITESPACE();
   if (parse_gno(&s) <= 0) {
     DBUG_PRINT("info", ("GNO was zero or invalid at char %d in '%s'",
                         (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
   SKIP_WHITESPACE();
   if (*s != 0) {
     DBUG_PRINT("info", ("expected end of string, found garbage '%.80s' "
                         "at char %d in '%s'",
                         s, (int)(s - text), text));
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 #ifndef DBUG_OFF
@@ -255,23 +255,23 @@ void check_return_status(enum_return_status status, const char *action,
 
 #ifdef MYSQL_SERVER
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid) {
-  DBUG_ENTER("get_sidno_from_global_sid_map(rpl_sid)");
+  DBUG_TRACE;
 
   global_sid_lock->rdlock();
   rpl_sidno sidno = global_sid_map->add_sid(sid);
   global_sid_lock->unlock();
 
-  DBUG_RETURN(sidno);
+  return sidno;
 }
 
 rpl_gno get_last_executed_gno(rpl_sidno sidno) {
-  DBUG_ENTER("get_last_executed_gno(rpl_sidno)");
+  DBUG_TRACE;
 
   global_sid_lock->rdlock();
   rpl_gno gno = gtid_state->get_last_executed_gno(sidno);
   global_sid_lock->unlock();
 
-  DBUG_RETURN(gno);
+  return gno;
 }
 
 Trx_monitoring_info::Trx_monitoring_info() { clear(); }

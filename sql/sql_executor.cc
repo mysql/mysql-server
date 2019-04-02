@@ -210,7 +210,7 @@ void JOIN::exec() {
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   List<Item> *columns_list = &fields_list;
-  DBUG_ENTER("JOIN::exec");
+  DBUG_TRACE;
 
   DBUG_ASSERT(select_lex == thd->lex->current_select());
 
@@ -229,7 +229,7 @@ void JOIN::exec() {
 
   set_executed();
 
-  if (prepare_result()) DBUG_VOID_RETURN;
+  if (prepare_result()) return;
 
   if (m_windows.elements > 0 && !m_windowing_steps) {
     // Initialize state of window functions as end_write_wf() will be shortcut
@@ -257,7 +257,7 @@ void JOIN::exec() {
         (!where_cond || where_cond->val_int())) {
       if (query_result->send_result_set_metadata(
               thd, *columns_list, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-        DBUG_VOID_RETURN;
+        return;
 
       /*
         If the HAVING clause is either impossible or always true, then
@@ -279,12 +279,12 @@ void JOIN::exec() {
     } else {
       return_zero_rows(this, *columns_list);
     }
-    DBUG_VOID_RETURN;
+    return;
   }
 
   if (zero_result_cause) {
     return_zero_rows(this, *columns_list);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /*
@@ -297,7 +297,7 @@ void JOIN::exec() {
   /* XXX: When can we have here thd->is_error() not zero? */
   if (thd->is_error()) {
     error = thd->is_error();
-    DBUG_VOID_RETURN;
+    return;
   }
 
   DBUG_PRINT("info", ("%s", thd->proc_info));
@@ -305,7 +305,7 @@ void JOIN::exec() {
           thd, *fields, Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     /* purecov: begin inspected */
     error = 1;
-    DBUG_VOID_RETURN;
+    return;
     /* purecov: end */
   }
   error = do_select(this);
@@ -313,15 +313,13 @@ void JOIN::exec() {
   thd->inc_examined_row_count(examined_rows);
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
                         (ulong)thd->get_examined_row_count()));
-
-  DBUG_VOID_RETURN;
 }
 
 bool JOIN::create_intermediate_table(QEP_TAB *const tab,
                                      List<Item> *tmp_table_fields,
                                      ORDER_with_src &tmp_table_group,
                                      bool save_sum_fields) {
-  DBUG_ENTER("JOIN::create_intermediate_table");
+  DBUG_TRACE;
   THD_STAGE_INFO(thd, stage_creating_tmp_table);
   const bool windowing = m_windows.elements > 0;
   /*
@@ -350,7 +348,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       create_tmp_table(thd, tab->tmp_table_param, *tmp_table_fields,
                        tmp_table_group, distinct_arg, save_sum_fields,
                        select_lex->active_options(), tmp_rows_limit, "");
-  if (!table) DBUG_RETURN(true);
+  if (!table) return true;
   tmp_table_param.using_outer_summary_function =
       tab->tmp_table_param->using_outer_summary_function;
 
@@ -416,14 +414,14 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
       order = NULL;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 
 err:
   if (table != NULL) {
     free_tmp_table(thd, table);
     tab->set_table(NULL);
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -556,14 +554,14 @@ void JOIN::optimize_distinct() {
 
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct) {
   Item_sum *func;
-  DBUG_ENTER("prepare_sum_aggregators");
+  DBUG_TRACE;
   while ((func = *(func_ptr++))) {
     if (func->set_aggregator(need_distinct && func->has_with_distinct()
                                  ? Aggregator::DISTINCT_AGGREGATOR
                                  : Aggregator::SIMPLE_AGGREGATOR))
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /******************************************************************************
@@ -584,40 +582,37 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct) {
 
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr) {
   Item_sum *func;
-  DBUG_ENTER("setup_sum_funcs");
+  DBUG_TRACE;
   while ((func = *(func_ptr++))) {
-    if (func->aggregator_setup(thd)) DBUG_RETURN(true);
+    if (func->aggregator_setup(thd)) return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 void init_tmptable_sum_functions(Item_sum **func_ptr) {
-  DBUG_ENTER("init_tmptable_sum_functions");
+  DBUG_TRACE;
   Item_sum *func;
   while ((func = *(func_ptr++))) func->reset_field();
-  DBUG_VOID_RETURN;
 }
 
 /** Update record 0 in tmp_table from record 1. */
 
 void update_tmptable_sum_func(Item_sum **func_ptr,
                               TABLE *tmp_table MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("update_tmptable_sum_func");
+  DBUG_TRACE;
   Item_sum *func;
   while ((func = *(func_ptr++))) func->update_field();
-  DBUG_VOID_RETURN;
 }
 
 /** Copy result of sum functions to record in tmp_table. */
 
 void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr) {
-  DBUG_ENTER("copy_sum_funcs");
+  DBUG_TRACE;
   for (; func_ptr != end_ptr; func_ptr++) {
     if ((*func_ptr)->result_field != nullptr) {
       (*func_ptr)->save_in_result_field(1);
     }
   }
-  DBUG_VOID_RETURN;
 }
 
 bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
@@ -632,11 +627,11 @@ bool init_sum_functions(Item_sum **func_ptr, Item_sum **end_ptr) {
 }
 
 bool update_sum_func(Item_sum **func_ptr) {
-  DBUG_ENTER("update_sum_func");
+  DBUG_TRACE;
   Item_sum *func;
   for (; (func = *func_ptr); func_ptr++)
-    if (func->aggregator_add()) DBUG_RETURN(1);
-  DBUG_RETURN(0);
+    if (func->aggregator_add()) return 1;
+  return 0;
 }
 
 /**
@@ -657,8 +652,8 @@ bool update_sum_func(Item_sum **func_ptr) {
     true on error
 */
 bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
-  DBUG_ENTER("copy_funcs");
-  if (!param->items_to_copy->size()) DBUG_RETURN(false);
+  DBUG_TRACE;
+  if (!param->items_to_copy->size()) return false;
 
   Func_ptr_array *func_ptr = param->items_to_copy;
   uint end = func_ptr->size();
@@ -715,10 +710,10 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
         TODO: change it for a real status check when Item::val_xxx()
         are extended to return status code.
       */
-      if (thd->is_error()) DBUG_RETURN(true);
+      if (thd->is_error()) return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /*
@@ -750,30 +745,29 @@ static enum_nested_loop_state end_sj_materialize(JOIN *join, QEP_TAB *qep_tab,
   int error;
   THD *thd = join->thd;
   Semijoin_mat_exec *sjm = qep_tab[-1].sj_mat_exec();
-  DBUG_ENTER("end_sj_materialize");
+  DBUG_TRACE;
   if (!end_of_records) {
     TABLE *table = sjm->table;
 
     for (Item &item : sjm->sj_nest->nested_join->sj_inner_exprs) {
-      if (item.is_null()) DBUG_RETURN(NESTED_LOOP_OK);
+      if (item.is_null()) return NESTED_LOOP_OK;
     }
     fill_record(thd, table, table->visible_field_ptr(),
                 sjm->sj_nest->nested_join->sj_inner_exprs, NULL, NULL);
-    if (thd->is_error())
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (!check_unique_constraint(table)) DBUG_RETURN(NESTED_LOOP_OK);
+    if (thd->is_error()) return NESTED_LOOP_ERROR; /* purecov: inspected */
+    if (!check_unique_constraint(table)) return NESTED_LOOP_OK;
     if ((error = table->file->ha_write_row(table->record[0]))) {
       /* create_ondisk_from_heap will generate error if needed */
       if (!table->file->is_ignorable_error(error)) {
         if (create_ondisk_from_heap(thd, table, error, true, NULL))
-          DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+          return NESTED_LOOP_ERROR; /* purecov: inspected */
         /* Initialize the index, since create_ondisk_from_heap does
            not replicate the earlier index initialization */
         if (table->hash_field) table->file->ha_index_init(0, false);
       }
     }
   }
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /**
@@ -851,7 +845,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab) {
   @param fields  Fields in result
 */
 static void return_zero_rows(JOIN *join, List<Item> &fields) {
-  DBUG_ENTER("return_zero_rows");
+  DBUG_TRACE;
 
   join->join_free();
 
@@ -888,7 +882,6 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
     }
     if (!send_error) select->query_result()->send_eof(thd);  // Should be safe
   }
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -902,7 +895,7 @@ static void return_zero_rows(JOIN *join, List<Item> &fields) {
 */
 
 void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
-  DBUG_ENTER("setup_tmptable_write_func");
+  DBUG_TRACE;
   JOIN *join = tab->join();
   TABLE *table = tab->table();
   QEP_tmp_table *op = (QEP_tmp_table *)tab->op;
@@ -939,7 +932,6 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
     }
   }
   if (description) trace->add_alnum("write_method", description);
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -952,7 +944,7 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
     end_select function to use. This function can't fail.
 */
 Next_select_func JOIN::get_end_select_func() {
-  DBUG_ENTER("get_end_select_func");
+  DBUG_TRACE;
   /*
      Choose method for presenting result to user. Use end_send_group
      if the query requires grouping (has a GROUP BY clause and/or one or
@@ -961,10 +953,10 @@ Next_select_func JOIN::get_end_select_func() {
    */
   if (streaming_aggregation && !tmp_table_param.precomputed_group_by) {
     DBUG_PRINT("info", ("Using end_send_group"));
-    DBUG_RETURN(end_send_group);
+    return end_send_group;
   }
   DBUG_PRINT("info", ("Using end_send"));
-  DBUG_RETURN(end_send);
+  return end_send;
 }
 
 /**
@@ -2627,7 +2619,7 @@ static int ExecuteIteratorQuery(JOIN *join) {
 static int do_select(JOIN *join) {
   int rc = 0;
   enum_nested_loop_state error = NESTED_LOOP_OK;
-  DBUG_ENTER("do_select");
+  DBUG_TRACE;
 
   join->send_records = 0;
   THD *thd = join->thd;
@@ -2755,7 +2747,7 @@ static int do_select(JOIN *join) {
     DBUG_PRINT("error", ("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -2794,12 +2786,12 @@ static int do_select(JOIN *join) {
 
 enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
                                      bool end_of_records) {
-  DBUG_ENTER("sub_select_op");
+  DBUG_TRACE;
 
   if (join->thd->killed) {
     /* The user has aborted the execution of the query */
     join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED);
+    return NESTED_LOOP_KILLED;
   }
 
   enum_nested_loop_state rc;
@@ -2810,9 +2802,9 @@ enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
   if (end_of_records) {
     rc = op->end_send();
     if (rc >= NESTED_LOOP_OK) rc = sub_select(join, qep_tab, end_of_records);
-    DBUG_RETURN(rc);
+    return rc;
   }
-  if (qep_tab->prepare_scan()) DBUG_RETURN(NESTED_LOOP_ERROR);
+  if (qep_tab->prepare_scan()) return NESTED_LOOP_ERROR;
 
   /*
     setup_join_buffering() disables join buffering if QS_DYNAMIC_RANGE is
@@ -2822,7 +2814,7 @@ enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
 
   rc = op->put_record();
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -2966,7 +2958,7 @@ enum_nested_loop_state sub_select_op(JOIN *join, QEP_TAB *qep_tab,
 
 enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
                                   bool end_of_records) {
-  DBUG_ENTER("sub_select");
+  DBUG_TRACE;
 
   TABLE *const table = qep_tab->table();
 
@@ -2980,10 +2972,10 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
     enum_nested_loop_state nls =
         (*qep_tab->next_select)(join, qep_tab + 1, end_of_records);
 
-    DBUG_RETURN(nls);
+    return nls;
   }
 
-  if (qep_tab->prepare_scan()) DBUG_RETURN(NESTED_LOOP_ERROR);
+  if (qep_tab->prepare_scan()) return NESTED_LOOP_ERROR;
 
   if (qep_tab->starts_weedout()) {
     do_sj_reset(qep_tab->flush_weedout_table);
@@ -3025,7 +3017,7 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
   if (is_recursive_ref) {
     // See also Recursive_executor's documentation
-    if (join->unit->got_all_recursive_rows) DBUG_RETURN(rc);
+    if (join->unit->got_all_recursive_rows) return rc;
     // The recursive CTE algorithm requires a table scan.
     DBUG_ASSERT(qep_tab->type() == JT_ALL);
     in_first_read = !table->file->inited;
@@ -3109,7 +3101,7 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
   if (pfs_batch_update) table->file->end_psi_batch_mode();
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 void QEP_TAB::refresh_lateral() {
@@ -3193,14 +3185,14 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
   SJ_TMP_TABLE::TAB *tab = sjtbl->tabs;
   SJ_TMP_TABLE::TAB *tab_end = sjtbl->tabs_end;
 
-  DBUG_ENTER("do_sj_dups_weedout");
+  DBUG_TRACE;
 
   if (sjtbl->is_confluent) {
     if (sjtbl->have_confluent_row)
-      DBUG_RETURN(1);
+      return 1;
     else {
       sjtbl->have_confluent_row = true;
-      DBUG_RETURN(0);
+      return 0;
     }
   }
 
@@ -3237,21 +3229,21 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
     }
   }
 
-  if (!check_unique_constraint(sjtbl->tmp_table)) DBUG_RETURN(1);
+  if (!check_unique_constraint(sjtbl->tmp_table)) return 1;
   error = sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
   if (error) {
     /* If this is a duplicate error, return immediately */
-    if (sjtbl->tmp_table->file->is_ignorable_error(error)) DBUG_RETURN(1);
+    if (sjtbl->tmp_table->file->is_ignorable_error(error)) return 1;
     /*
       Other error than duplicate error: Attempt to create a temporary table.
     */
     bool is_duplicate;
     if (create_ondisk_from_heap(thd, sjtbl->tmp_table, error, true,
                                 &is_duplicate))
-      DBUG_RETURN(-1);
-    DBUG_RETURN(is_duplicate ? 1 : 0);
+      return -1;
+    return is_duplicate ? 1 : 0;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -3259,15 +3251,15 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl) {
 */
 
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl) {
-  DBUG_ENTER("do_sj_reset");
+  DBUG_TRACE;
   if (sj_tbl->tmp_table) {
     int rc = sj_tbl->tmp_table->empty_result_table();
     if (sj_tbl->tmp_table->hash_field)
       sj_tbl->tmp_table->file->ha_index_init(0, false);
-    DBUG_RETURN(rc);
+    return rc;
   }
   sj_tbl->have_confluent_row = false;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -3292,7 +3284,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
   Item *condition = qep_tab->condition();
   const plan_idx qep_tab_idx = qep_tab->idx();
   bool found = true;
-  DBUG_ENTER("evaluate_join_record");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("join: %p join_tab index: %d table: %s cond: %p", join,
                        static_cast<int>(qep_tab_idx), qep_tab->table()->alias,
                        condition));
@@ -3302,11 +3294,11 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
 
     if (join->thd->killed) {
       join->thd->send_kill_message();
-      DBUG_RETURN(NESTED_LOOP_KILLED);
+      return NESTED_LOOP_KILLED;
     }
 
     /* check for errors evaluating the condition */
-    if (join->thd->is_error()) DBUG_RETURN(NESTED_LOOP_ERROR);
+    if (join->thd->is_error()) return NESTED_LOOP_ERROR;
   }
   if (found) {
     /*
@@ -3361,7 +3353,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
               i.e. PRE_FIRST_PLAN_IDX.
             */
             join->return_tab = qep_tab_idx - 1;
-            DBUG_RETURN(NESTED_LOOP_OK);
+            return NESTED_LOOP_OK;
           }
 
           if (tab == qep_tab)
@@ -3372,11 +3364,11 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
               not to the last table of the current nest level.
             */
             join->return_tab = tab->idx();
-            DBUG_RETURN(NESTED_LOOP_OK);
+            return NESTED_LOOP_OK;
           }
         }
         /* check for errors evaluating the condition */
-        if (join->thd->is_error()) DBUG_RETURN(NESTED_LOOP_ERROR);
+        if (join->thd->is_error()) return NESTED_LOOP_ERROR;
       }
       /*
         Check whether join_tab is not the last inner table
@@ -3393,7 +3385,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
     if (qep_tab->finishes_weedout() && found) {
       int res = do_sj_dups_weedout(join->thd, qep_tab->check_weed_out_table);
       if (res == -1)
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
       else if (res == 1)
         found = false;
     } else if (qep_tab->do_loosescan() &&
@@ -3439,10 +3431,10 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
 
       rc = (*qep_tab->next_select)(join, qep_tab + 1, 0);
 
-      if (rc != NESTED_LOOP_OK) DBUG_RETURN(rc);
+      if (rc != NESTED_LOOP_OK) return rc;
 
       /* check for errors evaluating the condition */
-      if (join->thd->is_error()) DBUG_RETURN(NESTED_LOOP_ERROR);
+      if (join->thd->is_error()) return NESTED_LOOP_ERROR;
 
       if (qep_tab->do_loosescan() && QEP_AT(qep_tab, match_tab).found_match) {
         /*
@@ -3484,7 +3476,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
     */
     if (qep_tab->not_null_compl) qep_tab->read_record.iterator->UnlockRow();
   }
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /**
@@ -3504,7 +3496,7 @@ static enum_nested_loop_state evaluate_null_complemented_join_record(
   QEP_TAB *first_inner_tab = qep_tab;
   QEP_TAB *last_inner_tab = &QEP_AT(qep_tab, last_inner());
 
-  DBUG_ENTER("evaluate_null_complemented_join_record");
+  DBUG_TRACE;
 
   bool matching = true;
   enum_nested_loop_state rc = NESTED_LOOP_OK;
@@ -3528,11 +3520,11 @@ static enum_nested_loop_state evaluate_null_complemented_join_record(
     if (qep_tab->condition() && !qep_tab->condition()->val_int()) {
       if (join->thd->killed) {
         join->thd->send_kill_message();
-        DBUG_RETURN(NESTED_LOOP_KILLED);
+        return NESTED_LOOP_KILLED;
       }
 
       /* check for errors */
-      if (join->thd->is_error()) DBUG_RETURN(NESTED_LOOP_ERROR);
+      if (join->thd->is_error()) return NESTED_LOOP_ERROR;
 
       matching = false;
       break;
@@ -3566,7 +3558,7 @@ static enum_nested_loop_state evaluate_null_complemented_join_record(
     if (tab->type() == JT_EQ_REF) tab->table()->restore_null_flags();
   }
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /*****************************************************************************
@@ -3637,7 +3629,7 @@ int safe_index_read(QEP_TAB *tab) {
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   int error;
-  DBUG_ENTER("join_read_const_table");
+  DBUG_TRACE;
   TABLE *table = tab->table();
   table->const_table = true;
 
@@ -3690,7 +3682,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
     pos->rows_fetched = 0.0;
     pos->prefix_rowcount = 0.0;
     pos->ref_depend_map = 0;
-    if (!tab->table_ref->outer_join || error > 0) DBUG_RETURN(error);
+    if (!tab->table_ref->outer_join || error > 0) return error;
   }
 
   if (tab->join_cond() && !table->has_null_row()) {
@@ -3703,7 +3695,7 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   JOIN *const join = tab->join();
   THD *const thd = join->thd;
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
-    DBUG_RETURN(1);
+    return 1;
   TABLE_LIST *tbl;
   for (tbl = join->select_lex->leaf_tables; tbl; tbl = tbl->next_leaf) {
     TABLE_LIST *embedded;
@@ -3712,12 +3704,12 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
       embedded = embedding;
       if (embedded->join_cond_optim() &&
           update_const_equal_items(thd, embedded->join_cond_optim(), tab))
-        DBUG_RETURN(1);
+        return 1;
       embedding = embedded->embedding;
     } while (embedding && embedding->nested_join->join_list.head() == embedded);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -3797,7 +3789,7 @@ vector<string> ConstIterator::DebugString() const {
 
 static int read_const(TABLE *table, TABLE_REF *ref) {
   int error;
-  DBUG_ENTER("read_const");
+  DBUG_TRACE;
 
   if (!table->is_started())  // If first read
   {
@@ -3813,12 +3805,12 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
     if (error) {
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE) {
         const int ret = report_handler_error(table, error);
-        DBUG_RETURN(ret);
+        return ret;
       }
       table->set_no_row();
       table->set_null_row();
       empty_record(table);
-      DBUG_RETURN(-1);
+      return -1;
     }
     /*
       read_const() may be called several times inside a nested loop join.
@@ -3833,7 +3825,7 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
     table->set_found_row();
     restore_record(table, record[1]);
   }
-  DBUG_RETURN(table->has_row() ? 0 : -1);
+  return table->has_row() ? 0 : -1;
 }
 
 EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
@@ -4360,7 +4352,7 @@ int join_materialize_derived(QEP_TAB *tab) {
 */
 
 int join_materialize_semijoin(QEP_TAB *tab) {
-  DBUG_ENTER("join_materialize_semijoin");
+  DBUG_TRACE;
 
   Semijoin_mat_exec *const sjm = tab->sj_mat_exec();
 
@@ -4374,8 +4366,8 @@ int join_materialize_semijoin(QEP_TAB *tab) {
   last->set_sj_mat_exec(sjm);  // TODO: This violates comment for sj_mat_exec!
   if (tab->table()->hash_field) tab->table()->file->ha_index_init(0, 0);
   int rc;
-  if ((rc = sub_select(tab->join(), first, false)) < 0) DBUG_RETURN(rc);
-  if ((rc = sub_select(tab->join(), first, true)) < 0) DBUG_RETURN(rc);
+  if ((rc = sub_select(tab->join(), first, false)) < 0) return rc;
+  if ((rc = sub_select(tab->join(), first, true)) < 0) return rc;
   if (tab->table()->hash_field) tab->table()->file->ha_index_or_rnd_end();
 
   last->next_select = NULL;
@@ -4394,7 +4386,7 @@ int join_materialize_semijoin(QEP_TAB *tab) {
 #endif
 
   tab->table()->materialized = true;
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /**
@@ -4753,7 +4745,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
 */
 
 void QEP_TAB::set_pushed_table_access_method(void) {
-  DBUG_ENTER("set_pushed_table_access_method");
+  DBUG_TRACE;
   DBUG_ASSERT(table());
 
   /**
@@ -4781,7 +4773,6 @@ void QEP_TAB::set_pushed_table_access_method(void) {
             PushedJoinRefIterator(join()->thd, table(), &ref(), use_order(),
                                   &join()->examined_rows));
   }
-  DBUG_VOID_RETURN;
 }
 
 /*****************************************************************************
@@ -4797,7 +4788,7 @@ void QEP_TAB::set_pushed_table_access_method(void) {
 /* ARGSUSED */
 static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
                                        bool end_of_records) {
-  DBUG_ENTER("end_send");
+  DBUG_TRACE;
   /*
     When all tables are const this function is called with jointab == NULL.
     This function shouldn't be called for the first join_tab as it needs
@@ -4831,15 +4822,15 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
          join->qep_tab[0].quick_optim()->is_loose_index_scan())) {
       // Copy non-aggregated fields when loose index scan is used.
       if (copy_fields(&join->tmp_table_param, thd))
-        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+        return NESTED_LOOP_ERROR; /* purecov: inspected */
     }
     // Filter HAVING if not done earlier
     if (!having_is_true(join->having_cond))
-      DBUG_RETURN(NESTED_LOOP_OK);  // Didn't match having
+      return NESTED_LOOP_OK;  // Didn't match having
     error = 0;
     if (join->should_send_current_row())
       error = join->select_lex->query_result()->send_data(thd, *fields);
-    if (error) DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+    if (error) return NESTED_LOOP_ERROR; /* purecov: inspected */
 
     ++join->send_records;
     thd->get_stmt_da()->inc_current_row_for_condition();
@@ -4854,7 +4845,7 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
       if (join->order && join->calc_found_rows && qep_tab > join->qep_tab &&
           qep_tab[-1].filesort && qep_tab[-1].filesort->using_pq) {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
-        DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
+        return NESTED_LOOP_QUERY_LIMIT;
       }
     }
     if (join->send_records >= join->unit->select_limit_cnt &&
@@ -4863,18 +4854,18 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
         join->do_send_rows = 0;
         if (join->unit->fake_select_lex)
           join->unit->fake_select_lex->select_limit = 0;
-        DBUG_RETURN(NESTED_LOOP_OK);
+        return NESTED_LOOP_OK;
       }
-      DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);  // Abort nicely
+      return NESTED_LOOP_QUERY_LIMIT;  // Abort nicely
     } else if (join->send_records >= join->fetch_limit) {
       /*
         There is a server side cursor and all rows for
         this fetch request are sent.
       */
-      DBUG_RETURN(NESTED_LOOP_CURSOR_LIMIT);
+      return NESTED_LOOP_CURSOR_LIMIT;
     }
   }
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /**
@@ -4960,7 +4951,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
                                       bool end_of_records) {
   int idx = -1;
   enum_nested_loop_state ok_code = NESTED_LOOP_OK;
-  DBUG_ENTER("end_send_group");
+  DBUG_TRACE;
   THD *thd = join->thd;
 
   List<Item> *fields;
@@ -5020,7 +5011,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
               be restored after sending data.
             */
             if (join->clear_fields(&save_nullinfo))
-              DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+              return NESTED_LOOP_ERROR; /* purecov: inspected */
           }
           if (!having_is_true(join->having_cond))
             error = -1;  // Didn't satisfy having
@@ -5037,12 +5028,12 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           // Restore NULL values if needed.
           if (save_nullinfo) join->restore_fields(save_nullinfo);
         }
-        if (error > 0) DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-        if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
+        if (error > 0) return NESTED_LOOP_ERROR; /* purecov: inspected */
+        if (end_of_records) return NESTED_LOOP_OK;
         if (join->send_records >= join->unit->select_limit_cnt &&
             join->do_send_rows) {
           if (!join->calc_found_rows)
-            DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);  // Abort nicely
+            return NESTED_LOOP_QUERY_LIMIT;  // Abort nicely
           join->do_send_rows = 0;
           join->unit->select_limit_cnt = HA_POS_ERROR;
         } else if (join->send_records >= join->fetch_limit) {
@@ -5058,7 +5049,7 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         }
       }
     } else {
-      if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
+      if (end_of_records) return NESTED_LOOP_OK;
       join->seen_first_record = true;
       // Initialize the cache of GROUP expressions with this 1st row's values
       (void)(update_item_cache_if_changed(join->group_fields));
@@ -5087,16 +5078,16 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
       */
       Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
       if (copy_fields(&join->tmp_table_param, thd))  // (1)
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
       if (init_sum_functions(join->sum_funcs,
                              join->sum_funcs_end[idx + 1]))  //(2)
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
       join->group_sent = false;
-      DBUG_RETURN(ok_code);
+      return ok_code;
     }
   }
-  if (update_sum_func(join->sum_funcs)) DBUG_RETURN(NESTED_LOOP_ERROR);
-  DBUG_RETURN(NESTED_LOOP_OK);
+  if (update_sum_func(join->sum_funcs)) return NESTED_LOOP_ERROR;
+  return NESTED_LOOP_OK;
 }
 
 static bool cmp_field_value(Field *field, ptrdiff_t diff) {
@@ -5155,14 +5146,14 @@ static bool cmp_field_value(Field *field, ptrdiff_t diff) {
 */
 
 static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
-  DBUG_ENTER("group_rec_cmp");
+  DBUG_TRACE;
   ptrdiff_t diff = rec1 - rec0;
 
   for (ORDER *grp = group; grp; grp = grp->next) {
     Field *field = grp->field_in_tmp_table;
-    if (cmp_field_value(field, diff)) DBUG_RETURN(true);
+    if (cmp_field_value(field, diff)) return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -5174,15 +5165,15 @@ static bool group_rec_cmp(ORDER *group, uchar *rec0, uchar *rec1) {
 */
 
 static bool table_rec_cmp(TABLE *table) {
-  DBUG_ENTER("table_rec_cmp");
+  DBUG_TRACE;
   ptrdiff_t diff = table->record[1] - table->record[0];
   Field **fields = table->visible_field_ptr();
 
   for (uint i = 0; i < table->visible_field_count(); i++) {
     Field *field = fields[i];
-    if (cmp_field_value(field, diff)) DBUG_RETURN(true);
+    if (cmp_field_value(field, diff)) return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -5237,7 +5228,7 @@ finish:
 */
 
 static ulonglong unique_hash_group(ORDER *group) {
-  DBUG_ENTER("unique_hash_group");
+  DBUG_TRACE;
   ulonglong crc = 0;
 
   for (ORDER *ord = group; ord; ord = ord->next) {
@@ -5246,7 +5237,7 @@ static ulonglong unique_hash_group(ORDER *group) {
     unique_hash(field, &crc);
   }
 
-  DBUG_RETURN(crc);
+  return crc;
 }
 
 /* Generate hash for unique_constraint for all visible fields of a table */
@@ -5356,7 +5347,7 @@ static void swap_copy_field_direction(Temp_table_param *param) {
   @param rowno    The rowno in the current partition (1-based)
 */
 static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
-  DBUG_ENTER("buffer_record_somewhere");
+  DBUG_TRACE;
   TABLE *const t = w->frame_buffer();
   uchar *record = t->record[0];
 
@@ -5389,7 +5380,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
     int rc = t->file->ha_rnd_init(true);
     if (rc != 0) {
       t->file->print_error(rc, MYF(0));
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -5398,12 +5389,11 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 
   if (error) {
     /* If this is a duplicate error, return immediately */
-    if (t->file->is_ignorable_error(error)) DBUG_RETURN(1);
+    if (t->file->is_ignorable_error(error)) return 1;
 
     /* Other error than duplicate error: Attempt to create a temporary table. */
     bool is_duplicate;
-    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate))
-      DBUG_RETURN(-1);
+    if (create_ondisk_from_heap(thd, t, error, true, &is_duplicate)) return -1;
 
     DBUG_ASSERT(t->s->db_type() == innodb_hton);
     if (t->file->ha_rnd_init(true)) return true; /* purecov: inspected */
@@ -5418,14 +5408,14 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
                  w->opt_lead_lag().m_offsets.size();
          i++) {
       void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
-      if (r == nullptr) DBUG_RETURN(true);
+      if (r == nullptr) return true;
       w->m_frame_buffer_positions[i].m_position = static_cast<uchar *>(r);
       w->m_frame_buffer_positions[i].m_rowno = -1;
     }
 
     if ((w->m_tmp_pos.m_position =
              (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
-      DBUG_RETURN(true);
+      return true;
 
     w->m_frame_buffer_positions[Window::REA_FIRST_IN_PARTITION].m_rowno = 1;
     /*
@@ -5437,7 +5427,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
         w->m_frame_buffer_positions[Window::REA_FIRST_IN_PARTITION].m_position,
         t->file->ref_length, w->frame_buffer_partition_offset());
 
-    DBUG_RETURN(is_duplicate ? 1 : 0);
+    return is_duplicate ? 1 : 0;
   }
 
   /* Save position in frame buffer file of first row in a partition */
@@ -5450,14 +5440,14 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
                                w->opt_lead_lag().m_offsets.size();
            i++) {
         void *r = (*THR_MALLOC)->Alloc(t->file->ref_length);
-        if (r == nullptr) DBUG_RETURN(true);
+        if (r == nullptr) return true;
         Window::Frame_buffer_position p(static_cast<uchar *>(r), -1);
         w->m_frame_buffer_positions.push_back(p);
       }
 
       if ((w->m_tmp_pos.m_position =
                (uchar *)(*THR_MALLOC)->Alloc(t->file->ref_length)) == nullptr)
-        DBUG_RETURN(true);
+        return true;
     }
 
     // Do a read to establish scan position, then get it
@@ -5470,7 +5460,7 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
     w->set_frame_buffer_partition_offset(w->frame_buffer_total_rows());
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -5495,10 +5485,10 @@ static bool buffer_record_somewhere(THD *thd, Window *w, int64 rowno) {
 */
 bool buffer_windowing_record(THD *thd, Temp_table_param *param,
                              bool *new_partition) {
-  DBUG_ENTER("buffer_windowing_record");
+  DBUG_TRACE;
   Window *w = param->m_window;
 
-  if (copy_fields(w->frame_buffer_param(), thd)) DBUG_RETURN(true);
+  if (copy_fields(w->frame_buffer_param(), thd)) return true;
 
   if (new_partition != nullptr) {
     const bool first_partition = w->partition_rowno() == 0;
@@ -5508,7 +5498,7 @@ bool buffer_windowing_record(THD *thd, Temp_table_param *param,
       *new_partition = true;
       w->save_special_record(Window::FBC_FIRST_IN_NEXT_PARTITION,
                              w->frame_buffer());
-      DBUG_RETURN(false);
+      return false;
     }
   }
 
@@ -5527,11 +5517,11 @@ bool buffer_windowing_record(THD *thd, Temp_table_param *param,
     w->save_special_record(Window::FBC_LAST_BUFFERED_ROW, w->frame_buffer());
   }
 
-  if (buffer_record_somewhere(thd, w, w->partition_rowno())) DBUG_RETURN(true);
+  if (buffer_record_somewhere(thd, w, w->partition_rowno())) return true;
 
   w->set_last_rowno_in_cache(w->partition_rowno());
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -5663,7 +5653,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
                           int64 rowno,
                           enum Window::retrieve_cached_row_reason reason,
                           int fno) {
-  DBUG_ENTER("bring_back_frame_row");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("rowno: %lld reason: %d fno: %d", rowno, reason, fno));
   DBUG_ASSERT(reason == Window::REA_MISC_POSITIONS || fno == 0);
 
@@ -5692,7 +5682,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
 
     if (do_fetch &&
         read_frame_buffer_row(rowno, &w, reason == Window::REA_MISC_POSITIONS))
-      DBUG_RETURN(true);
+      return true;
 
     /* Got row rowno in record[0], remember position */
     const TABLE *const t = w.frame_buffer();
@@ -5702,7 +5692,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
     w.m_frame_buffer_positions[reason + fno].m_rowno = rowno;
   }
 
-  if (!do_fetch) DBUG_RETURN(false);
+  if (!do_fetch) return false;
 
   Temp_table_param *const fb_info = w.frame_buffer_param();
 
@@ -5735,7 +5725,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
 
   if (!rc) {
     if (out_param) {
-      if (copy_fields(out_param, thd)) DBUG_RETURN(true);
+      if (copy_fields(out_param, thd)) return true;
       // fields are in IN and in OUT
       if (rowno >= 1) w.set_row_has_fields_in_out_table(rowno);
     } else
@@ -5743,7 +5733,7 @@ bool bring_back_frame_row(THD *thd, Window &w, Temp_table_param *out_param,
       w.set_row_has_fields_in_out_table(0);
   }
 
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -5916,7 +5906,7 @@ bool process_wfs_needing_card(
 bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                        const bool new_partition_or_eof,
                                        bool *output_row_ready) {
-  DBUG_ENTER("process_buffered_windowing_record");
+  DBUG_TRACE;
   /**
     The current window
   */
@@ -5941,7 +5931,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   const int64 last_rowno_in_cache = w.last_rowno_in_cache();
 
   if (current_row > last_rowno_in_cache)  // already sent all buffered rows
-    DBUG_RETURN(false);
+    return false;
 
   /**
     If true, use code path for static aggregates
@@ -6148,7 +6138,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
          upper_limit <= last_rowno_in_cache &&
          !w.needs_card()) || /* we have cached enough rows */
         new_partition_or_eof /* we have cached all rows */))
-    DBUG_RETURN(false);  // We haven't read enough rows yet, so return
+    return false;  // We haven't read enough rows yet, so return
 
   w.set_rowno_in_partition(current_row);
 
@@ -6180,7 +6170,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       update themselves to use the new row as base line. So, restore it:
     */
     if (bring_back_frame_row(thd, w, param, current_row, Window::REA_CURRENT))
-      DBUG_RETURN(true);
+      return true;
 
     if (current_row == 1)  // new partition
       reset_non_framing_wf_state(param->items_to_copy);
@@ -6190,14 +6180,14 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     }  // else we remember state and update it for row 2..N
 
     /* E.g. ROW_NUMBER, RANK, DENSE_RANK */
-    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING)) DBUG_RETURN(true);
+    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING)) return true;
     if (!optimizable || current_row == 1) {
       /*
         So far frame is empty; set up a flag which makes framing WFs set
         themselves to NULL in OUT.
       */
       w.set_do_copy_null(true);
-      if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+      if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
       w.set_do_copy_null(false);
     }  // else aggregates keep value of previous row, and we'll do inversion
   }
@@ -6261,7 +6251,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       w.save_pos(reason);
 
       /* Set up the non-wf fields for aggregating to the output row. */
-      if (bring_back_frame_row(thd, w, param, rowno, reason)) DBUG_RETURN(true);
+      if (bring_back_frame_row(thd, w, param, rowno, reason)) return true;
 
       if (range_frame) {
         if (w.before_frame()) {
@@ -6304,7 +6294,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         w.set_is_last_row_in_frame(true);  // temporary state for next call
 
       // Accumulate frame's row into WF's value for current_row:
-      if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+      if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
 
       if (setstate) w.set_is_last_row_in_frame(false);  // undo temporary state
     }
@@ -6340,10 +6330,10 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   if (static_aggregate && current_row != 1) {
     /* Set up the correct non-wf fields for copying to the output row */
     if (bring_back_frame_row(thd, w, param, current_row, Window::REA_CURRENT))
-      DBUG_RETURN(true);
+      return true;
 
     /* E.g. ROW_NUMBER, RANK, DENSE_RANK */
-    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING)) DBUG_RETURN(true);
+    if (copy_funcs(param, thd, CFT_WF_NON_FRAMING)) return true;
   } else if (row_optimizable && w.aggregates_primed()) {
     /*
       Rows 2..N in partition: we still have state from previous current row's
@@ -6372,7 +6362,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         if (rowno < upper) {
           if (bring_back_frame_row(thd, w, param, rowno,
                                    Window::REA_LAST_IN_PEERSET))
-            DBUG_RETURN(true);
+            return true;
           // Establish current row as base-line for peer set.
           w.reset_order_by_peer_set();
           /*
@@ -6384,7 +6374,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           if (rowno < upper) {
             if (bring_back_frame_row(thd, w, param, rowno,
                                      Window::REA_LAST_IN_PEERSET))
-              DBUG_RETURN(true);
+              return true;
             // Compare only the first order by item.
             if (!w.in_new_order_by_peer_set(false))
               is_last_row_in_peerset = false;
@@ -6396,7 +6386,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
 
       if (bring_back_frame_row(thd, w, param, lower_limit - 1,
                                Window::REA_FIRST_IN_FRAME))
-        DBUG_RETURN(true);
+        return true;
 
       w.set_inverse(true);
       if (!new_last_row) {
@@ -6404,11 +6394,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         if (rn_in_frame > 0)
           w.set_is_last_row_in_frame(true);  // do final comp., e.g. div in AVG
 
-        if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+        if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
 
         w.set_is_last_row_in_frame(false);  // undo temporary states
       } else {
-        if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+        if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
       }
 
       w.set_is_last_row_in_peerset_within_frame(false);
@@ -6419,7 +6409,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       // We have seen first row of frame, FIRST_VALUE can be computed:
       if (bring_back_frame_row(thd, w, param, lower_limit,
                                Window::REA_FIRST_IN_FRAME))
-        DBUG_RETURN(true);
+        return true;
 
       w.set_rowno_in_frame(1);
 
@@ -6428,19 +6418,19 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         this row again as they have done so already. Evaluate only
         X_VALUE/MIN/MAX.
       */
-      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) DBUG_RETURN(true);
+      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
     }
 
     if (have_last_value && !new_last_row) {
       // We have seen last row of frame, LAST_VALUE can be computed:
       if (bring_back_frame_row(thd, w, param, upper, Window::REA_LAST_IN_FRAME))
-        DBUG_RETURN(true);
+        return true;
 
       w.set_rowno_in_frame(rn_in_frame);
 
       if (rn_in_frame > 0) w.set_is_last_row_in_frame(true);
 
-      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) DBUG_RETURN(true);
+      if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
 
       w.set_is_last_row_in_frame(false);
     }
@@ -6451,12 +6441,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         if (lower_limit + nth.m_rowno - 1 <= upper) {
           if (bring_back_frame_row(thd, w, param, lower_limit + nth.m_rowno - 1,
                                    Window::REA_MISC_POSITIONS, fno++))
-            DBUG_RETURN(true);
+            return true;
 
           w.set_rowno_in_frame(nth.m_rowno);
 
-          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
-            DBUG_RETURN(true);
+          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
         }
       }
     }
@@ -6464,13 +6453,13 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
     if (new_last_row)  // Add new last row to framing WF's value
     {
       if (bring_back_frame_row(thd, w, param, upper, Window::REA_LAST_IN_FRAME))
-        DBUG_RETURN(true);
+        return true;
 
       w.set_rowno_in_frame(upper - lower_limit + 1)
           .set_is_last_row_in_frame(true);  // temporary states for next copy
       w.set_rowno_being_visited(upper);
 
-      if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+      if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
 
       w.set_is_last_row_in_frame(false);  // undo temporary states
     }
@@ -6523,7 +6512,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           /* Set up the non-wf fields for aggregating to the output row. */
           if (bring_back_frame_row(thd, w, param, rowno,
                                    Window::REA_FIRST_IN_FRAME))
-            DBUG_RETURN(true);
+            return true;
 
           if (w.before_frame()) {
             w.set_inverse(true)
@@ -6552,7 +6541,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
             */
             if (rowno >= prev_first_rowno_in_frame &&
                 rowno <= prev_last_rowno_in_frame) {
-              if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+              if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
             }
 
             w.set_inverse(false).set_is_last_row_in_frame(false);
@@ -6581,8 +6570,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           w.set_is_last_row_in_frame(true);
           w.set_rowno_being_visited(rowno);
 
-          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
-            DBUG_RETURN(true);
+          if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
           w.set_is_last_row_in_frame(false);
 
           if (have_last_value && w.last_rowno_in_range_frame() > rowno) {
@@ -6590,14 +6578,13 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
             if (bring_back_frame_row(thd, w, param,
                                      w.last_rowno_in_range_frame(),
                                      Window::REA_LAST_IN_FRAME))
-              DBUG_RETURN(true);
+              return true;
 
             w.set_rowno_in_frame(w.last_rowno_in_range_frame() -
                                  w.first_rowno_in_range_frame() + 1)
                 .set_is_last_row_in_frame(true);
             w.set_rowno_being_visited(w.last_rowno_in_range_frame());
-            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
-              DBUG_RETURN(true);
+            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
             w.set_is_last_row_in_frame(false);
           }
         }
@@ -6614,7 +6601,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
         w.save_pos(Window::REA_LAST_IN_FRAME);
         if (bring_back_frame_row(thd, w, param, rowno,
                                  Window::REA_LAST_IN_FRAME))
-          DBUG_RETURN(true);
+          return true;
 
         if (w.before_frame()) {
           if (!found_first) new_first_rowno_in_frame++;
@@ -6643,7 +6630,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
             .set_is_last_row_in_frame(true);  // pessimistic assumption
         w.set_rowno_being_visited(rowno);
 
-        if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+        if (copy_funcs(param, thd, CFT_WF_FRAMING)) return true;
 
         w.set_is_last_row_in_frame(false);  // undo temporary states
         row_added = true;
@@ -6668,12 +6655,11 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
           if (row_to_get <= w.last_rowno_in_range_frame()) {
             if (bring_back_frame_row(thd, w, param, row_to_get,
                                      Window::REA_MISC_POSITIONS, fno++))
-              DBUG_RETURN(true);
+              return true;
 
             w.set_rowno_in_frame(nth.m_rowno);
 
-            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW))
-              DBUG_RETURN(true);
+            if (copy_funcs(param, thd, CFT_WF_USES_ONLY_ONE_ROW)) return true;
           }
         }
       }
@@ -6697,7 +6683,7 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
       for (rowno = current_row; rowno <= last_rowno_in_cache; rowno++) {
         if (bring_back_frame_row(thd, w, param, rowno,
                                  Window::REA_LAST_IN_PEERSET))
-          DBUG_RETURN(true);
+          return true;
 
         if (rowno == current_row) {
           /* establish current row as base-line for peer set */
@@ -6716,22 +6702,22 @@ bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
   if (optimizable && optimizable_primed) w.set_aggregates_primed(true);
 
   if (bring_back_frame_row(thd, w, param, current_row, Window::REA_CURRENT))
-    DBUG_RETURN(true);
+    return true;
 
   /* NTILE and other non-framing wfs */
   if (w.needs_card()) {
     /* Set up the non-wf fields for aggregating to the output row. */
     if (process_wfs_needing_card(thd, param, have_nth_value, have_lead_lag,
                                  current_row, w, Window::REA_CURRENT))
-      DBUG_RETURN(true);
+      return true;
   }
 
-  if (w.is_last() && copy_funcs(param, thd, CFT_HAS_WF)) DBUG_RETURN(true);
+  if (w.is_last() && copy_funcs(param, thd, CFT_HAS_WF)) return true;
   *output_row_ready = true;
   w.set_last_row_output(current_row);
   DBUG_PRINT("info", ("sent row: %lld", current_row));
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -6784,14 +6770,14 @@ static inline enum_nested_loop_state write_or_send_row(
 /* ARGSUSED */
 static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
                                         bool end_of_records) {
-  DBUG_ENTER("end_write");
+  DBUG_TRACE;
 
   TABLE *const table = qep_tab->table();
 
   if (join->thd->killed)  // Aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
+    return NESTED_LOOP_KILLED; /* purecov: inspected */
   }
   if (!end_of_records) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
@@ -6799,7 +6785,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
     DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by);
 
     if (copy_fields_and_funcs(tmp_tbl, join->thd))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
 
     if (having_is_true(qep_tab->having)) {
       int error;
@@ -6810,20 +6796,20 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
       if ((error = table->file->ha_write_row(table->record[0]))) {
         if (table->file->is_ignorable_error(error)) goto end;
         if (create_ondisk_from_heap(join->thd, table, error, true, NULL))
-          DBUG_RETURN(NESTED_LOOP_ERROR);  // Not a table_is_full error
+          return NESTED_LOOP_ERROR;  // Not a table_is_full error
       }
       if (++qep_tab->send_records >= tmp_tbl->end_write_records &&
           join->do_send_rows) {
-        if (!join->calc_found_rows) DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
+        if (!join->calc_found_rows) return NESTED_LOOP_QUERY_LIMIT;
         join->do_send_rows = 0;
         join->unit->select_limit_cnt = HA_POS_ERROR;
-        DBUG_RETURN(NESTED_LOOP_OK);
+        return NESTED_LOOP_OK;
       }
       join->thd->get_stmt_da()->inc_current_row_for_condition();
     }
   }
 end:
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /* ARGSUSED */
@@ -6833,13 +6819,13 @@ end:
 */
 static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
                                            bool end_of_records) {
-  DBUG_ENTER("end_write_wf");
+  DBUG_TRACE;
   THD *const thd = join->thd;
 
   if (thd->killed)  // Aborted by user
   {
     thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
+    return NESTED_LOOP_KILLED; /* purecov: inspected */
   }
 
   Temp_table_param *const out_tbl = qep_tab->tmp_table_param;
@@ -6933,7 +6919,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
   Window *const win = out_tbl->m_window;
   const bool window_buffering = win->needs_buffering();
 
-  if (end_of_records && !window_buffering) DBUG_RETURN(NESTED_LOOP_OK);
+  if (end_of_records && !window_buffering) return NESTED_LOOP_OK;
 
   /*
     All evaluations of functions, done in process_buffered_windowing_record()
@@ -6953,13 +6939,13 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
         1+t.a.
       */
       if (copy_fields_and_funcs(out_tbl, thd, CFT_HAS_NO_WF))
-        DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+        return NESTED_LOOP_ERROR; /* purecov: inspected */
 
       if (!having_is_true(qep_tab->having))
         goto end;  // Didn't match having, skip it
 
       if (buffer_windowing_record(thd, out_tbl, &new_partition))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
 
       join->found_records++;
     }
@@ -6969,7 +6955,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
       bool output_row_ready = false;
       if (process_buffered_windowing_record(
               thd, out_tbl, new_partition || end_of_records, &output_row_ready))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
 
       if (!output_row_ready) break;
 
@@ -6978,12 +6964,12 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
 
       enum_nested_loop_state result;
       if ((result = write_or_send_row(join, qep_tab, table, out_tbl)))
-        DBUG_RETURN(result);  // Not a table_is_full error
+        return result;  // Not a table_is_full error
 
       if (thd->killed)  // Aborted by user
       {
         thd->send_kill_message();
-        DBUG_RETURN(NESTED_LOOP_KILLED);
+        return NESTED_LOOP_KILLED;
       }
     }
 
@@ -6996,7 +6982,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
       if (bring_back_frame_row(thd, *win, out_tbl,
                                Window::FBC_FIRST_IN_NEXT_PARTITION,
                                Window::REA_WONT_UPDATE_HINT))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
 
       /*
         copy_funcs(CFT_NON_WF) is not necessary: a non-WF function was
@@ -7007,7 +6993,7 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
       win->reset_partition_state();
       if (buffer_windowing_record(thd, out_tbl,
                                   nullptr /* first in new partition */))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
       new_partition = false;
       goto repeat;
     }
@@ -7023,11 +7009,11 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
       if (bring_back_frame_row(thd, *win, nullptr /* no copy to OUT */,
                                Window::FBC_LAST_BUFFERED_ROW,
                                Window::REA_WONT_UPDATE_HINT))
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
     }
   } else {
     if (copy_fields_and_funcs(out_tbl, thd, CFT_HAS_NO_WF))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
 
     if (!having_is_true(qep_tab->having))
       goto end;  // Didn't match having, skip it
@@ -7035,10 +7021,10 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
     win->check_partition_boundary();
 
     if (copy_funcs(out_tbl, thd, CFT_WF))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
 
     if (win->is_last() && copy_funcs(out_tbl, thd, CFT_HAS_WF))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
 
     join->found_records++;
 
@@ -7049,10 +7035,10 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
 
     enum_nested_loop_state result;
     if ((result = write_or_send_row(join, qep_tab, table, out_tbl)))
-      DBUG_RETURN(result);  // Not a table_is_full error
+      return result;  // Not a table_is_full error
   }
 end:
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 /* ARGSUSED */
@@ -7064,13 +7050,13 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   ORDER *group;
   int error;
   bool group_found = false;
-  DBUG_ENTER("end_update");
+  DBUG_TRACE;
 
-  if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
+  if (end_of_records) return NESTED_LOOP_OK;
   if (join->thd->killed)  // Aborted by user
   {
     join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
+    return NESTED_LOOP_KILLED; /* purecov: inspected */
   }
 
   Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
@@ -7080,7 +7066,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   DBUG_ASSERT(tmp_tbl->grouped_expressions.size() == 0);
 
   if (copy_fields(tmp_tbl, join->thd))  // Groups are copied twice.
-    DBUG_RETURN(NESTED_LOOP_ERROR);     /* purecov: inspected */
+    return NESTED_LOOP_ERROR;           /* purecov: inspected */
 
   /* Make a key of group index */
   if (table->hash_field) {
@@ -7092,7 +7078,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
       found.
     */
     if (copy_funcs(tmp_tbl, join->thd))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
     if (!check_unique_constraint(table)) group_found = true;
   } else {
     for (group = table->group; group; group = group->next) {
@@ -7114,11 +7100,11 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     if ((error =
              table->file->ha_update_row(table->record[1], table->record[0]))) {
       // Old and new records are the same, ok to ignore
-      if (error == HA_ERR_RECORD_IS_THE_SAME) DBUG_RETURN(NESTED_LOOP_OK);
+      if (error == HA_ERR_RECORD_IS_THE_SAME) return NESTED_LOOP_OK;
       table->file->print_error(error, MYF(0)); /* purecov: inspected */
-      DBUG_RETURN(NESTED_LOOP_ERROR);          /* purecov: inspected */
+      return NESTED_LOOP_ERROR;                /* purecov: inspected */
     }
-    DBUG_RETURN(NESTED_LOOP_OK);
+    return NESTED_LOOP_OK;
   }
 
   /*
@@ -7157,31 +7143,31 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     /* See comment on copy_funcs above. */
 
     if (copy_funcs(tmp_tbl, join->thd))
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+      return NESTED_LOOP_ERROR; /* purecov: inspected */
   }
   init_tmptable_sum_functions(join->sum_funcs);
   if ((error = table->file->ha_write_row(table->record[0]))) {
     if (create_ondisk_from_heap(join->thd, table, error, false, NULL))
-      DBUG_RETURN(NESTED_LOOP_ERROR);  // Not a table_is_full error
+      return NESTED_LOOP_ERROR;  // Not a table_is_full error
     /* Change method to update rows */
     if ((error = table->file->ha_index_init(0, 0))) {
       table->file->print_error(error, MYF(0));
-      DBUG_RETURN(NESTED_LOOP_ERROR);
+      return NESTED_LOOP_ERROR;
     }
   }
   qep_tab->send_records++;
-  DBUG_RETURN(NESTED_LOOP_OK);
+  return NESTED_LOOP_OK;
 }
 
 enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
                                        bool end_of_records) {
   TABLE *table = qep_tab->table();
   int idx = -1;
-  DBUG_ENTER("end_write_group");
+  DBUG_TRACE;
 
   if (join->thd->killed) {  // Aborted by user
     join->thd->send_kill_message();
-    DBUG_RETURN(NESTED_LOOP_KILLED); /* purecov: inspected */
+    return NESTED_LOOP_KILLED; /* purecov: inspected */
   }
   /*
     (1) Haven't seen a first row yet
@@ -7217,7 +7203,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
               be restored after sending data.
             */
             if (join->clear_fields(&save_nullinfo))
-              DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
+              return NESTED_LOOP_ERROR; /* purecov: inspected */
           }
           copy_sum_funcs(join->sum_funcs,
                          join->sum_funcs_end[join->send_group_parts]);
@@ -7225,19 +7211,19 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
             int error = table->file->ha_write_row(table->record[0]);
             if (error &&
                 create_ondisk_from_heap(join->thd, table, error, false, NULL))
-              DBUG_RETURN(NESTED_LOOP_ERROR);
+              return NESTED_LOOP_ERROR;
           }
           if (join->rollup.state != ROLLUP::STATE_NONE) {
             if (join->rollup_write_data((uint)(idx + 1), qep_tab))
-              DBUG_RETURN(NESTED_LOOP_ERROR);
+              return NESTED_LOOP_ERROR;
           }
           // Restore NULL values if needed.
           if (save_nullinfo) join->restore_fields(save_nullinfo);
         }
-        if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
+        if (end_of_records) return NESTED_LOOP_OK;
       }
     } else {
-      if (end_of_records) DBUG_RETURN(NESTED_LOOP_OK);
+      if (end_of_records) return NESTED_LOOP_OK;
       join->seen_first_record = true;
 
       // Initialize the cache of GROUP expressions with this 1st row's values
@@ -7264,15 +7250,15 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
       */
       Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
       if (copy_fields_and_funcs(tmp_tbl, join->thd))  // (1)
-        DBUG_RETURN(NESTED_LOOP_ERROR);
+        return NESTED_LOOP_ERROR;
       if (init_sum_functions(join->sum_funcs,
                              join->sum_funcs_end[idx + 1]))  //(2)
-        DBUG_RETURN(NESTED_LOOP_ERROR);
-      DBUG_RETURN(NESTED_LOOP_OK);
+        return NESTED_LOOP_ERROR;
+      return NESTED_LOOP_OK;
     }
   }
-  if (update_sum_func(join->sum_funcs)) DBUG_RETURN(NESTED_LOOP_ERROR);
-  DBUG_RETURN(NESTED_LOOP_OK);
+  if (update_sum_func(join->sum_funcs)) return NESTED_LOOP_ERROR;
+  return NESTED_LOOP_OK;
 }
 
 /*****************************************************************************
@@ -7344,7 +7330,7 @@ bool QEP_TAB::remove_duplicates() {
   DBUG_ASSERT(this - 1 != join()->ref_slice_immediately_before_group_by &&
               this != join()->ref_slice_immediately_before_group_by);
   THD *thd = join()->thd;
-  DBUG_ENTER("remove_duplicates");
+  DBUG_TRACE;
 
   DBUG_ASSERT(join()->tmp_tables > 0 && table()->s->tmp_table != NO_TMP_TABLE);
 
@@ -7364,14 +7350,14 @@ bool QEP_TAB::remove_duplicates() {
       !having) {  // only const items with no OPTION_FOUND_ROWS
     join()->unit->select_limit_cnt = 1;  // Only send first row
     needs_duplicate_removal = false;
-    DBUG_RETURN(false);
+    return false;
   }
   Field **first_field = tbl->field + tbl->s->fields - field_count;
 
   size_t *field_lengths =
       (size_t *)my_malloc(key_memory_hash_index_key_buffer,
                           field_count * sizeof(*field_lengths), MYF(MY_WME));
-  if (field_lengths == nullptr) DBUG_RETURN(true);
+  if (field_lengths == nullptr) return true;
 
   size_t key_length = compute_field_lengths(first_field, field_lengths);
 
@@ -7396,7 +7382,7 @@ bool QEP_TAB::remove_duplicates() {
 
   free_blobs(first_field);
   needs_duplicate_removal = false;
-  DBUG_RETURN(error);
+  return error;
 }
 
 static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
@@ -7406,7 +7392,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
   uchar *record;
   int error;
   ulong reclength = table->s->reclength - offset;
-  DBUG_ENTER("remove_dup_with_compare");
+  DBUG_TRACE;
 
   org_record = (char *)(record = table->record[0]) + offset;
   new_record = (char *)table->record[1] + offset;
@@ -7458,11 +7444,11 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     error = file->ha_rnd_pos(record, file->ref);
   }
 
-  DBUG_RETURN(false);
+  return false;
 err:
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
-  DBUG_RETURN(true);
+  return true;
 }
 
 /**
@@ -7479,7 +7465,7 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   uchar *record = table->record[0];
   int error;
   handler *file = table->file;
-  DBUG_ENTER("remove_dup_with_hash_index");
+  DBUG_TRACE;
 
   MEM_ROOT mem_root(key_memory_hash_index_key_buffer, 32768);
   memroot_unordered_set<std::string> hash(&mem_root);
@@ -7527,12 +7513,12 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
   }
 
   (void)file->ha_rnd_end();
-  DBUG_RETURN(false);
+  return false;
 
 err:
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
-  DBUG_RETURN(true);
+  return true;
 }
 
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref) {
@@ -7576,15 +7562,15 @@ bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref) {
 */
 
 bool make_group_fields(JOIN *main_join, JOIN *curr_join) {
-  DBUG_ENTER("make_group_fields");
+  DBUG_TRACE;
   if (main_join->group_fields_cache.elements) {
     curr_join->group_fields = main_join->group_fields_cache;
     curr_join->streaming_aggregation = true;
   } else {
-    if (alloc_group_fields(curr_join, curr_join->group_list)) DBUG_RETURN(1);
+    if (alloc_group_fields(curr_join, curr_join->group_list)) return 1;
     main_join->group_fields_cache = curr_join->group_fields;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -7618,7 +7604,7 @@ static bool alloc_group_fields(JOIN *join, ORDER *group) {
 */
 
 int update_item_cache_if_changed(List<Cached_item> &list) {
-  DBUG_ENTER("update_item_cache_if_changed");
+  DBUG_TRACE;
   List_iterator<Cached_item> li(list);
   int idx = -1, i;
   Cached_item *buff;
@@ -7627,7 +7613,7 @@ int update_item_cache_if_changed(List<Cached_item> &list) {
     if (buff->cmp()) idx = i;
   }
   DBUG_PRINT("info", ("idx: %d", idx));
-  DBUG_RETURN(idx);
+  return idx;
 }
 
 /**
@@ -7667,7 +7653,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
                        Ref_item_array ref_item_array,
                        List<Item> *res_selected_fields,
                        List<Item> *res_all_fields) {
-  DBUG_ENTER("setup_copy_fields");
+  DBUG_TRACE;
 
   res_selected_fields->empty();
   res_all_fields->empty();
@@ -7683,7 +7669,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
     param->copy_fields.reserve(param->field_count);
     extra_funcs.reserve(border);
   } catch (std::bad_alloc &) {
-    DBUG_RETURN(true);
+    return true;
   }
 
   List_iterator_fast<Item> li(all_fields);
@@ -7692,7 +7678,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
       Item_field *item = new Item_field(thd, ((Item_field *)real_pos));
-      if (item == nullptr) DBUG_RETURN(true);
+      if (item == nullptr) return true;
       if (pos->type() == Item::REF_ITEM) {
         /* preserve the names of the ref when dereferncing */
         Item_ref *ref = (Item_ref *)pos;
@@ -7703,7 +7689,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
       pos = item;
       if (item->field->flags & BLOB_FLAG) {
         Item_copy *item_copy = Item_copy::create(pos);
-        if (item_copy == nullptr) DBUG_RETURN(true);
+        if (item_copy == nullptr) return true;
         pos = item_copy;
         /*
           Item_copy_string::copy for function can call
@@ -7726,7 +7712,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
           We need to allocate one extra byte for null handling.
         */
         uchar *tmp = new (*THR_MALLOC) uchar[field->pack_length() + 1];
-        if (tmp == nullptr) DBUG_RETURN(true);
+        if (tmp == nullptr) return true;
 
         DBUG_ASSERT(param->field_count > param->copy_fields.size());
         param->copy_fields.emplace_back(tmp, item->result_field);
@@ -7763,7 +7749,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
          argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
       */
       Item_copy *item_copy = Item_copy::create(pos);
-      if (item_copy == nullptr) DBUG_RETURN(true);
+      if (item_copy == nullptr) return true;
       pos = item_copy;
       if (i < border)  // HAVING, ORDER and GROUP BY
         extra_funcs.push_back(item_copy);
@@ -7784,7 +7770,7 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
   */
   param->grouped_expressions.insert(param->grouped_expressions.end(),
                                     extra_funcs.begin(), extra_funcs.end());
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -7801,17 +7787,17 @@ bool setup_copy_fields(List<Item> &all_fields, size_t num_select_elements,
 */
 
 bool copy_fields(Temp_table_param *param, const THD *thd) {
-  DBUG_ENTER("copy_fields");
+  DBUG_TRACE;
 
   DBUG_PRINT("enter", ("for param %p", param));
   for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(&ptr);
 
-  if (thd->is_error()) DBUG_RETURN(true);
+  if (thd->is_error()) return true;
 
   for (Item_copy *item : param->grouped_expressions) {
-    if (item->copy(thd)) DBUG_RETURN(true);
+    if (item->copy(thd)) return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
@@ -7845,7 +7831,7 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
                               Ref_item_array ref_item_array,
                               List<Item> *res_selected_fields,
                               List<Item> *res_all_fields) {
-  DBUG_ENTER("change_to_use_tmp_fields");
+  DBUG_TRACE;
 
   res_selected_fields->empty();
   res_all_fields->empty();
@@ -7872,7 +7858,7 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
         Item_func_set_user_var *suv =
             new Item_func_set_user_var(thd, (Item_func_set_user_var *)item);
         Item_field *new_field = new Item_field(field);
-        if (!suv || !new_field) DBUG_RETURN(true);  // Fatal error
+        if (!suv || !new_field) return true;  // Fatal error
         List<Item> list;
         list.push_back(new_field);
         suv->set_arguments(list, true);
@@ -7885,7 +7871,7 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
         DBUG_ASSERT(item_field != nullptr);
       } else {
         item_field = new (thd->mem_root) Item_field(field);
-        if (item_field == nullptr) DBUG_RETURN(true);
+        if (item_field == nullptr) return true;
       }
       if (item->real_item()->type() != Item::FIELD_ITEM) field->orig_table = 0;
       item_field->item_name = item->item_name;
@@ -7920,7 +7906,7 @@ bool change_to_use_tmp_fields(List<Item> &all_fields,
   List_iterator_fast<Item> itr(*res_all_fields);
   for (size_t i = 0; i < border; i++) itr++;
   itr.sublist(*res_selected_fields, num_select_elements);
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -7945,7 +7931,7 @@ bool change_refs_to_tmp_fields(List<Item> &all_fields,
                                Ref_item_array ref_item_array,
                                List<Item> *res_selected_fields,
                                List<Item> *res_all_fields) {
-  DBUG_ENTER("change_refs_to_tmp_fields");
+  DBUG_TRACE;
   res_selected_fields->empty();
   res_all_fields->empty();
 
@@ -7995,7 +7981,7 @@ bool change_refs_to_tmp_fields(List<Item> &all_fields,
   for (size_t i = 0; i < border; i++) itr++;
   itr.sublist(*res_selected_fields, num_select_elements);
 
-  DBUG_RETURN(thd->is_fatal_error());
+  return thd->is_fatal_error();
 }
 
 /**
@@ -8080,21 +8066,21 @@ void JOIN::restore_fields(table_map save_nullinfo) {
 */
 
 bool QEP_tmp_table::prepare_tmp_table() {
-  DBUG_ENTER("QEP_tmp_table::prepare_tmp_table");
+  DBUG_TRACE;
   Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
 
   /*
     Window final tmp file optimization: we skip actually writing to the
     tmp file, so no need to physically create it.
   */
-  if (tmp_tbl->m_window_short_circuit) DBUG_RETURN(false);
+  if (tmp_tbl->m_window_short_circuit) return false;
 
   TABLE *table = qep_tab->table();
   JOIN *join = qep_tab->join();
   int rc = 0;
 
   if (!table->is_created()) {
-    if (instantiate_tmp_table(join->thd, table)) DBUG_RETURN(true);
+    if (instantiate_tmp_table(join->thd, table)) return true;
     empty_record(table);
   }
   /* If it wasn't already, start index scan for grouping using table index. */
@@ -8108,10 +8094,10 @@ bool QEP_tmp_table::prepare_tmp_table() {
   }
   if (rc) {
     table->file->print_error(rc, MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**

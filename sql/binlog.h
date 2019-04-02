@@ -685,9 +685,9 @@ class MYSQL_BIN_LOG : public TC_LOG {
   void harvest_bytes_written(Relay_log_info *rli, bool need_log_space_lock);
   void set_max_size(ulong max_size_arg);
   void signal_update() {
-    DBUG_ENTER("MYSQL_BIN_LOG::signal_update");
+    DBUG_TRACE;
     mysql_cond_broadcast(&update_cond);
-    DBUG_VOID_RETURN;
+    return;
   }
 
   void update_binlog_end_pos(bool need_lock = true);

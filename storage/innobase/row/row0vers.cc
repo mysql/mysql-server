@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -484,7 +484,7 @@ trx_t *row_vers_impl_x_locked_low(
   I'll explain our approach to these two problems in comments at the place they
   are handled.*/
 
-  DBUG_ENTER("row_vers_impl_x_locked_low");
+  DBUG_TRACE;
 
   ut_ad(rec_offs_validate(sec_rec, sec_index, sec_offsets));
 
@@ -506,7 +506,7 @@ trx_t *row_vers_impl_x_locked_low(
                                   trx_sys_get_max_trx_id());
     }
     mem_heap_free(heap);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   comp = page_rec_is_comp(sec_rec);
@@ -526,7 +526,7 @@ trx_t *row_vers_impl_x_locked_low(
   DBUG_PRINT("info", ("Implicit lock is held by trx:" TRX_ID_FMT, trx_id));
 
   mem_heap_free(heap);
-  DBUG_RETURN(trx);
+  return trx;
 }
 
 /** Finds out if an active transaction has inserted or modified a secondary
@@ -1260,7 +1260,7 @@ dberr_t row_vers_build_for_consistent_read(
     const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
     ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
     rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo) {
-  DBUG_ENTER("row_vers_build_for_consistent_read");
+  DBUG_TRACE;
   const rec_t *version;
   rec_t *prev_version;
   trx_id_t trx_id;
@@ -1348,7 +1348,7 @@ dberr_t row_vers_build_for_consistent_read(
 
   mem_heap_free(heap);
 
-  DBUG_RETURN(err);
+  return err;
 }
 
 /** Constructs the last committed version of a clustered index record,

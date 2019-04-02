@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ main(argc, argv) int argc;
 char *argv[];
 {
   int i, j, ch;
-  DBUG_ENTER("main");
+  DBUG_TRACE;
   DBUG_PROCESS(argv[0]);
 
   get_options(&argc, &argv);
@@ -66,7 +66,7 @@ char *argv[];
     }
     puts("};\n");
   }
-  DBUG_RETURN(0);
+  return 0;
 } /* main */
 
 /* Read options */
@@ -120,7 +120,7 @@ char **argv[];
 void init_case_convert() {
   int16 i;
   uchar *higher_pos, *lower_pos;
-  DBUG_ENTER("init_case_convert");
+  DBUG_TRACE;
 
   for (i = 0; i <= MAX_CHAR_OK; i++) {
     to_upper[i] = sort_order[i] = (islower(i) ? toupper(i) : (char)i);
@@ -150,5 +150,4 @@ void init_case_convert() {
     higher_pos++;
     lower_pos++;
   }
-  DBUG_VOID_RETURN;
 } /* init_case_convert */

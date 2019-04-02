@@ -95,7 +95,7 @@ injector::transaction::~transaction() {
    @retval 1 transaction rolled back
  */
 int injector::transaction::commit() {
-  DBUG_ENTER("injector::transaction::commit()");
+  DBUG_TRACE;
   int error = m_thd->binlog_flush_pending_rows_event(true);
   /*
     Cluster replication does not preserve statement or
@@ -134,42 +134,42 @@ int injector::transaction::commit() {
     m_next_pos.m_file_pos = 0;
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int injector::transaction::rollback() {
-  DBUG_ENTER("injector::transaction::rollback()");
+  DBUG_TRACE;
   trans_rollback_stmt(m_thd);
   if (!trans_rollback(m_thd)) {
     close_thread_tables(m_thd);
     if (!m_thd->locked_tables_mode)
       m_thd->mdl_context.release_transactional_locks();
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int injector::transaction::use_table(server_id_type sid, table tbl) {
-  DBUG_ENTER("injector::transaction::use_table");
+  DBUG_TRACE;
 
   int error;
 
-  if ((error = check_state(TABLE_STATE))) DBUG_RETURN(error);
+  if ((error = check_state(TABLE_STATE))) return error;
 
   server_id_type save_id = m_thd->server_id;
   m_thd->set_server_id(sid);
   error = m_thd->binlog_write_table_map(tbl.get_table(), tbl.is_transactional(),
                                         false);
   m_thd->set_server_id(save_id);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int injector::transaction::write_row(server_id_type sid, table tbl,
                                      MY_BITMAP const *cols, record_type record,
                                      const unsigned char *extra_row_info) {
-  DBUG_ENTER("injector::transaction::write_row(...)");
+  DBUG_TRACE;
 
   int error = check_state(ROW_STATE);
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
   server_id_type save_id = m_thd->server_id;
   m_thd->set_server_id(sid);
@@ -178,7 +178,7 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
   error = m_thd->binlog_write_row(tbl.get_table(), tbl.is_transactional(),
                                   record, extra_row_info);
   m_thd->set_server_id(save_id);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int injector::transaction::write_row(server_id_type sid, table tbl,
@@ -190,10 +190,10 @@ int injector::transaction::write_row(server_id_type sid, table tbl,
 int injector::transaction::delete_row(server_id_type sid, table tbl,
                                       MY_BITMAP const *cols, record_type record,
                                       const unsigned char *extra_row_info) {
-  DBUG_ENTER("injector::transaction::delete_row(...)");
+  DBUG_TRACE;
 
   int error = check_state(ROW_STATE);
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
   server_id_type save_id = m_thd->server_id;
   m_thd->set_server_id(sid);
@@ -201,7 +201,7 @@ int injector::transaction::delete_row(server_id_type sid, table tbl,
   error = m_thd->binlog_delete_row(tbl.get_table(), tbl.is_transactional(),
                                    record, extra_row_info);
   m_thd->set_server_id(save_id);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int injector::transaction::delete_row(server_id_type sid, table tbl,
@@ -215,10 +215,10 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
                                       MY_BITMAP const *after_cols,
                                       record_type before, record_type after,
                                       const unsigned char *extra_row_info) {
-  DBUG_ENTER("injector::transaction::update_row(...)");
+  DBUG_TRACE;
 
   int error = check_state(ROW_STATE);
-  if (error) DBUG_RETURN(error);
+  if (error) return error;
 
   server_id_type save_id = m_thd->server_id;
   m_thd->set_server_id(sid);
@@ -228,7 +228,7 @@ int injector::transaction::update_row(server_id_type sid, table tbl,
   error = m_thd->binlog_update_row(tbl.get_table(), tbl.is_transactional(),
                                    before, after, extra_row_info);
   m_thd->set_server_id(save_id);
-  DBUG_RETURN(error);
+  return error;
 }
 
 int injector::transaction::update_row(server_id_type sid, table tbl,
@@ -269,15 +269,13 @@ void injector::free_instance() {
 }
 
 void injector::new_trans(THD *thd, injector::transaction *ptr) {
-  DBUG_ENTER("injector::new_trans(THD *, transaction *)");
+  DBUG_TRACE;
   /*
     Currently, there is no alternative to using 'mysql_bin_log' since that
     is hardcoded into the way the handler is using the binary log.
   */
   transaction trans(&mysql_bin_log, thd);
   ptr->swap(trans);
-
-  DBUG_VOID_RETURN;
 }
 
 int injector::record_incident(

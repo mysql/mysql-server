@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,17 +56,17 @@
 */
 
 bool my_compress(uchar *packet, size_t *len, size_t *complen) {
-  DBUG_ENTER("my_compress");
+  DBUG_TRACE;
   if (*len < MIN_COMPRESS_LENGTH) {
     *complen = 0;
     DBUG_PRINT("note", ("Packet too short: Not compressed"));
   } else {
     uchar *compbuf = my_compress_alloc(packet, len, complen);
-    if (!compbuf) DBUG_RETURN(*complen ? 0 : 1);
+    if (!compbuf) return *complen ? 0 : 1;
     memcpy(packet, compbuf, *len);
     my_free(compbuf);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen) {
@@ -117,14 +117,14 @@ uchar *my_compress_alloc(const uchar *packet, size_t *len, size_t *complen) {
 
 bool my_uncompress(uchar *packet, size_t len, size_t *complen) {
   uLongf tmp_complen;
-  DBUG_ENTER("my_uncompress");
+  DBUG_TRACE;
 
   if (*complen) /* If compressed */
   {
     uchar *compbuf =
         (uchar *)my_malloc(key_memory_my_compress_alloc, *complen, MYF(MY_WME));
     int error;
-    if (!compbuf) DBUG_RETURN(1); /* Not enough memory */
+    if (!compbuf) return 1; /* Not enough memory */
 
     tmp_complen = (uint)*complen;
     error = uncompress(compbuf, &tmp_complen, packet, (uLong)len);
@@ -132,11 +132,11 @@ bool my_uncompress(uchar *packet, size_t len, size_t *complen) {
     if (error != Z_OK) { /* Probably wrong packet */
       DBUG_PRINT("error", ("Can't uncompress packet, error: %d", error));
       my_free(compbuf);
-      DBUG_RETURN(1);
+      return 1;
     }
     memcpy(packet, compbuf, *complen);
     my_free(compbuf);
   } else
     *complen = len;
-  DBUG_RETURN(0);
+  return 0;
 }

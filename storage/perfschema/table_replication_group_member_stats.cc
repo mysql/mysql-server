@@ -257,7 +257,7 @@ int table_replication_group_member_stats::rnd_pos(const void *pos) {
 }
 
 int table_replication_group_member_stats::make_row(uint index) {
-  DBUG_ENTER("table_replication_group_member_stats::make_row");
+  DBUG_TRACE;
   // Set default values.
   m_row.channel_name_length = 0;
   m_row.view_id_length = 0;
@@ -296,7 +296,7 @@ int table_replication_group_member_stats::make_row(uint index) {
     DBUG_PRINT("info", ("Group Replication stats not available!"));
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_group_member_stats::read_row_values(TABLE *table,

@@ -113,7 +113,7 @@ static bool example_is_supported_system_table(const char *db,
 Example_share::Example_share() { thr_lock_init(&lock); }
 
 static int example_init_func(void *p) {
-  DBUG_ENTER("example_init_func");
+  DBUG_TRACE;
 
   example_hton = (handlerton *)p;
   example_hton->state = SHOW_OPTION_YES;
@@ -121,7 +121,7 @@ static int example_init_func(void *p) {
   example_hton->flags = HTON_CAN_RECREATE;
   example_hton->is_supported_system_table = example_is_supported_system_table;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -135,7 +135,7 @@ static int example_init_func(void *p) {
 Example_share *ha_example::get_share() {
   Example_share *tmp_share;
 
-  DBUG_ENTER("ha_example::get_share()");
+  DBUG_TRACE;
 
   lock_shared_ha_data();
   if (!(tmp_share = static_cast<Example_share *>(get_ha_share_ptr()))) {
@@ -146,7 +146,7 @@ Example_share *ha_example::get_share() {
   }
 err:
   unlock_shared_ha_data();
-  DBUG_RETURN(tmp_share);
+  return tmp_share;
 }
 
 static handler *example_create_handler(handlerton *hton, TABLE_SHARE *table,
@@ -217,12 +217,12 @@ static bool example_is_supported_system_table(const char *db,
 */
 
 int ha_example::open(const char *, int, uint, const dd::Table *) {
-  DBUG_ENTER("ha_example::open");
+  DBUG_TRACE;
 
-  if (!(share = get_share())) DBUG_RETURN(1);
+  if (!(share = get_share())) return 1;
   thr_lock_data_init(&share->lock, &lock, NULL);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -241,8 +241,8 @@ int ha_example::open(const char *, int, uint, const dd::Table *) {
 */
 
 int ha_example::close(void) {
-  DBUG_ENTER("ha_example::close");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /**
@@ -276,14 +276,14 @@ int ha_example::close(void) {
 */
 
 int ha_example::write_row(uchar *) {
-  DBUG_ENTER("ha_example::write_row");
+  DBUG_TRACE;
   /*
     Example of a successful write_row. We don't store the data
     anywhere; they are thrown away. A real implementation will
     probably need to do something with 'buf'. We report a success
     here, to pretend that the insert was successful.
   */
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -310,8 +310,8 @@ int ha_example::write_row(uchar *) {
   sql_select.cc, sql_acl.cc, sql_update.cc and sql_insert.cc
 */
 int ha_example::update_row(const uchar *, uchar *) {
-  DBUG_ENTER("ha_example::update_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 /**
@@ -335,8 +335,8 @@ int ha_example::update_row(const uchar *, uchar *) {
 */
 
 int ha_example::delete_row(const uchar *) {
-  DBUG_ENTER("ha_example::delete_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 /**
@@ -349,9 +349,9 @@ int ha_example::delete_row(const uchar *) {
 int ha_example::index_read_map(uchar *, const uchar *, key_part_map,
                                enum ha_rkey_function) {
   int rc;
-  DBUG_ENTER("ha_example::index_read");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -361,9 +361,9 @@ int ha_example::index_read_map(uchar *, const uchar *, key_part_map,
 
 int ha_example::index_next(uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::index_next");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -373,9 +373,9 @@ int ha_example::index_next(uchar *) {
 
 int ha_example::index_prev(uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::index_prev");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -390,9 +390,9 @@ int ha_example::index_prev(uchar *) {
 */
 int ha_example::index_first(uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::index_first");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -407,9 +407,9 @@ int ha_example::index_first(uchar *) {
 */
 int ha_example::index_last(uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::index_last");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -427,13 +427,13 @@ int ha_example::index_last(uchar *) {
   sql_update.cc
 */
 int ha_example::rnd_init(bool) {
-  DBUG_ENTER("ha_example::rnd_init");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int ha_example::rnd_end() {
-  DBUG_ENTER("ha_example::rnd_end");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /**
@@ -453,9 +453,9 @@ int ha_example::rnd_end() {
 */
 int ha_example::rnd_next(uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::rnd_next");
+  DBUG_TRACE;
   rc = HA_ERR_END_OF_FILE;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -479,10 +479,7 @@ int ha_example::rnd_next(uchar *) {
   @see
   filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc
 */
-void ha_example::position(const uchar *) {
-  DBUG_ENTER("ha_example::position");
-  DBUG_VOID_RETURN;
-}
+void ha_example::position(const uchar *) { DBUG_TRACE; }
 
 /**
   @brief
@@ -500,9 +497,9 @@ void ha_example::position(const uchar *) {
 */
 int ha_example::rnd_pos(uchar *, uchar *) {
   int rc;
-  DBUG_ENTER("ha_example::rnd_pos");
+  DBUG_TRACE;
   rc = HA_ERR_WRONG_COMMAND;
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -544,8 +541,8 @@ int ha_example::rnd_pos(uchar *, uchar *) {
   sql_show.cc, sql_table.cc, sql_union.cc and sql_update.cc
 */
 int ha_example::info(uint) {
-  DBUG_ENTER("ha_example::info");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /**
@@ -558,8 +555,8 @@ int ha_example::info(uint) {
   ha_innodb.cc
 */
 int ha_example::extra(enum ha_extra_function) {
-  DBUG_ENTER("ha_example::extra");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /**
@@ -583,8 +580,8 @@ int ha_example::extra(enum ha_extra_function) {
   st_select_lex_unit::exec() in sql_union.cc.
 */
 int ha_example::delete_all_rows() {
-  DBUG_ENTER("ha_example::delete_all_rows");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 /**
@@ -605,8 +602,8 @@ int ha_example::delete_all_rows() {
   copy_data_between_tables() in sql_table.cc.
 */
 int ha_example::external_lock(THD *, int) {
-  DBUG_ENTER("ha_example::external_lock");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 /**
@@ -673,9 +670,9 @@ THR_LOCK_DATA **ha_example::store_lock(THD *, THR_LOCK_DATA **to,
   delete_table and ha_create_table() in handler.cc
 */
 int ha_example::delete_table(const char *, const dd::Table *) {
-  DBUG_ENTER("ha_example::delete_table");
+  DBUG_TRACE;
   /* This is not implemented but we want someone to be able that it works. */
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -694,8 +691,8 @@ int ha_example::delete_table(const char *, const dd::Table *) {
 */
 int ha_example::rename_table(const char *, const char *, const dd::Table *,
                              dd::Table *) {
-  DBUG_ENTER("ha_example::rename_table ");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 /**
@@ -712,8 +709,8 @@ int ha_example::rename_table(const char *, const char *, const dd::Table *,
   check_quick_keys() in opt_range.cc
 */
 ha_rows ha_example::records_in_range(uint, key_range *, key_range *) {
-  DBUG_ENTER("ha_example::records_in_range");
-  DBUG_RETURN(10);  // low number to force index usage
+  DBUG_TRACE;
+  return 10;  // low number to force index usage
 }
 
 static MYSQL_THDVAR_STR(last_create_thdvar, PLUGIN_VAR_MEMALLOC, NULL, NULL,
@@ -743,7 +740,7 @@ static MYSQL_THDVAR_UINT(create_count_thdvar, 0, NULL, NULL, NULL, 0, 0, 1000,
 
 int ha_example::create(const char *name, TABLE *, HA_CREATE_INFO *,
                        dd::Table *) {
-  DBUG_ENTER("ha_example::create");
+  DBUG_TRACE;
   /*
     This is not implemented but we want someone to be able to see that it
     works.
@@ -762,7 +759,7 @@ int ha_example::create(const char *name, TABLE *, HA_CREATE_INFO *,
   uint count = THDVAR(thd, create_count_thdvar) + 1;
   THDVAR_SET(thd, create_count_thdvar, &count);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_storage_engine example_storage_engine = {

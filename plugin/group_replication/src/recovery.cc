@@ -69,14 +69,14 @@ Recovery_module::~Recovery_module() {
 
 int Recovery_module::start_recovery(const string &group_name,
                                     const string &rec_view_id) {
-  DBUG_ENTER("Recovery_module::start_recovery");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   if (recovery_state_transfer.check_recovery_thread_status()) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_PREV_REC_SESSION_RUNNING);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -91,7 +91,7 @@ int Recovery_module::start_recovery(const string &group_name,
                           (void *)this)) {
     /* purecov: begin inspected */
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
   recovery_thd_state.set_created();
@@ -102,17 +102,17 @@ int Recovery_module::start_recovery(const string &group_name,
   }
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Recovery_module::stop_recovery() {
-  DBUG_ENTER("Recovery_module::stop_recovery");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   if (recovery_thd_state.is_thread_dead()) {
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   recovery_aborted = true;
@@ -149,7 +149,7 @@ int Recovery_module::stop_recovery() {
     else if (recovery_thd_state.is_thread_alive())  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(1);
+      return 1;
     }
     /* purecov: inspected */
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
@@ -159,7 +159,7 @@ int Recovery_module::stop_recovery() {
 
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -271,7 +271,7 @@ void Recovery_module::leave_group_on_recovery_failure() {
   * Step 7: Terminate the recovery thread.
 */
 int Recovery_module::recovery_thread_handle() {
-  DBUG_ENTER("Recovery_module::recovery_thread_handle");
+  DBUG_TRACE;
 
   /* Step 0 */
 
@@ -416,12 +416,12 @@ cleanup:
   my_thread_end();
   my_thread_exit(0);
 
-  DBUG_RETURN(error); /* purecov: inspected */
+  return error; /* purecov: inspected */
 }
 
 int Recovery_module::update_recovery_process(bool did_members_left,
                                              bool is_leaving) {
-  DBUG_ENTER("Recovery_module::update_recovery_process");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -439,11 +439,11 @@ int Recovery_module::update_recovery_process(bool did_members_left,
     }
   }
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int Recovery_module::set_retrieved_cert_info(void *info) {
-  DBUG_ENTER("Recovery_module::set_retrieved_cert_info");
+  DBUG_TRACE;
 
   View_change_log_event *view_change_event =
       static_cast<View_change_log_event *>(info);
@@ -458,13 +458,13 @@ int Recovery_module::set_retrieved_cert_info(void *info) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CERTIFICATION_REC_PROCESS);
     leave_group_on_recovery_failure();
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
   recovery_state_transfer.end_state_transfer();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Recovery_module::set_recovery_thread_context() {
@@ -489,7 +489,7 @@ void Recovery_module::clean_recovery_thread_context() {
 }
 
 int Recovery_module::wait_for_applier_module_recovery() {
-  DBUG_ENTER("Recovery_module::wait_for_applier_module_recovery");
+  DBUG_TRACE;
 
   size_t queue_size = 0;
   uint64 transactions_applied_during_recovery_delta = 0;
@@ -547,7 +547,7 @@ int Recovery_module::wait_for_applier_module_recovery() {
         /* purecov: begin inspected */
         LogPluginErr(WARNING_LEVEL,
                      ER_GRP_RPL_GTID_SET_EXTRACT_ERROR_DURING_RECOVERY);
-        DBUG_RETURN(1);
+        return 1;
         /* purecov: end */
       }
       /*
@@ -572,7 +572,7 @@ int Recovery_module::wait_for_applier_module_recovery() {
         if (error == -2)  // error when waiting
         {
           LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_ENSURE_EXECUTION_REC);
-          DBUG_RETURN(1);
+          return 1;
         }
         /* purecov: end */
       }
@@ -585,13 +585,13 @@ int Recovery_module::wait_for_applier_module_recovery() {
 
   if (applier_module->get_applier_status() == APPLIER_ERROR &&
       !recovery_aborted)
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void Recovery_module::notify_group_recovery_end() {
-  DBUG_ENTER("Recovery_module::notify_group_recovery_end");
+  DBUG_TRACE;
 
   Recovery_message recovery_msg(Recovery_message::RECOVERY_END_MESSAGE,
                                 local_member_info->get_uuid());
@@ -600,11 +600,9 @@ void Recovery_module::notify_group_recovery_end() {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_WHILE_SENDING_MSG_REC); /* purecov: inspected */
   }
-
-  DBUG_VOID_RETURN;
 }
 
 bool Recovery_module::is_own_event_channel(my_thread_id id) {
-  DBUG_ENTER("Recovery_module::is_own_event_channel");
-  DBUG_RETURN(recovery_state_transfer.is_own_event_channel(id));
+  DBUG_TRACE;
+  return recovery_state_transfer.is_own_event_channel(id);
 }

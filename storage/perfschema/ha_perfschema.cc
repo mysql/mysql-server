@@ -140,7 +140,7 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
   int i;
   size_t size;
 
-  DBUG_ENTER("pfs_show_status");
+  DBUG_TRACE;
 
   /*
     Note about naming conventions:
@@ -150,7 +150,7 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
     as in '(pfs_mutex_class)'.
   */
   if (stat != HA_ENGINE_STATUS) {
-    DBUG_RETURN(false);
+    return false;
   }
 
   size_t total_memory = 0;
@@ -1274,12 +1274,12 @@ static bool pfs_show_status(handlerton *, THD *thd, stat_print_fn *print,
     buflen = (uint)(longlong10_to_str(size, buf, 10) - buf);
     if (print(thd, PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name), buf, buflen)) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
 end:
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void inc_ref_count(PFS_engine_table_share *share) {
@@ -1303,15 +1303,15 @@ static int compare_database_names(const char *name1, const char *name2) {
 
 static PFS_engine_table_share *find_table_share(const char *db,
                                                 const char *name) {
-  DBUG_ENTER("find_table_share");
+  DBUG_TRACE;
 
   if (compare_database_names(db, PERFORMANCE_SCHEMA_str.str) != 0) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   PFS_engine_table_share *result;
   result = PFS_engine_table::find_engine_table_share(name);
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1351,7 +1351,7 @@ static bool pfs_dict_init(
 }
 
 static int pfs_init_func(void *p) {
-  DBUG_ENTER("pfs_init_func");
+  DBUG_TRACE;
 
   pfs_hton = reinterpret_cast<handlerton *>(p);
 
@@ -1380,17 +1380,17 @@ static int pfs_init_func(void *p) {
 
   PFS_engine_table_share::init_all_locks();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int pfs_done_func(void *) {
-  DBUG_ENTER("pfs_done_func");
+  DBUG_TRACE;
 
   pfs_hton = NULL;
 
   PFS_engine_table_share::delete_all_locks();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int show_func_mutex_instances_lost(THD *, SHOW_VAR *var, char *buff) {
@@ -1506,7 +1506,7 @@ ha_perfschema::ha_perfschema(handlerton *hton, TABLE_SHARE *share)
 ha_perfschema::~ha_perfschema() {}
 
 int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
-  DBUG_ENTER("ha_perfschema::open");
+  DBUG_TRACE;
 
   lock_pfs_external_table_shares();
   if (!m_table_share)
@@ -1514,7 +1514,7 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
         find_table_share(table_share->db.str, table_share->table_name.str);
   if (!m_table_share) {
     unlock_pfs_external_table_shares();
-    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    return HA_ERR_NO_SUCH_TABLE;
   }
 
   thr_lock_data_init(m_table_share->m_thr_lock_ptr, &m_thr_lock, NULL);
@@ -1526,11 +1526,11 @@ int ha_perfschema::open(const char *, int, uint, const dd::Table *) {
   }
 
   unlock_pfs_external_table_shares();
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::close(void) {
-  DBUG_ENTER("ha_perfschema::close");
+  DBUG_TRACE;
 
   /* Only for table added by plugin/components */
   if (!IS_NATIVE_TABLE(m_table_share)) {
@@ -1541,15 +1541,15 @@ int ha_perfschema::close(void) {
   delete m_table;
   m_table = NULL;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::write_row(uchar *buf) {
   int result;
 
-  DBUG_ENTER("ha_perfschema::write_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
   DBUG_ASSERT(m_table_share);
@@ -1558,7 +1558,7 @@ int ha_perfschema::write_row(uchar *buf) {
   }
   ha_statistic_increment(&System_status_var::ha_write_count);
   result = m_table_share->write_row(m_table, table, buf, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 void ha_perfschema::use_hidden_primary_key(void) {
@@ -1572,36 +1572,36 @@ void ha_perfschema::use_hidden_primary_key(void) {
 }
 
 int ha_perfschema::update_row(const uchar *old_data, uchar *new_data) {
-  DBUG_ENTER("ha_perfschema::update_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
   if (is_executed_by_slave()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_update_count);
   int result = m_table->update_row(table, old_data, new_data, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::delete_row(const uchar *buf) {
-  DBUG_ENTER("ha_perfschema::delete_row");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    return HA_ERR_WRONG_COMMAND;
   }
 
   DBUG_ASSERT(m_table);
   ha_statistic_increment(&System_status_var::ha_delete_count);
   int result = m_table->delete_row(table, buf, table->field);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::rnd_init(bool scan) {
   int result;
-  DBUG_ENTER("ha_perfschema::rnd_init");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_table_share);
   DBUG_ASSERT(m_table_share->m_open_table != NULL);
@@ -1618,21 +1618,21 @@ int ha_perfschema::rnd_init(bool scan) {
   }
 
   result = m_table ? 0 : HA_ERR_OUT_OF_MEM;
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::rnd_end(void) {
-  DBUG_ENTER("ha_perfschema::rnd_end");
+  DBUG_TRACE;
   DBUG_ASSERT(m_table);
   delete m_table;
   m_table = NULL;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::rnd_next(uchar *buf) {
-  DBUG_ENTER("ha_perfschema::rnd_next");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   DBUG_ASSERT(m_table);
@@ -1645,21 +1645,20 @@ int ha_perfschema::rnd_next(uchar *buf) {
       stats.records++;
     }
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 void ha_perfschema::position(const uchar *) {
-  DBUG_ENTER("ha_perfschema::position");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_table);
   m_table->get_position(ref);
-  DBUG_VOID_RETURN;
 }
 
 int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
-  DBUG_ENTER("ha_perfschema::rnd_pos");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   DBUG_ASSERT(m_table);
@@ -1668,11 +1667,11 @@ int ha_perfschema::rnd_pos(uchar *buf, uchar *pos) {
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::info(uint flag) {
-  DBUG_ENTER("ha_perfschema::info");
+  DBUG_TRACE;
   DBUG_ASSERT(m_table_share);
   if (flag & HA_STATUS_VARIABLE) {
     stats.records = m_table_share->get_row_count();
@@ -1680,19 +1679,19 @@ int ha_perfschema::info(uint flag) {
   if (flag & HA_STATUS_CONST) {
     ref_length = m_table_share->m_ref_length;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int ha_perfschema::delete_all_rows(void) {
   int result;
 
-  DBUG_ENTER("ha_perfschema::delete_all_rows");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is_executed_by_slave()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   DBUG_ASSERT(m_table_share);
@@ -1701,7 +1700,7 @@ int ha_perfschema::delete_all_rows(void) {
   } else {
     result = HA_ERR_WRONG_COMMAND;
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::truncate(dd::Table *) { return delete_all_rows(); }
@@ -1717,19 +1716,19 @@ THR_LOCK_DATA **ha_perfschema::store_lock(THD *, THR_LOCK_DATA **to,
 }
 
 int ha_perfschema::delete_table(const char *, const dd::Table *) {
-  DBUG_ENTER("ha_perfschema::delete_table");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int ha_perfschema::rename_table(const char *, const char *, const dd::Table *,
                                 dd::Table *) {
-  DBUG_ENTER("ha_perfschema::rename_table ");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  DBUG_TRACE;
+  return HA_ERR_WRONG_COMMAND;
 }
 
 int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
                           dd::Table *) {
-  DBUG_ENTER("ha_perfschema::create");
+  DBUG_TRACE;
   DBUG_ASSERT(table_arg);
   DBUG_ASSERT(table_arg->s);
   lock_pfs_external_table_shares();
@@ -1741,7 +1740,7 @@ int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
       This should fail once .FRM are removed.
     */
     unlock_pfs_external_table_shares();
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /*
@@ -1749,7 +1748,7 @@ int ha_perfschema::create(const char *, TABLE *table_arg, HA_CREATE_INFO *,
     Failure to CREATE TABLE is the expected result.
   */
   unlock_pfs_external_table_shares();
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  return HA_ERR_WRONG_COMMAND;
 }
 
 void ha_perfschema::print_error(int error, myf errflag) {
@@ -1811,7 +1810,7 @@ ulong ha_perfschema::index_flags(uint, uint, bool) const {
 */
 int ha_perfschema::index_init(uint idx, bool sorted) {
   int result;
-  DBUG_ENTER("ha_perfschema::index_init");
+  DBUG_TRACE;
 
   DBUG_ASSERT(m_table_share);
   DBUG_ASSERT(m_table_share->m_open_table != NULL);
@@ -1830,17 +1829,17 @@ int ha_perfschema::index_init(uint idx, bool sorted) {
     result = HA_ERR_OUT_OF_MEM;
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 int ha_perfschema::index_end() {
-  DBUG_ENTER("ha_perfschema::index_end");
+  DBUG_TRACE;
   DBUG_ASSERT(m_table);
   DBUG_ASSERT(active_index != MAX_KEY);
   delete m_table;
   m_table = NULL;
   active_index = MAX_KEY;
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -1850,9 +1849,9 @@ int ha_perfschema::index_end() {
 */
 int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
                               enum ha_rkey_function find_flag) {
-  DBUG_ENTER("ha_perfschema::index_read");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   DBUG_ASSERT(m_table_share);
@@ -1877,7 +1876,7 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1886,9 +1885,9 @@ int ha_perfschema::index_read(uchar *buf, const uchar *key, uint key_len,
   @return 0, HA_ERR_END_OF_FILE, or error
 */
 int ha_perfschema::index_next(uchar *buf) {
-  DBUG_ENTER("ha_perfschema::index_next");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -1899,7 +1898,7 @@ int ha_perfschema::index_next(uchar *buf) {
   if (result == 0) {
     result = m_table->read_row(table, buf, table->field);
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /**
@@ -1907,9 +1906,9 @@ int ha_perfschema::index_next(uchar *buf) {
   @return 0, HA_ERR_END_OF_FILE, or error
 */
 int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
-  DBUG_ENTER("ha_perfschema::index_next_same");
+  DBUG_TRACE;
   if (!PFS_ENABLED()) {
-    DBUG_RETURN(HA_ERR_END_OF_FILE);
+    return HA_ERR_END_OF_FILE;
   }
 
   ha_statistic_increment(&System_status_var::ha_read_next_count);
@@ -1921,7 +1920,7 @@ int ha_perfschema::index_next_same(uchar *buf, const uchar *key, uint keylen) {
     result = m_table->read_row(table, buf, table->field);
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool ha_perfschema::is_executed_by_slave() const {

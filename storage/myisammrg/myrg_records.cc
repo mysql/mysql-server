@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 ha_rows myrg_records(MYRG_INFO *info) {
   ha_rows records = 0;
   MYRG_TABLE *file;
-  DBUG_ENTER("myrg_records");
+  DBUG_TRACE;
 
   for (file = info->open_tables; file != info->end_table; file++)
     records += file->table->s->state.state.records;
-  DBUG_RETURN(records);
+  return records;
 }

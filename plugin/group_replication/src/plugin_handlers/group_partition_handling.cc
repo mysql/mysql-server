@@ -85,7 +85,7 @@ bool Group_partition_handling::is_partition_handling_terminated() {
 }
 
 void Group_partition_handling::kill_transactions_and_leave() {
-  DBUG_ENTER("Group_partition_handling::kill_transactions_and_leave");
+  DBUG_TRACE;
 
   Notification_context ctx;
 
@@ -155,12 +155,10 @@ void Group_partition_handling::kill_transactions_and_leave() {
   if (!already_locked) shared_stop_write_lock->release_write_lock();
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
-
-  DBUG_VOID_RETURN;
 }
 
 bool Group_partition_handling::abort_partition_handler_if_running() {
-  DBUG_ENTER("Group_partition_handling::abort_partition_handler_if_running");
+  DBUG_TRACE;
 
   // if someone tried to cancel it, we are no longer in a partition.
   member_in_partition = false;
@@ -172,11 +170,11 @@ bool Group_partition_handling::abort_partition_handler_if_running() {
   if (group_partition_thd_state.is_thread_alive())
     terminate_partition_handler_thread();
 
-  DBUG_RETURN(partition_handling_terminated);
+  return partition_handling_terminated;
 }
 
 int Group_partition_handling::launch_partition_handler_thread() {
-  DBUG_ENTER("Group_partition_handling::launch_partition_handler_thread");
+  DBUG_TRACE;
 
   member_in_partition = true;
 
@@ -189,13 +187,13 @@ int Group_partition_handling::launch_partition_handler_thread() {
 
   if (group_partition_thd_state.is_thread_alive()) {
     mysql_mutex_unlock(&run_lock); /* purecov: inspected */
-    DBUG_RETURN(0);                /* purecov: inspected */
+    return 0;                      /* purecov: inspected */
   }
 
   if (mysql_thread_create(key_GR_THD_group_partition_handler,
                           &partition_trx_handler_pthd, get_connection_attrib(),
                           launch_handler_thread, (void *)this)) {
-    DBUG_RETURN(1); /* purecov: inspected */
+    return 1; /* purecov: inspected */
   }
   group_partition_thd_state.set_created();
 
@@ -205,17 +203,17 @@ int Group_partition_handling::launch_partition_handler_thread() {
   }
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_partition_handling::terminate_partition_handler_thread() {
-  DBUG_ENTER("Group_partition_handling::terminate_partition_handler_thread");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
 
   if (group_partition_thd_state.is_thread_dead()) {
     mysql_mutex_unlock(&run_lock);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   mysql_mutex_lock(&trx_termination_aborted_lock);
@@ -241,7 +239,7 @@ int Group_partition_handling::terminate_partition_handler_thread() {
     else if (group_partition_thd_state.is_thread_alive())  // quit waiting
     {
       mysql_mutex_unlock(&run_lock);
-      DBUG_RETURN(1);
+      return 1;
     }
     /* purecov: inspected */
     DBUG_ASSERT(error == ETIMEDOUT || error == 0);
@@ -251,11 +249,11 @@ int Group_partition_handling::terminate_partition_handler_thread() {
 
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int Group_partition_handling::partition_thread_handler() {
-  DBUG_ENTER("Group_partition_handling::partition_thread_handler");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&run_lock);
   group_partition_thd_state.set_running();
@@ -301,5 +299,5 @@ int Group_partition_handling::partition_thread_handler() {
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  DBUG_RETURN(0);
+  return 0;
 }

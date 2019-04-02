@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@
 bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
                          size_t init_alloc, size_t alloc_increment) {
   size_t length;
-  DBUG_ENTER("init_dynamic_string");
+  DBUG_TRACE;
 
   if (!alloc_increment) alloc_increment = 128;
   length = 1;
@@ -55,17 +55,17 @@ bool init_dynamic_string(DYNAMIC_STRING *str, const char *init_str,
 
   if (!(str->str = (char *)my_malloc(key_memory_DYNAMIC_STRING, init_alloc,
                                      MYF(MY_WME))))
-    DBUG_RETURN(true);
+    return true;
   str->length = length - 1;
   if (init_str) memcpy(str->str, init_str, length);
   str->max_length = init_alloc;
   str->alloc_increment = alloc_increment;
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool dynstr_set(DYNAMIC_STRING *str, const char *init_str) {
   uint length = 0;
-  DBUG_ENTER("dynstr_set");
+  DBUG_TRACE;
 
   if (init_str && (length = (uint)strlen(init_str) + 1) > str->max_length) {
     str->max_length =
@@ -74,20 +74,20 @@ bool dynstr_set(DYNAMIC_STRING *str, const char *init_str) {
     if (!str->max_length) str->max_length = str->alloc_increment;
     if (!(str->str = (char *)my_realloc(key_memory_DYNAMIC_STRING, str->str,
                                         str->max_length, MYF(MY_WME))))
-      DBUG_RETURN(true);
+      return true;
   }
   if (init_str) {
     str->length = length - 1;
     memcpy(str->str, init_str, length);
   } else
     str->length = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size) {
-  DBUG_ENTER("dynstr_realloc");
+  DBUG_TRACE;
 
-  if (!additional_size) DBUG_RETURN(false);
+  if (!additional_size) return false;
   if (str->length + additional_size > str->max_length) {
     str->max_length =
         ((str->length + additional_size + str->alloc_increment - 1) /
@@ -95,9 +95,9 @@ bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size) {
         str->alloc_increment;
     if (!(str->str = (char *)my_realloc(key_memory_DYNAMIC_STRING, str->str,
                                         str->max_length, MYF(MY_WME))))
-      DBUG_RETURN(true);
+      return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool dynstr_append(DYNAMIC_STRING *str, const char *append) {

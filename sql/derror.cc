@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,13 +173,13 @@ const char *error_message_for_client(int mysql_errno) {
 C_MODE_END
 
 bool init_errmessage() {
-  DBUG_ENTER("init_errmessage");
+  DBUG_TRACE;
 
   /* Read messages from file. */
   (void)my_default_lc_messages->errmsgs->read_texts();
 
   if (!my_default_lc_messages->errmsgs->is_loaded())
-    DBUG_RETURN(true); /* Fatal error, not able to allocate memory. */
+    return true; /* Fatal error, not able to allocate memory. */
 
   /* Register messages for use with my_error(). */
   for (int i = 0; i < NUM_SECTIONS; i++) {
@@ -187,11 +187,11 @@ bool init_errmessage() {
             error_message_for_client, errmsg_section_start[i],
             errmsg_section_start[i] + errmsg_section_size[i] - 1)) {
       my_default_lc_messages->errmsgs->destroy();
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 void deinit_errmessage() {
@@ -222,7 +222,7 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
   uchar head[32];
   uint error_messages = 0;
 
-  DBUG_ENTER("read_texts");
+  DBUG_TRACE;
 
   for (int i = 0; i < NUM_SECTIONS; i++)
     error_messages += errmsg_section_size[i];
@@ -273,7 +273,7 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
             MYF(0)))) {
     LogErr(ERROR_LEVEL, ER_ERRMSG_OOM, name);
     (void)mysql_file_close(file, MYF(MY_WME));
-    DBUG_RETURN(true);
+    return true;
   }
 
   // Get pointer to Section2.
@@ -300,7 +300,7 @@ bool MY_LOCALE_ERRMSGS::read_texts() {
 
   (void)mysql_file_close(file, MYF(0));
 
-  DBUG_RETURN(false);
+  return false;
 
 read_err_init:
   /*
@@ -335,7 +335,7 @@ open_err:
     }
   }
 
-  DBUG_RETURN(true);
+  return true;
 } /* read_texts */
 
 void MY_LOCALE_ERRMSGS::destroy() {

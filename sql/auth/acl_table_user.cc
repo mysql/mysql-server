@@ -384,13 +384,13 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
   Acl_table_user_writer_status return_value(m_thd->mem_root);
   Acl_table_user_writer_status err_return_value(m_thd->mem_root);
 
-  DBUG_ENTER("acl_table_user_writer_status Acl_table_user_writer::driver");
+  DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(m_thd));
 
   /* Setup the table for writing */
   if (setup_table(error, builtin_plugin)) {
     return_value.error = error;
-    DBUG_RETURN(return_value);
+    return return_value;
   }
 
   if (m_operation == Acl_table_operation::OP_UPDATE) {
@@ -404,7 +404,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
         we want to skip updates to cache because it's a no-op.
       */
       return_value.error = 0;
-      DBUG_RETURN(return_value);
+      return return_value;
     }
   }
 
@@ -419,7 +419,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
       update_user_resources() || update_password_expiry() ||
       update_password_history() || update_password_reuse() ||
       update_password_require_current() || update_account_locking()) {
-    DBUG_RETURN(err_return_value);
+    return err_return_value;
   }
 
   (void)finish_operation(error);
@@ -429,7 +429,7 @@ Acl_table_user_writer_status Acl_table_user_writer::driver() {
     return_value.skip_cache_update = false;
   }
 
-  DBUG_RETURN(return_value);
+  return return_value;
 }
 
 /**
@@ -1202,10 +1202,10 @@ Acl_table_op_status Acl_table_user_reader::finish_operation(
     @retval true  Error initializing table
 */
 bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
-  DBUG_ENTER("Acl_table_user_reader::setup_table");
+  DBUG_TRACE;
   if (init_read_record(&m_read_record_info, m_thd, m_table, NULL, false,
                        /*ignore_not_found_rows=*/false))
-    DBUG_RETURN(true);
+    return true;
   m_table->use_all_columns();
   clean_user_cache();
 
@@ -1218,7 +1218,7 @@ bool Acl_table_user_reader::setup_table(bool &is_old_db_layout) {
   is_old_db_layout =
       user_table_schema_factory.is_old_user_table_schema(m_table);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1815,17 +1815,17 @@ void Acl_table_user_reader::add_row_to_acl_users(ACL_USER &user) {
 bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
                                      bool &super_users_with_empty_plugin) {
   bool password_expired = false;
-  DBUG_ENTER("Acl_table_user_reader::read_row");
+  DBUG_TRACE;
   /* Reading record from mysql.user */
   ACL_USER user;
   reset_acl_user(user);
   read_account_name(user);
-  if (read_authentication_string(user)) DBUG_RETURN(true);
+  if (read_authentication_string(user)) return true;
   read_privileges(user);
   read_ssl_fields(user);
   read_user_resources(user);
   if (read_plugin_info(user, super_users_with_empty_plugin, is_old_db_layout))
-    DBUG_RETURN(false);
+    return false;
   read_password_expiry(user, password_expired);
   read_password_locked(user);
   read_password_last_changed(user);
@@ -1833,14 +1833,14 @@ bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
   read_password_history_fields(user);
   read_password_reuse_time_fields(user);
   read_password_require_current(user);
-  if (read_user_attributes(user)) DBUG_RETURN(false);
+  if (read_user_attributes(user)) return false;
 
   set_user_salt(&user);
   user.password_expired = password_expired;
 
   add_row_to_acl_users(user);
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -1854,19 +1854,18 @@ bool Acl_table_user_reader::read_row(bool &is_old_db_layout,
     @retval true  Error reading the table. Probably corrupt.
 */
 bool Acl_table_user_reader::driver() {
-  DBUG_ENTER("Acl_table_user_reader::driver");
+  DBUG_TRACE;
   bool is_old_db_layout;
   bool super_users_with_empty_plugin = false;
-  if (setup_table(is_old_db_layout)) DBUG_RETURN(true);
+  if (setup_table(is_old_db_layout)) return true;
   allow_all_hosts = 0;
   int read_rec_errcode;
   while (!(read_rec_errcode = m_read_record_info->Read())) {
-    if (read_row(is_old_db_layout, super_users_with_empty_plugin))
-      DBUG_RETURN(true);
+    if (read_row(is_old_db_layout, super_users_with_empty_plugin)) return true;
   }
 
   m_read_record_info.iterator.reset();
-  if (read_rec_errcode > 0) DBUG_RETURN(true);
+  if (read_rec_errcode > 0) return true;
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();
   rebuild_cached_acl_users_for_name();
@@ -1875,7 +1874,7 @@ bool Acl_table_user_reader::driver() {
     LogErr(WARNING_LEVEL, ER_NO_SUPER_WITHOUT_USER_PLUGIN);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 }  // namespace acl_table
@@ -1909,7 +1908,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                                               what_to_update, restrictions);
   acl_table::Acl_table_user_writer_status return_value(thd->mem_root);
 
-  DBUG_ENTER("replace_user_table");
+  DBUG_TRACE;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
 
   return_value = user_table.driver();
@@ -1947,7 +1946,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
                       combo->auth, password_change_time, combo->alter_status,
                       return_value.restrictions);
   }
-  DBUG_RETURN(return_value.error);
+  return return_value.error;
 }
 
 /**
@@ -1962,9 +1961,9 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo, ulong rights,
 */
 bool read_user_table(THD *thd, TABLE *m_table) {
   acl_table::Acl_table_user_reader acl_table_user_reader(thd, m_table);
-  DBUG_ENTER("read_user_table");
+  DBUG_TRACE;
 
-  if (acl_table_user_reader.driver()) DBUG_RETURN(true);
+  if (acl_table_user_reader.driver()) return true;
 
-  DBUG_RETURN(false);
+  return false;
 }

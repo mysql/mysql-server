@@ -1078,7 +1078,7 @@ table by DICT_MAX_DD_TABLES.
 @param[in,out]  thd             THD
 @return MySQL error code*/
 int dd_upgrade_tablespace(THD *thd) {
-  DBUG_ENTER("innobase_migrate_tablespace");
+  DBUG_TRACE;
   btr_pcur_t pcur;
   const rec_t *rec;
   mem_heap_t *heap;
@@ -1165,7 +1165,7 @@ int dd_upgrade_tablespace(THD *thd) {
           if (df.open_read_only(false) != DB_SUCCESS) {
             mem_heap_free(heap);
             btr_pcur_close(&pcur);
-            DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+            return HA_ERR_TABLESPACE_MISSING;
           }
           df.close();
         }
@@ -1177,7 +1177,7 @@ int dd_upgrade_tablespace(THD *thd) {
       if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
                                          &upgrade_space)) {
         mem_heap_free(heap);
-        DBUG_RETURN(HA_ERR_GENERIC);
+        return HA_ERR_GENERIC;
       }
 
     } else {
@@ -1227,13 +1227,13 @@ int dd_upgrade_tablespace(THD *thd) {
     if (dd_upgrade_register_tablespace(dd_client, dd_space.get(),
                                        &upgrade_space)) {
       mem_heap_free(heap);
-      DBUG_RETURN(HA_ERR_GENERIC);
+      return HA_ERR_GENERIC;
     }
   }
 
   mem_heap_free(heap);
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /** Add server version number to tablespace while upgrading.
@@ -1293,7 +1293,7 @@ first 256 table_ids are reserved for dictionary.
 @return MySQL error code*/
 int dd_upgrade_logs(THD *thd) {
   int error = 0; /* return zero for success */
-  DBUG_ENTER("innobase_upgrade_engine_logs");
+  DBUG_TRACE;
 
   mtr_t mtr;
   mtr.start();
@@ -1312,7 +1312,7 @@ int dd_upgrade_logs(THD *thd) {
 
   log_buffer_flush_to_disk();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 /** Drop all InnoDB Dictionary tables (SYS_*). This is done only at
@@ -1444,7 +1444,7 @@ sets storage engine for rollback any changes.
 @param[in]	failed_upgrade	true when upgrade failed
 @return MySQL error code*/
 int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
-  DBUG_ENTER("innobase_finish_se_upgrade");
+  DBUG_TRACE;
 
   dd_upgrade_fts_rename_cleanup(failed_upgrade);
 
@@ -1469,5 +1469,5 @@ int dd_upgrade_finish(THD *thd, bool failed_upgrade) {
   tables_with_fts.shrink_to_fit();
   srv_is_upgrade_mode = false;
 
-  DBUG_RETURN(0);
+  return 0;
 }

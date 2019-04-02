@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -120,7 +120,7 @@ static void do_debug_sync(MYSQL_THD thd) {
 void Rewriter::do_refresh(MYSQL_THD session_thd) {
   bool saw_rule_error = false;
 
-  DBUG_ENTER("Rewriter::do_refresh");
+  DBUG_TRACE;
   Cursor c(session_thd);
 
   DBUG_PRINT("info", ("Rewriter::do_refresh cursor opened"));
@@ -128,7 +128,7 @@ void Rewriter::do_refresh(MYSQL_THD session_thd) {
 
   if (c.table_is_malformed()) {
     m_refresh_status = ER_REWRITER_TABLE_MALFORMED_ERROR;
-    DBUG_VOID_RETURN;
+    return;
   }
   m_digests.clear();
 
@@ -152,7 +152,6 @@ void Rewriter::do_refresh(MYSQL_THD session_thd) {
     m_refresh_status = ER_REWRITER_LOAD_FAILED;
   else
     m_refresh_status = 0;
-  DBUG_VOID_RETURN;
 }
 
 namespace {

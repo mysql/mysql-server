@@ -185,7 +185,7 @@ end:
 int check_for_max_user_connections(THD *thd, const USER_CONN *uc) {
   int error = 0;
   Host_errors errors;
-  DBUG_ENTER("check_for_max_user_connections");
+  DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_user_conn);
   if (global_system_variables.max_user_connections &&
@@ -231,7 +231,7 @@ end:
   if (error) {
     inc_host_errors(thd->m_main_security_ctx.ip().str, &errors);
   }
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*
@@ -253,7 +253,7 @@ end:
 */
 
 void decrease_user_connections(USER_CONN *uc) {
-  DBUG_ENTER("decrease_user_connections");
+  DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
   DBUG_ASSERT(uc->connections);
   if (!--uc->connections && !mqh_used) {
@@ -261,7 +261,6 @@ void decrease_user_connections(USER_CONN *uc) {
     hash_user_connections->erase(std::string(uc->user, uc->len));
   }
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -274,7 +273,7 @@ void decrease_user_connections(USER_CONN *uc) {
  */
 void release_user_connection(THD *thd) {
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("release_user_connection");
+  DBUG_TRACE;
 
   if (uc) {
     mysql_mutex_lock(&LOCK_user_conn);
@@ -287,8 +286,6 @@ void release_user_connection(THD *thd) {
     mysql_mutex_unlock(&LOCK_user_conn);
     thd->set_user_connect(NULL);
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -299,7 +296,7 @@ void release_user_connection(THD *thd) {
 bool check_mqh(THD *thd, uint check_command) {
   bool error = 0;
   const USER_CONN *uc = thd->get_user_connect();
-  DBUG_ENTER("check_mqh");
+  DBUG_TRACE;
   DBUG_ASSERT(uc != 0);
 
   mysql_mutex_lock(&LOCK_user_conn);
@@ -331,7 +328,7 @@ bool check_mqh(THD *thd, uint check_command) {
   }
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
-  DBUG_RETURN(error);
+  return error;
 }
 
 void init_max_user_conn(void) {
@@ -694,7 +691,7 @@ static int check_connection(THD *thd) {
 
 static bool login_connection(THD *thd) {
   int error;
-  DBUG_ENTER("login_connection");
+  DBUG_TRACE;
   DBUG_PRINT("info",
              ("login_connection called by thread %u", thd->thread_id()));
 
@@ -710,14 +707,14 @@ static bool login_connection(THD *thd) {
     if (vio_type(thd->get_protocol_classic()->get_vio()) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000); /* must wait after eof() */
 #endif
-    DBUG_RETURN(1);
+    return 1;
   }
   /* Connect completed, set read/write timeouts back to default */
   thd->get_protocol_classic()->set_read_timeout(
       thd->variables.net_read_timeout);
   thd->get_protocol_classic()->set_write_timeout(
       thd->variables.net_write_timeout);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -869,7 +866,7 @@ bool thd_prepare_connection(THD *thd) {
 
 void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
                       bool generate_event) {
-  DBUG_ENTER("close_connection");
+  DBUG_TRACE;
 
   if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
   thd->disconnect(server_shutdown);
@@ -883,7 +880,6 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
   }
 
   thd->security_context()->logout();
-  DBUG_VOID_RETURN;
 }
 
 bool thd_connection_alive(THD *thd) {

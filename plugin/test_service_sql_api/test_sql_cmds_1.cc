@@ -157,19 +157,19 @@ int row_count = 0;
 
 static int sql_start_result_metadata(void *, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs) {
-  DBUG_ENTER("sql_start_result_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
   DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   row_count = 0;
   sql_num_cols = num_cols;
   sql_resultcs = resultcs;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_field_metadata(void *, struct st_send_field *field,
                               const CHARSET_INFO *) {
-  DBUG_ENTER("sql_field_metadata");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("field->db_name: %s", field->db_name));
   DBUG_PRINT("info", ("field->table_name: %s", field->table_name));
   DBUG_PRINT("info", ("field->org_table_name: %s", field->org_table_name));
@@ -190,76 +190,73 @@ static int sql_field_metadata(void *, struct st_send_field *field,
   sql_field[col_count][row_count].flags = field->flags;
   sql_field[col_count][row_count].decimals = field->decimals;
   sql_field[col_count][row_count].type = field->type;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_end_result_metadata(void *, uint, uint) {
-  DBUG_ENTER("sql_end_result_metadata");
+  DBUG_TRACE;
   sql_num_meta_rows = row_count;
   row_count = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_start_row(void *) {
-  DBUG_ENTER("sql_start_row");
+  DBUG_TRACE;
   col_count = 0;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static int sql_end_row(void *) {
-  DBUG_ENTER("sql_end_row");
+  DBUG_TRACE;
   row_count++;
-  DBUG_RETURN(false);
+  return false;
 }
 
-static void sql_abort_row(void *) {
-  DBUG_ENTER("sql_abort_row");
-  DBUG_VOID_RETURN;
-}
+static void sql_abort_row(void *) { DBUG_TRACE; }
 
 static ulong sql_get_client_capabilities(void *) {
-  DBUG_ENTER("sql_get_client_capabilities");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 static int sql_get_null(void *) {
-  DBUG_ENTER("sql_get_null");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_integer(void *, longlong) {
-  DBUG_ENTER("sql_get_integer");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_longlong(void *, longlong, uint) {
-  DBUG_ENTER("sql_get_longlong");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_decimal(void *, const decimal_t *) {
-  DBUG_ENTER("sql_get_decimal");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_double(void *, double, uint32) {
-  DBUG_ENTER("sql_get_double");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_date(void *, const MYSQL_TIME *) {
-  DBUG_ENTER("sql_get_date");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_time(void *, const MYSQL_TIME *, uint) {
-  DBUG_ENTER("sql_get_time");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 static int sql_get_datetime(void *, const MYSQL_TIME *, uint) {
-  DBUG_ENTER("sql_get_datetime");
-  DBUG_RETURN(false);
+  DBUG_TRACE;
+  return false;
 }
 
 char sql_str_value[64][64][256];
@@ -267,17 +264,17 @@ size_t sql_str_len[64][64];
 
 static int sql_get_string(void *, const char *const value, size_t length,
                           const CHARSET_INFO *const) {
-  DBUG_ENTER("sql_get_string");
+  DBUG_TRACE;
   strncpy(sql_str_value[col_count][row_count], value, length);
   sql_str_len[col_count][row_count] = length;
   col_count++;
-  DBUG_RETURN(false);
+  return false;
 }
 
 static void sql_handle_ok(void *ctx, uint server_status,
                           uint statement_warn_count, ulonglong affected_rows,
                           ulonglong last_insert_id, const char *const message) {
-  DBUG_ENTER("sql_handle_ok");
+  DBUG_TRACE;
 
   Callback_data *cbd = (Callback_data *)ctx;
 
@@ -286,30 +283,26 @@ static void sql_handle_ok(void *ctx, uint server_status,
   cbd->affected_rows = affected_rows;
   cbd->last_insert_id = last_insert_id;
   cbd->message = message ? message : "";
-
-  DBUG_VOID_RETURN;
 }
 
 static void sql_handle_error(void *ctx, uint sql_errno,
                              const char *const err_msg,
                              const char *const sqlstate) {
-  DBUG_ENTER("sql_handle_error");
+  DBUG_TRACE;
   Callback_data *cbd = (Callback_data *)ctx;
   WRITE_VAL("ERROR %i %s\n", sql_errno, err_msg);
   cbd->error_called = true;
   cbd->err = sql_errno;
   cbd->errmsg = err_msg ? err_msg : "";
   cbd->sqlstate = sqlstate ? sqlstate : "";
-  DBUG_VOID_RETURN;
 }
 
 static void sql_shutdown(void *ctx, int shutdown_server) {
-  DBUG_ENTER("sql_shutdown");
+  DBUG_TRACE;
   Callback_data *cbd = (Callback_data *)ctx;
 
   cbd->shutdown = shutdown_server;
   cbd->shutdown_called = true;
-  DBUG_VOID_RETURN;
 }
 
 const struct st_command_service_cbs sql_cbs = {
@@ -337,7 +330,7 @@ const struct st_command_service_cbs sql_cbs = {
 /****************************************************************************************/
 
 static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_com_query");
+  DBUG_TRACE;
 
   /* Session declarations */
   MYSQL_SESSION st_session;
@@ -448,12 +441,10 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
   session_ret = srv_session_close(st_session);
   if (session_ret)
     LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "srv_session_close failed.");
-
-  DBUG_VOID_RETURN;
 }
 
 static int test_com_init_db(void *p) {
-  DBUG_ENTER("test_com_init_db");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -477,13 +468,13 @@ static int test_com_init_db(void *p) {
 
   ENSURE_API_OK(srv_session_close(st_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
 static int test_com_list_fields(void *p)
 {
-  DBUG_ENTER("test_com_list_fields");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -519,7 +510,7 @@ char*)cmd.com_field_list.query);
 
   ENSURE_API_OK(srv_session_close(st_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 */
 
@@ -601,7 +592,7 @@ static void session_error_cb(void *, unsigned int sql_errno,
 }
 
 static int test_query_kill(void *p) {
-  DBUG_ENTER("test_query_kill");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
 
@@ -657,11 +648,11 @@ static int test_query_kill(void *p) {
   ENSURE_API_OK(srv_session_close(st_session));
   ENSURE_API_OK(srv_session_close(st_session_victim));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_com_process_kill(void *p) {
-  DBUG_ENTER("test_com_process_kill");
+  DBUG_TRACE;
 
   MYSQL_SESSION st_session;
   Callback_data cbd;
@@ -691,11 +682,11 @@ static int test_com_process_kill(void *p) {
   ENSURE_API_OK(srv_session_close(st_session));
   ENSURE_API_OK(srv_session_close(st_session_victim));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_priv(void *p) {
-  DBUG_ENTER("test_priv");
+  DBUG_TRACE;
 
   MYSQL_SESSION root_session;
   Callback_data cbd;
@@ -743,11 +734,11 @@ static int test_priv(void *p) {
 
   ENSURE_API_OK(srv_session_close(root_session));
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void test_sql(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql");
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   WRITE_SEP();
@@ -762,8 +753,6 @@ static void test_sql(void *p MY_ATTRIBUTE((unused))) {
   test_query_kill(p);
   WRITE_SEP();
   test_priv(p);
-
-  DBUG_VOID_RETURN;
 }
 
 static void create_log_file(const char *log_name) {
@@ -778,9 +767,8 @@ static void create_log_file(const char *log_name) {
 static const char *log_filename = "test_sql_cmds_1";
 
 static int test_sql_service_plugin_init(void *p) {
-  DBUG_ENTER("test_sql_service_plugin_init");
-  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
-    DBUG_RETURN(1);
+  DBUG_TRACE;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
@@ -789,14 +777,14 @@ static int test_sql_service_plugin_init(void *p) {
   test_sql(p);
 
   my_close(outfile, MYF(0));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("test_sql_service_plugin_deinit");
+  DBUG_TRACE;
   LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
   deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 struct st_mysql_daemon test_sql_service_plugin = {

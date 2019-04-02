@@ -108,7 +108,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
 
   Item *result;
 
-  DBUG_ENTER("handle_sql2003_note184_exception");
+  DBUG_TRACE;
 
   if (expr->type() == Item::SUBSELECT_ITEM) {
     Item_subselect *expr2 = (Item_subselect *)expr;
@@ -132,7 +132,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
         result =
             change_truth_value_of_condition(pc, result, Item::BOOL_NEGATED);
 
-      DBUG_RETURN(result);
+      return result;
     }
   }
 
@@ -141,7 +141,7 @@ static Item *handle_sql2003_note184_exception(Parse_context *pc, Item *left,
   else
     result = new (pc->mem_root) Item_func_ne(left, expr);
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 bool PTI_table_wild::itemize(Parse_context *pc, Item **item) {

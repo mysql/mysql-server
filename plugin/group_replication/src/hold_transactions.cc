@@ -39,29 +39,29 @@ Hold_transactions::~Hold_transactions() {
 }
 
 void Hold_transactions::enable() {
-  DBUG_ENTER("Hold_transactions::enable");
+  {
+    DBUG_TRACE;
 
-  mysql_mutex_lock(&primary_promotion_policy_mutex);
-  applying_backlog = true;
-  mysql_mutex_unlock(&primary_promotion_policy_mutex);
-
-  DBUG_LEAVE;
+    mysql_mutex_lock(&primary_promotion_policy_mutex);
+    applying_backlog = true;
+    mysql_mutex_unlock(&primary_promotion_policy_mutex);
+  }
 }
 
 void Hold_transactions::disable() {
-  DBUG_ENTER("Hold_transactions::disable");
+  {
+    DBUG_TRACE;
 
-  mysql_mutex_lock(&primary_promotion_policy_mutex);
-  applying_backlog = false;
-  mysql_cond_broadcast(&primary_promotion_policy_condition);
-  mysql_mutex_unlock(&primary_promotion_policy_mutex);
-
-  DBUG_LEAVE;
+    mysql_mutex_lock(&primary_promotion_policy_mutex);
+    applying_backlog = false;
+    mysql_cond_broadcast(&primary_promotion_policy_condition);
+    mysql_mutex_unlock(&primary_promotion_policy_mutex);
+  }
 }
 
 int Hold_transactions::wait_until_primary_failover_complete(
     ulong hold_timeout) {
-  DBUG_ENTER("Hold_transactions::wait_until_primary_failover_complete");
+  DBUG_TRACE;
 
   int ret = 0;
   ulong time_lapsed = 0;
@@ -89,5 +89,5 @@ int Hold_transactions::wait_until_primary_failover_complete(
 
   mysql_mutex_unlock(&primary_promotion_policy_mutex);
 
-  DBUG_RETURN(ret);
+  return ret;
 }

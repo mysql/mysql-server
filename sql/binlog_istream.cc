@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ const char *Binlog_read_error::get_str() const {
 bool Binlog_encryption_istream::open(
     std::unique_ptr<Basic_seekable_istream> down_istream,
     Binlog_read_error *binlog_read_error) {
-  DBUG_ENTER("Binlog_encryption_istream::open");
+  DBUG_TRACE;
   DBUG_ASSERT(down_istream != nullptr);
 
   m_down_istream = std::move(down_istream);
@@ -86,44 +86,43 @@ bool Binlog_encryption_istream::open(
       Rpl_encryption_header::get_header(m_down_istream.get()));
 
   if (encryption_header == nullptr)
-    DBUG_RETURN(binlog_read_error->set_type(
-        Binlog_read_error::INVALID_ENCRYPTION_HEADER));
+    return binlog_read_error->set_type(
+        Binlog_read_error::INVALID_ENCRYPTION_HEADER);
 
   Key_string password = encryption_header->decrypt_file_password();
   if (password.empty())
-    DBUG_RETURN(binlog_read_error->set_type(
-        Binlog_read_error::CANNOT_GET_FILE_PASSWORD));
+    return binlog_read_error->set_type(
+        Binlog_read_error::CANNOT_GET_FILE_PASSWORD);
 
   m_decryptor = encryption_header->get_decryptor();
   if (m_decryptor->open(password, encryption_header->get_header_size())) {
     m_decryptor.reset(nullptr);
-    DBUG_RETURN(
-        binlog_read_error->set_type(Binlog_read_error::ERROR_DECRYPTING_FILE));
+    return binlog_read_error->set_type(
+        Binlog_read_error::ERROR_DECRYPTING_FILE);
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 void Binlog_encryption_istream::close() {
-  DBUG_ENTER("Binlog_encryption_istream::close");
+  DBUG_TRACE;
   m_down_istream.reset(nullptr);
   m_decryptor.reset(nullptr);
-  DBUG_VOID_RETURN;
 }
 
 ssize_t Binlog_encryption_istream::read(unsigned char *buffer, size_t length) {
-  DBUG_ENTER("Binlog_encryption_istream::read");
+  DBUG_TRACE;
   ssize_t ret = m_down_istream->read(buffer, length);
   if (ret > 0 && m_decryptor->decrypt(buffer, buffer, ret)) ret = -1;
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 bool Binlog_encryption_istream::seek(my_off_t offset) {
-  DBUG_ENTER("Binlog_encryption_istream::seek");
+  DBUG_TRACE;
   DBUG_PRINT("debug", ("offset= %llu", offset));
   bool res = m_decryptor->set_stream_offset(offset);
   if (!res) res = m_down_istream->seek(offset + m_decryptor->get_header_size());
-  DBUG_RETURN(res);
+  return res;
 }
 
 my_off_t Binlog_encryption_istream::length() {
@@ -133,11 +132,11 @@ my_off_t Binlog_encryption_istream::length() {
 Binlog_encryption_istream::~Binlog_encryption_istream() { close(); }
 
 bool Basic_binlog_ifile::read_binlog_magic() {
-  DBUG_ENTER("Basic_binlog_ifile::read_binlog_magic");
+  DBUG_TRACE;
   unsigned char magic[BINLOG_MAGIC_SIZE];
 
   if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
-    DBUG_RETURN(m_error->set_type(Binlog_read_error::HEADER_IO_FAILURE));
+    return m_error->set_type(Binlog_read_error::HEADER_IO_FAILURE);
   }
 
   /*
@@ -149,38 +148,35 @@ bool Basic_binlog_ifile::read_binlog_magic() {
 #ifdef MYSQL_SERVER
     std::unique_ptr<Binlog_encryption_istream> encryption_istream{
         new Binlog_encryption_istream()};
-    if (encryption_istream->open(std::move(m_istream), m_error))
-      DBUG_RETURN(true);
+    if (encryption_istream->open(std::move(m_istream), m_error)) return true;
 
     /* Setup encryption stream pipeline */
     m_istream = std::move(encryption_istream);
 
     /* Read binlog magic from encrypted data */
     if (m_istream->read(magic, BINLOG_MAGIC_SIZE) != BINLOG_MAGIC_SIZE) {
-      DBUG_RETURN(m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC));
+      return m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC);
     }
 #else
-    DBUG_RETURN(m_error->set_type(
-        Binlog_read_error::READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED));
+    return m_error->set_type(
+        Binlog_read_error::READ_ENCRYPTED_LOG_FILE_IS_NOT_SUPPORTED);
 #endif
   }
 
   if (memcmp(magic, BINLOG_MAGIC, BINLOG_MAGIC_SIZE))
-    DBUG_RETURN(m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC));
+    return m_error->set_type(Binlog_read_error::BAD_BINLOG_MAGIC);
   m_position = BINLOG_MAGIC_SIZE;
-  DBUG_RETURN(m_error->set_type(Binlog_read_error::SUCCESS));
+  return m_error->set_type(Binlog_read_error::SUCCESS);
 }
 
 Basic_binlog_ifile::Basic_binlog_ifile(Binlog_read_error *binlog_read_error)
     : m_error(binlog_read_error) {
-  DBUG_ENTER("Basic_binlog_ifile::Basic_binlog_ifile");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
 Basic_binlog_ifile::~Basic_binlog_ifile() {
-  DBUG_ENTER("Basic_binlog_ifile::~Basic_binlog_ifile");
+  DBUG_TRACE;
   close();
-  DBUG_VOID_RETURN;
 }
 
 bool Basic_binlog_ifile::open(const char *file_name) {
@@ -191,10 +187,9 @@ bool Basic_binlog_ifile::open(const char *file_name) {
 }
 
 void Basic_binlog_ifile::close() {
-  DBUG_ENTER("Basic_binlog_ifile::close");
+  DBUG_TRACE;
   m_position = 0;
   m_istream.reset(nullptr);
-  DBUG_VOID_RETURN;
 }
 
 ssize_t Basic_binlog_ifile::read(unsigned char *buffer, size_t length) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,10 @@ class Unique {
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }
   inline bool unique_add(void *ptr) {
-    DBUG_ENTER("unique_add");
+    DBUG_TRACE;
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
-    if (tree.elements_in_tree > max_elements && flush()) DBUG_RETURN(1);
-    DBUG_RETURN(!tree_insert(&tree, ptr, 0, tree.custom_arg));
+    if (tree.elements_in_tree > max_elements && flush()) return 1;
+    return !tree_insert(&tree, ptr, 0, tree.custom_arg);
   }
 
   bool get(TABLE *table);

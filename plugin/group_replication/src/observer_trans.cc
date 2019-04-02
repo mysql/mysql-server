@@ -50,17 +50,16 @@
 
 void cleanup_transaction_write_set(
     Transaction_write_set *transaction_write_set) {
-  DBUG_ENTER("cleanup_transaction_write_set");
+  DBUG_TRACE;
   if (transaction_write_set != NULL) {
     my_free(transaction_write_set->write_set);
     my_free(transaction_write_set);
   }
-  DBUG_VOID_RETURN;
 }
 
 int add_write_set(Transaction_context_log_event *tcle,
                   Transaction_write_set *set) {
-  DBUG_ENTER("add_write_set");
+  DBUG_TRACE;
   int iterator = set->write_set_size;
   for (int i = 0; i < iterator; i++) {
     uchar buff[BUFFER_READ_PKE];
@@ -73,7 +72,7 @@ int add_write_set(Transaction_context_log_event *tcle,
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_OOM_FAILED_TO_GENERATE_IDENTIFICATION_HASH);
-      DBUG_RETURN(1);
+      return 1;
       /* purecov: end */
     }
 
@@ -81,13 +80,13 @@ int add_write_set(Transaction_context_log_event *tcle,
       /* purecov: begin inspected */
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_WRITE_IDENT_HASH_BASE64_ENCODING_FAILED);
-      DBUG_RETURN(1);
+      return 1;
       /* purecov: end */
     }
 
     tcle->add_write_set(write_set_value);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -95,13 +94,13 @@ int add_write_set(Transaction_context_log_event *tcle,
 */
 
 int group_replication_trans_before_dml(Trans_param *param, int &out) {
-  DBUG_ENTER("group_replication_trans_before_dml");
+  DBUG_TRACE;
 
   out = 0;
 
   // If group replication has not started, then moving along...
   if (!plugin_is_group_replication_running()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /*
@@ -109,7 +108,7 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
    If it is not active, this query is not relevant for the plugin.
    */
   if (!param->trans_ctx_info.binlog_enabled) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /*
@@ -117,27 +116,27 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
    */
   if ((out += (param->trans_ctx_info.binlog_format != BINLOG_FORMAT_ROW))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_INVALID_BINLOG_FORMAT);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if ((out += (param->trans_ctx_info.binlog_checksum_options !=
                binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_BINLOG_CHECKSUM_SET);
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if ((out += (param->trans_ctx_info.transaction_write_set_extraction ==
                HASH_ALGORITHM_OFF))) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_WRITE_SET_EXTRACTION_NOT_SET);
-    DBUG_RETURN(0);
+    return 0;
     /* purecov: end */
   }
 
   if (local_member_info->has_enforces_update_everywhere_checks() &&
       (out += (param->trans_ctx_info.tx_isolation == ISO_SERIALIZABLE))) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNSUPPORTED_TRANS_ISOLATION);
-    DBUG_RETURN(0);
+    return 0;
   }
   /*
     Cycle through all involved tables to assess if they all
@@ -166,17 +165,17 @@ int group_replication_trans_before_dml(Trans_param *param, int &out) {
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int group_replication_trans_before_commit(Trans_param *param) {
-  DBUG_ENTER("group_replication_trans_before_commit");
+  DBUG_TRACE;
   int error = 0;
   const int pre_wait_error = 1;
   const int post_wait_error = 2;
 
   DBUG_EXECUTE_IF("group_replication_force_error_on_before_commit_listener",
-                  DBUG_RETURN(1););
+                  return 1;);
 
   DBUG_EXECUTE_IF("group_replication_before_commit_hook_wait", {
     const char act[] = "now wait_for continue_commit";
@@ -212,15 +211,15 @@ int group_replication_trans_before_commit(Trans_param *param) {
           transaction_consistency_manager->after_applier_prepare(
               param->gtid_info.sidno, param->gtid_info.gno, param->thread_id,
               member_status)) {
-        DBUG_RETURN(1); /* purecov: inspected */
+        return 1; /* purecov: inspected */
       }
     }
 
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (GR_RECOVERY_CHANNEL == param->rpl_channel_type) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   shared_plugin_stop_lock->grab_read_lock();
@@ -228,13 +227,13 @@ int group_replication_trans_before_commit(Trans_param *param) {
   if (is_plugin_waiting_to_set_server_read_mode()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_STOPPING);
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(1);
+    return 1;
   }
 
   /* If the plugin is not running, before commit should return success. */
   if (!plugin_is_group_replication_running()) {
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(0);
+    return 0;
   }
 
   DBUG_ASSERT(applier_module != NULL && recovery_module != NULL);
@@ -245,21 +244,21 @@ int group_replication_trans_before_commit(Trans_param *param) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_RECOVERING);
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
   if (member_status == Group_member_info::MEMBER_ERROR) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_ERROR_STATE);
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (member_status == Group_member_info::MEMBER_OFFLINE) {
     /* purecov: begin inspected */
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_IN_OFFLINE_MODE);
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -314,7 +313,7 @@ int group_replication_trans_before_commit(Trans_param *param) {
                  ER_GRP_RPL_MULTIPLE_CACHE_TYPE_NOT_SUPPORTED_FOR_SESSION,
                  param->thread_id);
     shared_plugin_stop_lock->release_read_lock();
-    DBUG_RETURN(1);
+    return 1;
     /* purecov: end */
   }
 
@@ -547,16 +546,16 @@ err:
     const char act[] = "now wait_for signal.commit_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-  DBUG_RETURN(error);
+  return error;
 }
 
 int group_replication_trans_before_rollback(Trans_param *) {
-  DBUG_ENTER("group_replication_trans_before_rollback");
-  DBUG_RETURN(0);
+  DBUG_TRACE;
+  return 0;
 }
 
 int group_replication_trans_after_commit(Trans_param *param) {
-  DBUG_ENTER("group_replication_trans_after_commit");
+  DBUG_TRACE;
   int error = 0;
 
   /**
@@ -570,7 +569,7 @@ int group_replication_trans_after_commit(Trans_param *param) {
   */
   if (!plugin_is_group_replication_running() ||
       !group_transaction_observation_manager->is_any_observer_present()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   group_transaction_observation_manager->read_lock_observer_list();
@@ -582,11 +581,11 @@ int group_replication_trans_after_commit(Trans_param *param) {
                                        param->gtid_info.gno);
   }
   group_transaction_observation_manager->unlock_observer_list();
-  DBUG_RETURN(error);
+  return error;
 }
 
 int group_replication_trans_after_rollback(Trans_param *param) {
-  DBUG_ENTER("group_replication_trans_after_rollback");
+  DBUG_TRACE;
 
   int error = 0;
 
@@ -596,7 +595,7 @@ int group_replication_trans_after_rollback(Trans_param *param) {
   */
   if (!plugin_is_group_replication_running() ||
       !group_transaction_observation_manager->is_any_observer_present()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   group_transaction_observation_manager->read_lock_observer_list();
@@ -608,11 +607,11 @@ int group_replication_trans_after_rollback(Trans_param *param) {
   }
   group_transaction_observation_manager->unlock_observer_list();
 
-  DBUG_RETURN(error);
+  return error;
 }
 
 int group_replication_trans_begin(Trans_param *param, int &out) {
-  DBUG_ENTER("group_replication_trans_begin");
+  DBUG_TRACE;
 
   /*
     If the plugin is not running, before begin should return success.
@@ -620,7 +619,7 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
   */
   if (!plugin_is_group_replication_running() ||
       !group_transaction_observation_manager->is_any_observer_present()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   group_transaction_observation_manager->read_lock_observer_list();
@@ -635,7 +634,7 @@ int group_replication_trans_begin(Trans_param *param, int &out) {
   }
   group_transaction_observation_manager->unlock_observer_list();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 Trans_observer trans_observer = {

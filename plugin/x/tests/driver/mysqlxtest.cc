@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -195,7 +195,7 @@ static void daemonize() {
 
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);
-  DBUG_ENTER("main");
+  DBUG_TRACE;
 
   local_message_hook = ignore_traces_from_libraries;
 
@@ -215,7 +215,7 @@ int main(int argc, char **argv) {
 #ifdef WIN32
   if (!have_tcpip) {
     std::cerr << "OS doesn't have tcpip\n";
-    DBUG_RETURN(1);
+    return 1;
   }
 #endif
 
@@ -237,5 +237,5 @@ int main(int argc, char **argv) {
 
   vio_end();
   my_end(0);
-  DBUG_RETURN(return_code);
+  return return_code;
 }

@@ -295,11 +295,11 @@ String *Item::val_string_from_time(String *str) {
 }
 
 my_decimal *Item::val_decimal_from_real(my_decimal *decimal_value) {
-  DBUG_ENTER("Item::val_decimal_from_real");
+  DBUG_TRACE;
   double nr = val_real();
-  if (null_value) DBUG_RETURN(0);
+  if (null_value) return 0;
   double2my_decimal(E_DEC_FATAL_ERROR, nr, decimal_value);
-  DBUG_RETURN(decimal_value);
+  return decimal_value;
 }
 
 my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value) {
@@ -706,11 +706,10 @@ void Item::print_for_order(const THD *thd, String *str,
 }
 
 void Item::cleanup() {
-  DBUG_ENTER("Item::cleanup");
+  DBUG_TRACE;
   fixed = 0;
   marker = MARKER_NONE;
   if (orig_name.is_set()) item_name = orig_name;
-  DBUG_VOID_RETURN;
 }
 
 bool Item::visitor_processor(uchar *arg) {
@@ -758,12 +757,11 @@ bool Item::check_function_as_value_generator(uchar *checker_args) {
 }
 
 void Item_ident::cleanup() {
-  DBUG_ENTER("Item_ident::cleanup");
+  DBUG_TRACE;
   Item::cleanup();
   db_name = orig_db_name;
   table_name = orig_table_name;
   field_name = orig_field_name;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -785,32 +783,32 @@ void Item_ident::cleanup() {
 */
 
 bool Item_field::collect_item_field_processor(uchar *arg) {
-  DBUG_ENTER("Item_field::collect_item_field_processor");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   List<Item_field> *item_list = (List<Item_field> *)arg;
   List_iterator<Item_field> item_list_it(*item_list);
   Item_field *curr_item;
   while ((curr_item = item_list_it++)) {
-    if (curr_item->eq(this, 1)) DBUG_RETURN(false); /* Already in the set. */
+    if (curr_item->eq(this, 1)) return false; /* Already in the set. */
   }
   item_list->push_back(this);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_field::add_field_to_set_processor(uchar *arg) {
-  DBUG_ENTER("Item_field::add_field_to_set_processor");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   TABLE *table = (TABLE *)arg;
   if (table_ref->table == table)
     bitmap_set_bit(&table->tmp_set, field->field_index);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_field::add_field_to_cond_set_processor(uchar *) {
-  DBUG_ENTER("Item_field::add_field_to_cond_set_processor");
+  DBUG_TRACE;
   DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
   bitmap_set_bit(&field->table->cond_set, field->field_index);
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_field::remove_column_from_bitmap(uchar *argument) {
@@ -1400,7 +1398,7 @@ const CHARSET_INFO *Item::default_charset() {
 
 type_conversion_status Item::save_in_field_no_warnings(Field *field,
                                                        bool no_conversions) {
-  DBUG_ENTER("Item::save_in_field_no_warnings");
+  DBUG_TRACE;
   TABLE *table = field->table;
   THD *thd = table->in_use;
   enum_check_fields tmp = thd->check_for_truncated_fields;
@@ -1423,7 +1421,7 @@ type_conversion_status Item::save_in_field_no_warnings(Field *field,
   thd->check_for_truncated_fields = tmp;
   dbug_tmp_restore_column_map(table->write_set, old_map);
   thd->variables.sql_mode = sql_mode;
-  DBUG_RETURN(res);
+  return res;
 }
 
 bool Item::is_blob_field() const {
@@ -1921,11 +1919,11 @@ class Item_aggregate_ref : public Item_ref {
 void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                            List<Item> &fields, Item **ref,
                            bool skip_registered) {
-  DBUG_ENTER("Item::split_sum_func2");
+  DBUG_TRACE;
   /* An item of type Item_sum  is registered <=> ref_by[0] != 0 */
   if (type() == SUM_FUNC_ITEM && skip_registered &&
       ((Item_sum *)this)->ref_by[0])
-    DBUG_VOID_RETURN;
+    return;
 
   // 'sum_func' means a group aggregate function
   const bool is_sum_func = type() == SUM_FUNC_ITEM && !m_is_window_function;
@@ -1978,7 +1976,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     Item_aggregate_ref *const item_ref =
         new Item_aggregate_ref(&base_select->context, &ref_item_array[el], 0,
                                item_name.ptr(), depended_from);
-    if (!item_ref) DBUG_VOID_RETURN; /* purecov: inspected */
+    if (!item_ref) return; /* purecov: inspected */
     fields.push_front(this);
     if (ref == nullptr) {
       DBUG_ASSERT(is_sum_func);
@@ -1996,7 +1994,6 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
     */
     if (m_is_window_function) split_sum_func(thd, ref_item_array, fields);
   }
-  DBUG_VOID_RETURN;
 }
 
 static bool left_is_superset(DTCollation *left, DTCollation *right) {
@@ -2823,14 +2820,14 @@ void Item_ident::fix_after_pullout(SELECT_LEX *parent_select,
 }
 
 Item *Item_field::get_tmp_table_item(THD *thd) {
-  DBUG_ENTER("Item_field::get_tmp_table_item");
+  DBUG_TRACE;
   Item_field *new_item = new Item_field(thd, this);
-  if (!new_item) DBUG_RETURN(NULL); /* purecov: inspected */
+  if (!new_item) return NULL; /* purecov: inspected */
 
   new_item->field = new_item->result_field;
   new_item->table_ref = NULL;  // Internal temporary table has no table_ref
 
-  DBUG_RETURN(new_item);
+  return new_item;
 }
 
 longlong Item_field::val_int_endpoint(bool, bool *) {
@@ -3286,7 +3283,7 @@ void Item_param::sync_clones() {
 }
 
 void Item_param::set_null() {
-  DBUG_ENTER("Item_param::set_null");
+  DBUG_TRACE;
   /* These are cleared after each execution by reset() method */
   null_value = 1;
   /*
@@ -3298,27 +3295,24 @@ void Item_param::set_null() {
   decimals = 0;
   state = NULL_VALUE;
   item_type = Item::NULL_ITEM;
-  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_int(longlong i, uint32 max_length_arg) {
-  DBUG_ENTER("Item_param::set_int");
+  DBUG_TRACE;
   value.integer = i;
   state = INT_VALUE;
   max_length = max_length_arg;
   decimals = 0;
   maybe_null = 0;
-  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_double(double d) {
-  DBUG_ENTER("Item_param::set_double");
+  DBUG_TRACE;
   value.real = d;
   state = REAL_VALUE;
   max_length = DBL_DIG + 8;
   decimals = NOT_FIXED_DEC;
   maybe_null = 0;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -3334,7 +3328,7 @@ void Item_param::set_double(double d) {
 */
 
 void Item_param::set_decimal(const char *str, ulong length) {
-  DBUG_ENTER("Item_param::set_decimal");
+  DBUG_TRACE;
 
   const char *end = str + length;
   str2my_decimal(E_DEC_FATAL_ERROR, str, &decimal_value, &end);
@@ -3343,7 +3337,6 @@ void Item_param::set_decimal(const char *str, ulong length) {
   max_length = my_decimal_precision_to_length_no_truncation(
       decimal_value.precision(), decimals, unsigned_flag);
   maybe_null = 0;
-  DBUG_VOID_RETURN;
 }
 
 void Item_param::set_decimal(const my_decimal *dv) {
@@ -3372,7 +3365,7 @@ void Item_param::set_decimal(const my_decimal *dv) {
 */
 void Item_param::set_time(MYSQL_TIME *tm, enum_mysql_timestamp_type time_type,
                           uint32 max_length_arg) {
-  DBUG_ENTER("Item_param::set_time");
+  DBUG_TRACE;
 
   value.time = *tm;
   value.time.time_type = time_type;
@@ -3392,11 +3385,10 @@ void Item_param::set_time(MYSQL_TIME *tm, enum_mysql_timestamp_type time_type,
   state = TIME_VALUE;
   maybe_null = 0;
   max_length = max_length_arg;
-  DBUG_VOID_RETURN;
 }
 
 bool Item_param::set_str(const char *str, size_t length) {
-  DBUG_ENTER("Item_param::set_str");
+  DBUG_TRACE;
   /*
     Assign string with no conversion: data is converted only after it's
     been written to the binary log.
@@ -3404,17 +3396,17 @@ bool Item_param::set_str(const char *str, size_t length) {
   uint dummy_errors;
   if (str_value.copy(str, length, &my_charset_bin, &my_charset_bin,
                      &dummy_errors))
-    DBUG_RETURN(true);
+    return true;
   state = STRING_VALUE;
   max_length = length;
   maybe_null = 0;
   /* max_length and decimals are set after charset conversion */
   /* sic: str may be not null-terminated, don't add DBUG_PRINT here */
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool Item_param::set_longdata(const char *str, ulong length) {
-  DBUG_ENTER("Item_param::set_longdata");
+  DBUG_TRACE;
 
   /*
     If client character set is multibyte, end of long data packet
@@ -3431,14 +3423,14 @@ bool Item_param::set_longdata(const char *str, ulong length) {
                "mysql_send_long_data() is longer than "
                "'max_allowed_packet' bytes",
                MYF(0));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  if (str_value.append(str, length, &my_charset_bin)) DBUG_RETURN(true);
+  if (str_value.append(str, length, &my_charset_bin)) return true;
   state = LONG_DATA_VALUE;
   maybe_null = 0;
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -3454,7 +3446,7 @@ bool Item_param::set_longdata(const char *str, ulong length) {
 */
 
 bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
-  DBUG_ENTER("Item_param::set_from_user_var");
+  DBUG_TRACE;
   if (entry && entry->ptr()) {
     item_result_type = entry->type();
     unsigned_flag = entry->unsigned_flag;
@@ -3462,7 +3454,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
       bool unused;
       set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
       item_type = Item::INT_ITEM;
-      DBUG_RETURN(!unsigned_flag && value.integer < 0 ? 1 : 0);
+      return !unsigned_flag && value.integer < 0 ? 1 : 0;
     }
     switch (item_result_type) {
       case REAL_RESULT:
@@ -3496,7 +3488,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
         */
         item_type = Item::STRING_ITEM;
 
-        if (set_str(entry->ptr(), entry->length())) DBUG_RETURN(1);
+        if (set_str(entry->ptr(), entry->length())) return 1;
         break;
       }
       case DECIMAL_RESULT: {
@@ -3516,7 +3508,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
   } else
     set_null();
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -3528,7 +3520,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry) {
 */
 
 void Item_param::reset() {
-  DBUG_ENTER("Item_param::reset");
+  DBUG_TRACE;
   /* Shrink string buffer if it's bigger than max possible CHAR column */
   if (str_value.alloced_length() > MAX_CHAR_WIDTH)
     str_value.mem_free();
@@ -3553,7 +3545,6 @@ void Item_param::reset() {
     DBUG_ASSERTS(state != NO_VALUE) in all Item_param::get_*
     methods).
   */
-  DBUG_VOID_RETURN;
 }
 
 type_conversion_status Item_param::save_in_field_inner(Field *field,
@@ -4607,7 +4598,7 @@ static Item **find_field_in_group_list(Item *find_item, ORDER *group_list) {
 
 static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
                                               SELECT_LEX *select) {
-  DBUG_ENTER("resolve_ref_in_select_and_group");
+  DBUG_TRACE;
   Item **select_ref = NULL;
   ORDER *group_list = select->group_list.first;
   uint counter;
@@ -4620,7 +4611,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
   if (!(select_ref =
             find_item_in_list(thd, ref, *(select->get_item_list()), &counter,
                               REPORT_EXCEPT_NOT_FOUND, &resolution)))
-    DBUG_RETURN(NULL); /* Some error occurred. */
+    return NULL; /* Some error occurred. */
   if (resolution == RESOLVED_AGAINST_ALIAS) ref->set_alias_of_expr();
 
   /* If this is a non-aggregated field inside HAVING, search in GROUP BY. */
@@ -4635,10 +4626,10 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
                           thd->where);
     }
 
-    if (group_by_ref != nullptr) DBUG_RETURN(group_by_ref);
+    if (group_by_ref != nullptr) return group_by_ref;
   }
 
-  if (select_ref == not_found_item) DBUG_RETURN(not_found_item);
+  if (select_ref == not_found_item) return not_found_item;
 
   if ((*select_ref)->has_wf()) {
     /*
@@ -4646,7 +4637,7 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
       a subquery or a HAVING clause
     */
     my_error(ER_WINDOW_INVALID_WINDOW_FUNC_ALIAS_USE, MYF(0), ref->field_name);
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   /*
@@ -4665,12 +4656,12 @@ static Item **resolve_ref_in_select_and_group(THD *thd, Item_ident *ref,
   if (select->base_ref_items[counter] == nullptr) {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0), ref->item_name.ptr(),
              "forward reference in item list");
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   DBUG_ASSERT((*select_ref)->fixed);
 
-  DBUG_RETURN(&select->base_ref_items[counter]);
+  return &select->base_ref_items[counter];
 }
 
 /**
@@ -5340,7 +5331,7 @@ Item *Item_field::safe_charset_converter(THD *thd, const CHARSET_INFO *tocs) {
 }
 
 void Item_field::cleanup() {
-  DBUG_ENTER("Item_field::cleanup");
+  DBUG_TRACE;
   Item_ident::cleanup();
   /*
     Even if this object was created by direct link to field in setup_wild()
@@ -5351,7 +5342,6 @@ void Item_field::cleanup() {
   field = result_field = 0;
   item_equal = NULL;
   null_value = false;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -5844,12 +5834,12 @@ void Item_field::save_org_in_field(Field *to) {
 type_conversion_status Item_field::save_in_field_inner(Field *to,
                                                        bool no_conversions) {
   type_conversion_status res;
-  DBUG_ENTER("Item_field::save_in_field_inner");
+  DBUG_TRACE;
   if (field->is_null()) {
     null_value = 1;
     const type_conversion_status status =
         set_field_to_null_with_conversions(to, no_conversions);
-    DBUG_RETURN(status);
+    return status;
   }
   to->set_notnull();
 
@@ -5859,12 +5849,12 @@ type_conversion_status Item_field::save_in_field_inner(Field *to,
   */
   if (to == field) {
     null_value = 0;
-    DBUG_RETURN(TYPE_OK);
+    return TYPE_OK;
   }
 
   res = field_conv(to, field);
   null_value = 0;
-  DBUG_RETURN(res);
+  return res;
 }
 
 /**
@@ -5892,7 +5882,7 @@ type_conversion_status Item_null::save_in_field_inner(Field *field,
 }
 
 type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
-  DBUG_ENTER("Item::save_in_field");
+  DBUG_TRACE;
   // In case this is a hidden column used for a functional index, insert
   // an error handler that catches any errors that tries to print out the
   // name of the hidden column. It will instead print out the functional
@@ -5908,9 +5898,9 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
     sure that we return not OK if there was an error.
   */
   if (ret == TYPE_OK && field->table && field->table->in_use->is_error())
-    DBUG_RETURN(TYPE_ERR_BAD_VALUE);
+    return TYPE_ERR_BAD_VALUE;
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /*
@@ -7149,7 +7139,7 @@ Item_ref::Item_ref(Name_resolution_context *context_arg, Item **item,
 */
 
 bool Item_ref::fix_fields(THD *thd, Item **reference) {
-  DBUG_ENTER("Item_ref::fix_fields");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 0);
 
   Internal_error_handler_holder<View_error_handler, TABLE_LIST> view_handler(
@@ -7265,7 +7255,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
               view reference found, we substituted it instead of this
               Item, so can quit
             */
-            DBUG_RETURN(false);
+            return false;
           }
           if (from_field != not_found_field) {
             if (cached_table && cached_table->select_lex &&
@@ -7322,7 +7312,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
                 last_checked_context->select_lex->nest_level)
           set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                         last_checked_context->select_lex->nest_level);
-        DBUG_RETURN(false);
+        return false;
       }
       if (ref == 0) {
         /* The item was not a table field and not a reference */
@@ -7376,14 +7366,14 @@ bool Item_ref::fix_fields(THD *thd, Item **reference) {
   set_properties();
 
   if ((*ref)->check_cols(1)) goto error;
-  DBUG_RETURN(false);
+  return false;
 
 error:
-  DBUG_RETURN(true);
+  return true;
 }
 
 void Item_ref::set_properties() {
-  DBUG_ENTER("Item_ref::set_properties");
+  DBUG_TRACE;
 
   set_data_type((*ref)->data_type());
   max_length = (*ref)->max_length;
@@ -7400,16 +7390,13 @@ void Item_ref::set_properties() {
   if ((*ref)->type() == FIELD_ITEM &&
       ((Item_ident *)(*ref))->is_alias_of_expr())
     set_alias_of_expr();
-
-  DBUG_VOID_RETURN;
 }
 
 void Item_ref::cleanup() {
-  DBUG_ENTER("Item_ref::cleanup");
+  DBUG_TRACE;
   Item_ident::cleanup();
   result_field = 0;
   if (chop_ref) ref = NULL;
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -7581,10 +7568,10 @@ void Item_ref::make_field(Send_field *field) {
 }
 
 Item *Item_ref::get_tmp_table_item(THD *thd) {
-  DBUG_ENTER("Item_ref::get_tmp_table_item");
+  DBUG_TRACE;
   if (!result_field) {
     Item *result = (*ref)->get_tmp_table_item(thd);
-    DBUG_RETURN(result);
+    return result;
   }
 
   Item_field *item = new Item_field(result_field);
@@ -7592,7 +7579,7 @@ Item *Item_ref::get_tmp_table_item(THD *thd) {
     item->table_name = table_name;
     item->db_name = db_name;
   }
-  DBUG_RETURN(item);
+  return item;
 }
 
 void Item_ref_null_helper::print(const THD *thd, String *str,
@@ -9012,11 +8999,10 @@ bool Item_cache_row::cache_value() {
 
 void Item_cache_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
-  DBUG_ENTER("Item_cache_row::illegal_method_call");
+  DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   DBUG_ASSERT(0);
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-  DBUG_VOID_RETURN;
 }
 
 bool Item_cache_row::check_cols(uint c) {
@@ -9151,7 +9137,7 @@ enum_field_types Item_type_holder::real_data_type(Item *item) {
 */
 
 bool Item_type_holder::join_types(THD *thd, Item *item) {
-  DBUG_ENTER("Item_type_holder::join_types");
+  DBUG_TRACE;
   DBUG_PRINT("info:",
              ("was type %d len %d, dec %d name %s", data_type(), max_length,
               decimals, (item_name.is_set() ? item_name.ptr() : "<NULL>")));
@@ -9193,7 +9179,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item) {
 
   Item_result merge_type = Field::result_merge_type(data_type());
   if (merge_type == STRING_RESULT) {
-    if (aggregate_string_properties("UNION", args, 2)) DBUG_RETURN(true);
+    if (aggregate_string_properties("UNION", args, 2)) return true;
     /*
       For geometry columns, we must also merge subtypes. If the
       subtypes are different, use GEOMETRY.
@@ -9208,7 +9194,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item) {
   get_full_info(item);
   DBUG_PRINT("info", ("become type: %d  len: %u  dec: %u", (int)data_type(),
                       max_length, (uint)decimals));
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -9373,10 +9359,9 @@ String *Item_type_holder::val_str(String *) {
 }
 
 void Item_result_field::cleanup() {
-  DBUG_ENTER("Item_result_field::cleanup()");
+  DBUG_TRACE;
   Item::cleanup();
   result_field = 0;
-  DBUG_VOID_RETURN;
 }
 
 void Item_result_field::raise_numeric_overflow(const char *type_name) {

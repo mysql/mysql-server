@@ -319,7 +319,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
   char tablename[FN_REFLEN], hard_path[FN_REFLEN],
       escaped_name[FN_REFLEN * 2 + 1], sql_statement[FN_REFLEN * 16 + 256],
       *end, *pos;
-  DBUG_ENTER("write_to_table");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("filename: %s", filename));
 
   fn_format(tablename, filename, "", "", 1 | 2); /* removes path & ext. */
@@ -334,7 +334,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
     snprintf(sql_statement, FN_REFLEN * 16 + 256, "DELETE FROM %s", tablename);
     if (mysql_query(mysql, sql_statement)) {
       db_error_with_table(mysql, tablename);
-      DBUG_RETURN(1);
+      return 1;
     }
   }
   to_unix_path(hard_path);
@@ -379,7 +379,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
 
   if (mysql_query(mysql, sql_statement)) {
     db_error_with_table(mysql, tablename);
-    DBUG_RETURN(1);
+    return 1;
   }
   if (!silent) {
     if (mysql_info(mysql)) /* If NULL-pointer, print nothing */
@@ -387,7 +387,7 @@ static int write_to_table(char *filename, MYSQL *mysql) {
       fprintf(stdout, "%s.%s: %s\n", current_db, tablename, mysql_info(mysql));
     }
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static void lock_table(MYSQL *mysql, int tablecount, char **raw_tablename) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,9 @@ Logical_clock::Logical_clock() : state(SEQ_UNINIT), offset(0) {}
  */
 inline int64 Logical_clock::get_timestamp() {
   int64 retval = 0;
-  DBUG_ENTER("Logical_clock::get_timestamp");
+  DBUG_TRACE;
   retval = state.load();
-  DBUG_RETURN(retval);
+  return retval;
 }
 
 /**
@@ -83,7 +83,7 @@ inline int64 Logical_clock::set_if_greater(int64 new_val) {
   longlong old_val = new_val - 1;
   bool cas_rc;
 
-  DBUG_ENTER("Logical_clock::set_if_greater");
+  DBUG_TRACE;
 
   DBUG_ASSERT(new_val > 0);
 
@@ -94,7 +94,7 @@ inline int64 Logical_clock::set_if_greater(int64 new_val) {
       transaction does not change the clock, similarly to how
       its timestamps are handled at flushing.
     */
-    DBUG_RETURN(SEQ_UNINIT);
+    return SEQ_UNINIT;
   }
 
   DBUG_ASSERT(new_val > 0);
@@ -108,7 +108,7 @@ inline int64 Logical_clock::set_if_greater(int64 new_val) {
 
   DBUG_ASSERT(cas_rc || old_val >= new_val);
 
-  DBUG_RETURN(cas_rc ? new_val : old_val);
+  return cas_rc ? new_val : old_val;
 }
 
 /*

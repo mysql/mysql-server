@@ -539,11 +539,11 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 /** Fill tablespace name from dd::Tablespace. */
 static bool fill_tablespace_from_dd(THD *thd, TABLE_SHARE *share,
                                     const dd::Table *tab_obj) {
-  DBUG_ENTER("fill_tablespace_from_dd");
+  DBUG_TRACE;
 
-  DBUG_RETURN(dd::get_tablespace_name<dd::Table>(
+  return dd::get_tablespace_name<dd::Table>(
       thd, tab_obj, const_cast<const char **>(&share->tablespace),
-      &share->mem_root));
+      &share->mem_root);
 }
 
 /**
@@ -2278,7 +2278,7 @@ static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
 }
 
 bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
-  DBUG_ENTER("open_table_def");
+  DBUG_TRACE;
 
   MEM_ROOT *old_root = thd->mem_root;
   thd->mem_root = &share->mem_root;  // Needed for make_field()++
@@ -2299,9 +2299,9 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, const dd::Table &table_def) {
   if (!error) {
     share->table_category = get_table_category(share->db, share->table_name);
     thd->status_var.opened_shares++;
-    DBUG_RETURN(false);
+    return false;
   }
-  DBUG_RETURN(true);
+  return true;
 }
 
 /*

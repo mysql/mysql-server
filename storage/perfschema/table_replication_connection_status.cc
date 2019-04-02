@@ -275,7 +275,7 @@ int table_replication_connection_status::index_next(void) {
 }
 
 int table_replication_connection_status::make_row(Master_info *mi) {
-  DBUG_ENTER("table_replication_connection_status::make_row");
+  DBUG_TRACE;
   bool error = false;
   Trx_monitoring_info queueing_trx;
   Trx_monitoring_info last_queued_trx;
@@ -395,10 +395,10 @@ int table_replication_connection_status::make_row(Master_info *mi) {
 
 end:
   if (error) {
-    DBUG_RETURN(HA_ERR_RECORD_DELETED);
+    return HA_ERR_RECORD_DELETED;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 int table_replication_connection_status::read_row_values(TABLE *table,

@@ -303,7 +303,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                         Field **default_field, bool group, bool modify_item,
                         bool table_cant_handle_bit_fields, bool make_copy_field,
                         bool copy_result_field) {
-  DBUG_ENTER("create_tmp_field");
+  DBUG_TRACE;
   Field *result = NULL;
   Item::Type orig_type = type;
   Item *orig_item = 0;
@@ -440,7 +440,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       DBUG_ASSERT(false);
       break;
   }
-  DBUG_RETURN(result);
+  return result;
 }
 
 /*
@@ -857,7 +857,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint max_key_length, max_key_part_length, max_key_parts;
   /* Treat sum functions as normal ones when loose index scan is used. */
   save_sum_fields |= param->precomputed_group_by;
-  DBUG_ENTER("create_tmp_table");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("distinct: %d  save_sum_fields: %d  rows_limit: %lu  group: %d",
               (int)distinct, (int)save_sum_fields, (ulong)rows_limit,
@@ -900,7 +900,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   init_sql_alloc(key_memory_TABLE, &own_root, TABLE_ALLOC_BLOCK_SIZE, 0);
 
   void *rawmem = own_root.Alloc(sizeof(Func_ptr_array));
-  if (!rawmem) DBUG_RETURN(NULL); /* purecov: inspected */
+  if (!rawmem) return NULL; /* purecov: inspected */
   Func_ptr_array *copy_func = new (rawmem) Func_ptr_array(&own_root);
   copy_func->reserve(copy_func_count);
 
@@ -914,13 +914,13 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           sizeof(*key_part_info) * (param->group_parts + 1), &group_buff,
           (group && !using_unique_constraint ? param->group_length : 0),
           &bitmaps, bitmap_buffer_size(field_count + 1) * 3, NullS)) {
-    DBUG_RETURN(NULL); /* purecov: inspected */
+    return NULL; /* purecov: inspected */
   }
 
   try {
     param->copy_fields.reserve(field_count);
   } catch (std::bad_alloc &) {
-    DBUG_RETURN(nullptr);
+    return nullptr;
   }
 
   param->items_to_copy = copy_func;
@@ -1537,12 +1537,12 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 
   DEBUG_SYNC(thd, "tmp_table_created");
 
-  DBUG_RETURN(table);
+  return table;
 
 err:
   thd->mem_root = mem_root_save;
   free_tmp_table(thd, table); /* purecov: inspected */
-  DBUG_RETURN(NULL);          /* purecov: inspected */
+  return NULL;                /* purecov: inspected */
 }
 
 /*
@@ -1598,12 +1598,12 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   uchar *pos;
   uint i;
 
-  DBUG_ENTER("create_duplicate_weedout_tmp_table");
+  DBUG_TRACE;
   DBUG_ASSERT(!sjtbl->is_confluent);
 
   DBUG_EXECUTE_IF("create_duplicate_weedout_tmp_table_error", {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
-    DBUG_RETURN(nullptr);
+    return nullptr;
   });
 
   /* STEP 1: Figure if we'll be using a key or blob+constraint */
@@ -1618,7 +1618,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
           sizeof(*keyinfo), &key_part_info, sizeof(*key_part_info) * 2,
           &group_buff, (!using_unique_constraint ? uniq_tuple_length_arg : 0),
           &bitmaps, bitmap_buffer_size(1) * 3, NullS)) {
-    DBUG_RETURN(NULL);
+    return NULL;
   }
 
   /* STEP 3: Create TABLE description */
@@ -1658,7 +1658,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     */
     field = new (thd->mem_root) Field_varstring(
         uniq_tuple_length_arg, false, "rowids", share, &my_charset_bin);
-    if (!field) DBUG_RETURN(0);
+    if (!field) return 0;
     field->table = table;
     field->auto_flags = Field::NONE;
     field->flags = (NOT_NULL_FLAG | BINARY_FLAG | NO_DEFAULT_VALUE_FLAG);
@@ -1754,13 +1754,13 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   if (instantiate_tmp_table(thd, table)) goto err;
 
   thd->mem_root = mem_root_save;
-  DBUG_RETURN(table);
+  return table;
 
 err:
   thd->mem_root = mem_root_save;
   table->file->ha_index_or_rnd_end();
   free_tmp_table(thd, table); /* purecov: inspected */
-  DBUG_RETURN(NULL);          /* purecov: inspected */
+  return NULL;                /* purecov: inspected */
 }
 
 /****************************************************************************/
@@ -2125,7 +2125,7 @@ bool open_tmp_table(TABLE *table) {
 static bool create_tmp_table_with_fallback(TABLE *table) {
   TABLE_SHARE *share = table->s;
 
-  DBUG_ENTER("create_tmp_table_with_fallback");
+  DBUG_TRACE;
 
   HA_CREATE_INFO create_info;
 
@@ -2143,7 +2143,7 @@ static bool create_tmp_table_with_fallback(TABLE *table) {
       if ((*field)->type() == MYSQL_TYPE_STRING &&
           (*field)->key_length() > 1024) {
         my_error(ER_TOO_LONG_KEY, MYF(0), 1024);
-        DBUG_RETURN(true);
+        return true;
       }
     }
   }
@@ -2161,12 +2161,12 @@ static bool create_tmp_table_with_fallback(TABLE *table) {
   if (error) {
     table->file->print_error(error, MYF(0)); /* purecov: inspected */
     table->db_stat = 0;
-    DBUG_RETURN(true);
+    return true;
   } else {
     if (table->s->db_type() != temptable_hton) {
       table->in_use->inc_status_created_tmp_disk_tables();
     }
-    DBUG_RETURN(false);
+    return false;
   }
 }
 
@@ -2271,7 +2271,7 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
 */
 void free_tmp_table(THD *thd, TABLE *entry) {
   const char *save_proc_info;
-  DBUG_ENTER("free_tmp_table");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", entry->alias));
 
   save_proc_info = thd->proc_info;
@@ -2316,8 +2316,6 @@ void free_tmp_table(THD *thd, TABLE *entry) {
   }
 
   thd_proc_info(thd, save_proc_info);
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -2385,7 +2383,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
   bool rows_on_disk = false;
 #endif
   bool table_on_disk = false;
-  DBUG_ENTER("create_ondisk_from_heap");
+  DBUG_TRACE;
 
   if (error != HA_ERR_RECORD_FILE_FULL) {
     /*
@@ -2393,7 +2391,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       INSERT IGNORE ... SELECT.
     */
     wtable->file->print_error(error, MYF(ME_FATALERROR));
-    DBUG_RETURN(1);
+    return 1;
   }
 
   if (wtable->s->db_type() != heap_hton) {
@@ -2404,7 +2402,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
       temptable_use_mmap to true to use mmap'ed files for temporary
       tables. */
       wtable->file->print_error(error, MYF(ME_FATALERROR));
-      DBUG_RETURN(1);
+      return 1;
     }
 
     /* If we are here, then the in-memory temporary tables need
@@ -2672,7 +2670,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
                             ? "Copying to tmp table on disk"
                             : save_proc_info));
-  DBUG_RETURN(0);
+  return 0;
 
 err_after_open:
   if (write_err) {
@@ -2689,7 +2687,7 @@ err_after_proc_info:
   thd_proc_info(thd, save_proc_info);
   // New share took control of old share mem_root; regain control:
   old_share->mem_root = std::move(share.mem_root);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /**

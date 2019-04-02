@@ -738,7 +738,7 @@ end:
 
 bool Plugin_gcs_events_handler::was_member_expelled_from_group(
     const Gcs_view &view) const {
-  DBUG_ENTER("Plugin_gcs_events_handler::was_member_expelled_from_group");
+  DBUG_TRACE;
   bool result = false;
 
   if (view.get_error_code() == Gcs_view::MEMBER_EXPELLED) {
@@ -785,7 +785,7 @@ bool Plugin_gcs_events_handler::was_member_expelled_from_group(
     }
   }
 
-  DBUG_RETURN(result);
+  return result;
 }
 
 void Plugin_gcs_events_handler::handle_leader_election_if_needed(

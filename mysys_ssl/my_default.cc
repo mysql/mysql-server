@@ -285,13 +285,13 @@ static char *remove_end_comment(char *ptr);
 static int fn_expand(const char *filename, char *result_buf) {
   char dir[FN_REFLEN];
   const int flags = MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
-  DBUG_ENTER("fn_expand");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("filename: %s, result_buf: %p", filename, result_buf));
-  if (my_getwd(dir, sizeof(dir), MYF(0))) DBUG_RETURN(3);
+  if (my_getwd(dir, sizeof(dir), MYF(0))) return 3;
   DBUG_PRINT("debug", ("dir: %s", dir));
-  if (fn_format(result_buf, filename, dir, "", flags) == NULL) DBUG_RETURN(2);
+  if (fn_format(result_buf, filename, dir, "", flags) == NULL) return 2;
   DBUG_PRINT("return", ("result: %s", result_buf));
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /*
@@ -338,7 +338,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   const char **dirs;
   char *forced_default_file, *forced_extra_defaults;
   int error = 0;
-  DBUG_ENTER("my_search_option_files");
+  DBUG_TRACE;
 
   /* Skip for login file. */
   if (!is_login_file) {
@@ -354,14 +354,14 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     if (forced_extra_defaults && !defaults_already_read) {
       int error =
           fn_expand(forced_extra_defaults, my_defaults_extra_file_buffer);
-      if (error) DBUG_RETURN(error);
+      if (error) return error;
 
       my_defaults_extra_file = my_defaults_extra_file_buffer;
     }
 
     if (forced_default_file && !defaults_already_read) {
       int error = fn_expand(forced_default_file, my_defaults_file_buffer);
-      if (error) DBUG_RETURN(error);
+      if (error) return error;
       my_defaults_file = my_defaults_file_buffer;
     }
 
@@ -384,7 +384,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
       if (!(extra_groups = (const char **)ctx->alloc->Alloc(
                 (2 * group->count + 1) * sizeof(char *))))
-        DBUG_RETURN(2);
+        return 2;
 
       for (i = 0; i < group->count; i++) {
         size_t len;
@@ -392,7 +392,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
         len = strlen(extra_groups[i]);
         if (!(ptr = (char *)ctx->alloc->Alloc((uint)(len + instance_len + 1))))
-          DBUG_RETURN(2);
+          return 2;
 
         extra_groups[i + group->count] = ptr;
 
@@ -417,7 +417,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
 
     if (!(extra_groups = (const char **)ctx->alloc->Alloc((group->count + 3) *
                                                           sizeof(char *))))
-      DBUG_RETURN(2);
+      return 2;
 
     for (i = 0; i < group->count; i++) {
       extra_groups[i] = group->type_names[i]; /** copy group */
@@ -430,7 +430,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       len = strlen(extra_groups[i]);
 
       if (!(ptr = (char *)ctx->alloc->Alloc((uint)(len + instance_len + 1))))
-        DBUG_RETURN(2);
+        return 2;
 
       extra_groups[i + 1] = ptr;
 
@@ -481,11 +481,11 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   my_message_local(ERROR_LEVEL, EE_FAILED_TO_HANDLE_DEFAULTS_FILE);
-  DBUG_RETURN(1);
+  return 1;
 }
 
 /*
@@ -677,7 +677,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   char my_login_file[FN_REFLEN];
   bool found_no_defaults = false;
   uint args_sep = my_getopt_use_args_separator ? 1 : 0;
-  DBUG_ENTER("load_defaults");
+  DBUG_TRACE;
 
   if ((dirs = init_default_directories(alloc)) == NULL) goto err;
   /*
@@ -700,7 +700,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
   if ((error = my_search_option_files(conf_file, argc, argv, &args_used,
                                       handle_default_option, (void *)&ctx, dirs,
                                       false, found_no_defaults))) {
-    DBUG_RETURN(error);
+    return error;
   }
 
   if (my_defaults_read_login_file) {
@@ -710,7 +710,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
                                         handle_default_option, (void *)&ctx,
                                         dirs, true, found_no_defaults))) {
       free_root(alloc, MYF(0));
-      DBUG_RETURN(error);
+      return error;
     }
   }
   /*
@@ -756,7 +756,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
 
   if (default_directories) *default_directories = dirs;
 
-  if (found_no_defaults) DBUG_RETURN(0);
+  if (found_no_defaults) return 0;
 
   if (found_print_defaults) {
     int i;
@@ -775,7 +775,7 @@ int my_load_defaults(const char *conf_file, const char **groups, int *argc,
     exit(0);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 
 err:
   my_message_local(ERROR_LEVEL, EE_FAILED_TO_HANDLE_DEFAULTS_FILE);

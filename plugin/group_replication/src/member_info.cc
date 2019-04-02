@@ -181,7 +181,7 @@ void Group_member_info::update(
 */
 void Group_member_info::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Group_member_info::encode_payload");
+  DBUG_TRACE;
 
   encode_payload_item_string(buffer, PIT_HOSTNAME, hostname.c_str(),
                              hostname.length());
@@ -260,13 +260,11 @@ void Group_member_info::encode_payload(
 #endif
     encode_payload_item_char(buffer, PIT_DEFAULT_TABLE_ENCRYPTION,
                              default_table_encryption_aux);
-
-  DBUG_VOID_RETURN;
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
                                        const unsigned char *end) {
-  DBUG_ENTER("Group_member_info::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -390,8 +388,6 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
         break;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 string Group_member_info::get_hostname() {
@@ -1181,52 +1177,43 @@ std::string Group_member_info_manager::get_string_current_view_active_hosts()
 
 Group_member_info_manager_message::Group_member_info_manager_message()
     : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE) {
-  DBUG_ENTER(
-      "Group_member_info_manager_message::Group_member_info_manager_message");
+  DBUG_TRACE;
   members = new vector<Group_member_info *>();
-  DBUG_VOID_RETURN;
 }
 
 Group_member_info_manager_message::Group_member_info_manager_message(
     Group_member_info_manager &group_info)
     : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE),
       members(group_info.get_all_members()) {
-  DBUG_ENTER(
-      "Group_member_info_manager_message::Group_member_info_manager_message");
-  DBUG_VOID_RETURN;
+  DBUG_TRACE;
 }
 
 Group_member_info_manager_message::Group_member_info_manager_message(
     Group_member_info *member_info)
     : Plugin_gcs_message(CT_MEMBER_INFO_MANAGER_MESSAGE), members(NULL) {
-  DBUG_ENTER(
-      "Group_member_info_manager_message::Group_member_info_manager_message");
+  DBUG_TRACE;
   members = new vector<Group_member_info *>();
   members->push_back(member_info);
-  DBUG_VOID_RETURN;
 }
 
 Group_member_info_manager_message::~Group_member_info_manager_message() {
-  DBUG_ENTER(
-      "Group_member_info_manager_message::~Group_member_info_manager_message");
+  DBUG_TRACE;
   clear_members();
   delete members;
-  DBUG_VOID_RETURN;
 }
 
 void Group_member_info_manager_message::clear_members() {
-  DBUG_ENTER("Group_member_info_manager_message::clear_members");
+  DBUG_TRACE;
   std::vector<Group_member_info *>::iterator it;
   for (it = members->begin(); it != members->end(); it++) {
     delete (*it);
   }
   members->clear();
-  DBUG_VOID_RETURN;
 }
 
 std::vector<Group_member_info *>
     *Group_member_info_manager_message::get_all_members() {
-  DBUG_ENTER("Group_member_info_manager_message::get_all_members");
+  DBUG_TRACE;
   vector<Group_member_info *> *all_members = new vector<Group_member_info *>();
 
   std::vector<Group_member_info *>::iterator it;
@@ -1235,12 +1222,12 @@ std::vector<Group_member_info *>
     all_members->push_back(member_copy);
   }
 
-  DBUG_RETURN(all_members);
+  return all_members;
 }
 
 void Group_member_info_manager_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Group_member_info_manager_message::encode_payload");
+  DBUG_TRACE;
 
   uint16 number_of_members = (uint16)members->size();
   encode_payload_item_int2(buffer, PIT_MEMBERS_NUMBER, number_of_members);
@@ -1254,13 +1241,11 @@ void Group_member_info_manager_message::encode_payload(
                                         encoded_member.size());
     buffer->insert(buffer->end(), encoded_member.begin(), encoded_member.end());
   }
-
-  DBUG_VOID_RETURN;
 }
 
 void Group_member_info_manager_message::decode_payload(
     const unsigned char *buffer, const unsigned char *) {
-  DBUG_ENTER("Group_member_info_manager_message::decode_payload");
+  DBUG_TRACE;
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;
@@ -1284,6 +1269,4 @@ void Group_member_info_manager_message::decode_payload(
     members->push_back(member);
     slider += payload_item_length;
   }
-
-  DBUG_VOID_RETURN;
 }

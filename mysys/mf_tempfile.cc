@@ -92,7 +92,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
   TCHAR path_buf[MAX_PATH - 14];
 #endif
 
-  DBUG_ENTER("create_temp_file");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("dir: %s, prefix: %s", dir, prefix));
 #if defined(_WIN32)
 
@@ -110,7 +110,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     the file and release it's handle
      - uses up to the first three letters from prefix
   */
-  if (GetTempFileName(dir, prefix, 0, to) == 0) DBUG_RETURN(-1);
+  if (GetTempFileName(dir, prefix, 0, to) == 0) return -1;
 
   DBUG_PRINT("info", ("name: %s", to));
 
@@ -123,7 +123,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     int tmp = my_errno();
     (void)my_delete(to, MYF(0));
     set_my_errno(tmp);
-    DBUG_RETURN(file);
+    return file;
   }
   if (unlink_or_keep == UNLINK_FILE) {
     my_delete(to, MYF(0));
@@ -143,7 +143,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     if (max_filename_len >= FN_REFLEN) {
       errno = ENAMETOOLONG;
       set_my_errno(ENAMETOOLONG);
-      DBUG_RETURN(file);
+      return file;
     }
 
     /* Explicitly don't use O_EXCL here as it has a different
@@ -171,7 +171,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     if (strlen(dir) + pfx_len > FN_REFLEN - 2) {
       errno = ENAMETOOLONG;
       set_my_errno(ENAMETOOLONG);
-      DBUG_RETURN(file);
+      return file;
     }
     my_stpcpy(convert_dirname(to, dir, NullS), prefix_buff);
     org_file = mkstemp(to);
@@ -183,7 +183,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
       close(org_file);
       (void)my_delete(to, MYF(MY_WME));
       set_my_errno(tmp);
-      DBUG_RETURN(file);
+      return file;
     }
     if (unlink_or_keep == UNLINK_FILE) {
       unlink(to);
@@ -195,5 +195,5 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
     my_tmp_file_created++;
     mysql_mutex_unlock(&THR_LOCK_open);
   }
-  DBUG_RETURN(file);
+  return file;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                   uint key_length, uchar *page_buf, my_off_t *new_page) {
   uint page_size = mi_getint(page_buf);
   uint nod_flag = mi_test_if_nod(page_buf);
-  DBUG_ENTER("rtree_add_key");
+  DBUG_TRACE;
 
   if (page_size + key_length + info->s->base.rec_reflength <=
       keyinfo->block_length) {
@@ -60,13 +60,12 @@ int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
       page_size += key_length + info->s->base.rec_reflength;
     }
     mi_putint(page_buf, page_size, nod_flag);
-    DBUG_RETURN(0);
+    return 0;
   }
 
-  DBUG_RETURN(
-      (rtree_split_page(info, keyinfo, page_buf, key, key_length, new_page)
-           ? -1
-           : 1));
+  return (rtree_split_page(info, keyinfo, page_buf, key, key_length, new_page)
+              ? -1
+              : 1);
 }
 
 /*
@@ -94,11 +93,11 @@ int rtree_delete_key(MI_INFO *info, uchar *page_buf, uchar *key,
 
 int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                       uint key_length, my_off_t child_page) {
-  DBUG_ENTER("rtree_set_key_mbr");
+  DBUG_TRACE;
 
   if (!_mi_fetch_keypage(info, keyinfo, child_page, DFLT_INIT_HITS, info->buff,
                          0))
-    DBUG_RETURN(-1); /* purecov: inspected */
+    return -1; /* purecov: inspected */
 
-  DBUG_RETURN(rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length));
+  return rtree_page_mbr(info, keyinfo->seg, info->buff, key, key_length);
 }

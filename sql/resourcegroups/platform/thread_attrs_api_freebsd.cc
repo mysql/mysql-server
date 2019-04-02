@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ bool bind_to_cpu(cpu_id_t cpu_id) {
 }
 
 bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id) {
-  DBUG_ENTER("bind_to_cpu");
+  DBUG_TRACE;
 
   cpuset_t cpu_set;
 
@@ -53,9 +53,9 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED, thread_id, cpu_id,
            my_errno(), my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids) {
@@ -64,9 +64,9 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids) {
 
 bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
                   my_thread_os_id_t thread_id) {
-  DBUG_ENTER("bind_to_cpu");
+  DBUG_TRACE;
 
-  if (cpu_ids.empty()) DBUG_RETURN(false);
+  if (cpu_ids.empty()) return false;
 
   cpuset_t cpu_set;
 
@@ -78,15 +78,15 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SET_THR_AFFINITY_FAILED, thread_id,
            my_errno(), my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
-    DBUG_RETURN(true);
+    return true;
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 bool unbind_thread() { return unbind_thread(my_thread_os_id()); }
 
 bool unbind_thread(my_thread_os_id_t thread_id) {
-  DBUG_ENTER("unbind_thread");
+  DBUG_TRACE;
 
   cpuset_t cpu_set;
 
@@ -96,7 +96,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED, thread_id,
            my_errno(), my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
-    DBUG_RETURN(true);
+    return true;
   }
   for (cpu_id_t cpu_id = 0; cpu_id < num_cpus; ++cpu_id)
     CPU_SET(cpu_id, &cpu_set);
@@ -105,10 +105,10 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED, thread_id,
            my_errno(), my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
-    DBUG_RETURN(true);
+    return true;
   }
 
-  DBUG_RETURN(false);
+  return false;
 }
 
 int thread_priority() { return getpriority(PRIO_PROCESS, my_thread_os_id()); }
@@ -124,9 +124,9 @@ bool set_thread_priority(int priority) {
 }
 
 bool set_thread_priority(int, my_thread_os_id_t) {
-  DBUG_ENTER("set_thread_priority");
+  DBUG_TRACE;
   // Thread priority setting unsupported in FreeBSD.
-  DBUG_RETURN(false);
+  return false;
 }
 
 uint32_t num_vcpus_using_affinity() {

@@ -305,7 +305,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
                                   Binlog_cache_storage *stmt_cache_log,
                                   ulonglong cache_log_max_size,
                                   bool is_atomic_ddl_arg) {
-  DBUG_ENTER("Trans_delegate::before_commit");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
   param.server_id = thd->server_id;
@@ -332,7 +332,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   int ret = 0;
   FOREACH_OBSERVER(ret, before_commit, (&param));
   plugin_foreach(thd, se_before_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -344,7 +344,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
               false     If the table does not have 'CASCADE' foreign key.
 */
 bool has_cascade_foreign_key(TABLE *table) {
-  DBUG_ENTER("has_cascade_foreign_key");
+  DBUG_TRACE;
 
   TABLE_SHARE_FOREIGN_KEY_INFO *fk = table->s->foreign_key;
 
@@ -359,10 +359,10 @@ bool has_cascade_foreign_key(TABLE *table) {
         dd::Foreign_key::RULE_SET_NULL == fk[i].delete_rule ||
         dd::Foreign_key::RULE_SET_DEFAULT == fk[i].update_rule ||
         dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule) {
-      DBUG_RETURN(true);
+      return true;
     }
   }
-  DBUG_RETURN(false);
+  return false;
 }
 
 /**
@@ -370,13 +370,13 @@ bool has_cascade_foreign_key(TABLE *table) {
  */
 void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
                         uint &number_of_tables) {
-  DBUG_ENTER("prepare_table_info");
+  DBUG_TRACE;
 
   TABLE *open_tables = thd->open_tables;
 
   // Fail if tables are not open
   if (open_tables == nullptr) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   // Gather table information
@@ -435,8 +435,6 @@ void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
           (*table_info_holder_it).has_cascade_foreign_key;
     }
   }
-
-  DBUG_VOID_RETURN;
 }
 
 /**
@@ -465,7 +463,7 @@ static void prepare_transaction_context(THD *thd,
 }
 
 int Trans_delegate::before_dml(THD *thd, int &result) {
-  DBUG_ENTER("Trans_delegate::before_dml");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
 
@@ -481,7 +479,7 @@ int Trans_delegate::before_dml(THD *thd, int &result) {
 
   my_free(param.tables_info);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static bool se_before_rollback(THD *, plugin_ref plugin, void *arg) {
@@ -491,7 +489,7 @@ static bool se_before_rollback(THD *, plugin_ref plugin, void *arg) {
 }
 
 int Trans_delegate::before_rollback(THD *thd, bool all) {
-  DBUG_ENTER("Trans_delegate::before_rollback");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
   param.server_id = thd->server_id;
@@ -506,7 +504,7 @@ int Trans_delegate::before_rollback(THD *thd, bool all) {
   int ret = 0;
   FOREACH_OBSERVER(ret, before_rollback, (&param));
   plugin_foreach(thd, se_before_rollback, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 static bool se_after_commit(THD *, plugin_ref plugin, void *arg) {
@@ -516,7 +514,7 @@ static bool se_after_commit(THD *, plugin_ref plugin, void *arg) {
 }
 
 int Trans_delegate::after_commit(THD *thd, bool all) {
-  DBUG_ENTER("Trans_delegate::after_commit");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
   param.server_uuid = server_uuid;
@@ -542,11 +540,11 @@ int Trans_delegate::after_commit(THD *thd, bool all) {
   int ret = 0;
   FOREACH_OBSERVER(ret, after_commit, (&param));
   plugin_foreach(thd, se_after_commit, MYSQL_STORAGE_ENGINE_PLUGIN, &param);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int Trans_delegate::after_rollback(THD *thd, bool all) {
-  DBUG_ENTER("Trans_delegate::after_rollback");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
   param.server_uuid = server_uuid;
@@ -561,11 +559,11 @@ int Trans_delegate::after_rollback(THD *thd, bool all) {
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_rollback, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int Trans_delegate::trans_begin(THD *thd, int &out) {
-  DBUG_ENTER("Trans_delegate::begin");
+  DBUG_TRACE;
   Trans_param param;
   TRANS_PARAM_ZERO(param);
   param.server_uuid = server_uuid;
@@ -578,12 +576,12 @@ int Trans_delegate::trans_begin(THD *thd, int &out) {
 
   int ret = 0;
   FOREACH_OBSERVER_ERROR_OUT(ret, begin, &param, out);
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int Binlog_storage_delegate::after_flush(THD *thd, const char *log_file,
                                          my_off_t log_pos) {
-  DBUG_ENTER("Binlog_storage_delegate::after_flush");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("log_file: %s, log_pos: %llu", log_file, (ulonglong)log_pos));
   Binlog_storage_param param;
@@ -591,7 +589,7 @@ int Binlog_storage_delegate::after_flush(THD *thd, const char *log_file,
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_flush, (&param, log_file, log_pos));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -601,12 +599,12 @@ int Binlog_storage_delegate::after_flush(THD *thd, const char *log_file,
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::before_handle_connection(THD *) {
-  DBUG_ENTER("Server_state_delegate::before_client_connection");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_handle_connection, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -615,12 +613,12 @@ int Server_state_delegate::before_handle_connection(THD *) {
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::before_recovery(THD *) {
-  DBUG_ENTER("Server_state_delegate::before_recovery");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_recovery, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -630,12 +628,12 @@ int Server_state_delegate::before_recovery(THD *) {
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::after_engine_recovery(THD *) {
-  DBUG_ENTER("Server_state_delegate::after_engine_recovery");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_engine_recovery, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -646,12 +644,12 @@ int Server_state_delegate::after_engine_recovery(THD *) {
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::after_recovery(THD *) {
-  DBUG_ENTER("Server_state_delegate::after_recovery");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_recovery, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -661,12 +659,12 @@ int Server_state_delegate::after_recovery(THD *) {
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::before_server_shutdown(THD *) {
-  DBUG_ENTER("Server_state_delegate::before_server_shutdown");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, before_server_shutdown, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 /**
@@ -676,17 +674,17 @@ int Server_state_delegate::before_server_shutdown(THD *) {
  * @return 0 on success, >0 otherwise.
  */
 int Server_state_delegate::after_server_shutdown(THD *) {
-  DBUG_ENTER("Server_state_delegate::after_server_shutdown");
+  DBUG_TRACE;
   Server_state_param param;
 
   int ret = 0;
   FOREACH_OBSERVER(ret, after_server_shutdown, (&param));
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
                                         my_off_t log_pos) {
-  DBUG_ENTER("Binlog_storage_delegate::after_sync");
+  DBUG_TRACE;
   DBUG_PRINT("enter",
              ("log_file: %s, log_pos: %llu", log_file, (ulonglong)log_pos));
   Binlog_storage_param param;
@@ -697,7 +695,7 @@ int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
   FOREACH_OBSERVER(ret, after_sync, (&param, log_file, log_pos));
 
   DEBUG_SYNC(thd, "after_call_after_sync_observer");
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
@@ -933,7 +931,7 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
 }
 
 int Binlog_relay_IO_delegate::applier_log_event(THD *thd, int &out) {
-  DBUG_ENTER("Binlog_relay_IO_delegate::applier_skip_event");
+  DBUG_TRACE;
   Trans_param trans_param;
   TRANS_PARAM_ZERO(trans_param);
   Binlog_relay_IO_param param;
@@ -949,7 +947,7 @@ int Binlog_relay_IO_delegate::applier_log_event(THD *thd, int &out) {
 
   my_free(trans_param.tables_info);
 
-  DBUG_RETURN(ret);
+  return ret;
 }
 
 int register_trans_observer(Trans_observer *observer, void *p) {
@@ -962,10 +960,10 @@ int unregister_trans_observer(Trans_observer *observer, void *) {
 
 int register_binlog_storage_observer(Binlog_storage_observer *observer,
                                      void *p) {
-  DBUG_ENTER("register_binlog_storage_observer");
+  DBUG_TRACE;
   int result =
       binlog_storage_delegate->add_observer(observer, (st_plugin_int *)p);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int unregister_binlog_storage_observer(Binlog_storage_observer *observer,
@@ -975,16 +973,16 @@ int unregister_binlog_storage_observer(Binlog_storage_observer *observer,
 
 int register_server_state_observer(Server_state_observer *observer,
                                    void *plugin_var) {
-  DBUG_ENTER("register_server_state_observer");
+  DBUG_TRACE;
   int result = server_state_delegate->add_observer(observer,
                                                    (st_plugin_int *)plugin_var);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int unregister_server_state_observer(Server_state_observer *observer, void *) {
-  DBUG_ENTER("unregister_server_state_observer");
+  DBUG_TRACE;
   int result = server_state_delegate->remove_observer(observer);
-  DBUG_RETURN(result);
+  return result;
 }
 
 int register_binlog_transmit_observer(Binlog_transmit_observer *observer,
@@ -1008,7 +1006,7 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
 }
 
 int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
-  DBUG_ENTER("launch_hook_trans_begin");
+  DBUG_TRACE;
   LEX *lex = thd->lex;
   enum_sql_command sql_command = lex->sql_command;
   // by default commands are put on hold
@@ -1018,7 +1016,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   // if command belong to a transaction that already pass by hook, it can
   // continue
   if (thd->get_transaction()->was_trans_begin_hook_invoked()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   bool is_show = ((sql_command_flags[sql_command] & CF_STATUS_COMMAND) &&
@@ -1037,7 +1035,7 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   if ((is_set || is_do || is_show || is_empty || is_use || is_stop_gr ||
        is_shutdown || is_reset_persist) &&
       !lex->uses_stored_routines()) {
-    DBUG_RETURN(0);
+    return 0;
   }
 
   if (is_select) {
@@ -1113,5 +1111,5 @@ int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
     }
   }
 
-  DBUG_RETURN(ret);
+  return ret;
 }

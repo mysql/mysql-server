@@ -71,12 +71,12 @@ bool send_message(Plugin_gcs_message *message) {
 
 void kill_transactions_and_leave_on_election_error(std::string &err_msg,
                                                    ulong stop_wait_timeout) {
-  DBUG_ENTER("kill_transactions_and_leave_on_election_error");
+  DBUG_TRACE;
 
   // Action errors might have expelled the member already
   if (Group_member_info::MEMBER_ERROR ==
       local_member_info->get_recovery_status()) {
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Notification_context ctx;
@@ -171,6 +171,4 @@ void kill_transactions_and_leave_on_election_error(std::string &err_msg,
     error_message.append(err_msg);
     abort_plugin_process(error_message.c_str());
   }
-
-  DBUG_VOID_RETURN;
 }

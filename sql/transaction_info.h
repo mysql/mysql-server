@@ -221,14 +221,14 @@ class Transaction_ctx {
   virtual ~Transaction_ctx() { free_root(&m_mem_root, MYF(0)); }
 
   void cleanup() {
-    DBUG_ENTER("Transaction_ctx::cleanup");
+    DBUG_TRACE;
     m_savepoints = NULL;
     m_xid_state.cleanup();
     m_rpl_transaction_ctx.cleanup();
     m_transaction_write_set_ctx.clear_write_set();
     trans_begin_hook_invoked = false;
     free_root(&m_mem_root, MYF(MY_KEEP_PREALLOC));
-    DBUG_VOID_RETURN;
+    return;
   }
 
   bool is_active(enum_trx_scope scope) const {
@@ -279,9 +279,9 @@ class Transaction_ctx {
   }
 
   void set_ha_trx_info(enum_trx_scope scope, Ha_trx_info *trx_info) {
-    DBUG_ENTER("Transaction_ctx::set_ha_trx_info");
+    DBUG_TRACE;
     m_scope_info[scope].m_ha_list = trx_info;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   XID_STATE *xid_state() { return &m_xid_state; }
@@ -355,11 +355,11 @@ class Transaction_ctx {
   }
 
   void reset_scope(enum_trx_scope scope) {
-    DBUG_ENTER("Transaction_ctx::reset_scope");
+    DBUG_TRACE;
     m_scope_info[scope].m_ha_list = 0;
     m_scope_info[scope].m_no_2pc = 0;
     m_scope_info[scope].m_rw_ha_count = 0;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Rpl_transaction_ctx *get_rpl_transaction_ctx() {
@@ -412,7 +412,7 @@ class Ha_trx_info {
   */
 
   void register_ha(Transaction_ctx::THD_TRANS *trans, handlerton *ht_arg) {
-    DBUG_ENTER("Ha_trx_info::register_ha");
+    DBUG_TRACE;
     DBUG_ASSERT(m_flags == 0);
     DBUG_ASSERT(m_ht == NULL);
     DBUG_ASSERT(m_next == NULL);
@@ -425,7 +425,7 @@ class Ha_trx_info {
       trans->m_ha_list = this;
     }
 
-    DBUG_VOID_RETURN;
+    return;
   }
 
   /**
@@ -433,11 +433,11 @@ class Ha_trx_info {
   */
 
   void reset() {
-    DBUG_ENTER("Ha_trx_info::reset");
+    DBUG_TRACE;
     m_next = NULL;
     m_ht = NULL;
     m_flags = 0;
-    DBUG_VOID_RETURN;
+    return;
   }
 
   Ha_trx_info() { reset(); }

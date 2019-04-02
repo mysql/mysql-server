@@ -117,14 +117,14 @@ void net_extension_free(NET *net) {
 /** Init with packet info. */
 
 bool my_net_init(NET *net, Vio *vio) {
-  DBUG_ENTER("my_net_init");
+  DBUG_TRACE;
   net->vio = vio;
   my_net_local_init(net); /* Set some limits */
   if (!(net->buff = (uchar *)my_malloc(
             key_memory_NET_buff,
             (size_t)net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE,
             MYF(MY_WME))))
-    DBUG_RETURN(1);
+    return 1;
   net->buff_end = net->buff + net->max_packet;
   net->error = 0;
   net->return_status = 0;
@@ -154,14 +154,13 @@ bool my_net_init(NET *net, Vio *vio) {
     net->fd = vio_fd(vio);
     vio_fastsend(vio);
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 
 void net_end(NET *net) {
-  DBUG_ENTER("net_end");
+  DBUG_TRACE;
   my_free(net->buff);
   net->buff = 0;
-  DBUG_VOID_RETURN;
 }
 
 void net_claim_memory_ownership(NET *net) { my_claim(net->buff); }
@@ -171,7 +170,7 @@ void net_claim_memory_ownership(NET *net) { my_claim(net->buff); }
 bool net_realloc(NET *net, size_t length) {
   uchar *buff;
   size_t pkt_length;
-  DBUG_ENTER("net_realloc");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("length: %lu", (ulong)length));
 
   if (length >= net->max_packet_size) {
@@ -183,7 +182,7 @@ bool net_realloc(NET *net, size_t length) {
 #ifdef MYSQL_SERVER
     my_error(ER_NET_PACKET_TOO_LARGE, MYF(0));
 #endif
-    DBUG_RETURN(1);
+    return 1;
   }
   pkt_length = (length + IO_SIZE - 1) & ~(IO_SIZE - 1);
   /*
@@ -199,7 +198,7 @@ bool net_realloc(NET *net, size_t length) {
     net->error = 1;
     net->last_errno = ER_OUT_OF_RESOURCES;
     /* In the server the error is reported by MY_WME flag. */
-    DBUG_RETURN(1);
+    return 1;
   }
 #ifdef MYSQL_SERVER
   net->buff = net->write_pos = buff;
@@ -209,7 +208,7 @@ bool net_realloc(NET *net, size_t length) {
   NET_ASYNC_DATA(net)->cur_pos = net->buff + cur_pos_offset;
 #endif
   net->buff_end = buff + (net->max_packet = (ulong)pkt_length);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 /**
@@ -223,7 +222,7 @@ bool net_realloc(NET *net, size_t length) {
 */
 
 void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
-  DBUG_ENTER("net_clear");
+  DBUG_TRACE;
 
   /* Ensure the socket buffer is empty, except for an EOF (at least 1). */
   DBUG_ASSERT(!check_buffer || (vio_pending(net->vio) <= 1));
@@ -231,15 +230,13 @@ void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
   /* Ready for new command */
   net->pkt_nr = net->compress_pkt_nr = 0;
   net->write_pos = net->buff;
-
-  DBUG_VOID_RETURN;
 }
 
 /** Flush write_buffer if not empty. */
 
 bool net_flush(NET *net) {
   bool error = 0;
-  DBUG_ENTER("net_flush");
+  DBUG_TRACE;
   if (net->buff != net->write_pos) {
     error =
         net_write_packet(net, net->buff, (size_t)(net->write_pos - net->buff));
@@ -247,7 +244,7 @@ bool net_flush(NET *net) {
   }
   /* Sync packet number if using compression */
   if (net->compress) net->pkt_nr = net->compress_pkt_nr;
-  DBUG_RETURN(error);
+  return error;
 }
 
 /**
@@ -433,7 +430,7 @@ bool my_net_write(NET *net, const uchar *packet, size_t len) {
 }
 
 static void reset_packet_write_state(NET *net) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   if (net_async->async_write_vector) {
     if (net_async->async_write_vector != net_async->inline_async_write_vector) {
@@ -452,7 +449,6 @@ static void reset_packet_write_state(NET *net) {
 
   net_async->async_write_vector_size = 0;
   net_async->async_write_vector_current = 0;
-  DBUG_VOID_RETURN;
 }
 
 /*
@@ -474,7 +470,7 @@ static int begin_packet_write_state(NET *net, uchar command,
                                     const uchar *packet, size_t packet_len,
                                     const uchar *optional_prefix,
                                     size_t prefix_len) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t total_len = packet_len + prefix_len;
   bool include_command = (command < COM_END);
@@ -499,7 +495,7 @@ static int begin_packet_write_state(NET *net, uchar command,
         PSI_NOT_INSTRUMENTED, sizeof(struct io_vec) * packet_count * 2 + 1,
         MYF(MY_ZEROFILL));
     if (!vec) {
-      DBUG_RETURN(0);
+      return 0;
     }
 
     headers = (uchar *)my_malloc(PSI_NOT_INSTRUMENTED,
@@ -507,7 +503,7 @@ static int begin_packet_write_state(NET *net, uchar command,
                                  MYF(MY_ZEROFILL));
     if (!headers) {
       my_free(vec);
-      DBUG_RETURN(0);
+      return 0;
     }
   }
   /*
@@ -594,14 +590,14 @@ static int begin_packet_write_state(NET *net, uchar command,
   net_async->async_write_vector_size = (vec - net_async->async_write_vector);
   net_async->async_write_vector_current = 0;
 
-  DBUG_RETURN(1);
+  return 1;
 }
 
 static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   struct io_vec *vec =
       net_async->async_write_vector + net_async->async_write_vector_current;
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
 
   while (net_async->async_write_vector_current !=
          net_async->async_write_vector_size) {
@@ -622,9 +618,9 @@ static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
         } else {
           net_async->async_blocking_state = NET_NONBLOCKING_WRITE;
         }
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
-      DBUG_RETURN(NET_ASYNC_COMPLETE);
+      return NET_ASYNC_COMPLETE;
     }
     size_t bytes_written = static_cast<size_t>(*res);
     vec->iov_len -= bytes_written;
@@ -637,11 +633,11 @@ static net_async_status net_write_vector_nonblocking(NET *net, ssize_t *res) {
   }
   if (net_async->async_write_vector_current ==
       net_async->async_write_vector_size) {
-    DBUG_RETURN(NET_ASYNC_COMPLETE);
+    return NET_ASYNC_COMPLETE;
   }
 
   net_async->async_blocking_state = NET_NONBLOCKING_WRITE;
-  DBUG_RETURN(NET_ASYNC_NOT_READY);
+  return NET_ASYNC_NOT_READY;
 }
 
 /**
@@ -659,7 +655,7 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
   net_async_status status;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   ssize_t rc;
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   DBUG_DUMP("net write prefix", prefix, prefix_len);
   DBUG_DUMP("net write pkt", packet, packet_len);
   if (unlikely(!net->vio)) {
@@ -687,7 +683,7 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
         }
         goto done;
       }
-      DBUG_RETURN(NET_ASYNC_NOT_READY);
+      return NET_ASYNC_NOT_READY;
       net_async->async_operation = NET_ASYNC_OP_COMPLETE;
       /* fallthrough */
     case NET_ASYNC_OP_COMPLETE:
@@ -696,13 +692,13 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
     default:
       DBUG_ASSERT(false);
       *res = true;
-      DBUG_RETURN(NET_ASYNC_COMPLETE);
+      return NET_ASYNC_COMPLETE;
   }
 
 done:
   reset_packet_write_state(net);
   net_async->async_operation = NET_ASYNC_OP_IDLE;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 }
 
 /*
@@ -748,7 +744,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
   size_t length = len + 1 + head_len; /* 1 extra byte for command */
   uchar buff[NET_HEADER_SIZE + 1];
   uint header_size = NET_HEADER_SIZE + 1;
-  DBUG_ENTER("net_write_command");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("length: %lu", (ulong)len));
 
   buff[4] = command; /* For first packet */
@@ -762,7 +758,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
       if (net_write_buff(net, buff, header_size) ||
           net_write_buff(net, header, head_len) ||
           net_write_buff(net, packet, len)) {
-        DBUG_RETURN(1);
+        return 1;
       }
       packet += len;
       length -= MAX_PACKET_LENGTH;
@@ -777,7 +773,7 @@ bool net_write_command(NET *net, uchar command, const uchar *header,
   bool rc = net_write_buff(net, buff, header_size) ||
             (head_len && net_write_buff(net, header, head_len)) ||
             net_write_buff(net, packet, len) || net_flush(net);
-  DBUG_RETURN(rc);
+  return rc;
 }
 
 /**
@@ -1146,10 +1142,10 @@ static uchar *compress_packet(NET *net, const uchar *packet, size_t *length) {
 
 bool net_write_packet(NET *net, const uchar *packet, size_t length) {
   bool res;
-  DBUG_ENTER("net_write_packet");
+  DBUG_TRACE;
 
   /* Socket can't be used */
-  if (net->error == 2) DBUG_RETURN(true);
+  if (net->error == 2) return true;
 
   net->reading_or_writing = 2;
 
@@ -1160,7 +1156,7 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
       net->last_errno = ER_OUT_OF_RESOURCES;
       /* In the server, allocation failure raises a error. */
       net->reading_or_writing = 0;
-      DBUG_RETURN(true);
+      return true;
     }
   }
 
@@ -1174,7 +1170,7 @@ bool net_write_packet(NET *net, const uchar *packet, size_t length) {
 
   net->reading_or_writing = 0;
 
-  DBUG_RETURN(res);
+  return res;
 }
 
 /*****************************************************************************
@@ -1333,11 +1329,11 @@ static bool net_read_packet_header(NET *net) {
 */
 static ulong net_read_available(NET *net, size_t count) {
   size_t recvcnt;
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   if (net_async->cur_pos + count > net->buff + net->max_packet) {
     if (net_realloc(net, net->max_packet + count)) {
-      DBUG_RETURN(packet_error);
+      return packet_error;
     }
   }
   if (vio_is_blocking(net->vio)) {
@@ -1353,10 +1349,10 @@ static ulong net_read_available(NET *net, size_t count) {
   */
   if (recvcnt == VIO_SOCKET_WANT_READ) {
     net_async->async_blocking_state = NET_NONBLOCKING_READ;
-    DBUG_RETURN(0);
+    return 0;
   } else if (recvcnt == VIO_SOCKET_WANT_WRITE) {
     net_async->async_blocking_state = NET_NONBLOCKING_WRITE;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Call would block, just return with socket_errno set */
@@ -1364,7 +1360,7 @@ static ulong net_read_available(NET *net, size_t count) {
       (socket_errno == SOCKET_EAGAIN || (SOCKET_EAGAIN != SOCKET_EWOULDBLOCK &&
                                          socket_errno == SOCKET_EWOULDBLOCK))) {
     net_async->async_blocking_state = NET_NONBLOCKING_READ;
-    DBUG_RETURN(0);
+    return 0;
   }
 
   /* Not EOF and not an error?  Return the bytes read.*/
@@ -1373,19 +1369,19 @@ static ulong net_read_available(NET *net, size_t count) {
 #ifdef MYSQL_SERVER
     thd_increment_bytes_received(recvcnt);
 #endif
-    DBUG_RETURN(recvcnt);
+    return recvcnt;
   }
 
   /* EOF or hard failure; socket should be closed. */
   net->error = 2;
   net->last_errno = ER_NET_READ_ERROR;
-  DBUG_RETURN(packet_error);
+  return packet_error;
 }
 
 /* Read actual data from the packet */
 static net_async_status net_read_data_nonblocking(NET *net, size_t count,
                                                   bool *err_ptr) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t bytes_read = 0;
   ulong rc;
@@ -1400,14 +1396,14 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
       if (rc == packet_error) {
         *err_ptr = rc;
         net_async->async_operation = NET_ASYNC_OP_IDLE;
-        DBUG_RETURN(NET_ASYNC_COMPLETE);
+        return NET_ASYNC_COMPLETE;
       }
       bytes_read = (size_t)rc;
       net_async->async_bytes_wanted -= bytes_read;
       if (net_async->async_bytes_wanted != 0) {
         DBUG_PRINT("partial read", ("wanted/remaining: %zu, %zu", count,
                                     net_async->async_bytes_wanted));
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       net_async->async_operation = NET_ASYNC_OP_COMPLETE;
       /* fallthrough */
@@ -1416,27 +1412,27 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
       net_async->async_operation = NET_ASYNC_OP_IDLE;
       *err_ptr = false;
       DBUG_PRINT("read complete", ("read: %zu", count));
-      DBUG_RETURN(NET_ASYNC_COMPLETE);
+      return NET_ASYNC_COMPLETE;
     default:
       /* error, sure wish we could log something here */
       DBUG_ASSERT(false);
       net_async->async_bytes_wanted = 0;
       net_async->async_operation = NET_ASYNC_OP_IDLE;
       *err_ptr = true;
-      DBUG_RETURN(NET_ASYNC_COMPLETE);
+      return NET_ASYNC_COMPLETE;
   }
 }
 
 static net_async_status net_read_packet_header_nonblocking(NET *net,
                                                            bool *err_ptr) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   uchar pkt_nr;
   if (net_read_data_nonblocking(net, NET_HEADER_SIZE, err_ptr) ==
       NET_ASYNC_NOT_READY) {
-    DBUG_RETURN(NET_ASYNC_NOT_READY);
+    return NET_ASYNC_NOT_READY;
   }
   if (*err_ptr) {
-    DBUG_RETURN(NET_ASYNC_COMPLETE);
+    return NET_ASYNC_COMPLETE;
   }
 
   DBUG_DUMP("packet_header", net->buff + net->where_b, NET_HEADER_SIZE);
@@ -1463,13 +1459,13 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
     DBUG_ASSERT(pkt_nr == net->pkt_nr);
 #endif
     *err_ptr = true;
-    DBUG_RETURN(NET_ASYNC_COMPLETE);
+    return NET_ASYNC_COMPLETE;
   }
 
   net->pkt_nr++;
 
   *err_ptr = false;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 }
 
 /*
@@ -1477,7 +1473,7 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
 */
 static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret,
                                                     ulong *complen) {
-  DBUG_ENTER(__func__);
+  DBUG_TRACE;
   NET_ASYNC *net_async = NET_ASYNC_DATA(net);
   size_t pkt_data_len;
   bool err;
@@ -1492,7 +1488,7 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret,
     case NET_ASYNC_PACKET_READ_HEADER:
       if (net_read_packet_header_nonblocking(net, &err) ==
           NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
       /* Retrieve packet length and number. */
       if (err) goto error;
@@ -1520,7 +1516,7 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret,
     case NET_ASYNC_PACKET_READ_BODY:
       if (net_read_data_nonblocking(net, net_async->async_packet_length,
                                     &err) == NET_ASYNC_NOT_READY) {
-        DBUG_RETURN(NET_ASYNC_NOT_READY);
+        return NET_ASYNC_NOT_READY;
       }
 
       if (err) goto error;
@@ -1542,12 +1538,12 @@ end:
 
   net->read_pos[*ret] = 0;
   net->reading_or_writing = 0;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 
 error:
   *ret = packet_error;
   net->reading_or_writing = 0;
-  DBUG_RETURN(NET_ASYNC_COMPLETE);
+  return NET_ASYNC_COMPLETE;
 }
 
 /**
@@ -1779,25 +1775,22 @@ ulong my_net_read(NET *net) {
 }
 
 void my_net_set_read_timeout(NET *net, uint timeout) {
-  DBUG_ENTER("my_net_set_read_timeout");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->read_timeout = timeout;
   if (net->vio) vio_timeout(net->vio, 0, timeout);
-  DBUG_VOID_RETURN;
 }
 
 void my_net_set_write_timeout(NET *net, uint timeout) {
-  DBUG_ENTER("my_net_set_write_timeout");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("timeout: %d", timeout));
   net->write_timeout = timeout;
   if (net->vio) vio_timeout(net->vio, 1, timeout);
-  DBUG_VOID_RETURN;
 }
 
 void my_net_set_retry_count(NET *net, uint retry_count) {
-  DBUG_ENTER("my_net_set_retry_count");
+  DBUG_TRACE;
   DBUG_PRINT("enter", ("retry_count: %d", retry_count));
   net->retry_count = retry_count;
   if (net->vio) net->vio->retry_count = retry_count;
-  DBUG_VOID_RETURN;
 }

@@ -2677,7 +2677,7 @@ bool simplify_multi_geometry(String *str, String *result_buffer) {
   Writes geometry set operation result into str_value_arg in wkb format.
  */
 String *Item_func_spatial_operation::val_str(String *str_value_arg) {
-  DBUG_ENTER("Item_func_spatial_operation::val_str");
+  DBUG_TRACE;
   DBUG_ASSERT(fixed == 1);
 
   m_tmp_value1.length(0);
@@ -2702,14 +2702,14 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
   if (!(g1 = Geometry::construct(&buffer1, res1)) ||
       !(g2 = Geometry::construct(&buffer2, res2))) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   // The two geometry operand must be in the same coordinate system.
   if (g1->get_srid() != g2->get_srid()) {
     my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), g1->get_srid(),
              g2->get_srid());
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   str_value_arg->set_charset(&my_charset_bin);
@@ -2722,11 +2722,11 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs = nullptr;
     if (fetcher.acquire(g1->get_srid(), &srs))
-      DBUG_RETURN(error_str());  // Error has already been flagged.
+      return error_str();  // Error has already been flagged.
 
     if (srs == nullptr) {
       my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
 
     if (!srs->is_cartesian()) {
@@ -2735,7 +2735,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       parameters.append(", ").append(g2->get_class_info()->m_name.str);
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
                parameters.c_str());
-      DBUG_RETURN(error_str());
+      return error_str();
     }
   }
 
@@ -2788,7 +2788,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg) {
       delete gres;
       gres = NULL;
     }
-    DBUG_RETURN(error_str());
+    return error_str();
   }
 
   DBUG_ASSERT(gres != NULL && !null_value && str_value_arg->length() > 0);
@@ -2845,7 +2845,7 @@ exit:
   // Result and argument SRIDs must be the same.
   DBUG_ASSERT(null_value ||
               uint4korr(str_value_arg->ptr()) == uint4korr(res1->ptr()));
-  DBUG_RETURN(null_value ? NULL : str_value_arg);
+  return null_value ? NULL : str_value_arg;
 }
 
 inline bool is_areal(const Geometry *g) {
