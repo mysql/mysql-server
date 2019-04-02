@@ -326,7 +326,7 @@ static void *handle_bootstrap(void *arg) {
 
   mysql_thread_set_psi_id(thd->thread_id());
 
-  /* The following must be called before DBUG_ENTER */
+  /* The following must be called before DBUG_TRACE */
   thd->thread_stack = (char *)&thd;
   if (my_thread_init()) {
     close_connection(thd, ER_OUT_OF_RESOURCES);

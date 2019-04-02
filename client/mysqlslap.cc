@@ -703,7 +703,7 @@ static void usage(void) {
 extern "C" {
 static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
-  DBUG_ENTER("get_one_option");
+  DBUG_TRACE;
   switch (optid) {
     case 'v':
       verbose++;
@@ -757,17 +757,17 @@ static bool get_one_option(int optid, const struct my_option *opt,
       using_opt_enable_cleartext_plugin = true;
       break;
   }
-  DBUG_RETURN(0);
+  return 0;
 }
 }
 
 size_t get_random_string(char *buf) {
   char *buf_ptr = buf;
   int x;
-  DBUG_ENTER("get_random_string");
+  DBUG_TRACE;
   for (x = RAND_STRING_SIZE; x > 0; x--)
     *buf_ptr++ = ALPHANUMERICS[random() % ALPHANUMERICS_SIZE];
-  DBUG_RETURN(buf_ptr - buf);
+  return buf_ptr - buf;
 }
 
 /*
@@ -781,7 +781,7 @@ static statement *build_table_string(void) {
   unsigned int col_count;
   statement *ptr;
   DYNAMIC_STRING table_string;
-  DBUG_ENTER("build_table_string");
+  DBUG_TRACE;
 
   DBUG_PRINT("info",
              ("num int cols %u num char cols %u", num_int_cols, num_char_cols));
@@ -873,7 +873,7 @@ static statement *build_table_string(void) {
   ptr->type = CREATE_TABLE_TYPE;
   my_stpcpy(ptr->string, table_string.str);
   dynstr_free(&table_string);
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 /*
@@ -887,7 +887,7 @@ static statement *build_update_string(void) {
   unsigned int col_count;
   statement *ptr;
   DYNAMIC_STRING update_string;
-  DBUG_ENTER("build_update_string");
+  DBUG_TRACE;
 
   init_dynamic_string(&update_string, "", 1024, 1024);
 
@@ -937,7 +937,7 @@ static statement *build_update_string(void) {
     ptr->type = UPDATE_TYPE;
   my_stpcpy(ptr->string, update_string.str);
   dynstr_free(&update_string);
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 /*
@@ -951,7 +951,7 @@ static statement *build_insert_string(void) {
   unsigned int col_count;
   statement *ptr;
   DYNAMIC_STRING insert_string;
-  DBUG_ENTER("build_insert_string");
+  DBUG_TRACE;
 
   init_dynamic_string(&insert_string, "", 1024, 1024);
 
@@ -1016,7 +1016,7 @@ static statement *build_insert_string(void) {
   ptr->type = INSERT_TYPE;
   my_stpcpy(ptr->string, insert_string.str);
   dynstr_free(&insert_string);
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 /*
@@ -1030,7 +1030,7 @@ static statement *build_select_string(bool key) {
   unsigned int col_count;
   statement *ptr;
   static DYNAMIC_STRING query_string;
-  DBUG_ENTER("build_select_string");
+  DBUG_TRACE;
 
   init_dynamic_string(&query_string, "", 1024, 1024);
 
@@ -1074,7 +1074,7 @@ static statement *build_select_string(bool key) {
     ptr->type = SELECT_TYPE;
   my_stpcpy(ptr->string, query_string.str);
   dynstr_free(&query_string);
-  DBUG_RETURN(ptr);
+  return ptr;
 }
 
 static int get_options(int *argc, char ***argv) {
@@ -1082,7 +1082,7 @@ static int get_options(int *argc, char ***argv) {
   char *tmp_string;
   MY_STAT sbuf; /* Stat information for the data file */
 
-  DBUG_ENTER("get_options");
+  DBUG_TRACE;
   if ((ho_error = handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
   if (debug_info_flag) my_end_arg = MY_CHECK_ERROR | MY_GIVE_INFO;
@@ -1160,7 +1160,7 @@ static int get_options(int *argc, char ***argv) {
               "Invalid value specified for the option "
               "'number-int-cols'\n");
       option_cleanup(str);
-      DBUG_RETURN(1);
+      return 1;
     }
     num_int_cols = atoi(str->string);
     if (str->option) num_int_cols_index = atoi(str->option);
@@ -1174,7 +1174,7 @@ static int get_options(int *argc, char ***argv) {
               "Invalid value specified for the option "
               "'number-char-cols'\n");
       option_cleanup(str);
-      DBUG_RETURN(1);
+      return 1;
     }
     num_char_cols = atoi(str->string);
     if (str->option)
@@ -1373,12 +1373,12 @@ static int get_options(int *argc, char ***argv) {
   if (default_engine) {
     if (parse_option(default_engine, &engine_options, ',') == -1) {
       fprintf(stderr, "Invalid value specified for the option 'engine'\n");
-      DBUG_RETURN(1);
+      return 1;
     }
   }
 
   if (tty_password) opt_password = get_tty_password(NullS);
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int run_query(MYSQL *mysql, const char *query, size_t len) {
@@ -1395,7 +1395,7 @@ static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt) {
   MYSQL_RES *result;
   MYSQL_ROW row;
   unsigned long long counter;
-  DBUG_ENTER("generate_primary_key_list");
+  DBUG_TRACE;
 
   /*
     Blackhole is a special case, this allows us to test the upper end
@@ -1441,7 +1441,7 @@ static int generate_primary_key_list(MYSQL *mysql, option_string *engine_stmt) {
     mysql_free_result(result);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int drop_primary_key_list(void) {
@@ -1477,7 +1477,7 @@ static int create_schema(MYSQL *mysql, const char *db, statement *stmt,
   statement *after_create;
   size_t len;
   ulonglong count;
-  DBUG_ENTER("create_schema");
+  DBUG_TRACE;
 
   len = snprintf(query, HUGE_STRING_LENGTH, "CREATE SCHEMA `%s`", db);
 
@@ -1543,13 +1543,13 @@ limit_not_met:
     goto limit_not_met;
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int drop_schema(MYSQL *mysql, const char *db) {
   char query[HUGE_STRING_LENGTH];
   size_t len;
-  DBUG_ENTER("drop_schema");
+  DBUG_TRACE;
   len = snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
 
   if (run_query(mysql, query, len)) {
@@ -1558,13 +1558,13 @@ static int drop_schema(MYSQL *mysql, const char *db) {
     exit(1);
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int run_statements(MYSQL *mysql, statement *stmt) {
   statement *ptr;
   MYSQL_RES *result;
-  DBUG_ENTER("run_statements");
+  DBUG_TRACE;
 
   for (ptr = stmt; ptr && ptr->length; ptr = ptr->next) {
     if (run_query(mysql, ptr->string, ptr->length)) {
@@ -1578,7 +1578,7 @@ static int run_statements(MYSQL *mysql, statement *stmt) {
     }
   }
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 static int run_scheduler(stats *sptr, statement *stmts, uint concur,
@@ -1588,7 +1588,7 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
   thread_context con;
   my_thread_handle mainthread; /* Thread descriptor */
   my_thread_attr_t attr;       /* Thread attributes */
-  DBUG_ENTER("run_scheduler");
+  DBUG_TRACE;
 
   con.stmt = stmts;
   con.limit = limit;
@@ -1638,7 +1638,7 @@ static int run_scheduler(stats *sptr, statement *stmts, uint concur,
   sptr->users = concur;
   sptr->rows = limit;
 
-  DBUG_RETURN(0);
+  return 0;
 }
 
 extern "C" void *run_task(void *p) {
@@ -1651,138 +1651,138 @@ extern "C" void *run_task(void *p) {
   statement *ptr;
   thread_context *con = (thread_context *)p;
 
-  DBUG_ENTER("run_task");
-  DBUG_PRINT("info",
-             ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
+  {
+    DBUG_TRACE;
+    DBUG_PRINT("info",
+               ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
-  native_mutex_lock(&sleeper_mutex);
-  while (master_wakeup) {
-    native_cond_wait(&sleep_threshold, &sleeper_mutex);
-  }
-  native_mutex_unlock(&sleeper_mutex);
+    native_mutex_lock(&sleeper_mutex);
+    while (master_wakeup) {
+      native_cond_wait(&sleep_threshold, &sleeper_mutex);
+    }
+    native_mutex_unlock(&sleeper_mutex);
 
-  if (!(mysql = mysql_init(NULL))) {
-    fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
-            mysql_error(mysql));
-    exit(0);
-  }
+    if (!(mysql = mysql_init(NULL))) {
+      fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
+              mysql_error(mysql));
+      exit(0);
+    }
 
-  if (mysql_thread_init()) {
-    fprintf(stderr, "%s: mysql_thread_init() failed ERROR : %s\n", my_progname,
-            mysql_error(mysql));
-    mysql_close(mysql);
-    exit(0);
-  }
-
-  DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
-
-  if (!opt_only_print) {
-    if (slap_connect(mysql)) goto end;
-  }
-
-  DBUG_PRINT("info", ("connected."));
-  if (verbose >= 3) printf("connected!\n");
-  queries = 0;
-
-  commit_counter = 0;
-  if (commit_rate)
-    run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
-
-limit_not_met:
-  for (ptr = con->stmt, detach_counter = 0; ptr && ptr->length;
-       ptr = ptr->next, detach_counter++) {
-    if (!opt_only_print && detach_rate && !(detach_counter % detach_rate)) {
+    if (mysql_thread_init()) {
+      fprintf(stderr, "%s: mysql_thread_init() failed ERROR : %s\n",
+              my_progname, mysql_error(mysql));
       mysql_close(mysql);
+      exit(0);
+    }
 
-      if (!(mysql = mysql_init(NULL))) {
-        fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
-                mysql_error(mysql));
-        exit(0);
-      }
+    DBUG_PRINT("info", ("trying to connect to host %s as user %s", host, user));
 
+    if (!opt_only_print) {
       if (slap_connect(mysql)) goto end;
     }
 
-    /*
-      We have to execute differently based on query type. This should become a
-      function.
-    */
-    if ((ptr->type == UPDATE_TYPE_REQUIRES_PREFIX) ||
-        (ptr->type == SELECT_TYPE_REQUIRES_PREFIX)) {
-      size_t length;
-      unsigned int key_val;
-      char *key;
-      char buffer[HUGE_STRING_LENGTH];
+    DBUG_PRINT("info", ("connected."));
+    if (verbose >= 3) printf("connected!\n");
+    queries = 0;
+
+    commit_counter = 0;
+    if (commit_rate)
+      run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
+
+  limit_not_met:
+    for (ptr = con->stmt, detach_counter = 0; ptr && ptr->length;
+         ptr = ptr->next, detach_counter++) {
+      if (!opt_only_print && detach_rate && !(detach_counter % detach_rate)) {
+        mysql_close(mysql);
+
+        if (!(mysql = mysql_init(NULL))) {
+          fprintf(stderr, "%s: mysql_init() failed ERROR : %s\n", my_progname,
+                  mysql_error(mysql));
+          exit(0);
+        }
+
+        if (slap_connect(mysql)) goto end;
+      }
 
       /*
-        This should only happen if some sort of new engine was
-        implemented that didn't properly handle UPDATEs.
-
-        Just in case someone runs this under an experimental engine we don't
-        want a crash so the if() is placed here.
+        We have to execute differently based on query type. This should become a
+        function.
       */
-      DBUG_ASSERT(primary_keys_number_of);
-      if (primary_keys_number_of) {
-        key_val = (unsigned int)(random() % primary_keys_number_of);
-        key = primary_keys[key_val];
+      if ((ptr->type == UPDATE_TYPE_REQUIRES_PREFIX) ||
+          (ptr->type == SELECT_TYPE_REQUIRES_PREFIX)) {
+        size_t length;
+        unsigned int key_val;
+        char *key;
+        char buffer[HUGE_STRING_LENGTH];
 
-        DBUG_ASSERT(key);
+        /*
+          This should only happen if some sort of new engine was
+          implemented that didn't properly handle UPDATEs.
 
-        length = snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'",
-                          (int)ptr->length, ptr->string, key);
+          Just in case someone runs this under an experimental engine we don't
+          want a crash so the if() is placed here.
+        */
+        DBUG_ASSERT(primary_keys_number_of);
+        if (primary_keys_number_of) {
+          key_val = (unsigned int)(random() % primary_keys_number_of);
+          key = primary_keys[key_val];
 
-        if (run_query(mysql, buffer, length)) {
+          DBUG_ASSERT(key);
+
+          length = snprintf(buffer, HUGE_STRING_LENGTH, "%.*s '%s'",
+                            (int)ptr->length, ptr->string, key);
+
+          if (run_query(mysql, buffer, length)) {
+            fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n",
+                    my_progname, (uint)length, buffer, mysql_error(mysql));
+            mysql_close(mysql);
+            exit(0);
+          }
+        }
+      } else {
+        if (run_query(mysql, ptr->string, ptr->length)) {
           fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n", my_progname,
-                  (uint)length, buffer, mysql_error(mysql));
+                  (uint)ptr->length, ptr->string, mysql_error(mysql));
           mysql_close(mysql);
           exit(0);
         }
       }
-    } else {
-      if (run_query(mysql, ptr->string, ptr->length)) {
-        fprintf(stderr, "%s: Cannot run query %.*s ERROR : %s\n", my_progname,
-                (uint)ptr->length, ptr->string, mysql_error(mysql));
-        mysql_close(mysql);
-        exit(0);
-      }
-    }
 
-    do {
-      if (mysql_field_count(mysql)) {
-        if (!(result = mysql_store_result(mysql)))
-          fprintf(stderr, "%s: Error when storing result: %d %s\n", my_progname,
-                  mysql_errno(mysql), mysql_error(mysql));
-        else {
-          while ((row = mysql_fetch_row(result))) counter++;
-          mysql_free_result(result);
+      do {
+        if (mysql_field_count(mysql)) {
+          if (!(result = mysql_store_result(mysql)))
+            fprintf(stderr, "%s: Error when storing result: %d %s\n",
+                    my_progname, mysql_errno(mysql), mysql_error(mysql));
+          else {
+            while ((row = mysql_fetch_row(result))) counter++;
+            mysql_free_result(result);
+          }
         }
-      }
-    } while (mysql_next_result(mysql) == 0);
-    queries++;
+      } while (mysql_next_result(mysql) == 0);
+      queries++;
 
-    if (commit_rate && (++commit_counter == commit_rate)) {
-      commit_counter = 0;
-      run_query(mysql, "COMMIT", strlen("COMMIT"));
+      if (commit_rate && (++commit_counter == commit_rate)) {
+        commit_counter = 0;
+        run_query(mysql, "COMMIT", strlen("COMMIT"));
+      }
+
+      if (con->limit && queries == con->limit) goto end;
     }
 
-    if (con->limit && queries == con->limit) goto end;
+    if (con->limit && queries < con->limit) goto limit_not_met;
+
+  end:
+    if (commit_rate) run_query(mysql, "COMMIT", strlen("COMMIT"));
+
+    mysql_close(mysql);
+
+    mysql_thread_end();
+
+    native_mutex_lock(&counter_mutex);
+    thread_counter--;
+    native_cond_signal(&count_threshold);
+    native_mutex_unlock(&counter_mutex);
   }
-
-  if (con->limit && queries < con->limit) goto limit_not_met;
-
-end:
-  if (commit_rate) run_query(mysql, "COMMIT", strlen("COMMIT"));
-
-  mysql_close(mysql);
-
-  mysql_thread_end();
-
-  native_mutex_lock(&counter_mutex);
-  thread_counter--;
-  native_cond_signal(&count_threshold);
-  native_mutex_unlock(&counter_mutex);
-
-  DBUG_LEAVE;
   my_thread_exit(0);
   return 0;
 }

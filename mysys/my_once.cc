@@ -55,7 +55,7 @@
       MyFlags
 
   NOTES
-    No DBUG_ENTER... here to get smaller dbug-startup
+    No DBUG_TRACE... here to get smaller dbug-startup
 */
 
 void *my_once_alloc(size_t Size, myf MyFlags) {

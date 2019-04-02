@@ -175,7 +175,7 @@ bool my_init() {
 /* End my_sys */
 void my_end(int infoflag) {
   /*
-    We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
+    We do not use DBUG_TRACE here, as after cleanup DBUG is no longer
     operational, so we cannot use DBUG_RETURN.
   */
 
