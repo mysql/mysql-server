@@ -23,7 +23,7 @@ if (!$VERSION)
 --echo # Restart the server against the unzipped datadir.
 --echo ########################################################################
 --let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_$VERSION.log
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv=""
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG
 --let $wait_counter= 10000
 --replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
 --source include/start_mysqld.inc
@@ -33,7 +33,7 @@ if (!$VERSION)
 --echo ########################################################################
 --echo # Verify that we can restart after upgrade.
 --echo ########################################################################
---let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG --secure-file-priv=""
+--let $restart_parameters= restart: --datadir=$MYSQLD_DATADIR_UPGRADE --log-error-verbosity=3 --log-error=$MYSQLD_LOG
 --let $wait_counter= 10000
 --let $shutdown_server_timeout= 300
 --replace_result $MYSQLD_DATADIR_UPGRADE MYSQLD_DATADIR_UPGRADE $MYSQLD_LOG MYSQLD_LOG
