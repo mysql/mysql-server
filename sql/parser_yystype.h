@@ -237,6 +237,11 @@ struct Value_or_default {
 
 enum class Explain_format_type { TRADITIONAL, JSON, TREE };
 
+// Compatibility with Bison 2.3:
+#ifndef YYSTYPE_IS_DECLARED
+#define YYSTYPE_IS_DECLARED 1
+#endif  // YYSTYPE_IS_DECLARED
+
 union YYSTYPE {
   Lexer_yystype lexer;  // terminal values from the lexical scanner
   /*
