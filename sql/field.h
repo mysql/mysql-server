@@ -1580,7 +1580,7 @@ class Field : public Proto_field {
 
   virtual const CHARSET_INFO *charset() const { return &my_charset_bin; }
 
-  virtual const CHARSET_INFO *charset_for_protocol() const {
+  const CHARSET_INFO *charset_for_protocol() const {
     return binary() ? &my_charset_bin : charset();
   }
   virtual const CHARSET_INFO *sort_charset() const { return charset(); }
@@ -3581,10 +3581,8 @@ class Field_string : public Field_longstr {
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
   type_conversion_status store(longlong nr, bool unsigned_val) final override;
-  /* QQ: To be deleted */
-  type_conversion_status store(double nr) final override {
-    return Field_str::store(nr);
-  }
+  // Inherit the store() overloads that have not been overridden.
+  using Field_longstr::store;
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
@@ -3671,10 +3669,8 @@ class Field_varstring : public Field_longstr {
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) override;
   type_conversion_status store(longlong nr, bool unsigned_val) final override;
-  /* QQ: To be deleted */
-  type_conversion_status store(double nr) final override {
-    return Field_str::store(nr);
-  }
+  // Inherit the store() overloads that have not been overridden.
+  using Field_longstr::store;
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const override;
@@ -4414,8 +4410,8 @@ class Field_bit : public Field {
   type_conversion_status reset() final override;
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) override;
-  type_conversion_status store(double nr) override;
-  type_conversion_status store(longlong nr, bool unsigned_val) override;
+  type_conversion_status store(double nr) final override;
+  type_conversion_status store(longlong nr, bool unsigned_val) final override;
   type_conversion_status store_decimal(const my_decimal *) final override;
   double val_real() const final override;
   longlong val_int() const final override;
@@ -4527,12 +4523,8 @@ class Field_bit_as_char final : public Field_bit {
   }
   type_conversion_status store(const char *to, size_t length,
                                const CHARSET_INFO *charset) final override;
-  type_conversion_status store(double nr) final override {
-    return Field_bit::store(nr);
-  }
-  type_conversion_status store(longlong nr, bool unsigned_val) final override {
-    return Field_bit::store(nr, unsigned_val);
-  }
+  // Inherit the store() overloads that have not been overridden.
+  using Field_bit::store;
   void sql_type(String &str) const final override;
   Field_bit_as_char *clone(MEM_ROOT *mem_root) const final override {
     return new (mem_root) Field_bit_as_char(*this);
