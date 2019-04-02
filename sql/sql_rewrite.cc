@@ -89,6 +89,7 @@
 #include "sql/log_event.h"  // append_query_string
 #include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
+#include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_connect.h"
 #include "sql/sql_lex.h"  // LEX

@@ -71,6 +71,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/log_event.h"
 #include "sql/opt_explain_json.h"
 #include "sql/opt_explain_traditional.h"
+#include "sql/parser_yystype.h"
 #include "sql/resourcegroups/resource_group_mgr.h" // resource_group_support
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Sql_cmd_*_resource_group etc.
 #include "sql/rpl_filter.h"
@@ -105,8 +106,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_signal.h"
 #include "sql/sql_table.h"                        /* primary_key_name */
 #include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
-#include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger,
-                                             // Sql_cmd_create_trigger
+#include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger
 #include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
 
 /* this is to get the bison compilation windows warnings out */
