@@ -1404,7 +1404,7 @@ static bool trx_purge_truncate_marked_undo() {
   std::string space_name = marked_space->space_name();
   undo::spaces->s_unlock();
 
-  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace "
+  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace '"
                            << space_name.c_str() << "'.";
 
   /* Since we are about to delete the current file, invalidate all
