@@ -2442,6 +2442,49 @@ bool srv_enable_redo_encryption(bool is_boot) {
   return false;
 }
 
+/* Set encryption for UNDO tablespace with given space id. */
+bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
+                                    bool is_boot) {
+  ut_ad(fsp_is_undo_tablespace(space_id));
+  fil_space_t *space = fil_space_get(space_id);
+
+  dberr_t err;
+  byte encrypt_info[ENCRYPTION_INFO_SIZE];
+  byte key[ENCRYPTION_KEY_LEN];
+  byte iv[ENCRYPTION_KEY_LEN];
+
+  Encryption::random_value(key);
+  Encryption::random_value(iv);
+
+  /* 0 fill encryption info */
+  memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+
+  /* Fill up encryption info to be set */
+  if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot)) {
+    ib::error(ER_IB_MSG_1052, space->name);
+    return true;
+  }
+
+  ulint new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
+
+  /* Write encryption info on tablespace header page */
+  if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,
+                                   false, mtr)) {
+    ib::error(ER_IB_MSG_1053, space->name);
+    return true;
+  }
+
+  /* Update In-Mem encryption information for UNDO tablespace */
+  fsp_flags_set_encryption(space->flags);
+  err = fil_set_encryption(space->id, Encryption::AES, key, iv);
+  if (err != DB_SUCCESS) {
+    ib::error(ER_IB_MSG_1054, space->name, int{err}, ut_strerr(err));
+    return true;
+  }
+
+  return false;
+}
+
 /* Enable UNDO tablespace encryption */
 bool srv_enable_undo_encryption(bool is_boot) {
   /* Traverse over all UNDO tablespaces and mark them encrypted. */
@@ -2463,54 +2506,14 @@ bool srv_enable_undo_encryption(bool is_boot) {
 
     undo_space->rsegs()->s_lock();
 
-    ulint new_flags = space->flags | FSP_FLAGS_MASK_ENCRYPTION;
-
     /* Make sure that there is enough reusable space in the redo log files. */
     log_free_check();
 
-    dberr_t err;
     mtr_t mtr;
-    byte encrypt_info[ENCRYPTION_INFO_SIZE];
-    byte key[ENCRYPTION_KEY_LEN];
-    byte iv[ENCRYPTION_KEY_LEN];
-
-    Encryption::random_value(key);
-    Encryption::random_value(iv);
-
     mtr_start(&mtr);
     mtr_x_lock_space(space, &mtr);
 
-    /* 0 fill encryption info */
-    memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
-
-    /* Fill up encryption info to be set */
-    if (!Encryption::fill_encryption_info(key, iv, encrypt_info, is_boot)) {
-      ib::error(ER_IB_MSG_1052, undo_space->space_name());
-
-      mtr_commit(&mtr);
-      undo_space->rsegs()->s_unlock();
-      undo::spaces->s_unlock();
-      return true;
-    }
-
-    /* Write encryption info on tablespace header page */
-    if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info, true,
-                                     false, &mtr)) {
-      ib::error(ER_IB_MSG_1053, undo_space->space_name());
-
-      mtr_commit(&mtr);
-      undo_space->rsegs()->s_unlock();
-      undo::spaces->s_unlock();
-      return true;
-    }
-
-    /* Update In-Mem encryption information for UNDO tablespace */
-    fsp_flags_set_encryption(space->flags);
-    err = fil_set_encryption(space->id, Encryption::AES, key, iv);
-    if (err != DB_SUCCESS) {
-      ib::error(ER_IB_MSG_1054, undo_space->space_name(), int{err},
-                ut_strerr(err));
-
+    if (set_undo_tablespace_encryption(undo_space->id(), &mtr, is_boot)) {
       mtr_commit(&mtr);
       undo_space->rsegs()->s_unlock();
       undo::spaces->s_unlock();
@@ -2600,6 +2603,8 @@ loop:
         ut_ad(!undo::spaces->empty());
         for (auto &undo_ts : undo::spaces->m_spaces) {
           fil_space_t *space = fil_space_get(undo_ts->id());
+          /* It is possible that during UNDO Tablespace truncate, space for
+          this space_id is deleted. So space will be nullptr. */
           if (space) {
             ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 

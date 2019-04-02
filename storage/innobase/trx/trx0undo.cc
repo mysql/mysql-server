@@ -1761,6 +1761,9 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 
   space_id_t new_space_id = undo::use_next_space_id(space_num);
 
+  fil_space_t *space = fil_space_get(old_space_id);
+  bool is_encrypted = FSP_FLAGS_GET_ENCRYPTION(space->flags);
+
   /* Step-1: Truncate tablespace by replacement with a new space_id. */
   success = fil_replace_tablespace(old_space_id, new_space_id,
                                    SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
@@ -1771,9 +1774,6 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   DBUG_EXECUTE_IF("ib_undo_trunc_empty_file",
                   ib::info(ER_IB_MSG_UNDO_TRUNC_EMPTY_FILE);
                   DBUG_SUICIDE(););
-
-  /* Increment the space ID for this undo space. */
-  marked_space->set_space_id(new_space_id);
 
   /* This undo tablespace is unused. Lock the Rsegs before the
   file_space because SYNC_RSEGS > SYNC_FSP. */
@@ -1786,6 +1786,7 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
   mtr_t mtr;
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+  /* Why return value is not being checked here? */
   fsp_header_init(new_space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr, false);
 
   /* Step-3: Add the RSEG_ARRAY page. */
@@ -1864,7 +1865,22 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     rseg->last_del_marks = FALSE;
   }
 
+  /* If tablespace is to be encrypted, encrypt it now */
+  if (is_encrypted && srv_undo_log_encrypt) {
+    mtr_t mtr;
+    mtr_start(&mtr);
+    ut_d(bool ret =) set_undo_tablespace_encryption(new_space_id, &mtr, false);
+    /* Don't expect any error here (unless keyring plugin is uninstalled). In
+    that case too, continue truncation processing of tablespace. */
+    ut_ad(!ret);
+    mtr_commit(&mtr);
+  }
+
   marked_rsegs->x_unlock();
+
+  /* Increment the space ID for this undo space now so that if anyone refers
+  to this space, it is completely initialized. */
+  marked_space->set_space_id(new_space_id);
 
   return (success);
 }
