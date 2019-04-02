@@ -146,6 +146,8 @@ class ha_ndbcluster: public handler, public Partition_handler
   ha_ndbcluster(handlerton *hton, TABLE_SHARE *table);
   ~ha_ndbcluster() override;
 
+  std::string explain_extra() const override;
+
   int open(const char *name, int mode, uint test_if_locked,
            const dd::Table *table_def) override;
 private:

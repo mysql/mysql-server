@@ -9656,7 +9656,7 @@ bool Item_ref::references_select_expr_of(uchar *arg) {
   return false;
 }
 
-string ItemToString(Item *item) {
+string ItemToString(const Item *item) {
   String str;
   const ulonglong save_bits = current_thd->variables.option_bits;
   current_thd->variables.option_bits &= ~OPTION_QUOTE_SHOW_CREATE;

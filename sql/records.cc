@@ -175,6 +175,7 @@ vector<string> IndexScanIterator<Reverse>::DebugString() const {
   if (Reverse) {
     str += " (reverse)";
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 
@@ -354,6 +355,7 @@ vector<string> IndexRangeScanIterator::DebugString() const {
     ret += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  ret += table()->file->explain_extra();
   return {ret};
 }
 
@@ -405,5 +407,6 @@ int TableScanIterator::Read() {
 
 vector<string> TableScanIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
-  return {string("Table scan on ") + table()->alias};
+  return {string("Table scan on ") + table()->alias +
+          table()->file->explain_extra()};
 }

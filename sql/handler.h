@@ -4200,6 +4200,11 @@ class handler {
     DBUG_ASSERT(inited == NONE);
   }
 
+  /**
+    Return extra handler specific text for EXPLAIN.
+  */
+  virtual std::string explain_extra() const { return ""; }
+
   /*
     @todo reorganize functions, make proper public/protected/private qualifiers
   */

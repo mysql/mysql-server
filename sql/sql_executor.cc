@@ -3782,6 +3782,7 @@ int ConstIterator::Read() {
 
 vector<string> ConstIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
+  DBUG_ASSERT(table()->file->pushed_cond == nullptr);
   return {string("Constant row from ") + table()->alias};
 }
 
@@ -3977,6 +3978,7 @@ vector<string> EQRefIterator::DebugString() const {
     str += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 
@@ -4047,9 +4049,9 @@ int PushedJoinRefIterator::Read() {
 vector<string> PushedJoinRefIterator::DebugString() const {
   DBUG_ASSERT(table()->file->pushed_idx_cond == nullptr);
   const KEY *key = &table()->key_info[m_ref->key];
-  return {string("Pushed join index lookup on ") + table()->alias + " using " +
-          key->name + " (" + RefToString(*m_ref, key, /*include_nulls=*/false) +
-          ")"};
+  return {string("Index lookup on ") + table()->alias + " using " + key->name +
+          " (" + RefToString(*m_ref, key, /*include_nulls=*/false) + ")" +
+          table()->file->explain_extra()};
 }
 
 template <bool Reverse>
@@ -4083,6 +4085,7 @@ vector<string> RefIterator<Reverse>::DebugString() const {
     str += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 
@@ -4260,6 +4263,7 @@ vector<string> DynamicRangeIterator::DebugString() const {
     str += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 
@@ -4454,7 +4458,7 @@ vector<string> FullTextSearchIterator::DebugString() const {
   const KEY *key = &table()->key_info[m_ref->key];
   return {string("Indexed full text search on ") + table()->alias + " using " +
           key->name + " (" + RefToString(*m_ref, key, /*include_nulls=*/false) +
-          ")"};
+          ")" + table()->file->explain_extra()};
 }
 
 /**
@@ -4529,6 +4533,7 @@ vector<string> RefOrNullIterator::DebugString() const {
     str += ", with index condition: " +
            ItemToString(table()->file->pushed_idx_cond);
   }
+  str += table()->file->explain_extra();
   return {str};
 }
 

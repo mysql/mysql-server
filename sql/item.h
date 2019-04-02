@@ -6126,6 +6126,6 @@ extern const String my_null_string;
 void convert_and_print(const String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
 
-std::string ItemToString(Item *item);
+std::string ItemToString(const Item *item);
 
 #endif /* ITEM_INCLUDED */

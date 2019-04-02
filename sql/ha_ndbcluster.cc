@@ -12858,6 +12858,29 @@ ha_ndbcluster::~ha_ndbcluster()
   DBUG_VOID_RETURN;
 }
 
+/**
+  Return extra handler specific text for EXPLAIN.
+*/
+std::string ha_ndbcluster::explain_extra() const {
+  std::string str("");
+
+  const TABLE *const pushed_root = member_of_pushed_join();
+  if (pushed_root) {
+    if (pushed_root == table) {
+      const uint pushed_count = number_of_pushed_joins();
+      str += std::string(", activating pushed join of ") +
+             std::to_string(pushed_count) + " tables";
+    } else {
+      str += std::string(", child of ") +
+             parent_of_pushed_join()->alias + " in pushed join";
+    }
+  }
+
+  if (pushed_cond != nullptr) {
+    str += ", with pushed condition: " + ItemToString(pushed_cond);
+  }
+  return str;
+}
 
 /**
   Open a table for further use
