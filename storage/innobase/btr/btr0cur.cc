@@ -1365,7 +1365,7 @@ retry_page_get:
           add_latch = true;
         }
 
-          /* Store the parent cursor location */
+        /* Store the parent cursor location */
 #ifdef UNIV_DEBUG
         ulint num_stored =
             rtr_store_parent_path(block, cursor, latch_mode, height + 1, mtr);
@@ -3962,10 +3962,10 @@ dberr_t btr_cur_pessimistic_update(
                              block->page.size)) {
     big_rec_vec = dtuple_convert_big_rec(index, update, new_entry, &n_ext);
     if (UNIV_UNLIKELY(big_rec_vec == NULL)) {
-    /* We cannot goto return_after_reservations,
-    because we may need to update the
-    IBUF_BITMAP_FREE bits, which was suppressed by
-    BTR_KEEP_IBUF_BITMAP. */
+      /* We cannot goto return_after_reservations,
+      because we may need to update the
+      IBUF_BITMAP_FREE bits, which was suppressed by
+      BTR_KEEP_IBUF_BITMAP. */
 #ifdef UNIV_ZIP_DEBUG
       ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
@@ -4965,13 +4965,13 @@ static int64_t btr_estimate_n_rows_in_range_on_level(
     n_rows += slot2->nth_rec - 1;
   }
 
-    /* Count the records in the pages between slot1->page_no and
-    slot2->page_no (non inclusive), if any. */
+  /* Count the records in the pages between slot1->page_no and
+  slot2->page_no (non inclusive), if any. */
 
-    /* Do not read more than this number of pages in order not to hurt
-    performance with this code which is just an estimation. If we read
-    this many pages before reaching slot2->page_no then we estimate the
-    average from the pages scanned so far. */
+  /* Do not read more than this number of pages in order not to hurt
+  performance with this code which is just an estimation. If we read
+  this many pages before reaching slot2->page_no then we estimate the
+  average from the pages scanned so far. */
 
 #define N_PAGES_READ_LIMIT 10
 

@@ -67,7 +67,7 @@ DatetimeResult make_datetime_from_string(const std::string &s,
   return r;
 }
 
-  // Helper macro which checks all values in a DatetimeResult
+// Helper macro which checks all values in a DatetimeResult
 #define EXPECT_VALID_DATETIME(time_res) \
   EXPECT_EQ(false, (time_res).stdt);    \
   EXPECT_EQ(0, (time_res).s.warnings);  \

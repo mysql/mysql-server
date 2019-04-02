@@ -45,9 +45,9 @@
 
 namespace item_unittest {
 
-using ::testing::Return;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
+using ::testing::Return;
 
 class ItemTest : public ::testing::Test {
  protected:

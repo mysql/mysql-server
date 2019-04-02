@@ -33,11 +33,11 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Cursor_test_suite : public ::testing::Test {
  public:

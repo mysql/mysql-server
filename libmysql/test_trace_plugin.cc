@@ -327,10 +327,10 @@ int plugin_deinit() {
   return 0;
 }
 
-  /*
-     Handling of trace events
-    ==========================
-  */
+/*
+   Handling of trace events
+  ==========================
+*/
 
 #define OK_PACKET(PKT) (*((byte *)PKT) == 0x00)
 #define ERR_PACKET(PKT) (*((byte *)PKT) == 0xFF)
@@ -362,11 +362,11 @@ void trace_stop(struct st_mysql_client_plugin_TRACE *, MYSQL *conn,
   if (data) delete static_cast<st_trace_data *>(data);
 }
 
-  /*
-    Declare functions for checking protocol flow (defined below). See
-    plugin_trace.h for description how the trick with PROTOCOL_STAGE_LIST()
-    macro works.
-  */
+/*
+  Declare functions for checking protocol flow (defined below). See
+  plugin_trace.h for description how the trick with PROTOCOL_STAGE_LIST()
+  macro works.
+*/
 
 #define protocol_stage_chk_ev_declare(S)                            \
   static int check_event_##S(                                       \
@@ -594,17 +594,17 @@ int trace_event(struct st_mysql_client_plugin_TRACE *, void *data_ptr,
   return 0;
 }
 
-  /*
-    Checking validity of events and tracing protocol stage changes
-    ==============================================================
+/*
+  Checking validity of events and tracing protocol stage changes
+  ==============================================================
 
-    For each stage XXX function check_event_XXX() checks if given event is
-    valid in stage XXX and also computes the next expected protocol stage
-    which is stored in next_stage parameter.
+  For each stage XXX function check_event_XXX() checks if given event is
+  valid in stage XXX and also computes the next expected protocol stage
+  which is stored in next_stage parameter.
 
-    Functions check_event_XXX() return 0 if event is valid and next stage was
-    computed, non-zero otherwise.
-  */
+  Functions check_event_XXX() return 0 if event is valid and next stage was
+  computed, non-zero otherwise.
+*/
 
 #define NEXT_STAGE(S)                                 \
   do {                                                \

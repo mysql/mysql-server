@@ -858,11 +858,11 @@ void Tablespace::alter_active() {
 dberr_t start_logging(Tablespace *undo_space) {
 #ifdef UNIV_DEBUG
   static int fail_start_logging_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_start_logging",
-                  if (++fail_start_logging_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_start_logging";
-                    return (DB_OUT_OF_MEMORY);
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_start_logging", if (++fail_start_logging_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_start_logging";
+        return (DB_OUT_OF_MEMORY);
+      });
 #endif /* UNIV_DEBUG */
 
   dberr_t err;
@@ -1263,11 +1263,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
 #ifdef UNIV_DEBUG
   static int fail_marked_space_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_marked_space",
-                  if (++fail_marked_space_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_marked_space";
-                    marked_space = nullptr;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_marked_space", if (++fail_marked_space_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_marked_space";
+        marked_space = nullptr;
+      });
 #endif /* UNIV_DEBUG */
   if (marked_space == nullptr) {
     undo::spaces->x_unlock();
@@ -1298,11 +1298,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
       (srv_shutdown_state != SRV_SHUTDOWN_NONE && srv_fast_shutdown != 0);
 #ifdef UNIV_DEBUG
   static int fast_shutdown_fail_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_fast_shutdown",
-                  if (++fast_shutdown_fail_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_fast_shutdown";
-                    in_fast_shutdown = true;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_fast_shutdown", if (++fast_shutdown_fail_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_fast_shutdown";
+        in_fast_shutdown = true;
+      });
 #endif /* UNIV_DEBUG */
   if (in_fast_shutdown) {
     undo::spaces->x_unlock();
@@ -1430,11 +1430,12 @@ static bool trx_purge_truncate_marked_undo() {
       dd_tablespace_get_mdl(space_name.c_str(), &mdl_ticket, false);
 #ifdef UNIV_DEBUG
   static int fail_get_mdl_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
-    dd_release_mdl(mdl_ticket);
-    ib::info() << "ib_undo_trunc_fail_get_mdl";
-    dd_result = DD_FAILURE;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_get_mdl", if (++fail_get_mdl_count == 1) {
+        dd_release_mdl(mdl_ticket);
+        ib::info() << "ib_undo_trunc_fail_get_mdl";
+        dd_result = DD_FAILURE;
+      });
 #endif /* UNIV_DEBUG */
   if (dd_result != DD_SUCCESS) {
     clone_mark_active();

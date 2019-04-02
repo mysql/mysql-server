@@ -28,8 +28,8 @@
 #include "sql/opt_range.cc"
 #include "unittest/gunit/fake_table.h"
 
-using ::testing::Return;
 using ::testing::_;
+using ::testing::Return;
 
 class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
   KEY_PART m_key_parts[64];

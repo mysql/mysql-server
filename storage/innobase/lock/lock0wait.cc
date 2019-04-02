@@ -178,9 +178,8 @@ static srv_slot_t *lock_wait_table_reserve_slot(
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
  are possible errors. DB_DEADLOCK is returned if selective deadlock
  resolution chose this transaction as a victim. */
-void lock_wait_suspend_thread(
-    que_thr_t *thr) /*!< in: query thread associated with the
-                    user OS thread */
+void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
+                                              with the user OS thread */
 {
   srv_slot_t *slot;
   trx_t *trx;

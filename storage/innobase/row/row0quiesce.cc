@@ -166,11 +166,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 /** Write the meta data config file index information.
  @return DB_SUCCESS or error code. */
 static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
-    row_quiesce_write_indexes(
-        const dict_table_t *table, /*!< in: write the meta data for
-                                   this table */
-        FILE *file,                /*!< in: file to write to */
-        THD *thd)                  /*!< in/out: session */
+    row_quiesce_write_indexes(const dict_table_t *table, /*!< in: write the meta
+                                                         data for this table */
+                              FILE *file, /*!< in: file to write to */
+                              THD *thd)   /*!< in/out: session */
 {
   byte row[sizeof(uint32_t)];
 
@@ -267,11 +266,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
  dict_col_t structure, along with the column name. All fields are serialized
  as ib_uint32_t.
  @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_table(
-    const dict_table_t *table, /*!< in: write the meta data for
-                               this table */
-    FILE *file,                /*!< in: file to write to */
-    THD *thd)                  /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_table(const dict_table_t *table, /*!< in: write the meta
+                                                       data for this table */
+                            FILE *file, /*!< in: file to write to */
+                            THD *thd)   /*!< in/out: session */
 {
   dict_col_t *col;
   byte row[sizeof(ib_uint32_t) * 7];
@@ -345,11 +344,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_table(
 
 /** Write the meta data config file header.
  @return DB_SUCCESS or error code. */
-static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
-    const dict_table_t *table, /*!< in: write the meta data for
-                               this table */
-    FILE *file,                /*!< in: file to write to */
-    THD *thd)                  /*!< in/out: session */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_header(const dict_table_t *table, /*!< in: write the meta
+                                                        data for this table */
+                             FILE *file, /*!< in: file to write to */
+                             THD *thd)   /*!< in/out: session */
 {
   byte value[sizeof(ib_uint32_t)];
 

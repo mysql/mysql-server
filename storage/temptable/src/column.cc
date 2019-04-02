@@ -37,10 +37,10 @@ namespace temptable {
 Column::Column(const unsigned char *mysql_row,
                const TABLE &mysql_table TEMPTABLE_UNUSED_NODBUG,
                const Field &mysql_field) {
-/* NOTE: The contents of mysql_row could be bogus at this time,
- * we don't look at the data, we just use it to calculate offsets
- * later used to get the user data inside our own copy of a row in
- * `m_mysql_row` which is neither record[0] nor record[1]. */
+  /* NOTE: The contents of mysql_row could be bogus at this time,
+   * we don't look at the data, we just use it to calculate offsets
+   * later used to get the user data inside our own copy of a row in
+   * `m_mysql_row` which is neither record[0] nor record[1]. */
 
 #if !defined(DBUG_OFF)
   unsigned char *field_ptr = mysql_field.ptr;

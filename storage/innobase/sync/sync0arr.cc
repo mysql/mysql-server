@@ -993,11 +993,11 @@ static bool sync_array_print_long_waits_low(
   }
 
 #ifdef UNIV_DEBUG_VALGRIND
-    /* Increase the timeouts if running under valgrind because it executes
-    extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
-    we are running under valgrind but we have no better way to tell.
-    See Bug#58432 innodb.innodb_bug56143 fails under valgrind
-    for an example */
+  /* Increase the timeouts if running under valgrind because it executes
+  extremely slowly. UNIV_DEBUG_VALGRIND does not necessary mean that
+  we are running under valgrind but we have no better way to tell.
+  See Bug#58432 innodb.innodb_bug56143 fails under valgrind
+  for an example */
 #define SYNC_ARRAY_TIMEOUT 2400
   fatal_timeout *= 10;
 #else

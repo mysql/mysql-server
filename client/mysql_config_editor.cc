@@ -665,11 +665,11 @@ static bool check_and_create_login_file(void) {
     goto error;
   }
 
-    /*
-      NOTE : MYSQL_TEST_LOGIN_FILE env must be a full path,
-      where the directory structure must exist. However the
-      login file will be created if it does not exist.
-    */
+  /*
+    NOTE : MYSQL_TEST_LOGIN_FILE env must be a full path,
+    where the directory structure must exist. However the
+    login file will be created if it does not exist.
+  */
 #ifdef _WIN32
   if (!(getenv("MYSQL_TEST_LOGIN_FILE"))) {
     /* Check if 'MySQL' directory is in place. */

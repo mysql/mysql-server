@@ -350,12 +350,12 @@ static void win_init_registry() {
   }
 }
 
-  /*------------------------------------------------------------------
-    Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
-    According to Microsoft Developers documentation the first registry
-    entry should be enough to check if TCP/IP is installed, but as expected
-    this doesn't work on all Win32 machines :(
-  ------------------------------------------------------------------*/
+/*------------------------------------------------------------------
+  Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
+  According to Microsoft Developers documentation the first registry
+  entry should be enough to check if TCP/IP is installed, but as expected
+  this doesn't work on all Win32 machines :(
+------------------------------------------------------------------*/
 
 #define TCPIPKEY "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
 #define WINSOCK2KEY "SYSTEM\\CurrentControlSet\\Services\\Winsock2\\Parameters"

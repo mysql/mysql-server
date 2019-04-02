@@ -2723,9 +2723,9 @@ ex:
   return rc;
 }
 
-  /*
-    Collation rule item
-  */
+/*
+  Collation rule item
+*/
 
 #define MY_UCA_MAX_EXPANSION 6 /* Maximum expansion length   */
 

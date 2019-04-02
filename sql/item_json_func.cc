@@ -960,7 +960,9 @@ longlong Item_func_json_contains_path::val_int() {
         null_value = true;
         return 0;
       }
-      default: { return error_int(); }
+      default: {
+        return error_int();
+      }
     }
 
     // the remaining args are paths
@@ -2788,7 +2790,9 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
       break;
     }
 
-    default: { break; }
+    default: {
+      break;
+    }
   }  // end switch on wrapper type
 
   return false;
@@ -2833,7 +2837,9 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
         null_value = true;
         return false;
       }
-      default: { return error_json(); }
+      default: {
+        return error_json();
+      }
     }
 
     // arg 2 is the search string

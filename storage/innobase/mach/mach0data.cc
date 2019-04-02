@@ -94,11 +94,11 @@ ib_uint32_t mach_parse_compressed(const byte **ptr, const byte *end_ptr) {
     return (static_cast<ib_uint32_t>(val));
   }
 
-    /* Workaround GCC bug
-    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77673:
-    the compiler moves mach_read_from_4 right to the beginning of the
-    function, causing and out-of-bounds read if we are reading a short
-    integer close to the end of buffer. */
+  /* Workaround GCC bug
+  https://gcc.gnu.org/bugzilla/show_bug.cgi?id=77673:
+  the compiler moves mach_read_from_4 right to the beginning of the
+  function, causing and out-of-bounds read if we are reading a short
+  integer close to the end of buffer. */
 #if defined(__GNUC__) && (__GNUC__ >= 5) && !defined(__clang__)
 #define DEPLOY_FENCE
 #endif

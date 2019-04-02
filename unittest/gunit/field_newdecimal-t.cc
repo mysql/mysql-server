@@ -32,9 +32,9 @@
 
 namespace field_newdecimal_unittest {
 
+using my_testing::chars_2_decimal;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
-using my_testing::chars_2_decimal;
 
 class FieldNewDecimalTest : public ::testing::Test {
  protected:

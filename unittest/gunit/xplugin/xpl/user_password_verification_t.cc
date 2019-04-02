@@ -34,9 +34,9 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::Return;
 using ::testing::ReturnRef;
-using ::testing::_;
 
 class User_password_verification : public ::testing::Test {
  public:

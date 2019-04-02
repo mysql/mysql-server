@@ -7011,7 +7011,9 @@ bool Item_field::replace_field_processor(uchar *arg) {
         fix_char_length(create_field->max_display_width_in_codepoints());
         break;
       }
-      default: { DBUG_ASSERT(false); /* purecov: deadcode */ }
+      default: {
+        DBUG_ASSERT(false); /* purecov: deadcode */
+      }
     }
 
     fixed = true;

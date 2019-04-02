@@ -1958,16 +1958,16 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...) {
   DBUG_RETURN(ret);
 }
 
-  /*
-    Test if diff is present.  This is needed on Windows systems
-    as the OS returns 1 whether diff is successful or if it is
-    not present.
+/*
+  Test if diff is present.  This is needed on Windows systems
+  as the OS returns 1 whether diff is successful or if it is
+  not present.
 
-    We run diff -v and look for output in stdout.
-    We don't redirect stderr to stdout to make for a simplified check
-    Windows will output '"diff"' is not recognized... to stderr if it is
-    not present.
-  */
+  We run diff -v and look for output in stdout.
+  We don't redirect stderr to stdout to make for a simplified check
+  Windows will output '"diff"' is not recognized... to stderr if it is
+  not present.
+*/
 
 #ifdef _WIN32
 
@@ -10470,14 +10470,14 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
   }
 }
 
-  /*
-    Regex replace  functions
-  */
+/*
+  Regex replace  functions
+*/
 
-  /*
-    Finds the next (non-escaped) '/' in the expression.
-    (If the character '/' is needed, it can be escaped using '\'.)
-  */
+/*
+  Finds the next (non-escaped) '/' in the expression.
+  (If the character '/' is needed, it can be escaped using '\'.)
+*/
 
 #define PARSE_REGEX_ARG     \
   while (p < expr_end) {    \
@@ -11163,9 +11163,9 @@ uint end_of_word(const char *pos) {
              : 0;
 }
 
-  /****************************************************************************
-   * Handle replacement of strings
-   ****************************************************************************/
+/****************************************************************************
+ * Handle replacement of strings
+ ****************************************************************************/
 
 #define PC_MALLOC 256 /* Bytes for pointers */
 #define PS_MALLOC 512 /* Bytes for data */

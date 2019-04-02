@@ -49,10 +49,10 @@
 #include <stdexcept>
 
 using mysql_harness::Path;
-using mysql_harness::logging::LogLevel;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::Record;
 using mysql_harness::serial_comma;
+using mysql_harness::logging::Logger;
+using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::Record;
 
 // TODO one day we'll improve this and move it to a common spot
 #define harness_assert(COND) \
@@ -244,7 +244,7 @@ void create_main_log_handler(Registry &registry, const std::string &program,
     return;
   }
 
-    // if user wants to log to OS log, make that our main handler
+  // if user wants to log to OS log, make that our main handler
 #ifdef _WIN32  // only Windows Eventlog is supported at the moment
   if (use_os_log) {
     // throws std::runtime_error on failure to init Windows Eventlog

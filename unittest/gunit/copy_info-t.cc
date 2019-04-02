@@ -35,8 +35,8 @@ namespace copy_info_unittest {
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
 
-using ::testing::StrictMock;
 using ::testing::_;
+using ::testing::StrictMock;
 
 /*
   Tests for the functionality of the COPY_INFO class. We test all public

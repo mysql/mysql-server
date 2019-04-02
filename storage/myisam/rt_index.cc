@@ -398,9 +398,9 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length) {
   return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
-  /*
-    Choose non-leaf better key for insertion
-  */
+/*
+  Choose non-leaf better key for insertion
+*/
 
 #ifdef PICK_BY_PERIMETER
 static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,

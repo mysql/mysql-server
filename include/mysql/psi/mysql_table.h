@@ -141,6 +141,6 @@ static inline void inline_mysql_unlock_table(struct PSI_table *table) {
 }
 #endif
 
-  /** @} (end of group psi_api_table) */
+/** @} (end of group psi_api_table) */
 
 #endif

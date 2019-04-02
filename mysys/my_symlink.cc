@@ -91,7 +91,7 @@ int my_readlink(char *to, const char *filename, myf MyFlags) {
 #endif /* !_WIN32 */
 }
 
-  /* Create a symbolic link */
+/* Create a symbolic link */
 
 #ifndef _WIN32
 int my_symlink(const char *content, const char *linkname, myf MyFlags) {

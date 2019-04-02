@@ -110,12 +110,12 @@ extern "C" MYSQL_PLUGIN_IMPORT ulong server_id;
 
 /* Forward declarations */
 using binary_log::Binary_log_event;
+using binary_log::checksum_crc32;
+using binary_log::enum_binlog_checksum_alg;
 using binary_log::Format_description_event;
 using binary_log::Log_event_footer;
 using binary_log::Log_event_header;
 using binary_log::Log_event_type;
-using binary_log::checksum_crc32;
-using binary_log::enum_binlog_checksum_alg;
 
 typedef ulonglong sql_mode_t;
 struct db_worker_hash_entry;
@@ -1039,15 +1039,15 @@ class Log_event {
     return common_header->flags & LOG_EVENT_MTS_ISOLATE_F;
   }
 
-    /**
-       Events of a certain type can start or end a group of events treated
-       transactionally wrt binlog.
+  /**
+     Events of a certain type can start or end a group of events treated
+     transactionally wrt binlog.
 
-       Public access is required by implementation of recovery + skip.
+     Public access is required by implementation of recovery + skip.
 
-       @return true  if the event starts a group (transaction)
-               false otherwise
-    */
+     @return true  if the event starts a group (transaction)
+             false otherwise
+  */
 #endif
   virtual bool starts_group() const { return false; }
   /**

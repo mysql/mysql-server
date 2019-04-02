@@ -479,9 +479,9 @@ void ProcessLauncher::report_error(const char *msg, const char *prefix) {
   char sys_err[64] = {'\0'};
   int errnum = errno;
   if (msg == NULL) {
-  // we do this #ifdef dance because on unix systems strerror_r() will
-  // generate a warning if we don't collect the result (warn_unused_result
-  // attribute)
+    // we do this #ifdef dance because on unix systems strerror_r() will
+    // generate a warning if we don't collect the result (warn_unused_result
+    // attribute)
 #if ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) || \
      (defined _XOPEN_SOURCE && (_XOPEN_SOURCE >= 600))) &&        \
     !defined _GNU_SOURCE

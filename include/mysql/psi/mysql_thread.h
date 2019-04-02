@@ -156,6 +156,6 @@ static inline void inline_mysql_thread_set_psi_THD(THD *thd) {
 
 #endif
 
-  /** @} (end of group psi_api_thread) */
+/** @} (end of group psi_api_thread) */
 
 #endif

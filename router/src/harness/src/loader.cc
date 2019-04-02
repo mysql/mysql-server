@@ -622,10 +622,10 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
                                  void (*fptr)(PluginFuncEnv *),
                                  const char *fnc_name, const char *plugin_name,
                                  const char *plugin_key = nullptr) noexcept {
-  auto handle_plugin_exception = [](std::exception_ptr & first_eptr,
-                                    const std::string &func_name,
-                                    const char *plug_name, const char *plug_key,
-                                    const std::exception *e) noexcept->void {
+  auto handle_plugin_exception =
+      [](std::exception_ptr & first_eptr, const std::string &func_name,
+         const char *plug_name, const char *plug_key,
+         const std::exception *e) noexcept->void {
     // Plugins are not allowed to throw, so let's alert the devs. But in
     // production, we want to be robust and try to handle this gracefully
     assert(0);

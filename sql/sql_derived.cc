@@ -751,10 +751,10 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
       (select_lex->join != NULL &&                    // 2
        (select_lex->join->const_table_map & map())))  // 2
   {
-  /*
-    At this point, JT_CONST derived tables should be null rows. Otherwise
-    they would have been materialized already.
-  */
+    /*
+      At this point, JT_CONST derived tables should be null rows. Otherwise
+      they would have been materialized already.
+    */
 #ifndef DBUG_OFF
     if (table != NULL) {
       QEP_TAB *tab = table->reginfo.qep_tab;

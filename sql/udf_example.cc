@@ -569,14 +569,14 @@ extern "C" long long sequence(UDF_INIT *initid, UDF_ARGS *args, unsigned char *,
   return ++*((long long *)initid->ptr) + val;
 }
 
-  /****************************************************************************
-  ** Some functions that handles IP and hostname conversions
-  ** The orignal function was from Zeev Suraski.
-  **
-  ** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
-  ** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
-  **
-  ****************************************************************************/
+/****************************************************************************
+** Some functions that handles IP and hostname conversions
+** The orignal function was from Zeev Suraski.
+**
+** CREATE FUNCTION lookup RETURNS STRING SONAME "udf_example.so";
+** CREATE FUNCTION reverse_lookup RETURNS STRING SONAME "udf_example.so";
+**
+****************************************************************************/
 
 #ifndef _WIN32
 #include <arpa/inet.h>

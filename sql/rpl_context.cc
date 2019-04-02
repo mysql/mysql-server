@@ -101,7 +101,7 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
     const Gtid &gtid = thd->owned_gtid;
     if (gtid.sidno == -1)  // we need to add thd->owned_gtid_set
     {
-    /* Caller must only call this function if the set was not empty. */
+      /* Caller must only call this function if the set was not empty. */
 #ifdef HAVE_GTID_NEXT_LIST
       DBUG_ASSERT(!thd->owned_gtid_set.is_empty());
       res = m_gtid_set->add_gtid_set(&thd->owned_gtid_set) != RETURN_STATUS_OK;

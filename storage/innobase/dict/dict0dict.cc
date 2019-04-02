@@ -261,11 +261,10 @@ ib_mutex_t dict_foreign_err_mutex;
 
 /** Checks if the database name in two table names is the same.
  @return true if same db name */
-ibool dict_tables_have_same_db(
-    const char *name1, /*!< in: table name in the form
-                       dbname '/' tablename */
-    const char *name2) /*!< in: table name in the form
-                       dbname '/' tablename */
+ibool dict_tables_have_same_db(const char *name1, /*!< in: table name in the
+                                                  form dbname '/' tablename */
+                               const char *name2) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   for (; *name1 == *name2; name1++, name2++) {
     if (*name1 == '/') {
@@ -278,9 +277,8 @@ ibool dict_tables_have_same_db(
 
 /** Return the end of table name where we have removed dbname and '/'.
  @return table name */
-const char *dict_remove_db_name(
-    const char *name) /*!< in: table name in the form
-                      dbname '/' tablename */
+const char *dict_remove_db_name(const char *name) /*!< in: table name in the
+                                                  form dbname '/' tablename */
 {
   const char *s = strchr(name, '/');
   ut_a(s);
@@ -1504,8 +1502,9 @@ dberr_t dict_table_rename_in_cache(
               ut_ad(table2->cached),
               (ut_strcmp(table2->name.m_name, new_name) == 0));
 
-  DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
-                  if (table2 == NULL) { table2 = (dict_table_t *)-1; });
+  DBUG_EXECUTE_IF(
+      "dict_table_rename_in_cache_failure",
+      if (table2 == NULL) { table2 = (dict_table_t *)-1; });
 
   if (table2 != nullptr) {
     ib::error(ER_IB_MSG_178)
@@ -4750,7 +4749,7 @@ syntax_error:
   return (DB_CANNOT_DROP_CONSTRAINT);
 }
 
-  /*==================== END OF FOREIGN KEY PROCESSING ====================*/
+/*==================== END OF FOREIGN KEY PROCESSING ====================*/
 
 #ifdef UNIV_DEBUG
 /** Checks that a tuple has n_fields_cmp value in a sensible range, so that
@@ -4773,16 +4772,15 @@ ibool dict_index_check_search_tuple(
 
 /** Builds a node pointer out of a physical record and a page number.
  @return own: node pointer */
-dtuple_t *dict_index_build_node_ptr(
-    const dict_index_t *index, /*!< in: index */
-    const rec_t *rec,          /*!< in: record for which to build node
-                               pointer */
-    page_no_t page_no,         /*!< in: page number to put in node
-                               pointer */
-    mem_heap_t *heap,          /*!< in: memory heap where pointer
-                               created */
-    ulint level)               /*!< in: level of rec in tree:
-                               0 means leaf level */
+dtuple_t *dict_index_build_node_ptr(const dict_index_t *index, /*!< in: index */
+                                    const rec_t *rec,  /*!< in: record for which
+                                                       to build node  pointer */
+                                    page_no_t page_no, /*!< in: page number to
+                                                       put in node pointer */
+                                    mem_heap_t *heap, /*!< in: memory heap where
+                                                      pointer created */
+                                    ulint level) /*!< in: level of rec in tree:
+                                                 0 means leaf level */
 {
   dtuple_t *tuple;
   dfield_t *field;

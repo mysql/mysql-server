@@ -53,9 +53,9 @@
 class handler;
 struct handlerton;
 
-using ::testing::NiceMock;
 using std::string;
 using std::vector;
+using ::testing::NiceMock;
 
 static const uint MAX_TABLE_COLUMNS = sizeof(int) * 8;
 

@@ -777,8 +777,9 @@ TEST_F(RouterAccountHostTest, argument_missing) {
   const unsigned server_port = port_pool_.get_next_available();
 
   // launch the router in bootstrap mode
-  auto router = launch_router("--bootstrap=127.0.0.1:" +
-                              std::to_string(server_port) + " --account-host");
+  auto router =
+      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
+                    " --account-host");
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
@@ -1080,11 +1081,12 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
 
   // check if the valid config option was added to the file
-  EXPECT_TRUE(find_in_file(bootstrap_directory + "/mysqlrouter.conf",
-                           [](const std::string &line) -> bool {
-                             return line == "use_gr_notifications=1";
-                           },
-                           std::chrono::milliseconds(0)));
+  EXPECT_TRUE(find_in_file(
+      bootstrap_directory + "/mysqlrouter.conf",
+      [](const std::string &line) -> bool {
+        return line == "use_gr_notifications=1";
+      },
+      std::chrono::milliseconds(0)));
 
   // check if valid TTL is set (with GR notifications it should be increased to
   // 60s)
@@ -1124,11 +1126,12 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
   EXPECT_EQ(router.wait_for_exit(), 0) << "output:" << router.get_full_output();
 
   // check if valid config option was added to the file
-  EXPECT_TRUE(find_in_file(bootstrap_directory + "/mysqlrouter.conf",
-                           [](const std::string &line) -> bool {
-                             return line == "use_gr_notifications=0";
-                           },
-                           std::chrono::milliseconds(0)));
+  EXPECT_TRUE(find_in_file(
+      bootstrap_directory + "/mysqlrouter.conf",
+      [](const std::string &line) -> bool {
+        return line == "use_gr_notifications=0";
+      },
+      std::chrono::milliseconds(0)));
 
   // check if valid TTL is set (with no GR notifications it should be 0.5s)
   EXPECT_TRUE(find_in_file(

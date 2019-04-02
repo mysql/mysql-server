@@ -356,13 +356,12 @@ void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
  the start of the extent.
  @return bit index of the bit, ULINT_UNDEFINED if not found */
 UNIV_INLINE
-page_no_t xdes_find_bit(
-    xdes_t *descr,  /*!< in: descriptor */
-    ulint bit,      /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-    ibool val,      /*!< in: desired bit value */
-    page_no_t hint, /*!< in: hint of which bit position would
-                    be desirable */
-    mtr_t *mtr)     /*!< in/out: mini-transaction */
+page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
+                        ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+                        ibool val, /*!< in: desired bit value */
+                        page_no_t hint, /*!< in: hint of which bit position
+                                        would be desirable */
+                        mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   page_no_t i;
 
@@ -3952,10 +3951,11 @@ dberr_t fsp_has_sdi(space_id_t space_id) {
 #endif /* UNIV_DEBUG */
 
   fil_space_release(space);
-  DBUG_EXECUTE_IF("ib_sdi", if (!FSP_FLAGS_HAS_SDI(space->flags)) {
-    ib::warn(ER_IB_MSG_429)
-        << "SDI doesn't exist in tablespace: " << space->name;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_sdi", if (!FSP_FLAGS_HAS_SDI(space->flags)) {
+        ib::warn(ER_IB_MSG_429)
+            << "SDI doesn't exist in tablespace: " << space->name;
+      });
   return (FSP_FLAGS_HAS_SDI(space->flags) ? DB_SUCCESS : DB_ERROR);
 }
 

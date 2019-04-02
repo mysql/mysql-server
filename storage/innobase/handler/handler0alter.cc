@@ -1764,10 +1764,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
     /* Test the case when referenced_table failed to
     open, if trx->check_foreigns is not set, we should
     still be able to add the foreign key */
-    DBUG_EXECUTE_IF("innodb_test_open_ref_fail", if (referenced_table) {
-      dd_table_close(referenced_table, current_thd, &mdl, true);
-      referenced_table = NULL;
-    });
+    DBUG_EXECUTE_IF(
+        "innodb_test_open_ref_fail", if (referenced_table) {
+          dd_table_close(referenced_table, current_thd, &mdl, true);
+          referenced_table = NULL;
+        });
 
     if (!referenced_table && trx->check_foreigns) {
       mutex_exit(&dict_sys->mutex);
@@ -4735,8 +4736,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
   }
 
   if (fts_index) {
-  /* Ensure that the dictionary operation mode will
-  not change while creating the auxiliary tables. */
+    /* Ensure that the dictionary operation mode will
+    not change while creating the auxiliary tables. */
 #ifdef UNIV_DEBUG
     trx_dict_op_t op = trx_get_dict_operation(ctx->trx);
 #endif
@@ -10750,7 +10751,7 @@ ib_sequence_t::ib_sequence_t(THD *thd, ulonglong start_value,
 Postfix increment
 @return the next value to insert */
 
-ulonglong ib_sequence_t::operator++(int)UNIV_NOTHROW {
+ulonglong ib_sequence_t::operator++(int) UNIV_NOTHROW {
   ulonglong current = m_next_value;
 
   ut_ad(!m_eof);

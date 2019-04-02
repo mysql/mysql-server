@@ -320,7 +320,9 @@ static inline int count_leading_zeroes(int i, dec1 val) {
     case 0:
       if (val >= 1) break;
       ++ret;  // Fall through.
-    default: { DBUG_ASSERT(false); }
+    default: {
+      DBUG_ASSERT(false);
+    }
   }
   return ret;
 }
@@ -374,7 +376,9 @@ static inline int count_trailing_zeroes(int i, dec1 val) {
     case 9:
       if ((uval % 1000000000) != 0) break;
       ++ret;  // Fall through.
-    default: { DBUG_ASSERT(false); }
+    default: {
+      DBUG_ASSERT(false);
+    }
   }
   return ret;
 }

@@ -379,9 +379,9 @@ lock_loop:
       return; /* Success */
     }
 
-      /* see comments in trx_commit_low() to
-      before_trx_state_committed_in_memory explaining
-      this care to invoke the following sync check.*/
+    /* see comments in trx_commit_low() to
+    before_trx_state_committed_in_memory explaining
+    this care to invoke the following sync check.*/
 #ifdef UNIV_DEBUG
     if (lock->get_level() != SYNC_DICT_OPERATION) {
       DEBUG_SYNC_C("rw_s_lock_waiting");

@@ -232,7 +232,7 @@ static inline void log_debug(const char *fmt, ...) {
   va_end(ap);
 }
 
-  /** @} */
+/** @} */
 
 #ifdef __cplusplus
 }

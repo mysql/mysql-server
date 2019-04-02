@@ -1936,12 +1936,13 @@ dberr_t fts_create_common_tables(trx_t *trx, const dict_table_t *table,
       goto func_exit;
     }
 
-    DBUG_EXECUTE_IF("ib_fts_aux_table_error",
-                    /* Return error after creating FTS_AUX_CONFIG table. */
-                    if (i == 4) {
-                      error = DB_ERROR;
-                      goto func_exit;
-                    });
+    DBUG_EXECUTE_IF(
+        "ib_fts_aux_table_error",
+        /* Return error after creating FTS_AUX_CONFIG table. */
+        if (i == 4) {
+          error = DB_ERROR;
+          goto func_exit;
+        });
   }
 
   /* Write the default settings to the config table. */
@@ -2292,13 +2293,14 @@ dberr_t fts_create_index_tables_low(trx_t *trx, dict_index_t *index,
       break;
     }
 
-    DBUG_EXECUTE_IF("ib_fts_index_table_error",
-                    /* Return error after creating FTS_INDEX_5
-                    aux table. */
-                    if (i == 4) {
-                      error = DB_FAIL;
-                      break;
-                    });
+    DBUG_EXECUTE_IF(
+        "ib_fts_index_table_error",
+        /* Return error after creating FTS_INDEX_5
+        aux table. */
+        if (i == 4) {
+          error = DB_FAIL;
+          break;
+        });
   }
 
   if (error == DB_SUCCESS) {

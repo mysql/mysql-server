@@ -825,16 +825,16 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
       thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
                        old_stage, __func__, __FILE__, __LINE__);
       while (!worker && !thd->killed) {
-      /*
-        Busy wait with yielding thread control before to next attempt
-        to find a free worker. As of current, a worker
-        can't have more than one assigned group of events in its
-        queue.
+        /*
+          Busy wait with yielding thread control before to next attempt
+          to find a free worker. As of current, a worker
+          can't have more than one assigned group of events in its
+          queue.
 
-        todo: replace this At-Most-One assignment policy with
-              First Available Worker as
-              this method clearly can't be considered as optimal.
-      */
+          todo: replace this At-Most-One assignment policy with
+                First Available Worker as
+                this method clearly can't be considered as optimal.
+        */
 #if !defined(_WIN32)
         sched_yield();
 #else

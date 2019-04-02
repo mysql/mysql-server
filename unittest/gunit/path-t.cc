@@ -62,4 +62,4 @@ TEST(Client, Path) {
   p1.parent_directory(&p2);
   EXPECT_STREQ("/root", p2.to_str().c_str());
 }
-}  // end ns
+}  // namespace file_path_ns

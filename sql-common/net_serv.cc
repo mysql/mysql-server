@@ -1298,7 +1298,7 @@ static bool net_read_packet_header(NET *net) {
     The local packet counter must be truncated since its not reset.
   */
   if (pkt_nr != (uchar)net->pkt_nr) {
-  /* Not a NET error on the client. XXX: why? */
+    /* Not a NET error on the client. XXX: why? */
 #if defined(MYSQL_SERVER)
     my_error(ER_NET_PACKETS_OUT_OF_ORDER, MYF(0));
 #elif defined(EXTRA_DEBUG)
@@ -1448,7 +1448,7 @@ static net_async_status net_read_packet_header_nonblocking(NET *net,
     The local packet counter must be truncated since its not reset.
   */
   if (pkt_nr != (uchar)net->pkt_nr) {
-  /* Not a NET error on the client. XXX: why? */
+    /* Not a NET error on the client. XXX: why? */
 #if defined(MYSQL_SERVER)
     my_error(ER_NET_PACKETS_OUT_OF_ORDER, MYF(0));
 #elif defined(EXTRA_DEBUG)

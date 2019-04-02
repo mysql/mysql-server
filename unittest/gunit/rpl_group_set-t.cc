@@ -66,21 +66,21 @@ class GroupTest : public ::testing::Test {
     my_delete("sid-map-2", MYF(0));
   }
 
-    /*
-      Test that different, equivalent ways to construct a Gtid_set give
-      the same resulting Gtid_set.  This is used to test Gtid_set,
-      Sid_map, Group_cache, Group_log_state, and Owned_groups.
+  /*
+    Test that different, equivalent ways to construct a Gtid_set give
+    the same resulting Gtid_set.  This is used to test Gtid_set,
+    Sid_map, Group_cache, Group_log_state, and Owned_groups.
 
-      We will generate sets of groups in *stages*.  Each stage is
-      divided into a number of *sub-stages* (the number of substages is
-      taken uniformly at random from the set 1, 2, ..., 200).  In each
-      sub-stage, we randomly sample one sub-group from a fixed set of
-      groups.  The fixed set of groups consists of groups from 16
-      different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
-      groups contains all GNOS from the closed interval [N, N - 1 + N *
-      N].  The stage consists of the set of groups from all the
-      sub-stages.
-    */
+    We will generate sets of groups in *stages*.  Each stage is
+    divided into a number of *sub-stages* (the number of substages is
+    taken uniformly at random from the set 1, 2, ..., 200).  In each
+    sub-stage, we randomly sample one sub-group from a fixed set of
+    groups.  The fixed set of groups consists of groups from 16
+    different SIDs.  For the Nth SID (1 <= N <= 16), the fixed set of
+    groups contains all GNOS from the closed interval [N, N - 1 + N *
+    N].  The stage consists of the set of groups from all the
+    sub-stages.
+  */
 
 #define BEGIN_SUBSTAGE_LOOP(group_test, stage, do_errtext)                    \
   (group_test)->push_errtext();                                               \

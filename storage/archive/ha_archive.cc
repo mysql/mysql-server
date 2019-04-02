@@ -624,9 +624,9 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     }
   }
 
-    /*
-      We reuse name_buff since it is available.
-    */
+  /*
+    We reuse name_buff since it is available.
+  */
 #ifndef _WIN32
   if (my_enable_symlinks && create_info->data_file_name &&
       create_info->data_file_name[0] != '#') {

@@ -400,7 +400,8 @@ bool Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
     m_srs_id = srs_id;
   }
 
-  deserialize_each(rctx, [this]() { return add_element(); }, val, "elements");
+  deserialize_each(
+      rctx, [this]() { return add_element(); }, val, "elements");
 
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");

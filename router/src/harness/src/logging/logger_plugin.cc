@@ -38,15 +38,15 @@
 #include "syslog_plugin.h"
 #endif
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::DIM;
 using mysql_harness::LoaderConfig;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::Handler;
-using mysql_harness::logging::LogLevel;
 using mysql_harness::logging::log_level_from_string;
+using mysql_harness::logging::LogLevel;
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -58,9 +58,9 @@ static HandlerPtr create_logging_sink(
     const mysql_harness::logging::LogLevel default_log_level) {
   using mysql_harness::Path;
   using mysql_harness::logging::FileHandler;
-  using mysql_harness::logging::StreamHandler;
   using mysql_harness::logging::get_default_log_level;
   using mysql_harness::logging::get_default_logger_stream;
+  using mysql_harness::logging::StreamHandler;
 
   constexpr const char *kLogLevel = "level";
 

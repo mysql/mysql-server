@@ -49,6 +49,7 @@
 namespace xcl {
 namespace test {
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Ref;
@@ -56,7 +57,6 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrictMock;
 using ::testing::Test;
-using ::testing::_;
 
 class Xcl_protocol_impl_tests : public Test {
  protected:

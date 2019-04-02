@@ -671,12 +671,11 @@ request is really for a 'gap' type lock */
 
 /** Checks if a lock request lock1 has to wait for request lock2.
  @return true if lock1 has to wait for lock2 to be removed */
-bool lock_has_to_wait(
-    const lock_t *lock1, /*!< in: waiting lock */
-    const lock_t *lock2) /*!< in: another lock; NOTE that it is
-                         assumed that this has a lock bit set
-                         on the same record as in lock1 if the
-                         locks are record locks */
+bool lock_has_to_wait(const lock_t *lock1, /*!< in: waiting lock */
+                      const lock_t *lock2) /*!< in: another lock; NOTE that it
+                                           is assumed that this has a lock bit
+                                           set on the same record as in lock1 if
+                                           the locks are record locks */
 {
   if (lock1->trx != lock2->trx &&
       !lock_mode_compatible(lock_get_mode(lock1), lock_get_mode(lock2))) {
@@ -926,7 +925,6 @@ static const lock_t *lock_rec_other_has_expl_req(
   }
 
   auto lock = Lock_iter::for_each(rec_id, [=](const lock_t *lock) {
-
     /* Ignore transactions that are being rolled back. */
     if (lock->trx != trx && !lock->is_gap() && (wait || !lock->is_waiting()) &&
         lock_mode_stronger_or_eq(lock->mode(), mode)) {
@@ -3079,18 +3077,17 @@ void lock_move_rec_list_end(
 
 /** Moves the explicit locks on user records to another page if a record
  list start is moved to another page. */
-void lock_move_rec_list_start(
-    const buf_block_t *new_block, /*!< in: index page to
-                                  move to */
-    const buf_block_t *block,     /*!< in: index page */
-    const rec_t *rec,             /*!< in: record on page:
-                                  this is the first
-                                  record NOT copied */
-    const rec_t *old_end)         /*!< in: old
-                                  previous-to-last
-                                  record on new_page
-                                  before the records
-                                  were copied */
+void lock_move_rec_list_start(const buf_block_t *new_block, /*!< in: index page
+                                                            to move to */
+                              const buf_block_t *block, /*!< in: index page */
+                              const rec_t *rec,         /*!< in: record on page:
+                                                        this is the first
+                                                        record NOT copied */
+                              const rec_t *old_end)     /*!< in: old
+                                                        previous-to-last
+                                                        record on new_page
+                                                        before the records
+                                                        were copied */
 {
   lock_t *lock;
   const ulint comp = page_rec_is_comp(rec);
@@ -3271,16 +3268,15 @@ void lock_update_split_right(
 }
 
 /** Updates the lock table when a page is merged to the right. */
-void lock_update_merge_right(
-    const buf_block_t *right_block, /*!< in: right page to
-                                    which merged */
-    const rec_t *orig_succ,         /*!< in: original
-                                    successor of infimum
-                                    on the right page
-                                    before merge */
-    const buf_block_t *left_block)  /*!< in: merged index
-                                    page which will be
-                                    discarded */
+void lock_update_merge_right(const buf_block_t *right_block, /*!< in: right page
+                                                             to which merged */
+                             const rec_t *orig_succ,         /*!< in: original
+                                                             successor of infimum
+                                                             on the right page
+                                                             before merge */
+                             const buf_block_t *left_block)  /*!< in: merged
+                                                             index  page which
+                                                             will be  discarded */
 {
   lock_mutex_enter();
 

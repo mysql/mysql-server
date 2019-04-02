@@ -624,7 +624,7 @@ class Fil_shard {
   bool mutex_owned() const { return (mutex_own(&m_mutex)); }
 #endif /* UNIV_DEBUG */
 
-    /** Mutex protecting this shard. */
+  /** Mutex protecting this shard. */
 
 #ifndef UNIV_HOTBACKUP
   mutable ib_mutex_t m_mutex;
@@ -4059,8 +4059,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   when we drop the database the remove directory will fail. */
   if (space->purpose != FIL_TYPE_TEMPORARY) {
 #ifdef UNIV_HOTBACKUP
-  /* When replaying the operation in MySQL Enterprise
-  Backup, we do not try to write any log record. */
+    /* When replaying the operation in MySQL Enterprise
+    Backup, we do not try to write any log record. */
 #else /* UNIV_HOTBACKUP */
     /* Before deleting the file, write a log record about it, so that
     InnoDB crash recovery will expect the file to be gone.  Skip this
@@ -7177,7 +7177,7 @@ dberr_t Fil_shard::get_file_for_io(const IORequest &req_type,
         return (DB_TABLE_NOT_FOUND);
       }
 #else  /* !UNIV_HOTBACKUP */
-    /* In backup, is_under_construction() is always false */
+      /* In backup, is_under_construction() is always false */
 #endif /* !UNIV_HOTBACKUP */
     }
   }
@@ -9563,7 +9563,7 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 #ifdef UNIV_HOTBACKUP
   uint32_t flags = mach_read_from_4(ptr);
 #else
-    /* Skip the flags, not used here. */
+  /* Skip the flags, not used here. */
 #endif /* UNIV_HOTBACKUP */
 
   ptr += 4;

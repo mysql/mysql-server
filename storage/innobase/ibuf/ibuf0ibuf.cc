@@ -248,7 +248,7 @@ void ibuf_count_check(const page_id_t &page_id) {
     the ibuf tree, excluding the   \
     root page, or is in the free   \
     list of the ibuf */
-  /* @} */
+/* @} */
 
 #define IBUF_REC_FIELD_SPACE    \
   0 /*!< in the pre-4.1 format, \
@@ -3044,8 +3044,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   if (ibuf->size >= ibuf->max_size + IBUF_CONTRACT_DO_NOT_INSERT) {
-  /* Insert buffer is now too big, contract it but do not try
-  to insert */
+    /* Insert buffer is now too big, contract it but do not try
+    to insert */
 
 #ifdef UNIV_IBUF_DEBUG
     fputs("Ibuf too big\n", stderr);
@@ -3133,14 +3133,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     goto func_exit;
   }
 
-    /* After this point, the page could still be loaded to the
-    buffer pool, but we do not have to care about it, since we are
-    holding a latch on the insert buffer leaf page that contains
-    buffered changes for (space, page_no).  If the page enters the
-    buffer pool, buf_page_io_complete() for (space, page_no) will
-    have to acquire a latch on the same insert buffer leaf page,
-    which it cannot do until we have buffered the IBUF_OP_DELETE
-    and done mtr_commit(&mtr) to release the latch. */
+  /* After this point, the page could still be loaded to the
+  buffer pool, but we do not have to care about it, since we are
+  holding a latch on the insert buffer leaf page that contains
+  buffered changes for (space, page_no).  If the page enters the
+  buffer pool, buf_page_io_complete() for (space, page_no) will
+  have to acquire a latch on the same insert buffer leaf page,
+  which it cannot do until we have buffered the IBUF_OP_DELETE
+  and done mtr_commit(&mtr) to release the latch. */
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
   ut_a((buffered == 0) || ibuf_count_get(page_id));
@@ -4504,9 +4504,9 @@ dberr_t ibuf_check_bitmap_on_import(
         ibuf_bitmap_get_map_page(page_id_t(space_id, page_no), page_size, &mtr);
 
     if (buf_page_is_zeroes(bitmap_page, page_size)) {
-    /* This means we got all-zero page instead of
-    ibuf bitmap page. The subsequent page should be
-    all-zero pages. */
+      /* This means we got all-zero page instead of
+      ibuf bitmap page. The subsequent page should be
+      all-zero pages. */
 #ifdef UNIV_DEBUG
       for (page_no_t curr_page = page_no + 1; curr_page < page_size.physical();
            curr_page++) {

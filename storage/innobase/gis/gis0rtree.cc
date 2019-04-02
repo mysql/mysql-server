@@ -1113,10 +1113,11 @@ func_start:
   /* It's possible that the new record is too big to be inserted into
   the page, and it'll need the second round split in this case.
   We test this scenario here*/
-  DBUG_EXECUTE_IF("rtr_page_need_second_split", if (n_iterations == 0) {
-    rec = NULL;
-    goto after_insert;
-  });
+  DBUG_EXECUTE_IF(
+      "rtr_page_need_second_split", if (n_iterations == 0) {
+        rec = NULL;
+        goto after_insert;
+      });
 
   rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index, offsets, heap,
                               n_ext, mtr);

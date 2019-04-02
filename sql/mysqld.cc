@@ -4633,10 +4633,10 @@ int init_common_variables() {
     return 1;
   }
 
-    /*
-      Reset the P_S view for global replication filter at
-      the end of server startup.
-    */
+  /*
+    Reset the P_S view for global replication filter at
+    the end of server startup.
+  */
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   rpl_global_filter.wrlock();
   rpl_global_filter.reset_pfs_view();
@@ -5358,10 +5358,10 @@ static int init_server_components() {
   }
 
   {
-  /*
-    We have to call a function in log_resource.cc, or its references
-    won't be visible to plugins.
-  */
+    /*
+      We have to call a function in log_resource.cc, or its references
+      won't be visible to plugins.
+    */
 #ifndef DBUG_OFF
     int dummy =
 #endif
@@ -6017,15 +6017,15 @@ int mysqld_main(int argc, char **argv)
   }
 #endif /* WITH_LOCK_ORDER */
 
-    /*
-      Other provider of the instrumentation interface should
-      initialize PSI_hook here:
-      - HAVE_PSI_INTERFACE is for the instrumentation interface
-      - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
-        of the interface,
-      but there could be alternate implementations, which is why
-      these two defines are kept separate.
-    */
+  /*
+    Other provider of the instrumentation interface should
+    initialize PSI_hook here:
+    - HAVE_PSI_INTERFACE is for the instrumentation interface
+    - WITH_PERFSCHEMA_STORAGE_ENGINE is for one implementation
+      of the interface,
+    but there could be alternate implementations, which is why
+    these two defines are kept separate.
+  */
 
 #ifdef HAVE_PSI_INTERFACE
   /*
@@ -6392,10 +6392,10 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
 
-    /*
-     The subsequent calls may take a long time : e.g. innodb log read.
-     Thus set the long running service control manager timeout
-    */
+  /*
+   The subsequent calls may take a long time : e.g. innodb log read.
+   Thus set the long running service control manager timeout
+  */
 #if defined(_WIN32)
   if (windows_service) {
     if (setup_service_status_cmd_processed_handle())
@@ -6961,10 +6961,10 @@ int mysqld_main(int argc, char **argv)
   mysqld_exit(signal_hand_thr_exit_code);
 }
 
-  /****************************************************************************
-    Main and thread entry function for Win32
-    (all this is needed only to run mysqld as a service on WinNT)
-  ****************************************************************************/
+/****************************************************************************
+  Main and thread entry function for Win32
+  (all this is needed only to run mysqld as a service on WinNT)
+****************************************************************************/
 
 #if defined(_WIN32)
 
@@ -8798,9 +8798,9 @@ static int mysql_init_variables() {
     dirname_part(cmake_binary_dir, mysql_home, &dlen);
     strmake(mysql_home, cmake_binary_dir, sizeof(mysql_home) - 1);
   }
-    // The sql_print_information below outputs nothing ??
-    // fprintf(stderr, "mysql_home %s\n", mysql_home);
-    // fflush(stderr);
+  // The sql_print_information below outputs nothing ??
+  // fprintf(stderr, "mysql_home %s\n", mysql_home);
+  // fflush(stderr);
 #else
   const char *tmpenv = getenv("MY_BASEDIR_VERSION");
   if (tmpenv != nullptr) {
@@ -10163,10 +10163,10 @@ void refresh_status() {
   Connection_handler_manager::reset_max_used_connections();
 }
 
-  /*****************************************************************************
-    Instantiate variables for missing storage engines
-    This section should go away soon
-  *****************************************************************************/
+/*****************************************************************************
+  Instantiate variables for missing storage engines
+  This section should go away soon
+*****************************************************************************/
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_LOCK_tc;

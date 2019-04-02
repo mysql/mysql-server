@@ -99,11 +99,11 @@ static constexpr unsigned kDefaultPasswordRetries =
 static constexpr unsigned kMaxPasswordRetries = 10000;
 
 using mysql_harness::DIM;
+using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::TCPAddress;
-using mysql_harness::UniquePtr;
-using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
+using mysql_harness::UniquePtr;
 using namespace mysqlrouter;
 
 namespace {

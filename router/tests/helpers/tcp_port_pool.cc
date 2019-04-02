@@ -142,33 +142,33 @@ UniqueId::~UniqueId() {
     close(lock_file_fd_);
   }
 
-    /*
-     * Removing lock file may result in race condition, both fcntl and flock are
-     * affected by this issue, consider the following scenario.
-     *
-     *           process A           process B
-     *     1. fd_a = open(file)                     // process A opens file
-     *     2. fcntl(fd_a) == 0                      // process A acquires lock
-     * on file
-     *     3.                    fd_b = open(file)  // process B opens file
-     *     4.                    fcntl(fd_b) == -1  // process B fails to
-     * acquire lock
-     *     5. close(fd_a)                           // process A closes file
-     *     6. unlink(file)                          // process A removes file
-     * name
-     *     7. fd_a = open(file)                     // process A opens file once
-     * again
-     *     8. fcntl(fd_a) == 0                      // process A acquires lock
-     * on the file
-     *     9.                    close(fd_b)        // process B closes file
-     *    10.                    unlink(file)       // process B removes file
-     * name
-     *    11.                    fd_b = open(file)  // process B opens file
-     *    12.                    fcntl(fd_b) == 0   // process B acquires lock
-     * on file
-     *
-     *    At this point both process A and process B have lock on the same file.
-     */
+  /*
+   * Removing lock file may result in race condition, both fcntl and flock are
+   * affected by this issue, consider the following scenario.
+   *
+   *           process A           process B
+   *     1. fd_a = open(file)                     // process A opens file
+   *     2. fcntl(fd_a) == 0                      // process A acquires lock
+   * on file
+   *     3.                    fd_b = open(file)  // process B opens file
+   *     4.                    fcntl(fd_b) == -1  // process B fails to
+   * acquire lock
+   *     5. close(fd_a)                           // process A closes file
+   *     6. unlink(file)                          // process A removes file
+   * name
+   *     7. fd_a = open(file)                     // process A opens file once
+   * again
+   *     8. fcntl(fd_a) == 0                      // process A acquires lock
+   * on the file
+   *     9.                    close(fd_b)        // process B closes file
+   *    10.                    unlink(file)       // process B removes file
+   * name
+   *    11.                    fd_b = open(file)  // process B opens file
+   *    12.                    fcntl(fd_b) == 0   // process B acquires lock
+   * on file
+   *
+   *    At this point both process A and process B have lock on the same file.
+   */
 
 #else
   if (lock_file_fd_ != NULL && lock_file_fd_ != INVALID_HANDLE_VALUE) {

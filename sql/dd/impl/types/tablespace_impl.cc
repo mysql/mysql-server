@@ -213,7 +213,8 @@ bool Tablespace_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read_properties(&m_options, val, "options");
   read_properties(&m_se_private_data, val, "se_private_data");
   read(&m_engine, val, "engine");
-  deserialize_each(rctx, [this]() { return add_file(); }, val, "files");
+  deserialize_each(
+      rctx, [this]() { return add_file(); }, val, "files");
   return false;
 }
 

@@ -2576,11 +2576,12 @@ func_exit:
 
   btr_pcur_close(&pcur);
 
-  DBUG_EXECUTE_IF("ib_sdi", if (dict_table_is_sdi(index->table->id)) {
-    ib::info(ER_IB_MSG_959)
-        << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
-        << index->table->name << " return status: " << err;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_sdi", if (dict_table_is_sdi(index->table->id)) {
+        ib::info(ER_IB_MSG_959)
+            << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
+            << index->table->name << " return status: " << err;
+      });
 
   DBUG_RETURN(err);
 }

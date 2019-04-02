@@ -1092,20 +1092,20 @@ void STDCALL myodbc_remove_escape(MYSQL *mysql, char *name) {
   *to = 0;
 }
 
-  /********************************************************************
-   Implementation of new client API for 4.1 version.
+/********************************************************************
+ Implementation of new client API for 4.1 version.
 
-   mysql_stmt_* are real prototypes used by applications.
+ mysql_stmt_* are real prototypes used by applications.
 
-   All functions performing
-   real I/O are prefixed with 'cli_' (abbreviated from 'Call Level
-   Interface'). This functions are invoked via pointers set in
-   MYSQL::methods structure.
-  *********************************************************************/
+ All functions performing
+ real I/O are prefixed with 'cli_' (abbreviated from 'Call Level
+ Interface'). This functions are invoked via pointers set in
+ MYSQL::methods structure.
+*********************************************************************/
 
-  /******************* Declarations ***********************************/
+/******************* Declarations ***********************************/
 
-  /* Default number of rows fetched per one COM_STMT_FETCH command. */
+/* Default number of rows fetched per one COM_STMT_FETCH command. */
 
 #define DEFAULT_PREFETCH_ROWS (ulong)1
 

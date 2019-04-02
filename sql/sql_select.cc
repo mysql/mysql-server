@@ -2701,10 +2701,11 @@ void QEP_TAB::init_join_cache(JOIN_TAB *join_tab) {
     default:
       DBUG_ASSERT(0);
   }
-  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail", if (prev_cache) {
-    DBUG_SET("+d,jb_alloc_fail");
-    DBUG_SET("-d,jb_alloc_with_prev_fail");
-  });
+  DBUG_EXECUTE_IF(
+      "jb_alloc_with_prev_fail", if (prev_cache) {
+        DBUG_SET("+d,jb_alloc_fail");
+        DBUG_SET("-d,jb_alloc_with_prev_fail");
+      });
   if (!op || op->init()) {
     /*
       OOM. If it's in creation of "op" it has thrown error.

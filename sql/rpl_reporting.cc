@@ -65,11 +65,11 @@ int Slave_reporting_capability::has_temporary_error(THD *thd, uint error_arg,
   uint error;
   DBUG_ENTER("has_temporary_error");
 
-  DBUG_EXECUTE_IF("all_errors_are_temporary_errors",
-                  if (thd->get_stmt_da()->is_error()) {
-                    thd->clear_error();
-                    my_error(ER_LOCK_DEADLOCK, MYF(0));
-                  });
+  DBUG_EXECUTE_IF(
+      "all_errors_are_temporary_errors", if (thd->get_stmt_da()->is_error()) {
+        thd->clear_error();
+        my_error(ER_LOCK_DEADLOCK, MYF(0));
+      });
 
   /*
     The slave can't be regarded as experiencing a temporary failure in cases of

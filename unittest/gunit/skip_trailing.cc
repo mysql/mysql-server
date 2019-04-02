@@ -118,4 +118,4 @@ const uchar *skip_trailing_8byte(const uchar *ptr, size_t len) {
   while (end > ptr && end[-1] == 0x20) end--;
   return (end);
 }
-}
+}  // namespace skip_trailing_space_unittest

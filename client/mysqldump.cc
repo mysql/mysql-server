@@ -5545,10 +5545,10 @@ static bool get_view_structure(char *table, char *db) {
   DBUG_RETURN(0);
 }
 
-  /*
-    The following functions are wrappers for the dynamic string functions
-    and if they fail, the wrappers will terminate the current process.
-  */
+/*
+  The following functions are wrappers for the dynamic string functions
+  and if they fail, the wrappers will terminate the current process.
+*/
 
 #define DYNAMIC_STR_ERROR_MSG "Couldn't perform DYNAMIC_STRING operation"
 

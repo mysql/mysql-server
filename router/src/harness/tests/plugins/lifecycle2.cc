@@ -42,10 +42,10 @@ class PluginFuncEnv;
 
 #include <thread>
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
-using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 // debug printer, keep it disabled unless developing this code

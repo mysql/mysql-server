@@ -304,7 +304,6 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   auto err = Clone_Sys::wait(
       sleep_time, time_out, alert_interval,
       [&](bool alert, bool &result) {
-
         ut_ad(mutex_own(clone_sys->get_mutex()));
         result = !clone_hdl->is_active();
 

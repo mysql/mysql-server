@@ -70,6 +70,7 @@
 using std::string;
 using std::vector;
 
+using ::testing::_;
 using ::testing::EndsWith;
 using ::testing::Ge;
 using ::testing::HasSubstr;
@@ -79,7 +80,6 @@ using ::testing::Return;
 using ::testing::SizeIs;
 using ::testing::StartsWith;
 using ::testing::StrEq;
-using ::testing::_;
 
 #ifndef _WIN32
 using mysqlrouter::SysUserOperationsBase;

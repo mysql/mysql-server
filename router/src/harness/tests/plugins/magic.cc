@@ -31,13 +31,13 @@
 #include <cstdlib>
 #include <iostream>
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
-using mysql_harness::ConfigSection;
-using mysql_harness::PLUGIN_ABI_VERSION;
-using mysql_harness::Plugin;
-using mysql_harness::PluginFuncEnv;
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::bad_option;
+using mysql_harness::ConfigSection;
+using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 
 #if defined(_MSC_VER) && defined(magic_EXPORTS)

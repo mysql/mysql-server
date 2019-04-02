@@ -65,7 +65,7 @@ struct ib_sequence_t {
 
   /** Postfix increment
   @return the value to insert */
-  ulonglong operator++(int)UNIV_NOTHROW;
+  ulonglong operator++(int) UNIV_NOTHROW;
 
   /** Check if the autoinc "sequence" is exhausted.
   @return true if the sequence is exhausted */

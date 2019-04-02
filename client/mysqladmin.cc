@@ -1014,7 +1014,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
           */
         }
 
-          /* Warn about password being set in non ssl connection */
+        /* Warn about password being set in non ssl connection */
 #if defined(HAVE_OPENSSL)
         {
           uint ssl_mode = 0;

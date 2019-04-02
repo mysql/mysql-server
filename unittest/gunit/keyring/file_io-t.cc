@@ -40,10 +40,10 @@ extern PSI_file_key keyring_backup_file_data_key;
 #endif
 
 namespace keyring__file_io_unittest {
-using ::testing::StartsWith;
-using ::testing::StrEq;
 using keyring::Mock_logger;
 using my_testing::Server_initializer;
+using ::testing::StartsWith;
+using ::testing::StrEq;
 
 class File_io_test : public ::testing::Test {
  protected:

@@ -58,14 +58,14 @@ void validate_socket_info_test_proxy(
     const std::string &err_prefix, const mysql_harness::ConfigSection *section,
     const RoutingPluginConfig &config);
 
+using mysql_harness::get_strerror;
+using mysql_harness::Path;
+using std::string;
 using ::testing::HasSubstr;
 using ::testing::IsEmpty;
 using ::testing::IsNull;
 using ::testing::NotNull;
 using ::testing::StrEq;
-using mysql_harness::Path;
-using mysql_harness::get_strerror;
-using std::string;
 
 // define what is available in routing_plugin.cc
 extern const mysql_harness::AppInfo *g_app_info;

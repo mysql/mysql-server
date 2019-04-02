@@ -131,13 +131,13 @@ struct Log_handle {
 /** Redo log - single data structure with state of the redo log system.
 In future, one could consider splitting this to multiple data structures. */
 struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
-/**************************************************/ /**
+  /**************************************************/ /**
 
- @name Users writing to log buffer
+   @name Users writing to log buffer
 
- *******************************************************/
+   *******************************************************/
 
-/** @{ */
+  /** @{ */
 
 #ifndef UNIV_HOTBACKUP
   /** Sharded rw-lock which can be used to freeze redo log lsn.

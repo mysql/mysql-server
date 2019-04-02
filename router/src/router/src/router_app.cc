@@ -80,10 +80,10 @@ IMPORT_LOG_FUNCTIONS()
 using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::truncate_string;
-using mysqlrouter::SysUserOperations;
-using mysqlrouter::SysUserOperationsBase;
 using mysqlrouter::string_format;
 using mysqlrouter::substitute_envvar;
+using mysqlrouter::SysUserOperations;
+using mysqlrouter::SysUserOperationsBase;
 using mysqlrouter::wrap_string;
 using std::string;
 using std::vector;

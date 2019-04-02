@@ -8851,14 +8851,14 @@ end:
     cur_key2 = next;
   }
 
-    /*
-      TODO: We should call key2->free_tree() here, since this might be the
-      last reference to the tree (if !key2_shared). However, the tree might
-      be in an invalid state since we may have inserted nodes into key1 without
-      taking them out of key2, so we need to clean that up first. As a temporary
-      measure, we TRASH() it to expose any bugs where people hold on to it
-      where we thought they wouldn't.
-    */
+  /*
+    TODO: We should call key2->free_tree() here, since this might be the
+    last reference to the tree (if !key2_shared). However, the tree might
+    be in an invalid state since we may have inserted nodes into key1 without
+    taking them out of key2, so we need to clean that up first. As a temporary
+    measure, we TRASH() it to expose any bugs where people hold on to it
+    where we thought they wouldn't.
+  */
 #ifndef DBUG_OFF
   if (!key2_shared) TRASH(key2, sizeof(*key2));
 #endif
@@ -15280,12 +15280,12 @@ static inline void print_tree(String *out, const char *tree_name,
   }
 }
 
-  /*****************************************************************************
-  ** Print a quick range for debugging
-  ** TODO:
-  ** This should be changed to use a String to store each row instead
-  ** of locking the DEBUG stream !
-  *****************************************************************************/
+/*****************************************************************************
+** Print a quick range for debugging
+** TODO:
+** This should be changed to use a String to store each row instead
+** of locking the DEBUG stream !
+*****************************************************************************/
 
 #ifndef DBUG_OFF
 

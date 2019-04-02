@@ -391,11 +391,10 @@ static int pars_like_op(
 }
 /** Parses an operator expression.
  @return own: function node in a query tree */
-func_node_t *pars_op(
-    int func,         /*!< in: operator token code */
-    que_node_t *arg1, /*!< in: first argument */
-    que_node_t *arg2) /*!< in: second argument or NULL for an unary
-                      operator */
+func_node_t *pars_op(int func,         /*!< in: operator token code */
+                     que_node_t *arg1, /*!< in: first argument */
+                     que_node_t *arg2) /*!< in: second argument or NULL for an
+                                       unary operator */
 {
   que_node_list_add_last(NULL, arg1);
 
@@ -1207,15 +1206,14 @@ ins_node_t *pars_insert_statement(
 }
 
 /** Set the type of a dfield. */
-static void pars_set_dfield_type(
-    dfield_t *dfield,      /*!< in: dfield */
-    pars_res_word_t *type, /*!< in: pointer to a type
-                           token */
-    ulint len,             /*!< in: length, or 0 */
-    ibool is_unsigned,     /*!< in: if TRUE, column is
-                           UNSIGNED. */
-    ibool is_not_null)     /*!< in: if TRUE, column is
-                           NOT NULL. */
+static void pars_set_dfield_type(dfield_t *dfield,      /*!< in: dfield */
+                                 pars_res_word_t *type, /*!< in: pointer to a
+                                                        type token */
+                                 ulint len,             /*!< in: length, or 0 */
+                                 ibool is_unsigned, /*!< in: if TRUE, column is
+                                                    UNSIGNED. */
+                                 ibool is_not_null) /*!< in: if TRUE, column is
+                                                    NOT NULL. */
 {
   ulint flags = 0;
 
@@ -1673,10 +1671,9 @@ que_fork_t *pars_procedure_definition(
 }
 
 /** Retrieves characters to the lexical analyzer. */
-int pars_get_lex_chars(
-    char *buf,       /*!< in/out: buffer where to copy */
-    size_t max_size) /*!< in: maximum number of characters which fit
-                     in the buffer */
+int pars_get_lex_chars(char *buf,       /*!< in/out: buffer where to copy */
+                       size_t max_size) /*!< in: maximum number of characters
+                                        which fit in the buffer */
 {
   int len;
 

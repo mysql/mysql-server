@@ -39,11 +39,11 @@
 #include <WinSock2.h>
 #endif
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
 class TestSetupTcpService : public ::testing::Test {
  protected:

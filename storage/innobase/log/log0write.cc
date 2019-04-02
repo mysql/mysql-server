@@ -1646,8 +1646,8 @@ static void log_files_write_buffer(log_t &log, byte *buffer, size_t buffer_size,
     if (start_lsn == log.write_lsn.load()) {
       LOG_SYNC_POINT("log_writer_before_write_new_incomplete_block");
     }
-      /* Else: we are doing yet another incomplete block write within the
-      same block as the one in which we did the previous write. */
+    /* Else: we are doing yet another incomplete block write within the
+    same block as the one in which we did the previous write. */
 #endif /* UNIV_DEBUG */
 
     write_buf = log.write_ahead_buf;
@@ -1951,7 +1951,6 @@ void log_writer(log_t *log_ptr) {
 
     auto stop_condition = [&ready_lsn, &log, &released,
                            &write_to_file_requests_monitor](bool wait) {
-
       if (released) {
         log_writer_mutex_enter(log);
         released = false;
@@ -2194,7 +2193,6 @@ void log_flusher(log_t *log_ptr) {
     bool released = false;
 
     auto stop_condition = [&log, &released, step](bool wait) {
-
       if (released) {
         log_flusher_mutex_enter(log);
         released = false;
@@ -2329,7 +2327,6 @@ void log_write_notifier(log_t *log_ptr) {
     bool released = false;
 
     auto stop_condition = [&log, lsn, &released](bool wait) {
-
       LOG_SYNC_POINT("log_write_notifier_after_event_reset");
       if (released) {
         log_write_notifier_mutex_enter(log);
@@ -2425,7 +2422,6 @@ void log_flush_notifier(log_t *log_ptr) {
     bool released = false;
 
     auto stop_condition = [&log, lsn, &released](bool wait) {
-
       LOG_SYNC_POINT("log_flush_notifier_after_event_reset");
       if (released) {
         log_flush_notifier_mutex_enter(log);
@@ -2512,7 +2508,6 @@ void log_closer(log_t *log_ptr) {
     bool released = false;
 
     auto stop_condition = [&log, &released, step](bool wait) {
-
       if (released) {
         log_closer_mutex_enter(log);
         released = false;
@@ -2746,6 +2741,6 @@ void redo_rotate_default_master_key() {
   }
 }
 
-  /* @} */
+/* @} */
 
 #endif /* !UNIV_HOTBACKUP */

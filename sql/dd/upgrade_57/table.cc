@@ -515,25 +515,25 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
   DBUG_RETURN(false);
 }
 
-  /**
-    Trigger BUG#14090 compatibility hook.
+/**
+  Trigger BUG#14090 compatibility hook.
 
-    @param[in,out] unknown_key       reference on the line with unknown
-      parameter and the parsing point
-    @param[in]     base              base address for parameter writing
-      (structure like TABLE)
-    @param[in]     mem_root          MEM_ROOT for parameters allocation
-    @param[in]     end               the end of the configuration
+  @param[in,out] unknown_key       reference on the line with unknown
+    parameter and the parsing point
+  @param[in]     base              base address for parameter writing
+    (structure like TABLE)
+  @param[in]     mem_root          MEM_ROOT for parameters allocation
+  @param[in]     end               the end of the configuration
 
-    @note
-      NOTE: this hook process back compatibility for incorrectly written
-      sql_modes parameter (see BUG#14090).
+  @note
+    NOTE: this hook process back compatibility for incorrectly written
+    sql_modes parameter (see BUG#14090).
 
-    @retval
-      false OK
-    @retval
-      true  Error
-  */
+  @retval
+    false OK
+  @retval
+    true  Error
+*/
 
 #define INVALID_SQL_MODES_LENGTH 13
 

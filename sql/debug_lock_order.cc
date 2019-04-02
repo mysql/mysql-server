@@ -5897,10 +5897,10 @@ void LO_stack_trace::print(FILE *out) const {
 */
 
 static void debug_lock_order_break_here(const char *why) {
-/*
-  ASSERT in --bootstrap mode are very rude, causing trouble to debug things.
-  Only assert one the server is really up, to fail a given test script only
-*/
+  /*
+    ASSERT in --bootstrap mode are very rude, causing trouble to debug things.
+    Only assert one the server is really up, to fail a given test script only
+  */
 
 #ifdef LATER
   if (!check_activated) {

@@ -34,12 +34,12 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::Args;
 using ::testing::DoAll;
 using ::testing::InvokeWithoutArgs;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::_;
 
 using namespace mysql_protocol;
 

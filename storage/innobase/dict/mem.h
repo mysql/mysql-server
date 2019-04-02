@@ -71,19 +71,17 @@ void dict_mem_table_add_col(
 
 /** This function populates a dict_col_t memory structure with
  supplied information. */
-void dict_mem_fill_column_struct(
-    dict_col_t *column, /*!< out: column struct to be
-                        filled */
-    ulint col_pos,      /*!< in: column position */
-    ulint mtype,        /*!< in: main data type */
-    ulint prtype,       /*!< in: precise type */
-    ulint col_len);     /*!< in: column length */
+void dict_mem_fill_column_struct(dict_col_t *column, /*!< out: column struct to
+                                                     be filled */
+                                 ulint col_pos,      /*!< in: column position */
+                                 ulint mtype,        /*!< in: main data type */
+                                 ulint prtype,       /*!< in: precise type */
+                                 ulint col_len);     /*!< in: column length */
 /** Append 'name' to 'col_names'.  @see dict_table_t::col_names
  @return new column names array */
-const char *dict_add_col_name(
-    const char *col_names, /*!< in: existing column names, or
-                           NULL */
-    ulint cols,            /*!< in: number of existing columns */
-    const char *name,      /*!< in: new column name */
-    mem_heap_t *heap);     /*!< in: heap */
+const char *dict_add_col_name(const char *col_names, /*!< in: existing column
+                                                     names, or NULL */
+                              ulint cols, /*!< in: number of existing columns */
+                              const char *name,  /*!< in: new column name */
+                              mem_heap_t *heap); /*!< in: heap */
 #endif

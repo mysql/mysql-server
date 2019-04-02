@@ -1419,7 +1419,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
   return error;
 }
 
-  /* Flush write cache */
+/* Flush write cache */
 
 #define LOCK_APPEND_BUFFER \
   if (need_append_buffer_lock) lock_append_buffer(info);
@@ -1541,9 +1541,9 @@ int end_io_cache(IO_CACHE *info) {
   DBUG_RETURN(error);
 } /* end_io_cache */
 
-  /**********************************************************************
-   Testing of MF_IOCACHE
-  **********************************************************************/
+/**********************************************************************
+ Testing of MF_IOCACHE
+**********************************************************************/
 
 #ifdef MAIN
 

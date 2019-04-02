@@ -680,14 +680,13 @@ void pfs_rw_lock_free_func(rw_lock_t *lock) /*!< in: pointer to rw-lock */
  NOTE! Please use the corresponding macro rw_lock_s_lock(), not
  directly this function! */
 ALWAYS_INLINE
-void pfs_rw_lock_s_lock_func(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the
-                           lock will be passed to another
-                           thread to unlock */
-    const char *file_name, /*!< in: file name where lock
-                         requested */
-    ulint line)            /*!< in: line where requested */
+void pfs_rw_lock_s_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
+                             ulint pass,      /*!< in: pass value; != 0, if the
+                                              lock will be passed to another
+                                              thread to unlock */
+                             const char *file_name, /*!< in: file name where
+                                                  lock requested */
+                             ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != NULL) {
     PSI_rwlock_locker *locker;
@@ -711,14 +710,13 @@ void pfs_rw_lock_s_lock_func(
  NOTE! Please use the corresponding macro rw_lock_sx_lock(), not
  directly this function! */
 UNIV_INLINE
-void pfs_rw_lock_sx_lock_func(
-    rw_lock_t *lock,       /*!< in: pointer to rw-lock */
-    ulint pass,            /*!< in: pass value; != 0, if the
-                           lock will be passed to another
-                           thread to unlock */
-    const char *file_name, /*!< in: file name where lock
-                         requested */
-    ulint line)            /*!< in: line where requested */
+void pfs_rw_lock_sx_lock_func(rw_lock_t *lock, /*!< in: pointer to rw-lock */
+                              ulint pass,      /*!< in: pass value; != 0, if the
+                                               lock will be passed to another
+                                               thread to unlock */
+                              const char *file_name, /*!< in: file name where
+                                                   lock requested */
+                              ulint line) /*!< in: line where requested */
 {
   if (lock->pfs_psi != NULL) {
     PSI_rwlock_locker *locker;

@@ -170,7 +170,6 @@ int Clone_Sys::find_free_index(Clone_Handle_Type hdl_type, uint &free_index) {
   auto err = Clone_Sys::wait(
       sleep_time, time_out, alert_interval,
       [&](bool alert, bool &result) {
-
         ut_ad(mutex_own(clone_sys->get_mutex()));
         auto current_clone = m_clone_arr[target_index];
         result = (current_clone != nullptr);
@@ -426,16 +425,15 @@ bool Clone_Sys::mark_abort(bool force) {
 
     bool is_timeout = false;
 
-    wait(sleep_time, time_out, alert_time,
-         [&](bool alert, bool &result) {
+    wait(
+        sleep_time, time_out, alert_time,
+        [&](bool alert, bool &result) {
+          ut_ad(mutex_own(&m_clone_sys_mutex));
+          result = check_active_clone(alert);
 
-           ut_ad(mutex_own(&m_clone_sys_mutex));
-           result = check_active_clone(alert);
-
-           return (0);
-
-         },
-         &m_clone_sys_mutex, is_timeout);
+          return (0);
+        },
+        &m_clone_sys_mutex, is_timeout);
 
     if (is_timeout) {
       ut_ad(false);
@@ -829,7 +827,6 @@ int Clone_Task_Manager::add_task(THD *thd, const byte *ref_loc, uint loc_len,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = wait_before_add(ref_loc, loc_len);
 
@@ -910,7 +907,6 @@ bool Clone_Task_Manager::drop_task(THD *thd, uint task_id, bool &is_master) {
     int alert_count = 0;
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_num_tasks > 0);
 
@@ -1415,7 +1411,6 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_current_state != m_ack_state);
 
@@ -1432,7 +1427,6 @@ int Clone_Task_Manager::wait_ack(Clone_Handle *clone, Clone_Task *task,
             err = clone->send_keep_alive(task, callback);
           }
           return (err);
-
         },
         &m_state_mutex, is_timeout);
 
@@ -1501,7 +1495,6 @@ int Clone_Task_Manager::finish_state(Clone_Task *task) {
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_state_mutex));
           result = (m_num_tasks_finished < m_num_tasks);
 
@@ -1609,7 +1602,6 @@ int Clone_Task_Manager::change_state(Clone_Task *task,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           num_pending = m_clone_snapshot->check_state(m_next_state, false);
           result = (num_pending > 0);
 
@@ -1980,7 +1972,6 @@ int Clone_Handle::move_to_next_state(Clone_Task *task, Ha_clone_cbk *callback,
     int alert_count = 0;
     err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           /* For multi threaded clone, master task does the state change. */
           if (task->m_is_master) {
             err = m_clone_task_manager.change_state(task, state_desc,

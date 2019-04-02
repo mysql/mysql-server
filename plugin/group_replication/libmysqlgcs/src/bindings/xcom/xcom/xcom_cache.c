@@ -233,15 +233,15 @@ static lru_machine *lru_get(bool_t force) {
     retval = (lru_machine *)link_first(&probation_lru);
   } else {
     /* Find the first non-busy instance in the LRU */
-    FWD_ITER(&protected_lru, lru_machine,
-             if (!is_busy_machine(&link_iter->pax)) {
-               if (was_machine_executed(&link_iter->pax)) {
-                 retval = link_iter;
-                 break;
-               } else if (force && !force_retval) {
-                 force_retval = link_iter;
-               }
-             })
+    FWD_ITER(
+        &protected_lru, lru_machine, if (!is_busy_machine(&link_iter->pax)) {
+          if (was_machine_executed(&link_iter->pax)) {
+            retval = link_iter;
+            break;
+          } else if (force && !force_retval) {
+            force_retval = link_iter;
+          }
+        })
 
     if (!retval && force) retval = force_retval;
 

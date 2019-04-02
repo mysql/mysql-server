@@ -627,7 +627,6 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           int err2 = 0;
           /* Check if archived LSN is behind target. */
           auto archived_lsn = m_archived_lsn.load();

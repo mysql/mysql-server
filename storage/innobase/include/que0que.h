@@ -80,12 +80,11 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
  explicit cursor declarations, they are freed in que_graph_free. */
 void que_graph_free_recursive(que_node_t *node); /*!< in: query graph node */
 /** Frees a query graph. */
-void que_graph_free(
-    que_t *graph); /*!< in: query graph; we assume that the memory
-                   heap where this graph was created is private
-                   to this graph: if not, then use
-                   que_graph_free_recursive and free the heap
-                   afterwards! */
+void que_graph_free(que_t *graph); /*!< in: query graph; we assume that the
+                                   memory heap where this graph was created is
+                                   private to this graph: if not, then use
+                                   que_graph_free_recursive and free the heap
+                                   afterwards! */
 /** Stops a query thread if graph or trx is in a state requiring it. The
  conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
  has to be reserved.

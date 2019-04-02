@@ -146,11 +146,11 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
     share_buff.key_cache =
         multi_key_cache_search((uchar *)name_buff, strlen(name_buff));
 
-    DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_open",
-                    if (strstr(name, "/t1")) {
-                      set_my_errno(HA_ERR_CRASHED);
-                      goto err;
-                    });
+    DBUG_EXECUTE_IF(
+        "myisam_pretend_crashed_table_on_open", if (strstr(name, "/t1")) {
+          set_my_errno(HA_ERR_CRASHED);
+          goto err;
+        });
     DEBUG_SYNC_C("before_opening_indexfile");
     if ((kfile = mysql_file_open(mi_key_file_kfile, name_buff,
                                  (open_mode = O_RDWR) | O_NOFOLLOW, MYF(0))) <

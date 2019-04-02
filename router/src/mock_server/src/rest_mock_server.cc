@@ -73,8 +73,8 @@ using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 class RestApiV1MockServerGlobals : public BaseRequestHandler {

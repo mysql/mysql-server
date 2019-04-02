@@ -104,8 +104,8 @@ class row_log_table_blob_t {
   row_log_table_blob_t() : offset(BLOB_FREED) {}
 #endif /* UNIV_DEBUG */
 
-    /** Declare a BLOB freed again.
-    @param offset_arg row_log_t::tail::total */
+  /** Declare a BLOB freed again.
+  @param offset_arg row_log_t::tail::total */
 #ifdef UNIV_DEBUG
   void blob_free(ulonglong offset_arg)
 #else  /* UNIV_DEBUG */

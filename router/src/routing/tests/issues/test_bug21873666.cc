@@ -50,8 +50,8 @@
 
 #include "mysql_routing.h"
 
-using ::testing::HasSubstr;
 using mysqlrouter::to_string;
+using ::testing::HasSubstr;
 
 class Bug21771595 : public ::testing::Test {
  protected:

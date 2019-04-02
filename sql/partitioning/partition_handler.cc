@@ -207,10 +207,10 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info) {
     num_subparts = 1;
   }
 
-    /*
-      TABLE_SHARE::LOCK_ha_data must been locked before calling this function.
-      This ensures only one thread/table instance will execute this.
-    */
+  /*
+    TABLE_SHARE::LOCK_ha_data must been locked before calling this function.
+    This ensures only one thread/table instance will execute this.
+  */
 
 #ifndef DBUG_OFF
   if (part_info->table->s->tmp_table == NO_TMP_TABLE) {

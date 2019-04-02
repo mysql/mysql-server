@@ -80,8 +80,8 @@ struct counter_indexer_t : public generic_indexer_t<Type, N> {
     if (c != 0) {
       return (c);
     } else {
-    /* We may go here if my_timer_cycles() returns 0,
-    so we have to have the plan B for the counter. */
+      /* We may go here if my_timer_cycles() returns 0,
+      so we have to have the plan B for the counter. */
 #if !defined(_WIN32)
       return (size_t(os_thread_get_curr_id()));
 #else

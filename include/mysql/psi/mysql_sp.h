@@ -131,6 +131,6 @@ static inline PSI_sp_share *inline_mysql_get_sp_share(uint sp_type,
 }
 #endif
 
-  /** @} (end of group psi_api_sp) */
+/** @} (end of group psi_api_sp) */
 
 #endif

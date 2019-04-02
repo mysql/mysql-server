@@ -49,6 +49,7 @@
 using mysql_harness::TCPAddress;
 using routing::AccessMode;
 
+using ::testing::_;
 using ::testing::ContainerEq;
 using ::testing::Eq;
 using ::testing::Gt;
@@ -56,7 +57,6 @@ using ::testing::InSequence;
 using ::testing::Ne;
 using ::testing::Return;
 using ::testing::StrEq;
-using ::testing::_;
 
 class RoutingTests : public ::testing::Test {
  protected:

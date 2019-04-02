@@ -337,7 +337,7 @@ void my_decimal_trim(ulong *precision, uint *scale) {
 }
 
 #ifndef DBUG_OFF
-  /* routines for debugging print */
+/* routines for debugging print */
 
 #define DIG_PER_DEC1 9
 #define ROUND_UP(X) (((X) + DIG_PER_DEC1 - 1) / DIG_PER_DEC1)

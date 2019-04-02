@@ -674,7 +674,7 @@ void btr_search_info_update_slow(btr_search_t *info, btr_cur_t *cursor) {
   }
 
   if (cursor->flag == BTR_CUR_HASH_FAIL) {
-  /* Update the hash node reference, if appropriate */
+    /* Update the hash node reference, if appropriate */
 
 #ifdef UNIV_SEARCH_PERF_STAT
     btr_search_n_hash_fail++;
@@ -1021,9 +1021,9 @@ ibool btr_search_guess_on_hash(dict_index_t *index, btr_search_t *info,
     ut_ad(btr_cur_get_rec(&cursor2) == btr_cur_get_rec(cursor));
   }
 
-    /* NOTE that it is theoretically possible that the above assertions
-    fail if the page of the cursor gets removed from the buffer pool
-    meanwhile! Thus it might not be a bug. */
+  /* NOTE that it is theoretically possible that the above assertions
+  fail if the page of the cursor gets removed from the buffer pool
+  meanwhile! Thus it might not be a bug. */
 #endif
   info->last_hash_succ = TRUE;
 

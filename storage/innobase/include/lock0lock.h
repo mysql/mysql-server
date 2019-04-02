@@ -433,9 +433,8 @@ hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */
  if none found.
  @return bit index == heap number of the record, or ULINT_UNDEFINED if
  none found */
-ulint lock_rec_find_set_bit(
-    const lock_t *lock); /*!< in: record lock with at least one
-                         bit set */
+ulint lock_rec_find_set_bit(const lock_t *lock); /*!< in: record lock with at
+                                                 least one bit set */
 
 /** Looks for the next set bit in the record lock bitmap.
 @param[in] lock		record lock with at least one bit set
@@ -446,12 +445,11 @@ ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no);
 
 /** Checks if a lock request lock1 has to wait for request lock2.
  @return TRUE if lock1 has to wait for lock2 to be removed */
-bool lock_has_to_wait(
-    const lock_t *lock1,  /*!< in: waiting lock */
-    const lock_t *lock2); /*!< in: another lock; NOTE that it is
-                          assumed that this has a lock bit set
-                          on the same record as in lock1 if the
-                          locks are record locks */
+bool lock_has_to_wait(const lock_t *lock1,  /*!< in: waiting lock */
+                      const lock_t *lock2); /*!< in: another lock; NOTE that it
+                                            is assumed that this has a lock bit
+                                            set on the same record as in lock1
+                                            if the locks are record locks */
 /** Reports that a transaction id is insensible, i.e., in the future. */
 void lock_report_trx_id_insanity(
     trx_id_t trx_id,           /*!< in: trx id */
@@ -583,9 +581,8 @@ void lock_wait_timeout_thread();
  != DB_SUCCESS when we return. DB_LOCK_WAIT_TIMEOUT and DB_DEADLOCK
  are possible errors. DB_DEADLOCK is returned if selective deadlock
  resolution chose this transaction as a victim. */
-void lock_wait_suspend_thread(
-    que_thr_t *thr); /*!< in: query thread associated with the
-                     user OS thread */
+void lock_wait_suspend_thread(que_thr_t *thr); /*!< in: query thread associated
+                                               with the user OS thread */
 /** Unlocks AUTO_INC type locks that were possibly reserved by a trx. This
  function should be called at the the end of an SQL statement, by the
  connection thread that owns the transaction (trx->mysql_thd). */

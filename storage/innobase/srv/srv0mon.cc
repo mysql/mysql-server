@@ -977,13 +977,12 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_NONE, MONITOR_DEFAULT_START,
      MONITOR_LOG_WRITE_TO_FILE_REQUESTS_INTERVAL},
 
-    MONITOR_WAIT_STATS(
-        "log_on_write_", "log",
-        "Waits in user threads on log_writer+log_write_notifier",
-        /* Note: requests to flush log up to lsn are not counted here!
-        This counter is used only, when fsync is not required afterwards
-        (when we rely on FS cache). */
-        MONITOR_LOG_ON_WRITE_),
+    MONITOR_WAIT_STATS("log_on_write_", "log",
+                       "Waits in user threads on log_writer+log_write_notifier",
+                       /* Note: requests to flush log up to lsn are not counted
+                       here! This counter is used only, when fsync is not
+                       required afterwards (when we rely on FS cache). */
+                       MONITOR_LOG_ON_WRITE_),
 
     MONITOR_WAIT_STATS(
         "log_on_flush_", "log",

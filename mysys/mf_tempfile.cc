@@ -156,7 +156,7 @@ File create_temp_file(char *to, const char *dir, const char *prefix,
                                   EE_CANTCREATEFILE, MyFlags);
     }
   }
-    // Fall through, in case open() failed above (or we have KEEP_FILE).
+  // Fall through, in case open() failed above (or we have KEEP_FILE).
 #endif /* HAVE_O_TMPFILE */
   if (file == -1) {
     char prefix_buff[30];

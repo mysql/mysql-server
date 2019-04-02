@@ -289,9 +289,10 @@ bool Partition_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_comment, val, "comment");
   read_properties(&m_options, val, "options");
   read_properties(&m_se_private_data, val, "se_private_data");
-  deserialize_each(rctx, [this]() { return add_value(); }, val, "values");
-  deserialize_each(rctx, [this]() { return add_index(nullptr); }, val,
-                   "indexes");
+  deserialize_each(
+      rctx, [this]() { return add_value(); }, val, "values");
+  deserialize_each(
+      rctx, [this]() { return add_index(nullptr); }, val, "indexes");
 
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
                                     "tablespace_ref");

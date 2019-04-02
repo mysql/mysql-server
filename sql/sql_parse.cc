@@ -1466,7 +1466,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     query_start_status = thd->status_var;
   }
 
-    /* SHOW PROFILE instrumentation, begin */
+  /* SHOW PROFILE instrumentation, begin */
 #if defined(ENABLED_PROFILING)
   thd->profiling->start_new_query();
 #endif

@@ -438,7 +438,7 @@ static void test_prepare_simple() {
   myquery(rc);
 }
 
-  /************************************************************************/
+/************************************************************************/
 
 #define FILE_PATH_SIZE 4096
 
@@ -16062,9 +16062,9 @@ static void test_bug31418() {
   bug31418_impl();
 }
 
-  /**
-    Bug#31669 Buffer overflow in mysql_change_user()
-  */
+/**
+  Bug#31669 Buffer overflow in mysql_change_user()
+*/
 
 #define LARGE_BUFFER_SIZE 2048
 

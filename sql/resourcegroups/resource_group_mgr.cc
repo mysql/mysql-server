@@ -595,7 +595,6 @@ bool Resource_group_mgr::switch_resource_group_if_needed(
           "now SIGNAL execute_pfs_select "
           "WAIT_FOR signal_to_continue";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
-
     };);
   }
 

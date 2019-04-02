@@ -845,20 +845,20 @@ end:
   return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
-  //////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
 
-  /*
-    The following section adds code for the interface with the .frm file.
-    These defines and functions comes from the file sql/field.h in 5.7
+/*
+  The following section adds code for the interface with the .frm file.
+  These defines and functions comes from the file sql/field.h in 5.7
 
-    Note:
-    These functions should not be used any where else in the code.
-    They are only used in upgrade scenario for migrating old data directory
-    to be compatible with current server. They will be removed in future
-    release.
+  Note:
+  These functions should not be used any where else in the code.
+  They are only used in upgrade scenario for migrating old data directory
+  to be compatible with current server. They will be removed in future
+  release.
 
-    Any new code should not be added in this section.
-  */
+  Any new code should not be added in this section.
+*/
 
 #define FIELDFLAG_DECIMAL 1
 #define FIELDFLAG_BINARY 1  // Shares same flag

@@ -1509,7 +1509,6 @@ INSTANTIATE_TEST_CASE_P(
       return gtest_sanitize_param_name(
           info.param.test_name +
           (info.param.status_code == 401 ? " failed auth" : " succeeded auth"));
-
     });
 
 // Fail tests
@@ -1712,7 +1711,6 @@ INSTANTIATE_TEST_CASE_P(
       return gtest_sanitize_param_name(
           info.param.test_name +
           (info.param.check_at_runtime ? "_works" : "_fails"));
-
     });
 
 int main(int argc, char *argv[]) {

@@ -639,17 +639,17 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         */
         table->clear_partial_update_diffs();
       else {
-      /*
-        partial_update_info has not been initialized (so this is the
-        first row in the statement having the PARTIAL_JSON bit set).
-        Initialize partial_update_info to allow the optimizer to
-        collect partial diffs when applying any diff.  Each diff
-        vector will be cleared between rows
-        (clear_partial_update_diffs above).  The whole
-        partial_update_info structure will be cleaned up at the end
-        of the statement, when close_thread_tables calls
-        cleanup_partial_update.
-      */
+        /*
+          partial_update_info has not been initialized (so this is the
+          first row in the statement having the PARTIAL_JSON bit set).
+          Initialize partial_update_info to allow the optimizer to
+          collect partial diffs when applying any diff.  Each diff
+          vector will be cleared between rows
+          (clear_partial_update_diffs above).  The whole
+          partial_update_info structure will be cleaned up at the end
+          of the statement, when close_thread_tables calls
+          cleanup_partial_update.
+        */
 #ifndef DBUG_OFF
         int marked_columns = 0;
 #endif

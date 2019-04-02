@@ -34,9 +34,9 @@
 #include "template_utils.h"
 
 using namespace Mysql::Tools::Base;
-using std::placeholders::_1;
 using std::string;
 using std::vector;
+using std::placeholders::_1;
 
 Mysql_query_runner::Mysql_query_runner(MYSQL *connection)
     : m_is_processing(new std::atomic<bool>(false)),

@@ -273,10 +273,9 @@ const rec_t *dict_startscan_system(
 
 /** This function gets the next system table record as it scans the table.
  @return the next record if found, NULL if end of scan */
-const rec_t *dict_getnext_system(
-    btr_pcur_t *pcur, /*!< in/out: persistent cursor
-                      to the record */
-    mtr_t *mtr)       /*!< in: the mini-transaction */
+const rec_t *dict_getnext_system(btr_pcur_t *pcur, /*!< in/out: persistent
+                                                   cursor to the record */
+                                 mtr_t *mtr) /*!< in: the mini-transaction */
 {
   const rec_t *rec;
 
@@ -2448,11 +2447,12 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
     table->flags2 = 0;
   }
 
-  DBUG_EXECUTE_IF("ib_table_invalid_flags",
-                  if (strcmp(table->name.m_name, "test/t1") == 0) {
-                    table->flags2 = 255;
-                    table->flags = 255;
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_table_invalid_flags",
+      if (strcmp(table->name.m_name, "test/t1") == 0) {
+        table->flags2 = 255;
+        table->flags = 255;
+      });
 
   if (!dict_tf2_is_valid(table->flags, table->flags2)) {
     ib::error(ER_IB_MSG_209) << "Table " << table->name

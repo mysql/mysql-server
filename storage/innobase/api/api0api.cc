@@ -835,11 +835,10 @@ ib_err_t ib_cursor_open_index_using_name(
 
 /** Open an InnoDB table and return a cursor handle to it.
  @return DB_SUCCESS or err code */
-ib_err_t ib_cursor_open_table(
-    const char *name,   /*!< in: table name */
-    ib_trx_t ib_trx,    /*!< in: Current transaction handle
-                        can be NULL */
-    ib_crsr_t *ib_crsr) /*!< out,own: InnoDB cursor */
+ib_err_t ib_cursor_open_table(const char *name,   /*!< in: table name */
+                              ib_trx_t ib_trx,    /*!< in: Current transaction
+                                                  handle    can be NULL */
+                              ib_crsr_t *ib_crsr) /*!< out,own: InnoDB cursor */
 {
   ib_err_t err;
   dict_table_t *table;
@@ -2841,10 +2840,12 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
   ib_err_t err = ib_cursor_open_table_using_id(
       dict_sdi_get_table_id(tablespace_id), trx, ib_crsr);
 
-  DBUG_EXECUTE_IF("ib_sdi", if (err != DB_SUCCESS) {
-    ib::warn(ER_IB_MSG_1) << "Unable to open SDI dict table for tablespace: "
-                          << tablespace_id << " error returned is " << err;
-  });
+  DBUG_EXECUTE_IF(
+      "ib_sdi", if (err != DB_SUCCESS) {
+        ib::warn(ER_IB_MSG_1)
+            << "Unable to open SDI dict table for tablespace: " << tablespace_id
+            << " error returned is " << err;
+      });
   return (err);
 }
 
@@ -3084,19 +3085,19 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 
     ib_tuple_delete(tuple);
   } else {
-    DBUG_EXECUTE_IF("ib_sdi",
-                    if (err == DB_RECORD_NOT_FOUND) {
-                      ib::warn(ER_IB_MSG_8)
-                          << "sdi_get: Record not found:"
-                          << " tablespace " << tablespace_id
-                          << " Key: " << ib_sdi_key->sdi_key->type << " "
-                          << ib_sdi_key->sdi_key->id;
-                    } else if (err != DB_SUCCESS) {
-                      ib::warn(ER_IB_MSG_9)
-                          << "sdi_get: Get Failed: tablespace " << tablespace_id
-                          << " Key: " << ib_sdi_key->sdi_key->type << " "
-                          << ib_sdi_key->sdi_key->id << " error: " << err;
-                    });
+    DBUG_EXECUTE_IF(
+        "ib_sdi",
+        if (err == DB_RECORD_NOT_FOUND) {
+          ib::warn(ER_IB_MSG_8) << "sdi_get: Record not found:"
+                                << " tablespace " << tablespace_id
+                                << " Key: " << ib_sdi_key->sdi_key->type << " "
+                                << ib_sdi_key->sdi_key->id;
+        } else if (err != DB_SUCCESS) {
+          ib::warn(ER_IB_MSG_9)
+              << "sdi_get: Get Failed: tablespace " << tablespace_id
+              << " Key: " << ib_sdi_key->sdi_key->type << " "
+              << ib_sdi_key->sdi_key->id << " error: " << err;
+        });
   }
 
   ib_tuple_delete(key_tpl);

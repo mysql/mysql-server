@@ -338,6 +338,6 @@ static inline int inline_mysql_mutex_unlock(
 
 #endif /* DISABLE_MYSQL_THREAD_H */
 
-  /** @} (end of group psi_api_mutex) */
+/** @} (end of group psi_api_mutex) */
 
 #endif

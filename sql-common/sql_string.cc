@@ -106,7 +106,7 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap) {
   }
 
   if (m_alloced_length < len) {  // Available bytes are not enough.
-  // Signal an error if len exceeds uint32 max on 64-bit word platform.
+    // Signal an error if len exceeds uint32 max on 64-bit word platform.
 #if defined(__WORDSIZE) && (__WORDSIZE == 64)
     if (len > std::numeric_limits<uint32>::max()) return true;
 #endif

@@ -1126,14 +1126,13 @@ static int innobase_commit(handlerton *hton, /*!< in/out: InnoDB handlerton */
 /** Rolls back a transaction to a savepoint.
  @return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
  given name */
-static int innobase_rollback(
-    handlerton *hton,   /*!< in/out: InnoDB handlerton */
-    THD *thd,           /*!< in: handle to the MySQL thread
-                        of the user whose transaction should
-                        be rolled back */
-    bool rollback_trx); /*!< in: TRUE - rollback entire
-                        transaction FALSE - rollback the current
-                        statement only */
+static int innobase_rollback(handlerton *hton, /*!< in/out: InnoDB handlerton */
+                             THD *thd, /*!< in: handle to the MySQL thread
+                                       of the user whose transaction should
+                                       be rolled back */
+                             bool rollback_trx); /*!< in: TRUE - rollback entire
+                                                 transaction FALSE - rollback
+                                                 the current statement only */
 
 /** Rolls back a transaction to a savepoint.
  @return 0 if success, HA_ERR_NO_SAVEPOINT if no savepoint with the
@@ -2262,14 +2261,14 @@ int innobase_mysql_tmpfile(const char *path) {
   }
 
   if (fd >= 0) {
-  /* Copy the file descriptor, so that the additional resources
-  allocated by create_temp_file() can be freed by invoking
-  my_close().
+    /* Copy the file descriptor, so that the additional resources
+    allocated by create_temp_file() can be freed by invoking
+    my_close().
 
-  Because the file descriptor returned by this function
-  will be passed to fdopen(), it will be closed by invoking
-  fclose(), which in turn will invoke close() instead of
-  my_close(). */
+    Because the file descriptor returned by this function
+    will be passed to fdopen(), it will be closed by invoking
+    fclose(), which in turn will invoke close() instead of
+    my_close(). */
 
 #ifdef _WIN32
     /* Note that on Windows, the integer returned by mysql_tmpfile
@@ -2926,9 +2925,9 @@ void ha_innobase::reset_template(void) {
   ut_ad(m_prebuilt->magic_n2 == m_prebuilt->magic_n);
 
   /* Force table to be freed in close_thread_table(). */
-  DBUG_EXECUTE_IF("free_table_in_fts_query", if (m_prebuilt->in_fts_query) {
-    table->m_needs_reopen = true;
-  });
+  DBUG_EXECUTE_IF(
+      "free_table_in_fts_query",
+      if (m_prebuilt->in_fts_query) { table->m_needs_reopen = true; });
 
   m_prebuilt->keep_other_fields_on_keyread = 0;
   m_prebuilt->read_just_key = 0;
@@ -5416,14 +5415,13 @@ static int innobase_commit(handlerton *hton, /*!< in: InnoDB handlerton */
 
 /** Rolls back a transaction or the latest SQL statement.
  @return 0 or error number */
-static int innobase_rollback(
-    handlerton *hton,  /*!< in: InnoDB handlerton */
-    THD *thd,          /*!< in: handle to the MySQL thread
-                       of the user whose transaction should
-                       be rolled back */
-    bool rollback_trx) /*!< in: TRUE - rollback entire
-                       transaction FALSE - rollback the current
-                       statement only */
+static int innobase_rollback(handlerton *hton, /*!< in: InnoDB handlerton */
+                             THD *thd, /*!< in: handle to the MySQL thread
+                                       of the user whose transaction should
+                                       be rolled back */
+                             bool rollback_trx) /*!< in: TRUE - rollback entire
+                                                transaction FALSE - rollback the
+                                                current statement only */
 {
   DBUG_ENTER("innobase_rollback");
   DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -9688,9 +9686,8 @@ int ha_innobase::general_fetch(
  positioned using index_read.
  @return 0, HA_ERR_END_OF_FILE, or error number */
 
-int ha_innobase::index_next(
-    uchar *buf) /*!< in/out: buffer for next row in MySQL
-                format */
+int ha_innobase::index_next(uchar *buf) /*!< in/out: buffer for next row in
+                                        MySQL format */
 {
   ha_statistic_increment(&System_status_var::ha_read_next_count);
 
@@ -9794,9 +9791,8 @@ int ha_innobase::rnd_end(void) { return (index_end()); }
  in a table scan).
  @return 0, HA_ERR_END_OF_FILE, or error number */
 
-int ha_innobase::rnd_next(
-    uchar *buf) /*!< in/out: returns the row in this buffer,
-                in MySQL format */
+int ha_innobase::rnd_next(uchar *buf) /*!< in/out: returns the row in this
+                                      buffer, in MySQL format */
 {
   int error;
 
@@ -11623,11 +11619,11 @@ ibool innobase_fts_load_stopword(
                             THDVAR(thd, ft_enable_stopword), FALSE));
 }
 
-  /** Maximum length of a table name from InnoDB point of view, including
-  partitions and subpartitions, in number of characters.
-  The naming is: "table_name#P#partition_name#SP#subpartition_name",
-  where each of the names can be up to NAME_CHAR_LEN (64) characters.
-  So the maximum is 64 + strlen(#P#) + 64 + strlen(\#SP#) + 64 = 199. */
+/** Maximum length of a table name from InnoDB point of view, including
+partitions and subpartitions, in number of characters.
+The naming is: "table_name#P#partition_name#SP#subpartition_name",
+where each of the names can be up to NAME_CHAR_LEN (64) characters.
+So the maximum is 64 + strlen(#P#) + 64 + strlen(\#SP#) + 64 = 199. */
 
 #define NAME_CHAR_LEN_PARTITIONS_STR "199"
 
@@ -16748,11 +16744,13 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
           row_scan_index_for_mysql(m_prebuilt, index, n_threads, true, &n_rows);
     }
 
-    DBUG_EXECUTE_IF("dict_set_clust_index_corrupted",
-                    if (index->is_clustered()) { ret = DB_CORRUPTION; });
+    DBUG_EXECUTE_IF(
+        "dict_set_clust_index_corrupted",
+        if (index->is_clustered()) { ret = DB_CORRUPTION; });
 
-    DBUG_EXECUTE_IF("dict_set_index_corrupted",
-                    if (!index->is_clustered()) { ret = DB_CORRUPTION; });
+    DBUG_EXECUTE_IF(
+        "dict_set_index_corrupted",
+        if (!index->is_clustered()) { ret = DB_CORRUPTION; });
 
     if (ret == DB_INTERRUPTED || thd_killed(m_user_thd)) {
       /* Do not report error since this could happen
@@ -18834,14 +18832,13 @@ ulint innobase_get_at_most_n_mbchars(
 
 /** This function is used to prepare an X/Open XA distributed transaction.
  @return 0 or error number */
-static int innobase_xa_prepare(
-    handlerton *hton, /*!< in: InnoDB handlerton */
-    THD *thd,         /*!< in: handle to the MySQL thread of
-                      the user whose XA transaction should
-                      be prepared */
-    bool prepare_trx) /*!< in: true - prepare transaction
-                      false - the current SQL statement
-                      ended */
+static int innobase_xa_prepare(handlerton *hton, /*!< in: InnoDB handlerton */
+                               THD *thd, /*!< in: handle to the MySQL thread of
+                                         the user whose XA transaction should
+                                         be prepared */
+                               bool prepare_trx) /*!< in: true - prepare
+                                                 transaction false - the current
+                                                 SQL statement ended */
 {
   trx_t *trx = check_trx_exists(thd);
 

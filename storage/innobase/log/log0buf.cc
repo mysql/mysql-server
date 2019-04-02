@@ -633,7 +633,6 @@ sn_t log_free_check_margin(const log_t &log) {
 
 void log_free_check_wait(log_t &log, sn_t sn) {
   auto stop_condition = [&log, sn](bool) {
-
     const sn_t margins = log_free_check_margin(log);
 
     const lsn_t start_lsn = log_translate_sn_to_lsn(sn + margins);
@@ -1093,7 +1092,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
   ut_a(write_max_size > 0);
 
   auto stop_condition = [&](lsn_t prev_lsn, lsn_t next_lsn) {
-
     ut_a(log_lsn_validate(prev_lsn));
     ut_a(log_lsn_validate(next_lsn));
 
@@ -1148,7 +1146,6 @@ bool log_advance_dirty_pages_added_up_to_lsn(log_t &log) {
   ut_d(log_closer_thread_active_validate(log));
 
   auto stop_condition = [&](lsn_t prev_lsn, lsn_t next_lsn) {
-
     ut_a(log_lsn_validate(prev_lsn));
     ut_a(log_lsn_validate(next_lsn));
 
@@ -1185,6 +1182,6 @@ bool log_advance_dirty_pages_added_up_to_lsn(log_t &log) {
   }
 }
 
-  /* @} */
+/* @} */
 
 #endif /* !UNIV_HOTBACKUP */

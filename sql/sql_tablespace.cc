@@ -1413,8 +1413,8 @@ bool Sql_cmd_create_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); }, true,
-                    true)) {
+  if (complete_stmt(
+          thd, hton, [&]() { rollback_on_return.disable(); }, true, true)) {
     return true;
   }
 
@@ -1511,8 +1511,8 @@ bool Sql_cmd_alter_undo_tablespace::execute(THD *thd) {
     return true;
   }
 
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); }, true,
-                    true)) {
+  if (complete_stmt(
+          thd, hton, [&]() { rollback_on_return.disable(); }, true, true)) {
     return true;
   }
 
@@ -1614,8 +1614,8 @@ bool Sql_cmd_drop_undo_tablespace::execute(THD *thd) {
     return true; /* purecov: inspected */
   }
 
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); }, true,
-                    true)) {
+  if (complete_stmt(
+          thd, hton, [&]() { rollback_on_return.disable(); }, true, true)) {
     return true;
   }
 
@@ -1666,8 +1666,8 @@ bool Sql_cmd_logfile_group::execute(THD *thd) {
   // but does not modify the DD and thus there is no active transaction
   // -> turn off "using_trans"
   const bool using_trans = false;
-  if (complete_stmt(thd, hton, [&]() { rollback_on_return.disable(); },
-                    using_trans)) {
+  if (complete_stmt(
+          thd, hton, [&]() { rollback_on_return.disable(); }, using_trans)) {
     return true;
   }
   return false;

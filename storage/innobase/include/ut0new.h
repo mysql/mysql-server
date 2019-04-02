@@ -1100,7 +1100,7 @@ inline void ut_delete_array(T *ptr) {
 
 #else /* UNIV_PFS_MEMORY */
 
-  /* Fallbacks when memory tracing is disabled at compile time. */
+/* Fallbacks when memory tracing is disabled at compile time. */
 
 #define UT_NEW(expr, key) ::new (std::nothrow) expr
 #define UT_NEW_NOKEY(expr) ::new (std::nothrow) expr

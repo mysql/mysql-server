@@ -36,14 +36,15 @@ TEST_F(Pbkdf2SaltTest, size) {
   EXPECT_EQ(salt.size(), 16);
 }
 
-class Pbkdf2Test : public ::testing::Test,
-                   public ::testing::WithParamInterface<
-                       std::tuple<std::string,  // MCF string
-                                  int,          // rounds
-                                  std::string,  // salt
-                                  std::string,  // checksum
-                                  const char *  // password
-                                  >> {};
+class Pbkdf2Test
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<std::tuple<std::string,  // MCF
+                                                                    // string
+                                                      int,          // rounds
+                                                      std::string,  // salt
+                                                      std::string,  // checksum
+                                                      const char *  // password
+                                                      >> {};
 
 TEST_P(Pbkdf2Test, decode) {
   auto hash_info = Pbkdf2McfAdaptor::from_mcf(std::get<0>(GetParam()));

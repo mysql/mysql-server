@@ -432,9 +432,9 @@ static bool set_thd_db(THD *thd, const char *db, size_t db_len) {
 
 #endif
 
-  /*
-    pretty_print_str()
-  */
+/*
+  pretty_print_str()
+*/
 
 #ifndef MYSQL_SERVER
 static inline void pretty_print_str(IO_CACHE *cache, const char *str,
@@ -807,10 +807,10 @@ int append_query_string(const THD *thd, const CHARSET_INFO *csinfo,
 }
 #endif
 
-  /**
-    Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
-    commands just before it prints a query.
-  */
+/**
+  Prints a "session_var=value" string. Used by mysqlbinlog to print some SET
+  commands just before it prints a query.
+*/
 
 #ifndef MYSQL_SERVER
 
@@ -823,9 +823,9 @@ static void print_set_option(IO_CACHE *file, uint32 bits_changed, uint32 option,
   }
 }
 #endif
-  /**************************************************************************
-          Log_event methods (= the parent class of all events)
-  **************************************************************************/
+/**************************************************************************
+        Log_event methods (= the parent class of all events)
+**************************************************************************/
 
 #ifdef MYSQL_SERVER
 
@@ -919,9 +919,9 @@ const char *Log_event::get_type_str() const {
   return get_type_str(get_type_code());
 }
 
-  /*
-    Log_event::Log_event()
-  */
+/*
+  Log_event::Log_event()
+*/
 
 #ifdef MYSQL_SERVER
 Log_event::Log_event(THD *thd_arg, uint16 flags_arg,
@@ -5353,9 +5353,9 @@ int Rotate_log_event::pack_info(Protocol *protocol) {
 }
 #endif  // MYSQL_SERVER
 
-  /*
-    Rotate_log_event::print()
-  */
+/*
+  Rotate_log_event::print()
+*/
 
 #ifndef MYSQL_SERVER
 void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
@@ -5372,9 +5372,9 @@ void Rotate_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
 }
 #endif /* !MYSQL_SERVER */
 
-  /*
-    Rotate_log_event::Rotate_log_event() (2 constructors)
-  */
+/*
+  Rotate_log_event::Rotate_log_event() (2 constructors)
+*/
 
 #ifdef MYSQL_SERVER
 Rotate_log_event::Rotate_log_event(const char *new_log_ident_arg,
@@ -5416,9 +5416,9 @@ Rotate_log_event::Rotate_log_event(
   DBUG_VOID_RETURN;
 }
 
-  /*
-    Rotate_log_event::write()
-  */
+/*
+  Rotate_log_event::write()
+*/
 
 #ifdef MYSQL_SERVER
 bool Rotate_log_event::write(Basic_ostream *ostream) {
@@ -5629,9 +5629,9 @@ Intvar_log_event::Intvar_log_event(
   DBUG_VOID_RETURN;
 }
 
-  /*
-    Intvar_log_event::write()
-  */
+/*
+  Intvar_log_event::write()
+*/
 
 #ifdef MYSQL_SERVER
 bool Intvar_log_event::write(Basic_ostream *ostream) {
@@ -5644,9 +5644,9 @@ bool Intvar_log_event::write(Basic_ostream *ostream) {
 }
 #endif
 
-  /*
-    Intvar_log_event::print()
-  */
+/*
+  Intvar_log_event::print()
+*/
 
 #ifndef MYSQL_SERVER
 void Intvar_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
@@ -6447,9 +6447,9 @@ bool User_var_log_event::write(Basic_ostream *ostream) {
 }
 #endif
 
-  /*
-    User_var_log_event::print()
-  */
+/*
+  User_var_log_event::print()
+*/
 
 #ifndef MYSQL_SERVER
 void User_var_log_event::print(FILE *,
@@ -6554,9 +6554,9 @@ void User_var_log_event::print(FILE *,
 }
 #endif
 
-  /*
-    User_var_log_event::do_apply_event()
-  */
+/*
+  User_var_log_event::do_apply_event()
+*/
 
 #if defined(MYSQL_SERVER)
 int User_var_log_event::do_apply_event(Relay_log_info const *rli) {
@@ -6685,9 +6685,9 @@ Log_event::enum_skip_reason User_var_log_event::do_shall_skip(
 }
 #endif /* MYSQL_SERVER */
 
-  /**************************************************************************
-    Unknown_log_event methods
-  **************************************************************************/
+/**************************************************************************
+  Unknown_log_event methods
+**************************************************************************/
 
 #ifndef MYSQL_SERVER
 void Unknown_log_event::print(FILE *,
@@ -6783,9 +6783,9 @@ Append_block_log_event::Append_block_log_event(
   DBUG_VOID_RETURN;
 }
 
-  /*
-    Append_block_log_event::write()
-  */
+/*
+  Append_block_log_event::write()
+*/
 
 #ifdef MYSQL_SERVER
 bool Append_block_log_event::write(Basic_ostream *ostream) {
@@ -6800,9 +6800,9 @@ bool Append_block_log_event::write(Basic_ostream *ostream) {
 }
 #endif
 
-  /*
-    Append_block_log_event::print()
-  */
+/*
+  Append_block_log_event::print()
+*/
 
 #ifndef MYSQL_SERVER
 void Append_block_log_event::print(FILE *,
@@ -6815,9 +6815,9 @@ void Append_block_log_event::print(FILE *,
 }
 #endif /* !MYSQL_SERVER */
 
-  /*
-    Append_block_log_event::pack_info()
-  */
+/*
+  Append_block_log_event::pack_info()
+*/
 
 #if defined(MYSQL_SERVER)
 int Append_block_log_event::pack_info(Protocol *protocol) {
@@ -6927,9 +6927,9 @@ Delete_file_log_event::Delete_file_log_event(
   DBUG_VOID_RETURN;
 }
 
-  /*
-    Delete_file_log_event::write()
-  */
+/*
+  Delete_file_log_event::write()
+*/
 
 #ifdef MYSQL_SERVER
 bool Delete_file_log_event::write(Basic_ostream *ostream) {
@@ -6941,9 +6941,9 @@ bool Delete_file_log_event::write(Basic_ostream *ostream) {
 }
 #endif
 
-  /*
-    Delete_file_log_event::print()
-  */
+/*
+  Delete_file_log_event::print()
+*/
 
 #ifndef MYSQL_SERVER
 void Delete_file_log_event::print(FILE *,
@@ -6955,9 +6955,9 @@ void Delete_file_log_event::print(FILE *,
 }
 #endif /* !MYSQL_SERVER */
 
-  /*
-    Delete_file_log_event::pack_info()
-  */
+/*
+  Delete_file_log_event::pack_info()
+*/
 
 #if defined(MYSQL_SERVER)
 int Delete_file_log_event::pack_info(Protocol *protocol) {
@@ -7403,9 +7403,9 @@ int get_rpl_part_id(partition_info *part_info) {
   return static_cast<int>(part_id);
 }
 
-  /**************************************************************************
-          Rows_log_event member functions
-  **************************************************************************/
+/**************************************************************************
+        Rows_log_event member functions
+**************************************************************************/
 
 #ifdef MYSQL_SERVER
 Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
@@ -10029,43 +10029,43 @@ void Rows_log_event::print_helper(FILE *,
 }
 #endif
 
-  /**************************************************************************
-          Table_map_log_event member functions and support functions
-  **************************************************************************/
+/**************************************************************************
+        Table_map_log_event member functions and support functions
+**************************************************************************/
 
-  /**
-    @ingroup Replication
+/**
+  @ingroup Replication
 
-    @page PAGE_RPL_FIELD_METADATA How replication of field metadata works.
+  @page PAGE_RPL_FIELD_METADATA How replication of field metadata works.
 
-    When a table map is created, the master first calls
-    Table_map_log_event::save_field_metadata() which calculates how many
-    values will be in the field metadata. Only those fields that require the
-    extra data are added. The method also loops through all of the fields in
-    the table calling the method Field::save_field_metadata() which returns the
-    values for the field that will be saved in the metadata and replicated to
-    the slave. Once all fields have been processed, the table map is written to
-    the binlog adding the size of the field metadata and the field metadata to
-    the end of the body of the table map.
+  When a table map is created, the master first calls
+  Table_map_log_event::save_field_metadata() which calculates how many
+  values will be in the field metadata. Only those fields that require the
+  extra data are added. The method also loops through all of the fields in
+  the table calling the method Field::save_field_metadata() which returns the
+  values for the field that will be saved in the metadata and replicated to
+  the slave. Once all fields have been processed, the table map is written to
+  the binlog adding the size of the field metadata and the field metadata to
+  the end of the body of the table map.
 
-    When a table map is read on the slave, the field metadata is read from the
-    table map and passed to the table_def class constructor which saves the
-    field metadata from the table map into an array based on the type of the
-    field. Field metadata values not present (those fields that do not use extra
-    data) in the table map are initialized as zero (0). The array size is the
-    same as the columns for the table on the slave.
+  When a table map is read on the slave, the field metadata is read from the
+  table map and passed to the table_def class constructor which saves the
+  field metadata from the table map into an array based on the type of the
+  field. Field metadata values not present (those fields that do not use extra
+  data) in the table map are initialized as zero (0). The array size is the
+  same as the columns for the table on the slave.
 
-    Additionally, values saved for field metadata on the master are saved as a
-    string of bytes (uchar) in the binlog. A field may require 1 or more bytes
-    to store the information. In cases where values require multiple bytes
-    (e.g. values > 255), the endian-safe methods are used to properly encode
-    the values on the master and decode them on the slave. When the field
-    metadata values are captured on the slave, they are stored in an array of
-    type uint16. This allows the least number of casts to prevent casting bugs
-    when the field metadata is used in comparisons of field attributes. When
-    the field metadata is used for calculating addresses in pointer math, the
-    type used is uint32.
-  */
+  Additionally, values saved for field metadata on the master are saved as a
+  string of bytes (uchar) in the binlog. A field may require 1 or more bytes
+  to store the information. In cases where values require multiple bytes
+  (e.g. values > 255), the endian-safe methods are used to properly encode
+  the values on the master and decode them on the slave. When the field
+  metadata values are captured on the slave, they are stored in an array of
+  type uint16. This allows the least number of casts to prevent casting bugs
+  when the field metadata is used in comparisons of field attributes. When
+  the field metadata is used for calculating addresses in pointer math, the
+  type used is uint32.
+*/
 
 #if defined(MYSQL_SERVER)
 /**
@@ -10243,16 +10243,16 @@ Table_map_log_event::Table_map_log_event(
 
 Table_map_log_event::~Table_map_log_event() {}
 
-  /*
-    Return value is an error code, one of:
+/*
+  Return value is an error code, one of:
 
-        -1     Failure to open table   [from open_tables()]
-         0     Success
-         1     No room for more tables [from set_table()]
-         2     Out of memory           [from set_table()]
-         3     Wrong table definition
-         4     Daisy-chaining RBR with SBR not possible
-   */
+      -1     Failure to open table   [from open_tables()]
+       0     Success
+       1     No room for more tables [from set_table()]
+       2     Out of memory           [from set_table()]
+       3     Wrong table definition
+       4     Daisy-chaining RBR with SBR not possible
+ */
 
 #if defined(MYSQL_SERVER)
 
@@ -11806,13 +11806,13 @@ void Write_rows_log_event::print(FILE *file,
 }
 #endif
 
-  /**************************************************************************
-          Delete_rows_log_event member functions
-  **************************************************************************/
+/**************************************************************************
+        Delete_rows_log_event member functions
+**************************************************************************/
 
-  /*
-    Constructor used to build an event for writing to the binary log.
-   */
+/*
+  Constructor used to build an event for writing to the binary log.
+ */
 
 #ifdef MYSQL_SERVER
 Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
@@ -11903,9 +11903,9 @@ void Delete_rows_log_event::print(FILE *file,
 }
 #endif
 
-  /**************************************************************************
-          Update_rows_log_event member functions
-  **************************************************************************/
+/**************************************************************************
+        Update_rows_log_event member functions
+**************************************************************************/
 
 #if defined(MYSQL_SERVER)
 binary_log::Log_event_type Update_rows_log_event::get_update_rows_event_type(
@@ -13196,9 +13196,9 @@ void Transaction_context_log_event::add_read_set(const char *hash) {
   DBUG_VOID_RETURN;
 }
 
-  /**************************************************************************
-          View_change_log_event methods
-  **************************************************************************/
+/**************************************************************************
+        View_change_log_event methods
+**************************************************************************/
 
 #ifdef MYSQL_SERVER
 View_change_log_event::View_change_log_event(const char *raw_view_id)

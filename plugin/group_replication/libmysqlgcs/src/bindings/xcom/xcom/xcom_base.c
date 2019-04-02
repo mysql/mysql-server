@@ -630,7 +630,7 @@ static void pexitall(int i) {
   DBGOUT(FN; NDBG(i, d); STRLIT("time "); NDBG(task_now(), f););
   XCOM_FSM(xa_terminate, int_arg(i)); /* Tell xcom to stop */
 }
-  /* purecov: end */
+/* purecov: end */
 
 #ifndef _WIN32
 /* Ignore this signal */
@@ -649,7 +649,7 @@ static int ignoresig(int signum) {
 static int ignoresig(int signum) { return 0; }
 #endif
 
-  /* }}} */
+/* }}} */
 
 #if 0
 static void	dbg_machine_and_msg(pax_machine *p, pax_msg *pm)
@@ -3217,7 +3217,7 @@ static int sweeper_task(task_arg arg MY_ATTRIBUTE((unused))) {
   TASK_END;
 }
 
-  /* }}} */
+/* }}} */
 
 #if 0
 static double	wakeup_delay(double old)
@@ -5107,16 +5107,16 @@ long xcom_unique_long(void) {
 #endif
 }
 
-  /* {{{ Coroutine macros */
-  /*
-     Coroutine device (or more precisely, a finite state machine, as the
-     stack is not preserved), described by its inventor Tom Duff as
-     being "too horrid to go into". The basic idea is that the switch
-     can be used to jump anywhere in the code, so we note where we are
-     when we return, and jump there when we enter the routine again by
-     switching on the state, which is really a line number supplied by
-     the CO_RETURN macro.
-  */
+/* {{{ Coroutine macros */
+/*
+   Coroutine device (or more precisely, a finite state machine, as the
+   stack is not preserved), described by its inventor Tom Duff as
+   being "too horrid to go into". The basic idea is that the switch
+   can be used to jump anywhere in the code, so we note where we are
+   when we return, and jump there when we enter the routine again by
+   switching on the state, which is really a line number supplied by
+   the CO_RETURN macro.
+*/
 
 #define CO_BEGIN          \
   switch (state) {        \

@@ -1745,11 +1745,11 @@ void trx_undo_free_prepared(trx_t *trx) /*!< in/out: PREPARED transaction */
 bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
 #ifdef UNIV_DEBUG
   static int truncate_fail_count;
-  DBUG_EXECUTE_IF("ib_undo_trunc_fail_truncate",
-                  if (++truncate_fail_count == 1) {
-                    ib::info() << "ib_undo_trunc_fail_truncate";
-                    return (false);
-                  });
+  DBUG_EXECUTE_IF(
+      "ib_undo_trunc_fail_truncate", if (++truncate_fail_count == 1) {
+        ib::info() << "ib_undo_trunc_fail_truncate";
+        return (false);
+      });
 #endif /* UNIV_DEBUG */
 
   bool success = true;

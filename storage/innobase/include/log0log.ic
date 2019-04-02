@@ -161,7 +161,7 @@ inline void log_block_store_checksum(byte *log_block) {
   log_block_set_checksum(log_block, log_block_calc_checksum(log_block));
 }
 
-  /* @} */
+/* @} */
 
 #ifndef UNIV_HOTBACKUP
 
