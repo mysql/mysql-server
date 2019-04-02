@@ -149,7 +149,7 @@ void check_security_descriptor_access_rights(const std::string &file_name,
 
 #endif
 
-}  // namespace {
+}  // namespace
 
 void check_config_file_access_rights(const std::string &file_name,
                                      const bool read_only) {

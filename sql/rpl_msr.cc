@@ -319,7 +319,7 @@ void Rpl_channel_filters::discard_all_unattached_filters() {
            it->first.c_str());
     it = channel_to_filter.erase(it);
   }
-    /* Reset the P_S view at the end of server startup */
+  /* Reset the P_S view at the end of server startup */
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   reset_pfs_view();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */

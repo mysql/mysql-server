@@ -187,26 +187,26 @@ int MBR::within(const MBR *mbr) const {
   return 0;
 }
 
-  /*
-    exponential notation :
-    1   sign
-    1   number before the decimal point
-    1   decimal point
-    17  number of significant digits (see String::qs_append(double))
-    1   'e' sign
-    1   exponent sign
-    3   exponent digits
-    ==
-    25
+/*
+  exponential notation :
+  1   sign
+  1   number before the decimal point
+  1   decimal point
+  17  number of significant digits (see String::qs_append(double))
+  1   'e' sign
+  1   exponent sign
+  3   exponent digits
+  ==
+  25
 
-    "f" notation :
-    1   optional 0
-    1   sign
-    17  number significant digits (see String::qs_append(double) )
-    1   decimal point
-    ==
-    20
-  */
+  "f" notation :
+  1   optional 0
+  1   sign
+  17  number significant digits (see String::qs_append(double) )
+  1   decimal point
+  ==
+  20
+*/
 
 #define MAX_DIGITS_IN_DOUBLE 25
 
@@ -1803,11 +1803,11 @@ Gis_polygon::~Gis_polygon() {
       delete m_inn_rings;
       m_inn_rings = NULL;
     }
-      /*
-        Never need to free polygon's wkb memory here, because if it's one chunk
-        given to us, we don't own it; otherwise the two pieces are already freed
-        above.
-       */
+    /*
+      Never need to free polygon's wkb memory here, because if it's one chunk
+      given to us, we don't own it; otherwise the two pieces are already freed
+      above.
+     */
 #if !defined(DBUG_OFF)
   } catch (...) {
     // Should never throw exceptions in destructor.
@@ -4324,12 +4324,12 @@ void Gis_wkb_vector<T>::reassemble() {
       }
 
       if (veci->get_geotype() != Geometry::wkb_polygon) {
-      // When this geometry is a geometry collection, we need to make its
-      // components in one chunk first. Not gonna implement this yet since
-      // BG doesn't use geometry collection yet, and consequently no
-      // component can be a multipoint/multilinestring/multipolygon or a
-      // geometrycollection. And multipoint components are already supported
-      // so not forbidding them here.
+        // When this geometry is a geometry collection, we need to make its
+        // components in one chunk first. Not gonna implement this yet since
+        // BG doesn't use geometry collection yet, and consequently no
+        // component can be a multipoint/multilinestring/multipolygon or a
+        // geometrycollection. And multipoint components are already supported
+        // so not forbidding them here.
 #if !defined(DBUG_OFF)
         Geometry::wkbType veci_gt = veci->get_geotype();
 #endif

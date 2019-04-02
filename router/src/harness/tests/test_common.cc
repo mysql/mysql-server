@@ -84,8 +84,7 @@ TEST(TestCommon, truncate_string) {
     std::thread([]() {
       const std::string &r2 = truncate_string("abcdefghij", 8);
       EXPECT_THAT(r2, StrEq("abcde..."));
-    })
-        .join();
+    }).join();
 
     // call to truncate_string() in another thread should not overwrite this
     // result
@@ -104,8 +103,7 @@ TEST(TestCommon, truncate_string) {
     std::thread([]() {
       const std::string &r2 = truncate_string_r("abcdefghij", 8);
       EXPECT_THAT(r2, StrEq("abcde..."));
-    })
-        .join();
+    }).join();
 
     // call to truncate_string_r() in another thread should not overwrite this
     // result

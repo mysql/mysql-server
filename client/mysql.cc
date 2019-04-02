@@ -2574,9 +2574,9 @@ static bool add_line(String &buffer, char *line, size_t line_length,
   DBUG_RETURN(0);
 }
 
-  /*****************************************************************
-              Interface to Readline Completion
-  ******************************************************************/
+/*****************************************************************
+            Interface to Readline Completion
+******************************************************************/
 
 #ifdef HAVE_READLINE
 
@@ -2838,7 +2838,7 @@ You can turn off this feature to get a quicker startup with -A\n\n");
   DBUG_VOID_RETURN;
 }
 
-  /* for gnu readline */
+/* for gnu readline */
 
 #ifndef HAVE_INDEX
 extern "C" {
@@ -3937,9 +3937,9 @@ static int com_notee(String *buffer MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-  /*
-    Sorry, this command is not available in Windows.
-  */
+/*
+  Sorry, this command is not available in Windows.
+*/
 
 #ifdef USE_POPEN
 static int com_pager(String *buffer MY_ATTRIBUTE((unused)),
@@ -3987,9 +3987,9 @@ static int com_nopager(String *buffer MY_ATTRIBUTE((unused)),
 }
 #endif
 
-  /*
-    Sorry, you can't send the result to an editor in Win32
-  */
+/*
+  Sorry, you can't send the result to an editor in Win32
+*/
 
 #ifdef USE_POPEN
 static int com_edit(String *buffer, char *line MY_ATTRIBUTE((unused))) {

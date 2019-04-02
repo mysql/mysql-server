@@ -127,9 +127,21 @@ static ibool row_purge_reposition_pcur(
 /** Removes a delete marked clustered index record if possible.
  @retval true if the row was not found, or it was successfully removed
  @retval false if the row was modified after the delete marking */
-static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_low(
-    purge_node_t *node, /*!< in/out: row purge node */
-    ulint mode)         /*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
+static MY_ATTRIBUTE((
+    warn_unused_result)) bool row_purge_remove_clust_if_poss_low(purge_node_t *
+                                                                     node, /*!<
+                                                                              in/out:
+                                                                              row
+                                                                              purge
+                                                                              node
+                                                                            */
+                                                                 ulint
+                                                                     mode) /*!<
+                                                                              in:
+                                                                              BTR_MODIFY_LEAF
+                                                                              or
+                                                                              BTR_MODIFY_TREE
+                                                                            */
 {
   dict_index_t *index;
   bool success = true;
@@ -388,10 +400,25 @@ Removes a secondary index entry without modifying the index tree,
 if possible.
 @retval true if success or if not found
 @retval false if row_purge_remove_sec_if_poss_tree() should be invoked */
-static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf(
-    purge_node_t *node,    /*!< in: row purge node */
-    dict_index_t *index,   /*!< in: index */
-    const dtuple_t *entry) /*!< in: index entry */
+static MY_ATTRIBUTE((
+    warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf(purge_node_t
+                                                                    *node, /*!<
+                                                                              in:
+                                                                              row
+                                                                              purge
+                                                                              node
+                                                                            */
+                                                                dict_index_t *
+                                                                    index, /*!<
+                                                                              in:
+                                                                              index
+                                                                            */
+                                                                const dtuple_t *
+                                                                    entry) /*!<
+                                                                              in:
+                                                                              index
+                                                                              entry
+                                                                            */
 {
   mtr_t mtr;
   btr_pcur_t pcur;
@@ -495,10 +522,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
                                         page_get_page_no(page)) &&
               page_get_n_recs(page) < 2 &&
               page_get_page_no(page) != dict_index_get_page(index)) {
-          /* this is the last record on page,
-          and it has a "page" lock on it,
-          which mean search is still depending
-          on it, so do not delete */
+            /* this is the last record on page,
+            and it has a "page" lock on it,
+            which mean search is still depending
+            on it, so do not delete */
 #ifdef UNIV_DEBUG
             ib::info(ER_IB_MSG_1009) << "skip purging last"
                                         " record on page "
@@ -1088,10 +1115,11 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
   bool updated_extern;
   THD *thd = current_thd;
 
-  DBUG_EXECUTE_IF("do_not_meta_lock_in_background",
-                  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
-                    os_thread_sleep(500000);
-                  } return;);
+  DBUG_EXECUTE_IF(
+      "do_not_meta_lock_in_background",
+      while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+        os_thread_sleep(500000);
+      } return;);
 
   while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thd, thr)) {
     bool purged;

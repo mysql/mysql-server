@@ -62,10 +62,10 @@ class Json_wrapper;
 
 namespace dd_unittest {
 
+using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 /**
   Mock handler for dictionary operations.

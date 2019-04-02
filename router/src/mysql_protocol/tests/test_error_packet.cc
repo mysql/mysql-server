@@ -31,10 +31,10 @@
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"
 
+using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::NotNull;
-using std::string;
 
 using namespace mysql_protocol;
 

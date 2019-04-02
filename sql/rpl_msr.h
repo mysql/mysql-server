@@ -150,10 +150,10 @@ class Multisource_info {
  public:
   /* Constructor for this class.*/
   Multisource_info() {
-  /*
-    This class should be a singleton.
-    The assert below is to prevent it to be instantiated more than once.
-  */
+    /*
+      This class should be a singleton.
+      The assert below is to prevent it to be instantiated more than once.
+    */
 #ifndef DBUG_OFF
     static int instance_count = 0;
     instance_count++;

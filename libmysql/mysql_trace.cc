@@ -181,12 +181,12 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
 }
 
 #ifndef DBUG_OFF
-  /*
-    These functions are declared in plugin_trace.h.
+/*
+  These functions are declared in plugin_trace.h.
 
-    Consult documentation of *_LIST() macros (plugin_trace.h) to see how
-    switch() bodies are constructed with the *_get_name() macros.
-  */
+  Consult documentation of *_LIST() macros (plugin_trace.h) to see how
+  switch() bodies are constructed with the *_get_name() macros.
+*/
 
 #define protocol_stage_get_name(X) \
   case PROTOCOL_STAGE_##X:         \

@@ -447,8 +447,8 @@ void page_cur_search_with_match(
     }
   }
 
-    /* The following flag does not work for non-latin1 char sets because
-    cmp_full_field does not tell how many bytes matched */
+  /* The following flag does not work for non-latin1 char sets because
+  cmp_full_field does not tell how many bytes matched */
 #ifdef PAGE_CUR_LE_OR_EXTENDS
   ut_a(mode != PAGE_CUR_LE_OR_EXTENDS);
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
@@ -677,8 +677,8 @@ void page_cur_search_with_match_bytes(
 #endif
 #endif
 
-    /* The following flag does not work for non-latin1 char sets because
-    cmp_full_field does not tell how many bytes matched */
+  /* The following flag does not work for non-latin1 char sets because
+  cmp_full_field does not tell how many bytes matched */
 #ifdef PAGE_CUR_LE_OR_EXTENDS
   ut_a(mode != PAGE_CUR_LE_OR_EXTENDS);
 #endif /* PAGE_CUR_LE_OR_EXTENDS */

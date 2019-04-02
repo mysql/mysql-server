@@ -41,8 +41,8 @@
 #include <thread>
 
 Path g_origin_path;
-using ::testing::PrintToString;
 using mysqlrouter::MySQLSession;
+using ::testing::PrintToString;
 
 class MetadataChacheTTLTest : public RouterComponentTest {
  protected:

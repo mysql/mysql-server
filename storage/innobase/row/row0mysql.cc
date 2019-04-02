@@ -239,12 +239,11 @@ void row_mysql_store_blob_ref(
 
 /** Reads a reference to a BLOB in the MySQL format.
  @return pointer to BLOB data */
-const byte *row_mysql_read_blob_ref(
-    ulint *len,      /*!< out: BLOB length */
-    const byte *ref, /*!< in: BLOB reference in the
-                     MySQL format */
-    ulint col_len)   /*!< in: BLOB reference length
-                     (not BLOB length) */
+const byte *row_mysql_read_blob_ref(ulint *len,      /*!< out: BLOB length */
+                                    const byte *ref, /*!< in: BLOB reference in
+                                                     the MySQL format */
+                                    ulint col_len)   /*!< in: BLOB reference
+                                                     length   (not BLOB length) */
 {
   byte *data;
 
@@ -985,10 +984,9 @@ void row_prebuilt_free(
 
 /** Updates the transaction pointers in query graphs stored in the prebuilt
  struct. */
-void row_update_prebuilt_trx(
-    row_prebuilt_t *prebuilt, /*!< in/out: prebuilt struct
-                              in MySQL handle */
-    trx_t *trx)               /*!< in: transaction handle */
+void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, /*!< in/out: prebuilt
+                                                       struct in MySQL handle */
+                             trx_t *trx) /*!< in: transaction handle */
 {
   ut_a(trx->magic_n == TRX_MAGIC_N);
   ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
@@ -1685,9 +1683,8 @@ dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt) {
 }
 
 /** Builds a dummy query graph used in selects. */
-void row_prebuild_sel_graph(
-    row_prebuilt_t *prebuilt) /*!< in: prebuilt struct in MySQL
-                              handle */
+void row_prebuild_sel_graph(row_prebuilt_t *prebuilt) /*!< in: prebuilt struct
+                                                      in MySQL handle */
 {
   sel_node_t *node;
 
@@ -4166,9 +4163,8 @@ funct_exit:
  tables in MySQL.
  @return true if temporary table */
 MY_ATTRIBUTE((warn_unused_result))
-bool row_is_mysql_tmp_table_name(
-    const char *name) /*!< in: table name in the form
-                      'database/tablename' */
+bool row_is_mysql_tmp_table_name(const char *name) /*!< in: table name in the
+                                                   form 'database/tablename' */
 {
   return (strstr(name, "/" TEMP_FILE_PREFIX) != NULL);
   /* return(strstr(name, "/@0023sql") != NULL); */
@@ -4473,7 +4469,6 @@ static dberr_t parallel_check_table(Key_reader &reader, ulint *n_rows) {
 
   err = reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
                         dict_index_t *index, row_prebuilt_t *prebuilt) {
-
     Counter::inc(n_recs, id);
 
     /* Only check the THD state for the first thread. */

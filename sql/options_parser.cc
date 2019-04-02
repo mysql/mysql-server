@@ -194,9 +194,8 @@ result parse_options_string(String *str, char delimiter,
         parser_result.c = delimiter;
         return parser_result;
       }
-      substring_endpos -=
-          1;  // Decrement to set end position at position before
-              // delimiter.
+      substring_endpos -= 1;  // Decrement to set end position at position
+                              // before delimiter.
     }
 
     size_t key_value_separator_count =

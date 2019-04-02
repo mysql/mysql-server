@@ -520,6 +520,6 @@ static inline int inline_mysql_prlock_unlock(
 
 #endif /* DISABLE_MYSQL_THREAD_H */
 
-  /** @} (end of group psi_api_rwlock) */
+/** @} (end of group psi_api_rwlock) */
 
 #endif

@@ -31,10 +31,10 @@
 #include <Windows.h>
 #include <cstdarg>
 
-using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::AppInfo;
-using mysql_harness::PLUGIN_ABI_VERSION;
+using mysql_harness::ARCHITECTURE_DESCRIPTOR;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::logging::LogLevel;
 
 constexpr const char *kEventSourceName = "MySQL Router";

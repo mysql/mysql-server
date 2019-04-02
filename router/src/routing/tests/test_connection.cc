@@ -39,10 +39,10 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SetArgPointee;
-using ::testing::_;
 
 class MockProtocol : public BaseProtocol {
  public:

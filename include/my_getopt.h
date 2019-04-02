@@ -119,9 +119,8 @@ struct my_option {
   longlong def_value;             /**< Default value */
   longlong min_value;             /**< Min allowed value (for numbers) */
   ulonglong max_value;            /**< Max allowed value (for numbers) */
-  struct get_opt_arg_source
-      *arg_source; /**< Represents source/path from where this
-                        variable is set. */
+  struct get_opt_arg_source *arg_source; /**< Represents source/path from where
+                                            this variable is set. */
   long block_size; /**< Value should be a mult. of this (for numbers) */
   void *app_type;  /**< To be used by an application */
 };

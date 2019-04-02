@@ -300,10 +300,9 @@ ulint dtuple_get_n_fields_cmp(const dtuple_t *tuple) /*!< in: tuple */
 
 /** Sets number of fields used in record comparisons. */
 UNIV_INLINE
-void dtuple_set_n_fields_cmp(
-    dtuple_t *tuple,    /*!< in: tuple */
-    ulint n_fields_cmp) /*!< in: number of fields used in
-                        comparisons in rem0cmp.* */
+void dtuple_set_n_fields_cmp(dtuple_t *tuple,    /*!< in: tuple */
+                             ulint n_fields_cmp) /*!< in: number of fields used
+                                                 in comparisons in rem0cmp.* */
 {
   ut_ad(tuple);
   ut_ad(n_fields_cmp <= tuple->n_fields);

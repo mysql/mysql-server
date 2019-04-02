@@ -99,7 +99,6 @@ class Opt_trace_context;
 
 using std::function;
 using std::string;
-using std::string;
 using std::vector;
 
 typedef qep_row::extra extra;

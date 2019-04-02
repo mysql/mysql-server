@@ -65,8 +65,8 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[]{"http_server"};
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 std::promise<void> stopper;
@@ -158,15 +158,16 @@ void HttpRequestThread::accept_socket() {
 }
 
 void HttpRequestThread::set_request_router(HttpRequestRouter &router) {
-  evhttp_set_gencb(ev_http.get(),
-                   [](evhttp_request *req, void *user_data) {
-                     auto *rtr = static_cast<HttpRequestRouter *>(user_data);
-                     rtr->route(HttpRequest{
-                         std::unique_ptr<evhttp_request,
-                                         std::function<void(evhttp_request *)>>(
-                             req, [](evhttp_request *) {})});
-                   },
-                   &router);
+  evhttp_set_gencb(
+      ev_http.get(),
+      [](evhttp_request *req, void *user_data) {
+        auto *rtr = static_cast<HttpRequestRouter *>(user_data);
+        rtr->route(
+            HttpRequest{std::unique_ptr<evhttp_request,
+                                        std::function<void(evhttp_request *)>>(
+                req, [](evhttp_request *) {})});
+      },
+      &router);
 }
 
 void HttpRequestThread::wait_and_dispatch() {
@@ -193,13 +194,14 @@ class HttpRequestMainThread : public HttpRequestThread {
 class HttpsRequestMainThread : public HttpRequestMainThread {
  public:
   HttpsRequestMainThread(SSL_CTX *ssl_ctx) {
-    evhttp_set_bevcb(ev_http.get(),
-                     [](struct event_base *base, void *arg) {
-                       return bufferevent_openssl_socket_new(
-                           base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
-                           BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
-                     },
-                     ssl_ctx);
+    evhttp_set_bevcb(
+        ev_http.get(),
+        [](struct event_base *base, void *arg) {
+          return bufferevent_openssl_socket_new(
+              base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
+              BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+        },
+        ssl_ctx);
   }
 };
 #endif
@@ -217,13 +219,14 @@ class HttpsRequestWorkerThread : public HttpRequestWorkerThread {
   explicit HttpsRequestWorkerThread(harness_socket_t accept_fd,
                                     SSL_CTX *ssl_ctx)
       : HttpRequestWorkerThread(accept_fd) {
-    evhttp_set_bevcb(ev_http.get(),
-                     [](struct event_base *base, void *arg) {
-                       return bufferevent_openssl_socket_new(
-                           base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
-                           BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
-                     },
-                     ssl_ctx);
+    evhttp_set_bevcb(
+        ev_http.get(),
+        [](struct event_base *base, void *arg) {
+          return bufferevent_openssl_socket_new(
+              base, -1, SSL_new(static_cast<SSL_CTX *>(arg)),
+              BUFFEREVENT_SSL_ACCEPTING, BEV_OPT_CLOSE_ON_FREE);
+        },
+        ssl_ctx);
   }
 };
 #endif

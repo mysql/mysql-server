@@ -97,6 +97,6 @@ static inline void inline_mysql_end_idle_wait(struct PSI_idle_locker *locker) {
 }
 #endif
 
-  /** @} (end of group psi_api_idle) */
+/** @} (end of group psi_api_idle) */
 
 #endif

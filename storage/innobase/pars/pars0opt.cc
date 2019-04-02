@@ -639,11 +639,10 @@ static ulint opt_classify_comparison(
 }
 
 /** Recursively looks for test conditions for a table in a join. */
-static void opt_find_test_conds(
-    sel_node_t *sel_node, /*!< in: select node */
-    ulint i,              /*!< in: ith table in the join */
-    func_node_t *cond)    /*!< in: conjunction of search
-                          conditions or NULL */
+static void opt_find_test_conds(sel_node_t *sel_node, /*!< in: select node */
+                                ulint i, /*!< in: ith table in the join */
+                                func_node_t *cond) /*!< in: conjunction of
+                                                   search conditions or NULL */
 {
   func_node_t *new_cond;
   ulint fclass;

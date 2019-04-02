@@ -144,8 +144,8 @@ UNIV_INLINE
 ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
                     const byte *ptr)    /*!< in: pointer to page */
 {
-/* The '- 10' is a safety margin, in case we have some small
-calculation error below */
+  /* The '- 10' is a safety margin, in case we have some small
+  calculation error below */
 
 #ifdef UNIV_DEBUG
   ut_ad(ptr >= page);

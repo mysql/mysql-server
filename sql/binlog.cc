@@ -7909,7 +7909,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all) {
     DBUG_RETURN(RESULT_SUCCESS);
 
   if (thd->lex->sql_command == SQLCOM_XA_COMMIT) {
-  /* The Commit phase of the XA two phase logging. */
+    /* The Commit phase of the XA two phase logging. */
 
 #ifndef DBUG_OFF
     bool one_phase = get_xa_opt(thd) == XA_ONE_PHASE;
@@ -8234,8 +8234,9 @@ void MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first) {
     DBUG_PRINT("debug", ("Thread ID: %u, commit_error: %d, commit_pending: %s",
                          head->thread_id(), head->commit_error,
                          YESNO(head->tx_commit_pending)));
-    DBUG_EXECUTE_IF("block_leader_after_delete",
-                    if (thd != head) { DBUG_SET("+d,after_delete_wait"); };);
+    DBUG_EXECUTE_IF(
+        "block_leader_after_delete",
+        if (thd != head) { DBUG_SET("+d,after_delete_wait"); };);
     /*
       If flushing failed, set commit_error for the session, skip the
       transaction and proceed with the next transaction instead. This

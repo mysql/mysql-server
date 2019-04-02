@@ -114,11 +114,11 @@
 #define USE_DLCLOSE 0
 #endif
 
-using ::testing::HasSubstr;
 using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
 using mysql_harness::test::LifecyclePluginSyncBus;
+using ::testing::HasSubstr;
 namespace ch = std::chrono;
 
 // try increasing these if unit tests fail

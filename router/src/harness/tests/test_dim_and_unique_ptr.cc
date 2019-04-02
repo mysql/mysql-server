@@ -44,8 +44,8 @@
 #pragma clang diagnostic pop
 #endif
 
-using ::testing::_;
 using mysql_harness::UniquePtr;
+using ::testing::_;
 
 class Notifier {
  public:

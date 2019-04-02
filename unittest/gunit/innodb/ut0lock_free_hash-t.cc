@@ -680,4 +680,4 @@ TEST_F(ut0lock_free_hash, multi_threaded_100r0w) {
       thread_100r0w /* thr func */
   );
 }
-}
+}  // namespace innodb_lock_free_hash_unittest

@@ -9185,7 +9185,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item) {
     necessary, since the Item array we are modifying isn't a part of the
     original Item tree.
   */
-  Item **args = new (thd->mem_root) Item *[2]{item_copy, item};
+  Item **args = new (thd->mem_root) Item *[2] { item_copy, item };
   aggregate_type(make_array(&args[0], 2));
   // UNION with ENUM/SET fields requires type information from real_data_type()
   set_data_type(real_type_to_type(Field::field_type_merge(

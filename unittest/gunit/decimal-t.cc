@@ -56,19 +56,19 @@ void dump_decimal(decimal_t *d) {
   printf("%09d} */ ", d->buf[i]);
 }
 
-  /*
-    The purpose of all these define wrappers is to get a "call stack"
-    whenever some EXPECT_XX generates a failure. A sample error message:
+/*
+  The purpose of all these define wrappers is to get a "call stack"
+  whenever some EXPECT_XX generates a failure. A sample error message:
 
-    # .../unittest/gunit/decimal-t.cc:134: FailureValue of: s
-    #   Actual: "0"
-    # Expected: orig
-    # Which is: "1000000000"
-    #  arguments were: '999999999', -9, HALF_UP
-    # Google Test trace:
-    # .../unittest/gunit/decimal-t.cc:387:
-    # .../unittest/gunit/decimal-t.cc:686:
-   */
+  # .../unittest/gunit/decimal-t.cc:134: FailureValue of: s
+  #   Actual: "0"
+  # Expected: orig
+  # Which is: "1000000000"
+  #  arguments were: '999999999', -9, HALF_UP
+  # Google Test trace:
+  # .../unittest/gunit/decimal-t.cc:387:
+  # .../unittest/gunit/decimal-t.cc:686:
+ */
 
 #define check_result_code(p1, p2) \
   {                               \

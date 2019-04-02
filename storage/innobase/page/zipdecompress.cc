@@ -1427,7 +1427,7 @@ ibool page_zip_decompress_low(
     /* Copy the page header. */
     memcpy(page, page_zip->data, PAGE_DATA);
   } else {
-  /* Check that the bytes that we skip are identical. */
+    /* Check that the bytes that we skip are identical. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
     ut_a(!memcmp(FIL_PAGE_TYPE + page, FIL_PAGE_TYPE + page_zip->data,
                  PAGE_HEADER - FIL_PAGE_TYPE));

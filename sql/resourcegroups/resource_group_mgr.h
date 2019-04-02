@@ -377,7 +377,6 @@ class Resource_group_mgr {
           "now "
           "SIGNAL restore_finished";
       DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
-
     };);
   }
 

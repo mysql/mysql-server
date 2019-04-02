@@ -193,6 +193,6 @@ static inline ulonglong inline_mysql_stage_get_work_estimated(
 }
 #endif
 
-  /** @} (end of group psi_api_stage) */
+/** @} (end of group psi_api_stage) */
 
 #endif

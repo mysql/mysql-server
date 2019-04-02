@@ -70,10 +70,10 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD3(getpeername, int(int, struct sockaddr *, socklen_t *));
 
   void set_errno(int err) override {
-  // set errno/Windows equivalent. At the time of writing, unit tests
-  // will pass just fine without this, as they are too low-level and the errno
-  // is checked at higher level. But to do an accurate mock, we should set
-  // this.
+    // set errno/Windows equivalent. At the time of writing, unit tests
+    // will pass just fine without this, as they are too low-level and the errno
+    // is checked at higher level. But to do an accurate mock, we should set
+    // this.
 #ifdef _WIN32
     WSASetLastError(err);
 #else

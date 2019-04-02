@@ -657,12 +657,11 @@ void row_upd_index_write_log(
 
 /** Parses the log data written by row_upd_index_write_log.
  @return log data end or NULL */
-byte *row_upd_index_parse(
-    const byte *ptr,     /*!< in: buffer */
-    const byte *end_ptr, /*!< in: buffer end */
-    mem_heap_t *heap,    /*!< in: memory heap where update vector is
-                         built */
-    upd_t **update_out)  /*!< out: update vector */
+byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
+                          const byte *end_ptr, /*!< in: buffer end */
+                          mem_heap_t *heap,    /*!< in: memory heap where update
+                                               vector is    built */
+                          upd_t **update_out)  /*!< out: update vector */
 {
   upd_t *update;
   upd_field_t *upd_field;
@@ -1338,19 +1337,18 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
 }
 
 /** Replaces the new column values stored in the update vector. */
-void row_upd_replace(
-    trx_t *trx,                /*!< in: transaction object. */
-    dtuple_t *row,             /*!< in/out: row where replaced,
-                               indexed by col_no;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    row_ext_t **ext,           /*!< out, own: NULL, or externally
-                               stored column prefixes */
-    const dict_index_t *index, /*!< in: clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the
-                               clustered index */
-    mem_heap_t *heap)          /*!< in: memory heap */
+void row_upd_replace(trx_t *trx,      /*!< in: transaction object. */
+                     dtuple_t *row,   /*!< in/out: row where replaced,
+                                      indexed by col_no;
+                                      the clustered index record must be
+                                      covered by a lock or a page latch to
+                                      prevent deletion (rollback or purge) */
+                     row_ext_t **ext, /*!< out, own: NULL, or externally
+                                      stored column prefixes */
+                     const dict_index_t *index, /*!< in: clustered index */
+                     const upd_t *update, /*!< in: an update vector built for
+                                          the clustered index */
+                     mem_heap_t *heap)    /*!< in: memory heap */
 {
   ulint col_no;
   ulint i;

@@ -48,11 +48,11 @@
 
 #include "gmock/gmock.h"
 
+using mysql_harness::Path;
+using std::string;
 using ::testing::ContainerEq;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
-using mysql_harness::Path;
-using std::string;
 
 string g_cwd;
 Path g_origin;

@@ -41,10 +41,10 @@
 #include <string>
 
 using mysql_harness::TCPAddress;
+using mysqlrouter::to_string;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
 using mysqlrouter::URIQuery;
-using mysqlrouter::to_string;
 using std::map;
 using std::string;
 

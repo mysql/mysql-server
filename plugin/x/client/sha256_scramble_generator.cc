@@ -166,7 +166,9 @@ Generate_scramble::Generate_scramble(
       m_digest_length = CACHING_SHA2_DIGEST_LENGTH;
       break;
     }
-    default: { DBUG_ASSERT(false); }
+    default: {
+      DBUG_ASSERT(false);
+    }
   }
 }
 

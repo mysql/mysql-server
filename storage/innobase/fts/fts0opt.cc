@@ -2683,9 +2683,8 @@ static ulint fts_optimize_how_many(
 
 /** Check if the total memory used by all FTS table exceeds the maximum limit.
  @return true if a sync is needed, false otherwise */
-static bool fts_is_sync_needed(
-    const ib_vector_t *tables) /*!< in: registered tables
-                               vector*/
+static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
+                                                          tables vector*/
 {
   ulint total_memory = 0;
   const auto time_diff = ut_time_monotonic() - last_check_sync_time;

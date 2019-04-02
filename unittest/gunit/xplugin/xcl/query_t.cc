@@ -35,13 +35,13 @@
 namespace xcl {
 namespace test {
 
+using ::testing::_;
 using ::testing::InSequence;
 using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::Throw;
-using ::testing::_;
 
 const Query_instances::Instance_id TEST_INSTANCE_ID = 1001;
 const xcl::XProtocol::Handler_id TEST_NOTICE_HANDLER_ID = 1002;

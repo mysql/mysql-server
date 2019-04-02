@@ -728,12 +728,12 @@ cnv:
   return len + sign;
 }
 
-  /*
-  ** Compare string against string with wildcard
-  **	0 if matched
-  **	-1 if not matched with wildcard
-  **	 1 if matched with wildcard
-  */
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
 
 #define likeconv(s, A) (uchar)(s)->sort_order[(uchar)(A)]
 #define INC_PTR(cs, A, B) (A)++

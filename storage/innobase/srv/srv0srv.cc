@@ -2898,10 +2898,11 @@ static void srv_purge_coordinator_suspend(
 
     if (!stop) {
       bool check = true;
-      DBUG_EXECUTE_IF("skip_purge_check_shutdown",
-                      if (srv_shutdown_state != SRV_SHUTDOWN_NONE &&
-                          purge_sys->state == PURGE_STATE_STOP &&
-                          srv_fast_shutdown != 0) { check = false; };);
+      DBUG_EXECUTE_IF(
+          "skip_purge_check_shutdown",
+          if (srv_shutdown_state != SRV_SHUTDOWN_NONE &&
+              purge_sys->state == PURGE_STATE_STOP &&
+              srv_fast_shutdown != 0) { check = false; };);
 
       if (check) {
         ut_a(purge_sys->n_stop == 0);

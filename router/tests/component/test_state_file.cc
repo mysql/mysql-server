@@ -49,8 +49,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <thread>
 
 Path g_origin_path;
-using ::testing::PrintToString;
 using mysqlrouter::MySQLSession;
+using ::testing::PrintToString;
 
 namespace {
 // default allocator for rapidJson (MemoryPoolAllocator) is broken for
@@ -1100,12 +1100,12 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   EXPECT_THAT(router.exit_code(), testing::Ne(0));
 
   // proper error should get logged
-  const bool found =
-      find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                   [&](const std::string &line) -> bool {
-                     return pattern_found(line, test_params.expected_error);
-                   },
-                   std::chrono::milliseconds(1));
+  const bool found = find_in_file(
+      get_logging_dir().str() + "/mysqlrouter.log",
+      [&](const std::string &line) -> bool {
+        return pattern_found(line, test_params.expected_error);
+      },
+      std::chrono::milliseconds(1));
 
   EXPECT_TRUE(found) << get_router_log_output();
 }
@@ -1174,11 +1174,12 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   const std::string static_conf = temp_test_dir + "/mysqlrouter.conf";
   const std::string expected_entry =
       std::string("dynamic_state=") + Path(state_file).real_path().str();
-  const bool found = find_in_file(static_conf,
-                                  [&](const std::string &line) -> bool {
-                                    return pattern_found(line, expected_entry);
-                                  },
-                                  std::chrono::milliseconds(1));
+  const bool found = find_in_file(
+      static_conf,
+      [&](const std::string &line) -> bool {
+        return pattern_found(line, expected_entry);
+      },
+      std::chrono::milliseconds(1));
 
   EXPECT_TRUE(found) << "Did not found: " << expected_entry << "\n"
                      << get_file_output("mysqlrouter.conf", temp_test_dir);

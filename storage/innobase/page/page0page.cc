@@ -2160,10 +2160,10 @@ ibool page_validate(
     }
   }
 
-    /* Multiple transactions cannot simultaneously operate on the
-    same temp-table in parallel.
-    max_trx_id is ignored for temp tables because it not required
-    for MVCC. */
+  /* Multiple transactions cannot simultaneously operate on the
+  same temp-table in parallel.
+  max_trx_id is ignored for temp tables because it not required
+  for MVCC. */
 #ifndef UNIV_HOTBACKUP
   if (dict_index_is_sec_or_ibuf(index) && !index->table->is_temporary() &&
       page_is_leaf(page) && !page_is_empty(page)) {

@@ -395,10 +395,9 @@ void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
 /** Assigns the values in the select list to the possible into-variables in
  SELECT ... INTO ... */
 UNIV_INLINE
-void sel_assign_into_var_values(
-    sym_node_t *var,  /*!< in: first variable in a list of
-                      variables */
-    sel_node_t *node) /*!< in: select node */
+void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
+                                                  list of  variables */
+                                sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -4793,8 +4792,8 @@ rec_loop:
   }
 
   if (page_rec_is_supremum(rec)) {
-    DBUG_EXECUTE_IF("compare_end_range",
-                    if (end_loop < 100) { end_loop = 100; });
+    DBUG_EXECUTE_IF(
+        "compare_end_range", if (end_loop < 100) { end_loop = 100; });
 
     /** Compare the last record of the page with end range
     passed to InnoDB when there is no ICP and number of

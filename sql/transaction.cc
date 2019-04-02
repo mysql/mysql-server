@@ -203,15 +203,15 @@ bool trans_begin(THD *thd, uint flags) {
     res = ha_start_consistent_snapshot(thd);
   }
 
-    /*
-      Register transaction start in performance schema if not done already.
-      We handle explicitly started transactions here, implicitly started
-      transactions (and single-statement transactions in autocommit=1 mode)
-      are handled in trans_register_ha().
-      We can't handle explicit transactions in the same way as implicit
-      because we want to correctly attribute statements which follow
-      BEGIN but do not touch any transactional tables.
-    */
+  /*
+    Register transaction start in performance schema if not done already.
+    We handle explicitly started transactions here, implicitly started
+    transactions (and single-statement transactions in autocommit=1 mode)
+    are handled in trans_register_ha().
+    We can't handle explicit transactions in the same way as implicit
+    because we want to correctly attribute statements which follow
+    BEGIN but do not touch any transactional tables.
+  */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL) {
     thd->m_transaction_psi =

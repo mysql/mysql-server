@@ -28,6 +28,7 @@
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_basic_logging.h"
 
+using ::testing::_;
 using ::testing::AnyNumber;
 using ::testing::ByRef;
 using ::testing::ContainsRegex;
@@ -38,7 +39,6 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 using ::testing::WithArgs;
-using ::testing::_;
 
 /**
   Class that defines basic common testing infra-structure to be used

@@ -32,6 +32,7 @@ namespace ngs {
 
 namespace test {
 
+using ::testing::_;
 using ::testing::AtLeast;
 using ::testing::DoAll;
 using ::testing::InSequence;
@@ -39,7 +40,6 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::SetArrayArgument;
 using ::testing::StrictMock;
-using ::testing::_;
 
 ACTION_P2(SetSocketErrnoAndReturn, err, result) {
   xpl::Operations_factory operations_factory;

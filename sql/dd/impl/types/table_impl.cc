@@ -592,14 +592,16 @@ bool Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   // (as we don't know the address of the referenced Column or Index
   // object).
 
-  deserialize_each(rctx, [this]() { return add_index(); }, val, "indexes");
+  deserialize_each(
+      rctx, [this]() { return add_index(); }, val, "indexes");
 
-  deserialize_each(rctx, [this]() { return add_foreign_key(); }, val,
-                   "foreign_keys");
-  deserialize_each(rctx, [this]() { return add_check_constraint(); }, val,
-                   "check_constraints");
-  deserialize_each(rctx, [this]() { return add_partition(); }, val,
-                   "partitions");
+  deserialize_each(
+      rctx, [this]() { return add_foreign_key(); }, val, "foreign_keys");
+  deserialize_each(
+      rctx, [this]() { return add_check_constraint(); }, val,
+      "check_constraints");
+  deserialize_each(
+      rctx, [this]() { return add_partition(); }, val, "partitions");
   read(&m_collation_id, val, "collation_id");
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
                                     "tablespace_id");

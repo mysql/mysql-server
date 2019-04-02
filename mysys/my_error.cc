@@ -121,12 +121,12 @@ char *my_strerror(char *buf, size_t len, int nr) {
   if (msg != NULL)
     strmake(buf, msg, len - 1);
   else {
-  /*
-    On Windows, do things the Windows way. On a system that supports both
-    the GNU and the XSI variant, use whichever was configured (GNU); if
-    this choice is not advertised, use the default (POSIX/XSI).  Testing
-    for __GNUC__ is not sufficient to determine whether this choice exists.
-  */
+    /*
+      On Windows, do things the Windows way. On a system that supports both
+      the GNU and the XSI variant, use whichever was configured (GNU); if
+      this choice is not advertised, use the default (POSIX/XSI).  Testing
+      for __GNUC__ is not sufficient to determine whether this choice exists.
+    */
 #if defined(_WIN32)
     strerror_s(buf, len, nr);
     if (thr_winerr() != 0) {

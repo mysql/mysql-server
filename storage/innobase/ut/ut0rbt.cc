@@ -726,11 +726,10 @@ const ib_rbt_node_t *rbt_insert(
 
 /** Add a new node to the tree, useful for data that is pre-sorted.
  @return appended node */
-const ib_rbt_node_t *rbt_add_node(
-    ib_rbt_t *tree,         /*!< in: rb tree */
-    ib_rbt_bound_t *parent, /*!< in: bounds */
-    const void *value)      /*!< in: this value is copied
-                            to the node */
+const ib_rbt_node_t *rbt_add_node(ib_rbt_t *tree,         /*!< in: rb tree */
+                                  ib_rbt_bound_t *parent, /*!< in: bounds */
+                                  const void *value)      /*!< in: this value is
+                                                          copied      to the node */
 {
   ib_rbt_node_t *node;
 

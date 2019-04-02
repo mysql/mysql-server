@@ -39,9 +39,9 @@
 using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
-using std::placeholders::_1;
 using std::string;
 using std::vector;
+using std::placeholders::_1;
 
 bool Mysql_connection_options::mysql_inited;
 

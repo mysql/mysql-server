@@ -85,6 +85,6 @@ uint Cost_model_constants::find_handler_slot_from_name(
   DBUG_ASSERT(false);
   return 0;
 }
-  /* purecov: end */
+/* purecov: end */
 
 #endif /* FAKE_COSTMODEL_CC_INCLUDED */

@@ -42,11 +42,11 @@
 #include "tcp_address.h"
 
 using mysqlrouter::to_string;
+using std::out_of_range;
+using std::runtime_error;
 using std::chrono::duration_cast;
 using std::chrono::seconds;
 using std::chrono::system_clock;
-using std::out_of_range;
-using std::runtime_error;
 
 using metadata_cache::ManagedInstance;
 IMPORT_LOG_FUNCTIONS()

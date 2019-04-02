@@ -54,12 +54,12 @@
 #pragma clang diagnostic pop
 #endif
 
+using mysql_harness::TCPAddress;
+using mysqlrouter::to_string;
+using ::testing::_;
 using ::testing::Eq;
 using ::testing::HasSubstr;
 using ::testing::Return;
-using ::testing::_;
-using mysql_harness::TCPAddress;
-using mysqlrouter::to_string;
 
 class MockRouteDestination : public DestRoundRobin {
  public:

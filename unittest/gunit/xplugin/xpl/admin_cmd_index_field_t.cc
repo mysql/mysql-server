@@ -37,10 +37,10 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Return;
-using ::testing::_;
 
 namespace {
 const char *const PATH = "$.path";

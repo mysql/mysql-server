@@ -521,24 +521,24 @@ bool partition_info::set_used_partition(List<Item> &fields, List<Item> &values,
   return false;
 }
 
-  /*
-    Create a memory area where default partition names are stored and fill it
-    up with the names.
+/*
+  Create a memory area where default partition names are stored and fill it
+  up with the names.
 
-    SYNOPSIS
-      create_default_partition_names()
-      num_parts                       Number of partitions
-      start_no                        Starting partition number
-      subpart                         Is it subpartitions
+  SYNOPSIS
+    create_default_partition_names()
+    num_parts                       Number of partitions
+    start_no                        Starting partition number
+    subpart                         Is it subpartitions
 
-    RETURN VALUE
-      A pointer to the memory area of the default partition names
+  RETURN VALUE
+    A pointer to the memory area of the default partition names
 
-    DESCRIPTION
-      A support routine for the partition code where default values are
-      generated.
-      The external routine needing this code is check_partition_info
-  */
+  DESCRIPTION
+    A support routine for the partition code where default values are
+    generated.
+    The external routine needing this code is check_partition_info
+*/
 
 #define MAX_PART_NAME_SIZE 8
 

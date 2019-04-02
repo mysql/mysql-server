@@ -779,39 +779,39 @@ inline void relocate_field(Field *field, uchar *pos, uchar *null_flags,
   field->reset();
 }
 
-  /**
-    Create a temp table according to a field list.
+/**
+  Create a temp table according to a field list.
 
-    Given field pointers are changed to point at tmp_table for
-    send_result_set_metadata. The table object is self contained: it's
-    allocated in its own memory root, as well as Field objects
-    created for table columns. Those Field objects are common to TABLE and
-    TABLE_SHARE.
-    This function will replace Item_sum items in 'fields' list with
-    corresponding Item_field items, pointing at the fields in the
-    temporary table, unless this was prohibited by true
-    value of argument save_sum_fields. The Item_field objects
-    are created in THD memory root.
+  Given field pointers are changed to point at tmp_table for
+  send_result_set_metadata. The table object is self contained: it's
+  allocated in its own memory root, as well as Field objects
+  created for table columns. Those Field objects are common to TABLE and
+  TABLE_SHARE.
+  This function will replace Item_sum items in 'fields' list with
+  corresponding Item_field items, pointing at the fields in the
+  temporary table, unless this was prohibited by true
+  value of argument save_sum_fields. The Item_field objects
+  are created in THD memory root.
 
-    @param thd                  thread handle
-    @param param                a description used as input to create the table
-    @param fields               list of items that will be used to define
-                                column types of the table (also see NOTES)
-    @param group                Group key to use for temporary table, NULL if
-    none
-    @param distinct             should table rows be distinct
-    @param save_sum_fields      see NOTES
-    @param select_options
-    @param rows_limit
-    @param table_alias          possible name of the temporary table that can
-                                be used for name resolving; can be "".
+  @param thd                  thread handle
+  @param param                a description used as input to create the table
+  @param fields               list of items that will be used to define
+                              column types of the table (also see NOTES)
+  @param group                Group key to use for temporary table, NULL if
+  none
+  @param distinct             should table rows be distinct
+  @param save_sum_fields      see NOTES
+  @param select_options
+  @param rows_limit
+  @param table_alias          possible name of the temporary table that can
+                              be used for name resolving; can be "".
 
-    @remark mysql_create_view() checks that views have less than
-            MAX_FIELDS columns.
+  @remark mysql_create_view() checks that views have less than
+          MAX_FIELDS columns.
 
-    @remark We may actually end up with a table without any columns at all.
-            See comment below: We don't have to store this.
-  */
+  @remark We may actually end up with a table without any columns at all.
+          See comment below: We don't have to store this.
+*/
 
 #define STRING_TOTAL_LENGTH_TO_PACK_ROWS 128
 #define AVG_STRING_LENGTH_TO_PACK_ROWS 64

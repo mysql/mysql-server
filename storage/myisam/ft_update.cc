@@ -155,10 +155,10 @@ static int _mi_ft_erase(MI_INFO *info, uint keynr, uchar *keybuf,
   DBUG_RETURN(err);
 }
 
-  /*
-    Compares an appropriate parts of two WORD_KEY keys directly out of records
-    returns 1 if they are different
-  */
+/*
+  Compares an appropriate parts of two WORD_KEY keys directly out of records
+  returns 1 if they are different
+*/
 
 #define THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT 1
 #define GEE_THEY_ARE_ABSOLUTELY_IDENTICAL 0

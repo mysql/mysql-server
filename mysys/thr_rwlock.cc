@@ -98,7 +98,7 @@ int rw_pr_wrlock(rw_pr_lock_t *rwlock) {
 
 int rw_pr_unlock(rw_pr_lock_t *rwlock) {
   if (rwlock->active_writer) {
-  /* We are unlocking wr-lock. */
+    /* We are unlocking wr-lock. */
 #ifdef SAFE_MUTEX
     rwlock->writer_thread = 0;
 #endif

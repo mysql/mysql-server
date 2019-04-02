@@ -221,17 +221,17 @@ bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
 
 #if defined(_WIN32)
 
-  /*
-    Check if a path will access a reserverd file name that may cause problems
+/*
+  Check if a path will access a reserverd file name that may cause problems
 
-    SYNOPSIS
-      check_if_legal_filename
-      path 	Path to file
+  SYNOPSIS
+    check_if_legal_filename
+    path 	Path to file
 
-    RETURN
-      0  ok
-      1  reserved file name
-  */
+  RETURN
+    0  ok
+    1  reserved file name
+*/
 
 #define MAX_RESERVED_NAME_LENGTH 6
 

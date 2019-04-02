@@ -375,7 +375,7 @@ char *wchar_to_utf8(const wchar_t *string, size_t *len) {
     return buf;
   }
 
-    // res is 0 which indicates error
+  // res is 0 which indicates error
 
 #ifndef DBUG_OFF
   Error_message_buf error_buf;
@@ -437,7 +437,7 @@ wchar_t *utf8_to_wchar(const char *string, size_t *len) {
     return buf;
   }
 
-    // error in MultiByteToWideChar()
+  // error in MultiByteToWideChar()
 
 #ifndef DBUG_OFF
   Error_message_buf error_buf;

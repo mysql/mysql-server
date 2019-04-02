@@ -34,12 +34,12 @@
 
 namespace keyring__keys_container_unittest {
 using namespace keyring;
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrEq;
-using ::testing::_;
 
 bool check_if_file_exists_and_TAG_is_correct(const char *file_name) {
   char tag[4];

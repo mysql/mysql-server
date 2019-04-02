@@ -889,7 +889,7 @@ static dberr_t srv_undo_tablespace_open(undo::Tablespace &undo_space) {
     return (DB_CANNOT_OPEN_FILE);
   }
 
-    /* Check if this file supports atomic write. */
+  /* Check if this file supports atomic write. */
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   if (!srv_use_doublewrite_buf) {
     atomic_write = fil_fusionio_enable_atomic_write(fh);

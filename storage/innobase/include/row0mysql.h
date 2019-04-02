@@ -125,12 +125,11 @@ void row_mysql_store_blob_ref(
                       header! */
 /** Reads a reference to a BLOB in the MySQL format.
  @return pointer to BLOB data */
-const byte *row_mysql_read_blob_ref(
-    ulint *len,      /*!< out: BLOB length */
-    const byte *ref, /*!< in: BLOB reference in the
-                     MySQL format */
-    ulint col_len);  /*!< in: BLOB reference length
-                     (not BLOB length) */
+const byte *row_mysql_read_blob_ref(ulint *len,      /*!< out: BLOB length */
+                                    const byte *ref, /*!< in: BLOB reference in
+                                                     the MySQL format */
+                                    ulint col_len);  /*!< in: BLOB reference
+                                                     length  (not BLOB length) */
 /** Converts InnoDB geometry data format to MySQL data format. */
 void row_mysql_store_geometry(
     byte *dest,      /*!< in/out: where to store */
@@ -205,10 +204,9 @@ void row_prebuilt_free(
     ibool dict_locked);       /*!< in: TRUE=data dictionary locked */
 /** Updates the transaction pointers in query graphs stored in the prebuilt
  struct. */
-void row_update_prebuilt_trx(
-    row_prebuilt_t *prebuilt, /*!< in/out: prebuilt struct
-                              in MySQL handle */
-    trx_t *trx);              /*!< in: transaction handle */
+void row_update_prebuilt_trx(row_prebuilt_t *prebuilt, /*!< in/out: prebuilt
+                                                       struct in MySQL handle */
+                             trx_t *trx); /*!< in: transaction handle */
 /** Sets an AUTO_INC type lock on the table mentioned in prebuilt. The
  AUTO_INC lock gives exclusive access to the auto-inc counter of the
  table. The lock is reserved only for the duration of an SQL statement.
@@ -232,9 +230,8 @@ dberr_t row_insert_for_mysql(const byte *mysql_rec, row_prebuilt_t *prebuilt)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Builds a dummy query graph used in selects. */
-void row_prebuild_sel_graph(
-    row_prebuilt_t *prebuilt); /*!< in: prebuilt struct in MySQL
-                               handle */
+void row_prebuild_sel_graph(row_prebuilt_t *prebuilt); /*!< in: prebuilt struct
+                                                       in MySQL handle */
 /** Gets pointer to a prebuilt update vector used in updates. If the update
  graph has not yet been built in the prebuilt struct, then this function
  first builds it.

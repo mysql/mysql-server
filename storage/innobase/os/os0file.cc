@@ -200,9 +200,9 @@ bool os_is_o_direct_supported() {
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 }
 
-  /* This specifies the file permissions InnoDB uses when it creates files in
-  Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
-  my_umask */
+/* This specifies the file permissions InnoDB uses when it creates files in
+Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
+my_umask */
 
 #ifndef _WIN32
 /** Umask for creating files */
@@ -2076,7 +2076,7 @@ static dberr_t os_file_punch_hole_posix(os_file_t fh, os_offset_t off,
 
 #elif defined(UNIV_SOLARIS)
 
-// Use F_FREESP
+  // Use F_FREESP
 
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 
@@ -6357,8 +6357,8 @@ bool os_aio_init(ulint n_readers, ulint n_writers, ulint n_slots_sync) {
   }
 #endif /* _WIN32 */
 
-    /* Get sector size for DIRECT_IO. In this case, we need to
-    know the sector size for aligning the write buffer. */
+  /* Get sector size for DIRECT_IO. In this case, we need to
+  know the sector size for aligning the write buffer. */
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   os_fusionio_get_sector_size();
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
@@ -6836,8 +6836,8 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
     segment = AIO::get_array_and_local_segment(&array, segment);
   }
 
-    /* NOTE! We only access constant fields in os_aio_array. Therefore
-    we do not have to acquire the protecting mutex yet */
+  /* NOTE! We only access constant fields in os_aio_array. Therefore
+  we do not have to acquire the protecting mutex yet */
 
 #ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());
@@ -6909,8 +6909,8 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
   array->release();
 
   if (retry) {
-  /* Retry failed read/write operation synchronously.
-  No need to hold array->m_mutex. */
+    /* Retry failed read/write operation synchronously.
+    No need to hold array->m_mutex. */
 
 #ifdef UNIV_PFS_IO
     /* This read/write does not go through os_file_read
@@ -7438,8 +7438,8 @@ class SimulatedAIOHandler {
 @return the number of slots */
 ulint SimulatedAIOHandler::check_pending(ulint global_segment,
                                          os_event_t event) {
-/* NOTE! We only access constant fields in os_aio_array.
-Therefore we do not have to acquire the protecting mutex yet */
+  /* NOTE! We only access constant fields in os_aio_array.
+  Therefore we do not have to acquire the protecting mutex yet */
 
 #ifndef UNIV_HOTBACKUP
   ut_ad(os_aio_validate_skip());

@@ -631,7 +631,6 @@ static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
   log_background_threads_active_validate(log);
 
   auto stop_condition = [&log, requested_lsn](bool) {
-
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
   };
 
@@ -896,7 +895,6 @@ void log_checkpointer(log_t *log_ptr) {
 
   while (true) {
     auto do_some_work = [&log] {
-
       ut_ad(log_checkpointer_mutex_own(log));
 
       /* We will base our next decisions on maximum lsn
@@ -1089,6 +1087,6 @@ void log_increase_concurrency_margin(log_t &log) {
   MONITOR_SET(MONITOR_LOG_CONCURRENCY_MARGIN, new_size);
 }
 
-  /* @} */
+/* @} */
 
 #endif /* !UNIV_HOTBACKUP */

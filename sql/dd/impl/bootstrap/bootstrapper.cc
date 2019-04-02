@@ -845,17 +845,18 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
       return true;
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_stage_2", if (is_dd_upgrade_57) {
-    /*
-      Server will crash will upgrading 5.7 data directory.
-      This will leave server is an inconsistent state.
-      File tracking upgrade will have Stage 2 written in it.
-      Next restart of server on same data directory should
-      revert all changes done by upgrade and data directory
-      should be reusable by 5.7 server.
-    */
-    DBUG_SUICIDE();
-  });
+  DBUG_EXECUTE_IF(
+      "dd_upgrade_stage_2", if (is_dd_upgrade_57) {
+        /*
+          Server will crash will upgrading 5.7 data directory.
+          This will leave server is an inconsistent state.
+          File tracking upgrade will have Stage 2 written in it.
+          Next restart of server on same data directory should
+          revert all changes done by upgrade and data directory
+          should be reusable by 5.7 server.
+        */
+        DBUG_SUICIDE();
+      });
 
   if (DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||

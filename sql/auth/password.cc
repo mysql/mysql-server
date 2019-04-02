@@ -119,7 +119,7 @@ static inline uint8 char_val(uint8 X) {
                     : X >= 'A' && X <= 'Z' ? X - 'A' + 10 : X - 'a' + 10);
 }
 
-  /* Character to use as version identifier for version 4.1 */
+/* Character to use as version identifier for version 4.1 */
 
 #define PVERSION41_CHAR '*'
 

@@ -405,10 +405,10 @@ void Deadlock_detection_visitor::opt_change_victim_to(MDL_context *new_victim) {
   }
 }
 
-  /**
-    Get a bit corresponding to enum_mdl_type value in a granted/waiting bitmaps
-    and compatibility matrices.
-  */
+/**
+  Get a bit corresponding to enum_mdl_type value in a granted/waiting bitmaps
+  and compatibility matrices.
+*/
 
 #define MDL_BIT(A) static_cast<MDL_lock::bitmap_t>(1U << A)
 
@@ -913,12 +913,12 @@ class MDL_lock {
   */
   bool fast_path_state_cas(fast_path_state_t *old_state,
                            fast_path_state_t new_state) {
-  /*
-    IS_DESTROYED, HAS_OBTRUSIVE and HAS_SLOW_PATH flags can be set or
-    cleared only while holding MDL_lock::m_rwlock lock.
-    If HAS_SLOW_PATH flag is set all changes to m_fast_path_state
-    should happen under protection of MDL_lock::m_rwlock ([INV1]).
-  */
+    /*
+      IS_DESTROYED, HAS_OBTRUSIVE and HAS_SLOW_PATH flags can be set or
+      cleared only while holding MDL_lock::m_rwlock lock.
+      If HAS_SLOW_PATH flag is set all changes to m_fast_path_state
+      should happen under protection of MDL_lock::m_rwlock ([INV1]).
+    */
 #if !defined(DBUG_OFF)
     if (((*old_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH)) !=
          (new_state & (IS_DESTROYED | HAS_OBTRUSIVE | HAS_SLOW_PATH))) ||
@@ -4790,15 +4790,15 @@ void MDL_ticket_store::move_explicit_to_transaction_duration() {
     m_durations[MDL_EXPLICIT].m_ticket_list.remove(ticket);
     m_durations[MDL_TRANSACTION].m_ticket_list.push_front(ticket);
   }
-    /*
-      Note that we do not update
-      m_durations[MDL_TRANSACTION].m_mat_front here. That is ok, since
-      it is only to be used as an optimization for
-      MDL_context::materialize_fast_path_locks(). So if the tickets
-      being added are already materialized it does not break an
-      invariant, and m_mat_front will be updated the next time
-      MDL_context::materialize_fast_path_locks() runs.
-    */
+  /*
+    Note that we do not update
+    m_durations[MDL_TRANSACTION].m_mat_front here. That is ok, since
+    it is only to be used as an optimization for
+    MDL_context::materialize_fast_path_locks(). So if the tickets
+    being added are already materialized it does not break an
+    invariant, and m_mat_front will be updated the next time
+    MDL_context::materialize_fast_path_locks() runs.
+  */
 
 #ifndef DBUG_OFF
   List_iterator trans_it(m_durations[MDL_TRANSACTION].m_ticket_list);

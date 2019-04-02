@@ -40,8 +40,8 @@ class PluginFuncEnv;
 }
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 #if defined(_MSC_VER) && defined(lifecycle3_EXPORTS)

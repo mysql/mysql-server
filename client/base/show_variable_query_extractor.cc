@@ -27,9 +27,9 @@
 #include <functional>
 
 using namespace Mysql::Tools::Base;
-using std::placeholders::_1;
 using std::string;
 using std::vector;
+using std::placeholders::_1;
 
 Show_variable_query_extractor::Show_variable_query_extractor()
     : m_exists(false) {}

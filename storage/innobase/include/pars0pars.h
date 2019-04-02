@@ -103,10 +103,9 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str);  /*!< in: SQL string */
 /** Retrieves characters to the lexical analyzer.
  @return number of characters copied or 0 on EOF */
-int pars_get_lex_chars(
-    char *buf,        /*!< in/out: buffer where to copy */
-    size_t max_size); /*!< in: maximum number of characters which fit
-                      in the buffer */
+int pars_get_lex_chars(char *buf,        /*!< in/out: buffer where to copy */
+                       size_t max_size); /*!< in: maximum number of characters
+                                         which fit in the buffer */
 /** Called by yyparse on error. */
 void yyerror(const char *s); /*!< in: error message string */
 /** Parses a variable declaration.
@@ -129,11 +128,10 @@ int pars_like_rebind(sym_node_t *node, /* in: The search string node.*/
                      ulint len);       /* in: length of literal to (re) bind*/
 /** Parses an operator expression.
  @return own: function node in a query tree */
-func_node_t *pars_op(
-    int func,          /*!< in: operator token code */
-    que_node_t *arg1,  /*!< in: first argument */
-    que_node_t *arg2); /*!< in: second argument or NULL for an unary
-                       operator */
+func_node_t *pars_op(int func,          /*!< in: operator token code */
+                     que_node_t *arg1,  /*!< in: first argument */
+                     que_node_t *arg2); /*!< in: second argument or NULL for an
+                                        unary operator */
 /** Parses an ORDER BY clause. Order by a single column only is supported.
  @return own: order-by node in a query tree */
 order_node_t *pars_order_by(

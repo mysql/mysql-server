@@ -2055,9 +2055,9 @@ int ha_commit_attachable(THD *thd) {
     trn_ctx->reset_scope(Transaction_ctx::STMT);
   }
 
-    /*
-      Mark transaction as commited in PSI.
-    */
+  /*
+    Mark transaction as commited in PSI.
+  */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != NULL) {
     MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
@@ -3451,80 +3451,80 @@ inline ulonglong prev_insert_id(ulonglong nr,
           variables->auto_increment_offset);
 }
 
-  /**
-    Update the auto_increment field if necessary.
+/**
+  Update the auto_increment field if necessary.
 
-    Updates columns with type NEXT_NUMBER if:
+  Updates columns with type NEXT_NUMBER if:
 
-    - If column value is set to NULL (in which case
-      auto_increment_field_not_null is 0)
-    - If column is set to 0 and (sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO) is not
-      set. In the future we will only set NEXT_NUMBER fields if one sets them
-      to NULL (or they are not included in the insert list).
+  - If column value is set to NULL (in which case
+    auto_increment_field_not_null is 0)
+  - If column is set to 0 and (sql_mode & MODE_NO_AUTO_VALUE_ON_ZERO) is not
+    set. In the future we will only set NEXT_NUMBER fields if one sets them
+    to NULL (or they are not included in the insert list).
 
-      In those cases, we check if the currently reserved interval still has
-      values we have not used. If yes, we pick the smallest one and use it.
-      Otherwise:
+    In those cases, we check if the currently reserved interval still has
+    values we have not used. If yes, we pick the smallest one and use it.
+    Otherwise:
 
-    - If a list of intervals has been provided to the statement via SET
-      INSERT_ID or via an Intvar_log_event (in a replication slave), we pick the
-      first unused interval from this list, consider it as reserved.
+  - If a list of intervals has been provided to the statement via SET
+    INSERT_ID or via an Intvar_log_event (in a replication slave), we pick the
+    first unused interval from this list, consider it as reserved.
 
-    - Otherwise we set the column for the first row to the value
-      next_insert_id(get_auto_increment(column))) which is usually
-      max-used-column-value+1.
-      We call get_auto_increment() for the first row in a multi-row
-      statement. get_auto_increment() will tell us the interval of values it
-      reserved for us.
+  - Otherwise we set the column for the first row to the value
+    next_insert_id(get_auto_increment(column))) which is usually
+    max-used-column-value+1.
+    We call get_auto_increment() for the first row in a multi-row
+    statement. get_auto_increment() will tell us the interval of values it
+    reserved for us.
 
-    - In both cases, for the following rows we use those reserved values without
-      calling the handler again (we just progress in the interval, computing
-      each new value from the previous one). Until we have exhausted them, then
-      we either take the next provided interval or call get_auto_increment()
-      again to reserve a new interval.
+  - In both cases, for the following rows we use those reserved values without
+    calling the handler again (we just progress in the interval, computing
+    each new value from the previous one). Until we have exhausted them, then
+    we either take the next provided interval or call get_auto_increment()
+    again to reserve a new interval.
 
-    - In both cases, the reserved intervals are remembered in
-      thd->auto_inc_intervals_in_cur_stmt_for_binlog if statement-based
-      binlogging; the last reserved interval is remembered in
-      auto_inc_interval_for_cur_row. The number of reserved intervals is
-      remembered in auto_inc_intervals_count. It differs from the number of
-      elements in thd->auto_inc_intervals_in_cur_stmt_for_binlog() because the
-      latter list is cumulative over all statements forming one binlog event
-      (when stored functions and triggers are used), and collapses two
-      contiguous intervals in one (see its append() method).
+  - In both cases, the reserved intervals are remembered in
+    thd->auto_inc_intervals_in_cur_stmt_for_binlog if statement-based
+    binlogging; the last reserved interval is remembered in
+    auto_inc_interval_for_cur_row. The number of reserved intervals is
+    remembered in auto_inc_intervals_count. It differs from the number of
+    elements in thd->auto_inc_intervals_in_cur_stmt_for_binlog() because the
+    latter list is cumulative over all statements forming one binlog event
+    (when stored functions and triggers are used), and collapses two
+    contiguous intervals in one (see its append() method).
 
-      The idea is that generated auto_increment values are predictable and
-      independent of the column values in the table.  This is needed to be
-      able to replicate into a table that already has rows with a higher
-      auto-increment value than the one that is inserted.
+    The idea is that generated auto_increment values are predictable and
+    independent of the column values in the table.  This is needed to be
+    able to replicate into a table that already has rows with a higher
+    auto-increment value than the one that is inserted.
 
-      After we have already generated an auto-increment number and the user
-      inserts a column with a higher value than the last used one, we will
-      start counting from the inserted value.
+    After we have already generated an auto-increment number and the user
+    inserts a column with a higher value than the last used one, we will
+    start counting from the inserted value.
 
-      This function's "outputs" are: the table's auto_increment field is filled
-      with a value, thd->next_insert_id is filled with the value to use for the
-      next row, if a value was autogenerated for the current row it is stored in
-      thd->insert_id_for_cur_row, if get_auto_increment() was called
-      thd->auto_inc_interval_for_cur_row is modified, if that interval is not
-      present in thd->auto_inc_intervals_in_cur_stmt_for_binlog it is added to
-      this list.
+    This function's "outputs" are: the table's auto_increment field is filled
+    with a value, thd->next_insert_id is filled with the value to use for the
+    next row, if a value was autogenerated for the current row it is stored in
+    thd->insert_id_for_cur_row, if get_auto_increment() was called
+    thd->auto_inc_interval_for_cur_row is modified, if that interval is not
+    present in thd->auto_inc_intervals_in_cur_stmt_for_binlog it is added to
+    this list.
 
-    @todo
-      Replace all references to "next number" or NEXT_NUMBER to
-      "auto_increment", everywhere (see below: there is
-      table->auto_increment_field_not_null, and there also exists
-      table->next_number_field, it's not consistent).
+  @todo
+    Replace all references to "next number" or NEXT_NUMBER to
+    "auto_increment", everywhere (see below: there is
+    table->auto_increment_field_not_null, and there also exists
+    table->next_number_field, it's not consistent).
 
-    @retval
-      0	ok
-    @retval
-      HA_ERR_AUTOINC_READ_FAILED  get_auto_increment() was called and
-      returned ~(ulonglong) 0
-    @retval
-      HA_ERR_AUTOINC_ERANGE storing value in field caused strict mode
-      failure.
-  */
+  @retval
+    0	ok
+  @retval
+    HA_ERR_AUTOINC_READ_FAILED  get_auto_increment() was called and
+    returned ~(ulonglong) 0
+  @retval
+    HA_ERR_AUTOINC_ERANGE storing value in field caused strict mode
+    failure.
+*/
 
 #define AUTO_INC_DEFAULT_NB_ROWS 1  // Some prefer 1024 here
 #define AUTO_INC_DEFAULT_NB_MAX_BITS 16

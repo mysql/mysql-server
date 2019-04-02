@@ -31,8 +31,8 @@
 
 using namespace Mysql::Tools::Base::Options;
 using Mysql::Nullable;
-using std::placeholders::_1;
 using std::string;
+using std::placeholders::_1;
 
 Password_option::Password_option(Nullable<string> *value, string name,
                                  string description)

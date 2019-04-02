@@ -59,10 +59,10 @@
 using std::cout;
 using std::endl;
 
+using mysql_harness::bad_section;
 using mysql_harness::Loader;
 using mysql_harness::Path;
 using mysql_harness::Plugin;
-using mysql_harness::bad_section;
 
 using testing::UnorderedElementsAre;
 

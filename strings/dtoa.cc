@@ -1455,10 +1455,10 @@ dig_done:
       }
       i = DBL_DIG - nd;
       if (e <= Ten_pmax + i) {
-      /*
-        A fancier test would sometimes let us do
-        this for larger i values.
-      */
+        /*
+          A fancier test would sometimes let us do
+          this for larger i values.
+        */
 #ifdef Honor_FLT_ROUNDS
         /* round correctly FLT_ROUNDS = 2 or 3 */
         if (sign) {
@@ -2432,7 +2432,7 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       b = multadd(b, 10, 0, &alloc);
     }
 
-      /* Round off last digit */
+    /* Round off last digit */
 
 #ifdef Honor_FLT_ROUNDS
   switch (rounding) {

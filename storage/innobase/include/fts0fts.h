@@ -609,19 +609,17 @@ float fts_retrieve_ranking(
                           doc_id */
 
 /** FTS Query sort result, returned by fts_query() on fts_ranking_t::rank. */
-void fts_query_sort_result_on_rank(
-    fts_result_t *result); /*!< out: result instance
-                           to sort.*/
+void fts_query_sort_result_on_rank(fts_result_t *result); /*!< out: result
+                                                          instance to sort.*/
 
 /** FTS Query free result, returned by fts_query(). */
 void fts_query_free_result(fts_result_t *result); /*!< in: result instance
                                                   to free.*/
 
 /** Extract the doc id from the FTS hidden column. */
-doc_id_t fts_get_doc_id_from_row(
-    dict_table_t *table, /*!< in: table */
-    dtuple_t *row);      /*!< in: row whose FTS doc id we
-                         want to extract.*/
+doc_id_t fts_get_doc_id_from_row(dict_table_t *table, /*!< in: table */
+                                 dtuple_t *row); /*!< in: row whose FTS doc id
+                                                 we want to extract.*/
 
 /** Extract the doc id from the record that belongs to index.
 @param[in]	table	table

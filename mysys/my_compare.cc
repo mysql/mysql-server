@@ -85,45 +85,45 @@ static int compare_bin(const uchar *a, uint a_length, const uchar *b,
   return (int)(a_length - b_length);
 }
 
-  /*
-    Compare two keys
+/*
+  Compare two keys
 
-    SYNOPSIS
-      ha_key_cmp()
-      keyseg	Array of key segments of key to compare
-      a		First key to compare, in format from _mi_pack_key()
-                  This is normally key specified by user
-      b		Second key to compare.  This is always from a row
-      key_length	Length of key to compare.  This can be shorter than
-                  a to just compare sub keys
-      next_flag	How keys should be compared
-                  If bit SEARCH_FIND is not set the keys includes the row
-                  position and this should also be compared
-      diff_pos    OUT Number of first keypart where values differ, counting
-                  from one.
-      diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
-                        that is different from corresponding value in tuple a.
+  SYNOPSIS
+    ha_key_cmp()
+    keyseg	Array of key segments of key to compare
+    a		First key to compare, in format from _mi_pack_key()
+                This is normally key specified by user
+    b		Second key to compare.  This is always from a row
+    key_length	Length of key to compare.  This can be shorter than
+                a to just compare sub keys
+    next_flag	How keys should be compared
+                If bit SEARCH_FIND is not set the keys includes the row
+                position and this should also be compared
+    diff_pos    OUT Number of first keypart where values differ, counting
+                from one.
+    diff_pos[1] OUT  (b + diff_pos[1]) points to first value in tuple b
+                      that is different from corresponding value in tuple a.
 
-    EXAMPLES
-     Example1: if the function is called for tuples
-       ('aaa','bbb') and ('eee','fff'), then
-       diff_pos[0] = 1 (as 'aaa' != 'eee')
-       diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
+  EXAMPLES
+   Example1: if the function is called for tuples
+     ('aaa','bbb') and ('eee','fff'), then
+     diff_pos[0] = 1 (as 'aaa' != 'eee')
+     diff_pos[1] = 0 (offset from beggining of tuple b to 'eee' keypart).
 
-     Example2: if the index function is called for tuples
-       ('aaa','bbb') and ('aaa','fff'),
-       diff_pos[0] = 2 (as 'aaa' != 'eee')
-       diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
-                        here we assume that first key part is CHAR(3) NOT NULL)
+   Example2: if the index function is called for tuples
+     ('aaa','bbb') and ('aaa','fff'),
+     diff_pos[0] = 2 (as 'aaa' != 'eee')
+     diff_pos[1] = 3 (offset from beggining of tuple b to 'fff' keypart,
+                      here we assume that first key part is CHAR(3) NOT NULL)
 
-    NOTES
-      Number-keys can't be splited
+  NOTES
+    Number-keys can't be splited
 
-    RETURN VALUES
-      <0	If a < b
-      0	If a == b
-      >0	If a > b
-  */
+  RETURN VALUES
+    <0	If a < b
+    0	If a == b
+    >0	If a > b
+*/
 
 #define FCMP(A, B) ((int)(A) - (int)(B))
 

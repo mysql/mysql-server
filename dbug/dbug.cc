@@ -371,9 +371,9 @@ static void unlock_stack(CODE_STATE *cs) {
   }
 }
 
-  /*
-   *      Translate some calls among different systems.
-   */
+/*
+ *      Translate some calls among different systems.
+ */
 
 #ifdef HAVE_SLEEP
 /* sleep() wants seconds */
@@ -1284,27 +1284,27 @@ int _db_enabled_() {
   return 0;
 }
 
-  /*
-   *  FUNCTION
-   *
-   *      _db_doprnt_    handle print of debug lines
-   *
-   *  SYNOPSIS
-   *
-   *      VOID _db_doprnt_(format, va_alist)
-   *      char *format;
-   *      va_dcl;
-   *
-   *  DESCRIPTION
-   *
-   *      This function handles the printing of the arguments via the format
-   *      string.  The line number of the DBUG macro in the source is found in
-   *      u_line.
-   *
-   *      Note that the format string SHOULD NOT include a terminating
-   *      newline, this is supplied automatically.
-   *
-   */
+/*
+ *  FUNCTION
+ *
+ *      _db_doprnt_    handle print of debug lines
+ *
+ *  SYNOPSIS
+ *
+ *      VOID _db_doprnt_(format, va_alist)
+ *      char *format;
+ *      va_dcl;
+ *
+ *  DESCRIPTION
+ *
+ *      This function handles the printing of the arguments via the format
+ *      string.  The line number of the DBUG macro in the source is found in
+ *      u_line.
+ *
+ *      Note that the format string SHOULD NOT include a terminating
+ *      newline, this is supplied automatically.
+ *
+ */
 
 #include <stdarg.h>
 

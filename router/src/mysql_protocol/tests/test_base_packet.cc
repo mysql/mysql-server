@@ -33,9 +33,9 @@
 #include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/utils.h"
 
+using std::string;
 using ::testing::ContainerEq;
 using ::testing::NotNull;
-using std::string;
 
 using mysql_protocol::Packet;
 using namespace mysql_protocol;

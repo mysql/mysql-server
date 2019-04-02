@@ -93,8 +93,8 @@ char *my_path(char *to, const char *progname, const char *own_pathname_part) {
   DBUG_RETURN(start);
 } /* my_path */
 
-  /* test if file without filename is found in path */
-  /* Returns to if found and to has dirpart if found, else NullS */
+/* test if file without filename is found in path */
+/* Returns to if found and to has dirpart if found, else NullS */
 
 #if defined(_WIN32)
 #define F_OK 0

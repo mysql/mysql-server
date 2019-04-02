@@ -56,8 +56,8 @@ IMPORT_LOG_FUNCTIONS()
 static constexpr const char kSectionName[]{"http_auth_realm"};
 
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
-using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::Plugin;
+using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
 std::error_code HttpAuthRealm::authenticate(const std::string &username,

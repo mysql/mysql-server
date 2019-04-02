@@ -435,6 +435,6 @@ bool for_each_node(const Value &value, const Func &func) {
 
   return false;
 }
-}
+}  // namespace json_binary
 
 #endif /* JSON_BINARY_INCLUDED */

@@ -983,7 +983,7 @@ static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
   }
 }
 
-  /* Functions to decode of buffer of bits */
+/* Functions to decode of buffer of bits */
 
 #if BITS_SAVED == 64
 

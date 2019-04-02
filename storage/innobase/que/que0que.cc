@@ -187,9 +187,8 @@ que_thr_t *que_thr_create(que_fork_t *parent, mem_heap_t *heap,
  the wait state of a query thread waiting for a lock or a stored procedure
  completion.
  @return the query thread that needs to be released. */
-que_thr_t *que_thr_end_lock_wait(
-    trx_t *trx) /*!< in: transaction with que_state in
-                QUE_THR_LOCK_WAIT */
+que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
+                                             in QUE_THR_LOCK_WAIT */
 {
   que_thr_t *thr;
   ibool was_active;
@@ -509,12 +508,11 @@ void que_graph_free_recursive(que_node_t *node) /*!< in: query graph node */
 }
 
 /** Frees a query graph. */
-void que_graph_free(
-    que_t *graph) /*!< in: query graph; we assume that the memory
-                  heap where this graph was created is private
-                  to this graph: if not, then use
-                  que_graph_free_recursive and free the heap
-                  afterwards! */
+void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
+                                  memory heap where this graph was created is
+                                  private to this graph: if not, then use
+                                  que_graph_free_recursive and free the heap
+                                  afterwards! */
 {
   ut_ad(graph);
   ut_ad(!mutex_own(&dict_sys->mutex));

@@ -73,15 +73,15 @@
 #include <sys/ucred.h>
 #endif
 
-using mysql_harness::TCPAddress;
 using mysql_harness::get_strerror;
-using mysqlrouter::URI;
-using mysqlrouter::URIError;
-using mysqlrouter::URIQuery;
+using mysql_harness::TCPAddress;
 using mysqlrouter::get_socket_errno;
 using mysqlrouter::is_valid_socket_name;
 using mysqlrouter::string_format;
 using mysqlrouter::to_string;
+using mysqlrouter::URI;
+using mysqlrouter::URIError;
+using mysqlrouter::URIQuery;
 using routing::AccessMode;
 using routing::RoutingStrategy;
 using std::runtime_error;

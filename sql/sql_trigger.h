@@ -188,14 +188,14 @@ inline bool acquire_shared_mdl_for_trigger(THD *thd, const char *db,
   return acquire_mdl_for_trigger(thd, db, trg_name, MDL_SHARED_HIGH_PRIO);
 }
 
-  /**
-    Drop statistics from performance schema for every trigger
-    associated with a table.
+/**
+  Drop statistics from performance schema for every trigger
+  associated with a table.
 
-    @param schema_name Name of schema containing the table.
-    @param table       Table reference, for that associated
-                       triggers statistics has to be deleted.
-  */
+  @param schema_name Name of schema containing the table.
+  @param table       Table reference, for that associated
+                     triggers statistics has to be deleted.
+*/
 
 #ifdef HAVE_PSI_SP_INTERFACE
 void remove_all_triggers_from_perfschema(const char *schema_name,

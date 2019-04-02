@@ -154,8 +154,8 @@
 struct mysql_cond_t;
 struct mysql_mutex_t;
 
-using binary_log::Log_event_header;
 using binary_log::checksum_crc32;
+using binary_log::Log_event_header;
 using std::max;
 using std::min;
 
@@ -5279,15 +5279,16 @@ connected:
     goto connected;
   }
 
-  DBUG_EXECUTE_IF("FORCE_SLAVE_TO_RECONNECT_REG", if (!retry_count_reg) {
-    retry_count_reg++;
-    LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-           mi->get_for_channel_str());
-    if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                         reconnect_messages[SLAVE_RECON_ACT_REG]))
-      goto err;
-    goto connected;
-  });
+  DBUG_EXECUTE_IF(
+      "FORCE_SLAVE_TO_RECONNECT_REG", if (!retry_count_reg) {
+        retry_count_reg++;
+        LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
+               mi->get_for_channel_str());
+        if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                             reconnect_messages[SLAVE_RECON_ACT_REG]))
+          goto err;
+        goto connected;
+      });
 
   DBUG_PRINT("info", ("Starting reading binary log from master"));
   while (!io_slave_killed(thd, mi)) {
@@ -5305,15 +5306,16 @@ requesting master dump") ||
         goto err;
       goto connected;
     }
-    DBUG_EXECUTE_IF("FORCE_SLAVE_TO_RECONNECT_DUMP", if (!retry_count_dump) {
-      retry_count_dump++;
-      LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-             mi->get_for_channel_str());
-      if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                           reconnect_messages[SLAVE_RECON_ACT_DUMP]))
-        goto err;
-      goto connected;
-    });
+    DBUG_EXECUTE_IF(
+        "FORCE_SLAVE_TO_RECONNECT_DUMP", if (!retry_count_dump) {
+          retry_count_dump++;
+          LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
+                 mi->get_for_channel_str());
+          if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
+                               reconnect_messages[SLAVE_RECON_ACT_DUMP]))
+            goto err;
+          goto connected;
+        });
     const char *event_buf;
 
     DBUG_ASSERT(mi->last_error().number == 0);

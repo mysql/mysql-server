@@ -39,8 +39,8 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-using ::testing::StrEq;
 using mysql_harness::TCPAddress;
+using ::testing::StrEq;
 
 class RoundRobinDestinationTest : public ::testing::Test {
  protected:

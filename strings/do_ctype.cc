@@ -110,8 +110,8 @@ char **argv[];
   return;
 } /* get_options */
 
-  /* set up max character for which isupper() and toupper() gives */
-  /* right answer. Is usually 127 or 255 */
+/* set up max character for which isupper() and toupper() gives */
+/* right answer. Is usually 127 or 255 */
 
 #define MAX_CHAR_OK 127 /* 7 Bit ascii */
 

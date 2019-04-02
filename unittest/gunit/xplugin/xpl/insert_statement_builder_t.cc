@@ -31,9 +31,9 @@
 
 namespace xpl {
 namespace test {
+using ::testing::_;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Insert_statement_builder_stub : public Insert_statement_builder {
  public:

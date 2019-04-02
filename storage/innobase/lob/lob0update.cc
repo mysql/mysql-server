@@ -293,8 +293,8 @@ dberr_t replace(InsertContext &ctx, trx_t *trx, dict_index_t *index, ref_t ref,
   const page_id_t first_page_id(space_id, first_page_no);
 
   if (count == 0) {
-  /** Repeatedly updating the LOB should increment the
-  ref count only once. */
+    /** Repeatedly updating the LOB should increment the
+    ref count only once. */
 #ifdef LOB_DEBUG
     std::cout << "thread=" << std::this_thread::get_id()
               << ", lob::replace(): table=" << index->table->name

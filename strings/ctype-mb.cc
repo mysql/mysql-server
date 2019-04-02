@@ -208,12 +208,12 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs, const char *s, const char *t) {
   return (*t != *s);
 }
 
-  /*
-  ** Compare string against string with wildcard
-  **	0 if matched
-  **	-1 if not matched with wildcard
-  **	 1 if matched with wildcard
-  */
+/*
+** Compare string against string with wildcard
+**	0 if matched
+**	-1 if not matched with wildcard
+**	 1 if matched with wildcard
+*/
 
 #define INC_PTR(cs, A, B) \
   A += (my_ismbchar(cs, A, B) ? my_ismbchar(cs, A, B) : 1)

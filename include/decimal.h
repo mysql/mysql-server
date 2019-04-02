@@ -125,14 +125,14 @@ static inline int decimal_string_size(const decimal_t *dec) {
   return (dec->intg ? dec->intg : 1) + dec->frac + (dec->frac > 0) + 2;
 }
 
-  /*
-    conventions:
+/*
+  conventions:
 
-      decimal_smth() == 0     -- everything's ok
-      decimal_smth() <= 1     -- result is usable, but precision loss is
-    possible decimal_smth() <= 2     -- result can be unusable, most significant
-    digits could've been lost decimal_smth() >  2     -- no result was generated
-  */
+    decimal_smth() == 0     -- everything's ok
+    decimal_smth() <= 1     -- result is usable, but precision loss is
+  possible decimal_smth() <= 2     -- result can be unusable, most significant
+  digits could've been lost decimal_smth() >  2     -- no result was generated
+*/
 
 #define E_DEC_OK 0
 #define E_DEC_TRUNCATED 1

@@ -888,7 +888,7 @@ void THD::cleanup_connection(void) {
     /* check if tables are unlocked */
     DBUG_ASSERT(locked_tables_list.locked_tables() == NULL);
   }
-    /* DEBUG code only (end) */
+  /* DEBUG code only (end) */
 #endif
 }
 

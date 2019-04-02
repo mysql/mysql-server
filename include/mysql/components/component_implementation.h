@@ -201,7 +201,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 #define PROVIDES_SERVICE(component, service)                \
   {                                                         \
-    #service "." #component,                                \
+#service "." #component,                                \
         (void *)&SERVICE_IMPLEMENTATION(component, service) \
   }
 
@@ -243,8 +243,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 #define REQUIRES_SERVICE(service)                                              \
   {                                                                            \
-    #service,                                                                  \
-        static_cast < void ** >                                                \
+#service,                                                                  \
+        static_cast < void **>                                                 \
             (static_cast <void *>(const_cast <mysql_service_##service##_t **>( \
                 &mysql_service_##service)))                                    \
   }

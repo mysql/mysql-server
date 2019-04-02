@@ -581,14 +581,13 @@ int64_t os_event_reset(os_event_t event) /*!< in/out: event to reset */
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded.
 @return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-ulint os_event_wait_time_low(
-    os_event_t event,        /*!< in/out: event to wait */
-    ulint time_in_usec,      /*!< in: timeout in
-                             microseconds, or
-                             OS_SYNC_INFINITE_TIME */
-    int64_t reset_sig_count) /*!< in: zero or the value
-                             returned by previous call of
-                             os_event_reset(). */
+ulint os_event_wait_time_low(os_event_t event,   /*!< in/out: event to wait */
+                             ulint time_in_usec, /*!< in: timeout in
+                                                 microseconds, or
+                                                 OS_SYNC_INFINITE_TIME */
+                             int64_t reset_sig_count) /*!< in: zero or the value
+                                                      returned by previous call
+                                                      of os_event_reset(). */
 {
   return (event->wait_time_low(time_in_usec, reset_sig_count));
 }

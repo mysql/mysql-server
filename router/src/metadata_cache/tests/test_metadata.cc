@@ -55,6 +55,7 @@
 #include "gmock/gmock.h"
 #endif
 
+using ::testing::_;
 using ::testing::Assign;
 using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
@@ -62,7 +63,6 @@ using ::testing::Mock;
 using ::testing::Return;
 using ::testing::StartsWith;
 using ::testing::Throw;
-using ::testing::_;
 
 using metadata_cache::ManagedInstance;
 using metadata_cache::ManagedReplicaSet;

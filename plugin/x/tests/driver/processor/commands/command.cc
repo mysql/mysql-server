@@ -1150,9 +1150,9 @@ Command::Result Command::cmd_recv(std::istream &input,
                                                                        &error)};
 
     if (error) {
-      if (!quiet && !context->m_expected_error.check_error(
-                        error))  // TODO(owner) do we need
-                                 // this !quiet ?
+      if (!quiet &&
+          !context->m_expected_error.check_error(error))  // TODO(owner) do we
+                                                          // need this !quiet ?
         return Result::Stop_with_failure;
       return Result::Continue;
     }

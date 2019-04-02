@@ -35,9 +35,9 @@
 
 #include "mysqlrouter/utils.h"
 
+using mysqlrouter::to_string;
 using mysqlrouter::URI;
 using mysqlrouter::URIError;
-using mysqlrouter::to_string;
 using std::invalid_argument;
 using std::string;
 using std::vector;

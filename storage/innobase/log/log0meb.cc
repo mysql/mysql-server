@@ -871,18 +871,20 @@ static bool verify_no_server_directory(const Fil_path &path) {
                 static_cast<unsigned long int>(target_len),
                 static_cast<unsigned long int>(compare_len),
                 static_cast<unsigned long int>(min_len)));
-    DBUG_EXECUTE("redo_log_archive", if (target_len > compare_len) {
-      DBUG_PRINT(
-          "redo_log_archive",
-          ("target at: %lu  is: '%c'",
-           static_cast<unsigned long int>(compare_len), target[compare_len]));
-    });
-    DBUG_EXECUTE("redo_log_archive", if (compare_len > target_len) {
-      DBUG_PRINT(
-          "redo_log_archive",
-          ("compare at: %lu  is: '%c'",
-           static_cast<unsigned long int>(target_len), compare[target_len]));
-    });
+    DBUG_EXECUTE(
+        "redo_log_archive", if (target_len > compare_len) {
+          DBUG_PRINT("redo_log_archive",
+                     ("target at: %lu  is: '%c'",
+                      static_cast<unsigned long int>(compare_len),
+                      target[compare_len]));
+        });
+    DBUG_EXECUTE(
+        "redo_log_archive", if (compare_len > target_len) {
+          DBUG_PRINT("redo_log_archive",
+                     ("compare at: %lu  is: '%c'",
+                      static_cast<unsigned long int>(target_len),
+                      compare[target_len]));
+        });
 #endif /* DEBUG_REDO_LOG_ARCHIVE_EXTRA */
 #ifdef DEBUG_REDO_LOG_ARCHIVE_EXTRA_LOG
     LogErr(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,

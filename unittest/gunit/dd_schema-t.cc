@@ -40,18 +40,18 @@ namespace dd_schema_unittest {
 using namespace dd;
 using namespace dd_unittest;
 
-using dd_unittest::Mock_dd_HANDLER;
 using dd_unittest::Mock_dd_field_longlong;
 using dd_unittest::Mock_dd_field_varstring;
+using dd_unittest::Mock_dd_HANDLER;
 
+using my_testing::Server_initializer;
+using ::testing::_;
 using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::StrictMock;
 using ::testing::WithArgs;
-using ::testing::_;
-using my_testing::Server_initializer;
 
 /**
   Test fixture for testing the dd::Schema, Schema_impl and Raw_* classes.

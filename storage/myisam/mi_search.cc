@@ -1687,7 +1687,7 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo MY_ATTRIBUTE((unused)),
   memcpy(key_pos, s_temp->key, (size_t)s_temp->totlength);
 }
 
-  /* store variable length key with prefix compression */
+/* store variable length key with prefix compression */
 
 #define store_pack_length(test, pos, length) \
   {                                          \

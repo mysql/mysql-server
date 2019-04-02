@@ -248,6 +248,6 @@ static inline void inline_mysql_end_statement(
 }
 #endif
 
-  /** @} (end of group psi_api_statement) */
+/** @} (end of group psi_api_statement) */
 
 #endif

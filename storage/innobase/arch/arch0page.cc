@@ -1155,7 +1155,6 @@ bool wait_flush_archiver(Page_Wait_Flush_Archiver_Cbk cbk_func) {
 
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(arch_page_sys->get_oper_mutex()));
           result = cbk_func();
 
@@ -2124,7 +2123,6 @@ bool Arch_Page_Sys::wait_idle() {
 
     auto err = Clone_Sys::wait_default(
         [&](bool alert, bool &result) {
-
           ut_ad(mutex_own(&m_mutex));
           result = (m_state == ARCH_STATE_PREPARE_IDLE);
 

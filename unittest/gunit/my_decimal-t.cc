@@ -34,9 +34,9 @@
 
 namespace my_decimal_unittest {
 
+using my_testing::chars_2_decimal;
 using my_testing::Mock_error_handler;
 using my_testing::Server_initializer;
-using my_testing::chars_2_decimal;
 
 class DecimalTest : public ::testing::Test {
  protected:

@@ -257,8 +257,8 @@ bool Index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_is_visible, val, "is_visible");
   read(&m_engine, val, "engine");
 
-  deserialize_each(rctx, [this]() { return add_element(nullptr); }, val,
-                   "elements");
+  deserialize_each(
+      rctx, [this]() { return add_element(nullptr); }, val, "elements");
 
   if (deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
                                  "tablespace_name")) {

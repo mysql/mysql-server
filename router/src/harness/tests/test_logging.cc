@@ -57,14 +57,14 @@ MYSQL_HARNESS_ENABLE_WARNINGS()
 
 using mysql_harness::Path;
 using mysql_harness::logging::FileHandler;
-using mysql_harness::logging::LogLevel;
-using mysql_harness::logging::Logger;
-using mysql_harness::logging::Record;
-using mysql_harness::logging::StreamHandler;
 using mysql_harness::logging::log_debug;
 using mysql_harness::logging::log_error;
 using mysql_harness::logging::log_info;
 using mysql_harness::logging::log_warning;
+using mysql_harness::logging::Logger;
+using mysql_harness::logging::LogLevel;
+using mysql_harness::logging::Record;
+using mysql_harness::logging::StreamHandler;
 
 #if GTEST_HAS_COMBINE
 // only available if the system has <tr1/tuple> [if not gtest's own, minimal
@@ -479,7 +479,7 @@ TEST_F(LoggingTest,
   ASSERT_TRUE(dir_path.exists());
   { std::ofstream file(file_path.str()); }
 
-    // set file read-only
+  // set file read-only
 #ifdef _WIN32
   // set file read-only
   if (SetFileAttributes(file_path.c_str(), FILE_ATTRIBUTE_READONLY) == FALSE)

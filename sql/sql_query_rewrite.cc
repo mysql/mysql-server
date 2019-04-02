@@ -106,10 +106,10 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
   thd->push_diagnostics_area(plugin_da, false);
 
   {
-  /*
-     We have to call a function in rules_table_service.cc, or the service
-     won't be visible to plugins.
-  */
+    /*
+       We have to call a function in rules_table_service.cc, or the service
+       won't be visible to plugins.
+    */
 #ifndef DBUG_OFF
     int dummy =
 #endif

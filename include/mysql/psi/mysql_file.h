@@ -1320,6 +1320,6 @@ static inline int inline_mysql_file_sync(
   return result;
 }
 
-  /** @} (end of group psi_api_file) */
+/** @} (end of group psi_api_file) */
 
 #endif

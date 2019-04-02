@@ -1611,9 +1611,8 @@ static void trx_finalize_for_fts(
 
 /** If required, flushes the log to disk based on the value of
  innodb_flush_log_at_trx_commit. */
-static void trx_flush_log_if_needed_low(
-    lsn_t lsn) /*!< in: lsn up to which logs are to be
-               flushed. */
+static void trx_flush_log_if_needed_low(lsn_t lsn) /*!< in: lsn up to which logs
+                                                   are to be flushed. */
 {
 #ifdef _WIN32
   bool flush = true;
@@ -1643,10 +1642,9 @@ static void trx_flush_log_if_needed_low(
 
 /** If required, flushes the log to disk based on the value of
  innodb_flush_log_at_trx_commit. */
-static void trx_flush_log_if_needed(
-    lsn_t lsn,  /*!< in: lsn up to which logs are to be
-                flushed. */
-    trx_t *trx) /*!< in/out: transaction */
+static void trx_flush_log_if_needed(lsn_t lsn, /*!< in: lsn up to which logs are
+                                               to be flushed. */
+                                    trx_t *trx) /*!< in/out: transaction */
 {
   trx->op_info = "flushing log";
 
@@ -2031,11 +2029,11 @@ void trx_commit_low(
 
     DBUG_PRINT("trx_commit", ("commit lsn at " LSN_PF, mtr->commit_lsn()));
 
-    DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
-                    if (trx_is_rseg_updated(trx)) {
-                      log_make_latest_checkpoint();
-                      DBUG_SUICIDE();
-                    });
+    DBUG_EXECUTE_IF(
+        "ib_crash_during_trx_commit_in_mem", if (trx_is_rseg_updated(trx)) {
+          log_make_latest_checkpoint();
+          DBUG_SUICIDE();
+        });
     /*--------------*/
 
   } else {

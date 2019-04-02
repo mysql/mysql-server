@@ -2042,14 +2042,14 @@ class Gis_wkb_vector : public Geometry {
   Gis_wkb_vector() : Geometry() { m_geo_vect = NULL; }
 
   ~Gis_wkb_vector() override {
-  /*
-    See ~Geometry() for why we do try-catch like this.
+    /*
+      See ~Geometry() for why we do try-catch like this.
 
-    Note that although ~Inplace_vector() calls std::vector member functions,
-    all of them have no-throw guarantees, so this function won't throw any
-    exception now. We do so nonetheless for potential mis-use of exceptions
-    in futher code.
-  */
+      Note that although ~Inplace_vector() calls std::vector member functions,
+      all of them have no-throw guarantees, so this function won't throw any
+      exception now. We do so nonetheless for potential mis-use of exceptions
+      in futher code.
+    */
 #if !defined(DBUG_OFF)
     try {
 #endif

@@ -37,11 +37,11 @@
 namespace xpl {
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Eq;
 using ::testing::Return;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:

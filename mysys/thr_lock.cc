@@ -870,11 +870,11 @@ end:
   DBUG_VOID_RETURN;
 }
 
-  /*
-  ** Get all locks in a specific order to avoid dead-locks
-  ** Sort acording to lock position and put write_locks before read_locks if
-  ** lock on same lock.
-  */
+/*
+** Get all locks in a specific order to avoid dead-locks
+** Sort acording to lock position and put write_locks before read_locks if
+** lock on same lock.
+*/
 
 #define LOCK_CMP(A, B)                      \
   ((uchar *)(A->lock) - (uint)((A)->type) < \
@@ -1148,9 +1148,9 @@ void thr_print_locks(void) {
   mysql_mutex_unlock(&THR_LOCK_lock);
 }
 
-  /*****************************************************************************
-  ** Test of thread locks
-  ****************************************************************************/
+/*****************************************************************************
+** Test of thread locks
+****************************************************************************/
 
 #ifdef MAIN
 

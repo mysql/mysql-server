@@ -881,13 +881,12 @@ void row_build_row_ref_in_tuple(
 
 /** Searches the clustered index record for a row, if we have the row reference.
  @return true if found */
-ibool row_search_on_row_ref(
-    btr_pcur_t *pcur,    /*!< out: persistent cursor, which must
-                         be closed by the caller */
-    ulint mode,          /*!< in: BTR_MODIFY_LEAF, ... */
-    dict_table_t *table, /*!< in: table */
-    const dtuple_t *ref, /*!< in: row reference */
-    mtr_t *mtr)          /*!< in/out: mtr */
+ibool row_search_on_row_ref(btr_pcur_t *pcur, /*!< out: persistent cursor, which
+                                              must be closed by the caller */
+                            ulint mode,       /*!< in: BTR_MODIFY_LEAF, ... */
+                            dict_table_t *table, /*!< in: table */
+                            const dtuple_t *ref, /*!< in: row reference */
+                            mtr_t *mtr)          /*!< in/out: mtr */
 {
   ulint low_match;
   rec_t *rec;
@@ -1053,16 +1052,15 @@ enum row_search_result row_search_index_entry(
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_int(
-    const char *data,     /*!< in: raw data */
-    ulint data_len,       /*!< in: raw data length
-                          in bytes */
-    ulint prtype,         /*!< in: precise type */
-    char *buf,            /*!< out: output buffer */
-    ulint buf_size,       /*!< in: output buffer size
-                          in bytes */
-    ibool *format_in_hex) /*!< out: should the data be
-                          formated in hex */
+static ulint row_raw_format_int(const char *data, /*!< in: raw data */
+                                ulint data_len,   /*!< in: raw data length
+                                                  in bytes */
+                                ulint prtype,     /*!< in: precise type */
+                                char *buf,        /*!< out: output buffer */
+                                ulint buf_size,   /*!< in: output buffer size
+                                                  in bytes */
+                                ibool *format_in_hex) /*!< out: should the data
+                                                      be formated in hex */
 {
   ulint ret;
 
@@ -1094,16 +1092,15 @@ static ulint row_raw_format_int(
  number of bytes that were written to "buf" is returned (including the
  terminating '\0').
  @return number of bytes that were written */
-static ulint row_raw_format_str(
-    const char *data,     /*!< in: raw data */
-    ulint data_len,       /*!< in: raw data length
-                          in bytes */
-    ulint prtype,         /*!< in: precise type */
-    char *buf,            /*!< out: output buffer */
-    ulint buf_size,       /*!< in: output buffer size
-                          in bytes */
-    ibool *format_in_hex) /*!< out: should the data be
-                          formated in hex */
+static ulint row_raw_format_str(const char *data, /*!< in: raw data */
+                                ulint data_len,   /*!< in: raw data length
+                                                  in bytes */
+                                ulint prtype,     /*!< in: precise type */
+                                char *buf,        /*!< out: output buffer */
+                                ulint buf_size,   /*!< in: output buffer size
+                                                  in bytes */
+                                ibool *format_in_hex) /*!< out: should the data
+                                                      be formated in hex */
 {
   ulint charset_coll;
 

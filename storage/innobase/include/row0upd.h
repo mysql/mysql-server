@@ -236,19 +236,18 @@ void row_upd_index_replace_new_col_vals(
     mem_heap_t *heap);         /*!< in: memory heap for allocating and
                                copying the new values */
 /** Replaces the new column values stored in the update vector. */
-void row_upd_replace(
-    trx_t *trx,                /*!< in: current transaction. */
-    dtuple_t *row,             /*!< in/out: row where replaced,
-                               indexed by col_no;
-                               the clustered index record must be
-                               covered by a lock or a page latch to
-                               prevent deletion (rollback or purge) */
-    row_ext_t **ext,           /*!< out, own: NULL, or externally
-                               stored column prefixes */
-    const dict_index_t *index, /*!< in: clustered index */
-    const upd_t *update,       /*!< in: an update vector built for the
-                               clustered index */
-    mem_heap_t *heap);         /*!< in: memory heap */
+void row_upd_replace(trx_t *trx,      /*!< in: current transaction. */
+                     dtuple_t *row,   /*!< in/out: row where replaced,
+                                      indexed by col_no;
+                                      the clustered index record must be
+                                      covered by a lock or a page latch to
+                                      prevent deletion (rollback or purge) */
+                     row_ext_t **ext, /*!< out, own: NULL, or externally
+                                      stored column prefixes */
+                     const dict_index_t *index, /*!< in: clustered index */
+                     const upd_t *update, /*!< in: an update vector built for
+                                          the clustered index */
+                     mem_heap_t *heap);   /*!< in: memory heap */
 /** Replaces the virtual column values stored in a dtuple with that of
 a update vector.
 @param[in,out]	row	dtuple whose column to be updated
@@ -340,12 +339,11 @@ void row_upd_rec_sys_fields_in_recovery(
     roll_ptr_t roll_ptr);     /*!< in: roll ptr of the undo log record */
 /** Parses the log data written by row_upd_index_write_log.
  @return log data end or NULL */
-byte *row_upd_index_parse(
-    const byte *ptr,     /*!< in: buffer */
-    const byte *end_ptr, /*!< in: buffer end */
-    mem_heap_t *heap,    /*!< in: memory heap where update vector is
-                         built */
-    upd_t **update_out); /*!< out: update vector */
+byte *row_upd_index_parse(const byte *ptr,     /*!< in: buffer */
+                          const byte *end_ptr, /*!< in: buffer end */
+                          mem_heap_t *heap,    /*!< in: memory heap where update
+                                               vector is    built */
+                          upd_t **update_out); /*!< out: update vector */
 
 /** Get the new autoinc counter from the update vector when there is
 an autoinc field defined in this table.

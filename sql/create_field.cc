@@ -768,7 +768,9 @@ size_t Create_field::key_length() const {
       precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
       return my_decimal_get_binary_size(precision, decimals);
     }
-    default: { return pack_length(); }
+    default: {
+      return pack_length();
+    }
   }
 }
 

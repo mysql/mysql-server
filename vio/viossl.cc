@@ -525,12 +525,12 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     }
 #endif
 
-      /*
-        Since yaSSL does not support non-blocking send operations, use
-        special transport functions that properly handles non-blocking
-        sockets. These functions emulate the behavior of blocking I/O
-        operations by waiting for I/O to become available.
-      */
+    /*
+      Since yaSSL does not support non-blocking send operations, use
+      special transport functions that properly handles non-blocking
+      sockets. These functions emulate the behavior of blocking I/O
+      operations by waiting for I/O to become available.
+    */
 #ifdef HAVE_WOLFSSL
     /* Set first argument of the transport functions. */
     wolfSSL_SetIOReadCtx(ssl, vio);

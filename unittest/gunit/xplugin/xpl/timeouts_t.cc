@@ -33,6 +33,7 @@ namespace ngs {
 
 namespace test {
 
+using ::testing::_;
 using ::testing::DoAll;
 using ::testing::Expectation;
 using ::testing::InSequence;
@@ -41,7 +42,6 @@ using ::testing::ReturnPointee;
 using ::testing::ReturnRef;
 using ::testing::SetArrayArgument;
 using ::testing::StrictMock;
-using ::testing::_;
 
 class Timers_test_suite : public ::testing::Test {
  public:

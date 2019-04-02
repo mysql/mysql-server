@@ -37,14 +37,15 @@ constexpr unsigned long ShaCryptMcfAdaptor::kDefaultRounds;
 constexpr unsigned long ShaCryptMcfAdaptor::kMinRounds;
 constexpr unsigned long ShaCryptMcfAdaptor::kMaxRounds;
 
-class ShaCryptTest : public ::testing::Test,
-                     public ::testing::WithParamInterface<
-                         std::tuple<std::string,  // MCF string
-                                    int,          // rounds
-                                    std::string,  // salt
-                                    std::string,  // checksum
-                                    const char *  // password
-                                    >> {};
+class ShaCryptTest
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<std::tuple<std::string,  // MCF
+                                                                    // string
+                                                      int,          // rounds
+                                                      std::string,  // salt
+                                                      std::string,  // checksum
+                                                      const char *  // password
+                                                      >> {};
 
 TEST_P(ShaCryptTest, decode) {
   auto hash_info = ShaCryptMcfAdaptor::from_mcf(std::get<0>(GetParam()));

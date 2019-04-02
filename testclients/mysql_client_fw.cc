@@ -524,7 +524,7 @@ static int my_process_result(MYSQL *mysql_arg) {
   return row_count;
 }
 
-  /* Process the statement result set */
+/* Process the statement result set */
 
 #define MAX_RES_FIELDS 50
 #define MAX_FIELD_DATA_SIZE 255
@@ -680,7 +680,7 @@ static void verify_col_data(const char *table, const char *col,
   mysql_free_result(result);
 }
 
-  /* Utility function to verify the field members */
+/* Utility function to verify the field members */
 
 #define verify_prepare_field(result, no, name, org_name, type, table,          \
                              org_table, db, length, def)                       \

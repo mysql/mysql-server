@@ -1497,15 +1497,15 @@ int main(int argc, char **argv) {
       }
     }
 
-      /* Testing for lock mechanism. The innochecksum
-      acquire lock on given file. So other tools accessing the same
-      file for processsing must fail. */
+    /* Testing for lock mechanism. The innochecksum
+    acquire lock on given file. So other tools accessing the same
+    file for processsing must fail. */
 #ifdef _WIN32
-    DBUG_EXECUTE_IF("innochecksum_cause_mysqld_crash",
-                    ut_ad(page_dump_filename);
-                    while ((_access(page_dump_filename, 0)) == 0) {
-                      sleep(1);
-                    } DBUG_RETURN(0););
+    DBUG_EXECUTE_IF(
+        "innochecksum_cause_mysqld_crash", ut_ad(page_dump_filename);
+        while ((_access(page_dump_filename, 0)) == 0) {
+          sleep(1);
+        } DBUG_RETURN(0););
 #else
     DBUG_EXECUTE_IF(
         "innochecksum_cause_mysqld_crash", ut_ad(page_dump_filename);

@@ -754,21 +754,21 @@ static bool socket_peek_read(Vio *vio, uint *bytes) {
 
 #endif
 
-  /**
-    Wait for an I/O event on a VIO socket.
+/**
+  Wait for an I/O event on a VIO socket.
 
-    @param vio      VIO object representing a connected socket.
-    @param event    The type of I/O event to wait for.
-    @param timeout  Interval (in milliseconds) to wait for an I/O event.
-                    A negative timeout value means an infinite timeout.
+  @param vio      VIO object representing a connected socket.
+  @param event    The type of I/O event to wait for.
+  @param timeout  Interval (in milliseconds) to wait for an I/O event.
+                  A negative timeout value means an infinite timeout.
 
-    @remark sock_errno is set to SOCKET_ETIMEDOUT on timeout.
+  @remark sock_errno is set to SOCKET_ETIMEDOUT on timeout.
 
-    @return A three-state value which indicates the operation status.
-    @retval -1  Failure, socket_errno indicates the error.
-    @retval  0  The wait has timed out.
-    @retval  1  The requested I/O event has occurred.
-  */
+  @return A three-state value which indicates the operation status.
+  @retval -1  Failure, socket_errno indicates the error.
+  @retval  0  The wait has timed out.
+  @retval  1  The requested I/O event has occurred.
+*/
 
 #if !defined(_WIN32) && !defined(HAVE_KQUEUE)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout) {

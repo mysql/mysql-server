@@ -210,14 +210,14 @@ que_t *fts_parse_sql(
     fts_get_table_name(fts_table, table_name);
 
     aux_table = dd_table_open_on_name_in_mem(table_name, false);
-    DBUG_EXECUTE_IF("force_evict_fts_aux_table_and_reload",
-                    if (aux_table != nullptr) {
-                      mutex_enter(&dict_sys->mutex);
-                      dd_table_close(aux_table, nullptr, nullptr, true);
-                      dict_table_remove_from_cache(aux_table);
-                      mutex_exit(&dict_sys->mutex);
-                      aux_table = nullptr;
-                    });
+    DBUG_EXECUTE_IF(
+        "force_evict_fts_aux_table_and_reload", if (aux_table != nullptr) {
+          mutex_enter(&dict_sys->mutex);
+          dd_table_close(aux_table, nullptr, nullptr, true);
+          dict_table_remove_from_cache(aux_table);
+          mutex_exit(&dict_sys->mutex);
+          aux_table = nullptr;
+        });
 
     if (aux_table == nullptr) {
       aux_table = dd_table_open_on_name(thd, &mdl, table_name, false,

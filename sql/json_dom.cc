@@ -153,7 +153,7 @@ void Json_dom::operator delete(void *ptr) noexcept { my_free(ptr); }
 void Json_dom::operator delete(void *ptr, const std::nothrow_t &)noexcept {
   operator delete(ptr);
 }
-  /* purecov: end */
+/* purecov: end */
 
 #ifdef MYSQL_SERVER
 /**

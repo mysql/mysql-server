@@ -401,9 +401,9 @@ enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_ready() {
   auto event_string = [](MY_ATTRIBUTE((unused)) int res) {
     return "the group communication engine to be ready";
   };
-  return xcom_wait_for_condition(m_cond_xcom_ready, m_lock_xcom_ready,
-                                 [this]() { return !m_is_xcom_ready; },
-                                 event_string);
+  return xcom_wait_for_condition(
+      m_cond_xcom_ready, m_lock_xcom_ready,
+      [this]() { return !m_is_xcom_ready; }, event_string);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_is_ready() {
@@ -437,9 +437,9 @@ enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_exit() {
       return "group communication engine to exit";
     }
   };
-  return xcom_wait_for_condition(m_cond_xcom_exit, m_lock_xcom_exit,
-                                 [this]() { return !m_is_xcom_exit; },
-                                 event_string);
+  return xcom_wait_for_condition(
+      m_cond_xcom_exit, m_lock_xcom_exit, [this]() { return !m_is_xcom_exit; },
+      event_string);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_is_exit() {

@@ -458,9 +458,9 @@ app_data_ptr new_exit() {
   return retval;
 }
 
-  /* }}} */
+/* }}} */
 
-  /* {{{ app_data_list functions */
+/* {{{ app_data_list functions */
 
 #if 0 /* UNUSED */
 /**

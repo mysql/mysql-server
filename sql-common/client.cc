@@ -362,9 +362,9 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
   DBUG_VOID_RETURN;
 }
 
-  /*
-    Create a named pipe connection
-  */
+/*
+  Create a named pipe connection
+*/
 
 #ifdef _WIN32
 
@@ -432,15 +432,15 @@ static HANDLE create_named_pipe(MYSQL *mysql, DWORD connect_timeout,
 }
 #endif
 
-  /*
-    Create new shared memory connection, return handler of connection
+/*
+  Create new shared memory connection, return handler of connection
 
-    @param mysql  Pointer of mysql structure
-    @param net    Pointer of net structure
-    @param connect_timeout  Timeout of connection (in milliseconds)
+  @param mysql  Pointer of mysql structure
+  @param net    Pointer of net structure
+  @param connect_timeout  Timeout of connection (in milliseconds)
 
-    @return HANDLE to the shared memory area.
-  */
+  @return HANDLE to the shared memory area.
+*/
 
 #if defined(_WIN32)
 static HANDLE create_shared_memory(MYSQL *mysql, NET *net,
@@ -3191,10 +3191,10 @@ bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
   DBUG_RETURN(result);
 }
 
-  /*
-    Free strings in the SSL structure and clear 'use_ssl' flag.
-    NB! Errors are not reported until you do mysql_real_connect.
-  */
+/*
+  Free strings in the SSL structure and clear 'use_ssl' flag.
+  NB! Errors are not reported until you do mysql_real_connect.
+*/
 
 #if defined(HAVE_OPENSSL)
 
@@ -3254,22 +3254,22 @@ const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
   DBUG_RETURN(NULL);
 }
 
-  /*
-    Check the server's (subject) Common Name against the
-    hostname we connected to
+/*
+  Check the server's (subject) Common Name against the
+  hostname we connected to
 
-    SYNOPSIS
-    ssl_verify_server_cert()
-      vio              pointer to a SSL connected vio
-      server_hostname  name of the server that we connected to
-      errptr           if we fail, we'll return (a pointer to a string
-                       describing) the reason here
+  SYNOPSIS
+  ssl_verify_server_cert()
+    vio              pointer to a SSL connected vio
+    server_hostname  name of the server that we connected to
+    errptr           if we fail, we'll return (a pointer to a string
+                     describing) the reason here
 
-    RETURN VALUES
-     0 Success
-     1 Failed to validate server
+  RETURN VALUES
+   0 Success
+   1 Failed to validate server
 
-   */
+ */
 
 #if defined(HAVE_OPENSSL)
 
@@ -3309,15 +3309,15 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     *errptr = "Failed to verify the server certificate";
     goto error;
   }
-    /*
-      We already know that the certificate exchanged was valid; the SSL library
-      handled that. Now we need to verify that the contents of the certificate
-      are what we expect.
-    */
+  /*
+    We already know that the certificate exchanged was valid; the SSL library
+    handled that. Now we need to verify that the contents of the certificate
+    are what we expect.
+  */
 
-    /* Use OpenSSL certificate matching functions instead of our own if we
-       have OpenSSL. The X509_check_* functions return 1 on success.
-    */
+  /* Use OpenSSL certificate matching functions instead of our own if we
+     have OpenSSL. The X509_check_* functions return 1 on success.
+  */
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL)
   if ((X509_check_host(server_cert, server_hostname, strlen(server_hostname), 0,
                        0) != 1) &&
