@@ -1948,14 +1948,10 @@ SET sql_mode = DEFAULT;
 # OUTER STATEMENT DIGEST
 #
 TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
-SELECT 1;
-1
-1
 SELECT DIGEST_TEXT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE DIGEST_TEXT LIKE 'SELECT ?%';
 DIGEST_TEXT
-SELECT ?
 SELECT statement_digest_text('SELECT 1 + 1');
 statement_digest_text('SELECT 1 + 1')
 SELECT ? + ?
@@ -1964,4 +1960,3 @@ SELECT DIGEST_TEXT
 FROM performance_schema.events_statements_summary_by_digest
 WHERE DIGEST_TEXT LIKE 'SELECT ?%';
 DIGEST_TEXT
-SELECT ?
