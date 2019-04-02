@@ -666,24 +666,24 @@ tc_node_id	bigint(21) unsigned	YES		NULL
 tc_block_no	bigint(21) unsigned	YES		NULL	
 tc_block_instance	bigint(21) unsigned	YES		NULL	
 
-select count(*) from table_distribution_status;
-count(*)
-9
-select count(*) from ndb$table_distribution_status_all;
-count(*)
-18
-select count(*) from table_fragments;
-count(*)
-64
-select count(*) from ndb$table_fragments_all;
-count(*)
-128
-select count(*) from table_replicas;
-count(*)
-128
-select count(*) from ndb$table_replicas_all;
-count(*)
-256
+select count(*) > 0 from table_distribution_status;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_distribution_status_all;
+count(*) > 0
+1
+select count(*) > 0 from table_fragments;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_fragments_all;
+count(*) > 0
+1
+select count(*) > 0 from table_replicas;
+count(*) > 0
+1
+select count(*) > 0 from ndb$table_replicas_all;
+count(*) > 0
+1
 
 desc table_distribution_status;
 Field	Type	Null	Key	Default	Extra

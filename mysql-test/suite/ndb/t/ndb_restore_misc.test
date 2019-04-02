@@ -520,6 +520,8 @@ drop table t1;
 
 #
 # Bug#51374
+# Restore using --disable-indexes --rebuild-indexes, then DROP the table
+# The bug caused the indexes to remain after the table was dropped
 #
 create table t1 (a int, b int, c int not null, 
 primary key (a) using hash, unique(c) using hash)
@@ -546,6 +548,7 @@ where name like '%ndb_index_stat_sample_x1%';
 --enable_warnings
 select * from ndb_show_tables_results
 where type like '%Index%'
+and _database = 'test'
 and name not like '%ndb_index_stat_sample_x1%'
 and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
 order by 1,2,3,4,5,6,7;

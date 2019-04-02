@@ -622,6 +622,7 @@ select id into @tmp1 from ndb_show_tables_results
 where name like '%ndb_index_stat_sample_x1%';
 select * from ndb_show_tables_results
 where type like '%Index%'
+and _database = 'test'
 and name not like '%ndb_index_stat_sample_x1%'
 and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
 order by 1,2,3,4,5,6,7;
