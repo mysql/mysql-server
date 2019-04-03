@@ -3544,7 +3544,7 @@ static void innobase_dict_cache_reset_tables_and_tablespaces() {
   in LRU list */
   while (table) {
     /* Make sure table->is_dd_table is set */
-    char db_buf[NAME_LEN + 1];
+    char db_buf[NAME_LEN + 1] = {'\0'};
     char tbl_buf[NAME_LEN + 1];
 
     dict_table_t *next_table = UT_LIST_GET_NEXT(table_LRU, table);
