@@ -7094,8 +7094,6 @@ ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
 ER_MISSING_KEY
   eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
 
-ER_CANNOT_CONVERT_STRING
-  eng "Cannot convert string '%.64s' from %s to %s"
 #
 #  End of 5.6 error messages.
 #
@@ -8898,6 +8896,9 @@ ER_STD_REGEX_ERROR
 
 ER_INVALID_JSON_TYPE 22032
   eng "Invalid JSON type in argument %u to function %s; an %s is required."
+
+ER_CANNOT_CONVERT_STRING
+  eng "Cannot convert string '%.64s' from %s to %s"
 
 #
 #  End of 8.0 error messages.
