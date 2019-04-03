@@ -304,10 +304,6 @@ IF (UNIX)
   LIST(APPEND TESTS path auth_utils)
 ENDIF()
 
-IF(WIN32)
-  LIST(APPEND TESTS win_tests)
-ENDIF()
-
 # Add tests (link them with gunit/gmock libraries and the server libraries) 
 SET(SERVER_TESTS
   copy_info
@@ -351,6 +347,10 @@ SET(SERVER_TESTS
   security_context
   initialize_password
 )
+
+IF(WIN32)
+  LIST(APPEND SERVER_TESTS win_tests)
+ENDIF()
 
 ## Merging tests into fewer executables saves *a lot* of
 ## link time and disk space ...

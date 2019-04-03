@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -266,6 +266,10 @@ INSERT INTO global_suppressions VALUES
  */
  ("Insecure configuration for --pid-file:*"),
  ("Few location(s) are inaccessible while checking PID filepath"),
+ /*
+   Following WL#12670, this warning is expected.
+ */
+ ("Setting named_pipe_full_access_group='\\*everyone\\*' is insecure"),
 
  /*
    On slow runs (valgrind) the message may be sent twice.
