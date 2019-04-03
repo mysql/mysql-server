@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -36,30 +36,49 @@ Regex::Regex(const char *const pattern)
   DBUG_ASSERT(U_SUCCESS(m_status));
 }
 
-bool xpl::Regex::match(const char *value) const {
+/* Initializing RegexMatcher object with RegexPattern
+ * can by done only by calling an RegexPattern method
+ * that returns RegexMatcher pointer.
+ *
+ * RegexMatcher is not reentrant thus we need create an
+ * instance per thread or like in current solution,
+ * instance per xpl::Regex::match call.
+ *
+ * Other possibility would be to create RegexMatcher on stack
+ * and parse the text patter each time that xpl::Regex::match
+ * is called.
+ */
+
+bool Regex::match(const char *value) const {
   if (!U_SUCCESS(m_status)) return false;
 
   UErrorCode match_status{U_ZERO_ERROR};
-
-  /* Initializing RegexMatcher object with RegexPattern
-   * can by done only by calling an RegexPattern method
-   * that returns RegexMatcher pointer.
-   *
-   * RegexMatcher is not reentrant thus we need create an
-   * instance per thread or like in current solution,
-   * instance per xpl::Regex::match call.
-   *
-   * Other possibility would be to create RegexMatcher on stack
-   * and parse the text patter each time that xpl::Regex::match
-   * is called.
-   */
   icu::UnicodeString value_as_utf8{icu::UnicodeString::fromUTF8(value)};
   std::unique_ptr<icu::RegexMatcher> regexp{
       m_pattern->matcher(value_as_utf8, match_status)};
 
   if (!U_SUCCESS(match_status)) return false;
 
-  return regexp->find();
+  return regexp->matches(match_status);
+}
+
+bool Regex::match_groups(const char *value, Group_list *groups,
+                         const bool skip_empty_group) const {
+  UErrorCode status{m_status};
+  icu::UnicodeString value_from_utf8{icu::UnicodeString::fromUTF8(value)};
+  std::unique_ptr<icu::RegexMatcher> matcher{
+      m_pattern->matcher(value_from_utf8, status)};
+  if (!matcher || !matcher->matches(status)) return false;
+
+  std::string tmp;
+  for (int32_t g = 0; g <= matcher->groupCount(); ++g) {
+    matcher->group(g, status).toUTF8String(tmp);
+    if (U_FAILURE(status)) return false;
+    if (skip_empty_group && tmp.empty()) continue;
+    groups->push_back(tmp);
+    tmp.clear();
+  }
+  return true;
 }
 
 }  // namespace xpl

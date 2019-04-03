@@ -620,7 +620,12 @@ SHOW INDEX FROM xplugintest.table1;
 ANALYZE TABLE xplugintest.table1;
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
+-->endsql
+-->expecterror ER_DATA_TOO_LONG
+-->sql
 INSERT INTO xplugintest.table1(doc) VALUES('{"col":"LONG LONG STRING, LONGER THAN INDEX SIZE","_id":1}');
+-->endsql
+-->sql
 SELECT * FROM xplugintest.table1;
 DELETE FROM xplugintest.table1;
 -->endsql

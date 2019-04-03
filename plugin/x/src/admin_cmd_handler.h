@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 
 namespace xpl {
+class Session;
+class Session_options;
 
 class Admin_command_handler {
  public:
@@ -44,30 +46,33 @@ class Admin_command_handler {
     using Argument_list = std::vector<std::string>;
     using List = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
     using Argument_name_list = std::initializer_list<const char *const>;
+
     static const char *const k_placeholder;
+    enum class Appearance_type { k_obligatory, k_optional };
 
     virtual ~Command_arguments() {}
     virtual Command_arguments &string_arg(Argument_name_list name,
                                           std::string *ret_value,
-                                          const bool optional = false) = 0;
-    virtual Command_arguments &string_list(Argument_name_list name,
-                                           std::vector<std::string> *ret_value,
-                                           const bool optional = false) = 0;
+                                          const Appearance_type appearance) = 0;
+    virtual Command_arguments &string_list(
+        Argument_name_list name, std::vector<std::string> *ret_value,
+        const Appearance_type appearance) = 0;
     virtual Command_arguments &sint_arg(Argument_name_list name,
                                         int64_t *ret_value,
-                                        const bool optional = false) = 0;
+                                        const Appearance_type appearance) = 0;
     virtual Command_arguments &uint_arg(Argument_name_list name,
                                         uint64_t *ret_value,
-                                        const bool optional = false) = 0;
+                                        const Appearance_type appearance) = 0;
     virtual Command_arguments &bool_arg(Argument_name_list name,
                                         bool *ret_value,
-                                        const bool optional = false) = 0;
-    virtual Command_arguments &docpath_arg(Argument_name_list name,
-                                           std::string *ret_value,
-                                           const bool optional = false) = 0;
+                                        const Appearance_type appearance) = 0;
+    virtual Command_arguments &docpath_arg(
+        Argument_name_list name, std::string *ret_value,
+        const Appearance_type appearance) = 0;
     virtual Command_arguments &object_list(
         Argument_name_list name, std::vector<Command_arguments *> *ret_value,
-        const bool optional = false, unsigned expected_members_count = 3) = 0;
+        const Appearance_type appearance,
+        unsigned expected_members_count = 3) = 0;
 
     virtual bool is_end() const = 0;
     virtual const ngs::Error_code &end() = 0;
@@ -84,6 +89,7 @@ class Admin_command_handler {
  protected:
   using Argument_list = Command_arguments::Argument_list;
   using Value_list = Command_arguments::List;
+  using Argument_appearance = Command_arguments::Appearance_type;
 
   ngs::Error_code ping(const std::string &name_space, Command_arguments *args);
 

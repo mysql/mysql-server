@@ -106,7 +106,11 @@ class Expression_generator {
       const typename Repeated_field_list<T>::size_type offset = 0) const;
   void generate_unquote_param(const Mysqlx::Expr::Expr &arg) const;
   void generate_json_literal_param(const Mysqlx::Datatypes::Scalar &arg) const;
-  void generate_cont_in_param(const Mysqlx::Expr::Expr &arg) const;
+  void generate_json_only_param(const Mysqlx::Expr::Expr &arg,
+                                const std::string &expr_name) const;
+  void generate_placeholder(const Placeholder &arg,
+                            void (Expression_generator::*generate_fun)(
+                                const Mysqlx::Datatypes::Scalar &) const) const;
 
   void binary_operator(const Mysqlx::Expr::Operator &arg,
                        const char *str) const;
@@ -126,6 +130,8 @@ class Expression_generator {
   void binary_expression(const Mysqlx::Expr::Operator &arg,
                          const char *str) const;
   void asterisk_operator(const Mysqlx::Expr::Operator &arg) const;
+  void overlaps_expression(const Mysqlx::Expr::Operator &arg,
+                           const char *str) const;
 
   Query_string_builder *m_qb;
   const Arg_list &m_args;

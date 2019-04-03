@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -319,11 +319,8 @@ TEST_F(Admin_command_index_test, create_bad_constraint) {
       .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
                       Return(ngs::Success())));
 
-  set_arguments(Any::Object{SCHEMA,
-                            COLLECTION,
-                            INDEX_NAME,
-                            UNIQUE,
-                            {"constraint", Any::Object{MEMBER}}});
+  set_arguments(Any::Object{
+      SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", Any::Object{}}});
   ASSERT_ERROR_CODE(ER_X_CMD_NUM_ARGUMENTS,
                     command->create(NAMESPACE, args.get()));
 }
