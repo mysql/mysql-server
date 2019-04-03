@@ -5015,18 +5015,49 @@ class handler {
   }
 
   /**
-    In an UPDATE or DELETE, if the row under the cursor was locked by another
-    transaction, and the engine used an optimistic read of the last
-    committed row value under the cursor, then the engine returns 1 from this
-    function. MySQL must NOT try to update this optimistic value. If the
-    optimistic value does not match the WHERE condition, MySQL can decide to
-    skip over this row. Currently only works for InnoDB. This can be used to
-    avoid unnecessary lock waits.
+    Normally, when running UPDATE or DELETE queries, we need to wait for other
+    transactions to release their locks on a given row before we can read it and
+    potentially update it. However, in READ UNCOMMITTED and READ COMMITTED, we
+    can ignore these locks if we don't intend to modify the row (e.g., because
+    it failed a WHERE). This is signaled through enabling “semi-consistent
+    read”, by calling try_semi_consistent_read(true) (and then setting it back
+    to false after finishing the query).
 
-    If this method returns nonzero, it will also signal the storage
-    engine that the next read will be a locking re-read of the row.
-  */
-  virtual bool was_semi_consistent_read() { return 0; }
+    If semi-consistent read is enabled, and we are in READ UNCOMMITTED or READ
+    COMMITTED, the storage engine is permitted to return rows that are locked
+    and thus un-updatable. If the optimizer doesn't want the row, e.g., because
+    it got filtered out, it can call unlock_row() as usual. However, if it
+    intends to update the row, it needs to call was_semi_consistent_read()
+    before doing so. If was_semi_consistent_read() returns false, the row was
+    never locked to begin with and can be updated as usual. However, if it
+    returns 1, it was read optimistically, must be discarded (ie., do not try to
+    update the row) and must be re-read with locking enabled. The next read call
+    after was_semi_consistent_read() will automatically re-read the same row,
+    this time with locking enabled.
+
+    Thus, typical use in an UPDATE scenario would look like this:
+
+        file->try_semi_consistent_read(true);
+        file->ha_rnd_init(true);
+        while (file->ha_rnd_next(table->record[0]) == 0) {
+          if (row is filtered...) {
+            file->unlock_row();
+            continue;
+          }
+          if (file->was_semi_consistent_read()) {
+            // Discard the row; next ha_rnd_next() will read it again with
+            // locking.
+            continue;
+          }
+          // Process row here.
+        }
+        file->ha_rnd_end();
+        file->try_semi_consistent_read(false);
+
+    If the transaction isolation level is REPEATABLE READ or SERIALIZABLE,
+    enabling this flag has no effect.
+   */
+  virtual bool was_semi_consistent_read() { return false; }
   /**
     Tell the engine whether it should avoid unnecessary lock waits.
     If yes, in an UPDATE or DELETE, if the row under the cursor was locked

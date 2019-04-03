@@ -46,6 +46,7 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"  // Prealloced_array
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant, check_access
 #include "sql/basic_row_iterators.h"
@@ -578,7 +579,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
 
     if (thd->lex->is_ignore()) table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    table->file->try_semi_consistent_read(1);
 
     if (used_key_is_modified || order) {
       /*
@@ -644,7 +644,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           table->file->print_error(error, error_flags);
           return true;
         }
-        table->file->try_semi_consistent_read(1);
+        table->file->try_semi_consistent_read(true);
+        auto end_semi_consistent_read = create_scope_guard(
+            [table] { table->file->try_semi_consistent_read(false); });
 
         /*
           When we get here, we have one of the following options:
@@ -717,7 +719,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         if (thd->killed && !error)  // Aborted
           error = 1;                /* purecov: inspected */
         limit = tmp_limit;
-        table->file->try_semi_consistent_read(0);
+        end_semi_consistent_read.rollback();
         if (used_index < MAX_KEY && covering_keys_for_cond.is_set(used_index))
           table->set_keyread(false);
         table->file->ha_index_or_rnd_end();
@@ -750,6 +752,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                            /*ignore_not_found_rows=*/false))
         return true; /* purecov: inspected */
     }
+
+    table->file->try_semi_consistent_read(true);
+    auto end_semi_consistent_read = create_scope_guard(
+        [table] { table->file->try_semi_consistent_read(false); });
 
     /*
       Generate an error (in TRADITIONAL mode) or warning
@@ -948,6 +954,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         break;
       }
     }
+    end_semi_consistent_read.rollback();
 
     table->auto_increment_field_not_null = false;
     dup_key_found = 0;
@@ -987,7 +994,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     } else
       updated_rows -= dup_key_found;
     if (will_batch) table->file->end_bulk_update();
-    table->file->try_semi_consistent_read(0);
 
     if (read_removal) {
       /* Only handler knows how many records really was written */
