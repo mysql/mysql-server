@@ -4594,23 +4594,18 @@ vector<string> AlternativeIterator::DebugString() const {
   Pick the appropriate access method functions
 
   Sets the functions for the selected table access method
-
-  @param      join_tab             JOIN_TAB for this QEP_TAB
 */
 
-void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
-  ASSERT_BEST_REF_IN_JOIN_ORDER(join());
-  DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
+void QEP_TAB::pick_table_access_method() {
   DBUG_ASSERT(table());
   // Only some access methods support reversed access:
-  DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
+  DBUG_ASSERT(!m_reversed_access || type() == JT_REF ||
               type() == JT_INDEX_SCAN);
-  using_dynamic_range = false;
   TABLE_REF *used_ref = nullptr;
 
   switch (type()) {
     case JT_REF:
-      if (join_tab->reversed_access) {
+      if (m_reversed_access) {
         iterator = NewIterator<RefIterator<true>>(join()->thd, table(), &ref(),
                                                   use_order(), this,
                                                   &join()->examined_rows);
@@ -4647,7 +4642,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
       break;
 
     case JT_INDEX_SCAN:
-      if (join_tab->reversed_access) {
+      if (m_reversed_access) {
         iterator = NewIterator<IndexScanIterator<true>>(
             join()->thd, table(), index(), use_order(), this,
             &join()->examined_rows);
@@ -4660,11 +4655,9 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
     case JT_ALL:
     case JT_RANGE:
     case JT_INDEX_MERGE:
-      if (join_tab->use_quick == QS_DYNAMIC_RANGE) {
-        using_dynamic_range = true;
+      if (using_dynamic_range) {
         iterator = NewIterator<DynamicRangeIterator>(join()->thd, table(), this,
                                                      &join()->examined_rows);
-
       } else {
         join_setup_iterator(this);
       }

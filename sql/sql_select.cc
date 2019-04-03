@@ -2816,6 +2816,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         break;
       case JT_ALL:
         join->thd->set_status_no_index_used();
+        qep_tab->using_dynamic_range = (tab->use_quick == QS_DYNAMIC_RANGE);
       /* Fall through */
       case JT_INDEX_SCAN:
         if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST &&
@@ -2841,7 +2842,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
                   rows_w_const_cond / tab->position()->rows_fetched);
           }
         }
-        if (tab->use_quick == QS_DYNAMIC_RANGE) {
+        if (qep_tab->using_dynamic_range) {
           join->thd->set_status_no_good_index_used();
           if (statistics) join->thd->inc_status_select_range_check();
         } else {
@@ -2855,6 +2856,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         break;
       case JT_RANGE:
       case JT_INDEX_MERGE:
+        qep_tab->using_dynamic_range = (tab->use_quick == QS_DYNAMIC_RANGE);
         if (statistics) {
           if (i == join->const_tables)
             join->thd->inc_status_select_range();
@@ -2917,7 +2919,8 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     DBUG_ASSERT(!table_ref->is_recursive_reference() ||
                 qep_tab->type() == JT_ALL);
 
-    qep_tab->pick_table_access_method(tab);
+    qep_tab->set_reversed_access(tab->reversed_access);
+    qep_tab->pick_table_access_method();
 
     // Materialize derived tables prior to accessing them.
     if (table_ref->is_table_function()) {
@@ -2929,8 +2932,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
 
     if (qep_tab->sj_mat_exec())
       qep_tab->materialize_table = join_materialize_semijoin;
-
-    qep_tab->set_reversed_access(tab->reversed_access);
 
     if (table_ref->is_derived() && table_ref->derived_unit()->m_lateral_deps) {
       auto deps = table_ref->derived_unit()->m_lateral_deps;
