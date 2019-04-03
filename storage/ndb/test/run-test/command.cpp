@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,19 +86,6 @@ BaseString set_env_var(const BaseString& existing, const BaseString& name,
   return newEnv;
 }
 
-static char* dirname(const char* path) {
-  char* s = strdup(path);
-  size_t len = strlen(s);
-  for (size_t i = 1; i < len; i++) {
-    if (s[len - i] == '/') {
-      s[len - i] = 0;
-      return s;
-    }
-  }
-  free(s);
-  return 0;
-}
-
 Vector<atrt_process> g_saved_procs;
 
 static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
@@ -106,16 +93,14 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
   const char* process_args = command.column("process_args");
   atrt_process& proc = *config.m_processes[command.columnAsInt("process_id")];
   BaseString newEnv = set_env_var(
-    proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
+      proc.m_proc.m_env, BaseString("MYSQL_BASE_DIR"), BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
 
   ssize_t pos = proc.m_proc.m_path.lastIndexOf('/') + 1;
   BaseString exename(proc.m_proc.m_path.substr(pos));
-  char* exe = find_bin_path(new_prefix, exename.c_str());
-  proc.m_proc.m_path = exe;
-  if (exe) {
-    free(exe);
-  }
+  proc.m_proc.m_path =
+      g_resources.getExecutableFullPath(exename.c_str(), 1).c_str();
+
   if (process_args && strlen(process_args)) {
     /* Beware too long args */
     proc.m_proc.m_args.append(" ");
@@ -131,8 +116,10 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
    */
 #if defined(__MACH__)
     ssize_t p0 = proc.m_proc.m_env.indexOf(" DYLD_LIBRARY_PATH=");
+    const char* libname = g_resources.LIBMYSQLCLIENT_DYLIB;
 #else
     ssize_t p0 = proc.m_proc.m_env.indexOf(" LD_LIBRARY_PATH=");
+    const char* libname = g_resources.LIBMYSQLCLIENT_SO;
 #endif
     ssize_t p1 = proc.m_proc.m_env.indexOf(' ', p0 + 1);
 
@@ -141,19 +128,14 @@ static bool do_change_prefix(atrt_config& config, SqlResultSet& command) {
 
     proc.m_proc.m_env.assfmt("%s%s", part0.c_str(), part1.c_str());
 
-    BaseString lib(g_libmysqlclient_so_path);
-    ssize_t pos = lib.lastIndexOf('/') + 1;
-    BaseString libname(lib.substr(pos));
-    char* exe = find_bin_path(new_prefix, libname.c_str());
-    char* dir = dirname(exe);
+    BaseString libdir = g_resources.getLibraryDirectory(libname, 1).c_str();
 #if defined(__MACH__)
-    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", dir);
+    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
-    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", libdir.c_str());
 #endif
-    free(exe);
-    free(dir);
   }
+
   return true;
 }
 
@@ -179,7 +161,7 @@ static bool do_start_process(atrt_config& config, SqlResultSet& command,
 }
 
 static bool do_stop_process(atrt_config& config, SqlResultSet& command,
-                             AtrtClient& atrtdb) {
+                            AtrtClient& atrtdb) {
   uint process_id = command.columnAsInt("process_id");
 
   // Get the process

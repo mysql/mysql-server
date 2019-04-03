@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,19 +273,6 @@ static atrt_host* find(const char* hostname, Vector<atrt_host*>& hosts) {
   return host;
 }
 
-static char* dirname(const char* path) {
-  char* s = strdup(path);
-  size_t len = strlen(s);
-  for (size_t i = 1; i < len; i++) {
-    if (s[len - i] == '/') {
-      s[len - i] = 0;
-      return s;
-    }
-  }
-  free(s);
-  return 0;
-}
-
 bool load_deployment_options_for_process(atrt_cluster& cluster,
                                          atrt_process& proc) {
   if (proc.m_name.empty()) {
@@ -462,13 +449,15 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
      *
      * Use path from libmysqlclient.so
      */
-    char* dir = dirname(g_libmysqlclient_so_path);
 #if defined(__MACH__)
-    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", dir);
+    const char* libname = g_resources.LIBMYSQLCLIENT_DYLIB;
+    BaseString libdir = g_resources.getLibraryDirectory(libname).c_str();
+    proc.m_proc.m_env.appfmt(" DYLD_LIBRARY_PATH=%s", libdir.c_str());
 #else
-    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+    const char* libname = g_resources.LIBMYSQLCLIENT_SO;
+    BaseString libdir = g_resources.getLibraryDirectory(libname).c_str();
+    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", libdir.c_str());
 #endif
-    free(dir);
   }
 
   int argc = 1;
@@ -542,7 +531,10 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
     case atrt_process::AP_NDB_MGMD: {
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_mgmd");
       proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%u", dir.c_str(), proc.m_index);
-      proc.m_proc.m_path.assign(g_ndb_mgmd_bin_path);
+
+      BaseString ndb_mgmd_bin_path =
+          g_resources.getExecutableFullPath(g_resources.NDB_MGMD).c_str();
+      proc.m_proc.m_path.assign(ndb_mgmd_bin_path);
       proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
                                cluster.m_name.c_str());
       proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
@@ -571,11 +563,14 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
       proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
 
-      if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0) ||
-          g_ndbmtd_bin_path == 0) {
-        proc.m_proc.m_path.assign(g_ndbd_bin_path);
+      if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0)) {
+        BaseString ndbd_bin_path =
+            g_resources.getExecutableFullPath(g_resources.NDBD).c_str();
+        proc.m_proc.m_path.assign(ndbd_bin_path);
       } else {
-        proc.m_proc.m_path.assign(g_ndbmtd_bin_path);
+        BaseString ndbmtd_bin_path =
+            g_resources.getExecutableFullPath(g_resources.NDBMTD).c_str();
+        proc.m_proc.m_path.assign(ndbmtd_bin_path);
       }
 
       proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s",
@@ -594,7 +589,11 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
     }
     case atrt_process::AP_MYSQLD: {
       proc.m_proc.m_name.assfmt("%u-%s", proc_no, "mysqld");
-      proc.m_proc.m_path.assign(g_mysqld_bin_path);
+
+      BaseString mysqld_bin_path =
+          g_resources.getExecutableFullPath(g_resources.MYSQLD).c_str();
+      proc.m_proc.m_path.assign(mysqld_bin_path);
+
       proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
                                 proc.m_host->m_basedir.c_str());
       proc.m_proc.m_args.appfmt(" --defaults-group-suffix=.%d%s", proc.m_index,

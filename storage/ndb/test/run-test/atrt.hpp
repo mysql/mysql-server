@@ -39,6 +39,9 @@
 #include <NdbAutoPtr.hpp>
 #include <Properties.hpp>
 #include <Vector.hpp>
+#include <string>
+#include "test_execution_resources.hpp"
+
 
 enum ErrorCodes {
   ERR_OK = 0,
@@ -148,7 +151,7 @@ struct atrt_testcase {
 
 extern Logger g_logger;
 
-bool parse_args(int argc, char** argv, MEM_ROOT *alloc);
+bool parse_args(int argc, char** argv, MEM_ROOT* alloc);
 bool setup_config(atrt_config&, const char* mysqld);
 bool load_deployment_options(atrt_config&);
 bool configure(atrt_config&, int setup);
@@ -236,13 +239,8 @@ extern const char* g_clusters;
  */
 char* find_bin_path(const char* basename);
 char* find_bin_path(const char* prefix, const char* basename);
-extern const char* g_ndb_mgmd_bin_path;
-extern const char* g_ndbd_bin_path;
-extern const char* g_ndbmtd_bin_path;
-extern const char* g_mysqld_bin_path;
-extern const char* g_mysql_install_db_bin_path;
-extern const char* g_libmysqlclient_so_path;
 extern const char* g_search_path[];
+extern TestExecutionResources g_resources;
 
 #ifdef _WIN32
 #include <direct.h>
