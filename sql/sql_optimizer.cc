@@ -720,8 +720,12 @@ bool JOIN::optimize() {
 
   if (make_tmp_tables_info()) return true;
 
-  // At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
-  // pushed joins(see below) are still allowed to change the QEP_TABs
+  /*
+    At this stage, we have fully set QEP_TABs; JOIN_TABs are unaccessible,
+    Query parts being offloaded to the engines(below) may still change the
+    'plan', affecting which type of Iterator we should create. Thus no
+    Iterators should be set up until after push_to_engine() has completed.
+  */
   if (push_to_engines()) return true;
 
   /*
@@ -736,6 +740,7 @@ bool JOIN::optimize() {
 
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
 
+  // Create the basic table Iterators, and composite Iterators where supported.
   create_iterators();
 
   // Make plan visible for EXPLAIN

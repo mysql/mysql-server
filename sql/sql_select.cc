@@ -38,7 +38,6 @@
 #include <atomic>
 #include <memory>
 #include <new>
-#include <vector>
 
 #include "lex_string.h"
 #include "limits.h"
@@ -103,7 +102,6 @@ class Opt_trace_context;
 
 using std::max;
 using std::min;
-using std::vector;
 
 const char store_key_const_item::static_name[] = "const";
 
@@ -2920,7 +2918,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
                 qep_tab->type() == JT_ALL);
 
     qep_tab->set_reversed_access(tab->reversed_access);
-    qep_tab->pick_table_access_method();
 
     // Materialize derived tables prior to accessing them.
     if (table_ref->is_table_function()) {
@@ -4761,25 +4758,6 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
   if (!tab->filesort) return true;
   Opt_trace_object trace_tmp(&thd->opt_trace, "filesort");
   trace_tmp.add("adding_sort_to_table_in_plan_at_position", idx);
-
-  unique_ptr_destroy_only<RowIterator> iterator = move(tab->iterator);
-
-  if (tab->condition()) {
-    vector<Item *> predicates_below_join;
-    vector<PendingCondition> predicates_above_join;
-    SplitConditions(tab->condition(), &predicates_below_join,
-                    &predicates_above_join);
-
-    iterator = PossiblyAttachFilterIterator(move(iterator),
-                                            predicates_below_join, thd);
-    tab->mark_condition_as_pushed_to_sort();
-  }
-
-  // Wrap the chosen RowIterator in a SortingIterator, so that we get
-  // sorted results out.
-  tab->iterator = NewIterator<SortingIterator>(
-      tab->join()->thd, tab->filesort, move(iterator),
-      qep_tab->keep_current_rowid, &tab->join()->examined_rows);
 
   return false;
 }

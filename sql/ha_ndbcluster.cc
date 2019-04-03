@@ -16056,7 +16056,6 @@ static int ndbcluster_make_pushed_join(handlerton *, THD *thd,
       // Check for online upgrade/downgrade.
       ndbd_join_pushdown(g_ndb_cluster_connection->get_min_db_version()))
   {
-    bool pushed_something = false;
     ndb_pushed_builder_ctx pushed_builder(*plan);
 
     for (uint i= 0; i < plan->get_access_count()-1; i++)
@@ -16090,18 +16089,6 @@ static int ndbcluster_make_pushed_join(handlerton *, THD *thd,
           handler->print_error(error, MYF(0));
           DBUG_RETURN(error);
         }
-        // Something was pushed and the QEP need to be modified
-        pushed_something = true;
-      }
-    }
-
-    if (pushed_something)
-    {
-      // Modify the QEP_TAB's to use the 'linked' read functions
-      // for those parts of the join which have been pushed down.
-      for (uint i= 0; i < plan->get_access_count(); i++)
-      {
-        plan->get_table_access(i)->set_pushed_table_access_method();
       }
     }
   }

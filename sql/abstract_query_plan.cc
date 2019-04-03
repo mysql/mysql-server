@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,17 +515,6 @@ namespace AQP
         return false;
     }
     return false;
-  }
-
-  void Table_access::set_pushed_table_access_method() const
-  {
-    // Remove the QEP_TABs constness allowing the QEP_TAB
-    // instance for this part ot the join to be modified
-    QEP_TAB* const qep_tab= const_cast<QEP_TAB*>(get_qep_tab());
-    if (qep_tab->table() != NULL)
-    {
-      qep_tab->set_pushed_table_access_method();
-    }
   }
 
 }

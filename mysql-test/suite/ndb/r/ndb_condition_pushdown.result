@@ -3463,8 +3463,7 @@ explain format=tree
 select * from t1 where a > 2 order by b;
 EXPLAIN
 -> Sort: t1.b
-    -> Filter: (t1.a > 2)
-        -> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)
+    -> Index range scan on t1 using PRIMARY, with pushed condition: (t1.a > 2)
 
 explain format=tree
 select * from t1 where a = 2 and c > 0;
@@ -3475,8 +3474,7 @@ explain format=tree
 select * from t1 where a = 2 and c > 0 order by d;
 EXPLAIN
 -> Sort: t1.d
-    -> Filter: (t1.c > 0)
-        -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
+    -> Index lookup on t1 using PRIMARY (a=2), with pushed condition: (t1.c > 0)
 
 explain format=tree
 select * from t1 where b > 0 order by a;
@@ -3496,3 +3494,30 @@ EXPLAIN
     -> Index lookup on t2 using PRIMARY (a=t1.b), child of t1 in pushed join, with pushed condition: (t2.c > 3)
 
 drop table t1;
+#
+# Bug#29595346 INCORRECT RESULT FROM SPECIFYING ORDER BY ON
+#              A QUERY WITH PUSHED CONDITIONS
+#
+CREATE TABLE t1 (
+col_int_unique INT DEFAULT NULL,
+col_varchar_256 VARCHAR(256) DEFAULT NULL,
+UNIQUE KEY ix1 (col_int_unique)
+) ENGINE=ndbcluster;
+INSERT INTO t1
+VALUES (8,'wrong'), (27, 'got'), (12,'it'), (6,'right');
+SELECT t1.col_varchar_256 AS field1
+FROM t1 WHERE t1.col_int_unique <> 8
+ORDER BY field1;
+field1
+got
+it
+right
+EXPLAIN FORMAT=tree
+SELECT t1.col_varchar_256 AS field1
+FROM t1 WHERE t1.col_int_unique <> 8
+ORDER BY field1;
+EXPLAIN
+-> Sort: t1.col_varchar_256
+    -> Index range scan on t1 using ix1, with pushed condition: (t1.col_int_unique <> 8)
+
+DROP TABLE t1;

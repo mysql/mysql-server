@@ -3378,3 +3378,29 @@ explain format=tree
 select * from t1 join t1 as t2 on t2.a = t1.b and t2.c > 3;
 
 drop table t1;
+
+--echo #
+--echo # Bug#29595346 INCORRECT RESULT FROM SPECIFYING ORDER BY ON
+--echo #              A QUERY WITH PUSHED CONDITIONS
+--echo #
+
+CREATE TABLE t1 (
+  col_int_unique INT DEFAULT NULL,
+  col_varchar_256 VARCHAR(256) DEFAULT NULL,
+  UNIQUE KEY ix1 (col_int_unique)
+) ENGINE=ndbcluster;
+
+INSERT INTO t1
+  VALUES (8,'wrong'), (27, 'got'), (12,'it'), (6,'right');
+
+SELECT t1.col_varchar_256 AS field1
+  FROM t1 WHERE t1.col_int_unique <> 8
+  ORDER BY field1;
+
+# Check that there should be no 'Filter' Iterator as the condition was pushed.
+EXPLAIN FORMAT=tree
+SELECT t1.col_varchar_256 AS field1
+  FROM t1 WHERE t1.col_int_unique <> 8
+  ORDER BY field1;
+
+DROP TABLE t1;

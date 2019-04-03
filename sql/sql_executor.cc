@@ -1887,7 +1887,7 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
     pending_invalidators = &top_level_pending_invalidators;
   }
 
-  // NOTE: i is advanced in in one of two ways:
+  // NOTE: i is advanced in one of two ways:
   //
   //  - If we have an inner join, it will be incremented near the bottom of the
   //    loop, as we can process inner join tables one by one.
@@ -2189,6 +2189,43 @@ static unique_ptr_destroy_only<RowIterator> ConnectJoins(
 void JOIN::create_iterators() {
   DBUG_ASSERT(m_root_iterator == nullptr);
 
+  // 1) Set up the basic RowIterators for accessing each specific table.
+  //    This is needed even if we run in pre-iterator executor.
+  for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
+    QEP_TAB *qep_tab = &this->qep_tab[table_idx];
+    if (qep_tab->position() == nullptr) {
+      continue;
+    }
+
+    /*
+      Create the specific RowIterators, including any specific
+      RowIterator for the pushed queries.
+    */
+    qep_tab->pick_table_access_method();
+
+    if (qep_tab->filesort) {
+      unique_ptr_destroy_only<RowIterator> iterator = move(qep_tab->iterator);
+
+      // Evaluate any conditions before sorting entire row set.
+      if (qep_tab->condition()) {
+        vector<Item *> predicates_below_join;
+        vector<PendingCondition> predicates_above_join;
+        SplitConditions(qep_tab->condition(), &predicates_below_join,
+                        &predicates_above_join);
+
+        iterator = PossiblyAttachFilterIterator(move(iterator),
+                                                predicates_below_join, thd);
+        qep_tab->mark_condition_as_pushed_to_sort();
+      }
+
+      // Wrap the chosen RowIterator in a SortingIterator, so that we get
+      // sorted results out.
+      qep_tab->iterator = NewIterator<SortingIterator>(
+          qep_tab->join()->thd, qep_tab->filesort, move(iterator),
+          qep_tab->keep_current_rowid, &qep_tab->join()->examined_rows);
+    }
+  }
+
   if (select_lex->parent_lex->m_sql_cmd != nullptr &&
       select_lex->parent_lex->m_sql_cmd->using_secondary_storage_engine()) {
     return;
@@ -2205,6 +2242,9 @@ void JOIN::create_iterators() {
   };
   vector<MaterializeOperation> final_materializations;
 
+  // 2) If supported by the implemented iterators, we also create the
+  //    composite iterators combining the row from each table.
+  //
   // The new executor engine can't do recursive CTEs or BNL/BKA.
   // Revert to the old one if they show up.
   for (unsigned table_idx = const_tables; table_idx < tables; ++table_idx) {
@@ -4030,20 +4070,16 @@ int PushedJoinRefIterator::Read() {
     if (error) {
       return HandleError(error);
     }
-    if (m_examined_rows != nullptr) {
-      ++*m_examined_rows;
-    }
-    return 0;
   } else {
     int error = table()->file->ha_index_next_pushed(table()->record[0]);
     if (error) {
       return HandleError(error);
     }
-    if (m_examined_rows != nullptr) {
-      ++*m_examined_rows;
-    }
-    return 0;
   }
+  if (m_examined_rows != nullptr) {
+    ++*m_examined_rows;
+  }
+  return 0;
 }
 
 vector<string> PushedJoinRefIterator::DebugString() const {
@@ -4603,9 +4639,18 @@ void QEP_TAB::pick_table_access_method() {
               type() == JT_INDEX_SCAN);
   TABLE_REF *used_ref = nullptr;
 
+  const TABLE *pushed_root = table()->file->member_of_pushed_join();
+  const bool is_pushed_child = (pushed_root && pushed_root != table());
+  // A 'pushed_child' has to be a REF type
+  DBUG_ASSERT(!is_pushed_child || type() == JT_REF || type() == JT_EQ_REF);
+
   switch (type()) {
     case JT_REF:
-      if (m_reversed_access) {
+      if (is_pushed_child) {
+        DBUG_ASSERT(!m_reversed_access);
+        iterator = NewIterator<PushedJoinRefIterator>(
+            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+      } else if (m_reversed_access) {
         iterator = NewIterator<RefIterator<true>>(join()->thd, table(), &ref(),
                                                   use_order(), this,
                                                   &join()->examined_rows);
@@ -4630,8 +4675,13 @@ void QEP_TAB::pick_table_access_method() {
       break;
 
     case JT_EQ_REF:
-      iterator = NewIterator<EQRefIterator>(
-          join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+      if (is_pushed_child) {
+        iterator = NewIterator<PushedJoinRefIterator>(
+            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+      } else {
+        iterator = NewIterator<EQRefIterator>(
+            join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
+      }
       used_ref = &ref();
       break;
 
@@ -4659,7 +4709,9 @@ void QEP_TAB::pick_table_access_method() {
         iterator = NewIterator<DynamicRangeIterator>(join()->thd, table(), this,
                                                      &join()->examined_rows);
       } else {
-        join_setup_iterator(this);
+        iterator = create_table_iterator(join()->thd, NULL, this, false,
+                                         /*ignore_not_found_rows=*/false,
+                                         &join()->examined_rows);
       }
       break;
     default:
@@ -4704,6 +4756,7 @@ void QEP_TAB::pick_table_access_method() {
     for (unsigned key_part_idx = 0; key_part_idx < used_ref->key_parts;
          ++key_part_idx) {
       if (used_ref->cond_guards[key_part_idx] != nullptr) {
+        DBUG_ASSERT(!is_pushed_child);
         // At least one condition guard is relevant, so we need to use
         // the AlternativeIterator.
         iterator = NewIterator<AlternativeIterator>(join()->thd, table(), this,
@@ -4712,36 +4765,6 @@ void QEP_TAB::pick_table_access_method() {
         break;
       }
     }
-  }
-}
-
-/**
-  Install the appropriate 'linked' access method functions
-  if this part of the join have been converted to pushed join.
-*/
-
-void QEP_TAB::set_pushed_table_access_method(void) {
-  DBUG_TRACE;
-  DBUG_ASSERT(table());
-
-  /**
-    Setup modified access function for children of pushed joins.
-  */
-  const TABLE *pushed_root = table()->file->member_of_pushed_join();
-  if (pushed_root && pushed_root != table()) {
-    /**
-      Is child of a pushed join operation:
-      Replace access functions with its linked counterpart.
-      ... Which is effectively a NOOP as the row is already fetched
-      together with the root of the linked operation.
-     */
-    DBUG_PRINT("info", ("Modifying table access method for '%s'",
-                        table()->s->table_name.str));
-    DBUG_ASSERT(type() != JT_REF_OR_NULL);
-    using_dynamic_range = false;
-
-    iterator = NewIterator<PushedJoinRefIterator>(
-        join()->thd, table(), &ref(), use_order(), &join()->examined_rows);
   }
 }
 
