@@ -684,5 +684,27 @@ bool initialize(THD *thd) {
   return false;
 }
 
+/*
+  Get create view definition for the given I_S system view.
+*/
+bool get_I_S_view_definition(const dd::String_type &schema_name,
+                             const dd::String_type &view_name,
+                             dd::String_type *definition) {
+  definition->clear();
+  const dd::system_views::System_view *sys_view =
+      dd::System_views::instance()->find(schema_name.c_str(),
+                                         view_name.c_str());
+  if (sys_view == nullptr) return true;
+
+  const dd::system_views::System_view_definition *view_def =
+      sys_view->view_definition();
+
+  if (view_def == nullptr) return true;
+
+  *definition = view_def->build_ddl_create_view();
+
+  return (false);
+}
+
 }  // namespace info_schema
 }  // namespace dd

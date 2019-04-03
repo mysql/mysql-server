@@ -8304,6 +8304,10 @@ longlong Item_func_is_visible_dd_object::val_int() {
 
   bool show_table = (table_type == dd::Abstract_table::HT_VISIBLE);
 
+  // Make I_S.TABLES show the hidden system view 'show_statistics' for
+  // testing purpose.
+  DBUG_EXECUTE_IF("fetch_system_view_definition", { return MY_TEST(true); });
+
   if (thd->lex->m_extended_show)
     show_table =
         show_table || (table_type == dd::Abstract_table::HT_HIDDEN_DDL);

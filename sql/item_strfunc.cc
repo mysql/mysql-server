@@ -71,9 +71,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_password_policy
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/current_thd.h"  // current_thd
-#include "sql/dd/dd_event.h"  // dd::get_old_interval_type
-#include "sql/dd/dd_table.h"  // is_encrypted
+#include "sql/current_thd.h"              // current_thd
+#include "sql/dd/dd_event.h"              // dd::get_old_interval_type
+#include "sql/dd/dd_table.h"              // is_encrypted
+#include "sql/dd/info_schema/metadata.h"  // dd::info_schema::get_I_S_view...
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/info_schema/tablespace_stats.h"
 #include "sql/dd/properties.h"  // dd::Properties
@@ -4367,9 +4368,21 @@ String *Item_func_internal_get_comment_or_error::val_str(String *str) {
 
   THD *thd = current_thd;
   std::ostringstream oss("");
+
+  DBUG_EXECUTE_IF("fetch_system_view_definition", {
+    dd::String_type definition;
+    if (dd::info_schema::get_I_S_view_definition(
+            dd::String_type(schema_ptr->c_ptr_safe()),
+            dd::String_type(view_ptr->c_ptr_safe()), &definition) == false) {
+      str->copy(definition.c_str(), definition.length(), system_charset_info);
+      return str;
+    }
+  });
+
   if (options_ptr != nullptr &&
       strcmp(table_type_ptr->c_ptr_safe(), "VIEW") == 0) {
     bool is_view_valid = true;
+
     std::unique_ptr<dd::Properties> view_options(
         dd::Properties::parse_properties(options_ptr->c_ptr_safe()));
 

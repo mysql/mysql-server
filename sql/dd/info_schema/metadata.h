@@ -192,6 +192,21 @@ bool store_dynamic_plugin_I_S_metadata(THD *thd, st_plugin_int *plugin_int);
 */
 bool remove_I_S_view_metadata(THD *thd, const dd::String_type &view_name);
 
+/**
+  Get create view definition for the given I_S system view.
+
+  @param schema_name Schema name.
+  @param view_name   I_S view name.
+  @param definition  [out] The CREATE VIEW command to create sytem view.
+                           A pointer to a preallocated string should be
+                           supplied.
+
+  @return       Upon failure, return true, otherwise false.
+*/
+bool get_I_S_view_definition(const dd::String_type &schema_name,
+                             const dd::String_type &view_name,
+                             dd::String_type *definition);
+
 }  // namespace info_schema
 }  // namespace dd
 
