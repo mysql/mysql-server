@@ -214,14 +214,6 @@ class Item_func_regexp : public Item_func {
   bool set_pattern();
 
   unique_ptr_destroy_only<regexp::Regexp_facade> m_facade;
-
- private:
-  /**
-    The collation that is supposed to be used if you were to compare the
-    pattern and the subject strings. We use this only for figuring out whether
-    regular expression matching should be case-sensitive or not.
-  */
-  DTCollation m_cmp_collation;
 };
 
 class Item_func_regexp_instr : public Item_func_regexp {

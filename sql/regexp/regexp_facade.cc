@@ -23,6 +23,7 @@
 #include "sql/regexp/regexp_facade.h"
 
 #include <string>
+#include <tuple>
 
 #include "my_pointer_arithmetic.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
@@ -184,8 +185,19 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
 
   const std::u16string &result_buffer = m_engine->Replace(
       replacement, ConvertCodePointToLibPosition(start), occurrence);
-  result->set(pointer_cast<const char *>(result_buffer.data()),
-              result_buffer.size() * sizeof(UChar), regexp_lib_charset);
+
+  uint conversion_error;
+  size_t number_unaligned_characters;
+  if (result->needs_conversion(result->length(), regexp_lib_charset,
+                               result->charset(),
+                               &number_unaligned_characters)) {
+    if (result->copy(pointer_cast<const char *>(result_buffer.data()),
+                     result_buffer.size() * sizeof(UChar), regexp_lib_charset,
+                     result->charset(), &conversion_error))
+      DBUG_RETURN(nullptr);
+  } else
+    result->set(pointer_cast<const char *>(result_buffer.data()),
+                result_buffer.size() * sizeof(UChar), regexp_lib_charset);
   DBUG_RETURN(result);
 }
 
@@ -196,9 +208,24 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
     m_engine->CheckError();
     return nullptr;
   }
-  String *res = m_engine->MatchedSubstring(result);
+  int substart, sublength;
+  std::tie(substart, sublength) = m_engine->MatchedSubstring();
   if (m_engine->CheckError()) return nullptr;
-  return res;
+
+  uint conversion_error;
+
+  auto substartptr =
+      pointer_cast<const char *>(m_current_subject.c_str()) + substart;
+
+  size_t number_unaligned_characters;
+  if (result->needs_conversion(sublength, regexp_lib_charset, result->charset(),
+                               &number_unaligned_characters)) {
+    if (result->copy(substartptr, sublength, regexp_lib_charset,
+                     result->charset(), &conversion_error))
+      return nullptr;
+  } else
+    result->set(substartptr, sublength, regexp_lib_charset);
+  return result;
 }
 
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
