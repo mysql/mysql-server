@@ -650,3 +650,24 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#21032418
 
+--echo #
+--echo # Bug #29047894: ASSERTION FAILURE: ROW0MYSQL.CC:2387:TRX->ALLOW_SEMI_CONSISTENT()
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+INSERT INTO t1 VALUES (0);
+
+# Cause the UPDATE to fail halfway, verifying that we're resetting
+# allow_semi_consistent() even in error paths.
+--error ER_TRUNCATED_WRONG_VALUE
+UPDATE t1 SET a=1 ORDER BY CAST('invalid' AS DATETIME);
+
+# If the transaction is still marked as allowing semi-consistent reads
+# when in SERIALIZABLE, this will crash when trying to unlock the
+# (non-matching) record.
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+DELETE FROM t1 WHERE a=2;
+
+DROP TABLE t1;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;  # Return to default.
