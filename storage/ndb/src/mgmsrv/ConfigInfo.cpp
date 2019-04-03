@@ -797,7 +797,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
     "MaxDMLOperationsPerTransaction",
     DB_TOKEN,
-    "Max DML-operations in one transaction (0 == no limit)",
+    "Max DML-operations in one transaction",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
