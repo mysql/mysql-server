@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -682,7 +682,7 @@ int ndb_logevent_get_next2(const NdbLogEventHandle h,
     tmp.split(list);
     for (unsigned j = 0; j<list.size(); j++)
     {
-      dst->Data[j] = atoi(list[j].c_str());
+      dst->Data[j] = (unsigned)atoll(list[j].c_str());
     }
   }
   return 1;
