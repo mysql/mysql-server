@@ -285,6 +285,7 @@ SET(SQL_GIS_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  options_parser.cc
 )
 
 SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
@@ -406,7 +407,6 @@ SET(SQL_SHARED_SOURCES
   opt_sum.cc 
   opt_trace.cc
   opt_trace2server.cc
-  options_parser.cc
   parse_file.cc
   parse_tree_handler.cc
   parse_tree_helpers.cc
@@ -716,6 +716,8 @@ ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
 ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
+TARGET_LINK_LIBRARIES(sql_gis sql_dd sql_main)
+SET_TARGET_PROPERTIES(sql_gis PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 # A class with a reference member lacks a user-defined constructor,
 # which can lead to errors.
@@ -747,6 +749,8 @@ ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_dd GenSysSchema)
 ADD_DEPENDENCIES(sql_dd GenError)
 ADD_DEPENDENCIES(sql_dd GenKeywordList)
+TARGET_LINK_LIBRARIES(sql_dd sql_gis sql_main)
+SET_TARGET_PROPERTIES(sql_dd PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
 
 #
 # On Windows platform we compile in the client-side Windows Native Authentication
@@ -773,14 +777,19 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_LIBRARY(binlog STATIC ${BINLOG_SOURCE})
 TARGET_LINK_LIBRARIES(binlog binlogevents_static)
+TARGET_LINK_LIBRARIES(binlog rpl)
 
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc rpl_context.cc)
 ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl STATIC ${RPL_SOURCE})
+TARGET_LINK_LIBRARIES(rpl sql_main)
+
 SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc binlog_reader.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master STATIC ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
+TARGET_LINK_LIBRARIES(master binlog sql_main)
+
 SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
@@ -791,6 +800,10 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_slave_until_options.cc rpl_applier_reader.cc)
 ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
+TARGET_LINK_LIBRARIES(slave binlog sql_main)
+
+# All these libraries depend on each other.
+TARGET_LINK_LIBRARIES(sql_main rpl master slave binlog)
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
@@ -851,7 +864,7 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
-  sql_main sql_gis binlog rpl master slave sql_main sql_dd sql_gis mysys
+  sql_main sql_gis binlog rpl master slave sql_dd mysys
   binlogevents_static ${ICU_LIBRARIES})
 
 # Remove transitive link dependencies when linking plugins
