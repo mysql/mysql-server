@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,10 +64,6 @@ class Table;
 static const std::set<String_type> default_valid_option_keys = {
     "block_size", "flags", "parser_name"};
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // InnoDB keys:
-    "id", "root", "space_id", "table_id", "trx_id"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Index_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -77,7 +73,7 @@ Index_impl::Index_impl()
       m_is_generated(false),
       m_ordinal_position(0),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_type(IT_MULTIPLE),
       m_algorithm(IA_BTREE),
       m_is_algorithm_explicit(false),
@@ -91,7 +87,7 @@ Index_impl::Index_impl(Table_impl *table)
       m_is_generated(false),
       m_ordinal_position(0),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_type(IT_MULTIPLE),
       m_algorithm(IA_BTREE),
       m_is_algorithm_explicit(false),

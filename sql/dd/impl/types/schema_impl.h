@@ -188,6 +188,11 @@ class Schema_impl : public Entity_object_impl, public Schema {
   ulonglong m_created;
   ulonglong m_last_altered;
   enum_encryption_type m_default_encryption;
+
+  // The se_private_data column of a schema might be used by several storage
+  // engines at the same time as the schema is not associated with any specific
+  // engine. So to avoid any naming conflicts, we have the convention that the
+  // keys should be prefixed with the engine name.
   Properties_impl m_se_private_data;
 
   // References to other objects

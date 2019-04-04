@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,10 +66,6 @@ static const std::set<String_type> default_valid_option_keys = {
     "data_file_name", "explicit_tablespace", "index_file_name", "max_rows",
     "min_rows",       "nodegroup_id",        "tablespace"};
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // InnoDB keys:
-    "autoinc", "data_directory", "discard", "format", "instant_col", "version"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Partition_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -79,7 +75,7 @@ Partition_impl::Partition_impl()
       m_number(-1),
       m_se_private_id(INVALID_OBJECT_ID),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(NULL),
       m_parent(NULL),
       m_values(),
@@ -92,7 +88,7 @@ Partition_impl::Partition_impl(Table_impl *table)
       m_number(-1),
       m_se_private_id((ulonglong)-1),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(table),
       m_parent(NULL),
       m_values(),

@@ -88,19 +88,13 @@ class Sdi_wcontext;
 
 static const std::set<String_type> default_valid_option_keys = {"encryption"};
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // NDB keys:
-    "object_id", "object_version", "object_type",
-    // InnoDB keys:
-    "flags", "id", "server_version", "space_version", "state"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Tablespace_impl::Tablespace_impl()
     : m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_files() {} /* purecov: tested */
 
 Tablespace_impl::~Tablespace_impl() {}
