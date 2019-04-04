@@ -13096,6 +13096,69 @@ static bool transfer_preexisting_foreign_keys(
   return false;
 }
 
+/**
+  Check if the column being removed or renamed is in use by partitioning
+  function for the table and that the partitioning is kept/partitioning
+  function is unchanged by this ALTER TABLE, and report error if it is
+  the case.
+
+  @param table        TABLE object describing old table version.
+  @param field        Field object for column to be checked.
+  @param alter_info   Alter_info describing the ALTER TABLE.
+
+  @return
+    true     The field is used by partitioning function, error was reported.
+    false    Otherwise.
+
+*/
+static bool check_if_field_used_by_partitioning_func(
+    TABLE *table, const Field *field, const Alter_info *alter_info) {
+  partition_info *part_info = table->part_info;
+
+  // There is no partitioning function if table is not partitioned.
+  if (!part_info) return false;
+
+  // Check if column is not used by (sub)partitioning function.
+  if (!bitmap_is_set(&part_info->full_part_field_set, field->field_index))
+    return false;
+
+  /*
+    It is OK to rename/drop column that is used by old partitioning function
+    if partitioning is removed. It is also OK to do this if partitioning for
+    table is changed. The latter gives users a way to update partitioning
+    function after renaming/dropping columns. Data inconsistency doesn't
+    occur in this case as change of partitioning causes table rebuild.
+  */
+  if (alter_info->flags &
+      (Alter_info::ALTER_REMOVE_PARTITIONING | Alter_info::ALTER_PARTITION))
+    return false;
+
+  /*
+    We also allow renaming and dropping of columns used by partitioning
+    function when it is defined using PARTITION BY KEY () clause (notice
+    empty column list). In this case partitioning function is defined by
+    the primary key.
+    So partitioning function stays valid when column in the primary key is
+    renamed since the primary key is automagically adjusted in this case.
+    Dropping column is also acceptable, as this is handled as a change of
+    primary key (deletion of old one and addition of a new one) and storage
+    engines are supposed to handle this correctly (at least InnoDB does
+    thanks to fix for bug#20190520).
+
+    Note that we avoid complex checks and simple disallow renaming/dropping
+    of columns if table with PARTITION BY KEY() clause is also subpartitioned.
+    Subpartitioning by KEY always uses explicit column list so it is not safe
+    for renaming/dropping columns.
+  */
+  if (part_info->part_type == partition_type::HASH &&
+      part_info->list_of_part_fields && part_info->part_field_list.is_empty() &&
+      !part_info->is_sub_partitioned())
+    return false;
+
+  my_error(ER_DEPENDENT_BY_PARTITION_FUNC, MYF(0), field->field_name);
+  return true;
+}
+
 /// Set column default, drop default or rename column name.
 static bool alter_column_name_or_default(
     const Alter_info *alter_info,
@@ -13171,9 +13234,14 @@ static bool alter_column_name_or_default(
       /*
         If a generated column or a default expression is dependent
         on this column, this column cannot be renamed.
+
+        The same applies to case when this table is partitioned and
+        partitioning function is dependent on column being renamed.
       */
       if (check_if_field_used_by_generated_column_or_default(
-              def->field->table, def->field, alter_info))
+              def->field->table, def->field, alter_info) ||
+          check_if_field_used_by_partitioning_func(def->field->table,
+                                                   def->field, alter_info))
         DBUG_RETURN(true);
     } break;
 
@@ -13386,9 +13454,13 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         /*
           If a generated column or a default expression is dependent
           on this column, this column cannot be dropped.
+
+          The same applies to case when this table is partitioned and
+          we drop column used by partitioning function.
         */
         if (check_if_field_used_by_generated_column_or_default(table, field,
-                                                               alter_info))
+                                                               alter_info) ||
+            check_if_field_used_by_partitioning_func(table, field, alter_info))
           DBUG_RETURN(true);
 
         break;  // Column was found.
@@ -13418,13 +13490,16 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       /*
         If a generated column or a default expression is dependent
         on this column, this column cannot be renamed.
+
+        The same applies to case when this table is partitioned and
+        we rename column used by partitioning function.
       */
       if ((my_strcasecmp(system_charset_info, def->field_name, def->change) !=
            0) &&
-          check_if_field_used_by_generated_column_or_default(table, field,
-                                                             alter_info)) {
+          (check_if_field_used_by_generated_column_or_default(table, field,
+                                                              alter_info) ||
+           check_if_field_used_by_partitioning_func(table, field, alter_info)))
         DBUG_RETURN(true);
-      }
 
       /*
         Add column being updated to the list of new columns.

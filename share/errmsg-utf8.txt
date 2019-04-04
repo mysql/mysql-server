@@ -8900,6 +8900,9 @@ ER_INVALID_JSON_TYPE 22032
 ER_CANNOT_CONVERT_STRING
   eng "Cannot convert string '%.64s' from %s to %s"
 
+ER_DEPENDENT_BY_PARTITION_FUNC
+  eng "Column '%s' has a partitioning function dependency and cannot be dropped or renamed."
+
 #
 #  End of 8.0 error messages.
 #
