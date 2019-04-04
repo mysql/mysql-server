@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ ProcessLauncher::~ProcessLauncher() {
   if (is_alive) {
     try {
       close();
-    } catch (std::exception &e) {
+    } catch (const std::exception &e) {
       fprintf(stderr, "Can't stop the alive process %s: %s\n", cmd_line.c_str(),
               e.what());
     }
@@ -91,7 +91,7 @@ std::error_code ProcessLauncher::send_shutdown_event(
   }
 
   return ok ? std::error_code{}
-            : std::error_code(errno, std::system_category());
+            : std::error_code(errno, std::generic_category());
 #endif
 }
 
