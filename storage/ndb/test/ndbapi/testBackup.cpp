@@ -568,6 +568,19 @@ int runRestoreEpochFailOk(NDBT_Context* ctx, NDBT_Step* step){
 
   ndbout << "Restoring epoch from backup " << backupId << endl;
 
+  Ndb* pNdb = GETNDB(step);
+  const char* saveDb = pNdb->getDatabaseName();
+  pNdb->setDatabaseName("mysql");
+  const NdbDictionary::Table* apply_status_table =
+    pNdb->getDictionary()->getTable("ndb_apply_status");
+  pNdb->setDatabaseName(saveDb);
+
+  if (!apply_status_table)
+  {
+    g_err << "No mysql.ndb_apply_status table on this system,"
+          << " skipping epoch restore" << endl;
+    return NDBT_OK;
+  }
   if (backup.restore(backupId, false, false, 0, true) == -1)
   {
     ndbout << "Restoring epoch failed" << endl;
