@@ -5789,11 +5789,11 @@ String *Item_func_get_user_var::val_str(String *str) {
   if (res && !my_charset_same(res->charset(), collation.collation)) {
     String tmpstr;
     uint error;
-    if (tmpstr.copy(res->c_ptr(), res->length(), res->charset(),
+    if (tmpstr.copy(res->ptr(), res->length(), res->charset(),
                     collation.collation, &error) ||
         error > 0) {
       char tmp[32];
-      convert_to_printable(tmp, sizeof(tmp), res->c_ptr(), res->length(),
+      convert_to_printable(tmp, sizeof(tmp), res->ptr(), res->length(),
                            res->charset(), 6);
       my_error(ER_INVALID_CHARACTER_STRING, MYF(0), collation.collation->csname,
                tmp);
