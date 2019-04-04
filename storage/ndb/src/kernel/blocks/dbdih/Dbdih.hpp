@@ -1558,8 +1558,7 @@ private:
   void startGcpLab(Signal *);
   void checkGcpStopLab(Signal *);
   void MASTER_GCPhandling(Signal *, Uint32 failedNodeId);
-  void MASTER_LCPhandling(Signal *, Uint32 failedNodeId,
-                          bool lcp_already_completed = false);
+  void MASTER_LCPhandling(Signal *, Uint32 failedNodeId);
   void rnfTableNotReadyLab(Signal *, TabRecordPtr regTabPtr, Uint32 removeNodeId);
   void startLcpTakeOverLab(Signal *, Uint32 failedNodeId);
 
@@ -2770,6 +2769,7 @@ private:
   RedoStateRep::RedoAlertState m_global_redo_alert_state;
   RedoStateRep::RedoAlertState get_global_redo_alert_state();
   void sendREDO_STATE_REP_to_all(Signal*, Uint32 block, bool send_to_all);
+  bool m_master_lcp_req_lcp_already_completed;
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)
