@@ -25,6 +25,7 @@
 #ifndef NDB_SCHEMA_OBJECT_H
 #define NDB_SCHEMA_OBJECT_H
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <string>
@@ -70,6 +71,9 @@ class NDB_SCHEMA_OBJECT {
   // operation) a global id in combination with the nodeid of the node who
   // starts the schema operation
   const uint32 m_schema_op_id;
+
+  // Point in time when schema operation started
+  const std::chrono::steady_clock::time_point m_started;
 
   // State variables for the coordinator and client
   mutable struct State {
@@ -125,6 +129,8 @@ class NDB_SCHEMA_OBJECT {
   // Return current list of waiting participants as human readable string
   std::string waiting_participants_to_string() const;
 
+  std::string to_string(const char* line_separator = "\n") const;
+
   /**
      @brief Initialize the NDB_SCHEMA_OBJECT facility
 
@@ -177,6 +183,17 @@ class NDB_SCHEMA_OBJECT {
     @return nullptr if NDB_SCHEMA_OBJECT didn't exist
   */
   static NDB_SCHEMA_OBJECT *get(uint32 nodeid, uint32 schema_op_id);
+
+  /**
+    @brief Get NDB_SCHEMA_OBJECT by pointer to existing. Used to acquire another
+    reference.
+
+    @param schema_object Pointer to existing NDB_SCHEMA_OBHECT
+
+    @return pointer to existing NDB_SCHEMA_OBJECT
+  */
+  static NDB_SCHEMA_OBJECT *get(NDB_SCHEMA_OBJECT* schema_object);
+
 
   /**
      @brief Release NDB_SCHEMA_OBJECT which has been acquired with get()
@@ -236,6 +253,16 @@ class NDB_SCHEMA_OBJECT {
   bool check_for_failed_subscribers(
       const std::unordered_set<uint32> &new_subscribers, uint32 result,
       const char *message) const;
+
+  /**
+     @brief Check if schema operation has timed out and in such case mark all
+     participants which haven't already completed as timedout.
+     @param result The result to set on the participant
+     @param message The message to set on the participant
+     @return true if timeout occured (and all participants have completed)
+   */
+  bool check_timeout(int timeout_seconds, uint32 result,
+                     const char *message) const;
 
   /**
      @brief Wait until coordinator indicates that all participants has completed

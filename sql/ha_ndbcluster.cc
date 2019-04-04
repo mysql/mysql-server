@@ -19774,6 +19774,23 @@ static MYSQL_SYSVAR_BOOL(
     true  /* default */
 );
 
+int opt_ndb_schema_dist_timeout;
+static MYSQL_SYSVAR_INT(
+    schema_dist_timeout,              /* name */
+    opt_ndb_schema_dist_timeout,      /* var  */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+    "Controls how many seconds it takes before timeout is detected during "
+    "schema distribution. Timeout might indicate that activity on the other "
+    "MySQL Server(s) are high or are somehow prevented from acquiring the "
+    "necessary resources at this time.",
+    NULL,                             /* check func. */
+    NULL,                             /* update func. */
+    120,                              /* default */
+    5,                                /* min */
+    1200,                             /* max */
+    0                                 /* block */
+);
+
 static MYSQL_SYSVAR_STR(
   connectstring,                    /* name */
   opt_ndb_connectstring,            /* var */
@@ -19978,6 +19995,7 @@ static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(log_transaction_id),
   MYSQL_SYSVAR(clear_apply_status),
   MYSQL_SYSVAR(schema_dist_upgrade_allowed),
+  MYSQL_SYSVAR(schema_dist_timeout),
   MYSQL_SYSVAR(connectstring),
   MYSQL_SYSVAR(mgmd_host),
   MYSQL_SYSVAR(nodeid),
