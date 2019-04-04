@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -797,7 +797,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_DB_MAX_DML_OPERATIONS_PER_TRANSACTION,
     "MaxDMLOperationsPerTransaction",
     DB_TOKEN,
-    "Max DML-operations in one transaction (0 == no limit)",
+    "Max DML-operations in one transaction",
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
@@ -5357,6 +5357,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
 {
   bool ok = true;
 
+  Uint32 MaxDMLOperationsPerTransaction = ~Uint32(0);
   Uint32 MaxNoOfConcurrentIndexOperations = 0;
   Uint32 MaxNoOfConcurrentOperations = 0;
   Uint32 MaxNoOfConcurrentScans = 0;
@@ -5370,6 +5371,7 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
   Uint32 ReservedFiredTriggers = 0;
   Uint32 ReservedLocalScans = 0;
 
+  ctx.m_currentSection->get("MaxDMLOperationsPerTransaction", &MaxDMLOperationsPerTransaction);
   ctx.m_currentSection->get("MaxNoOfConcurrentIndexOperations", &MaxNoOfConcurrentIndexOperations);
   ctx.m_currentSection->get("MaxNoOfConcurrentOperations", &MaxNoOfConcurrentOperations);
   ctx.m_currentSection->get("MaxNoOfConcurrentScans", &MaxNoOfConcurrentScans);
@@ -5383,6 +5385,15 @@ checkDbConstraints(InitConfigFileParser::Context & ctx, const char *)
   ctx.m_currentSection->get("ReservedFiredTriggers", &ReservedFiredTriggers);
   ctx.m_currentSection->get("ReservedLocalScans", &ReservedLocalScans);
   
+  if (MaxDMLOperationsPerTransaction != ~Uint32(0) &&
+      MaxNoOfConcurrentOperations < MaxDMLOperationsPerTransaction)
+  {
+    ctx.reportError("MaxDMLOperationsPerTransaction must not be greater than "
+		    "MaxNoOfConcurrentOperations - [%s] starting at line: %d",
+		    ctx.fname, ctx.m_sectionLineno);
+    ok = false;
+  }
+
   if (MaxNoOfConcurrentOperations < MaxNoOfConcurrentTransactions)
   {
     ctx.reportError("MaxNoOfConcurrentOperations must be greater than "
