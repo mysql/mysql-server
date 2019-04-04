@@ -494,17 +494,31 @@ SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 
 #
+# Alter mysql.component only if it exists already.
+#
+
+SET @have_component= (select count(*) from information_schema.tables where table_schema='mysql' and table_name='component');
+
+# Change row format to DYNAMIC
+SET @cmd="ALTER TABLE component ROW_FORMAT=DYNAMIC";
+
+SET @str = IF(@have_component = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+#
 # Alter mysql.ndb_binlog_index only if it exists already.
 #
 
 SET @have_ndb_binlog_index= (select count(*) from information_schema.tables where table_schema='mysql' and table_name='ndb_binlog_index');
 
-# Change type from BIGINT to INT
+# Change type from BIGINT to INT and row format to DYNAMIC
 SET @cmd="ALTER TABLE ndb_binlog_index
   MODIFY inserts INT UNSIGNED NOT NULL,
   MODIFY updates INT UNSIGNED NOT NULL,
   MODIFY deletes INT UNSIGNED NOT NULL,
-  MODIFY schemaops INT UNSIGNED NOT NULL";
+  MODIFY schemaops INT UNSIGNED NOT NULL, ROW_FORMAT=DYNAMIC";
 
 SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -1109,5 +1123,35 @@ MODIFY Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.'
 ALTER TABLE procs_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
 MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+
+# Update the table row format to DYNAMIC
+ALTER TABLE columns_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE db ROW_FORMAT=DYNAMIC;
+ALTER TABLE default_roles ROW_FORMAT=DYNAMIC;
+ALTER TABLE engine_cost ROW_FORMAT=DYNAMIC;
+ALTER TABLE func ROW_FORMAT=DYNAMIC;
+ALTER TABLE global_grants ROW_FORMAT=DYNAMIC;
+ALTER TABLE gtid_executed ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_category ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_keyword ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_relation ROW_FORMAT=DYNAMIC;
+ALTER TABLE help_topic ROW_FORMAT=DYNAMIC;
+ALTER TABLE plugin ROW_FORMAT=DYNAMIC;
+ALTER TABLE password_history ROW_FORMAT=DYNAMIC;
+ALTER TABLE procs_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE proxies_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE role_edges ROW_FORMAT=DYNAMIC;
+ALTER TABLE servers ROW_FORMAT=DYNAMIC;
+ALTER TABLE server_cost ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_master_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_worker_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE slave_relay_log_info ROW_FORMAT=DYNAMIC;
+ALTER TABLE tables_priv ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_name ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_leap_second ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_transition ROW_FORMAT=DYNAMIC;
+ALTER TABLE time_zone_transition_type ROW_FORMAT=DYNAMIC;
+ALTER TABLE user ROW_FORMAT=DYNAMIC;
 
 SET @@session.sql_mode = @old_sql_mode;

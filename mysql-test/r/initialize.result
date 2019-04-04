@@ -103,6 +103,12 @@ a
 # delete temp keyring file
 # delete datadir
 #
+# Bug#29584642 DATABASE INITIALISATION FAILURE WITH INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
+#
+# The database initialization would fail without the fix.
+# delete mysqld log
+# delete datadir
+#
 # Cleanup
 #
 # Restarting the server
