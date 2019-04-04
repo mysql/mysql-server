@@ -265,10 +265,10 @@ void Recovery_module::leave_group_on_recovery_failure() {
   * Step 5: Notify the group that we are now online if no error occurred.
     This is done even if the member is alone in the group.
 
-  * Step 6: If an error occurred and recovery is impossible leave the group.
-    We leave the group but the plugin is left running.
+  * Step 6: Terminate the recovery thread.
 
-  * Step 7: Terminate the recovery thread.
+  * Step 7: If an error occurred and recovery is impossible leave the group.
+    We leave the group but the plugin is left running.
 */
 int Recovery_module::recovery_thread_handle() {
   DBUG_TRACE;
@@ -381,14 +381,6 @@ cleanup:
 
   /* Step 6 */
 
-  /*
-   If recovery failed, it's no use to continue in the group as the member cannot
-   take an active part in it, so it must leave.
-  */
-  if (error) {
-    leave_group_on_recovery_failure();
-  }
-
   stage_handler.end_stage();
   stage_handler.terminate_stage_monitor();
 #ifndef DBUG_OFF
@@ -397,8 +389,6 @@ cleanup:
     debug_sync_set_action(current_thd, STRING_WITH_LEN(act));
   });
 #endif  // DBUG_OFF
-
-  /* Step 7 */
 
   clean_recovery_thread_context();
 
@@ -409,6 +399,16 @@ cleanup:
   delete recovery_thd;
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
+
+  /* Step 7 */
+
+  /*
+   If recovery failed, it's no use to continue in the group as the member cannot
+   take an active part in it, so it must leave.
+  */
+  if (error) {
+    leave_group_on_recovery_failure();
+  }
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
