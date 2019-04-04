@@ -1,5 +1,6 @@
 --source include/big_test.inc
 --source include/not_valgrind.inc
+--source include/have_ssl.inc
 
 #mysql_upgrade test for user and priviledge tables.
 
@@ -145,7 +146,7 @@ connect (con0,localhost,root,,);
 --echo #Connecting user with pre 4.1 hash and empty plugin- should fail
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect (con1,localhost,user_old_pass_pn,lala,);
+connect (con1,localhost,user_old_pass_pn,lala,,,,SSL);
 
 --echo #Connecting user with pre 4.1 hash and mysql_old_password plugin set -
 --echo #should fail - the mysql_old_password was removed in 5.7
