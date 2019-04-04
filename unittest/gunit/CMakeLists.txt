@@ -487,11 +487,9 @@ IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS} SKIP_INSTALL)
   SET_TARGET_PROPERTIES(merge_large_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main binlog rpl master slave)
-  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(merge_large_tests-t
     gunit_large strings dbug mysys ${ICU_LIBRARIES})
-  TARGET_LINK_LIBRARIES(merge_large_tests-t
-    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
@@ -547,11 +545,9 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
   SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
-  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave sql_main)
-  TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
+  TARGET_LINK_LIBRARIES(${test}-t sql_main binlog rpl master slave)
+  TARGET_LINK_LIBRARIES(${test}-t sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
-  TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_main sql_dd sql_gis)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
