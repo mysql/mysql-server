@@ -547,8 +547,6 @@ void dict_table_close(dict_table_t *table, /*!< in/out: table */
     dict_stats_deinit(table);
   }
 
-  MONITOR_DEC(MONITOR_TABLE_REFERENCE);
-
   if (!dict_locked) {
     table_id_t table_id = table->id;
 
@@ -1116,8 +1114,6 @@ dict_table_t *dict_table_open_on_name(
     }
 
     table->acquire();
-
-    MONITOR_INC(MONITOR_TABLE_REFERENCE);
   }
 
   ut_ad(dict_lru_validate());
