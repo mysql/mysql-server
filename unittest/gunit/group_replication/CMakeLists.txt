@@ -45,6 +45,7 @@ FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t
     gr_unit_test_resource gunit_small ${GCS_LIBRARY})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t mysqlclient)
 ENDFOREACH()
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@ FOREACH(test ${TESTS})
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugin_output_directory
     ADD_TEST ${test}
   )
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t
     ${CMAKE_THREAD_LIBS_INIT} gunit_small component_mysql_server)
 ENDFOREACH()

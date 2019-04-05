@@ -1,4 +1,4 @@
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,5 +25,6 @@ MYSQL_ADD_EXECUTABLE(ddl_rewriter-t
     ${CMAKE_SOURCE_DIR}/plugin/ddl_rewriter/ddl_rewriter.cc
     ADD_TEST ddl_rewriter-t
 )
+SET_TARGET_PROPERTIES(ddl_rewriter-t PROPERTIES ENABLE_EXPORTS TRUE)
 TARGET_LINK_LIBRARIES(ddl_rewriter-t gunit_small)
 

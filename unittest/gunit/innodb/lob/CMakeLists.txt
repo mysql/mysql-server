@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,13 +52,30 @@ SET(PLOB_SRC_FILES
   lob0int.cc)
 
 ADD_EXECUTABLE(lot0lot-t ${PLOB_SRC_FILES})
-ADD_EXECUTABLE(ut0plist-t ut0plist.cc lot0plist.h mtr0log.cc lot0buf.cc ut0dbg.cc)
-ADD_EXECUTABLE(ut0frags-t ut0frags.cc mtr0log.cc ut0dbg.cc lot0buf.cc fut0lst.cc zlob0int.cc fil0fil.cc)
+ADD_EXECUTABLE(ut0plist-t
+  lot0buf.cc
+  mtr0log.cc
+  ut0dbg.cc
+  ut0plist.cc
+  )
+ADD_EXECUTABLE(ut0frags-t
+  fil0fil.cc
+  fut0lst.cc
+  lot0buf.cc
+  mtr0log.cc
+  ut0dbg.cc
+  ut0frags.cc
+  zlob0int.cc
+  )
 ADD_EXECUTABLE(zlob0int-t ${ZLOB_SRC_FILES})
 
 TARGET_LINK_LIBRARIES(zlob0int-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
 TARGET_LINK_LIBRARIES(lot0lot-t ${ZLIB_LIBRARY} ${GTEST_LIBRARIES} gunit_small)
 TARGET_LINK_LIBRARIES(ut0frags-t ${ZLIB_LIBRARY})
+
+# These executables get their main() from gunit_small, and have stack trace.
+SET_TARGET_PROPERTIES(lot0lot-t PROPERTIES ENABLE_EXPORTS TRUE)
+SET_TARGET_PROPERTIES(zlob0int-t PROPERTIES ENABLE_EXPORTS TRUE)
 
 # Don't run these by default, run manually
 # ADD_TEST(lot0lot  lot0lot-t)
