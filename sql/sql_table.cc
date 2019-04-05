@@ -8357,6 +8357,18 @@ static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
   return false;
 }
 
+static void warn_on_deprecated_float_auto_increment(
+    THD *thd, const Create_field &sql_field) {
+  if ((sql_field.flags & AUTO_INCREMENT_FLAG) &&
+      (sql_field.sql_type == MYSQL_TYPE_FLOAT ||
+       sql_field.sql_type == MYSQL_TYPE_DOUBLE)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_FLOAT_AUTO_INCREMENT,
+                        ER_THD(thd, ER_WARN_DEPRECATED_FLOAT_AUTO_INCREMENT),
+                        sql_field.field_name);
+  }
+}
+
 /**
   Simple wrapper around create_table_impl() to be used
   in various version of CREATE TABLE statement.
@@ -8452,6 +8464,10 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
         }
       }
     }
+  }
+
+  for (const Create_field &sql_field : alter_info->create_list) {
+    warn_on_deprecated_float_auto_increment(thd, sql_field);
   }
 
   if (thd->is_plugin_fake_ddl()) no_ha_table = true;
@@ -13557,6 +13573,8 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
                table->s->table_name.str);
       DBUG_RETURN(true);
     }
+
+    warn_on_deprecated_float_auto_increment(thd, *def);
 
     /*
       If this ALTER TABLE doesn't have an AFTER clause for the modified
