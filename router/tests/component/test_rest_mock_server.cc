@@ -118,7 +118,7 @@ class RestMockServerScriptTest : public RestMockServerTest {
 
     const std::string http_hostname{"127.0.0.1"};
 
-    EXPECT_TRUE(wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT))
+    EXPECT_TRUE(wait_for_port_ready(server_port_))
         << server_mock_.get_full_output();
   }
 
@@ -323,7 +323,7 @@ TEST_F(RestMockServerRestServerMockTest, unknown_url_fails) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for HTTP server listening");
-  ASSERT_TRUE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT))
+  ASSERT_TRUE(wait_for_port_ready(http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -976,7 +976,7 @@ TEST_P(RestMockServerConnectThrowsTest, js_test_stmts_is_string) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
+  EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
   mysqlrouter::MySQLSession client;
@@ -1027,7 +1027,7 @@ TEST_P(RestMockServerScriptsThrowsTest, scripts_throws) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
+  EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
   mysqlrouter::MySQLSession client;
@@ -1077,7 +1077,7 @@ TEST_P(RestMockServerScriptsWorkTest, scripts_work) {
   std::string http_hostname = "127.0.0.1";
   std::string http_uri = kMockServerGlobalsRestUri;
 
-  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
+  EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
   mysqlrouter::MySQLSession client;

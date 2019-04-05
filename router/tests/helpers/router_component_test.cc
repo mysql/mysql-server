@@ -162,7 +162,7 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
     const std::string &command, const std::string &params,
     bool catch_stderr) const {
   auto params_vec = split_str(params, ' ');
-  const char *params_arr[MAX_PARAMS];
+  const char *params_arr[kMaxLaunchedProcessParams];
   get_params(command, params_vec, params_arr);
 
   if (command.empty())
@@ -173,7 +173,7 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
 RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     bool catch_stderr) const {
-  const char *params_arr[MAX_PARAMS];
+  const char *params_arr[kMaxLaunchedProcessParams];
   get_params(command, params, params_arr);
 
   if (command.empty())
@@ -312,14 +312,14 @@ std::string RouterComponentTest::get_tmp_dir(const std::string &name) {
   return mysql_harness::get_tmp_dir(name);
 }
 
-void RouterComponentTest::get_params(const std::string &command,
-                                     const std::vector<std::string> &params_vec,
-                                     const char *out_params[MAX_PARAMS]) const {
+void RouterComponentTest::get_params(
+    const std::string &command, const std::vector<std::string> &params_vec,
+    const char *out_params[kMaxLaunchedProcessParams]) const {
   out_params[0] = command.c_str();
 
   size_t i = 1;
   for (const auto &par : params_vec) {
-    if (i >= MAX_PARAMS - 1) {
+    if (i >= kMaxLaunchedProcessParams - 1) {
       throw std::runtime_error("Too many parameters passed to the MySQLRouter");
     }
     out_params[i++] = par.c_str();

@@ -45,9 +45,9 @@ using mysql_harness::Path;
 
 /** @brief maximum number of parameters that can be passed to the launched
  * process */
-const size_t MAX_PARAMS{30};
+const size_t kMaxLaunchedProcessParams{30};
 
-constexpr unsigned DEFAULT_PORT_WAIT{5000};
+constexpr unsigned kDefaultPortReadyTimeout{5000};
 
 /** @class RouterComponentTest
  *
@@ -408,7 +408,8 @@ class RouterComponentTest {
    *
    * @returns true if the selected port accepts connections, false otherwise
    */
-  bool wait_for_port_ready(unsigned port, unsigned timeout_msec,
+  bool wait_for_port_ready(unsigned port,
+                           unsigned timeout_msec = kDefaultPortReadyTimeout,
                            const std::string &hostname = "127.0.0.1") const;
 
   /** @brief Gets path to the directory containing testing data
@@ -526,7 +527,7 @@ class RouterComponentTest {
  private:
   void get_params(const std::string &command,
                   const std::vector<std::string> &params_vec,
-                  const char *out_params[MAX_PARAMS]) const;
+                  const char *out_params[kMaxLaunchedProcessParams]) const;
 
   bool real_find_in_file(
       const std::string &file_path,

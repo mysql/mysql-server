@@ -1,3 +1,4 @@
+
 /*
   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
@@ -40,7 +41,7 @@
 
 #include "config_builder.h"
 
-static const std::chrono::milliseconds kMaxRestEndpointWaitTime{1000};
+static const std::chrono::milliseconds kMaxRestEndpointWaitTime{5000};
 static const std::chrono::milliseconds kMaxRestEndpointStepTime{50};
 
 static const std::chrono::milliseconds kMaxRestEndpointNotAvailableCheckTime{

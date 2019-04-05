@@ -327,7 +327,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
       &default_section_)};
 
   // delay the wait until we really need it.
-  ASSERT_TRUE(wait_for_port_ready(metadata_server_port_, 1000))
+  ASSERT_TRUE(wait_for_port_ready(metadata_server_port_, 5000))
       << md_server.get_full_output();
   CommandHandle router_proc{launch_router({"-c", conf_file})};
 

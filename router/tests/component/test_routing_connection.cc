@@ -125,6 +125,7 @@ class ConfigGenerator {
         "\n"
         "user=mysql_router1_user\n"
         "metadata_cluster=test\n"
+        "connect_timeout=1\n"
         "ttl=" +
         std::to_string(ttl.count() / 1000.0) + "\n\n";
   }
@@ -371,8 +372,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     }
 
     for (unsigned ndx = 0; ndx < number_of_servers; ++ndx) {
-      ASSERT_TRUE(
-          wait_for_port_ready(cluster_nodes_ports_[ndx], DEFAULT_PORT_WAIT))
+      ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx]))
           << cluster_nodes_.at(ndx).get_full_output();
     }
     ASSERT_TRUE(
@@ -382,9 +382,9 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
   TcpPortPool port_pool_;
   std::chrono::milliseconds metadata_refresh_ttl_{100};
   std::chrono::milliseconds wait_for_cache_ready_timeout{
-      metadata_refresh_ttl_ + std::chrono::milliseconds(100)};
+      metadata_refresh_ttl_ + std::chrono::milliseconds(5000)};
   std::chrono::milliseconds wait_for_cache_update_timeout{
-      metadata_refresh_ttl_ * 3};
+      metadata_refresh_ttl_ * 20};
   std::unique_ptr<ConfigGenerator> config_generator_;
   std::string temp_test_dir_;
   std::string temp_conf_dir_;
@@ -446,15 +446,13 @@ TEST_F(RouterRoutingConnectionTest, OldSchemaVersion) {
                                          json_for_primary, http_port_primary));
 
   SCOPED_TRACE("// [prep] wait until mock-servers are started");
-  ASSERT_TRUE(
-      wait_for_port_ready(cluster_nodes_ports_.at(0), DEFAULT_PORT_WAIT))
+  ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_.at(0)))
       << cluster_nodes_.at(0).get_full_output();
 
   SCOPED_TRACE("// [prep] launching router");
   auto router = launch_router(
       router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   SCOPED_TRACE("// [prep] waiting " +
                std::to_string(wait_for_cache_ready_timeout.count()) +
@@ -510,7 +508,7 @@ TEST_F(RouterRoutingConnectionTest,
       "&disconnect_on_promoted_to_primary=bogus");
   auto router = RouterComponentTest::launch_router(
       "-c " + config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_FALSE(wait_for_port_ready(router_ro_port_, DEFAULT_PORT_WAIT))
+  ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }
 
@@ -527,7 +525,7 @@ TEST_F(RouterRoutingConnectionTest,
       "&disconnect_on_metadata_unavailable=bogus");
   auto router = RouterComponentTest::launch_router(
       "-c " + config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_FALSE(wait_for_port_ready(router_ro_port_, DEFAULT_PORT_WAIT))
+  ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }
 
@@ -573,8 +571,7 @@ TEST_F(RouterRoutingConnectionTest,
 
   SCOPED_TRACE("// wait until mock-servers are started");
   for (unsigned ndx = 0; ndx < 4; ndx++) {
-    ASSERT_TRUE(
-        wait_for_port_ready(cluster_nodes_ports_[ndx], DEFAULT_PORT_WAIT))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports_[ndx]))
         << cluster_nodes_.at(ndx).get_full_output();
   }
   ASSERT_TRUE(
@@ -583,8 +580,7 @@ TEST_F(RouterRoutingConnectionTest,
   SCOPED_TRACE("// launching router");
   auto router = launch_router(
       router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   SCOPED_TRACE("// waiting " +
                std::to_string(wait_for_cache_ready_timeout.count()) +
@@ -651,8 +647,8 @@ TEST_F(RouterRoutingConnectionTest,
 
   auto router = launch_router(
       router_rw_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -710,8 +706,7 @@ TEST_F(RouterRoutingConnectionTest, IsRWConnectionsClosedWhenPrimaryFailover) {
       setup_cluster("metadata_3_secondaries_primary_failover.js", 4));
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -765,8 +760,8 @@ TEST_F(RouterRoutingConnectionTest, IsROConnectionsKeptWhenPrimaryFailover) {
   auto router =
       launch_router(router_ro_port_,
                     config_generator_->build_config_file(temp_test_dir_, true));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -830,8 +825,8 @@ TEST_P(RouterRoutingConnectionPromotedTest,
 
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -898,8 +893,7 @@ TEST_F(RouterRoutingConnectionTest,
 
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_ro_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -960,8 +954,7 @@ TEST_F(RouterRoutingConnectionTest,
 
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_ro_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -1058,8 +1051,7 @@ TEST_F(RouterRoutingConnectionTest, IsConnectionClosedWhenClusterOverloaded) {
 
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_ro_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -1134,8 +1126,8 @@ TEST_P(RouterRoutingConnectionMDUnavailableTest,
   config_generator_->disconnect_on_promoted_to_primary(GetParam());
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized
@@ -1247,8 +1239,8 @@ TEST_P(RouterRoutingConnectionMDRefreshTest,
       "&disconnect_on_metadata_unavailable=yes");
   auto router = launch_router(
       router_ro_port_, config_generator_->build_config_file(temp_test_dir_));
-  ASSERT_TRUE(wait_for_port_ready(router_rw_port_, DEFAULT_PORT_WAIT))
-      << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_rw_port_)) << router.get_full_output();
+  ASSERT_TRUE(wait_for_port_ready(router_ro_port_)) << router.get_full_output();
 
   /*
    * wait until metadata is initialized

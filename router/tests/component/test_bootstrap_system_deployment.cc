@@ -62,7 +62,7 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port_);
-    EXPECT_TRUE(wait_for_port_ready(server_port_, DEFAULT_PORT_WAIT))
+    EXPECT_TRUE(wait_for_port_ready(server_port_))
         << "Timed out waiting for mock server port ready\n"
         << server_mock.get_full_output();
     return server_mock;
@@ -83,6 +83,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   // launch the router in bootstrap mode
   auto router =
       launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
+                    " --connect-timeout=1"
                     " --report-host dont.query.dns");
 
   // add login hook
@@ -117,6 +118,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   // launch the router in bootstrap mode
   auto router =
       launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
+                    " --connect-timeout=1"
                     " --report-host dont.query.dns");
 
   // add login hook
@@ -153,6 +155,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   // launch the router in bootstrap mode
   auto router =
       launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
+                    " --connect-timeout=1"
                     " --report-host dont.query.dns");
 
   // add login hook
@@ -200,6 +203,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   // launch the router in bootstrap mode
   auto router =
       launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
+                    " --connect-timeout=1"
                     " --report-host dont.query.dns");
 
   // add login hook
@@ -243,6 +247,7 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   // launch the router in bootstrap mode
   auto router =
       launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
+                    " --connect-timeout=1"
                     " --report-host dont.query.dns");
 
   // add login hook

@@ -105,7 +105,7 @@ TEST_F(MockServerCLITest, http_port_too_large) {
                      std::vector<std::string>{"--http-port=65536"}, true);
 
   SCOPED_TRACE("// wait for exit");
-  EXPECT_NO_THROW(EXPECT_NE(cmd.wait_for_exit(1000),
+  EXPECT_NO_THROW(EXPECT_NE(cmd.wait_for_exit(5000),
                             0));  // should be quick, and return failure (255)
   SCOPED_TRACE("// checking stdout contains errormsg");
   EXPECT_THAT(cmd.get_full_output(), ::testing::HasSubstr("was '65536'"));
@@ -127,7 +127,7 @@ TEST_F(MockServerCLITest, fail_on_no_more_stmts) {
   SCOPED_TRACE("// start mock");
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
 
-  EXPECT_TRUE(wait_for_port_ready(server_port, DEFAULT_PORT_WAIT))
+  EXPECT_TRUE(wait_for_port_ready(server_port))
       << server_mock.get_full_output();
 
   mysqlrouter::MySQLSession client;

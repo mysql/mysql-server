@@ -195,6 +195,7 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
         << get_router_log_output();
   }
 
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }

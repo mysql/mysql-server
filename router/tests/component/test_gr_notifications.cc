@@ -96,6 +96,7 @@ class GrNotificationsTest : public RouterComponentTest {
            "router_id=1\n"
            "user=mysql_router1_user\n"
            "metadata_cluster=test\n"
+           "connect_timeout=1\n"
            "use_gr_notifications=" +
            use_gr_notifications + "\n" + "ttl=" + ttl_str + "\n\n";
   }
@@ -230,10 +231,11 @@ class GrNotificationsTest : public RouterComponentTest {
   int get_ttl_queries_count(const std::string &json_string) {
     rapidjson::Document json_doc;
     json_doc.Parse(json_string.c_str());
-    EXPECT_TRUE(json_doc.HasMember("md_query_count"));
-    EXPECT_TRUE(json_doc["md_query_count"].IsInt());
-
-    return json_doc["md_query_count"].GetInt();
+    if (json_doc.HasMember("md_query_count")) {
+      EXPECT_TRUE(json_doc["md_query_count"].IsInt());
+      return json_doc["md_query_count"].GetInt();
+    }
+    return 0;
   }
 
   std::string create_state_file(const std::string &dir,
@@ -326,9 +328,9 @@ TEST_P(GrNotificationsParamTest, GrNotification) {
     cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i],
         cluster_nodes_xports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 1000))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
         << cluster_nodes[i].get_full_output();
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_xports[i], 1000))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_xports[i], 5000))
         << cluster_nodes[i].get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
@@ -419,7 +421,7 @@ INSTANTIATE_TEST_CASE_P(
         // 2) 3 notifications; 2 have different view id this time so the
         // refresh should be triggered twice
         GrNotificationsTestParams(
-            1500ms, 2,
+            2000ms, 2,
             {{100ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
@@ -427,14 +429,14 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {200ms,
+             {400ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
                   GroupReplicationStateChanged_Type_MEMBER_STATE_CHANGE,
               "abcdefg",
               {0}},
-             {300ms,
+             {700ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -461,7 +463,7 @@ INSTANTIATE_TEST_CASE_P(
                   GroupReplicationStateChanged_Type_MEMBERSHIP_VIEW_CHANGE,
               "abcdefg",
               {0}},
-             {100ms,
+             {500ms,
               Mysqlx::Notice::Frame::GROUP_REPLICATION_STATE_CHANGED,
               true,
               Mysqlx::Notice::
@@ -506,7 +508,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationNoXPort) {
   for (unsigned i = 0; i < CLUSTER_NODES; ++i) {
     cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 1000))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
         << cluster_nodes[i].get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())
@@ -590,7 +592,7 @@ TEST_F(GrNotificationsTestNoParam, GrNotificationXPortConnectionFailure) {
     cluster_nodes.push_back(RouterComponentTest::launch_mysql_server_mock(
         trace_file, cluster_nodes_ports[i], false, cluster_http_ports[i],
         cluster_nodes_xports[i]));
-    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 1000))
+    ASSERT_TRUE(wait_for_port_ready(cluster_nodes_ports[i], 5000))
         << cluster_nodes[i].get_full_output();
     ASSERT_TRUE(MockServerRestClient(cluster_http_ports[i])
                     .wait_for_rest_endpoint_ready())

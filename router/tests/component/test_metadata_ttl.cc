@@ -58,6 +58,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
            "bootstrap_server_addresses=mysql://localhost:" +
            std::to_string(metadata_server_port) + "\n" +
            "user=mysql_router1_user\n"
+           "connect_timeout=1\n"
            "metadata_cluster=test\n" +
            (ttl.empty() ? "" : std::string("ttl=" + ttl + "\n")) + "\n";
   }
@@ -207,7 +208,7 @@ TEST_P(MetadataChacheTTLTestParam, CheckTTLValid) {
 
   auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
                                                   false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, DEFAULT_PORT_WAIT);
+  bool ready = wait_for_port_ready(md_server_port);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
@@ -282,7 +283,7 @@ TEST_P(MetadataChacheTTLTestParamInvalid, CheckTTLInvalid) {
 
   auto metadata_server = launch_mysql_server_mock(json_metadata, md_server_port,
                                                   false, md_server_http_port);
-  bool ready = wait_for_port_ready(md_server_port, DEFAULT_PORT_WAIT);
+  bool ready = wait_for_port_ready(md_server_port);
   EXPECT_TRUE(ready) << metadata_server.get_full_output();
 
   // launch the router with metadata-cache configuration
