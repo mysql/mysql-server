@@ -67,6 +67,14 @@ TlsServerContext::TlsServerContext(TlsVersion min_ver, TlsVersion max_ver)
   version_range(min_ver, max_ver);
 #if OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 2)
   SSL_CTX_set_ecdh_auto(ssl_ctx_.get(), 1);
+#elif OPENSSL_VERSION_NUMBER >= ROUTER_OPENSSL_VERSION(1, 0, 1)
+  // openssl 1.0.1 has no ecdh_auto(), and needs an explicit EC curve set
+  // to make ECDHE ciphers work out of the box.
+  {
+    std::unique_ptr<EC_KEY, decltype(&EC_KEY_free)> curve(
+        EC_KEY_new_by_curve_name(NID_X9_62_prime256v1), &EC_KEY_free);
+    if (curve) SSL_CTX_set_tmp_ecdh(ssl_ctx_.get(), curve.get());
+  }
 #endif
   SSL_CTX_set_options(ssl_ctx_.get(), SSL_OP_NO_COMPRESSION);
   cipher_list("ALL");  // ALL - unacceptable ciphers
