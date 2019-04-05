@@ -50,6 +50,7 @@ IF (MERGE_UNITTESTS)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
     ADD_TEST merge_innodb_tests)
+  SET_TARGET_PROPERTIES(merge_innodb_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd)
@@ -77,6 +78,7 @@ FOREACH(test ${TESTS})
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_gis sql_dd)

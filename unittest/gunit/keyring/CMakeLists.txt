@@ -76,6 +76,8 @@ ADD_DEPENDENCIES(keyring_test GenError)
 IF (MERGE_UNITTESTS)
   MYSQL_ADD_EXECUTABLE(merge_keyring_file_tests-t
     ${ALL_KEYRING_TESTS} SKIP_INSTALL)
+  SET_TARGET_PROPERTIES(merge_keyring_file_tests-t
+    PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t keyring_test)
 
   TARGET_LINK_LIBRARIES(merge_keyring_file_tests-t
@@ -105,6 +107,7 @@ ENDIF(MERGE_UNITTESTS)
 
 FOREACH(test ${TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
   TARGET_LINK_LIBRARIES(${test}-t keyring_test)
 
   TARGET_LINK_LIBRARIES(${test}-t

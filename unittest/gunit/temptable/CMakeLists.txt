@@ -43,6 +43,7 @@ IF (MERGE_UNITTESTS)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
     ADD_TEST merge_temptable_tests)
+  SET_TARGET_PROPERTIES(merge_temptable_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(merge_temptable_tests-t
     sql_main binlog rpl master slave sql_gis sql_dd)
@@ -70,6 +71,7 @@ FOREACH(test ${TESTS})
   ENDIF()
 
   MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES} SKIP_INSTALL ${EXCLUDE_FROM_ALL})
+  SET_TARGET_PROPERTIES(${test}-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(${test}-t
     sql_main binlog rpl master slave sql_gis sql_dd)
