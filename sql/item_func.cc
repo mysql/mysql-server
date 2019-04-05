@@ -1901,11 +1901,10 @@ longlong Item_func_mul::int_op() {
   longlong b = args[1]->val_int();
   longlong res;
   ulonglong res0, res1;
-  ulong a0, a1, b0, b1;
-  bool res_unsigned = false;
-  bool a_negative = false, b_negative = false;
 
   if ((null_value = args[0]->null_value || args[1]->null_value)) return 0;
+
+  if (a == 0 || b == 0) return 0;
 
   /*
     First check whether the result can be represented as a
@@ -1925,20 +1924,36 @@ longlong Item_func_mul::int_op() {
     Since we also have to take the unsigned_flag for a and b into account,
     it is easier to first work with absolute values and set the
     correct sign later.
+
+    We handle INT_MIN64 == -9223372036854775808 specially first,
+    to avoid UBSAN warnings.
   */
-  if (!args[0]->unsigned_flag && a < 0) {
-    a_negative = true;
+  const bool a_negative = (!args[0]->unsigned_flag && a < 0);
+  const bool b_negative = (!args[1]->unsigned_flag && b < 0);
+
+  const bool res_unsigned = (a_negative == b_negative);
+
+  if (a_negative && a == INT_MIN64) {
+    if (b == 1) return check_integer_overflow(a, res_unsigned);
+    return raise_integer_overflow();
+  }
+
+  if (b_negative && b == INT_MIN64) {
+    if (a == 1) return check_integer_overflow(b, res_unsigned);
+    return raise_integer_overflow();
+  }
+
+  if (a_negative) {
     a = -a;
   }
-  if (!args[1]->unsigned_flag && b < 0) {
-    b_negative = true;
+  if (b_negative) {
     b = -b;
   }
 
-  a0 = 0xFFFFFFFFUL & a;
-  a1 = ((ulonglong)a) >> 32;
-  b0 = 0xFFFFFFFFUL & b;
-  b1 = ((ulonglong)b) >> 32;
+  ulong a0 = 0xFFFFFFFFUL & a;
+  ulong a1 = ((ulonglong)a) >> 32;
+  ulong b0 = 0xFFFFFFFFUL & b;
+  ulong b1 = ((ulonglong)b) >> 32;
 
   if (a1 && b1) goto err;
 
@@ -1954,8 +1969,7 @@ longlong Item_func_mul::int_op() {
   if (a_negative != b_negative) {
     if ((ulonglong)res > (ulonglong)LLONG_MAX) goto err;
     res = -res;
-  } else
-    res_unsigned = true;
+  }
 
   return check_integer_overflow(res, res_unsigned);
 
