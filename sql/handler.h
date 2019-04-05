@@ -2537,6 +2537,16 @@ static const uint32 HTON_FKS_WITH_ANY_PREFIX_SUPPORTING_KEYS = (1 << 2);
 static const uint32 HTON_FKS_NEED_DIFFERENT_PARENT_AND_SUPPORTING_KEYS =
     (1 << 3);
 
+/**
+  Engine takes into account hidden part of key (coming from primary key)
+  when determines if it can serve as parent key for a foreign key.
+
+  Implies HTON_FKS_WITH_PREFIX_PARENT_KEYS and is related to
+  HTON_SUPPORTS_EXTENDED_KEYS.
+*/
+
+static const uint32 HTON_FKS_WITH_EXTENDED_PARENT_KEYS = (1 << 4);
+
 enum enum_tx_isolation : int {
   ISO_READ_UNCOMMITTED,
   ISO_READ_COMMITTED,

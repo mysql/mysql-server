@@ -4587,3 +4587,108 @@ child	CREATE TABLE `child` (
   CONSTRAINT `child_ibfk_2` FOREIGN KEY (`uncle_id`) REFERENCES `uncle` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLES child, parent, uncle;
+#
+# Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY
+#                CONSTRAINT. MISSING INDEX FOR CONSTR".
+#
+# When InnoDB SE checks if a key can serve as a parent key for a foreign
+# key it takes into account columns from hidden part of the key. This
+# hidden part consists of primary key columns which are implicitly
+# added by InnoDB to non-primary keys.
+#
+# See dd_upgrade_test test for coverage of upgrade process for such
+# foreign keys.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, b INT, KEY(a), UNIQUE(b));
+# This works both for non-unique and unique keys.
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk));
+DROP TABLES child1, child2;
+# This also works when foreign keys are added by ALTER TABLE.
+CREATE TABLE child1 (fk1 INT, fk2 INT);
+ALTER TABLE child1 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk);
+CREATE TABLE child2 (fk1 INT, fk2 INT);
+ALTER TABLE child2 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk);
+DROP TABLES child1, child2, parent;
+# And for complex multi-column cases too.
+CREATE TABLE parent (a INT, b INT, c INT, PRIMARY KEY (a,b), KEY(c, a));
+CREATE TABLE child (fk1 INT, fk2 INT, fk3 INT, FOREIGN KEY (fk1, fk2, fk3) REFERENCES parent (c, a, b));
+DROP TABLES child, parent;
+# Moreover, this works for keys which are promoted to primary.
+CREATE TABLE parent (u INT NOT NULL, a INT, b INT, UNIQUE(u), KEY(a), UNIQUE(b));
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, u));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, u));
+DROP TABLES child1, child2, parent;
+# Also works correctly when parent table is altered.
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, KEY k1(a, pk), UNIQUE k2(a));
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+ALTER TABLE parent DROP KEY k1;
+DROP TABLES child, parent;
+# And when we add parent table to previously orphan foreign key.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk1 INT, fk2 INT, CONSTRAINT c FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, UNIQUE ua(a));
+SELECT constraint_name, unique_constraint_name FROM information_schema.referential_constraints
+WHERE constraint_schema='test' AND constraint_name='c';
+CONSTRAINT_NAME	UNIQUE_CONSTRAINT_NAME
+c	ua
+DROP TABLES child, parent;
+# However, columns which are implicitly added by InnoDB as hidden
+# elements to the primary key are not considered when searching for
+# parent key (because primary key contains hidden system DB_TRX_ID,
+# DB_ROLL_PTR columns before hidden normal columns).
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (pk, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+# Hidden parts which are column prefixes (because primary key has prefix
+# parts [sic!]) are not allowed as parent key parts.
+CREATE TABLE parent (a CHAR(10), b int, KEY(b), PRIMARY KEY (a(5)));
+CREATE TABLE child (fk1 int, fk2 CHAR(10), FOREIGN KEY (fk1, fk2) REFERENCES parent (b, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+# Moreover, even hidden parts for full columns are not allowed if
+# primary key contains prefix parts. This was supported in 5.7.
+CREATE TABLE parent (a INT, b CHAR(10), c int, KEY(c), PRIMARY KEY (a, b(5)));
+CREATE TABLE child (fk1 int, fk2 int, FOREIGN KEY (fk1, fk2) REFERENCES parent (c, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+DROP TABLE parent;
+#
+# Now similar tests for self-referencing foreign keys.
+#
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+KEY(a), FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk));
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT,
+UNIQUE(b), FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk));
+DROP TABLES self1, self2;
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT, KEY(a));
+ALTER TABLE self1 ADD FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk);
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT, UNIQUE(b));
+ALTER TABLE self2 ADD FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk);
+DROP TABLES self1, self2;
+# Test for complex multi-column case.
+CREATE TABLE self (a INT, b INT, c INT, fk1 INT, fk2 INT, fk3 INT,
+PRIMARY KEY (a,b), KEY(c, a),
+FOREIGN KEY (fk1, fk2, fk3) REFERENCES self (c, a, b));
+DROP TABLE self;
+# Test for removing parent key.
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+KEY k1(a, pk), UNIQUE k2(a),
+FOREIGN KEY (fk1, fk2) REFERENCES self (a, pk));
+ALTER TABLE self DROP KEY k1;
+DROP TABLE self;
+# But again this is not supposed to work for hidden columns added to
+# primary key.
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+FOREIGN KEY (fk1, fk2) REFERENCES self (pk, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Hidden parts which are column prefixes should not work.
+CREATE TABLE self (a CHAR(10), b int, fk1 int, fk2 CHAR(10), KEY(b),
+PRIMARY KEY (a(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (b, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Hidden parts for full columns are not allowed either if
+# primary key contains prefix parts. This was supported in 5.7.
+CREATE TABLE self (a INT, b CHAR(10), c int, fk1 int, fk2 int, KEY(c),
+PRIMARY KEY (a, b(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (c, a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'

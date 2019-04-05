@@ -644,6 +644,11 @@ def	foreign_keys	t5_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	SET NULL	t5	t1
 def	foreign_keys	t6_ibfk_1	def	foreign_keys	PRIMARY	NONE	CASCADE	CASCADE	t6	t1
 def	foreign_keys	t7_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	RESTRICT	t7	t1
 def	foreign_keys	t8_ibfk_1	def	foreign_keys	PRIMARY	NONE	RESTRICT	CASCADE	t8	t2
+def	foreign_keys	ta_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	ta	t9
+def	foreign_keys	tb_ibfk_1	def	foreign_keys	b	NONE	RESTRICT	RESTRICT	tb	t9
+def	foreign_keys	td_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	td	tc
+def	foreign_keys	te_ibfk_1	def	foreign_keys	NULL	NONE	RESTRICT	RESTRICT	te	te
+def	foreign_keys	tf_ibfk_1	def	foreign_keys	b	NONE	RESTRICT	RESTRICT	tf	tf
 # Check that views with column names are correct
 SHOW CREATE VIEW view_with_column_names.v1;
 View	Create View	character_set_client	collation_connection
@@ -674,6 +679,75 @@ def	view_with_column_names	v2	e	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int
 def	view_with_column_names	v2	f	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	view_with_column_names	v3	x	1	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	view_with_column_names	v3	y	2	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
+# Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
+# MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
+# of coverage resides in foreign_key test.
+SHOW CREATE TABLE foreign_keys.t9;
+Table	Create Table
+t9	CREATE TABLE `t9` (
+  `pk` int(11) NOT NULL,
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  UNIQUE KEY `b` (`b`),
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.ta;
+Table	Create Table
+ta	CREATE TABLE `ta` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `ta_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`a`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tb;
+Table	Create Table
+tb	CREATE TABLE `tb` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `tb_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `t9` (`b`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tc;
+Table	Create Table
+tc	CREATE TABLE `tc` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.td;
+Table	Create Table
+td	CREATE TABLE `td` (
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `td_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tc` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.te;
+Table	Create Table
+te	CREATE TABLE `te` (
+  `pk` int(11) NOT NULL,
+  `a` int(11) DEFAULT NULL,
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `a` (`a`),
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `te_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `te` (`a`, `pk`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE foreign_keys.tf;
+Table	Create Table
+tf	CREATE TABLE `tf` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  `fk1` int(11) DEFAULT NULL,
+  `fk2` int(11) DEFAULT NULL,
+  UNIQUE KEY `a` (`a`),
+  UNIQUE KEY `b` (`b`),
+  KEY `fk1` (`fk1`,`fk2`),
+  CONSTRAINT `tf_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tf` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart on the upgraded data dir
 # restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
