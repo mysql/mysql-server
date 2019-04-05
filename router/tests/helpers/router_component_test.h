@@ -195,6 +195,13 @@ class RouterComponentTest {
       }
     }
 
+    std::error_code send_shutdown_event(
+        mysql_harness::ProcessLauncher::ShutdownEvent event =
+            mysql_harness::ProcessLauncher::ShutdownEvent::TERM) const
+        noexcept {
+      return launcher_.send_shutdown_event(event);
+    }
+
     /** @brief Initiate Router shutdown
      *
      * @returns shutdown event delivery success/failure
@@ -253,6 +260,40 @@ class RouterComponentTest {
 
     friend class RouterComponentTest;
   };  // class CommandHandle
+
+  /**
+   * manages a collection of started processes.
+   *
+   * allows to stop processes in parallel and ensure all exited cleanly.
+   *
+   * Useful in tests where several processes are started and are supposed
+   * to not crash at the end of the test-run.
+   */
+  class ProcessManager {
+   public:
+    /**
+     * adds a CommandHandle to the ProcessManager.
+     *
+     * @returns a ref to the added CommandHandle
+     */
+    CommandHandle &add(CommandHandle proc) {
+      processes_.push_back(std::move(proc));
+      return processes_.back();
+    }
+
+    /**
+     * shutdown all managed processes.
+     */
+    void shutdown_all();
+
+    /**
+     * ensures all processes exited and check for crashes.
+     */
+    void ensure_clean_exit();
+
+   private:
+    std::vector<CommandHandle> processes_;
+  };
 
   /** @brief Initializes the test
    */

@@ -22,6 +22,15 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include "router_component_test.h"
+
+#include <algorithm>
+#include <chrono>
+#include <iterator>
+#include <stdexcept>
+#include <system_error>
+#include <thread>
+
 #ifndef _WIN32
 #include <netdb.h>
 #include <netinet/in.h>
@@ -44,7 +53,6 @@
 #endif
 
 #include <fcntl.h>
-#include "router_component_test.h"
 
 #include "dim.h"
 #include "keyring/keyring_manager.h"
@@ -54,18 +62,13 @@
 #include "process_launcher.h"
 #include "random_generator.h"
 
-#include <algorithm>
-#include <chrono>
-#include <iterator>
-#include <stdexcept>
-#include <system_error>
-#include <thread>
-
 #ifdef USE_STD_REGEX
 #include <regex>
 #else
 #include <regex.h>
 #endif
+
+#include <gtest/gtest.h>  // FAIL
 
 using mysql_harness::Path;
 using mysql_harness::ProcessLauncher;
@@ -430,8 +433,15 @@ int RouterComponentTest::CommandHandle::
       exit_code_ = launcher_.wait(0);
       exit_code_set_ = true;
       break;
+    } catch (const std::system_error &e) {
+      eptr = std::current_exception();
+
+      if (e.code() != std::errc::timed_out) {
+        break;
+      }
     } catch (const std::runtime_error &e) {
       eptr = std::current_exception();
+      break;
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -750,4 +760,21 @@ void RouterComponentTest::connect_client_and_query_port(unsigned router_port,
         std::to_string(result->size()));
   }
   out_port = std::string((*result)[0]);
+}
+
+void RouterComponentTest::ProcessManager::shutdown_all() {
+  // stop them all
+  for (auto &proc : processes_) {
+    proc.send_shutdown_event();
+  }
+}
+
+void RouterComponentTest::ProcessManager::ensure_clean_exit() {
+  for (auto &proc : processes_) {
+    try {
+      proc.wait_for_exit();
+    } catch (const std::exception &e) {
+      FAIL() << e.what() << "\n" << proc.get_full_output();
+    }
+  }
 }

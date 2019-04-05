@@ -63,8 +63,15 @@ class RestRoutingApiTest
     RestApiComponentTest::init();
   }
 
+  void TearDown() {
+    process_manager_.shutdown_all();
+    process_manager_.ensure_clean_exit();
+  }
+
   const uint16_t mock_port_;
   std::vector<uint16_t> routing_ports_;
+
+  ProcessManager process_manager_;
 
  public:
   static const size_t kRoutesQty = 5;
@@ -144,7 +151,8 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"),
       &default_section)};
 
-  CommandHandle http_server{launch_router({"-c", conf_file})};
+  CommandHandle &http_server =
+      process_manager_.add(launch_router({"-c", conf_file}));
 
   // doesn't really matter which file we use here, we are not going to do any
   // queries
@@ -152,7 +160,8 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
       get_data_dir().join("bootstrap_big_data.js").str();
 
   SCOPED_TRACE("// launch the server mock");
-  auto server_mock = launch_mysql_server_mock(json_stmts, mock_port_, false);
+  auto &server_mock = process_manager_.add(
+      launch_mysql_server_mock(json_stmts, mock_port_, false));
 
   ASSERT_TRUE(wait_for_port_ready(mock_port_, 5000))
       << server_mock.get_full_output();
@@ -186,7 +195,8 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
         << get_router_log_output();
   }
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  EXPECT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
 
 static const std::vector<
