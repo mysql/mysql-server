@@ -2830,3 +2830,205 @@ CREATE TABLE t1 (c1 INT NOT NULL, c2 INT)
 SELECT MBRTOUCHES(a.c1, b.c2) FROM t1 AS a JOIN t1 AS b;
 ALTER TABLE t1 CONVERT TO CHARACTER SET latin1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#29541665 "SWAPPING COLUMNS USED IN PARTITIONED EXPRESSION BY RENAMING BREAKS PARTITIONING".
+--echo #
+
+--echo #
+--echo # Test case mimicking the original one.
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 CHANGE COLUMN i j INT, CHANGE COLUMN j i INT;
+--echo # If the above ALTER succeeds the partitioning expression should
+--echo # stay unchanged. Failed ALTER should not change it either.
+SHOW CREATE TABLE t1;
+--echo # There should be only single row belonging either
+--echo # to p0 (iff i=-1) or p1 (iff i=1).
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+DROP TABLE t1;
+--echo # Similar test case involving column replacement.
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 1;
+--echo # If the above ALTER succeeds the partitioning expression should
+--echo # stay unchanged. Failed ALTER should not change it either.
+SHOW CREATE TABLE t1;
+--echo # There should be only single row belonging either
+--echo # to p0 (iff i=-1) or p1 (iff i=1).
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+DROP TABLE t1;
+
+--echo #
+--echo # More systematic test coverage.
+--echo #
+
+--echo #
+--echo # 1) Renaming column on which partitioning expression depends.
+--echo #
+--echo # 1.1) Renaming column on which partitioning expression depends
+--echo #      is prohibited (for both RENAME COLUMN and CHANGE syntaxes).
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i+1) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 RENAME COLUMN i TO k;
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 CHANGE COLUMN i k INT;
+--echo # Even if substitute for renamed column is provided.
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i;
+--echo # Also works for case of degenerate expression like COLUMN partitioning.
+DROP TABLE t1;
+CREATE TABLE t1 (i INT) PARTITION BY LIST COLUMNS (i) (PARTITION p0 VALUES IN (-2,-1), PARTITION p1 VALUES IN (0, 1, 2));
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 RENAME COLUMN i TO k;
+--echo #
+--echo # 1.2) It is OK to rename such columns if partitioning is removed by
+--echo #      the same ALTER TABLE.
+ALTER TABLE t1 RENAME COLUMN i TO k REMOVE PARTITIONING;
+DROP TABLE t1;
+--echo #
+--echo # 1.3) Renaming such columns is also OK if partitioned expression
+--echo #      is updated by the same ALTER TABLE.
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+ALTER TABLE t1 RENAME COLUMN i TO k PARTITION BY RANGE(k) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--echo # If new expression uses wrong column name an appropriate error
+--echo # is reported.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 RENAME COLUMN k TO l PARTITION BY RANGE(m) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--echo #
+--echo # 1.4) Such renames combined with partitioning function update should
+--echo #      move rows between partitions as appropriate.
+SHOW CREATE TABLE t1;
+SELECT k, j FROM t1 PARTITION (p0);
+SELECT k, j FROM t1 PARTITION (p1);
+--echo # Partitioning expression is kept the same, but value in its column is changed by rename.
+ALTER TABLE t1 RENAME COLUMN k TO j, RENAME COLUMN j TO k PARTITION BY RANGE(k) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+SHOW CREATE TABLE t1;
+SELECT k, j FROM t1 PARTITION (p0);
+SELECT k, j FROM t1 PARTITION (p1);
+--echo # Because of this such renames can't be done in-place.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 RENAME COLUMN k TO j, RENAME COLUMN j TO k, ALGORITHM=INPLACE PARTITION BY RANGE(k) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+DROP TABLE t1;
+--echo #
+--echo # 1.5) We also allow renaming columns which are used by partitioning function
+--echo #      implicitly, because it is specified by "PARTITION BY KEY ()" (note empty
+--echo #      column list) clause. In this case partitioning function is defined by
+--echo #      the primary key, and the latter is automagically updated when column
+--echo #      is renamed.
+--echo #
+--echo #      We test scenario similar to one from the bug report.
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i)) PARTITION BY KEY () PARTITIONS 2 (PARTITION p0, PARTITION p1);
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i;
+--echo # PRIMARY KEY should contain use new column name.
+SHOW CREATE TABLE t1;
+--echo # Hence the row should not be moved between partitions.
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+DROP TABLE t1;
+--echo #
+--echo # However, renaming of columns is not allowed if their are mentioned
+--echo # explicitly in the KEY list, as partitioning function is not updated
+--echo # automagically in this case.
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i, j)) PARTITION BY KEY (i) PARTITIONS 2 (PARTITION p0, PARTITION p1);
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i;
+--echo # It is still possible to rename columns if partitioning is updated.
+ALTER TABLE t1 RENAME COLUMN i TO j, RENAME COLUMN j TO i PARTITION BY KEY (i) PARTITIONS 2 (PARTITION p0, PARTITION p1);
+--echo # Notice that we now use second column from PK for partitioning.
+SHOW CREATE TABLE t1;
+--echo # Hence the row should have been moved between partitions.
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+DROP TABLE t1;
+
+--echo #
+--echo # 2) Replacing (deleting and then adding) column on which partitioning
+--echo #    expression depends.
+--echo #
+--echo # 2.1) Replacing column on which partitioning expression depends
+--echo #      is prohibited.
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i+1) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT;
+--echo # Also works for case of degenerate expression like COLUMN partitioning.
+DROP TABLE t1;
+CREATE TABLE t1 (i INT) PARTITION BY LIST COLUMNS (i) (PARTITION p0 VALUES IN (-2,-1), PARTITION p1 VALUES IN (0, 1, 2));
+--error ER_DEPENDENT_BY_PARTITION_FUNC
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT;
+--echo #
+--echo # 2.2) It is OK to replace such columns if partitioning is removed by
+--echo #      the same ALTER TABLE.
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT REMOVE PARTITIONING;
+DROP TABLE t1;
+--echo #
+--echo # 2.3) Replacing such columns is also OK if partitioned expression
+--echo #      is updated by the same ALTER TABLE.
+CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--echo # If new expression uses wrong column name an appropriate error
+--echo # is reported.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT PARTITION BY RANGE(k) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+--echo #
+--echo # 2.4) Such replacements combined with partitioning function update should
+--echo #      move rows between partitions as appropriate.
+INSERT INTO t1 (i, j) VALUES (-1, 1);
+SHOW CREATE TABLE t1;
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+--echo # Partitioning expression is kept the same, but value in its column is changed by replacement.
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 1 PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+SHOW CREATE TABLE t1;
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+--echo # Because of this such replacements can't be done in-place.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 2, ALGORITHM=INPLACE PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
+DROP TABLE t1;
+--echo #
+--echo # 2.5) We also allow removal of columns which are used by partitioning function
+--echo #      implicitly, because it is specified by "PARTITION BY KEY ()" (note empty
+--echo #      column list) clause. In this case partitioning function is defined by
+--echo #      the primary key, and the latter is adjusted when one of its columns is
+--echo #      dropped. Such adjustment is considered as change of primary key (and thus
+--echo #      partitioning function) which is supposed to be correctly handled by SE by
+--echo #      moving rows between partitions.
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i, j)) PARTITION BY KEY () PARTITIONS 2 (PARTITION p0, PARTITION p1);
+INSERT INTO t1 (i, j) VALUES (1, 2);
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+ALTER TABLE t1 DROP COLUMN i;
+--echo # PRIMARY KEY is adjusted.
+SHOW CREATE TABLE t1;
+--echo # The row should be moved between partitions as appropriate.
+SELECT j FROM t1 PARTITION (p0);
+SELECT j FROM t1 PARTITION (p1);
+--echo # Dropping all/last column in PRIMARY KEY is prohibited.
+--error ER_FIELD_NOT_FOUND_PART_ERROR
+ALTER TABLE t1 ADD COLUMN k INT, DROP COLUMN j;
+DROP TABLE t1;
+--echo # Let us also check how replacement of column in PRIMARY KEY works.
+CREATE TABLE t1 (i INT, j INT, PRIMARY KEY (i, j)) PARTITION BY KEY () PARTITIONS 2 (PARTITION p0, PARTITION p1);
+INSERT INTO t1 (i, j) VALUES (1, 2);
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+ALTER TABLE t1 DROP COLUMN i, ADD COLUMN i INT DEFAULT 0;
+--echo # New column becomes part of PRIMARY KEY [sic!].
+SHOW CREATE TABLE t1;
+--echo # Again the row should be moved between partitions as appropriate.
+SELECT i, j FROM t1 PARTITION (p0);
+SELECT i, j FROM t1 PARTITION (p1);
+DROP TABLE t1;
