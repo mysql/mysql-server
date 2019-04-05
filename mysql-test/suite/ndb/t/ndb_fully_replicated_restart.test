@@ -1,5 +1,6 @@
 --source include/have_ndb.inc
 --source include/not_windows.inc
+--source include/not_embedded.inc
 
 CREATE TABLE t1 (
   a int,
