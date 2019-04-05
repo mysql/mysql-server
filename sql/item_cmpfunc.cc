@@ -2928,45 +2928,6 @@ void Item_func_between::print(const THD *thd, String *str,
   str->append(')');
 }
 
-/**
-  @todo Consolidate type resolution logic with CASE and COALESCE.
-*/
-bool Item_func_ifnull::resolve_type(THD *) {
-  uint32 char_length;
-  aggregate_type(make_array(args, 2));
-  maybe_null = args[1]->maybe_null;
-  hybrid_type = Field::result_merge_type(data_type());
-
-  if (hybrid_type == DECIMAL_RESULT || hybrid_type == INT_RESULT) {
-    int len0 = args[0]->max_char_length() - args[0]->decimals -
-               (args[0]->unsigned_flag ? 0 : 1);
-
-    int len1 = args[1]->max_char_length() - args[1]->decimals -
-               (args[1]->unsigned_flag ? 0 : 1);
-
-    char_length = max(len0, len1) + decimals + (unsigned_flag ? 0 : 1) +
-                  (decimals > 0 ? 1 : 0);
-  } else
-    char_length = max(args[0]->max_char_length(), args[1]->max_char_length());
-
-  switch (hybrid_type) {
-    case STRING_RESULT:
-      if (aggregate_string_properties(func_name(), args, 2)) return true;
-      break;
-    case DECIMAL_RESULT:
-    case REAL_RESULT:
-      break;
-    case INT_RESULT:
-      decimals = 0;
-      break;
-    case ROW_RESULT:
-    default:
-      DBUG_ASSERT(0);
-  }
-  fix_char_length(char_length);
-  return false;
-}
-
 uint Item_func_ifnull::decimal_precision() const {
   int arg0_int_part = args[0]->decimal_int_part();
   int arg1_int_part = args[1]->decimal_int_part();

@@ -260,7 +260,7 @@ t1	CREATE TABLE `t1` (
   `c01` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c02` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c03` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
-  `c04` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `c04` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',
   `c05` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c06` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c07` varchar(6) CHARACTER SET latin2 NOT NULL DEFAULT '',

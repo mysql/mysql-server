@@ -1162,7 +1162,6 @@ class Item_func_ifnull final : public Item_func_coalesce {
   bool time_op(MYSQL_TIME *ltime) override;
   my_decimal *decimal_op(my_decimal *) override;
   bool val_json(Json_wrapper *result) override;
-  bool resolve_type(THD *) override;
   const char *func_name() const override { return "ifnull"; }
   Field *tmp_table_field(TABLE *table) override;
   uint decimal_precision() const override;

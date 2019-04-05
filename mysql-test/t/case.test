@@ -335,3 +335,15 @@ SELECT IFNULL(e2,i1) nullif_c,
        GROUP BY e2,i1 ORDER BY nullif_c, SUM(d1);
 
 DROP TABLE t;
+
+--echo # Bug#29463760 In cases like ifnull(datetime(2), time(3), wrong answer
+
+# Establish a specific date for use when extending TIME values:
+SET TIMESTAMP=UNIX_TIMESTAMP('2019-03-11 12:00:00');
+CREATE TABLE t1 (dt2 DATETIME(2), t3 TIME(3), d DATE);
+INSERT INTO t1 VALUES ('2001-01-01 00:00:00.12', '00:00:00.567', '2002-01-01');
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1;
+SELECT CONCAT(IFNULL(t3, d)) AS col1 FROM t1 GROUP BY col1;
+SET TIMESTAMP=DEFAULT;
+
+DROP TABLE t1;
