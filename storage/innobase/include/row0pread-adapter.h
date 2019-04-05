@@ -140,6 +140,8 @@ class Parallel_reader_adapter : public Key_reader {
   @param[in]      rec        InnoDB record
   @param[in]      index      InnoDB index which contains the record
   @param[in]      prebuilt   InnoDB row prebuilt structure
+  @param[in]      new_range  true if new range of rows (new ctx) is being
+  processed
   @return error code */
   dberr_t process_rows(size_t thread_id, const rec_t *rec, dict_index_t *index,
                        row_prebuilt_t *prebuilt, bool new_range);
