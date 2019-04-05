@@ -4406,7 +4406,7 @@ static dberr_t parallel_select_count_star(Key_reader &reader, ulint *n_rows) {
 
   dberr_t err =
       reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
-                      dict_index_t *index, row_prebuilt_t *prebuilt) {
+                      dict_index_t *index, row_prebuilt_t *prebuilt, bool) {
         Counter::inc(n_recs, id);
 
         /* Only check the THD state for the first thread. */
@@ -4465,7 +4465,7 @@ static dberr_t parallel_check_table(Key_reader &reader, ulint *n_rows) {
   const auto index = reader.index();
 
   err = reader.read([&](size_t id, const buf_block_t *block, const rec_t *rec,
-                        dict_index_t *index, row_prebuilt_t *prebuilt) {
+                        dict_index_t *index, row_prebuilt_t *prebuilt, bool) {
     Counter::inc(n_recs, id);
 
     /* Only check the THD state for the first thread. */

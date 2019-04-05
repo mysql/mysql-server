@@ -142,7 +142,7 @@ class Parallel_reader_adapter : public Key_reader {
   @param[in]      prebuilt   InnoDB row prebuilt structure
   @return error code */
   dberr_t process_rows(size_t thread_id, const rec_t *rec, dict_index_t *index,
-                       row_prebuilt_t *prebuilt);
+                       row_prebuilt_t *prebuilt, bool new_range);
 
  protected:
   /** Counter to track number of records sent to adapter */
@@ -157,6 +157,9 @@ class Parallel_reader_adapter : public Key_reader {
 
   /** Counter to track number of records processed by each row. */
   Counter n_recs;
+
+  /** Counter to track number of records added to the buffer. */
+  Counter n_recs_in_buffer;
 
   /* adapter context for each of the spawned threads. */
   void **m_thread_contexts{nullptr};

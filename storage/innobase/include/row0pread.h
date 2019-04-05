@@ -81,9 +81,9 @@ template <typename T, typename R>
 class Reader {
  public:
   /** Callback to process the rows. */
-  using Function =
-      std::function<dberr_t(size_t thread_id, const buf_block_t *,
-                            const rec_t *, dict_index_t *, row_prebuilt_t *)>;
+  using Function = std::function<dberr_t(size_t thread_id, const buf_block_t *,
+                                         const rec_t *, dict_index_t *,
+                                         row_prebuilt_t *, bool new_range)>;
 
   /** Constructor.
   @param[in]    table        Table to be read.
