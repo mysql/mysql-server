@@ -8903,6 +8903,9 @@ ER_CANNOT_CONVERT_STRING
 ER_DEPENDENT_BY_PARTITION_FUNC
   eng "Column '%s' has a partitioning function dependency and cannot be dropped or renamed."
 
+ER_WARN_DEPRECATED_FLOAT_AUTO_INCREMENT
+  eng "AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column '%-.192s'."
+
 #
 #  End of 8.0 error messages.
 #

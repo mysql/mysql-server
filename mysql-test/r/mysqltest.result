@@ -1678,6 +1678,8 @@ c3 DECIMAL(2) UNSIGNED,
 c4 DECIMAL,
 PRIMARY KEY (c1)
 );
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
@@ -1935,6 +1937,8 @@ c3 DECIMAL(2) UNSIGNED,
 c4 DECIMAL,
 PRIMARY KEY (c1)
 );
+Warnings:
+Warning	3856	AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column 'c1'.
 INSERT INTO t1 VALUES (0x7FFFFFFFFFFFFFFD, 2, -500, "aaa");
 Warnings:
 Warning	1264	Out of range value for column 'c3' at row 1
