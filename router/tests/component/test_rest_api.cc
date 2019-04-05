@@ -50,10 +50,6 @@
 
 Path g_origin_path;
 
-// can't use constexpr here as DevStudio 12.5 says it isn't a constant
-// expression
-static const std::chrono::milliseconds kMaxRestEndpointWaitTime{1000};
-
 class RestOpenApiTest
     : public RestApiComponentTest,
       public ::testing::Test,
@@ -94,8 +90,9 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
           : http_uri;
 
   SCOPED_TRACE("// wait for REST endpoint: " + http_uri);
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, wait_for_uri,
-                                           kMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(
+      wait_for_uri, http_port_, GetParam().user_name, GetParam().user_password,
+      http_hostname))
       << http_server.get_full_output() << get_router_log_output();
 
   // walk all the bits

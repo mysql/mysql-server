@@ -515,6 +515,32 @@ class RouterComponentTest {
                                      std::string &out_port,
                                      bool should_fail = false);
 
+  /**
+   * wait until a REST endpoint is ready to handle requests.
+   *
+   * @param uri         REST endpoint URI to check
+   * @param http_port   tcp port of the REST endpoint
+   * @param username    username to authenticate if the endpoint requires
+   * authentication
+   * @param password    password to authenticate if the endpoint requires
+   * authentication
+   * @param http_host   host name of the REST endpoint
+   * @param max_wait_time how long should the function wait to the endpoint to
+   * become ready before returning false
+   * @param step_time   what should be the sleep time beetween the consecutive
+   * checks for the endpoint availability
+   *
+   * @returns true once endpoint is ready to handle requests, false
+   *          if the timeout has expired and the endpoint did not become ready
+   */
+  bool wait_for_rest_endpoint_ready(
+      const std::string &uri, const uint16_t http_port,
+      const std::string &username = "", const std::string &password = "",
+      const std::string &http_host = "127.0.0.1",
+      std::chrono::milliseconds max_wait_time = std::chrono::milliseconds(5000),
+      const std::chrono::milliseconds step_time =
+          std::chrono::milliseconds(50)) const noexcept;
+
  protected:
   /** @brief returns a [DEFAULT] section as string
    *

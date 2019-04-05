@@ -36,13 +36,11 @@
 
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include "mysqlrouter/rest_client.h"
 
 #include "rest_api_testutils.h"
 
 #include "config_builder.h"
-
-static const std::chrono::milliseconds kMaxRestEndpointWaitTime{5000};
-static const std::chrono::milliseconds kMaxRestEndpointStepTime{50};
 
 static const std::chrono::milliseconds kMaxRestEndpointNotAvailableCheckTime{
     150};
@@ -50,35 +48,6 @@ static const std::chrono::milliseconds kMaxRestEndpointNotAvailableStepTime{50};
 
 static const std::string rest_api_openapi_json =
     std::string(rest_api_basepath) + "/swagger.json";
-
-/**
- * wait until a REST endpoint returns !404.
- *
- * at mock startup the socket starts to listen before the REST endpoint gets
- * registered. As long as it returns 404 Not Found we should wait and retry.
- *
- * @param rest_client initialized rest-client
- * @param uri REST endpoint URI to check
- * @param max_wait_time max time to wait for endpoint being ready
- * @returns true once endpoint doesn't return 404 anymore, fails otherwise
- */
-bool wait_for_rest_endpoint_ready(
-    RestClient &rest_client, const std::string &uri,
-    std::chrono::milliseconds max_wait_time) noexcept {
-  while (max_wait_time.count() > 0) {
-    auto req = rest_client.request_sync(HttpMethod::Get, uri);
-
-    if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
-      return true;
-
-    auto wait_time = std::min(kMaxRestEndpointStepTime, max_wait_time);
-    std::this_thread::sleep_for(wait_time);
-
-    max_wait_time -= wait_time;
-  }
-
-  return false;
-}
 
 static bool check_endpoint_not_available(
     RestClient &rest_client, const std::string &uri,
@@ -378,8 +347,9 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
   }
 
   SCOPED_TRACE("// wait for REST endpoint: " + test_params.uri);
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, test_params.uri,
-                                           kMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(test_params.uri, http_port_,
+                                           test_params.user_name,
+                                           test_params.user_password))
       << http_server.get_full_output() << get_router_log_output();
 
   for (HttpMethod::pos_type ndx = 0; ndx < HttpMethod::Pos::_LAST; ++ndx) {
@@ -390,13 +360,16 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
 
       JsonDocument openapi_json_doc;
       // if we test for authorization failure this will still return Ok as
-      // accessing swagger.json does not require authorization
+      // accessing swagger.json does not require authorization,
+      // same with InternalError from a path, that does not affect the swagger
       HttpStatusCode::key_type expected_code =
-          test_params.status_code == HttpStatusCode::Unauthorized
+          test_params.status_code == HttpStatusCode::Unauthorized ||
+                  test_params.status_code == HttpStatusCode::InternalError
               ? HttpStatusCode::Ok
               : test_params.status_code;
       std::string expected_content_type =
-          test_params.status_code == HttpStatusCode::Unauthorized
+          test_params.status_code == HttpStatusCode::Unauthorized ||
+                  test_params.status_code == HttpStatusCode::InternalError
               ? kContentTypeJson
               : test_params.expected_content_type;
 

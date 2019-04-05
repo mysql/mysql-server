@@ -68,6 +68,34 @@ class RestRoutingApiTest
     process_manager_.ensure_clean_exit();
   }
 
+  bool wait_route_ready(std::chrono::milliseconds max_wait_time,
+                        const std::string &route_name, const uint16_t http_port,
+                        const std::string &http_host,
+                        const std::string &username,
+                        const std::string &password) {
+    const std::string uri =
+        std::string(rest_api_basepath) + "/routes/" + route_name + "/health";
+    bool res = wait_for_rest_endpoint_ready(uri, http_port, username, password);
+    if (!res) return false;
+
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, http_host, http_port, username, password);
+    const std::chrono::milliseconds step_time{50};
+
+    while (max_wait_time.count() > 0) {
+      auto req = rest_client.request_sync(HttpMethod::Get, uri);
+
+      if (req && req.get_response_code() == HttpStatusCode::Ok) return true;
+
+      const auto wait_time = std::min(step_time, max_wait_time);
+      std::this_thread::sleep_for(wait_time);
+
+      max_wait_time -= wait_time;
+    }
+
+    return false;
+  }
+
   const uint16_t mock_port_;
   std::vector<uint16_t> routing_ports_;
 
@@ -165,8 +193,12 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   ASSERT_TRUE(wait_for_port_ready(mock_port_, 5000))
       << server_mock.get_full_output();
-  for (size_t i = 0; i < kRoutesQty; ++i) {
-    ASSERT_TRUE(wait_for_port_ready(routing_ports_[i], 5000))
+  // wait for route being available if we expect it to be and plan to do some
+  // connections to it (which are routes: "ro" and "Aaz")
+  for (size_t i = 3; i < kRoutesQty; ++i) {
+    ASSERT_TRUE(wait_route_ready(std::chrono::milliseconds(5000),
+                                 route_names[i], http_port_, "127.0.0.1",
+                                 kRestApiUsername, kRestApiPassword))
         << http_server.get_full_output() << "\n"
         << get_router_log_output();
   }
@@ -189,13 +221,12 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
   // call wait_port_ready a few times on "123" to trigger blocked client
   // on that route (we set max_connect_errors to 2)
-  for (size_t i = 0; i < 2; ++i) {
+  for (size_t i = 0; i < 3; ++i) {
     ASSERT_TRUE(wait_for_port_ready(routing_ports_[2], 500))
         << http_server.get_full_output() << "\n"
         << get_router_log_output();
   }
 
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   EXPECT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
@@ -349,7 +380,12 @@ get_expected_connections_fields_fields(const int expected_connection_qty) {
       result{{"/items", [=](const JsonValue *value) {
                 ASSERT_NE(value, nullptr);
                 ASSERT_TRUE(value->IsArray());
-                ASSERT_EQ(value->GetArray().Size(), expected_connection_qty);
+                // -1 means that we don't really know how many connections are
+                // there, we did wait_for_port_ready on a socket and this can
+                // still be accounted for
+                if (expected_connection_qty >= 0) {
+                  ASSERT_EQ(value->GetArray().Size(), expected_connection_qty);
+                }
               }}};
 
   for (int i = 0; i < expected_connection_qty; ++i) {
@@ -400,7 +436,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
      get_expected_status_fields(/*expected_active_connections=*/3,
-                                /*expected_total_connections=*/4,
+                                /*expected_total_connections=*/3,
                                 /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
     {"routing_status__", std::string(rest_api_basepath) + "/routes/_/status",
@@ -417,7 +453,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
      get_expected_status_fields(/*expected_active_connections=*/1,
-                                /*expected_total_connections=*/2,
+                                /*expected_total_connections=*/1,
                                 /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
     {"routing_status_123",
@@ -520,8 +556,9 @@ static const RestApiTestParams rest_api_valid_methods[]{
      /*request_authentication =*/true, get_expected_health_fields(true),
      kRoutingSwaggerPaths},
     {"routes_health__", std::string(rest_api_basepath) + "/routes/_/health",
-     "/routes/{routeName}/health", HttpMethod::Get, HttpStatusCode::Ok,
-     kContentTypeJson, kRestApiUsername, kRestApiPassword,
+     "/routes/{routeName}/health", HttpMethod::Get,
+     HttpStatusCode::InternalError, kContentTypeJson, kRestApiUsername,
+     kRestApiPassword,
      /*request_authentication =*/true, get_expected_health_fields(false),
      kRoutingSwaggerPaths},
     {"routes_health_Aaz", std::string(rest_api_basepath) + "/routes/Aaz/health",
@@ -630,7 +667,10 @@ static const RestApiTestParams rest_api_valid_methods[]{
      "/routes/{routeName}/connections", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_connections_fields_fields(/*expected_connection_qty=*/0),
+     // -1 means that we don't really know how many connections are there
+     // as we did wait_for_port_ready on a socket and this can still be
+     // accounted for
+     get_expected_connections_fields_fields(/*expected_connection_qty=*/-1),
      kRoutingSwaggerPaths},
     {"routes_connections_nonexistent",
      std::string(rest_api_basepath) + "/routes/nonexistent/connections",

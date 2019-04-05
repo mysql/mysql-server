@@ -61,13 +61,15 @@ bool RestRoutingHealth::on_handle_request(
 #endif
 
   rapidjson::Document json_doc;
+  const bool dest_list_empty = inst.get_destinations().empty();
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
-    json_doc.SetObject();
-    json_doc.AddMember("isAlive", !inst.get_destinations().empty(), allocator);
+    json_doc.SetObject().AddMember("isAlive", !dest_list_empty, allocator);
   }
-  send_json_document(req, HttpStatusCode::Ok, json_doc);
+  const auto code =
+      dest_list_empty ? HttpStatusCode::InternalError : HttpStatusCode::Ok;
+  send_json_document(req, code, json_doc);
 
   return true;
 }

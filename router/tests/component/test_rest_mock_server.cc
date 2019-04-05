@@ -48,11 +48,6 @@ static constexpr const char kMockServerConnectionsRestUri[] =
 static constexpr const char kMockServerInvalidRestUri[] =
     "/api/v1/mock_server/global/";
 
-// can't use constexpr here as DevStudio 12.5 says it isn't a constant
-// expression
-static const std::chrono::milliseconds kMockServerMaxRestEndpointWaitTime{1000};
-static const std::chrono::milliseconds kMockServerMaxRestEndpointStepTime{50};
-
 // AddressSanitizer gets confused by the default, MemoryPoolAllocator
 // Solaris sparc also gets crashes
 using JsonDocument =
@@ -68,36 +63,6 @@ class RestMockServerTest : public RouterComponentTest, public ::testing::Test {
     set_origin(g_origin_path);
 
     RouterComponentTest::init();
-  }
-
-  /**
-   * wait until a REST endpoint returns !404.
-   *
-   * at mock startup the socket starts to listen before the REST endpoint gets
-   * registered. As long as it returns 404 Not Found we should wait and retry.
-   *
-   * @param rest_client initialized rest-client
-   * @param uri REST endpoint URI to check
-   * @param max_wait_time max time to wait for endpoint being ready
-   * @returns true once endpoint doesn't return 404 anymore, fails otherwise
-   */
-  bool wait_for_rest_endpoint_ready(
-      RestClient &rest_client, const std::string &uri,
-      std::chrono::milliseconds max_wait_time) const noexcept {
-    while (max_wait_time.count() > 0) {
-      auto req = rest_client.request_sync(HttpMethod::Get, uri);
-
-      if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
-        return true;
-
-      auto wait_time =
-          std::min(kMockServerMaxRestEndpointStepTime, max_wait_time);
-      std::this_thread::sleep_for(wait_time);
-
-      max_wait_time -= wait_time;
-    }
-
-    return false;
   }
 };
 
@@ -168,8 +133,7 @@ TEST_F(RestMockServerRestServerMockTest, get_globals_empty) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -256,8 +220,7 @@ TEST_F(RestMockServerRestServerMockTest, handshake_exec_time_via_global) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -362,8 +325,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_no_json) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -402,9 +364,8 @@ TEST_F(RestMockServerRestServerMockTest, put_root_fails) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client,
-                                           kMockServerGlobalsRestUri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(
+      wait_for_rest_endpoint_ready(kMockServerGlobalsRestUri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -564,9 +525,8 @@ TEST_P(RestMockServerMethodsTest, methods_avail) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client,
-                                           kMockServerGlobalsRestUri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(
+      wait_for_rest_endpoint_ready(kMockServerGlobalsRestUri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -640,8 +600,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_ok) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -688,8 +647,7 @@ TEST_P(RestMockServerRequestTest, request) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   SCOPED_TRACE("// make a http connections");
@@ -794,8 +752,7 @@ TEST_F(RestMockServerRestServerMockTest, put_globals_and_read_back) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   auto put_req = rest_client.request_sync(HttpMethod::Put, http_uri,
@@ -876,8 +833,7 @@ TEST_F(RestMockServerRestServerMockTest, delete_all_connections) {
   RestClient rest_client(io_ctx, http_hostname, http_port_);
 
   SCOPED_TRACE("// wait for REST endpoint");
-  ASSERT_TRUE(wait_for_rest_endpoint_ready(rest_client, http_uri,
-                                           kMockServerMaxRestEndpointWaitTime))
+  ASSERT_TRUE(wait_for_rest_endpoint_ready(http_uri, http_port_))
       << server_mock_.get_full_output();
 
   // mysql query
