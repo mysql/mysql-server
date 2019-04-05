@@ -141,26 +141,26 @@ void MySQLServerMock::setup_service() {
 
   listener_ = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
   if (listener_ < 0) {
-    throw std::runtime_error("socket() failed: " + get_socket_errno_str());
+    throw std::system_error(last_socket_error_code(), "socket() failed: ");
   }
 
   int option_value = 1;
   if (setsockopt(listener_, SOL_SOCKET, SO_REUSEADDR,
                  reinterpret_cast<const char *>(&option_value),
                  static_cast<socklen_t>(sizeof(int))) == -1) {
-    throw std::runtime_error("setsockopt() failed: " + get_socket_errno_str());
+    throw std::system_error(last_socket_error_code(), "setsockopt() failed: ");
   }
 
   err = bind(listener_, ainfo->ai_addr, ainfo->ai_addrlen);
   if (err < 0) {
-    throw std::runtime_error("bind('0.0.0.0', " + std::to_string(bind_port_) +
-                             ") failed: " + strerror(get_socket_errno()) +
-                             " (" + get_socket_errno_str() + ")");
+    throw std::system_error(
+        last_socket_error_code(),
+        "bind('0.0.0.0', " + std::to_string(bind_port_) + ") failed");
   }
 
   err = listen(listener_, kListenQueueSize);
   if (err < 0) {
-    throw std::runtime_error("listen() failed: " + get_socket_errno_str());
+    throw std::system_error(last_socket_error_code(), "listen() failed");
   }
 }
 
@@ -211,7 +211,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         socklen_t addr_len = sizeof(addr);
         if (-1 == getsockname(work.client_socket,
                               reinterpret_cast<sockaddr *>(&addr), &addr_len)) {
-          throw std::system_error(get_socket_errno(), std::system_category(),
+          throw std::system_error(last_socket_error_code(),
                                   "getsockname() failed");
         }
         std::unique_ptr<StatementReaderBase> statement_reader{
@@ -234,10 +234,18 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         }
       } catch (const std::exception &e) {
         // close the connection before Session took over.
-        send_packet(work.client_socket,
-                    MySQLProtocolEncoder().encode_error_message(
-                        0, 1064, "", "reader error: " + std::string(e.what())),
-                    0);
+        try {
+          send_packet(
+              work.client_socket,
+              MySQLProtocolEncoder().encode_error_message(
+                  0, 1064, "", "reader error: " + std::string(e.what())),
+              0);
+        } catch (const std::system_error &send_e) {
+          // it may get EBADF due to the close_all_connections() later.
+          if (send_e.code() != std::errc::bad_file_descriptor) {
+            log_error("sending error-msg failed: %s", send_e.what());
+          }
+        }
         log_error("%s", e.what());
       }
 
@@ -277,7 +285,10 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
     int err = select(listener_ + 1, &fds, NULL, NULL, &tv);
 
     if (err < 0) {
-      std::cerr << "select() failed: " << strerror(errno) << "\n";
+      std::cerr << std::system_error(last_socket_error_code(),
+                                     "select() failed")
+                       .what()
+                << "\n";
       break;
     } else if (err == 0) {
       // timeout
@@ -289,20 +300,18 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
         socket_t client_socket =
             accept(listener_, (struct sockaddr *)&client_addr, &addr_size);
         if (client_socket == kInvalidSocket) {
-          auto accept_errno = get_socket_errno();
+          auto accept_ec = last_socket_error_code();
 
           // if we got interrupted at shutdown, just leave
           if (!is_running(env)) break;
 
-          if (accept_errno == EAGAIN) break;
-          if (accept_errno == EWOULDBLOCK) break;
-#ifdef _WIN32
-          if (accept_errno == WSAEWOULDBLOCK) break;
-          if (accept_errno == WSAEINTR) continue;
-#endif
-          if (accept_errno == EINTR) continue;
+          if (accept_ec == std::errc::resource_unavailable_try_again) break;
+          if (accept_ec == std::errc::operation_would_block) break;
 
-          std::cerr << "accept() failed: errno=" << accept_errno << std::endl;
+          if (accept_ec == std::errc::interrupted) continue;
+
+          std::cerr << std::system_error(accept_ec, "accept() failed").what()
+                    << std::endl;
           return;
         }
 
