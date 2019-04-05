@@ -13439,12 +13439,28 @@ int ndbcluster_discover(handlerton*, THD* thd,
       // Assign the unpacked data to sdi_t(which is string data type)
       dd::sdi_t sdi;
       sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
+      const std::string tablespace_name =
+          ndb_table_tablespace_name(dict, ndbtab);
+      if (!tablespace_name.empty())
+      {
+        // Acquire IX MDL on tablespace
+        if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true))
+        {
+          thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "
+                                "not acquire metadata lock on tablespace '%s'",
+                                name, tablespace_name.c_str());
+          ndbtab_g.invalidate();
+          free(unpacked_data);
+          DBUG_RETURN(1);
+        }
+      }
       // Install the table into DD, don't use force_overwrite since
       // this function would never have been called unless the table
       // didn't exist
       if (!dd_client.install_table(db, name, sdi, ndbtab->getObjectId(),
                                    ndbtab->getObjectVersion(),
-                                   ndbtab->getPartitionCount(), false))
+                                   ndbtab->getPartitionCount(), tablespace_name,
+                                   false))
       {
         // Table existed in NDB but it could not be inserted into DD
         thd_ndb->push_warning("Failed to discover table '%s' from NDB, could "

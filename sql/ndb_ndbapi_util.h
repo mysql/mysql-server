@@ -110,6 +110,16 @@ const char* ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab);
 
 
 /**
+ * @brief Return the tablespace name of an NDB table
+ * @param dict    NDB Dictionary
+ * @param ndbtab  NDB Table object
+ * @return tablespace name if table has tablespace, empty string if not
+ */
+std::string ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
+                                      const NdbDictionary::Table *ndbtab);
+
+
+/**
  * @brief Checks if an error has occurred in a ndbapi call
  * @param dict  NDB Dictionary
  * @return true if error has occurred, false if not

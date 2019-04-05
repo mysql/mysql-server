@@ -132,3 +132,30 @@ c1	c2	c3	c4
 1	a	a	NULL
 2	b	b	2
 DROP TABLE t3;
+Backup from 7.6 restored
+Restart server 1 to trigger schema synchronization
+# restart
+Restart server 2 to trigger schema synchronization
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) /*!50100 TABLESPACE `ts1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b
+1	Sad Cypress
+ALTER TABLE t1 DROP COLUMN b;
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1;
+a
+1
+2
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+ENGINE NDB;

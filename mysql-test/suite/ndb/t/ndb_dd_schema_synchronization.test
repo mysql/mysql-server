@@ -254,5 +254,68 @@ DROP LOGFILE GROUP lg1
   ENGINE=NDB;
 SHOW WARNINGS;
 
+#
+# Check if the tablespace id for disk data tables is set
+# during synchronization
+#
+
+CREATE LOGFILE GROUP lg1
+  ADD UNDOFILE 'lg1_undofile.dat'
+  INITIAL_SIZE 1M
+  UNDO_BUFFER_SIZE = 1M
+  ENGINE NDB;
+
+CREATE TABLESPACE ts1
+  ADD DATAFILE 'ts1_datafile.dat'
+  USE LOGFILE GROUP lg1
+  INITIAL_SIZE 2M
+  ENGINE NDB;
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b VARCHAR(255)
+) ENGINE NDB
+  TABLESPACE ts1
+  STORAGE DISK;
+
+SHOW CREATE TABLE t1;
+
+# backup
+--disable_query_log
+--source include/ndb_backup.inc
+--enable_query_log
+
+DROP TABLE t1;
+
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+let $mysqld_name=mysqld.1.1;
+--source include/restart_mysqld.inc
+--connection server2
+let $mysqld_name=mysqld.2.1;
+--source include/restart_mysqld.inc
+--connection server1
+
+SHOW CREATE TABLE t1;
+--connection server2
+SHOW CREATE TABLE t1;
+--connection server1
+INSERT INTO t1 VALUES(1,'a');
+SELECT * FROM t1;
+ALTER TABLE t1 DROP COLUMN b;
+DROP TABLE t1;
+ALTER TABLESPACE ts1
+  DROP DATAFILE 'ts1_datafile.dat';
+DROP TABLESPACE ts1;
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
