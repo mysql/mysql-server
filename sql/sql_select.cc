@@ -1787,7 +1787,7 @@ void calc_used_field_length(TABLE *table, bool keep_current_rowid,
       uint flags = field->flags;
       fields++;
       rec_length += field->pack_length();
-      if (flags & BLOB_FLAG) blobs++;
+      if (flags & BLOB_FLAG || field->is_array()) blobs++;
       if (!(flags & NOT_NULL_FLAG)) null_fields++;
       if (field->type() == MYSQL_TYPE_BIT && ((Field_bit *)field)->bit_len)
         uneven_bit_fields++;
@@ -2107,7 +2107,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     j->position()->rows_fetched = 1.0;
   }
 
-  return false;
+  return thd->is_error();
 }
 
 static store_key *get_store_key(THD *thd, Key_use *keyuse,
@@ -2544,7 +2544,7 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
     return true; /* purecov: inspected */
   sjm_exec->table = table;
   map2table[tableno] = tab;
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
   sj_tmp_tables.push_back(table);
   sjm_exec_list.push_back(sjm_exec);
 

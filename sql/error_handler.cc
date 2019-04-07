@@ -199,7 +199,7 @@ bool Strict_error_handler::handle_condition(
     case ER_DIVISION_BY_ZERO:
     case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
     case WARN_DATA_TRUNCATED:
-    case WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX:
+    case ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX:
     case ER_DATA_TOO_LONG:
     case ER_BAD_NULL_ERROR:
     case ER_NO_DEFAULT_FOR_FIELD:
@@ -227,8 +227,8 @@ bool Strict_error_handler::handle_condition(
   return false;
 }
 
-Functional_index_error_handler::Functional_index_error_handler(Field *field,
-                                                               THD *thd)
+Functional_index_error_handler::Functional_index_error_handler(
+    const Field *field, THD *thd)
     : m_thd(thd), m_pop_error_handler(false), m_force_error_code(-1) {
   DBUG_ASSERT(field != nullptr);
 
@@ -321,38 +321,69 @@ bool Functional_index_error_handler::handle_condition(
     THD *, uint sql_errno, const char *,
     Sql_condition::enum_severity_level *level, const char *) {
   DBUG_ASSERT(!m_functional_index_name.empty());
+  uint res_errno = 0;
+  bool print_row = false;
 
   switch (sql_errno) {
     case ER_JSON_USED_AS_KEY: {
-      my_error(ER_FUNCTIONAL_INDEX_ON_JSON_OR_GEOMETRY_FUNCTION, MYF(0));
-      return true;
+      res_errno = ER_FUNCTIONAL_INDEX_ON_JSON_OR_GEOMETRY_FUNCTION;
+      break;
+    }
+    case ER_TRUNCATED_WRONG_VALUE: {
+      res_errno = ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX;
+      print_row = true;
+      break;
     }
     case WARN_DATA_TRUNCATED: {
-      return report_error(m_thd, WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX, *level,
-                          m_functional_index_name.c_str(),
-                          m_thd->get_stmt_da()->current_row_for_condition());
+      push_warning_printf(
+          m_thd, *level, ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX,
+          ER_THD(m_thd, ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX),
+          m_functional_index_name.c_str(),
+          m_thd->get_stmt_da()->current_row_for_condition());
+      return true;
     }
+    case ER_JT_VALUE_OUT_OF_RANGE:
     case ER_WARN_DATA_OUT_OF_RANGE: {
-      return report_error(m_thd, ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX,
-                          *level, m_functional_index_name.c_str(),
-                          m_thd->get_stmt_da()->current_row_for_condition());
+      res_errno = ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX;
+      print_row = true;
+      break;
+    }
+    // Difference with above is that this one doesn't print row number
+    case ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE: {
+      res_errno = ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX;
+      break;
     }
     case ER_GENERATED_COLUMN_REF_AUTO_INC: {
-      my_error(ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT, MYF(0),
-               m_functional_index_name.c_str());
-      return true;
+      res_errno = ER_FUNCTIONAL_INDEX_REF_AUTO_INCREMENT;
+      break;
     }
     case ER_GENERATED_COLUMN_NAMED_FUNCTION_IS_NOT_ALLOWED:
     case ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED: {
-      my_error(ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED, MYF(0),
-               m_functional_index_name.c_str());
-      return true;
+      res_errno = ER_FUNCTIONAL_INDEX_FUNCTION_IS_NOT_ALLOWED;
+      break;
     }
     case ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN: {
       if (m_force_error_code != -1) {
         return report_error(m_thd, m_force_error_code, *level);
       }
       return false;
+    }
+    case ER_WRONG_JSON_TABLE_VALUE: {
+      res_errno = ER_WRONG_MVI_VALUE;
+      break;
+    }
+    case ER_WARN_INDEX_NOT_APPLICABLE: {
+      res_errno = ER_WARN_FUNC_INDEX_NOT_APPLICABLE;
+      break;
+    }
+    case ER_DATA_TOO_LONG: {
+      my_error(ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG, MYF(0),
+               m_functional_index_name.c_str());
+      return true;
+    }
+    case ER_INVALID_JSON_VALUE_FOR_CAST: {
+      res_errno = ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX;
+      break;
     }
     case ER_GENERATED_COLUMN_ROW_VALUE: {
       my_error(ER_FUNCTIONAL_INDEX_ROW_VALUE_IS_NOT_ALLOWED, MYF(0),
@@ -364,8 +395,12 @@ bool Functional_index_error_handler::handle_condition(
       return false;
     }
   }
-
-  return false;
+  if (!print_row)
+    report_error(m_thd, res_errno, *level, m_functional_index_name.c_str());
+  else
+    report_error(m_thd, res_errno, *level, m_functional_index_name.c_str(),
+                 m_thd->get_stmt_da()->current_row_for_condition());
+  return true;
 }
 
 /**

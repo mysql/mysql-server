@@ -1526,8 +1526,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const KEY *innobase_find_equiv_index(
       length field for a true VARCHAR. */
 
       if (key_part.field->type() == MYSQL_TYPE_VARCHAR) {
-        col_len -=
-            static_cast<const Field_varstring *>(key_part.field)->length_bytes;
+        col_len -= key_part.field->get_length_bytes();
       }
 
       if (key_part.length < col_len) {
@@ -2190,12 +2189,12 @@ static MY_ATTRIBUTE((warn_unused_result)) int innobase_check_index_keys(
 
           if (field->type() == MYSQL_TYPE_VARCHAR) {
             if (key_part1.length >=
-                field->pack_length() -
-                    ((Field_varstring *)field)->length_bytes) {
+                field->pack_length() - field->get_length_bytes()) {
               break;
             }
           } else {
-            if (key_part1.length >= field->pack_length()) {
+            if (key_part1.length >= field->pack_length() ||
+                innobase_is_multi_value_fld(field)) {
               break;
             }
           }
@@ -2256,6 +2255,7 @@ static void innobase_create_index_field_def(const TABLE *altered_table,
 
   col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
 
+  index_field->is_multi_value = innobase_is_multi_value_fld(field);
   if (!field->stored_in_db && field->gcol_info) {
     index_field->is_v_col = true;
     index_field->col_no = num_v;
@@ -2265,12 +2265,13 @@ static void innobase_create_index_field_def(const TABLE *altered_table,
   }
   index_field->is_ascending = !(key_part->key_part_flag & HA_REVERSE_SORT);
 
-  if (DATA_LARGE_MTYPE(col_type) ||
-      (key_part->length < field->pack_length() &&
-       field->type() != MYSQL_TYPE_VARCHAR) ||
-      (field->type() == MYSQL_TYPE_VARCHAR &&
-       key_part->length <
-           field->pack_length() - ((Field_varstring *)field)->length_bytes)) {
+  /* No prefix index on multi-value field */
+  if (!index_field->is_multi_value &&
+      (DATA_LARGE_MTYPE(col_type) ||
+       (key_part->length < field->pack_length() &&
+        field->type() != MYSQL_TYPE_VARCHAR) ||
+       (field->type() == MYSQL_TYPE_VARCHAR &&
+        key_part->length < field->pack_length() - field->get_length_bytes()))) {
     index_field->prefix_len = key_part->length;
   } else {
     index_field->prefix_len = 0;
@@ -2428,6 +2429,10 @@ static void innobase_create_index_def(const TABLE *altered_table,
 
       if (index->fields[i].is_v_col) {
         index->ind_type |= DICT_VIRTUAL;
+      }
+
+      if (index->fields[i].is_multi_value) {
+        index->ind_type |= DICT_MULTI_VALUE;
       }
     }
   }
@@ -2870,10 +2875,6 @@ static bool check_col_exists_in_indexes(const dict_table_t *table, ulint col_no,
 
   for (const dict_index_t *index = table->first_index(); index;
        index = index->next()) {
-    if (index->to_be_dropped) {
-      continue;
-    }
-
     for (ulint i = 0; i < index->n_user_defined_cols; i++) {
       const dict_col_t *idx_col = index->get_col(i);
 
@@ -3467,13 +3468,18 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
     field = altered_table->field[i - 1];
 
     ulint col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
+    bool is_multi_value = innobase_is_multi_value_fld(field);
 
     if (!field->gcol_info || field->stored_in_db) {
       my_error(ER_WRONG_KEY_COLUMN, MYF(0), field->field_name);
       return (true);
     }
 
-    col_len = field->pack_length();
+    if (is_multi_value) {
+      col_len = field->key_length();
+    } else {
+      col_len = field->pack_length();
+    }
     field_type = (ulint)field->type();
 
     if (!field->real_maybe_null()) {
@@ -3502,9 +3508,8 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
       charset_no = 0;
     }
 
-    if (field->type() == MYSQL_TYPE_VARCHAR) {
-      uint32 length_bytes =
-          static_cast<const Field_varstring *>(field)->length_bytes;
+    if (field->type() == MYSQL_TYPE_VARCHAR && !is_multi_value) {
+      uint32 length_bytes = field->get_length_bytes();
 
       col_len -= length_bytes;
 
@@ -3516,6 +3521,10 @@ static bool prepare_inplace_add_virtual(Alter_inplace_info *ha_alter_info,
     ctx->add_vcol[j].m_col.prtype = dtype_form_prtype(field_type, charset_no);
 
     ctx->add_vcol[j].m_col.prtype |= DATA_VIRTUAL;
+
+    if (is_multi_value) {
+      ctx->add_vcol[j].m_col.prtype |= DATA_MULTI_VALUE;
+    }
 
     ctx->add_vcol[j].m_col.mtype = col_type;
 
@@ -3590,7 +3599,19 @@ static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
 
     ulint col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
 
-    col_len = field->pack_length();
+    bool is_multi_value = innobase_is_multi_value_fld(field);
+
+    if (!field->gcol_info || field->stored_in_db) {
+      my_error(ER_WRONG_KEY_COLUMN, MYF(0), field->field_name);
+      return (true);
+    }
+
+    if (is_multi_value) {
+      col_len = field->key_length();
+    } else {
+      col_len = field->pack_length();
+    }
+
     field_type = (ulint)field->type();
 
     if (!field->real_maybe_null()) {
@@ -3619,9 +3640,8 @@ static bool prepare_inplace_drop_virtual(Alter_inplace_info *ha_alter_info,
       charset_no = 0;
     }
 
-    if (field->type() == MYSQL_TYPE_VARCHAR) {
-      uint32 length_bytes =
-          static_cast<const Field_varstring *>(field)->length_bytes;
+    if (field->type() == MYSQL_TYPE_VARCHAR && !is_multi_value) {
+      uint32 length_bytes = field->get_length_bytes();
 
       col_len -= length_bytes;
 
@@ -4332,6 +4352,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         ctx->heap, ctx->new_table->name.m_name, ctx->new_table->id);
     ulint n_cols = 0;
     ulint n_v_cols = 0;
+    ulint n_m_v_cols = 0;
     dtuple_t *add_cols;
     space_id_t space_id = 0;
     ulint z = 0;
@@ -4346,6 +4367,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
       if (innobase_is_v_fld(field)) {
         n_v_cols++;
+        if (innobase_is_multi_value_fld(field)) {
+          n_m_v_cols++;
+        }
       } else {
         n_cols++;
       }
@@ -4388,8 +4412,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
 
     /* The initial space id 0 may be overridden later if this
     table is going to be a file_per_table tablespace. */
-    ctx->new_table = dict_mem_table_create(
-        new_table_name, space_id, n_cols + n_v_cols, n_v_cols, flags, flags2);
+    ctx->new_table =
+        dict_mem_table_create(new_table_name, space_id, n_cols + n_v_cols,
+                              n_v_cols, n_m_v_cols, flags, flags2);
 
     /* TODO: Fix this problematic assignment */
     ctx->new_table->dd_space_id = new_dd_tab->tablespace_id();
@@ -4411,6 +4436,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       ulint charset_no;
       ulint col_len;
       bool is_virtual = innobase_is_v_fld(field);
+      bool is_multi_value = innobase_is_multi_value_fld(field);
 
       /* we assume in dtype_form_prtype() that this
       fits in two bytes */
@@ -4440,7 +4466,11 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         charset_no = 0;
       }
 
-      col_len = field->pack_length();
+      if (is_multi_value) {
+        col_len = field->key_length();
+      } else {
+        col_len = field->pack_length();
+      }
 
       /* The MySQL pack length contains 1 or 2 bytes
       length field for a true VARCHAR. Let us
@@ -4448,9 +4478,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       length in the InnoDB data dictionary is the
       real maximum byte length of the actual data. */
 
-      if (field->type() == MYSQL_TYPE_VARCHAR) {
-        uint32 length_bytes =
-            static_cast<const Field_varstring *>(field)->length_bytes;
+      if (field->type() == MYSQL_TYPE_VARCHAR && !is_multi_value) {
+        uint32 length_bytes = field->get_length_bytes();
 
         col_len -= length_bytes;
 
@@ -4472,10 +4501,14 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       }
 
       if (is_virtual) {
+        field_type |= DATA_VIRTUAL;
+        if (is_multi_value) {
+          field_type |= DATA_MULTI_VALUE;
+        }
         dict_mem_table_add_v_col(
             ctx->new_table, ctx->heap, field->field_name, col_type,
-            dtype_form_prtype(field_type, charset_no) | DATA_VIRTUAL, col_len,
-            i, field->gcol_info->non_virtual_base_columns());
+            dtype_form_prtype(field_type, charset_no), col_len, i,
+            field->gcol_info->non_virtual_base_columns());
       } else {
         dict_mem_table_add_col(
             ctx->new_table, ctx->heap, field->field_name, col_type,
@@ -6904,20 +6937,8 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
 
   /* Check if the column, part of an index to be dropped is part of any
   other index which is not being dropped. If not, then set the ord_part
-  of the column to 0. */
+  of the column to 0. Here the columns are collected first. */
   get_col_list_to_be_dropped(ctx, drop_list, v_drop_list);
-
-  for (col_it = drop_list.begin(); col_it != drop_list.end(); ++col_it) {
-    if (!check_col_exists_in_indexes(ctx->new_table, *col_it, false)) {
-      ctx->new_table->cols[*col_it].ord_part = 0;
-    }
-  }
-
-  for (col_it = v_drop_list.begin(); col_it != v_drop_list.end(); ++col_it) {
-    if (!check_col_exists_in_indexes(ctx->new_table, *col_it, true)) {
-      ctx->new_table->v_cols[*col_it].m_col.ord_part = 0;
-    }
-  }
 
   for (ulint i = 0; i < ctx->num_to_add_index; i++) {
     dict_index_t *index = ctx->add_index[i];
@@ -6965,6 +6986,19 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
 
       btr_drop_ahi_for_index(index);
       dict_index_remove_from_cache(index->table, index);
+    }
+  }
+
+  /* Update the ord_part after index dropped, to get accurate values */
+  for (col_it = drop_list.begin(); col_it != drop_list.end(); ++col_it) {
+    if (!check_col_exists_in_indexes(ctx->new_table, *col_it, false)) {
+      ctx->new_table->cols[*col_it].ord_part = 0;
+    }
+  }
+
+  for (col_it = v_drop_list.begin(); col_it != v_drop_list.end(); ++col_it) {
+    if (!check_col_exists_in_indexes(ctx->new_table, *col_it, true)) {
+      ctx->new_table->v_cols[*col_it].m_col.ord_part = 0;
     }
   }
 

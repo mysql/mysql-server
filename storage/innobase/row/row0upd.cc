@@ -582,20 +582,13 @@ byte *row_upd_parse_sys_vals(const byte *ptr,     /*!< in: buffer */
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Writes to the redo log the new values of the fields occurring in the index.
- */
-void row_upd_index_write_log(
-    const upd_t *update, /*!< in: update vector */
-    byte *log_ptr,       /*!< in: pointer to mlog buffer: must
-                         contain at least MLOG_BUF_MARGIN bytes
-                         of free space; the buffer is closed
-                         within this function */
-    mtr_t *mtr)          /*!< in: mtr into whose log to write */
-{
+void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
+                             byte *log_ptr, mtr_t *mtr) {
   const upd_field_t *upd_field;
   const dfield_t *new_val;
   ulint len;
   ulint n_fields;
+  ulint log_fields = 0;
   byte *buf_end;
   ulint i;
 
@@ -605,7 +598,20 @@ void row_upd_index_write_log(
 
   mach_write_to_1(log_ptr, update->info_bits);
   log_ptr++;
-  log_ptr += mach_write_compressed(log_ptr, n_fields);
+
+  for (i = 0; i < n_fields; i++) {
+    upd_field = upd_get_nth_field(update, i);
+
+    /* No need to log virtual columns for non-virtual index, since
+    in this case row_upd_rec_inplace() won't apply this kind of redo log. */
+    if (upd_fld_is_virtual_col(upd_field) && !dict_index_has_virtual(index)) {
+      continue;
+    }
+
+    ++log_fields;
+  }
+
+  log_ptr += mach_write_compressed(log_ptr, log_fields);
 
   for (i = 0; i < n_fields; i++) {
 #if MLOG_BUF_MARGIN <= 30
@@ -620,6 +626,10 @@ void row_upd_index_write_log(
     }
 
     upd_field = upd_get_nth_field(update, i);
+
+    if (upd_fld_is_virtual_col(upd_field) && !dict_index_has_virtual(index)) {
+      continue;
+    }
 
     new_val = &(upd_field->new_val);
 
@@ -1069,7 +1079,11 @@ static void row_upd_index_replace_new_col_val_func(
       dfield_set_ext(dfield);
       /* fall through */
     case 0:
-      dfield_dup(dfield, heap);
+      if (dfield_is_multi_value(dfield)) {
+        dfield_multi_value_dup(dfield, heap);
+      } else {
+        dfield_dup(dfield, heap);
+      }
       break;
     default:
       /* Reconstruct the original locally
@@ -1300,6 +1314,9 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
       ulint len;
       ulint orig_len;
       bool is_v;
+      dict_v_col_t *vcol = nullptr;
+      dfield_t *dfield = nullptr;
+      dfield_t read_field;
 
       field_no = mach_read_next_compressed(&ptr);
 
@@ -1309,9 +1326,37 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
         ptr = trx_undo_read_v_idx(table, ptr, first_v_col, &is_undo_log,
                                   &field_no);
         first_v_col = false;
+        if (field_no != ULINT_UNDEFINED) {
+          vcol = dict_table_get_nth_v_col(table, field_no);
+          col_no = dict_col_get_no(&vcol->m_col);
+          dfield = dtuple_get_nth_v_field(row, vcol->v_pos);
+        }
       }
 
-      ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
+      if ((is_v && vcol != nullptr && vcol->m_col.is_multi_value()) ||
+          trx_undo_rec_is_multi_value(ptr)) {
+        ut_ad(is_v);
+        ut_ad(vcol != nullptr || field_no == ULINT_UNDEFINED);
+        ptr = trx_undo_rec_get_multi_value(ptr, &read_field, update->heap);
+
+        if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
+          dfield_copy_data(dfield, &read_field);
+        }
+
+        vcol->m_col.copy_type(dfield_get_type(dfield));
+
+        if (undo_row) {
+          dfield_t *undo_field = dtuple_get_nth_v_field(undo_row, vcol->v_pos);
+          if (dfield_get_type(undo_field)->mtype == DATA_MISSING) {
+            vcol->m_col.copy_type(dfield_get_type(undo_field));
+            dfield_copy_data(undo_field, &read_field);
+          }
+        }
+
+        continue;
+      } else {
+        ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
+      }
 
       if (field_no == ULINT_UNDEFINED) {
         ut_ad(is_v);
@@ -1319,8 +1364,6 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
       }
 
       if (is_v) {
-        dict_v_col_t *vcol = dict_table_get_nth_v_col(table, field_no);
-
         row_upd_set_vcol_data(row, field, len, vcol);
 
         if (undo_row) {
@@ -1411,37 +1454,28 @@ void row_upd_replace(trx_t *trx,      /*!< in: transaction object. */
   row_upd_replace_vcol(row, table, update, true, NULL, NULL);
 }
 
-/** Checks if an update vector changes an ordering field of an index record.
-
- This function is fast if the update vector is short or the number of ordering
- fields in the index is small. Otherwise, this can be quadratic.
- NOTE: we compare the fields as binary strings!
- @return true if update vector changes an ordering field in the index record */
-ibool row_upd_changes_ord_field_binary_func(
-    dict_index_t *index, /*!< in: index of the record */
-    const upd_t *update, /*!< in: update vector for the row; NOTE: the
-                         field numbers in this MUST be clustered index
-                         positions! */
+bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
+                                           const upd_t *update,
 #ifdef UNIV_DEBUG
-    const que_thr_t *thr, /*!< in: query thread, or NULL */
-#endif                    /* UNIV_DEBUG */
-    const dtuple_t *row,  /*!< in: old value of row, or NULL if the
-                          row and the data values in update are not
-                          known when this function is called, e.g., at
-                          compile time */
-    const row_ext_t *ext, /*!< NULL, or prefixes of the externally
-                          stored columns in the old row */
-    ulint flag)           /*!< in: ROW_BUILD_NORMAL,
-                          ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-{
+                                           const que_thr_t *thr,
+#endif /* UNIV_DEBUG */
+                                           const dtuple_t *row,
+                                           const row_ext_t *ext,
+                                           bool *non_mv_upd, ulint flag) {
   ulint n_unique;
   ulint i;
   const dict_index_t *clust_index;
+  bool changes = false;
 
   ut_ad(index);
   ut_ad(update);
 
   ut_ad(!index->table->skip_alter_undo);
+  ut_ad(non_mv_upd == nullptr || index->is_multi_value());
+
+  if (non_mv_upd != nullptr) {
+    *non_mv_upd = false;
+  }
 
   n_unique = dict_index_get_n_unique(index);
 
@@ -1477,7 +1511,7 @@ ibool row_upd_changes_ord_field_binary_func(
 
     if (row == NULL) {
       ut_ad(ext == NULL);
-      return (TRUE);
+      return (true);
     }
 
     if (col->is_virtual()) {
@@ -1568,7 +1602,7 @@ ibool row_upd_changes_ord_field_binary_func(
       new_mbr = reinterpret_cast<rtr_mbr_t *>(mbr2);
 
       if (new_srid != srid) {
-        return true;
+        return (true);
       }
 
       if (temp_heap) {
@@ -1576,7 +1610,7 @@ ibool row_upd_changes_ord_field_binary_func(
       }
 
       if (!mbr_equal_cmp(index->rtr_srs.get(), old_mbr, new_mbr)) {
-        return (TRUE);
+        return (true);
       } else {
         continue;
       }
@@ -1607,7 +1641,9 @@ ibool row_upd_changes_ord_field_binary_func(
           storing the field. */
           ut_ad(thr == NULL || thr->graph->trx->is_recovered);
           ut_ad(thr == NULL || trx_is_recv(thr->graph->trx));
-          return (TRUE);
+          ut_ad(non_mv_upd == nullptr);
+
+          return (true);
         }
 
         goto copy_dfield;
@@ -1628,11 +1664,18 @@ ibool row_upd_changes_ord_field_binary_func(
 
     if (!dfield_datas_are_binary_equal(dfield, &upd_field->new_val,
                                        ind_field->prefix_len)) {
-      return (TRUE);
+      changes = true;
+
+      if (non_mv_upd == nullptr || !dfield_is_multi_value(dfield)) {
+        if (non_mv_upd != nullptr) {
+          *non_mv_upd = true;
+        }
+        break;
+      }
     }
   }
 
-  return (FALSE);
+  return (changes);
 }
 
 /** Checks if an update vector changes an ordering field of an index record.
@@ -1742,6 +1785,8 @@ static ibool row_upd_changes_first_fields_binary(
     col_pos = dict_col_get_clust_pos(col, clust_index);
 
     ut_a(ind_field->prefix_len == 0);
+    /* Multi-value index doesn't support FK */
+    ut_ad(!col->is_multi_value());
 
     for (j = 0; j < n_upd_fields; j++) {
       upd_field_t *upd_field = upd_get_nth_field(update, j);
@@ -1830,7 +1875,11 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
         }
 
         dfield_copy_data(dfield, upd_field->old_v_val);
-        dfield_dup(dfield, node->heap);
+        if (dfield_is_multi_value(dfield)) {
+          dfield_multi_value_dup(dfield, node->heap);
+        } else {
+          dfield_dup(dfield, node->heap);
+        }
         break;
       }
 
@@ -1848,7 +1897,11 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
           } else {
             dfield_t *vfield = dtuple_get_nth_v_field(update->old_vrow, col_no);
             dfield_copy_data(dfield, vfield);
-            dfield_dup(dfield, node->heap);
+            if (dfield_is_multi_value(dfield)) {
+              dfield_multi_value_dup(dfield, node->heap);
+            } else {
+              dfield_dup(dfield, node->heap);
+            }
           }
         } else {
           /* Need to compute, this happens when
@@ -1943,18 +1996,189 @@ static void srv_mbr_print(const byte *data) {
                            << ", " << d << "\n";
 }
 
-/** Updates a secondary index entry of a row.
- @return DB_SUCCESS if operation successfully completed, else error
- code or DB_LOCK_WAIT */
+/** Delete mark a secondary index entry of a row, when the index
+is built on multi-value field
+@param[in]	index	the multi-value index
+@param[in]	entry	the entry to handle on the index
+@param[in]	thr	query thread
+@param[in,out]	heap	memory heap
+@return DB_SUCCESS on success, otherwise error code */
+static inline dberr_t row_upd_del_one_multi_sec_index_entry(dict_index_t *index,
+                                                            dtuple_t *entry,
+                                                            que_thr_t *thr,
+                                                            mem_heap_t *heap) {
+  mtr_t mtr;
+  btr_pcur_t pcur;
+  btr_cur_t *btr_cur;
+  const rec_t *rec;
+  ulint mode;
+  ulint flags = 0;
+  dberr_t err = DB_SUCCESS;
+  enum row_search_result search_result;
+  ut_d(trx_t *trx = thr_get_trx(thr));
+
+  ut_ad(trx->id != 0);
+  ut_ad(!index->table->is_intrinsic());
+  ut_ad(!row_upd_index_is_referenced(index, trx));
+  ut_ad(index->is_committed());
+  ut_ad(!dict_index_is_online_ddl(index));
+
+  DBUG_EXECUTE_IF("delete_one_multi_sec_index_entry_lock_wait", {
+    static uint16_t count = 0;
+    if (index->is_multi_value()) {
+      ++count;
+    }
+    if (count == 2) {
+      count = 0;
+      return (DB_LOCK_WAIT);
+    }
+  });
+
+  mtr_start(&mtr);
+  if (index->table->is_temporary()) {
+    flags |= BTR_NO_LOCKING_FLAG;
+    mtr.set_log_mode(MTR_LOG_NO_REDO);
+  }
+
+  /* Set the query thread, so that ibuf_insert_low() will be
+  able to invoke thd_get_trx(). */
+  btr_pcur_get_btr_cur(&pcur)->thr = thr;
+
+  mode = (index->table->is_temporary()) ? BTR_MODIFY_LEAF
+                                        : BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+
+  search_result = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+
+  btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+  rec = btr_cur_get_rec(btr_cur);
+
+  switch (search_result) {
+    case ROW_NOT_DELETED_REF: /* should only occur for BTR_DELETE */
+      ut_error;
+      break;
+    case ROW_BUFFERED:
+      /* Entry was delete marked already. */
+      break;
+
+    case ROW_NOT_FOUND:
+      ib::error(ER_IB_MSG_1044)
+          << "Record in index " << index->name << " of table "
+          << index->table->name << " was not found on update: " << *entry
+          << " at: " << rec_index_print(rec, index);
+#ifdef UNIV_DEBUG
+      mtr_commit(&mtr);
+      mtr_start(&mtr);
+      ut_ad(btr_validate_index(index, 0, false));
+      ut_ad(0);
+#endif /* UNIV_DEBUG */
+      break;
+    case ROW_FOUND:
+      ut_ad(err == DB_SUCCESS);
+
+      /* Delete mark the old index record; it can already be
+      delete marked if we return after a lock wait in
+      row_ins_sec_index_entry() afterwards */
+      if (!rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
+        err = btr_cur_del_mark_set_sec_rec(flags, btr_cur, TRUE, thr, &mtr);
+        if (err != DB_SUCCESS) {
+          break;
+        }
+      }
+
+      ut_ad(err == DB_SUCCESS);
+      break;
+  }
+
+  btr_pcur_close(&pcur);
+  mtr_commit(&mtr);
+
+  return (err);
+}
+
+/** Updates secondary index entries of a row, when the index is built on
+multi-value field.
+@param[in,out]  node		row update node
+@param[in]      thr		query thread
+@param[in]	non_mv_upd	true if any non-multi-value field on the index
+                                gets updated too
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
-    row_upd_sec_index_entry(upd_node_t *node, /*!< in: row update node */
-                            que_thr_t *thr)   /*!< in: query thread */
-{
+    row_upd_multi_sec_index_entry(upd_node_t *node, que_thr_t *thr,
+                                  bool non_mv_upd) {
+  mem_heap_t *heap;
+  dict_index_t *index;
+  dberr_t err = DB_SUCCESS;
+  ut_d(trx_t *trx = thr_get_trx(thr));
+
+  ut_ad(trx->id != 0);
+
+  index = node->index;
+
+  ut_ad(!dict_index_is_spatial(index));
+  ut_ad(!index->table->is_intrinsic());
+  ut_ad(!row_upd_index_is_referenced(index, trx));
+  ut_ad(index->is_committed());
+  ut_ad(!dict_index_is_online_ddl(index));
+
+  heap = mem_heap_create(1024);
+
+  /* Once this is non-zero, it means the delete phase has been done, and
+  it only got blocked by locking wait during update phase. */
+  if (node->upd_multi_val_pos == 0) {
+    /* Check every multi-value data, if it's indexed on current index,
+    delete all old values from the index. */
+    Multi_value_entry_builder_normal mv_entry_builder(
+        node->row, node->ext, index, heap, true, !non_mv_upd);
+    for (dtuple_t *entry = mv_entry_builder.begin(node->del_multi_val_pos);
+         entry != nullptr; entry = mv_entry_builder.next()) {
+      err = row_upd_del_one_multi_sec_index_entry(index, entry, thr, heap);
+      if (err != DB_SUCCESS) {
+        node->del_multi_val_pos = mv_entry_builder.last_multi_value_position();
+        goto func_exit;
+      }
+    }
+
+    node->del_multi_val_pos = 0;
+  }
+
+  {
+    Multi_value_entry_builder_normal mv_entry_builder(
+        node->upd_row, node->upd_ext, index, heap, true, !non_mv_upd);
+    for (dtuple_t *entry = mv_entry_builder.begin(node->upd_multi_val_pos);
+         entry != nullptr; entry = mv_entry_builder.next()) {
+      err = row_ins_sec_index_entry(index, entry, thr, false);
+
+      if (err != DB_SUCCESS) {
+        node->upd_multi_val_pos = mv_entry_builder.last_multi_value_position();
+        goto func_exit;
+      }
+    }
+
+    node->upd_multi_val_pos = 0;
+  }
+
+func_exit:
+  mem_heap_free(heap);
+  return (err);
+}
+
+/** Updates a secondary index entry of a row.
+@param[in]	node		row update node
+@param[in]	old_entry	the old entry to search, or nullptr then it
+                                has to be created in this function
+@param[in]	thr		query thread
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_sec_index_entry_low(upd_node_t *node, dtuple_t *old_entry,
+                                que_thr_t *thr) {
   mtr_t mtr;
   const rec_t *rec;
   btr_pcur_t pcur;
   mem_heap_t *heap;
-  dtuple_t *entry;
+  dtuple_t *entry = old_entry;
   dict_index_t *index;
   btr_cur_t *btr_cur;
   ibool referenced;
@@ -1967,6 +2191,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ut_ad(trx->id != 0);
 
   index = node->index;
+
+  DBUG_EXECUTE_IF("row_upd_sec_index_entry_lock_wait", {
+    static uint16_t count = 0;
+    if (index->is_multi_value()) {
+      ++count;
+    }
+    if (count == 2) {
+      count = 0;
+      return (DB_LOCK_WAIT);
+    }
+  });
 
   referenced = row_upd_index_is_referenced(index, trx);
 
@@ -1985,8 +2220,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   /* Build old index entry */
-  entry = row_build_index_entry(node->row, node->ext, index, heap);
-  ut_a(entry);
+  if (entry == nullptr) {
+    entry = row_build_index_entry(node->row, node->ext, index, heap);
+    ut_a(entry);
+  }
 
   if (!index->table->is_intrinsic()) {
     log_free_check();
@@ -2109,8 +2346,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           << "Record in index " << index->name << " of table "
           << index->table->name << " was not found on update: " << *entry
           << " at: " << rec_index_print(rec, index);
-      srv_mbr_print((unsigned char *)entry->fields[0].data);
+
 #ifdef UNIV_DEBUG
+      if (dict_index_is_spatial(index)) {
+        srv_mbr_print((unsigned char *)entry->fields[0].data);
+      }
+
       mtr_commit(&mtr);
       mtr_start(&mtr);
       ut_ad(btr_validate_index(index, 0, false));
@@ -2167,6 +2408,60 @@ func_exit:
   return (err);
 }
 
+/** Updates a secondary index entry of a row.
+@param[in]      node    row update node
+@param[in]      thr     query thread
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
+static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_sec_index_entry(upd_node_t *node, que_thr_t *thr) {
+  return (row_upd_sec_index_entry_low(node, nullptr, thr));
+}
+
+/** Delete secondary index entries of a row, when the index is built on
+multi-value field.
+@param[in,out]  node    row update node
+@param[in]      thr     query thread
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
+static inline MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_upd_del_multi_sec_index_entry(upd_node_t *node, que_thr_t *thr) {
+  mem_heap_t *heap;
+  dberr_t err = DB_SUCCESS;
+  heap = mem_heap_create(1024);
+
+  ut_d(trx_t *trx = thr_get_trx(thr));
+
+  ut_ad(trx->id != 0);
+  ut_ad(!node->index->table->is_intrinsic());
+  ut_ad(!row_upd_index_is_referenced(node->index, trx));
+  ut_ad(node->index->is_committed());
+  ut_ad(!dict_index_is_online_ddl(node->index));
+
+  {
+    Multi_value_entry_builder_normal mv_entry_builder(
+        node->row, node->ext, node->index, heap, true, false);
+
+    for (dtuple_t *entry = mv_entry_builder.begin(node->del_multi_val_pos);
+         entry != nullptr; entry = mv_entry_builder.next()) {
+      err = row_upd_sec_index_entry_low(node, entry, thr);
+
+      if (err != DB_SUCCESS) {
+        node->del_multi_val_pos = mv_entry_builder.last_multi_value_position();
+        goto func_exit;
+      }
+    }
+
+    node->del_multi_val_pos = 0;
+    ut_ad(node->upd_multi_val_pos == 0);
+  }
+
+func_exit:
+  mem_heap_free(heap);
+
+  return (err);
+}
+
 /** Updates the secondary index record if it is changed in the row update or
  deletes it if this is a delete.
  @return DB_SUCCESS if operation successfully completed, else error
@@ -2179,10 +2474,22 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         (node->state == UPD_NODE_UPDATE_SOME_SEC));
   ut_ad(!node->index->is_clustered());
 
+  bool non_mv_upd = false;
+
   if (node->state == UPD_NODE_UPDATE_ALL_SEC ||
-      row_upd_changes_ord_field_binary(node->index, node->update, thr,
-                                       node->row, node->ext)) {
-    return (row_upd_sec_index_entry(node, thr));
+      row_upd_changes_ord_field_binary(
+          node->index, node->update, thr, node->row, node->ext,
+          (node->index->is_multi_value() ? &non_mv_upd : nullptr))) {
+    if (node->index->is_multi_value()) {
+      if (node->is_delete) {
+        return (row_upd_del_multi_sec_index_entry(node, thr));
+      } else {
+        return (row_upd_multi_sec_index_entry(
+            node, thr, (node->state == UPD_NODE_UPDATE_ALL_SEC || non_mv_upd)));
+      }
+    } else {
+      return (row_upd_sec_index_entry(node, thr));
+    }
   }
 
   return (DB_SUCCESS);
@@ -2790,7 +3097,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                     thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
 
   if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
-                                       node->ext)) {
+                                       node->ext, nullptr)) {
     /* Update causes an ordering field (ordering fields within
     the B-tree) of the clustered index record to change: perform
     the update by delete marking and inserting.

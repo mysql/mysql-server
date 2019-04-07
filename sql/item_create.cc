@@ -1412,6 +1412,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
      SQL_FN_ODD(Item_func_json_array_insert, 3, MAX_ARGLIST_SIZE)},
     {"JSON_OBJECT",
      SQL_FN_EVEN(Item_func_json_row_object, 0, MAX_ARGLIST_SIZE)},
+    {"JSON_OVERLAPS", SQL_FN(Item_func_json_overlaps, 2)},
     {"JSON_SEARCH", SQL_FN_V_THD(Item_func_json_search, 3, MAX_ARGLIST_SIZE)},
     {"JSON_SET", SQL_FN_ODD(Item_func_json_set, 3, MAX_ARGLIST_SIZE)},
     {"JSON_REPLACE", SQL_FN_ODD(Item_func_json_replace, 3, MAX_ARGLIST_SIZE)},
@@ -1768,8 +1769,10 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
   return create_func_cast(thd, pos, a, &type);
 }
 
-Item *create_func_cast(THD *thd, const POS &pos, Item *a,
-                       const Cast_type *type) {
+extern CHARSET_INFO my_charset_utf8mb4_0900_bin;
+
+Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type,
+                       bool as_array) {
   // earlier syntax error detected
   if (a == nullptr) return nullptr;
 
@@ -1779,15 +1782,40 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
 
   Item *res = nullptr;
 
+  if (as_array) {
+    // Disallow CAST( .. AS .. ARRAY) in SP
+    if (thd->lex->get_sp_current_parsing_ctx()) {
+      my_error(ER_WRONG_USAGE, MYF(0), "CAST( .. AS .. ARRAY)",
+               "stored routines");
+      return nullptr;
+    }
+    if (type->charset != nullptr && type->charset != &my_charset_bin) {
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "specifying charset for multi-valued index");
+      return nullptr;
+    }
+  }
   switch (cast_type) {
     case ITEM_CAST_SIGNED_INT:
-      res = new (thd->mem_root) Item_typecast_signed(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_signed(pos, a);
       break;
     case ITEM_CAST_UNSIGNED_INT:
-      res = new (thd->mem_root) Item_typecast_unsigned(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_unsigned(pos, a);
       break;
     case ITEM_CAST_DATE:
-      res = new (thd->mem_root) Item_typecast_date(pos, a);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, 0, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_date(pos, a);
       break;
     case ITEM_CAST_TIME:
     case ITEM_CAST_DATETIME: {
@@ -1797,10 +1825,14 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                  DATETIME_MAX_DECIMALS);
         return nullptr;
       }
-      res = (cast_type == ITEM_CAST_TIME)
-                ? (Item *)new (thd->mem_root) Item_typecast_time(pos, a, dec)
-                : (Item *)new (thd->mem_root)
-                      Item_typecast_datetime(pos, a, dec);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, 0, dec, NULL);
+      else
+        res = (cast_type == ITEM_CAST_TIME)
+                  ? (Item *)new (thd->mem_root) Item_typecast_time(pos, a, dec)
+                  : (Item *)new (thd->mem_root)
+                        Item_typecast_datetime(pos, a, dec);
       break;
     }
     case ITEM_CAST_DECIMAL: {
@@ -1853,7 +1885,11 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                  static_cast<ulong>(DECIMAL_MAX_SCALE));
         return 0;
       }
-      res = new (thd->mem_root) Item_typecast_decimal(pos, a, len, dec);
+      if (as_array)
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, len, dec, NULL);
+      else
+        res = new (thd->mem_root) Item_typecast_decimal(pos, a, len, dec);
       break;
     }
     case ITEM_CAST_CHAR: {
@@ -1870,16 +1906,48 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
           return nullptr;
         }
       }
-      res = new (thd->mem_root) Item_typecast_char(POS(), a, len, real_cs);
+      if (as_array) {
+        if (cast_type == ITEM_CAST_CHAR &&
+            (len < 0 || len > CONVERT_IF_BIGGER_TO_BLOB)) {
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "CAST-ing data to array of char/binary BLOBs");
+          return res;
+        }
+        /*
+          Multi-valued index now supports only two charsets: binary for
+          BINARY(x) keys and my_charset_utf8mb4_0900_as_cs for CHAR(x) keys.
+          The latter one is because it's closest to binary in terms of sort
+          order and doesn't pad spaces.  This is important because JSON treat
+          e.g "abc" and "abc " as different values and space padding charset
+          will cause inconsistent key handling and failed asserts in InnoDB.
+        */
+        if (real_cs != &my_charset_bin) real_cs = &my_charset_utf8mb4_0900_bin;
+
+        res = new (thd->mem_root)
+            Item_func_array_cast(pos, a, cast_type, len, 0, real_cs);
+      } else
+        res = new (thd->mem_root) Item_typecast_char(POS(), a, len, real_cs);
       break;
     }
     case ITEM_CAST_JSON: {
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of JSON");
+        return nullptr;
+      }
       res = new (thd->mem_root) Item_typecast_json(thd, pos, a);
 
       break;
     }
     case ITEM_CAST_FLOAT: {
       bool as_double = false;
+
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of FLOAT");
+        return nullptr;
+      }
+
       // Check if binary precision is specified
       if (c_len != nullptr) {
         ulong decoded_size;
@@ -1900,6 +1968,12 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *a,
       break;
     }
     case ITEM_CAST_DOUBLE: {
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of DOUBLE");
+        return nullptr;
+      }
+
       res = new (thd->mem_root) Item_typecast_real(pos, a, /*as_double*/ true);
       break;
     }

@@ -736,6 +736,16 @@ class Item : public Parse_tree_node {
 
   enum traverse_order { POSTFIX, PREFIX };
 
+  /// How to cache constant JSON data
+  enum enum_const_item_cache {
+    /// Don't cache
+    CACHE_NONE = 0,
+    /// Source data is a JSON string, parse and cache result
+    CACHE_JSON_VALUE,
+    /// Source data is SQL scalar, convert and cache result
+    CACHE_JSON_ATOM
+  };
+
   enum Bool_test  ///< Modifier for result transformation
   { BOOL_IS_TRUE = 0x00,
     BOOL_IS_FALSE = 0x01,
@@ -1296,6 +1306,8 @@ class Item : public Parse_tree_node {
     return NON_MONOTONIC;
   }
 
+  /// For template-compatibility with Field
+  inline bool is_null_value() { return null_value; }
   /*
     Convert "func_arg $CMP$ const" half-interval into "FUNC(func_arg) $CMP2$
     const2"
@@ -2611,6 +2623,7 @@ class Item : public Parse_tree_node {
   }
   virtual Field *get_orig_field() { return NULL; }
   virtual void set_orig_field(Field *) {}
+  virtual bool strip_db_table_name_processor(uchar *) { return false; }
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
@@ -2780,6 +2793,32 @@ class Item : public Parse_tree_node {
       const Field_json *field MY_ATTRIBUTE((unused))) const {
     return false;
   }
+
+  /**
+    Whether the item returns array of its data type
+  */
+  virtual bool returns_array() const { return false; }
+
+  /**
+   A helper funciton to ensure proper usage of CAST(.. AS .. ARRAY)
+  */
+  virtual void allow_array_cast() {}
+};
+
+/**
+  Descriptor of what and how to cache for
+  Item::cache_const_expr_transformer/analyzer.
+
+*/
+
+struct cache_const_expr_arg {
+  /// Path from the expression's top to the current item in item tree
+  /// used to track parent of current item for caching JSON data
+  List<Item> stack;
+  /// Item to cache. Used as a binary flag, but kept as Item* for assertion
+  Item *cache_item{nullptr};
+  /// How to cache JSON data. @see Item::enum_const_item_cache
+  Item::enum_const_item_cache cache_arg{Item::CACHE_NONE};
 };
 
 /**
@@ -3522,9 +3561,12 @@ class Item_field : public Item_ident {
   void set_orig_field(Field *orig_field_arg) override {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
+  bool returns_array() const override { return field && field->is_array(); }
+
   void set_can_use_prefix_key() override { can_use_prefix_key = true; }
 
   bool replace_field_processor(uchar *arg) override;
+  bool strip_db_table_name_processor(uchar *) override;
 };
 
 class Item_null : public Item_basic_constant {
@@ -5998,7 +6040,10 @@ class Item_cache_datetime : public Item_cache {
 
 /// An item cache for values of type JSON.
 class Item_cache_json : public Item_cache {
+  /// Cached value
   Json_wrapper *m_value;
+  /// Whether the cached value is array and it is sorted
+  bool m_is_sorted;
 
  public:
   Item_cache_json();
@@ -6014,6 +6059,10 @@ class Item_cache_json : public Item_cache {
   my_decimal *val_decimal(my_decimal *val) override;
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  /// Sort cached data. Only arrays are affected.
+  void sort();
+  /// Returns true when cached value is array and it's sorted
+  bool is_sorted() { return m_is_sorted; }
 };
 
 /**

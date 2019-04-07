@@ -54,6 +54,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "priority_queue.h"
+#include "sql/field.h"    // Field
+#include "sql/handler.h"  // handler
 #include "sql/malloc_allocator.h"
 #include "sql/merge_many_buff.h"
 #include "sql/mysqld.h"  // mysql_tmpdir
@@ -62,7 +64,9 @@
 #include "sql/sql_base.h"  // TEMP_PREFIX
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_executor.h"  // check_unique_constraint
 #include "sql/sql_sort.h"
+#include "sql/sql_tmp_table.h"  // create_duplicate_weedout_tmp_table
 #include "sql/table.h"
 
 namespace {
@@ -357,6 +361,7 @@ int unique_write_to_ptrs(void *v_key, element_count, void *v_unique) {
 Unique::Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg, uint size_arg,
                ulonglong max_in_memory_size_arg)
     : file_ptrs(PSI_INSTRUMENT_ME),
+      max_elements(0),
       max_in_memory_size(max_in_memory_size_arg),
       record_pointers(NULL),
       size(size_arg),
@@ -364,7 +369,6 @@ Unique::Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg, uint size_arg,
   my_b_clear(&file);
   init_tree(&tree, (ulong)(max_in_memory_size / 16), 0, size, comp_func, 0,
             NULL, comp_func_fixed_arg);
-
   /*
     If you change the following, change it in get_max_elements function, too.
   */
@@ -637,9 +641,9 @@ bool Unique::flush() {
 
   if (tree_walk(&tree, unique_write_to_file, this, left_root_right) ||
       file_ptrs.push_back(file_ptr))
-    return 1;
+    return true; /* purecov: inspected */
   delete_tree(&tree);
-  return 0;
+  return false;
 }
 
 /*
@@ -659,6 +663,11 @@ void Unique::reset() {
     file_ptrs.clear();
     reinit_io_cache(&file, WRITE_CACHE, 0L, 0, 1);
   }
+  /*
+    If table is used - finish index access and delete all records.
+    use_table is set to false, so on the next run the memory tree will be used
+    again at the beginning.
+  */
   elements = 0;
 }
 
@@ -961,4 +970,40 @@ err:
   if (reinit_io_cache(outfile, READ_CACHE, 0L, 0, 0)) error = 1;
   outfile->end_of_file = save_pos;
   return error;
+}
+
+bool Unique_on_insert::unique_add(void *ptr) {
+  Field *key = *m_table->visible_field_ptr();
+  if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
+    return true; /* purecov: inspected */
+  if (!check_unique_constraint(m_table)) return true;
+  uint res = m_table->file->ha_write_row(m_table->record[0]);
+  if (res) {
+    bool dup = false;
+    if (res == HA_ERR_FOUND_DUPP_KEY) return true;
+    if (create_ondisk_from_heap(m_table->in_use, m_table, res, false, &dup) ||
+        dup)
+      return true;
+  }
+  return false;
+}
+
+void Unique_on_insert::reset(bool reinit) {
+  /* Finish index access and delete all records.  */
+  m_table->file->ha_index_or_rnd_end();
+  m_table->file->ha_delete_all_rows();
+  if (reinit) m_table->file->ha_index_init(0, true);
+}
+
+bool Unique_on_insert::init() {
+  // If it's first run and table haven't been created yet - create it
+  if (!m_table && !(m_table = create_duplicate_weedout_tmp_table(
+                        current_thd, m_size, nullptr)))
+    return true; /* purecov: inspected */
+  return false;
+}
+
+void Unique_on_insert::cleanup() {
+  reset(false);
+  free_tmp_table(m_table->in_use, m_table);
 }

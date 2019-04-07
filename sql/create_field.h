@@ -68,7 +68,10 @@ class Create_field {
   ///          location where the actual data is stored. So LONGBLOB would
   ///          return 4 bytes for the length variable + 8 bytes for the pointer
   ///          to the data (12 bytes in total).
-  size_t pack_length() const;
+  ///  @param dont_override  Don't use pack_length_override even if non-zero
+  ///                        Used by multi-valued index, where pack_length
+  ///                        and key_length aren't the same.
+  size_t pack_length(bool dont_override = false) const;
 
   /// @returns the key length for this column.
   size_t key_length() const;
@@ -173,6 +176,9 @@ class Create_field {
   Value_generator *m_default_val_expr{nullptr};
   Nullable<gis::srid_t> m_srid;
 
+  // Whether the field is actually an array of the field's type;
+  bool is_array{false};
+
   Create_field()
       : after(NULL),
         is_explicit_collation(false),
@@ -213,7 +219,7 @@ class Create_field {
             const CHARSET_INFO *cs, bool has_explicit_collation,
             uint uint_geom_type, Value_generator *gcol_info,
             Value_generator *default_val_expr, Nullable<gis::srid_t> srid,
-            dd::Column::enum_hidden_type hidden);
+            dd::Column::enum_hidden_type hidden, bool is_array = false);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);

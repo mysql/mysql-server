@@ -3939,6 +3939,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
@@ -4956,6 +4957,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
+Warning	1739	Cannot use range access on index 'a' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` where (`test`.`t2`.`b` = 10) order by `test`.`t2`.`a`,`test`.`t2`.`c` limit 5
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value

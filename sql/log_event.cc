@@ -7910,11 +7910,14 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - Skip unique keys with nullable parts
         - Skip primary keys
         - Skip functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
+        - Skip multi-valued keys as they have only part of value and can't
+          fully identify a record
       */
       if (!((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           (key == table->s->primary_key) ||
           ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
-           keyinfo->is_functional_index())) {
+           keyinfo->is_functional_index()) ||
+          keyinfo->flags & HA_MULTI_VALUED_KEY) {
         continue;
       }
       res = are_all_columns_signaled_for_key(keyinfo, bi_cols) ? key : MAX_KEY;
@@ -7935,13 +7938,16 @@ static uint search_key_in_table(TABLE *table, MY_BITMAP *bi_cols,
         - Indexes that do not support ha_index_next() e.g. full-text.
         - Primary key indexes.
         - Functional indexes if the slave_rows_search_algorithms=INDEX_SCAN
+        - Skip multi-valued keys as they have only part of value and can't
+          fully identify a record
       */
       if (!(table->s->usable_indexes(current_thd).is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
           !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
           (key == table->s->primary_key) ||
           ((slave_rows_search_algorithms_options & SLAVE_ROWS_INDEX_SCAN) &&
-           keyinfo->is_functional_index())) {
+           keyinfo->is_functional_index()) ||
+          keyinfo->flags & HA_MULTI_VALUED_KEY) {
         continue;
       }
 
@@ -7974,7 +7980,6 @@ void Rows_log_event::decide_row_lookup_algorithm_and_key() {
     |--------------+-----------+------+------+------|
 
   */
-
   TABLE *table = this->m_table;
   uint event_type = this->get_general_type_code();
   MY_BITMAP *cols = &this->m_cols;
@@ -8039,7 +8044,6 @@ TABLE_OR_INDEX_FULL_SCAN:
   }
 
 end:
-
   /* m_key_index is ready, set m_key_info now. */
   m_key_info = m_table->key_info + m_key_index;
   /*
@@ -8613,7 +8617,7 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli) {
       Tell the handler to ignore if key exists or not, since it's
       not yet known if the key does exist(when using rbwr)
     */
-    m_table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+    m_table->file->ha_extra(HA_EXTRA_IGNORE_NO_KEY);
 
     goto end;
   }
@@ -10021,7 +10025,7 @@ void Rows_log_event::print_helper(FILE *,
   (e.g. values > 255), the endian-safe methods are used to properly encode
   the values on the master and decode them on the slave. When the field
   metadata values are captured on the slave, they are stored in an array of
-  type uint16. This allows the least number of casts to prevent casting bugs
+  type uint. This allows the least number of casts to prevent casting bugs
   when the field metadata is used in comparisons of field attributes. When
   the field metadata is used for calculating addresses in pointer math, the
   type used is uint32.
@@ -10138,8 +10142,8 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
       (uchar *)my_malloc(key_memory_log_event, num_null_bytes, MYF(MY_WME));
 
   m_field_metadata =
-      (uchar *)my_malloc(key_memory_log_event, (m_colcnt * 2), MYF(MY_WME));
-  memset(m_field_metadata, 0, (m_colcnt * 2));
+      (uchar *)my_malloc(key_memory_log_event, (m_colcnt * 4), MYF(MY_WME));
+  memset(m_field_metadata, 0, (m_colcnt * 4));
 
   common_header->set_is_valid(m_null_bits != nullptr &&
                               m_field_metadata != nullptr &&
@@ -10148,7 +10152,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
     Create an array for the field metadata and store it.
   */
   m_field_metadata_size = save_field_metadata();
-  DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
+  DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 4));
 
   /*
     Now set the size of the data to the size of the field metadata array
@@ -10642,9 +10646,7 @@ bool Table_map_log_event::init_signedness_field() {
 
   for (unsigned int i = 0; i < m_table->s->fields; ++i) {
     if (is_numeric_field(m_table->field[i])) {
-      Field_num *field = dynamic_cast<Field_num *>(m_table->field[i]);
-
-      if (field->unsigned_flag) flag |= mask;
+      if (m_table->field[i]->unsigned_flag) flag |= mask;
 
       mask >>= 1;
 
@@ -11374,18 +11376,18 @@ int Write_rows_log_event::do_before_row_operations(
     /*
        Do not raise the error flag in case of hitting to an unique attribute
     */
-    m_table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    m_table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     /*
        NDB specific: update from ndb master wrapped as Write_rows
        so that the event should be applied to replace slave's row
     */
-    m_table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+    m_table->file->ha_extra(HA_EXTRA_WRITE_CAN_REPLACE);
     /*
        NDB specific: if update from ndb master wrapped as Write_rows
        does not find the row it's assumed idempotent binlog applying
        is taking place; don't raise the error.
     */
-    m_table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+    m_table->file->ha_extra(HA_EXTRA_IGNORE_NO_KEY);
     /*
       TODO: the cluster team (Tomas?) says that it's better if the engine knows
       how many rows are going to be inserted, then it can allocate needed memory

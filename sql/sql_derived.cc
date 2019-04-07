@@ -766,7 +766,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
   /* create tmp table */
   if (instantiate_tmp_table(thd, table)) return true; /* purecov: inspected */
 
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   return false;
 }

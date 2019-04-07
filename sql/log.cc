@@ -894,7 +894,7 @@ bool Log_to_csv_event_handler::log_general(
   if (log_table_intact.check(thd, table_list.table, &general_log_table_def))
     goto err;
 
-  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 
@@ -1009,7 +1009,7 @@ bool Log_to_csv_event_handler::log_slow(
   if (log_table_intact.check(thd, table_list.table, &slow_query_log_table_def))
     goto err;
 
-  if (table->file->extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
+  if (table->file->ha_extra(HA_EXTRA_MARK_AS_LOG_TABLE) ||
       table->file->ha_rnd_init(0))
     goto err;
 

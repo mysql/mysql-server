@@ -207,6 +207,9 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 
     case MYSQL_TYPE_JSON:
       return dd::enum_column_types::JSON;
+
+    default:
+      break;
   }
 
   /* purecov: begin deadcode */
@@ -699,6 +702,10 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     if (field->flags & NOT_SECONDARY_FLAG)
       col_options->set("not_secondary", true);
 
+    if (field->is_array) {
+      col_options->set("is_array", true);
+    }
+
     //
     // Write intervals
     //
@@ -937,7 +944,7 @@ static bool is_candidate_primary_key(THD *thd, KEY *key,
       if (i == key_part->fieldnr) break;
       i++;
     }
-
+    if (cfield->is_array) return false;
     /* Prepare Field* object from Create_field */
 
     unique_ptr_destroy_only<Field> table_field(make_field(*cfield, table.s));

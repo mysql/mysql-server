@@ -577,17 +577,24 @@ static void row_mysql_convert_row_to_innobase(
   ulint i;
   ulint n_col = 0;
   ulint n_v_col = 0;
+  ulint n_m_v_col = 0;
 
   ut_ad(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
   ut_ad(prebuilt->mysql_template);
 
   for (i = 0; i < prebuilt->n_template; i++) {
+    bool is_multi_val = false;
+
     templ = prebuilt->mysql_template + i;
 
     if (templ->is_virtual) {
       ut_ad(n_v_col < dtuple_get_n_v_fields(row));
       dfield = dtuple_get_nth_v_field(row, n_v_col);
       n_v_col++;
+      if (dfield_is_multi_value(dfield)) {
+        is_multi_val = true;
+        n_m_v_col++;
+      }
     } else {
       dfield = dtuple_get_nth_field(row, n_col);
       n_col++;
@@ -602,25 +609,43 @@ static void row_mysql_convert_row_to_innobase(
 
         dfield_set_null(dfield);
 
-        goto next_column;
+        continue;
       }
     }
 
-    row_mysql_store_col_in_innobase_format(
-        dfield, prebuilt->ins_upd_rec_buff + templ->mysql_col_offset,
-        TRUE, /* MySQL row format data */
-        mysql_rec + templ->mysql_col_offset, templ->mysql_col_len,
-        dict_table_is_comp(prebuilt->table));
+    if (is_multi_val) {
+      dict_v_col_t *v_col =
+          dict_table_get_nth_v_col(prebuilt->table, n_v_col - 1);
 
-    /* server has issue regarding handling BLOB virtual fields,
-    and we need to duplicate it with our own memory here */
-    if (templ->is_virtual && DATA_LARGE_MTYPE(dfield_get_type(dfield)->mtype)) {
-      if (*blob_heap == NULL) {
-        *blob_heap = mem_heap_create(dfield->len);
+      innobase_get_multi_value(prebuilt->m_mysql_table, v_col->m_col.ind,
+                               dfield, &prebuilt->mv_data[n_m_v_col - 1], 0,
+                               dict_table_is_comp(prebuilt->table),
+                               prebuilt->heap);
+
+      /* For multi-value data, the deep copy may cost too much.
+      So ideally this should be optimized by keeping and reading the
+      raw data. However, once more virtual column data needs to be
+      calculated later, for example, insert by modify, server will
+      overwrites the memory used here. So the safest way is a deep
+      copy. */
+      dfield_multi_value_dup(dfield, prebuilt->heap);
+    } else {
+      row_mysql_store_col_in_innobase_format(
+          dfield, prebuilt->ins_upd_rec_buff + templ->mysql_col_offset,
+          TRUE, /* MySQL row format data */
+          mysql_rec + templ->mysql_col_offset, templ->mysql_col_len,
+          dict_table_is_comp(prebuilt->table));
+
+      /* server has issue regarding handling BLOB virtual fields,
+      and we need to duplicate it with our own memory here */
+      if (templ->is_virtual &&
+          DATA_LARGE_MTYPE(dfield_get_type(dfield)->mtype)) {
+        if (*blob_heap == NULL) {
+          *blob_heap = mem_heap_create(dfield->len);
+        }
+        dfield_dup(dfield, *blob_heap);
       }
-      dfield_dup(dfield, *blob_heap);
     }
-  next_column:;
   }
 
   /* If there is a FTS doc id column and it is not user supplied (
@@ -1017,6 +1042,8 @@ static dtuple_t *row_get_prebuilt_insert_row(
   ut_ad(prebuilt && table && prebuilt->trx);
 
   if (prebuilt->ins_node != 0) {
+    prebuilt->ins_node->ins_multi_val_pos = 0;
+
     /* Check if indexes have been dropped or added and we
     may need to rebuild the row insert template. */
 
@@ -1044,6 +1071,15 @@ static dtuple_t *row_get_prebuilt_insert_row(
   if (prebuilt->ins_upd_rec_buff == 0) {
     prebuilt->ins_upd_rec_buff = static_cast<byte *>(
         mem_heap_alloc(prebuilt->heap, prebuilt->mysql_row_len));
+  }
+
+  if (table->n_m_v_cols > 0 && prebuilt->mv_data == nullptr) {
+    prebuilt->mv_data = static_cast<multi_value_data *>(mem_heap_zalloc(
+        prebuilt->heap, table->n_m_v_cols * sizeof(*prebuilt->mv_data)));
+    for (ulint i = 0; i < table->n_m_v_cols; i++) {
+      prebuilt->mv_data[i].alloc(multi_value_data::s_default_allocate_num,
+                                 false, prebuilt->heap);
+    }
   }
 
   dtuple_t *row;
@@ -1736,6 +1772,9 @@ upd_node_t *row_create_update_node_for_mysql(
   node->table_sym = NULL;
   node->col_assign_list = NULL;
 
+  node->del_multi_val_pos = 0;
+  node->upd_multi_val_pos = 0;
+
   return node;
 }
 
@@ -2156,7 +2195,7 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
     for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes); index != NULL;
          index = UT_LIST_GET_NEXT(indexes, index)) {
       key_changed = row_upd_changes_ord_field_binary(
-          index, node->update, thr, node->upd_row, node->upd_ext);
+          index, node->update, thr, node->upd_row, node->upd_ext, nullptr);
 
       if (key_changed) {
         break;
@@ -2265,6 +2304,8 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   }
 
   node = prebuilt->upd_node;
+  node->del_multi_val_pos = 0;
+  node->upd_multi_val_pos = 0;
 
   clust_index = table->first_index();
 

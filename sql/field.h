@@ -53,6 +53,7 @@
 #include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
+#include "sql/json_dom.h"  // Json_array
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"  // Sql_condition
@@ -149,6 +150,7 @@ Field (abstract)
 |  |  +--Field_blob
 |  |     +--Field_geom
 |  |     +--Field_json
+|  |        +--Field_typed_array
 |  |
 |  +--Field_null
 |  +--Field_enum
@@ -903,6 +905,11 @@ class Field : public Proto_field {
     As of now, false can only be set for virtual generated columns.
   */
   bool stored_in_db;
+  /**
+    Whether the field is signed or not. Meaningful only for numeric fields
+    and numeric arrays.
+  */
+  bool unsigned_flag;
   bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
 
@@ -1213,6 +1220,8 @@ class Field : public Proto_field {
   virtual enum ha_base_keytype key_type() const { return HA_KEYTYPE_BINARY; }
   virtual uint32 key_length() const { return pack_length(); }
   virtual enum_field_types type() const = 0;
+  /// For template-compatibility with Item
+  enum_field_types data_type() const { return type(); }
   virtual enum_field_types real_type() const { return type(); }
   virtual enum_field_types binlog_type() const {
     /*
@@ -1290,6 +1299,11 @@ class Field : public Proto_field {
                false if neither table's row nor the Field has value NULL
   */
   bool is_null(ptrdiff_t row_offset = 0) const;
+
+  /// For template-compatibility with Item
+  bool is_null_value() const { return is_null(); }
+  /// Same as above. Not actually used
+  bool update_null_value() { return false; /* purecov: inspected */ }
 
   /**
     Check whether the Field has value NULL (temporary or actual).
@@ -1640,7 +1654,7 @@ class Field : public Proto_field {
   }
 
   bool warn_if_overflow(int op_result);
-  void init(TABLE *table_arg);
+  virtual void init(TABLE *table_arg);
 
   /* maximum possible display length */
   virtual uint32 max_display_length() const = 0;
@@ -1778,6 +1792,30 @@ class Field : public Proto_field {
   friend class Item_sum_max;
   friend class Item_func_group_concat;
 
+  /// Whether the field is a typed array
+  virtual bool is_array() const { return false; }
+
+  /**
+    Return number of bytes the field's length takes
+
+    Valid only for varchar and typed arrays of varchar
+  */
+  virtual uint32 get_length_bytes() const {
+    DBUG_ASSERT(0);
+    return 0;
+  }
+
+  /**
+    Whether field's old valued have to be handled.
+
+    @returns
+      true   if field is virtual an either one of BLOB types or typed array
+      false  otherwise
+  */
+  bool handle_old_value() {
+    return (((flags & BLOB_FLAG) != 0 || is_array()) && is_virtual_gcol());
+  }
+
  private:
   /*
     Primitive for implementing last_null_byte().
@@ -1913,7 +1951,7 @@ class Create_field_wrapper final : public Field {
 class Field_num : public Field {
  public:
   const uint8 dec;
-  bool zerofill, unsigned_flag;  // Purify cannot handle bit fields
+  bool zerofill;  // Purify cannot handle bit fields
   Field_num(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar auto_flags_arg,
             const char *field_name_arg, uint8 dec_arg, bool zero_arg,
@@ -1959,11 +1997,11 @@ class Field_str : public Field {
   Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar auto_flags_arg,
             const char *field_name_arg, const CHARSET_INFO *charset);
-  Item_result result_type() const final override { return STRING_RESULT; }
+  Item_result result_type() const override { return STRING_RESULT; }
   Item_result numeric_context_result_type() const final override {
     return REAL_RESULT;
   }
-  uint decimals() const final override { return NOT_FIXED_DEC; }
+  uint decimals() const override { return NOT_FIXED_DEC; }
   void make_field(Send_field *field) const final override;
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override = 0;
@@ -1987,9 +2025,7 @@ class Field_str : public Field {
   void set_derivation(enum Derivation derivation_arg) final override {
     field_derivation = derivation_arg;
   }
-  bool binary() const final override {
-    return field_charset == &my_charset_bin;
-  }
+  bool binary() const override { return field_charset == &my_charset_bin; }
   uint32 max_display_length() const override { return field_length; }
   bool str_needs_quotes() const final override { return true; }
   uint is_equal(const Create_field *new_field) const override;
@@ -2104,6 +2140,18 @@ class Field_decimal final : public Field_real {
 /* New decimal/numeric field which use fixed point arithmetic */
 class Field_new_decimal : public Field_num {
  private:
+  /**
+    Normally, the underlying decimal code will degrade values' excessive
+    precision.  E.g. value 0.0 stored as decimal(10,4) will be returned as
+    decimal(4,4). This is fine for general purpose, but isn't usable for
+    multi-valued index. Field_typed_array uses a field for conversion and it
+    expects the value read from it to be exactly same as it would be stored
+    in SE, i.e with preserved precision. Otherwise, SE won't be able to
+    index it.
+    TRUE here tells underlying DECIMAL reading code to keep the precision as
+    is.
+  */
+  bool m_keep_precision{false};
   int do_save_field_metadata(uchar *first_byte) const final override;
 
  public:
@@ -2168,6 +2216,7 @@ class Field_new_decimal : public Field_num {
                       bool low_byte_first) final override;
   static Field *create_from_item(Item *);
   bool send_binary(Protocol *protocol) const final override;
+  void set_keep_precision(bool arg) { m_keep_precision = arg; }
 };
 
 class Field_tiny : public Field_num {
@@ -3725,6 +3774,7 @@ class Field_varstring : public Field_longstr {
   bool is_text_key_type() const final override {
     return binary() ? false : true;
   }
+  virtual uint32 get_length_bytes() const override { return length_bytes; }
 
  private:
   int do_save_field_metadata(uchar *first_byte) const final override;
@@ -3781,6 +3831,34 @@ class Field_blob : public Field_longstr {
   */
   bool m_keep_old_value;
 
+  /**
+    Backup String for table's blob fields.
+    UPDATE of a virtual field (for index update) requires two values to be
+    kept at the same time - 'new' and 'old' since SE (InnoDB) doesn't know the
+    latter. In the case when there was an indexed record, it got deleted and
+    When INSERT inserts into an index a record that coincides with a
+    previously deleted one, InnoDB needs to recalculate value that was
+    deleted in order to properly insert the new one.
+    When two above overlap, a field have to keep 3 different values at the
+    same time - 'new', 'old' and 'deleted'.
+    This backup_value is used by @see my_eval_gcolumn_expr_helper() to save
+    'new' and provide space for 'deleted' to avoid thrashing the former.
+    Unlike the old_value, backup_value is allocated once and reused for each
+    new re-calculation, to avoid excessive [re-]allocations. It's freed at the
+    end of statement. Since InnoDB consumes calculated values only after all
+    needed table's virtual fields were calculated, we have to have such backup
+    buffer for each field.
+  */
+  String m_blob_backup;
+
+#ifndef DBUG_OFF
+  /**
+    Whether the field uses table's backup value storage. @see
+    TABLE::m_blob_backup. Used only for debug.
+  */
+  bool m_uses_backup{false};
+#endif
+
  protected:
   /**
     Store ptr and length.
@@ -3834,9 +3912,9 @@ class Field_blob : public Field_longstr {
           uint32 b_length) const;  // No override.
   int cmp_binary(const uchar *a, const uchar *b,
                  uint32 max_length = ~0L) const override;
-  int key_cmp(const uchar *, const uchar *) const final override;
-  int key_cmp(const uchar *str, uint length) const final override;
-  uint32 key_length() const final override { return 0; }
+  int key_cmp(const uchar *, const uchar *) const override;
+  int key_cmp(const uchar *str, uint length) const override;
+  uint32 key_length() const override { return 0; }
   size_t make_sort_key(uchar *buff, size_t length) const override;
   uint32 pack_length() const final override {
     return (uint32)(packlength + portable_sizeof_char_ptr);
@@ -3866,6 +3944,7 @@ class Field_blob : public Field_longstr {
   void reset_fields() final override {
     value = String();
     old_value = String();
+    m_blob_backup = String();
   }
   size_t get_field_buffer_size() { return value.alloced_length(); }
   void store_length(uchar *i_ptr, uint i_packlength, uint32 i_number);
@@ -3913,7 +3992,7 @@ class Field_blob : public Field_longstr {
     set_ptr_offset(0, length, data);
   }
   size_t get_key_image(uchar *buff, size_t length,
-                       imagetype type) const final override;
+                       imagetype type) const override;
   void set_key_image(const uchar *buff, size_t length) final override;
   void sql_type(String &str) const override;
   bool copy();
@@ -3934,13 +4013,14 @@ class Field_blob : public Field_longstr {
     // Free all allocated space
     value.mem_free();
     old_value.mem_free();
+    m_blob_backup.mem_free();
   }
   friend type_conversion_status field_conv(Field *to, Field *from);
   bool has_charset() const override {
     return charset() == &my_charset_bin ? false : true;
   }
   uint32 max_display_length() const final override;
-  uint32 char_length() const final override;
+  uint32 char_length() const override;
   bool copy_blob_value(MEM_ROOT *mem_root);
   uint is_equal(const Create_field *new_field) const override;
   bool is_text_key_type() const final override {
@@ -4025,8 +4105,24 @@ class Field_blob : public Field_longstr {
     store_ptr_and_length(from, length);
   }
 
+  /**
+    Backup data stored in 'value' into the backup_value
+    @see Field_blob::backup_value
+
+    @returns
+      true  if backup fails
+      false otherwise
+  */
+  bool backup_blob_field();
+
+  /**
+    Restore backup value
+    @see Field_blob::backup_value
+  */
+  void restore_blob_backup();
+
  private:
-  int do_save_field_metadata(uchar *first_byte) const final override;
+  int do_save_field_metadata(uchar *first_byte) const override;
 };
 
 class Field_geom final : public Field_blob {
@@ -4122,14 +4218,14 @@ class Field_json : public Field_blob {
       : Field_blob(len_arg, maybe_null_arg, field_name_arg, &my_charset_bin,
                    false) {}
 
-  enum_field_types type() const final override { return MYSQL_TYPE_JSON; }
-  void sql_type(String &str) const final override;
+  enum_field_types type() const override { return MYSQL_TYPE_JSON; }
+  void sql_type(String &str) const override;
   /**
     Return a text charset so that string functions automatically
     convert the field value to string and treat it as a non-binary
     string.
   */
-  const CHARSET_INFO *charset() const final override {
+  const CHARSET_INFO *charset() const override {
     return &my_charset_utf8mb4_bin;
   }
   /**
@@ -4146,11 +4242,11 @@ class Field_json : public Field_blob {
   */
   bool has_charset() const final override { return false; }
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *charset) final override;
-  type_conversion_status store(double nr) final override;
-  type_conversion_status store(longlong nr, bool unsigned_val) final override;
+                               const CHARSET_INFO *charset) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
   type_conversion_status store_decimal(const my_decimal *) final override;
-  type_conversion_status store_json(const Json_wrapper *json);
+  virtual type_conversion_status store_json(const Json_wrapper *json);
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec_arg) final override;
   type_conversion_status store(Field_json *field);
@@ -4232,14 +4328,14 @@ class Field_json : public Field_blob {
   bool get_time(MYSQL_TIME *ltime) const final override;
   bool get_date(MYSQL_TIME *ltime,
                 my_time_flags_t fuzzydate) const final override;
-  Field_json *clone(MEM_ROOT *mem_root) const final override;
-  Field_json *clone() const final override;
+  Field_json *clone(MEM_ROOT *mem_root) const override;
+  Field_json *clone() const override;
   uint is_equal(const Create_field *new_field) const final override;
   Item_result cast_to_int_type() const final override { return INT_RESULT; }
   int cmp_binary(const uchar *a, const uchar *b,
                  uint32 max_length = ~0L) const final override;
   bool sort_key_is_varlen() const final override { return true; }
-  size_t make_sort_key(uchar *to, size_t length) const final override;
+  size_t make_sort_key(uchar *to, size_t length) const override;
 
   /**
     Make a hash key that can be used by sql_executor.cc/unique_hash
@@ -4252,8 +4348,211 @@ class Field_json : public Field_blob {
   /**
     Get a read-only pointer to the binary representation of the JSON document
     in this field.
+
+    @param row_offset  Field's data offset
   */
-  const char *get_binary() const;
+  const char *get_binary(ptrdiff_t row_offset = 0) const;
+};
+
+class Json_array;
+class Item_func_array_cast;
+
+/**
+  Field that stores array of values of the same type.
+
+  This Field class is used together with Item_func_array_cast class
+  (CAST( .. AS .. ARRAY) function) in implementation of multi-valued index.
+  Effectively it's a JSON field that contains a single JSON array. When a
+  JSON value is stored, it's checked to be either a scalar, or an array.
+  All source values are converted using the internal conversion field and
+  stored as an array. Field_typed_array ensures that all values stored
+  in the array have the same type and precision - the one specified by user.
+  This way InnoDB doesn't have to do the conversion on its own and can easily
+  index them.
+
+  The Field_typed_array always reports type of its element and from this
+  point of view it's undistinguishable from regular field having the same
+  type. Due to that, fields are differentiated by is_array() property.
+  Field_typed_array returns true, all other fields - false.
+
+  For conversion and index applicability tests, Field_typed_array employs a
+  conversion field, which is a regular Field class of array's element type.
+  It's stored in the m_conv_field. All Field_typed_array::store_*() methods
+  store values to the conversion field. Conversion field and typed array
+  field are sharing same field_index, to allow correct read/write_set
+  checks. So the field always have to be marked for read in order to allow
+  read of conversions' results.
+
+  @see Item_func_array_cast
+*/
+
+class Field_typed_array : public Field_json {
+  /// Conversion field
+  Field *m_conv_field;
+  /// Null byte for conv_field
+  uchar null_byte;
+  /// conversion field's buffer
+  uchar *m_conv_buf;
+  /// Array's element type
+  enum_field_types m_elt_type;
+  /// Element's decimals
+  uint m_elt_decimals;
+  /// Element's charset
+  const CHARSET_INFO *m_elt_charset;
+  /// Result array
+  Json_array m_array;
+
+ public:
+  Field_typed_array(const Field_typed_array &);
+  Field_typed_array(enum_field_types elt_type, bool elt_is_unsigned,
+                    size_t elt_length, uint elt_decimals, uchar *ptr_arg,
+                    uchar *null_ptr_arg, uint null_bit_arg,
+                    uchar auto_flags_arg, const char *field_name_arg,
+                    TABLE_SHARE *share, uint blob_pack_length,
+                    const CHARSET_INFO *cs)
+      : Field_json(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
+                   field_name_arg, share, blob_pack_length),
+        m_conv_field(NULL),
+        m_elt_type(elt_type),
+        m_elt_decimals(elt_decimals),
+        m_elt_charset(cs) {
+    if (elt_is_unsigned) {
+      unsigned_flag = true;
+      flags |= UNSIGNED_FLAG;
+    }
+    if (binary()) flags |= BINARY_FLAG;
+    field_length = elt_length;
+    /*
+      Arrays of BLOB aren't supported and can't be created, so mask the BLOB
+      flag of JSON
+    */
+    flags &= ~BLOB_FLAG;
+    DBUG_ASSERT(elt_type != MYSQL_TYPE_STRING &&
+                elt_type != MYSQL_TYPE_VAR_STRING);
+  }
+  uint32 char_length() const override {
+    return field_length / charset()->mbmaxlen;
+  }
+  void init(TABLE *table_arg) override;
+  enum_field_types type() const override {
+    return real_type_to_type(m_elt_type);
+  }
+  enum_field_types real_type() const override { return m_elt_type; }
+  enum_field_types binlog_type() const override {
+    return MYSQL_TYPE_TYPED_ARRAY;
+  }
+  uint32 key_length() const override;
+  Field_typed_array *clone(MEM_ROOT *mem_root) const override;
+  Field_typed_array *clone() const override;
+  bool is_array() const override { return true; }
+  Item_result result_type() const override;
+  uint decimals() const override { return m_elt_decimals; }
+  bool binary() const override {
+    return (m_elt_type != MYSQL_TYPE_VARCHAR ||
+            m_elt_charset == &my_charset_bin);
+  }
+  const CHARSET_INFO *charset() const override { return m_elt_charset; }
+  type_conversion_status store(const char *to, size_t length,
+                               const CHARSET_INFO *charset) override {
+    return m_conv_field->store(to, length, charset);
+  }
+  type_conversion_status store(double nr) override {
+    return m_conv_field->store(nr);
+  }
+  type_conversion_status store(longlong nr, bool unsigned_val) override {
+    return m_conv_field->store(nr, unsigned_val);
+  }
+  type_conversion_status store_json(const Json_wrapper *json) override;
+  size_t get_key_image(uchar *buff, size_t length,
+                       imagetype type) const override {
+    return m_conv_field->get_key_image(buff, length, type);
+  }
+  Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr,
+                       uchar *, uint) const override {
+    return m_conv_field->new_key_field(root, new_table, new_ptr);
+  }
+  /**
+    These methods are used by handler to prevent returning a row past the
+    end_range during range access. Since there's no order defined for sorting
+    set of arrays, always return -1 here, allowing all records fetched from
+    SE to be returned to server. They will be filtered by WHERE condition later.
+  */
+  int key_cmp(const uchar *, const uchar *) const override { return -1; }
+  int key_cmp(const uchar *, uint) const override { return -1; }
+  /**
+    Multi-valued index always works only as a pre-filter for actual
+    condition check, and the latter always use binary collation, so no point
+    to match collations in optimizer.
+  */
+  bool match_collation_to_optimize_range() const override { return false; }
+  friend class Item_func_array_cast;
+
+  /**
+    Convert arbitrary JSON value to the array's type using conversion field.
+    An error is thrown if conversion fails. The converted value is
+    guaranteed to match the field's type and can be indexed by SE without
+    any additional handling.
+
+    @param  wr       Source data
+    @param  coerced  The converted value, when it's null only error check if
+                     performed on the source
+
+    @returns
+      true   conversion failed
+      false  conversion succeeded
+  */
+  bool coerce_json_value(const Json_wrapper *wr, Json_wrapper *coerced);
+
+  /**
+    Get name of the index defined over this field.
+
+    Since typed array fields can be created only as an underlying GC field of
+    a multi-valued functional index, there's always only one index defined
+    over the field.
+
+    @returns
+      name of the index defined over the field.
+  */
+  const char *get_index_name();
+  virtual uint32 get_length_bytes() const override {
+    DBUG_ASSERT(m_elt_type == MYSQL_TYPE_VARCHAR);
+    return field_length > 255 ? 2 : 1;
+  }
+  size_t make_sort_key(uchar *to, size_t max_len) const override {
+    // Not supported yet
+    DBUG_ASSERT(false);
+    // Dummy
+    return Field_json::make_sort_key(to, max_len);
+  }
+  /**
+    Create sort key out of given JSON value according to array's element type
+
+    @param wr     JSON value to create sort key from
+    @param to     buffer to create sort key in
+    @param length buffer's length
+
+    @returns
+      actual sort key length
+  */
+  size_t make_sort_key(Json_wrapper *wr, uchar *to, size_t length);
+  /**
+     Save the field metadata for typed array fields.
+
+     Saved metadata contains element type (1 byte) and up to 3 bytes of
+     metadata - the same as each respective Field class saves
+     (e.g Field_new_decimal for DECIMAL type). The only difference is that
+     for VARCHAR type length is stored in 3 bytes. This allows to store longer
+     strings, as its supported by JSON storage.
+
+     @param   metadata_ptr   First byte of field metadata
+
+     @returns number of bytes written to metadata_ptr
+  */
+  virtual int do_save_field_metadata(uchar *metadata_ptr) const override;
+  virtual uint pack_length_from_metadata(uint) const override {
+    return pack_length_no_ptr();
+  }
+  void sql_type(String &str) const final override;
 };
 
 class Field_enum : public Field_str {
@@ -4535,15 +4834,15 @@ class Field_bit_as_char final : public Field_bit {
 };
 
 /// This function should only be called from legacy code.
-Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
-                  uchar *null_pos, uchar null_bit, enum_field_types field_type,
+Field *make_field(MEM_ROOT *mem_root_arg, TABLE_SHARE *share, uchar *ptr,
+                  size_t field_length, uchar *null_pos, uchar null_bit,
+                  enum_field_types field_type,
                   const CHARSET_INFO *field_charset,
                   Field::geometry_type geom_type, uchar auto_flags,
                   TYPELIB *interval, const char *field_name, bool maybe_null,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
-                  Nullable<gis::srid_t> srid);
-
+                  Nullable<gis::srid_t> srid, bool is_array);
 /**
   Instantiates a Field object with the given name and record buffer values.
   @param create_field The column meta data.

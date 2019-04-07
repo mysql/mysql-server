@@ -66,13 +66,16 @@
 */
 
 static size_t column_pack_length(const dd::Column &col_obj) {
+  // Arrays always use JSON as storage
+  dd::enum_column_types col_type =
+      col_obj.is_array() ? dd::enum_column_types::JSON : col_obj.type();
   bool treat_bit_as_char = false;
 
   if (col_obj.type() == dd::enum_column_types::BIT) {
     if (col_obj.options().get("treat_bit_as_char", &treat_bit_as_char))
       DBUG_ASSERT(false); /* purecov: deadcode */
   }
-  return calc_pack_length(col_obj.type(), col_obj.char_length(),
+  return calc_pack_length(col_type, col_obj.char_length(),
                           col_obj.elements_count(), treat_bit_as_char,
                           col_obj.numeric_scale(), col_obj.is_unsigned());
 }

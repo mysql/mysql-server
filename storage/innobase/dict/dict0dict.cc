@@ -197,9 +197,9 @@ index.
 @param[in]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v);
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v);
 /** Builds the internal dictionary cache representation for a clustered
  index, containing also system fields not defined by the user.
  @return own: the internal representation of the clustered index */
@@ -2351,7 +2351,7 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   ut_d(mem_heap_validate(index->heap));
   ut_a(!index->is_clustered() || UT_LIST_GET_LEN(table->indexes) == 0);
 
-  if (!dict_index_find_cols(table, index, add_v)) {
+  if (!dict_index_find_and_set_cols(table, index, add_v)) {
     dict_mem_index_free(index);
     return (DB_CORRUPTION);
   }
@@ -2657,20 +2657,39 @@ void dict_index_remove_from_cache(dict_table_t *table, /*!< in/out: table */
   dict_index_remove_from_cache_low(table, index, FALSE);
 }
 
+/** Duplicate a virtual column information
+@param[in]	v_col	virtual column information to duplicate
+@param[in,out]	heap	memory heap
+@return the duplicated virtual column */
+static dict_v_col_t *dict_duplicate_v_col(const dict_v_col_t *v_col,
+                                          mem_heap_t *heap) {
+  dict_v_col_t *new_v_col =
+      static_cast<dict_v_col_t *>(mem_heap_zalloc(heap, sizeof(*v_col)));
+
+  ut_ad(v_col->v_indexes == nullptr);
+
+  /* Currently, only m_col and v_indexes would be cared in future use,
+  and v_indexes is always nullptr. So the memcpy can work for it */
+  memcpy(new_v_col, v_col, sizeof(*v_col));
+
+  return (new_v_col);
+}
+
 /** Tries to find column names for the index and sets the col field of the
 index.
 @param[in]	table	table
 @param[in,out]	index	index
 @param[in]	add_v	new virtual columns added along with an add index call
 @return true if the column names were found */
-static ibool dict_index_find_cols(const dict_table_t *table,
-                                  dict_index_t *index,
-                                  const dict_add_v_col_t *add_v) {
+static ibool dict_index_find_and_set_cols(const dict_table_t *table,
+                                          dict_index_t *index,
+                                          const dict_add_v_col_t *add_v) {
   std::vector<ulint, ut_allocator<ulint>> col_added;
   std::vector<ulint, ut_allocator<ulint>> v_col_added;
 
   ut_ad(table != NULL && index != NULL);
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+  ut_ad(!mutex_own(&dict_sys->mutex));
 
   for (ulint i = 0; i < index->n_fields; i++) {
     ulint j;
@@ -2721,7 +2740,20 @@ static ibool dict_index_find_cols(const dict_table_t *table,
     if (add_v) {
       for (j = 0; j < add_v->n_v_col; j++) {
         if (!strcmp(add_v->v_col_name[j], field->name)) {
-          field->col = const_cast<dict_col_t *>(&add_v->v_col[j].m_col);
+          /* Once add_v is not nullptr, it comes from ALTER TABLE.
+          To make sure the index can work after ALTER TABLE path,
+          which may happen when the ALTER TABLE gets rolled back,
+          it is a must to duplicate the virtual column information,
+          in case the passed in object would be freed after ALTER TABLE. */
+
+          mutex_enter(&dict_sys->mutex);
+          uint64_t old_size = mem_heap_get_size(table->heap);
+          dict_v_col_t *vcol =
+              dict_duplicate_v_col(&add_v->v_col[j], table->heap);
+          field->col = &vcol->m_col;
+          dict_sys->size += mem_heap_get_size(table->heap) - old_size;
+          mutex_exit(&dict_sys->mutex);
+
           goto found;
         }
       }
@@ -5586,7 +5618,7 @@ void dict_ind_init(void) {
   dict_table_t *table;
 
   /* create dummy table and index for REDUNDANT infimum and supremum */
-  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0);
+  table = dict_mem_table_create("SYS_DUMMY1", DICT_HDR_SPACE, 1, 0, 0, 0, 0);
   dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
                          DATA_ENGLISH | DATA_NOT_NULL, 8);
 
@@ -6397,7 +6429,7 @@ void DDTableBuffer::open() {
   }
 
   table = dict_mem_table_create(table_name, dict_sys_t::s_space_id, N_USER_COLS,
-                                0, 0, 0);
+                                0, 0, 0, 0);
 
   table->id = dict_sys_t::s_dynamic_meta_table_id;
   table->is_dd_table = true;

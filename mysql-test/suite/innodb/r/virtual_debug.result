@@ -471,3 +471,24 @@ SELECT j,a,isa,ab FROM t1;
 j	a	isa	ab
 1	test	1	test
 DROP TABLE t1;
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1), (1);
+set session debug = '+d, force_virtual_col_build_fail';
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL rolling_back WAIT_FOR drop_created';
+ALTER TABLE t1 ADD COLUMN (h INT GENERATED ALWAYS AS(a+1) VIRTUAL), ADD INDEX idx(h), ALGORITHM=INPLACE;;
+SET DEBUG_SYNC='now WAIT_FOR rolling_back';
+SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR continue_scan';
+SELECT * FROM t1;;
+SET DEBUG_SYNC='now WAIT_FOR scanning';
+SET DEBUG_SYNC='now SIGNAL drop_created';
+ERROR HY000: Got error 111 - 'InnoDB error' from storage engine
+SET DEBUG_SYNC='now SIGNAL continue_scan';
+a
+1
+1
+set session debug = '-d, row_merge_drop_indexes_force_table_count';
+INSERT INTO t1 VALUES(1);
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

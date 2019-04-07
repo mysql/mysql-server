@@ -657,6 +657,27 @@ class Json_array final : public Json_container {
   void replace_dom_in_container(const Json_dom *oldv,
                                 Json_dom_ptr newv) override;
 #endif
+
+  /// Sort the array
+  void sort(const CHARSET_INFO *cs = nullptr);
+  /**
+    Check if the given value appears in the array
+
+    @param val  value to look for
+
+    @returns
+      true  value is found
+      false otherwise
+  */
+  bool binary_search(Json_dom *val);
+
+  /**
+    Sort array and remove duplicate elements.
+    Used by multi-value index implementation.
+  */
+  void remove_duplicates(const CHARSET_INFO *cs);
+
+  friend Json_dom;
 };
 
 /**
@@ -760,12 +781,47 @@ class Json_decimal final : public Json_number {
   /**
     Convert a binary value produced by get_binary() back to a my_decimal.
 
-    @param[in]   bin  the binary representation
-    @param[in]   len  the length of the binary representation
-    @param[out]  dec  the my_decimal object to receive the value
+    @details
+      This and two next functions help storage engine to deal with
+      decimal value in a serialized JSON document. This funciton converts
+      serialized value to my_decimal. The later two functions extract the
+      decimal value from serialized JSON, so SE can index it in multi-valued
+      index.
+
+    @param[in]   bin  decimal value in binary format
+    @param[in]   len  length of the binary value
+    @param[out]  dec  my_decimal object to store the value to
     @return  false on success, true on failure
   */
   static bool convert_from_binary(const char *bin, size_t len, my_decimal *dec);
+  /**
+    Returns stored DECIMAL binary
+
+    @param  bin   serialized Json_decimal object
+
+    @returns
+      pointer to the binary decimal value
+
+    @see #convert_from_binary
+  */
+  static const char *get_encoded_binary(const char *bin) {
+    // Skip stored precision and scale
+    return bin + 2;
+  }
+  /**
+    Returns length of stored DECIMAL binary
+
+    @param  length  length of serialized Json_decimal object
+
+    @returns
+      length of the binary decimal value
+
+    @see #convert_from_binary
+  */
+  static size_t get_encoded_binary_len(size_t length) {
+    // Skip stored precision and scale
+    return length - 2;
+  }
 };
 
 /**
@@ -922,6 +978,18 @@ class Json_datetime final : public Json_scalar {
   */
   static void from_packed(const char *from, enum_field_types ft,
                           MYSQL_TIME *to);
+
+#ifdef MYSQL_SERVER
+  /**
+    Convert a packed datetime to key string for indexing by SE
+    @param from the buffer to read from
+    @param ft   the field type of the value
+    @param to   the destination buffer
+    @param dec  value's decimals
+  */
+  static void from_packed_to_key(const char *from, enum_field_types ft,
+                                 uchar *to, uint8 dec);
+#endif
 
   /** Datetimes are packed in eight bytes. */
   static const size_t PACKED_SIZE = 8;
@@ -1108,14 +1176,16 @@ class Json_wrapper {
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
-    ownership, unless @c set_alias is called after construction.
+    ownership, unless alias is true or @c set_alias is called after
+    construction.
     In the latter case the lifetime of the DOM is determined by
     the owner of the DOM, so clients need to ensure that that
     lifetime is sufficient, lest dead storage is attempted accessed.
 
     @param[in,out] dom_value  the DOM value
+    @param         alias      Whether the wrapper is an alias to DOM
   */
-  explicit Json_wrapper(Json_dom *dom_value);
+  explicit Json_wrapper(Json_dom *dom_value, bool alias = false);
 
   /**
     Wrap the supplied DOM value. The wrapper takes over the ownership.
@@ -1487,11 +1557,14 @@ class Json_wrapper {
   /**
     Compare this JSON value to another JSON value.
     @param[in] other the other JSON value
+    @param[in] cs    if given, this charset will be used in comparison of
+                     string values
     @retval -1 if this JSON value is less than the other JSON value
     @retval 0 if the two JSON values are equal
     @retval 1 if this JSON value is greater than the other JSON value
   */
-  int compare(const Json_wrapper &other) const;
+  int compare(const Json_wrapper &other,
+              const CHARSET_INFO *cs = nullptr) const;
 
   /**
     Extract an int (signed or unsigned) from the JSON if possible
@@ -1652,6 +1725,17 @@ class Json_wrapper {
   */
   bool binary_remove(const Field_json *field, const Json_seekable_path &path,
                      String *result, bool *found_path);
+#ifdef MYSQL_SERVER
+  /**
+    Sort contents. Applicable to JSON arrays only.
+  */
+  void sort(const CHARSET_INFO *cs = nullptr);
+  /**
+    Remove duplicate values. Applicable to JSON arrays only, array will be
+    sorted.
+  */
+  void remove_duplicates(const CHARSET_INFO *cs = nullptr);
+#endif
 };
 
 /**

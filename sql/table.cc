@@ -79,9 +79,10 @@
 #include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/gis/srid.h"
 #include "sql/item.h"
-#include "sql/item_cmpfunc.h"  // and_conds
-#include "sql/json_diff.h"     // Json_diff_vector
-#include "sql/json_dom.h"      // Json_wrapper
+#include "sql/item_cmpfunc.h"    // and_conds
+#include "sql/item_json_func.h"  // Item_func_array_cast
+#include "sql/json_diff.h"       // Json_diff_vector
+#include "sql/json_dom.h"        // Json_wrapper
 #include "sql/json_path.h"
 #include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
@@ -118,7 +119,6 @@
 #include "sql_string.h"
 #include "template_utils.h"  // down_cast
 #include "thr_mutex.h"
-
 /* INFORMATION_SCHEMA name */
 LEX_CSTRING INFORMATION_SCHEMA_NAME = {STRING_WITH_LEN("information_schema")};
 
@@ -734,22 +734,23 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
 
   const bool full_length_key_part =
       (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
+  /*
+    part_of_key contains all non-prefix keys, part_of_prefixkey
+    contains prefix keys.
+    Note that prefix keys in the extended PK key parts
+    (part_of_key_not_extended is false) are not considered.
+  */
+  if (full_length_key_part) {
+    field->part_of_key.set_bit(key_n);
+    if (part_of_key_not_extended)
+      field->part_of_key_not_extended.set_bit(key_n);
+  } else if (part_of_key_not_extended) {
+    field->part_of_prefixkey.set_bit(key_n);
+  }
   if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
       field->type() != MYSQL_TYPE_GEOMETRY) {
-    /*
-      Set the key as 'keys_for_keyread' even if it is prefix key.
-      part_of_key contains all non-prefix keys, part_of_prefixkey
-      contains prefix keys.
-      Note that prefix keys in the extended PK key parts
-      (part_of_key_not_extended is false) are not considered.
-    */
+    // Set the key as 'keys_for_keyread' even if it is prefix key.
     share->keys_for_keyread.set_bit(key_n);
-    if (full_length_key_part) {
-      field->part_of_key.set_bit(key_n);
-      if (part_of_key_not_extended)
-        field->part_of_key_not_extended.set_bit(key_n);
-    } else if (part_of_key_not_extended)
-      field->part_of_prefixkey.set_bit(key_n);
   }
 
   if (full_length_key_part &&
@@ -1300,14 +1301,16 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
   if (unireg == FRM_context::NEXT_NUMBER) auto_flags |= Field::NEXT_NUMBER;
 
   share->field[field_idx] = reg_field = make_field(
-      share,
+      thd->mem_root, share,
       share->default_values - 1 + recpos,  // recpos starts from 1.
       (uint32)field_length, *null_pos, *null_bit_pos, field_type, charset,
       geom_type, auto_flags,
       (interval_nr ? share->intervals + interval_nr - 1 : (TYPELIB *)0),
       frm_context->fieldnames.type_names[field_idx], f_maybe_null(pack_flag),
       f_is_zerofill(pack_flag) != 0, f_is_dec(pack_flag) == 0,
-      f_decimals(pack_flag), f_bit_as_char(pack_flag), 0, {});
+      f_decimals(pack_flag), f_bit_as_char(pack_flag), 0, {},
+      // Array fields aren't supported in .frm-based tables
+      false);
   if (!reg_field) {
     // Not supported field type
     return 4;
@@ -2424,7 +2427,12 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
   }
 
   Item *new_func = func_expr;
+  if (field && field->is_field_for_functional_index())
+    func_expr->allow_array_cast();
   error = func_expr->fix_fields(thd, &new_func);
+
+  /* Virtual columns expressions that substitute themselves are invalid */
+  DBUG_ASSERT(new_func == func_expr);
 
   /* Restore the current connection character set and collation. */
   if (charset_switched)
@@ -2460,9 +2468,10 @@ static bool fix_value_generators_fields(THD *thd, TABLE *table,
                                     field ? field->field_index : 0))
     goto end;
 
-  // Virtual columns expressions that substitute themselves are invalid
-  DBUG_ASSERT(new_func == func_expr);
   result = false;
+
+  func_expr->walk(&Item::strip_db_table_name_processor, enum_walk::POSTFIX,
+                  nullptr);
 
 end:
   table->get_fields_in_item_tree = false;
@@ -4094,7 +4103,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   no_keyread = false;
 
   /* Tables may be reused in a sub statement. */
-  DBUG_ASSERT(!db_stat || !file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+  DBUG_ASSERT(!db_stat || !file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
   /*
     Do not call refix_value_generator_items() for tables which are not directly
@@ -5455,7 +5464,6 @@ void TABLE::mark_column_used(Field *field, enum enum_mark_columns mark) {
       bitmap_set_bit(read_set, field->field_index);
 
       part_of_key.merge(field->part_of_prefixkey);
-      // Update covering_keys and merge_keys based on all fields that are read:
       covering_keys.intersect(part_of_key);
       merge_keys.merge(field->part_of_key);
       if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
@@ -6042,16 +6050,16 @@ void TABLE::set_keyread(bool flag) {
   DBUG_ASSERT(file);
   if (flag && !key_read) {
     key_read = 1;
-    if (is_created()) file->extra(HA_EXTRA_KEYREAD);
+    if (is_created()) file->ha_extra(HA_EXTRA_KEYREAD);
   } else if (!flag && key_read) {
     key_read = 0;
-    if (is_created()) file->extra(HA_EXTRA_NO_KEYREAD);
+    if (is_created()) file->ha_extra(HA_EXTRA_NO_KEYREAD);
   }
 }
 
 void TABLE::set_created() {
   if (created) return;
-  if (key_read) file->extra(HA_EXTRA_KEYREAD);
+  if (key_read) file->ha_extra(HA_EXTRA_KEYREAD);
   created = true;
 }
 
@@ -7005,7 +7013,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
     */
     if (vfield->is_virtual_gcol() &&
         bitmap_is_set(table->read_set, vfield->field_index)) {
-      if ((vfield->flags & BLOB_FLAG) != 0) {
+      if (vfield->handle_old_value()) {
         (down_cast<Field_blob *>(vfield))->keep_old_value();
         (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
       }
@@ -7077,8 +7085,9 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
           For a virtual generated column of blob type, we have to keep
           the current blob value since this might be needed by the
           storage engine during updates.
+          All arrays are BLOB fields.
         */
-        if ((vfield->flags & BLOB_FLAG) != 0 && vfield->is_virtual_gcol()) {
+        if (vfield->handle_old_value()) {
           (down_cast<Field_blob *>(vfield))->keep_old_value();
           (down_cast<Field_blob *>(vfield))->set_keep_old_value(true);
         }
@@ -7116,6 +7125,13 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
 */
 void TABLE::mark_gcol_in_maps(Field *field) {
   bitmap_set_bit(write_set, field->field_index);
+
+  /*
+    Typed array fields internally are using a conversion field, it needs to
+    marked as readable in order to do conversions.
+  */
+  if (field->is_array()) bitmap_set_bit(read_set, field->field_index);
+
   /*
     Note that underlying base columns are here added to read_set but not added
     to requirements for an index to be covering (covering_keys is not touched).
@@ -7742,7 +7758,7 @@ void TABLE::blobs_need_not_keep_old_value() {
     /*
       Set this flag so that all blob columns can keep the old value.
     */
-    if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
+    if (vfield->handle_old_value())
       (down_cast<Field_blob *>(vfield))->set_keep_old_value(false);
   }
 }
@@ -7759,7 +7775,7 @@ bool TABLE::empty_result_table() {
   materialized = false;
   set_not_started();
   if (!is_created()) return false;
-  if (file->ha_index_or_rnd_end() || file->extra(HA_EXTRA_RESET_STATE) ||
+  if (file->ha_index_or_rnd_end() || file->ha_extra(HA_EXTRA_RESET_STATE) ||
       file->ha_delete_all_rows())
     return true;
   free_io_cache(this);

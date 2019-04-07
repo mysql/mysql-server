@@ -504,10 +504,10 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
   if (!(error = read_info.error)) {
     table->next_number_field = table->found_next_number_field;
     if (thd->lex->is_ignore() || handle_duplicates == DUP_REPLACE)
-      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+      table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (handle_duplicates == DUP_REPLACE &&
         (!table->triggers || !table->triggers->has_delete_triggers()))
-      table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
+      table->file->ha_extra(HA_EXTRA_WRITE_CAN_REPLACE);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       table->file->ha_start_bulk_insert((ha_rows)0);
     table->copy_blobs = 1;

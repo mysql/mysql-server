@@ -1434,16 +1434,21 @@ int decimal2bin(decimal_t *from, uchar *to, int precision, int frac) {
       from    - value to convert
       to      - result
       precision/scale - see decimal_bin_size() below
+      keep_prec do not trim leading zeros
 
   NOTE
     see decimal2bin()
     the buffer is assumed to be of the size decimal_bin_size(precision, scale)
+    If the keep_prec is true, the value will be read and returned as is,
+    without precision reduction. This is used to read DECIMAL values that
+    are to be indexed by multi-valued index.
 
   RETURN VALUE
     E_DEC_OK/E_DEC_TRUNCATED/E_DEC_OVERFLOW
 */
 
-int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
+int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale,
+                bool keep_prec) {
   int error = E_DEC_OK, intg = precision - scale, intg0 = intg / DIG_PER_DEC1,
       frac0 = scale / DIG_PER_DEC1, intg0x = intg - intg0 * DIG_PER_DEC1,
       frac0x = scale - frac0 * DIG_PER_DEC1, intg1 = intg0 + (intg0x > 0),
@@ -1497,7 +1502,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
     from += i;
     *buf = x ^ mask;
     if (((ulonglong)*buf) >= (ulonglong)powers10[intg0x + 1]) goto err;
-    if (buf > to->buf || *buf != 0)
+    if (buf > to->buf || *buf != 0 || keep_prec)
       buf++;
     else
       to->intg -= intg0x;
@@ -1506,7 +1511,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
     DBUG_ASSERT(sizeof(dec1) == 4);
     *buf = mi_sint4korr(from) ^ mask;
     if (((uint32)*buf) > DIG_MAX) goto err;
-    if (buf > to->buf || *buf != 0)
+    if (buf > to->buf || *buf != 0 || keep_prec)
       buf++;
     else
       to->intg -= DIG_PER_DEC1;
@@ -1545,6 +1550,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale) {
   /*
     No digits? We have read the number zero, of unspecified precision.
     Make it a proper zero, with non-zero precision.
+    Note: this is valid only if scale == 0, otherwise frac is always non-zero
   */
   if (to->intg == 0 && to->frac == 0) decimal_make_zero(to);
   return error;

@@ -3837,7 +3837,9 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
   }
 
   if (sql_field->flags & NOT_NULL_FLAG) sql_field->maybe_null = false;
-  sql_field->pack_length_override = 0;
+  // Array fields are JSON fields, so override pack length
+  sql_field->pack_length_override =
+      sql_field->is_array ? (4 + portable_sizeof_char_ptr) : 0;
 
   return false;
 }
@@ -4462,13 +4464,13 @@ static void calculate_field_offsets(List<Create_field> *create_list) {
    @param[out] key_parts    Returned number of key segments (excluding FK).
    @param[out] fk_key_count Returned number of foreign keys.
    @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
-   @param[in]  is_ha_has_desc_index Whether storage supports desc indexes
+   @param[in]  se_index_flags Storage's flags for index support
 */
 
 static bool count_keys(const Mem_root_array<Key_spec *> &key_list,
                        uint *key_count, uint *key_parts, uint *fk_key_count,
                        Mem_root_array<bool> *redundant_keys,
-                       bool is_ha_has_desc_index) {
+                       handler::Table_flags se_index_flags) {
   *key_count = 0;
   *key_parts = 0;
 
@@ -4510,13 +4512,31 @@ static bool count_keys(const Mem_root_array<Key_spec *> &key_list,
       if (key->type == KEYTYPE_FOREIGN)
         (*fk_key_count)++;
       else {
+        uint mv_key_parts = 0;
         (*key_count)++;
         (*key_parts) += key->columns.size();
         for (uint i = 0; i < key->columns.size(); i++) {
           const Key_part_spec *kp = key->columns[i];
-          if (!kp->is_ascending() && !is_ha_has_desc_index) {
+          if (!kp->is_ascending() && !(se_index_flags & HA_DESCENDING_INDEX)) {
             my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "descending indexes");
             return true;
+          }
+          if (kp->has_expression() && kp->get_expression()->returns_array()) {
+            if (mv_key_parts++) {
+              my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                       "more than one multi-valued key part per index");
+              return true;
+            }
+            if (!(se_index_flags & HA_MULTI_VALUED_KEY_SUPPORT)) {
+              my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0),
+                       "multi-valued indexes");
+              return true;
+            }
+            if (kp->is_explicit()) {
+              my_error(ER_WRONG_USAGE, MYF(0), "multi-valued index",
+                       "explicit index order");
+              return true;
+            }
           }
         }
       }
@@ -7405,6 +7425,7 @@ bool mysql_prepare_create_table(
         blob_columns++;
         break;
       default:
+        if (sql_field->is_array) blob_columns++;
         break;
     }
   }
@@ -7437,8 +7458,7 @@ bool mysql_prepare_create_table(
   Mem_root_array<bool> redundant_keys(thd->mem_root,
                                       alter_info->key_list.size(), false);
   if (count_keys(alter_info->key_list, key_count, &key_parts, fk_key_count,
-                 &redundant_keys,
-                 (file->ha_table_flags() & HA_DESCENDING_INDEX)))
+                 &redundant_keys, file->ha_table_flags()))
     return true;
   if (*key_count > file->max_keys()) {
     my_error(ER_TOO_MANY_KEYS, MYF(0), file->max_keys());
@@ -7756,6 +7776,9 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
 static bool prepare_blob_field(THD *thd, Create_field *sql_field,
                                bool convert_character_set) {
   DBUG_TRACE;
+
+  // Skip typed array fields
+  if (sql_field->is_array) return 0;
 
   if (sql_field->max_display_width_in_bytes() > MAX_FIELD_VARCHARLENGTH &&
       !(sql_field->flags & BLOB_FLAG)) {
@@ -10139,7 +10162,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
             statement generation by the binary log.
             Note that placeholders don't have the handler open.
           */
-          if (table->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST)) {
+          if (table->table->file->ha_extra(HA_EXTRA_ADD_CHILDREN_LIST)) {
             if (new_table) {
               DBUG_ASSERT(thd->open_tables == table->table);
               close_thread_table(thd, &thd->open_tables);
@@ -12840,9 +12863,6 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         continue;
     }
 
-    DBUG_ASSERT(!def->gcol_info ||
-                (def->gcol_info && (def->sql_type != MYSQL_TYPE_DATETIME &&
-                                    def->sql_type != MYSQL_TYPE_TIMESTAMP)));
     // Replace the old temporal field with the new temporal field.
     Create_field *temporal_field = NULL;
     if (!(temporal_field = new (thd->mem_root) Create_field()) ||
@@ -12850,7 +12870,7 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
                              NULL, false, 0, NULL, nullptr, def->m_srid,
-                             def->hidden))
+                             def->hidden, def->is_array))
       return true;
 
     temporal_field->field = def->field;
@@ -13767,13 +13787,15 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       // (ORDER_ASC) and implicit ascending order (ORDER_NOT_RELEVANT). However,
       // here we only have HA_REVERSE_SORT to base our ordering decision on. The
       // only known case where the difference matters is in case of indexes on
-      // geometry columns, which can't have explicit ordering. Therefore, in the
-      // case of a geometry column, we pass ORDER_NOT_RELEVANT.
-      enum_order order = key_part->key_part_flag & HA_REVERSE_SORT
-                             ? ORDER_DESC
-                             : (key_part->field->type() == MYSQL_TYPE_GEOMETRY
-                                    ? ORDER_NOT_RELEVANT
-                                    : ORDER_ASC);
+      // geometry columns and typed arrays, which can't have explicit ordering.
+      // Therefore, in such cases we pass ORDER_NOT_RELEVANT.
+      enum_order order =
+          key_part->key_part_flag & HA_REVERSE_SORT
+              ? ORDER_DESC
+              : ((key_part->field->type() == MYSQL_TYPE_GEOMETRY ||
+                  key_part->field->is_array())
+                     ? ORDER_NOT_RELEVANT
+                     : ORDER_ASC);
       if (key_part->field->is_field_for_functional_index()) {
         key_parts.push_back(new (thd->mem_root) Key_part_spec(
             cfield->field_name, key_part->field->gcol_info->expr_item, order));
@@ -17059,6 +17081,8 @@ static int copy_data_between_tables(
   copy_end = copy;
   for (Field **ptr = to->field; *ptr; ptr++) {
     def = it++;
+    // Array fields will be properly generated during GC update loop below
+    if (def->is_array) continue;
     if (def->field) {
       if (*ptr == to->next_number_field) {
         auto_increment_field_copied = true;
@@ -17133,7 +17157,7 @@ static int copy_data_between_tables(
 
   set_column_defaults(to, create);
 
-  to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
+  to->file->ha_extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
   while (!(error = info->Read())) {
     if (thd->killed) {
@@ -17248,7 +17272,7 @@ static int copy_data_between_tables(
     error = 1;
   }
 
-  to->file->extra(HA_EXTRA_END_ALTER_COPY);
+  to->file->ha_extra(HA_EXTRA_END_ALTER_COPY);
 
   DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););
   if ((!(to->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) ||
@@ -17263,7 +17287,7 @@ err:
   *deleted = delete_count;
   to->file->ha_release_auto_increment();
   if (to->file->ha_external_lock(thd, F_UNLCK)) error = 1;
-  if (error < 0 && to->file->extra(HA_EXTRA_PREPARE_FOR_RENAME)) error = 1;
+  if (error < 0 && to->file->ha_extra(HA_EXTRA_PREPARE_FOR_RENAME)) error = 1;
   thd->check_for_truncated_fields = CHECK_FIELD_IGNORE;
   return error > 0 ? -1 : 0;
 }

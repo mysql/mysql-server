@@ -43,6 +43,7 @@ dict_table_t *dict_mem_table_create(
                       including virtual and non-virtual
                       columns */
     ulint n_v_cols,   /*!< in: number of virtual columns */
+    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
     uint32_t flags,   /*!< in: table flags */
     uint32_t flags2); /*!< in: table flags2 */
 /** Free a table memory object. */

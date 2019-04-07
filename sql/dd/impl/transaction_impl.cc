@@ -118,7 +118,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
   for (TABLE_LIST *t = table_list; t; t = t->next_global) {
     DBUG_ASSERT(t->table->file->ha_table_flags() &
                 HA_ATTACHABLE_TRX_COMPATIBLE);
-    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING)) return true;
+    if (t->table->file->ha_extra(HA_EXTRA_NO_AUTOINC_LOCKING)) return true;
   }
 
   // Lock the tables.

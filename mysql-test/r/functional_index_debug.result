@@ -124,6 +124,24 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET SESSION debug="-d,show_hidden_columns";
+SET SESSION debug="+d,show_hidden_columns";
+CREATE TABLE t1(j json, INDEX mv_idx((CAST(j AS UNSIGNED ARRAY))));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `j` json DEFAULT NULL,
+  `680963a1f6dcb151c3e713b46b4c3452` bigint array GENERATED ALWAYS AS (cast(`j` as unsigned array)) VIRTUAL,
+  KEY `mv_idx` ((cast(`j` as unsigned array)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+680963a1f6dcb151c3e713b46b4c3452
+EXPLAIN SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select cast(`test`.`t1`.`j` as unsigned array) AS `680963a1f6dcb151c3e713b46b4c3452` from `test`.`t1`
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
 #
 # Bug#28037195 ASSERTION `FALSE' IN IN
 #              ITEM_FIELD::REPLACE_FIELD_PROCESSOR AT SQL_TABLE.CC:5850

@@ -165,7 +165,7 @@ bool Query_result_union::create_result_table(
                                  (char *)table_alias)))
     return true;
   if (create_table) {
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table->hash_field) table->file->ha_index_init(0, 0);
   }
   return false;

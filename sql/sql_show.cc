@@ -3771,7 +3771,7 @@ bool get_schema_tables_result(JOIN *join,
         'executed_place' value then we should refresh the table.
       */
       if (table_list->schema_table_state && is_subselect) {
-        table_list->table->file->extra(HA_EXTRA_RESET_STATE);
+        table_list->table->file->ha_extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table, 1);
@@ -4459,6 +4459,7 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
   A field's SQL type printout
 
   @param type     the type to print
+  @param is_array whether the field is a typed array
   @param metadata field's metadata, depending on the type
                   could be nothing, length, or length + decimals
   @param str      String to print to
@@ -4467,8 +4468,8 @@ static void get_cs_converted_string_value(THD *thd, String *input_str,
 
 */
 
-void show_sql_type(enum_field_types type, uint16 metadata, String *str,
-                   const CHARSET_INFO *field_cs) {
+void show_sql_type(enum_field_types type, bool is_array, uint metadata,
+                   String *str, const CHARSET_INFO *field_cs) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
 
@@ -4560,13 +4561,8 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
 
     case MYSQL_TYPE_NEWDECIMAL: {
       const CHARSET_INFO *cs = str->charset();
-      /*
-        Field_new_decimal encodes metadata this way. Bit shifts can't be used
-        due to different endianness on different platforms.
-      */
-      uchar *metadata_ptr = (uchar *)&metadata;
-      uint len = *metadata_ptr;
-      uint dec = *(metadata_ptr + 1);
+      uint len = (metadata >> 8) & 0xff;
+      uint dec = metadata & 0xff;
       size_t length = cs->cset->snprintf(cs, str->ptr(), str->alloced_length(),
                                          "decimal(%d,%d)", len, dec);
       str->length(length);
@@ -4658,4 +4654,5 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str,
     default:
       str->set_ascii(STRING_WITH_LEN("<unknown type>"));
   }
+  if (is_array) str->append(STRING_WITH_LEN(" array"));
 }

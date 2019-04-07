@@ -820,6 +820,34 @@ SELECT c,d FROM t2;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#29153485: ASSERTION IN JOIN_READ_CONST_TABLE()
+--echo #
+CREATE TABLE d3 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  col_varchar varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO d3 VALUES (96,9,'t'),(97,0,'x');
+
+CREATE TABLE e3 (
+  col_varchar varchar(1) DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (pk)
+) ;
+
+INSERT INTO e3 VALUES ('v',986);
+--error ER_SUBQUERY_NO_1_ROW
+DELETE OUTR1.* FROM e3 AS OUTR1 INNER JOIN d3 AS OUTR2 ON 
+  ( OUTR1.col_varchar = OUTR2.col_varchar )
+  LEFT JOIN d3 AS OUTR3 ON ( OUTR1. pk = OUTR3.pk )
+  WHERE OUTR1.pk =
+    ( SELECT DISTINCT INNR1.col_int FROM d3 AS INNR1 WHERE INNR1.pk <> 8) ;
+
+DROP TABLE d3,e3;
+
+--echo #
 --echo # Bug#27455809; DELETE FROM ...WHERE NOT EXISTS WITH TABLE ALIAS CREATES AN ERROR 1064 (42000
 --echo #
 

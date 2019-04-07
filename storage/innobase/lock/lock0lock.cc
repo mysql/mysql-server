@@ -3268,15 +3268,16 @@ void lock_update_split_right(
 }
 
 /** Updates the lock table when a page is merged to the right. */
-void lock_update_merge_right(const buf_block_t *right_block, /*!< in: right page
-                                                             to which merged */
-                             const rec_t *orig_succ,         /*!< in: original
-                                                             successor of infimum
-                                                             on the right page
-                                                             before merge */
-                             const buf_block_t *left_block)  /*!< in: merged
-                                                             index  page which
-                                                             will be  discarded */
+void lock_update_merge_right(
+    const buf_block_t *right_block, /*!< in: right page
+                                    to which merged */
+    const rec_t *orig_succ,         /*!< in: original
+                                    successor of infimum
+                                    on the right page
+                                    before merge */
+    const buf_block_t *left_block)  /*!< in: merged
+                                    index  page which
+                                    will be  discarded */
 {
   lock_mutex_enter();
 
@@ -5782,6 +5783,8 @@ static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
   ut_ad(page_rec_is_user_rec(rec));
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
+
+  DEBUG_SYNC_C("lock_rec_convert_impl_to_expl");
 
   if (index->is_clustered()) {
     trx_id_t trx_id;

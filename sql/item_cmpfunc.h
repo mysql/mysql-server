@@ -28,8 +28,9 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "field_types.h"
+#include "json_dom.h"  // Json_wrapper
 //#include "extra/regex/my_regex.h"  // my_regex_t
-
 #include "m_ctype.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
@@ -47,6 +48,7 @@
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
+#include "sql/psi_memory_key.h"  // key_memory_JSON
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/table.h"
@@ -1545,6 +1547,26 @@ class cmp_item_string final : public cmp_item_scalar {
     else
       return true;
   }
+  virtual cmp_item *make_same();
+};
+
+class cmp_item_json final : public cmp_item_scalar {
+ private:
+  /// Cached JSON value to look up
+  Json_wrapper m_value;
+  /// Cache for the value above
+  Json_scalar_holder m_holder;
+  /// String buffer
+  String m_str_value;
+  /// Scalar holder for the RHS value
+  Json_scalar_holder m_itm_holder;
+
+ public:
+  cmp_item_json() {}
+
+  virtual int compare(const cmp_item *ci) const;
+  virtual void store_value(Item *item);
+  virtual int cmp(Item *arg);
   virtual cmp_item *make_same();
 };
 

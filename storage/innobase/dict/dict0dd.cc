@@ -34,6 +34,7 @@ Data dictionary interface */
 #include <sql_backup_lock.h>
 #include <sql_class.h>
 #include <sql_thd_internal_api.h>
+#include "item.h"
 #else /* !UNIV_HOTBACKUP */
 #include <my_base.h>
 #endif /* !UNIV_HOTBACKUP */
@@ -2175,6 +2176,13 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
 
     if (field->is_virtual_gcol()) {
       index->type |= DICT_VIRTUAL;
+
+      /* Whether it is a multi-value index */
+      if ((field->gcol_info->expr_item &&
+           field->gcol_info->expr_item->returns_array()) ||
+          field->is_array()) {
+        index->type |= DICT_MULTI_VALUE;
+      }
     }
 
     bool is_asc = true;
@@ -2748,13 +2756,20 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
   }
 
   ulint n_v_cols = 0;
+  ulint n_m_v_cols = 0;
 
   /* Find out the number of virtual columns */
   for (ulint i = 0; i < m_form->s->fields; i++) {
     Field *field = m_form->field[i];
 
+    ut_ad(!(!innobase_is_v_fld(field) && innobase_is_multi_value_fld(field)));
+
     if (innobase_is_v_fld(field)) {
       n_v_cols++;
+
+      if (innobase_is_multi_value_fld(field)) {
+        n_m_v_cols++;
+      }
     }
   }
 
@@ -2762,7 +2777,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
   /* Create the dict_table_t */
   dict_table_t *m_table =
-      dict_mem_table_create(norm_name, 0, n_cols, n_v_cols, 0, 0);
+      dict_mem_table_create(norm_name, 0, n_cols, n_v_cols, n_m_v_cols, 0, 0);
 
   /* Set up the field in the newly allocated dict_table_t */
   m_table->id = dd_tab->se_private_id();
@@ -2905,16 +2920,23 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
     long_true_varchar = 0;
     if (field->type() == MYSQL_TYPE_VARCHAR) {
-      col_len -= ((Field_varstring *)field)->length_bytes;
+      col_len -= field->get_length_bytes();
 
-      if (((Field_varstring *)field)->length_bytes == 2) {
+      if (field->get_length_bytes() == 2) {
         long_true_varchar = DATA_LONG_TRUE_VARCHAR;
       }
     }
 
     ulint is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
 
+    ulint is_multi_val =
+        innobase_is_multi_value_fld(field) ? DATA_MULTI_VALUE : 0;
+
     bool is_stored = innobase_is_s_fld(field);
+
+    if (is_multi_val) {
+      col_len = field->key_length();
+    }
 
     if (!is_virtual) {
       prtype =
@@ -2924,10 +2946,10 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
       dict_mem_table_add_col(m_table, heap, field->field_name, mtype, prtype,
                              col_len);
     } else {
-      prtype = dtype_form_prtype((ulint)field->type() | nulls_allowed |
-                                     unsigned_type | binary_type |
-                                     long_true_varchar | is_virtual,
-                                 charset_no);
+      prtype = dtype_form_prtype(
+          (ulint)field->type() | nulls_allowed | unsigned_type | binary_type |
+              long_true_varchar | is_virtual | is_multi_val,
+          charset_no);
       dict_mem_table_add_v_col(m_table, heap, field->field_name, mtype, prtype,
                                col_len, i,
                                field->gcol_info->non_virtual_base_columns());

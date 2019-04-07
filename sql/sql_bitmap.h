@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -128,6 +128,7 @@ class Bitmap {
         static_cast<const uchar *>(static_cast<const void *>(buffer)));
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
+  uint get_first_set() { return bitmap_get_first_set(&map); }
 };
 
 template <>
@@ -187,6 +188,11 @@ class Bitmap<64> {
     return buf;
   }
   ulonglong to_ulonglong() const { return map; }
+  uint get_first_set() {
+    for (uint i = 0; i < ALL_BITS; i++)
+      if (map & (1ULL << i)) return i;
+    return MY_BIT_NONE;
+  }
 };
 
 /* An iterator to quickly walk over bits in unlonglong bitmap. */

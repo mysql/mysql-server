@@ -44,6 +44,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "item_json_func.h"  // get_json_wrapper
 #include "m_string.h"
 #include "map_helpers.h"
 #include "mutex_lock.h"  // MUTEX_LOCK
@@ -560,23 +561,6 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value) {
   return decimal_value;
 }
 
-type_conversion_status Item_func::save_possibly_as_json(Field *field,
-                                                        bool no_conversions) {
-  if (data_type() == MYSQL_TYPE_JSON && field->type() == MYSQL_TYPE_JSON) {
-    // Store the value in the JSON binary format.
-    Field_json *f = down_cast<Field_json *>(field);
-    Json_wrapper wr;
-    if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
-
-    if (null_value) return set_field_to_null(field);
-
-    field->set_notnull();
-    return f->store_json(&wr);
-  }
-
-  return Item_func::save_in_field_inner(field, no_conversions);
-}
-
 String *Item_real_func::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
   double nr = val_real();
@@ -751,13 +735,15 @@ const Item_field *Item_func::contributes_to_filter(
   @param func           Expression to be replaced
   @param fld            GCs field
   @param type           Result type to match with Field
+  @param[out] found     If given, just return found field, without Item_field
 
   @returns
     item new Item_field for matched GC
     NULL otherwise
 */
 
-Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
+                            Field **found) {
   Item_func *expr = down_cast<Item_func *>(fld->gcol_info->expr_item);
 
   /*
@@ -807,14 +793,24 @@ Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type) {
     if (!expr->arguments()[0]->can_be_substituted_for_gc()) return NULL;
     expr = down_cast<Item_func *>(expr->arguments()[0]);
   }
+
   DBUG_ASSERT(expr->can_be_substituted_for_gc());
 
-  if (type == fld->result_type() && (*func)->eq(expr, false)) {
-    Item_field *field = new Item_field(fld);
+  // JSON implementation always uses binary collation
+  bool bin_cmp = (expr->data_type() == MYSQL_TYPE_JSON);
+  if (type == fld->result_type() && (*func)->eq(expr, bin_cmp)) {
+    if (found) {
+      // Temporary mark the field in order to check correct value conversion
+      fld->table->mark_column_used(fld, MARK_COLUMNS_TEMP);
+      *found = fld;
+      return NULL;
+    }
     // Mark field for read
     fld->table->mark_column_used(fld, MARK_COLUMNS_READ);
+    Item_field *field = new Item_field(fld);
     return field;
   }
+  if (found) *found = NULL;
   return NULL;
 }
 
@@ -840,19 +836,25 @@ static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
     Key_map tkm = field->part_of_key;
     tkm.merge(field->part_of_prefixkey);  // Include prefix keys.
     tkm.intersect(field->table->keys_in_use_for_query);
+    /*
+      Don't substitute if:
+      1) Key is disabled
+      2) It's a multi-valued index's field and predicate isn't MEMBER OF
+    */
+    if (tkm.is_clear_all() ||                           // (1)
+        (field->is_array() && predicate->functype() !=  // (2)
+                                  Item_func::MEMBER_OF_FUNC))
+      continue;
     // If the field is a hidden field used by a functional index, we require
     // that the collation of the field must match the collation of the
     // expression. If not, we might end up with the wrong result when using
     // the index (see bug#27337092). Ideally, this should be done for normal
     // generated columns as well, but that is delayed to a later fix since the
     // impact might be quite large.
-    const bool incompatible_collations =
-        field->is_field_for_functional_index() &&
-        field->result_type() == STRING_RESULT &&
-        (*expr)->result_type() == STRING_RESULT &&
-        (*expr)->collation.collation != field->charset();
-
-    if (!tkm.is_clear_all() && !incompatible_collations) {
+    if (!(field->is_field_for_functional_index() &&
+          field->type() == MYSQL_TYPE_VARCHAR &&
+          (*expr)->data_type() == MYSQL_TYPE_VARCHAR &&
+          (*expr)->collation.collation != field->charset())) {
       item_field = get_gc_for_expr(expr, field, type);
       if (item_field != nullptr) break;
     }
@@ -869,6 +871,68 @@ static bool substitute_gc_expression(Item_func **expr, List<Field> *gc_fields,
   if (predicate->functype() == Item_func::IN_FUNC)
     down_cast<Item_func_in *>(predicate)->cleanup_arrays();
   return predicate->resolve_type(thd);
+}
+
+/**
+  A helper function for Item_func::gc_subst_transformer, that tries to
+  substitute the given JSON_CONTAINS or JSON_OVERLAPS function for one of GCs
+  from the provided list. The function checks whether there's an index with
+  matching expression and whether all scalars for lookup can be coerced to
+  index's GC field without errors. If so, index's GC field substitutes the
+  given function. substitute_gc_expression() can't be used to these functions
+  as it's tailored to handle regular single-valued indexes and doesn't ensure
+  correct coercion of all values to lookup in multi-valued index.
+
+  @param func     Function to replace
+  @param vals_wr  Json_wrapper containing array of values for index lookup
+  @param gc_fields List of generated fields to look the function's substitute in
+*/
+
+static void gc_subst_overlaps_contains(Item_func **func, Json_wrapper &vals_wr,
+                                       List<Field> *gc_fields) {
+  // Field to substitute function for. NULL when no matching index was found.
+  Field *found = nullptr;
+  DBUG_ASSERT(vals_wr.type() != enum_json_type::J_OBJECT &&
+              vals_wr.type() != enum_json_type::J_ERROR);
+  THD *thd = current_thd;
+
+  // Find a field that matches the expression
+  for (Field &fld : *gc_fields) {
+    bool can_use_index = true;
+    // Check whether field has usable keys
+    Key_map tkm = fld.part_of_key;
+    tkm.intersect(fld.table->keys_in_use_for_query);
+
+    if (tkm.is_clear_all() || !fld.is_array()) continue;
+    Functional_index_error_handler func_idx_err_hndl(
+        const_cast<const Field *>(&fld), thd);
+    found = nullptr;
+
+    get_gc_for_expr(func, &fld, fld.result_type(), &found);
+    if (!found || !found->is_array()) continue;
+    Field_typed_array *afld = down_cast<Field_typed_array *>(found);
+    // Check that array's values can be coerced to found field's type
+    uint len;
+    if (vals_wr.type() == enum_json_type::J_ARRAY)
+      len = vals_wr.length();
+    else
+      len = 1;
+    for (uint i = 0; i < len; i++) {
+      Json_wrapper elt = vals_wr[i];
+      if (afld->coerce_json_value(&elt, nullptr)) {
+        can_use_index = false;
+        found = nullptr;
+        break;
+      }
+    }
+    if (can_use_index) break;
+  }
+  if (!found) return;
+  TABLE *table = found->table;
+  Item_field *subs_item = new Item_field(found);
+  if (!subs_item) return;
+  table->mark_column_used(found, MARK_COLUMNS_READ);
+  table->in_use->change_item_tree(pointer_cast<Item **>(func), subs_item);
 }
 
 /**
@@ -935,10 +999,83 @@ Item *Item_func::gc_subst_transformer(uchar *arg) {
           })) {
         break;
       }
+      Item **to_subst = args;
+      if (substitute_gc_expression(pointer_cast<Item_func **>(to_subst),
+                                   gc_fields, type, this))
+        return nullptr;
+      break;
+    }
+    case MEMBER_OF_FUNC: {
+      Item_result type = args[0]->result_type();
+      /*
+        Check whether MEMBER OF is applicable for optimization:
+        1) 1st arg is a constant
+        2) .. and it isn't NULL, as MEMBER OF can't be used to lookup NULLs
+        3) 2nd arg can be substituted for a GC
+        4) .. and it's of JSON type
+      */
+      if (args[0]->const_item() &&                    // 1
+          !args[0]->is_null() &&                      // 2
+          args[1]->can_be_substituted_for_gc() &&     // 3
+          args[1]->data_type() == MYSQL_TYPE_JSON) {  // 4
+        Item **to_subst = args + 1;
+        if (substitute_gc_expression(pointer_cast<Item_func **>(to_subst),
+                                     gc_fields, type, this))
+          return nullptr;
+      }
+      break;
+    }
+    case JSON_CONTAINS: {
+      Json_wrapper vals_wr;
+      String str;
+      /*
+        Check whether JSON_CONTAINS is applicable for optimization:
+        1) 1st arg is a local field
+        2) 1st arg's type is JSON
+        3) value to lookup is a constant
+        4) value to lookup is a proper JSON doc
+        5) value to lookup is an array
+      */
+      if (args[0]->type() != Item::FUNC_ITEM ||       // 1
+          args[0]->data_type() != MYSQL_TYPE_JSON ||  // 2
+          !args[1]->real_item()->const_item())        // 3
+        break;
+      if (get_json_wrapper(args, 1, &str, func_name(), &vals_wr) ||  // 4
+          args[1]->null_value ||
+          vals_wr.type() == enum_json_type::J_OBJECT)  // 5
+        break;
+      gc_subst_overlaps_contains(pointer_cast<Item_func **>(args), vals_wr,
+                                 gc_fields);
+      break;
+    }
+    case JSON_OVERLAPS: {
+      Item **func = nullptr;
+      int vals = -1;
+      Json_wrapper vals_wr;
+      String str;
 
-      if (substitute_gc_expression(pointer_cast<Item_func **>(args), gc_fields,
-                                   type, this))
-        return nullptr; /* purecov: inspected */
+      /*
+        Check whether JSON_OVERLAPS is applicable for optimization:
+        1) One arg is a function and another is a const expr
+        2) value to lookup is a proper JSON doc
+        3) value to lookup is an array
+      */
+
+      if (args[0]->type() == Item::FUNC_ITEM && args[1]->const_item()) {  // 1
+        func = args;
+        vals = 1;
+      } else if (args[1]->type() == Item::FUNC_ITEM &&
+                 args[0]->const_item()) {  // 1
+        func = args + 1;
+        vals = 0;
+      }
+      if (!func) break;
+      if (get_json_wrapper(args, vals, &str, func_name(), &vals_wr) ||  // 2
+          args[vals]->null_value ||
+          vals_wr.type() == enum_json_type::J_OBJECT)  // 3
+        break;
+      gc_subst_overlaps_contains(pointer_cast<Item_func **>(func), vals_wr,
+                                 gc_fields);
       break;
     }
     default:
@@ -7272,11 +7409,6 @@ bool Item_func_sp::val_json(Json_wrapper *result) {
   my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
   return error_json();
   /* purecov: end */
-}
-
-type_conversion_status Item_func_sp::save_in_field_inner(Field *field,
-                                                         bool no_conversions) {
-  return save_possibly_as_json(field, no_conversions);
 }
 
 /**

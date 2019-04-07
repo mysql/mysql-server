@@ -1319,7 +1319,7 @@ void mark_tmp_table_for_reuse(TABLE *table) {
 
   /* Detach temporary MERGE children from temporary parent. */
   DBUG_ASSERT(table->file);
-  table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+  table->file->ha_extra(HA_EXTRA_DETACH_CHILDREN);
 
   /*
     Reset temporary table lock type to it's default value (TL_WRITE).
@@ -1437,7 +1437,7 @@ static void close_all_tables_for_name(THD *thd, const char *key,
       /* Inform handler that table will be dropped after close */
       if (table->db_stat && /* Not true for partitioned tables. */
           skip_table == NULL)
-        table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
+        table->file->ha_extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     } else {
       /* Step to next entry in open_tables list. */
@@ -1569,7 +1569,7 @@ void close_thread_tables(THD *thd) {
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES ||
         table->query_id == thd->query_id) {
       DBUG_ASSERT(table->file);
-      if (table->db_stat) table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+      if (table->db_stat) table->file->ha_extra(HA_EXTRA_DETACH_CHILDREN);
       table->cleanup_value_generator_items();
       table->cleanup_partial_update();
     }
@@ -1731,7 +1731,7 @@ void close_thread_table(THD *thd, TABLE **table_ptr) {
 
   if (!table->needs_reopen()) {
     /* Avoid having MERGE tables with attached children in unused_tables. */
-    table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+    table->file->ha_extra(HA_EXTRA_DETACH_CHILDREN);
     /* Free memory and reset for next loop. */
     free_blob_buffers_and_reset(table, MAX_TDC_BLOB_SIZE);
     table->file->ha_reset();
@@ -2446,7 +2446,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, table->s->db.str,
                    table->s->table_name.str, false);
   /* extra() call must come only after all instances above are closed */
-  (void)table->file->extra(function);
+  (void)table->file->ha_extra(function);
   return false;
 }
 
@@ -5074,7 +5074,7 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
   DBUG_ASSERT(tables->table->pos_in_table_list == tables);
   /* Non-MERGE tables ignore this call. */
   if (tables->table->db_stat &&
-      tables->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST)) {
+      tables->table->file->ha_extra(HA_EXTRA_ADD_CHILDREN_LIST)) {
     error = true;
     goto end;
   }
@@ -5778,7 +5778,7 @@ restart:
     if (tbl && tbl->file->ht->db_type == DB_TYPE_MRG_MYISAM) {
       /* MERGE tables need to access parent and child TABLE_LISTs. */
       DBUG_ASSERT(tbl->pos_in_table_list == tables);
-      if (tbl->db_stat && tbl->file->extra(HA_EXTRA_ATTACH_CHILDREN)) {
+      if (tbl->db_stat && tbl->file->ha_extra(HA_EXTRA_ATTACH_CHILDREN)) {
         error = true;
         goto err;
       }
@@ -5828,8 +5828,8 @@ restart:
          need to invoke dd::Dictionary::is_dd_tablename() to make sure.
        */
       if (tbl->db_stat &&
-          tbl->file->extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW)) {
-        // Handler->extra() for innodb does not fail ever as of now.
+          tbl->file->ha_extra(HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW)) {
+        // Handler->ha_extra() for innodb does not fail ever as of now.
         // In case it is made to fail sometime later, we need to think
         // about the kind of error to be report to user.
         DBUG_ASSERT(0);
@@ -6543,7 +6543,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list) {
         This has to be done in a separate loop to make sure
         that children have had their query_id cleared.
       */
-      table->table->file->extra(HA_EXTRA_DETACH_CHILDREN);
+      table->table->file->ha_extra(HA_EXTRA_DETACH_CHILDREN);
     }
 }
 

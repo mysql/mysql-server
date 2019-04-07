@@ -1104,6 +1104,8 @@ static void ib_insert_query_graph_create(
         pars_complete_graph_for_exec(node->ins, trx, heap, NULL)));
 
     grph->ins->state = QUE_FORK_ACTIVE;
+  } else {
+    node->ins->ins_multi_val_pos = 0;
   }
 }
 
@@ -1196,6 +1198,9 @@ upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
   if (node->upd == NULL) {
     node->upd = static_cast<upd_node_t *>(
         row_create_update_node_for_mysql(table, heap));
+  } else {
+    node->upd->del_multi_val_pos = 0;
+    node->upd->upd_multi_val_pos = 0;
   }
 
   ut_ad(!dict_table_have_virtual_index(table));

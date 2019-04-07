@@ -58,6 +58,7 @@
 #include "sql/dd/dictionary.h"  // is_dd_table_access_allowed
 #include "sql/derror.h"         // ER_THD
 #include "sql/discrete_interval.h"
+#include "sql/field.h"
 #include "sql/gis/srid.h"
 #include "sql/handler.h"
 #include "sql/item.h"
@@ -1913,6 +1914,7 @@ sp_head::~sp_head() {
 Field *sp_head::create_result_field(size_t field_max_length,
                                     const char *field_name_or_null,
                                     TABLE *table) {
+  DBUG_ASSERT(!m_return_field_def.is_array);
   size_t field_length = !m_return_field_def.max_display_width_in_bytes()
                             ? field_max_length
                             : m_return_field_def.max_display_width_in_bytes();

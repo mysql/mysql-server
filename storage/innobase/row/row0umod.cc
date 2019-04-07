@@ -769,6 +769,34 @@ static void row_undo_mod_sec_flag_corrupted(
 }
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
+This is the specific function to handle the modify on multi-value indexes.
+@param[in,out]	node	row undo node
+@param[in,out]	thr	query thread
+@param[in]	index	the multi-value index
+@param[in,out]	heap	memory heap
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_upd_del_multi_sec(undo_node_t *node, que_thr_t *thr,
+                                   dict_index_t *index, mem_heap_t *heap) {
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_normal mv_entry_builder(node->row, node->ext, index,
+                                                    heap, true, false);
+
+  ut_ad(index->is_multi_value());
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    err = row_undo_mod_del_mark_or_remove_sec(node, thr, index, entry);
+
+    if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+      break;
+    }
+  }
+
+  return (err);
+}
+
+/** Undoes a modify in secondary indexes when undo record type is UPD_DEL.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_upd_del_sec(undo_node_t *node, /*!< in: row undo node */
@@ -787,6 +815,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     dtuple_t *entry;
 
     if (index->type & DICT_FTS) {
+      dict_table_next_uncorrupted_index(node->index);
+      continue;
+    }
+
+    if (index->is_multi_value()) {
+      err = row_undo_mod_upd_del_multi_sec(node, thr, index, heap);
+      if (err != DB_SUCCESS) {
+        break;
+      }
+
+      mem_heap_empty(heap);
       dict_table_next_uncorrupted_index(node->index);
       continue;
     }
@@ -829,6 +868,49 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 /** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
+This is the specific function to handle the modify on multi-value indexes.
+@param[in,out]	node	row undo node
+@param[in,out]	thr	query thread
+@param[in]	index	the multi-value index
+@param[in,out]	heap	memory heap
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_undo_mod_del_mark_multi_sec(undo_node_t *node, que_thr_t *thr,
+                                    dict_index_t *index, mem_heap_t *heap) {
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_normal mv_entry_builder(node->row, node->ext, index,
+                                                    heap, true, false);
+
+  ut_ad(index->is_multi_value());
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    err = row_undo_mod_del_unmark_sec_and_undo_update(
+        BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
+
+    if (err == DB_FAIL) {
+      err = row_undo_mod_del_unmark_sec_and_undo_update(
+          BTR_MODIFY_TREE, thr, index, entry, node->undo_no);
+    }
+
+    if (err == DB_DUPLICATE_KEY) {
+      row_undo_mod_sec_flag_corrupted(thr_get_trx(thr), index);
+      err = DB_SUCCESS;
+      /* Do not return any error to the caller. The
+      duplicate will be reported by ALTER TABLE or
+      CREATE UNIQUE INDEX. Unfortunately we cannot
+      report the duplicate key value to the DDL
+      thread, because the altered_table object is
+      private to its call stack. */
+    } else if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+
+  return (err);
+}
+
+/** Undoes a modify in secondary indexes when undo record type is DEL_MARK.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_del_mark_sec(undo_node_t *node, /*!< in: row undo node */
@@ -846,6 +928,17 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     dtuple_t *entry;
 
     if (index->type == DICT_FTS) {
+      dict_table_next_uncorrupted_index(node->index);
+      continue;
+    }
+
+    if (index->is_multi_value()) {
+      err = row_undo_mod_del_mark_multi_sec(node, thr, index, heap);
+      if (err != DB_SUCCESS) {
+        break;
+      }
+
+      mem_heap_empty(heap);
       dict_table_next_uncorrupted_index(node->index);
       continue;
     }
@@ -891,6 +984,62 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 /** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
+This is the specific function to handle the modify on multi-value indexes.
+@param[in,out]	node		row undo node
+@param[in,out]	thr		query thread
+@param[in]	index		the multi-value index
+@param[in]	non_mv_upd	true if any non-multi-value field on the index
+                                gets updated too
+@param[in,out]	heap		memory heap
+@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+static dberr_t row_undo_mod_upd_exist_multi_sec(undo_node_t *node,
+                                                que_thr_t *thr,
+                                                dict_index_t *index,
+                                                bool non_mv_upd,
+                                                mem_heap_t *heap) {
+  dberr_t err = DB_SUCCESS;
+
+  {
+    Multi_value_entry_builder_normal mv_entry_builder(
+        node->row, node->ext, index, heap, true, !non_mv_upd);
+
+    ut_ad(index->is_multi_value());
+
+    for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+         entry = mv_entry_builder.next()) {
+      err = row_undo_mod_del_mark_or_remove_sec(node, thr, index, entry);
+      if (err != DB_SUCCESS) {
+        break;
+      }
+    }
+  }
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  Multi_value_entry_builder_normal mv_entry_builder(
+      node->undo_row, node->undo_ext, index, heap, true, !non_mv_upd);
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    err = row_undo_mod_del_unmark_sec_and_undo_update(
+        BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
+
+    if (err == DB_FAIL) {
+      err = row_undo_mod_del_unmark_sec_and_undo_update(
+          BTR_MODIFY_TREE, thr, index, entry, node->undo_no);
+    }
+
+    if (err != DB_SUCCESS) {
+      break;
+    }
+  }
+
+  return (err);
+}
+
+/** Undoes a modify in secondary indexes when undo record type is UPD_EXIST.
  @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo_mod_upd_exist_sec(undo_node_t *node, /*!< in: row undo node */
@@ -898,6 +1047,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 {
   mem_heap_t *heap;
   dberr_t err = DB_SUCCESS;
+  bool non_mv_upd = true;
 
   if (node->index == NULL || ((node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
     /* No change in secondary indexes */
@@ -916,18 +1066,27 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 #ifdef UNIV_DEBUG
                                                  thr,
 #endif /* UNIV_DEBUG */
-                                                 node->row, node->ext,
+                                                 node->row, node->ext, nullptr,
                                                  ROW_BUILD_FOR_UNDO)) {
         dict_table_next_uncorrupted_index(node->index);
         continue;
       }
     } else {
       if (index->type == DICT_FTS ||
-          !row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
-                                            node->ext)) {
+          !row_upd_changes_ord_field_binary(
+              index, node->update, thr, node->row, node->ext,
+              (index->is_multi_value() ? &non_mv_upd : nullptr))) {
         dict_table_next_uncorrupted_index(node->index);
         continue;
       }
+    }
+
+    if (index->is_multi_value()) {
+      err =
+          row_undo_mod_upd_exist_multi_sec(node, thr, index, non_mv_upd, heap);
+      mem_heap_empty(heap);
+      dict_table_next_uncorrupted_index(node->index);
+      continue;
     }
 
     /* Build the newest version of the index entry */

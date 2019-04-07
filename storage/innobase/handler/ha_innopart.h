@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "partitioning/partition_handler.h"
 #include "row0mysql.h"
+#include "ut0bitset.h"
 
 /* Forward declarations */
 class Altered_partitions;
@@ -51,54 +52,6 @@ Full text and geometry is not yet supported. */
 const handler::Table_flags HA_INNOPART_DISABLED_TABLE_FLAGS =
     (HA_CAN_FULLTEXT | HA_CAN_FULLTEXT_EXT | HA_CAN_GEOMETRY |
      HA_DUPLICATE_POS | HA_READ_BEFORE_WRITE_REMOVAL);
-
-/** A simple bitset wrapper class, whose size is dynamic */
-class Bitset {
- public:
-  /** Constructor */
-  Bitset() : m_bitset(nullptr), m_width(0) {}
-
-  /** Destructor */
-  ~Bitset() {}
-
-  /** Initialize the bitset with a byte array and width
-  @param[in]	bitset	byte array for this bitset
-  @param[in]	width	width of the byte array */
-  void init(byte *bitset, size_t width) {
-    m_bitset = bitset;
-    m_width = width;
-  }
-
-  /** Set the specified bit to the value 'bit'
-  @param[in]	pos	Specified bit
-  @param[in]	v	True or false */
-  void set(size_t pos, bool v = true) {
-    ut_ad(pos / 8 < m_width);
-    m_bitset[pos / 8] &= ~(0x1 << (pos & 0x7));
-    m_bitset[pos / 8] |= (static_cast<uint>(v) << (pos & 0x7));
-  }
-
-  /** Set all bits to true */
-  void set() { memset(m_bitset, 0xFF, m_width); }
-
-  /** Set all bits to false */
-  void reset() { memset(m_bitset, 0, m_width); }
-
-  /** Test if the specified bit is set or not
-  @param[in]	pos	The specified bit
-  @return True if this bit is set, otherwise false */
-  bool test(size_t pos) const {
-    ut_ad(pos / 8 < m_width);
-    return ((m_bitset[pos / 8] >> (pos & 0x7)) & 0x1);
-  }
-
- private:
-  /** Bitset bytes */
-  byte *m_bitset;
-
-  /** Bitset width in bytes */
-  size_t m_width;
-};
 
 typedef Bitset Sql_stat_start_parts;
 

@@ -344,7 +344,7 @@ UNIQUE KEY USING BTREE (c2,c1)) ENGINE = MEMORY;
 INSERT INTO t1(c1,c2) VALUES (5,1), (4,1), (3,5), (2,3), (1,3);
 EXPLAIN SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	c2	8	NULL	5	100.00	NULL
+1	SIMPLE	t1	NULL	index	c2	c2	8	NULL	5	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`c2` AS `c2`,count(`test`.`t1`.`c1`) AS `COUNT(c1)` from `test`.`t1` group by `test`.`t1`.`c2`
 SELECT c2, COUNT(c1) FROM t1 GROUP BY c2;

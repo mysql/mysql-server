@@ -160,12 +160,13 @@ bool COPY_INFO::set_function_defaults(TABLE *table) {
     BLOB value is handled. When update_generated_write_fields() is removed,
     blobs_need_not_keep_old_value() can also be removed.
   */
+  bool res = false;
   if (table->has_gcol()) {
     table->blobs_need_not_keep_old_value();
-    update_generated_write_fields(table->write_set, table);
+    res = update_generated_write_fields(table->write_set, table);
   }
 
-  return false;
+  return res;
 }
 
 bool COPY_INFO::ignore_last_columns(TABLE *table, uint count) {

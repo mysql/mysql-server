@@ -1,0 +1,423 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression('.*Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.*');
+SET SESSION sql_log_bin= 1;
+include/sync_slave_sql_with_master.inc
+CALL mtr.add_suppression(".*Column 1 of table .* cannot be converted from type.*");
+CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
+SET @@global.slave_rows_search_algorithms="TABLE_SCAN,INDEX_SCAN";
+FLUSH LOGS;
+[connection master]
+#
+# WL#8955: Add multi-valied index support
+#
+CREATE TABLE t1(pl INT AUTO_INCREMENT KEY, f1 JSON, KEY i1((CAST(f1->'$[*]' AS UNSIGNED ARRAY))));
+insert into t1(f1) values
+(cast('[1,3]' as json)), (cast(2 as json)), (cast('[3,3,4,4,7]' as json)),
+(cast('[5,7]' as json)),
+(cast('[8,4,3,5]' as json)), (cast('[5,6,7]' as json)),
+(cast('[9,2,7]' as json)), (cast('[1,3]' as json)),
+(cast('[3,3,4,4,7]' as json)), (cast(4 as json)), (cast('[8,4,3,5]' as json)),
+(cast('[9,2,7]' as json)), (cast('[9,2,7]' as json)),
+(cast('[1,3]' as json)),
+(cast('[3,3,4,4,7]' as json)), (cast(4 as json)),
+(cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[9,2,7]' as json)),
+('[98,99]');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select * from t1 where 5 member of (f1->"$[*]");
+pl	f1
+4	[5, 7]
+5	[8, 4, 3, 5]
+6	[5, 6, 7]
+11	[8, 4, 3, 5]
+18	[8, 4, 3, 5]
+explain select * from t1 where 5 member of (f1->"$[*]");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ref	i1	i1	9	const	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` where <cache>(5) member of (cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array))
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+pl	f1
+3	[3, 3, 4, 4, 7]
+5	[8, 4, 3, 5]
+9	[3, 3, 4, 4, 7]
+11	[8, 4, 3, 5]
+15	[3, 3, 4, 4, 7]
+18	[8, 4, 3, 5]
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[4,3]");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	15	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),<cache>('[4,3]'))
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+pl	f1
+4	[5, 7]
+6	[5, 6, 7]
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[5,7]");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	14	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),<cache>('[5,7]'))
+[connection master]
+select * from t1 force index(i1) where 99 member of  (f1->"$[*]");
+pl	f1
+20	[98, 99]
+update t1 set f1=cast('[100,99]' as json) where 99 member of (f1->"$[*]");
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+pl	f1
+20	[100, 99]
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),<cache>('[100]'))
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+pl	f1
+20	[100, 99]
+explain select * from t1 force index(i1) where json_contains(f1->"$[*]", "[100]");
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	i1	i1	9	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`pl` AS `pl`,`test`.`t1`.`f1` AS `f1` from `test`.`t1` FORCE INDEX (`i1`) where json_contains(cast(json_extract(`test`.`t1`.`f1`,_utf8mb4'$[*]') as unsigned array),<cache>('[100]'))
+[connection master]
+DROP TABLE t1;
+# Test correctness of metadata replication
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as char(10)))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as char(10) array))));
+[connection master]
+insert into t1 values ('"asd"');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as char(10) array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as char(10)))));
+[connection master]
+insert into t1 values ('"asd"');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as decimal(64,1)))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as decimal(64,1) array))));
+[connection master]
+insert into t1 values ('123');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as decimal array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as decimal))));
+[connection master]
+insert into t1 values ('123');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as unsigned))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as unsigned array))));
+[connection master]
+insert into t1 values ('123');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as signed array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as signed))));
+[connection master]
+insert into t1 values ('123');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as datetime(6)))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as datetime(6) array))));
+[connection master]
+insert into t1 values ('"01-01-01 01:01:01.0"');
+Warnings:
+Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as datetime(6) array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as datetime(6)))));
+[connection master]
+insert into t1 values ('"01-01-01 01:01:01.0"');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as date))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as date array))));
+[connection master]
+insert into t1 values ('"01-01-01"');
+Warnings:
+Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as date array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as date))));
+[connection master]
+insert into t1 values ('"01-01-01"');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as time(6)))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as time(6) array))));
+[connection master]
+insert into t1 values ('"01:01:01.0"');
+Warnings:
+Warning	13445	Invalid JSON value for CAST for functional index 'mvi'
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+[connection master]
+set @@session.sql_log_bin = 0;
+create table t1(j json, key mvi((cast(j as time(6) array))));
+set @@session.sql_log_bin = 1;
+[connection slave]
+create table t1(j json, key mvi((cast(j as time(6)))));
+[connection master]
+insert into t1 values ('"01:01:01.0"');
+[connection slave]
+include/wait_for_slave_sql_error.inc [errno=13146]
+include/rpl_reset.inc
+[connection master]
+drop table t1;
+SET @start_row_image_value = @@session.binlog_row_image;
+SET @@session.binlog_row_image = MINIMAL;
+SET @@global.transaction_write_set_extraction = 'XXHASH64';
+SET @save_btdt= @@global.binlog_transaction_dependency_tracking;
+SET @@global.binlog_transaction_dependency_tracking = 'WRITESET';
+FLUSH LOGS;
+include/save_binlog_position.inc
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
+KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
+UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
+INSERT INTO t1(data) VALUES ('[33,44]');
+INSERT INTO t1(data) VALUES ('[0,99]');
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5]
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+FLUSH LOGS;
+include/save_binlog_position.inc
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
+data JSON NOT NULL,
+UNIQUE KEY zips(id, (CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
+UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
+INSERT INTO t1(data) VALUES ('[33,44]');
+INSERT INTO t1(data) VALUES ('[0,99]');
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+FLUSH LOGS;
+include/save_binlog_position.inc
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, id INT DEFAULT 0,
+data JSON NOT NULL,
+UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY)), id));
+INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
+UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
+INSERT INTO t1(data) VALUES ('[33,44]');
+INSERT INTO t1(data) VALUES ('[0,99]');
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+FLUSH LOGS;
+include/save_binlog_position.inc
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON NOT NULL,
+UNIQUE KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
+UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
+INSERT INTO t1(data) VALUES ('[]');
+INSERT INTO t1(data) VALUES ('[0,99]');
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;3 5]
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+[Connection Master]
+DROP TABLE t1;
+FLUSH LOGS;
+include/save_binlog_position.inc
+CREATE TABLE t1 (pk INT AUTO_INCREMENT KEY, data JSON,
+KEY zips((CAST(CAST(data AS JSON) AS UNSIGNED ARRAY))));
+INSERT INTO t1(data) VALUES ('[0,1,2]'), ('[10,11,12]');
+UPDATE t1 SET data = '[3,4,5]' WHERE JSON_CONTAINS(CAST(data AS JSON),'1');
+INSERT INTO t1(data) VALUES ('[33,44]');
+INSERT INTO t1(data) VALUES (NULL);
+INSERT INTO t1(data) VALUES ('[0,99]');
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;1 4;1 5;1 6]
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS CHAR(10) ARRAY)))));
+INSERT INTO t1(j4) VALUES('["foobar"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS BINARY(10) ARRAY)))));
+INSERT INTO t1(j4) VALUES('["foobar"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DECIMAL ARRAY)))));
+INSERT INTO t1(j4) VALUES('[123]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DECIMAL(4,2) ARRAY)))));
+INSERT INTO t1(j4) VALUES('[12.34]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS UNSIGNED ARRAY)))));
+INSERT INTO t1(j4) VALUES('[12]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS SIGNED ARRAY)))));
+INSERT INTO t1(j4) VALUES('[-1234]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DATE ARRAY)))));
+INSERT INTO t1(j4) VALUES('["01-01-01"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS TIME(6) ARRAY)))));
+INSERT INTO t1(j4) VALUES('["01:01:01.123456"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT KEY AUTO_INCREMENT,
+j4 JSON ,
+KEY mv_idx_binary ((( CAST(j4->'$[*]' AS DATETIME(6) ARRAY)))));
+INSERT INTO t1(j4) VALUES('["01-01-01 01:01:01.123456"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+SET @@global.binlog_transaction_dependency_tracking = @save_btdt;
+SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
+FLUSH LOGS;
+include/sync_slave_sql_with_master.inc
+SET @@global.slave_rows_search_algorithms= "INTITAL_ROW_SEARCH_CONF";
+include/rpl_end.inc

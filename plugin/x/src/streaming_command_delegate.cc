@@ -283,6 +283,9 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       column_info.set_length(field->length);
       column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BIT);
       break;
+
+    default:
+      DBUG_ASSERT(0);  // Shouldn't happen
   }
 
   DBUG_ASSERT(column_info.get().m_type !=

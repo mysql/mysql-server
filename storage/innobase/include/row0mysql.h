@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -493,6 +493,7 @@ struct mysql_row_templ_t {
                                 row format */
   ulint mysql_col_len;          /*!< length of the column in the MySQL
                                 row format */
+  ulint mysql_mvidx_len;        /*!< index length on multi-value array */
   ulint mysql_null_byte_offset; /*!< MySQL NULL bit byte offset in a
                                 MySQL record */
   ulint mysql_null_bit_mask;    /*!< bit mask to get the NULL bit,
@@ -519,6 +520,8 @@ struct mysql_row_templ_t {
                                 type and this field is != 0, then
                                 it is an unsigned integer type */
   ulint is_virtual;             /*!< if a column is a virtual column */
+  ulint is_multi_val;           /*!< if a column is a Multi-Value Array virtual
+                                column */
 };
 
 #define MYSQL_FETCH_CACHE_SIZE 8
@@ -605,9 +608,13 @@ struct row_prebuilt_t {
   ins_node_t *ins_node;                    /*!< Innobase SQL insert node
                                            used to perform inserts
                                            to the table */
-  byte *ins_upd_rec_buff;  /*!< buffer for storing data converted
+  byte *ins_upd_rec_buff; /*!< buffer for storing data converted
                           to the Innobase format from the MySQL
                           format */
+
+  /* buffer for converting data format
+  for multi-value virtual columns */
+  multi_value_data *mv_data;
   const byte *default_rec; /*!< the default values of all columns
                            (a "default row") in MySQL format */
   ulint hint_need_to_fetch_extra_cols;
@@ -859,6 +866,19 @@ dfield_t *innobase_get_computed_value(
     mem_heap_t **local_heap, mem_heap_t *heap, const dict_field_t *ifield,
     THD *thd, TABLE *mysql_table, const dict_table_t *old_table,
     upd_t *parent_update, dict_foreign_t *foreign);
+
+/** Parse out multi-values from a MySQL record
+@param[in]      mysql_table     MySQL table structure
+@param[in]      f_idx           field index of the multi-value column
+@param[in,out]  dfield          field structure to store parsed multi-value
+@param[in,out]  value           nullptr or the multi-value structure
+                                to store the parsed values
+@param[in]      old_val         old value if exists
+@param[in]      comp            true if InnoDB table uses compact row format
+@param[in,out]  heap            memory heap */
+void innobase_get_multi_value(const TABLE *mysql_table, ulint f_idx,
+                              dfield_t *dfield, multi_value_data *value,
+                              uint old_val, ulint comp, mem_heap_t *heap);
 
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	the table whose virtual column template to be built */

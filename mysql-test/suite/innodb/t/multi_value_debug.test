@@ -1,0 +1,587 @@
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+--source include/have_innodb_max_16k.inc
+
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON);
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS DECIMAL(4,2) ARRAY)));
+CREATE INDEX i2 ON t1((CAST(f1->"$[*]" AS CHAR(10) ARRAY)));
+
+# Test lock wait on the INSERT
+set debug = '+d, row_ins_sec_index_entry_lock_wait';
+INSERT INTO t1(f1) VALUES(CAST('["11.11", "22.22", "33.33", "44.44", "55.55", "66.66", "77.77", "88.88", "99.99"]' AS JSON));
+
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE 11.11 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 22.22 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 33.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 44.44 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 55.55 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 66.66 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 77.77 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 88.88 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 99.99 MEMBER OF (f1->'$[*]');
+
+TRUNCATE TABLE t1;
+
+# Test lock wait on the DELETE
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["15.67","18.55"]' AS JSON));
+
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "13.33" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.21" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+set debug = '+d, row_upd_sec_index_entry_lock_wait';
+DELETE FROM t1;
+
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "13.33" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.21" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+# Test lock wait on the delete phase of UPDATE
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21","13.45"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["15.67","18.55","19.32"]' AS JSON));
+
+set debug = '-d, row_upd_sec_index_entry_lock_wait';
+set debug = '+d, delete_one_multi_sec_index_entry_lock_wait';
+UPDATE t1 SET f1 = CAST('["98.76","87.65","76.54"]' AS JSON) WHERE 13.33 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 87.65 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 19.32 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.45 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "98.76" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "87.65" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "76.54" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "19.32" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.45" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.21" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.33" MEMBER OF (f1->'$[*]');
+
+UPDATE t1 SET f1 = CAST('["11.11","22.22","33.33"]' AS JSON) WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 87.65 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 11.11 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 22.22 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 33.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 19.32 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "98.76" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "87.65" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "76.54" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "11.11" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "22.22" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "33.33" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "19.32" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+CHECK TABLE t1;
+
+DELETE FROM t1;
+
+# Test the lock wait on the insert phase of UPDATE
+INSERT INTO t1(f1) VALUES(CAST('["13.33","13.21","13.45"]' AS JSON));
+INSERT INTO t1(f1) VALUES(CAST('["15.67","18.55","19.32"]' AS JSON));
+
+set debug = '-d, delete_one_multi_sec_index_entry_lock_wait';
+set debug = '+d, row_ins_sec_index_entry_lock_wait';
+UPDATE t1 SET f1 = CAST('["98.76","87.65","76.54"]' AS JSON) WHERE 13.33 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 87.65 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 19.32 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.45 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.21 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 13.33 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "98.76" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "87.65" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "76.54" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "19.32" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.45" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.21" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "13.33" MEMBER OF (f1->'$[*]');
+
+UPDATE t1 SET f1 = CAST('["11.11","22.22","33.33"]' AS JSON) WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE 98.76 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 87.65 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 76.54 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 11.11 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 22.22 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 33.33 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 19.32 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 15.67 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 18.55 MEMBER OF (f1->'$[*]');
+
+SELECT * FROM t1 WHERE "98.76" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "87.65" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "76.54" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "11.11" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "22.22" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "33.33" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "19.32" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "15.67" MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE "18.55" MEMBER OF (f1->'$[*]');
+
+set debug = '-d, row_ins_sec_index_entry_lock_wait';
+
+CHECK TABLE t1;
+
+DELETE FROM t1;
+
+DROP TABLE t1;
+
+
+
+
+# Test alter table with adding index, to check the scenario
+# when the sort buffer can't be fit for one multi-value row.
+
+CREATE TABLE t1(id INT NOT NULL PRIMARY KEY AUTO_INCREMENT, f1 JSON);
+
+INSERT INTO t1(f1) VALUES (CAST('[1,3]' AS JSON));
+INSERT INTO t1(f1) VALUES (CAST('[1,3,9,8]' AS JSON));
+INSERT INTO t1(f1) VALUES (CAST('[1,3,9,8,10,11,20,30]' AS JSON));
+
+SET DEBUG='+d, row_merge_add_multi_value';
+
+CREATE INDEX idx1 ON t1((CAST(f1->"$[*]" AS UNSIGNED ARRAY)));
+
+SELECT * FROM t1 WHERE 9 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 11 MEMBER OF (f1->'$[*]');
+SELECT * FROM t1 WHERE 30 MEMBER OF (f1->'$[*]');
+
+SET DEBUG='-d, row_merge_add_multi_value';
+
+CHECK TABLE t1;
+DROP TABLE t1;
+
+
+
+# Test the aborted index scenario
+CREATE TABLE t1(j JSON);
+
+INSERT INTO t1 VALUES ('["test"]'), ('[]'), ('null');
+
+# Prepare an index which is marked as aborted
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection default;
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL rolling_back WAIT_FOR drop_created';
+--send CREATE INDEX mv_idx_date ON t1 ((CAST(j->'$' AS UNSIGNED ARRAY)));
+
+connection conn1;
+SET DEBUG_SYNC='now WAIT_FOR rolling_back';
+SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR continue_scan';
+--send SELECT * FROM t1;
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR scanning';
+SET DEBUG_SYNC='now SIGNAL drop_created';
+
+connection default;
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+--reap
+
+connection conn2;
+SET DEBUG_SYNC='now SIGNAL continue_scan';
+
+connection conn1;
+--reap;
+
+disconnect conn1;
+disconnect conn2;
+
+connection default;
+
+INSERT INTO t1 VALUES ('["Hello"]');
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+
+# Test for the scenario that record on clustered index would be inserted
+# by modify, and the operation has to be rolled back.
+CREATE TABLE t1 (
+  i INT NOT NULL PRIMARY KEY,
+  j JSON DEFAULT (CAST('["HelloWorld"]' AS JSON)),
+  KEY mv_idx_binary (( CAST(j->'$[*]' AS BINARY(10) ARRAY) )) );
+
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON));
+INSERT INTO t1 VALUES(2, CAST('["HelloMySQL", "Hello"]' AS JSON));
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, CAST('["HelloMySQL", "Hello"]' AS JSON));
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+ROLLBACK;
+
+SET GLOBAL innodb_purge_run_now=ON;
+
+SELECT * FROM t1 WHERE "HelloMySQL" MEMBER OF (j->'$[*]');
+SELECT * FROM t1 WHERE "Hello" MEMBER OF (j->'$[*]');
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+
+# A more complicated case which will re-calculate the virtual column
+# for several times during INSERT which is actually done by modifying
+# existing record
+CREATE TABLE t1 (id INT NOT NULL KEY AUTO_INCREMENT, f1 JSON, f2 JSON, f3 JSON, f4 JSON , f5 JSON, f6 JSON,
+KEY mv_idx_binary (( CAST(f1->'$[*]' AS CHAR(10) ARRAY) )),
+KEY mv_idx_binary1 (( CAST(f2->'$[*]' AS CHAR(10) ARRAY) )),
+KEY mv_idx_binary2 (( CAST(f3->'$[*]' AS CHAR(10) ARRAY) )),
+KEY mv_idx_binary3 (( CAST(f4->'$[*]' AS CHAR(10) ARRAY) )),
+KEY mv_idx_binary4 (( CAST(f5->'$[*]' AS CHAR(10) ARRAY) )),
+KEY mv_idx_binary5 (( CAST(f6->'$[*]' AS CHAR(10) ARRAY) )));
+
+INSERT INTO t1 VALUES(1, CAST('["HelloWorld", "Hello"]' AS JSON), CAST('["HelloWorld", "Hello"]' AS JSON), CAST('["HelloWorld", "Hello"]' AS JSON), CAST('["HelloWorld", "Hello"]' AS JSON), CAST('["HelloWorld", "Hello"]' AS JSON), CAST('["HelloWorld", "Hello"]' AS JSON));
+
+SET GLOBAL innodb_purge_stop_now = ON;
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES(1, CAST('["Helloworl", "hell"]' AS JSON), CAST('["Helloworl", "hell"]' AS JSON), CAST('["helloworl", "hell"]' AS JSON), CAST('["helloworl", "hell"]' AS JSON), CAST('["helloworl", "well"]' AS JSON), CAST('["helloworl", "hell"]' AS JSON));
+
+CHECK TABLE t1;
+
+DELETE FROM t1;
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
+SET GLOBAL innodb_purge_run_now=ON;
+
+
+
+# Concurrent DMLs testing
+# This testing is for the scenario that for one existing multi-value index
+# record, follow-up insert to its neighbour will lock it for duplicate key
+# check, and then a delete on it will wait for the lock. Again if the same
+# key value(with the locked record) is inserted, the implicit lock should be
+# checked properly
+
+CREATE TABLE IF NOT EXISTS t1 (
+           i INT NOT NULL PRIMARY KEY,
+           j JSON DEFAULT (CAST('["100"]' AS JSON)),
+           UNIQUE KEY mv_idx_binary (( CAST(j->'$[*]' AS UNSIGNED ARRAY) )) );
+
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection default;
+
+INSERT INTO t1 VALUES(1, CAST('["90"]' AS JSON));
+
+connection conn2;
+START TRANSACTION;
+INSERT INTO t1 VALUES(2, CAST('["100"]' AS JSON));
+
+connection default;
+START TRANSACTION;
+SET DEBUG_SYNC='lock_rec_convert_impl_to_expl SIGNAL converting WAIT_FOR go';
+--send INSERT INTO t1 VALUES(3, CAST('["100"]' AS JSON));
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR converting';
+COMMIT;
+SET DEBUG_SYNC='now SIGNAL go';
+
+connection default;
+--error ER_DUP_ENTRY
+--reap
+
+connection conn1;
+START TRANSACTION;
+SET DEBUG_SYNC='row_update_for_mysql_error SIGNAL del_fail WAIT_FOR delete_go';
+--send DELETE FROM t1;
+
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR del_fail';
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES(4, CAST('["100"]' AS JSON));
+SET DEBUG_SYNC='now SIGNAL delete_go';
+COMMIT;
+
+connection conn1;
+--reap;
+COMMIT;
+
+disconnect conn1;
+disconnect conn2;
+
+connection default;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+
+# Test the multi-value column doens't need to handled during purge
+# because of the multi-value index has been dropped
+
+CREATE TABLE t1 (a INT, b INT, f JSON,
+  KEY mv_idx_binary ((( CAST(f->'$[*]' AS BINARY(10) ARRAY ))))
+) ENGINE=InnoDB;
+
+INSERT INTO t1 (a,b,f) VALUES(1, 1, '["foobar"]');
+
+connect (con1,localhost,root,,);
+# disable purge
+CREATE TABLE t0 (a INT) ENGINE=InnoDB;
+BEGIN; SELECT * FROM t0;
+
+connection default;
+# write the problematic update_undo log record
+UPDATE t1 SET f = NULL;
+
+ALTER TABLE t1 DROP INDEX mv_idx_binary, ALGORITHM=INPLACE;
+
+connection con1;
+# enable purge
+COMMIT;
+UPDATE t1 SET a = 1;
+
+connection default;
+# wait for purge to process the update_undo record.
+# Note, the alter table would increase trx_sys->rw_max_trx_id
+set global innodb_purge_run_now=ON;
+sleep 1;
+
+CHECK TABLE t1;
+SELECT * FROM t1;
+
+connection con1;
+disconnect con1;
+
+connection default;
+
+DROP TABLE t0, t1;
+
+
+
+# Test online DDL
+
+CREATE TABLE t1(a INT PRIMARY KEY, b INT, f1 JSON) ENGINE=InnoDB;
+CREATE INDEX i1 ON t1((CAST(f1->"$[*]" AS CHAR(10) ARRAY)));
+
+INSERT INTO t1 VALUES(1, 1, CAST('["1111", "2222"]' AS JSON));
+INSERT INTO t1 VALUES(2, 2, CAST('["11111", "2222", "22222", "3333"]' AS JSON));
+INSERT INTO t1 VALUES(3, 3, CAST('["1111", "2222", "22222", "3333", "444"]' AS JSON));
+INSERT INTO t1 VALUES(4, 4, CAST('["22222", "3333", "444", "5555"]' AS JSON));
+
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL before_apply WAIT_FOR apply';
+--send OPTIMIZE TABLE t1;
+
+connect (con1,localhost,root,,);
+connection con1;
+--echo connection con1
+
+SET DEBUG_SYNC='now WAIT_FOR before_apply';
+INSERT INTO t1 VALUES(5, 5, CAST('["2222", "5555"]' AS JSON));
+DELETE FROM t1 WHERE "444" MEMBER OF (f1->"$[*]");
+INSERT INTO t1 VALUES(6, 6, CAST('["1111", "444"]' AS JSON));
+UPDATE t1 SET f1 = CAST('["11111", "2222"]' AS JSON) WHERE a = 1;
+UPDATE t1 SET f1 = CAST('["11111", "22222", "33333", "44444"]' AS JSON) WHERE a = 3;
+UPDATE t1 SET f1 = CAST('["2222", "5555", "6666"]' AS JSON) WHERE a = 5;
+SET DEBUG_SYNC='now SIGNAL apply';
+
+connection default;
+--echo connection default
+--echo /* reap */ OPTIMIZE TABLE t1;
+reap;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE "1111" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "5555" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "444" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "11111" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "22222" MEMBER OF (f1->"$[*]");
+
+
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL before_apply_1 WAIT_FOR apply_1';
+--send OPTIMIZE TABLE t1;
+
+connection con1;
+SET DEBUG_SYNC='now WAIT_FOR before_apply_1';
+INSERT INTO t1 VALUES(7, 7, CAST('["6666", "1111"]' AS JSON));
+DELETE FROM t1 WHERE "22222" MEMBER OF (f1->"$[*]");
+INSERT INTO t1 VALUES(8, 8, CAST('["1111", "3333", "444", "6666"]' AS JSON));
+UPDATE t1 SET f1 = CAST('["5555", "2222", "6666", "777"]' AS JSON) WHERE a = 5;
+UPDATE t1 SET f1 = CAST('["666", "777", "6666", "7777"]' AS JSON) WHERE a = 6;
+SET DEBUG_SYNC='now SIGNAL apply_1';
+
+connection default;
+--echo connection default
+--echo /* reap */ OPTIMIZE TABLE t1;
+reap;
+
+disconnect con1;
+
+CHECK TABLE t1;
+
+SELECT * FROM t1;
+SELECT * FROM t1 WHERE "1111" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "5555" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "444" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "11111" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "22222" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "666" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "6666" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "777" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "7777" MEMBER OF (f1->"$[*]");
+SELECT * FROM t1 WHERE "3333" MEMBER OF (f1->"$[*]");
+
+DROP TABLE t1;
+
+
+
+# Test if the ord_part of virtual columns should be set properly after ALTER
+# TABLE.
+# The problem is if there is a failed ADD INDEX, and during dropping the half
+# done index, the table could be accessed by another thread, thus the in-memory
+# index could not be deleted, and marked as corrupted, etc
+# When next DROP INDEX comes in, it will first mark the index as to be dropped,
+# and then it will try to remove the in-memory index object previously created.
+# However, the ord_part of related columns are not set properly since the
+# current to be dropped index is marked as to be dropped.
+# Just before the COMMIT phase of DROP INDEX, another thread comes in and try
+# to delete the row, it will fail to store the full row, including virtual
+# columns, because the ord_part of some columns are not set properly(all are 0
+# incorrectly).
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `j1` JSON DEFAULT (CAST(_utf8mb4'[5,-1,0]' AS JSON)),
+  `j2` JSON DEFAULT (CAST(_utf8mb4'[9,8,0,1]' AS JSON)),
+  `j3` JSON DEFAULT (CAST(_utf8mb4'["foobar"]' AS JSON)),
+  `j4` JSON DEFAULT (CAST(_utf8mb4'["HelloWorld"]' AS JSON)),
+  `j5` JSON DEFAULT (CAST(_utf8mb4'["HelloMySQL"]' AS JSON)),
+  PRIMARY KEY (`id`),
+  KEY `mv_idx_binary` ((JSON_LENGTH(`j3`)), (CAST(JSON_EXTRACT(`j4`,_utf8mb4'$[*]') AS BINARY(10) ARRAY)), (JSON_DEPTH(`j2`)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO t1 VALUES(0, CAST(_utf8mb4'[5,-1,0]' AS JSON), CAST(_utf8mb4'[9,8,0,1]' AS JSON), CAST(_utf8mb4'["foobar"]' AS JSON), CAST(_utf8mb4'["HelloWorld"]' AS JSON), CAST(_utf8mb4'["HelloMySQL"]' AS JSON));
+
+# This row will fail next ADD INDEX
+INSERT INTO t1 VALUES(0, CAST(_utf8mb4'[5,-1,0]' AS JSON), CAST(_utf8mb4'[9,8,0,1]' AS JSON), CAST(_utf8mb4'["foobar"]' AS JSON), CAST(_utf8mb4'["HelloWorld"]' AS JSON), '[]');
+
+SELECT * FROM t1;
+
+# Prepare an aborted index
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection default;
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL rollback WAIT_FOR try_drop';
+--send CREATE INDEX mv_idx_date ON t1 ((CAST(j5->'$' AS UNSIGNED ARRAY)));
+
+connection conn1;
+SET DEBUG_SYNC='now WAIT_FOR rollback';
+SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR continue';
+--send SELECT * FROM t1;
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR scanning';
+SET DEBUG_SYNC='now SIGNAL try_drop';
+
+connection default;
+--error ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX
+--reap
+
+connection conn2;
+SET DEBUG_SYNC='now SIGNAL continue';
+
+connection conn1;
+--reap;
+
+# Now, start a DROP INDEX, which will first mark the index as
+# to be dropped and clean above aborted index.
+connection default;
+
+SET DEBUG_SYNC='innodb_inplace_alter_table_enter SIGNAL inplace_done WAIT_FOR upgrade_lock';
+--send ALTER TABLE t1 DROP INDEX mv_idx_binary;
+
+connection conn1;
+
+SET DEBUG_SYNC='now WAIT_FOR inplace_done';
+SET DEBUG_SYNC='innodb_row_upd_clust_step_enter SIGNAL upgrade_lock';
+--send DELETE FROM t1;
+
+# If everything goes well, the DELETE should succeed.
+--reap
+
+connection default;
+--reap
+
+disconnect conn1;
+disconnect conn2;
+
+connection default;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+
+
+--source include/wait_until_count_sessions.inc

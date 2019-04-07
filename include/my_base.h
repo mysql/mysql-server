@@ -413,7 +413,14 @@ enum ha_extra_function {
   /* Insertion is done in intermediate table during copy alter operation. */
   HA_EXTRA_END_ALTER_COPY,
   /* Do not use auto-increment locking. */
-  HA_EXTRA_NO_AUTOINC_LOCKING
+  HA_EXTRA_NO_AUTOINC_LOCKING,
+  /*
+    Allocate and use unique filter to weed out duplicates.
+    Used with multi-valued index.
+  */
+  HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER,
+  /* Disable and free unique record filter. */
+  HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -466,40 +473,69 @@ enum ha_base_keytype {
 /** Do not allow duplicate records. */
 #define HA_NOSAME 1
 /** Pack string key to previous key (optimization supported by MyISAM). */
-#define HA_PACK_KEY 2
+#define HA_PACK_KEY (1 << 1)
+/*
+  Bits in KEY::flags, MI/HP_KEYDEF::flag which are automatically
+  calculated based on other flags/members in these structures
+  (often from info about key parts).
+*/
+/** Some key part packs space. Internal to MyISAM. */
+#define HA_SPACE_PACK_USED (1 << 2)
+/** Some key part has variable length. Internal to MyISAM and Heap engines. */
+#define HA_VAR_LENGTH_KEY (1 << 3)
 /**
   Auto-increment key.
 
   @note Not used by SQL-layer/ for KEY::flags. Only set by MyISAM and
         Heap SEs in MI/HP_KEYDEF::flag.
 */
-#define HA_AUTO_KEY 16
+#define HA_AUTO_KEY (1 << 4)
 /** Packing of all keys to previous key (optimization supported by MyISAM). */
-#define HA_BINARY_PACK_KEY 32
+#define HA_BINARY_PACK_KEY (1 << 5)
+/** Some key part is nullable. */
+#define HA_NULL_PART_KEY (1 << 6)
 /** Full-text key. */
-#define HA_FULLTEXT 128
+#define HA_FULLTEXT (1 << 7)
 /**
   Flag in MI_KEYDEF::flag which marks MyISAM's "uniques".
 
   @note Internal to MyISAM. Current server doesn't use this feature.
 */
-#define HA_UNIQUE_CHECK 256
+#define HA_UNIQUE_CHECK (1 << 8)
+/** Internal bit used when sorting records. Internal to MyISAM. */
+#define HA_SORT_ALLOWS_SAME (1 << 9)
 /** Spatial key. */
-#define HA_SPATIAL 1024
+#define HA_SPATIAL (1 << 10)
 /**
   NULLs in key are compared as equal.
 
   @note Used only for internal temporary tables created by optimizer.
 */
-#define HA_NULL_ARE_EQUAL 2048
+#define HA_NULL_ARE_EQUAL (1 << 11)
+/** Key has comment. */
+#define HA_USES_COMMENT (1 << 12)
 /** Key was automatically created to support Foreign Key constraint. */
-#define HA_GENERATED_KEY 8192
+#define HA_GENERATED_KEY (1 << 13)
 
 /* The combination of the above can be used for key type comparison. */
 #define HA_KEYFLAG_MASK                                                       \
   (HA_NOSAME | HA_PACK_KEY | HA_AUTO_KEY | HA_BINARY_PACK_KEY | HA_FULLTEXT | \
    HA_UNIQUE_CHECK | HA_SPATIAL | HA_NULL_ARE_EQUAL | HA_GENERATED_KEY)
 
+/** Fulltext index uses [pre]parser */
+#define HA_USES_PARSER (1 << 14)
+/** Key uses KEY_BLOCK_SIZE option. */
+#define HA_USES_BLOCK_SIZE (1 << 15)
+/**
+  Key contains partial segments.
+
+  @note This flag is internal to SQL-layer by design. It is not supposed to
+        be used to storage engines. It is intended to pass information into
+        internal static sort_keys(KEY *, KEY *) function.
+
+  This flag can be calculated -- it's based on key lengths comparison.
+*/
+#define HA_KEY_HAS_PART_KEY_SEG (1 << 16)
 /**
   Key was renamed (or is result of renaming a key).
 
@@ -514,37 +550,8 @@ enum ha_base_keytype {
 #define HA_KEY_RENAMED (1 << 17)
 /** Set if a key is on any virtual generated columns */
 #define HA_VIRTUAL_GEN_KEY (1 << 18)
-
-/*
-  Bits in KEY::flags, MI/HP_KEYDEF::flag which are automatically
-  calculated based on other flags/members in these structures
-  (often from info about key parts).
-*/
-
-/** Some key part packs space. Internal to MyISAM. */
-#define HA_SPACE_PACK_USED 4
-/** Some key part has variable length. Internal to MyISAM and Heap engines. */
-#define HA_VAR_LENGTH_KEY 8
-/** Some key part is nullable. */
-#define HA_NULL_PART_KEY 64
-/** Internal bit used when sorting records. Internal to MyISAM. */
-#define HA_SORT_ALLOWS_SAME 512
-/** Key has comment. */
-#define HA_USES_COMMENT 4096
-/** Fulltext index uses [pre]parser */
-#define HA_USES_PARSER 16384
-/** Key uses KEY_BLOCK_SIZE option. */
-#define HA_USES_BLOCK_SIZE 32768
-/**
-  Key contains partial segments.
-
-  @note This flag is internal to SQL-layer by design. It is not supposed to
-        be used to storage engines. It is intended to pass information into
-        internal static sort_keys(KEY *, KEY *) function.
-
-  This flag can be calculated -- it's based on key lengths comparison.
-*/
-#define HA_KEY_HAS_PART_KEY_SEG 65536
+/** Multi-valued key */
+#define HA_MULTI_VALUED_KEY (1 << 19)
 
 /* These flags can be added to key-seg-flag */
 

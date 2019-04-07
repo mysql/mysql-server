@@ -2043,6 +2043,62 @@ bool Value::get_free_space(const THD *thd, size_t *space) const {
   *space += m_length - next_value_offset;
   return false;
 }
+
+/**
+  Check whether two binary JSON scalars are equal. This function is used by
+  multi-valued index updating code. Unlike JSON comparator implemented in
+  server, this code doesn't treat numeric types as the same, e.g. int 1 and
+  uint 1 won't be treated as equal. This is fine as the mv index updating code
+  compares old and new values of the same typed array field, i.e. all values
+  being compared have the same type.
+
+  Since MV index doesn't support indexing of arrays/objects in arrays, these
+  two aren't supported and cause assert.
+*/
+
+int Value::eq(const Value &val) const {
+  DBUG_ASSERT(is_valid() && val.is_valid());
+
+  if (type() != val.type()) {
+    return type() < val.type() ? -1 : 1;
+  }
+  switch (m_type) {
+    case OBJECT:
+    case ARRAY:
+      DBUG_ASSERT(0);
+      return -1;
+    case OPAQUE:
+      if (m_field_type != val.m_field_type)
+        return m_field_type < val.m_field_type ? -1 : 1;
+      /* Fall through */
+    case STRING: {
+      uint cmp_length = std::min(get_data_length(), val.get_data_length());
+      int res;
+      if (!(res = memcmp(get_data(), val.get_data(), cmp_length)))
+        return (get_data_length() < val.get_data_length())
+                   ? -1
+                   : ((get_data_length() == val.get_data_length()) ? 0 : 1);
+      return res;
+    }
+    case INT:
+    case UINT:
+      return (m_int_value == val.m_int_value)
+                 ? 0
+                 : ((m_int_value < val.m_int_value) ? -1 : 1);
+    case DOUBLE:
+      return (m_double_value == val.m_double_value)
+                 ? 0
+                 : ((m_double_value < val.m_double_value) ? -1 : 1);
+    case LITERAL_NULL:
+    case LITERAL_TRUE:
+    case LITERAL_FALSE:
+      return 0;
+    default:
+      DBUG_ASSERT(0);  // Shouldn't happen
+      break;
+  }
+  return -1;
+}
 #endif  // ifdef MYSQL_SERVER
 
 }  // end namespace json_binary

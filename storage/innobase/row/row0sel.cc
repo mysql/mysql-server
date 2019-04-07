@@ -237,7 +237,7 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       row = row_build(ROW_COPY_POINTERS, clust_index, clust_rec, clust_offs,
                       NULL, NULL, NULL, &ext, heap);
 
-      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, NULL,
+      vfield = innobase_get_computed_value(row, v_col, clust_index, &heap, heap,
                                            NULL, thr_get_trx(thr)->mysql_thd,
                                            thr->prebuilt->m_mysql_table, NULL,
                                            NULL, NULL);
@@ -317,6 +317,12 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
       rtr_read_mbr(sec_field, &sec_mbr);
 
       if (!mbr_equal_cmp(sec_index->rtr_srs.get(), &sec_mbr, &tmp_mbr)) {
+        is_equal = false;
+        goto func_exit;
+      }
+    } else if (col->is_multi_value()) {
+      if (!is_multi_value_clust_and_sec_equal(clust_field, clust_len, sec_field,
+                                              sec_len, col)) {
         is_equal = false;
         goto func_exit;
       }
@@ -2531,7 +2537,7 @@ static void row_sel_store_row_id_to_prebuilt(
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 #define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
                                             sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, src, len)
+  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
 #endif /* UNIV_DEBUG */
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
@@ -2555,8 +2561,8 @@ mysql_col_len, mbminlen, mbmaxlen
                                 range comparison. */
 void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const mysql_row_templ_t *templ,
-#ifdef UNIV_DEBUG
                                               const dict_index_t *index,
+#ifdef UNIV_DEBUG
                                               ulint field_no,
 #endif /* UNIV_DEBUG */
                                               const byte *data, ulint len
@@ -2572,6 +2578,8 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
 
   bool clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
+  ulint mysql_col_len =
+      templ->is_multi_val ? templ->mysql_mvidx_len : templ->mysql_col_len;
 
   ut_ad(rec_field_not_null_not_add_col_def(len));
   UNIV_MEM_ASSERT_RW(data, len);
@@ -2600,13 +2608,14 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
         dest[len - 1] = (byte)(dest[len - 1] ^ 128);
       }
 
-      ut_ad(templ->mysql_col_len == len);
+      ut_ad(mysql_col_len == len);
+
       break;
 
     case DATA_VARCHAR:
     case DATA_VARMYSQL:
     case DATA_BINARY:
-      field_end = dest + templ->mysql_col_len;
+      field_end = dest + mysql_col_len;
 
       if (templ->mysql_type == DATA_MYSQL_TRUE_VARCHAR) {
         /* This is a >= 5.0.3 type true VARCHAR. Store the
@@ -2671,7 +2680,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
     case DATA_MYSQL:
       memcpy(dest, data, len);
 
-      ut_ad(templ->mysql_col_len >= len);
+      ut_ad(mysql_col_len >= len);
       ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
       /* If field_no equals to templ->icp_rec_field_no,
@@ -2683,17 +2692,17 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       by icp_rec_field_no has a prefix or this is a virtual
       column */
       ut_ad(templ->is_virtual || templ->mbmaxlen > templ->mbminlen ||
-            templ->mysql_col_len == len ||
+            mysql_col_len == len ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
 
       /* The following assertion would fail for old tables
       containing UTF-8 ENUM columns due to Bug #9526. */
-      ut_ad(!templ->mbmaxlen || !(templ->mysql_col_len % templ->mbmaxlen));
+      ut_ad(!templ->mbmaxlen || !(mysql_col_len % templ->mbmaxlen));
       /* Length of the record will be less in case of
       clust_templ_for_sec is true or if it is fetched
       from prefix virtual column in virtual index. */
       ut_ad(templ->is_virtual || clust_templ_for_sec ||
-            len * templ->mbmaxlen >= templ->mysql_col_len ||
+            len * templ->mbmaxlen >= mysql_col_len ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
@@ -2702,7 +2711,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
         done in row0mysql.cc, function
         row_mysql_store_col_in_innobase_format(). */
 
-        memset(dest + len, 0x20, templ->mysql_col_len - len);
+        memset(dest + len, 0x20, mysql_col_len - len);
       }
       break;
 
@@ -2728,7 +2737,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       ut_ad((templ->is_virtual && !field) ||
             (field && field->prefix_len
                  ? field->prefix_len == len
-                 : clust_templ_for_sec ? 1 : templ->mysql_col_len == len));
+                 : clust_templ_for_sec ? 1 : mysql_col_len == len));
       memcpy(dest, data, len);
   }
 }

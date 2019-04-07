@@ -3197,7 +3197,7 @@ void btr_cur_update_in_place_log(
   mach_write_to_2(log_ptr, page_offset(rec));
   log_ptr += 2;
 
-  row_upd_index_write_log(update, log_ptr, mtr);
+  row_upd_index_write_log(index, update, log_ptr, mtr);
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -3453,7 +3453,8 @@ dberr_t btr_cur_update_in_place(
     NOT call it if index is secondary */
 
     if (!index->is_clustered() ||
-        row_upd_changes_ord_field_binary(index, update, thr, NULL, NULL)) {
+        row_upd_changes_ord_field_binary(index, update, thr, nullptr, nullptr,
+                                         nullptr)) {
       /* Remove possible hash index pointer to this record */
       btr_search_update_hash_on_delete(cursor);
     }

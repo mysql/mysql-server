@@ -1774,7 +1774,7 @@ static dict_table_t *fts_create_in_mem_aux_table(const char *aux_table_name,
                                                  const dict_table_t *table,
                                                  ulint n_cols) {
   dict_table_t *new_table = dict_mem_table_create(
-      aux_table_name, table->space, n_cols, 0, table->flags,
+      aux_table_name, table->space, n_cols, 0, 0, table->flags,
       fts_get_table_flags2_for_aux_tables(table->flags2));
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {

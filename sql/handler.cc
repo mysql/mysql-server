@@ -124,7 +124,9 @@
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
 #include "sql_string.h"
+#include "sql_tmp_table.h"  // free_tmp_table
 #include "template_utils.h"
+#include "uniques.h"  // Unique_on_insert
 #include "varlen_sort.h"
 
 /**
@@ -2717,6 +2719,11 @@ int handler::ha_close(void) {
   DBUG_ASSERT(m_psi == NULL);
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   DBUG_ASSERT(inited == NONE);
+  if (m_unique) {
+    // It's allocated on memroot and will be freed along with it
+    m_unique->cleanup();
+    m_unique = nullptr;
+  }
   return close();
 }
 
@@ -2759,6 +2766,7 @@ int handler::ha_index_end() {
   inited = NONE;
   end_range = NULL;
   m_record_buffer = nullptr;
+  if (m_unique) m_unique->reset(false);
   return index_end();
 }
 
@@ -6201,7 +6209,12 @@ int handler::ha_multi_range_read_next(char **range_info) {
 int handler::multi_range_read_next(char **range_info) {
   int result = HA_ERR_END_OF_FILE;
   int range_res = 0;
+  bool dup_found = false;
   DBUG_TRACE;
+  // For a multi-valued index the unique filter have to be used for correct
+  // result
+  DBUG_ASSERT(!(table->key_info[active_index].flags & HA_MULTI_VALUED_KEY) ||
+              m_unique);
 
   if (!mrr_have_range) {
     mrr_have_range = true;
@@ -6216,8 +6229,11 @@ int handler::multi_range_read_next(char **range_info) {
     if (!((mrr_cur_range.range_flag & UNIQUE_RANGE) &&
           (mrr_cur_range.range_flag & EQ_RANGE))) {
       result = read_range_next();
-      /* On success or non-EOF errors jump to the end. */
-      if (result != HA_ERR_END_OF_FILE) break;
+      /*
+        On success or non-EOF errors check loop condition to filter
+        duplicates, if needed.
+      */
+      if (result != HA_ERR_END_OF_FILE) continue;
     } else {
       if (was_semi_consistent_read()) goto scan_it_again;
     }
@@ -6232,9 +6248,16 @@ int handler::multi_range_read_next(char **range_info) {
           mrr_cur_range.range_flag & EQ_RANGE, mrr_is_output_sorted);
       if (result != HA_ERR_END_OF_FILE) break;
     }
-  } while ((result == HA_ERR_END_OF_FILE) && !range_res);
+  } while (((result == HA_ERR_END_OF_FILE) ||
+            (m_unique && (dup_found = filter_dup_records()))) &&
+           !range_res);
 
   *range_info = mrr_cur_range.ptr;
+  /*
+    Last found record was a duplicate and we retrieved records from all
+    ranges, so no more records can be returned.
+  */
+  if (dup_found && range_res) result = HA_ERR_END_OF_FILE;
 
   DBUG_PRINT("exit", ("handler::multi_range_read_next result %d", result));
   return result;
@@ -6366,6 +6389,10 @@ int DsMrr_impl::dsmrr_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
     if ((retval = h2->extra(HA_EXTRA_KEYREAD))) goto error;
 
     if ((retval = h2->ha_index_init(mrr_keyno, false))) goto error;
+
+    if ((table->key_info[mrr_keyno].flags & HA_MULTI_VALUED_KEY) &&
+        (retval = h2->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER)))
+      goto error; /* purecov: inspected */
 
     // Transfer ICP from h to h2
     if (mrr_keyno == h->pushed_idx_cond_keyno) {
@@ -7546,6 +7573,8 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
         add_pke(table, thd, table->record[0]);
       }
     }
+    if (table->in_use->is_error()) return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+
     DBUG_DUMP("read_set 10", (uchar *)table->read_set->bitmap,
               (table->s->fields + 7) / 8);
 
@@ -7638,6 +7667,7 @@ int handler::ha_reset() {
   cancel_pushed_idx_cond();
   // Forget the record buffer.
   m_record_buffer = nullptr;
+  m_unique = nullptr;
 
   const int retval = reset();
   return retval;
@@ -7907,14 +7937,16 @@ static void copy_blob_data(const TABLE *table, const MY_BITMAP *const fields,
   @param[in,out] record record buff of base columns generated column depends.
                         After calling this function, it will be used to return
                         the value of generated column.
-  @param in_purge   whehter the function is called by purge thread
+  @param in_purge   whether the function is called by purge thread
 
   @return true in case of error, false otherwise.
 */
 
 static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
                                         const MY_BITMAP *const fields,
-                                        uchar *record, bool in_purge) {
+                                        uchar *record, bool in_purge,
+                                        const char **mv_data_ptr,
+                                        ulong *mv_length) {
   DBUG_TRACE;
   DBUG_ASSERT(table && table->vfield);
   DBUG_ASSERT(!thd->is_error());
@@ -7933,6 +7965,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
                                                    blob_len_ptr_array);
 
   bool res = false;
+  Field *mv_field = nullptr;
   MY_BITMAP fields_to_evaluate;
   my_bitmap_map bitbuf[bitmap_buffer_size(MAX_FIELDS) / sizeof(my_bitmap_map)];
   bitmap_init(&fields_to_evaluate, bitbuf, table->s->fields, 0);
@@ -7951,8 +7984,14 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     // Validate that the field number is less than the bit map size
     DBUG_ASSERT(field->field_index < fields->n_bits);
 
-    if (bitmap_is_set(fields, field->field_index))
+    if (bitmap_is_set(fields, field->field_index)) {
       bitmap_union(&fields_to_evaluate, &field->gcol_info->base_columns_map);
+      if (field->is_array()) {
+        mv_field = field;
+        // Backup current value and use dedicated temporary buffer
+        if ((down_cast<Field_blob *>(field))->backup_blob_field()) return true;
+      }
+    }
   }
 
   /*
@@ -8005,6 +8044,16 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
     after table is closed.
   */
   if (in_purge) copy_blob_data(table, fields, blob_len_ptr_array);
+
+  if (mv_field) {
+    DBUG_ASSERT(mv_data_ptr);
+    Field_json *fld = down_cast<Field_json *>(mv_field);
+    // Save calculated value
+    *mv_data_ptr = fld->get_binary();
+    *mv_length = fld->data_length();
+    // Restore original value
+    (fld)->restore_blob_backup();
+  }
 
   repoint_field_to_record(table, record, old_buf);
   return res;
@@ -8090,6 +8139,9 @@ bool handler::my_prepare_gcolumn_template(THD *thd, const char *db_name,
   @param table_name  name of table to open
   @param fields      bitmap of field index of evaluated generated column
   @param record      record buffer
+  @param[out] mv_data_ptr     For a typed array field in this arg the pointer
+                              to its value is returned
+  @param[out] mv_length  Length of the value above
 
   @return true in case of error, false otherwise.
 */
@@ -8097,7 +8149,9 @@ bool handler::my_prepare_gcolumn_template(THD *thd, const char *db_name,
 bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
-                                             uchar *record) {
+                                             uchar *record,
+                                             const char **mv_data_ptr,
+                                             ulong *mv_length) {
   bool retval = true;
 
   char path[FN_REFLEN + 1];
@@ -8125,7 +8179,8 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
   dd::release_mdl(thd, mdl_ticket);
 
   if (table) {
-    retval = my_eval_gcolumn_expr_helper(thd, table, fields, record, true);
+    retval = my_eval_gcolumn_expr_helper(thd, table, fields, record, true,
+                                         mv_data_ptr, mv_length);
     intern_close_table(table);
   }
 
@@ -8133,13 +8188,46 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
 }
 
 bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record) {
+                                   const MY_BITMAP *const fields, uchar *record,
+                                   const char **mv_data_ptr, ulong *mv_length) {
   DBUG_TRACE;
 
-  const bool res =
-      my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  const bool res = my_eval_gcolumn_expr_helper(thd, table, fields, record,
+                                               false, mv_data_ptr, mv_length);
   return res;
+}
+
+bool handler::filter_dup_records() {
+  DBUG_ASSERT(inited == INDEX && m_unique);
+  position(table->record[0]);
+  return m_unique->unique_add(ref);
+}
+
+int handler::ha_extra(enum ha_extra_function operation) {
+  if (operation == HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER) {
+    // This operation should be called only for active multi-valued index
+    DBUG_ASSERT(inited == INDEX &&
+                (table->key_info[active_index].flags & HA_MULTI_VALUED_KEY));
+    // This unique filter uses only row id to weed out duplicates. Due to that
+    // it will work with any active index.
+    if (!m_unique &&
+        (!(m_unique = new (*THR_MALLOC) Unique_on_insert(ref_length)) ||
+         m_unique->init())) {
+      /* purecov: begin inspected */
+      destroy(m_unique);
+      return HA_ERR_OUT_OF_MEM;
+      /* purecov: end */
+    }
+    m_unique->reset(true);
+    return 0;
+  } else if (operation == HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER) {
+    if (m_unique) {
+      m_unique->cleanup();
+      destroy(m_unique);
+      m_unique = nullptr;
+    }
+  }
+  return extra(operation);
 }
 
 /**

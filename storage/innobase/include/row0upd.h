@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -135,15 +135,17 @@ void row_upd_index_entry_sys_field(
  @return own: update node */
 upd_node_t *upd_node_create(
     mem_heap_t *heap); /*!< in: mem heap where created */
+
 /** Writes to the redo log the new values of the fields occurring in the index.
- */
-void row_upd_index_write_log(
-    const upd_t *update, /*!< in: update vector */
-    byte *log_ptr,       /*!< in: pointer to mlog buffer: must
-                         contain at least MLOG_BUF_MARGIN bytes
-                         of free space; the buffer is closed
-                         within this function */
-    mtr_t *mtr);         /*!< in: mtr into whose log to write */
+@param[in]	index	index which to be updated
+@param[in]	update	update vector
+@param[in]	log_ptr	pointer to mlog buffer: must contain at least
+                        MLOG_BUF_MARGIN bytes of free space; the buffer
+                        is closed within this function
+@param[in]	mtr	mtr into whose log to write */
+void row_upd_index_write_log(dict_index_t *index, const upd_t *update,
+                             byte *log_ptr, mtr_t *mtr);
+
 /** Returns TRUE if row update changes size of some field in index or if some
  field to be updated is stored externally in rec or update.
  @return true if the update changes the size of some field in index or
@@ -261,35 +263,50 @@ void row_upd_replace_vcol(dtuple_t *row, const dict_table_t *table,
                           const byte *ptr);
 
 /** Checks if an update vector changes an ordering field of an index record.
+It will also help check if any non-multi-value field on the multi-value index
+gets updated or not.
 
- This function is fast if the update vector is short or the number of ordering
- fields in the index is small. Otherwise, this can be quadratic.
- NOTE: we compare the fields as binary strings!
- @return true if update vector changes an ordering field in the index record */
-ibool row_upd_changes_ord_field_binary_func(
-    dict_index_t *index, /*!< in: index of the record */
-    const upd_t *update, /*!< in: update vector for the row; NOTE: the
-                         field numbers in this MUST be clustered index
-                         positions! */
+This function is fast if the update vector is short or the number of ordering
+fields in the index is small. Otherwise, this can be quadratic.
+NOTE: we compare the fields as binary strings!
+@param[in]	index		index of the record
+@param[in]	update		update vector for the row; NOTE: the
+                                field numbers in this MUST be clustered index
+                                positions!
+@param[in]	thr		query thread, or NULL
+@param[in]	row		old value of row, or NULL if the
+                                row and the data values in update are not
+                                known when this function is called, e.g., at
+                                compile time
+@param[in]	ext		NULL, or prefixes of the externally
+                                stored columns in the old row
+@param[in,out]	non_mv_upd	NULL, or not NULL pointer to get the
+                                information about whether any non-multi-value
+                                field on the multi-value index gets updated
+@param[in]	flag		ROW_BUILD_NORMAL, ROW_BUILD_FOR_PURGE or
+                                ROW_BUILD_FOR_UNDO
+@return true if update vector changes an ordering field in the index record */
+bool row_upd_changes_ord_field_binary_func(dict_index_t *index,
+                                           const upd_t *update,
 #ifdef UNIV_DEBUG
-    const que_thr_t *thr, /*!< in: query thread, or NULL */
-#endif                    /* UNIV_DEBUG */
-    const dtuple_t *row,  /*!< in: old value of row, or NULL if the
-                          row and the data values in update are not
-                          known when this function is called, e.g., at
-                          compile time */
-    const row_ext_t *ext, /*!< NULL, or prefixes of the externally
-                          stored columns in the old row */
-    ulint flag)           /*!< in: ROW_BUILD_NORMAL,
-                          ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-    MY_ATTRIBUTE((warn_unused_result));
-#ifdef UNIV_DEBUG
-#define row_upd_changes_ord_field_binary(index, update, thr, row, ext) \
-  row_upd_changes_ord_field_binary_func(index, update, thr, row, ext, 0)
-#else /* UNIV_DEBUG */
-#define row_upd_changes_ord_field_binary(index, update, thr, row, ext) \
-  row_upd_changes_ord_field_binary_func(index, update, row, ext, 0)
+                                           const que_thr_t *thr,
 #endif /* UNIV_DEBUG */
+                                           const dtuple_t *row,
+                                           const row_ext_t *ext,
+                                           bool *non_mv_upd, ulint flag)
+    MY_ATTRIBUTE((warn_unused_result));
+
+#ifdef UNIV_DEBUG
+#define row_upd_changes_ord_field_binary(index, update, thr, row, ext, \
+                                         non_mv_upd)                   \
+  row_upd_changes_ord_field_binary_func(index, update, thr, row, ext,  \
+                                        non_mv_upd, 0)
+#else /* UNIV_DEBUG */
+#define row_upd_changes_ord_field_binary(index, update, thr, row, ext, \
+                                         non_mv_upd)                   \
+  row_upd_changes_ord_field_binary_func(index, update, row, ext, non_mv_upd, 0)
+#endif /* UNIV_DEBUG */
+
 /** Checks if an FTS indexed column is affected by an UPDATE.
  @return offset within fts_t::indexes if FTS indexed column updated else
  ULINT_UNDEFINED */
@@ -525,6 +542,10 @@ inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
 #define upd_fld_is_virtual_col(upd_fld) \
   (((upd_fld)->new_val.type.prtype & DATA_VIRTUAL) == DATA_VIRTUAL)
 
+/* check whether an update field is on multi-value virtual column */
+#define upd_fld_is_multi_value_col(upd_fld) \
+  (dfield_is_multi_value(&((upd_fld)->new_val)))
+
 /* set DATA_VIRTUAL bit on update field to show it is a virtual column */
 #define upd_fld_set_virtual_col(upd_fld) \
   ((upd_fld)->new_val.type.prtype |= DATA_VIRTUAL)
@@ -692,6 +713,15 @@ struct upd_node_t {
   sym_node_t *table_sym; /* table node in symbol table */
   que_node_t *col_assign_list;
   /* column assignment list */
+
+  /** When there is a lock wait error, this remembers current position of
+  the multi-value field, before which the values have been deleted.
+  This will be used for both DELETE and the delete phase of UPDATE. */
+  uint32_t del_multi_val_pos;
+
+  /** When there is a lock wait error, this remembers current position of
+  the multi-value field, before which the values have been updated. */
+  uint32_t upd_multi_val_pos;
 
   ulint magic_n;
 };

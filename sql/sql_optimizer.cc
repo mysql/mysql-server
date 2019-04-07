@@ -41,6 +41,7 @@
 
 #include "field_types.h"  // enum_field_types
 #include "ft_global.h"
+#include "item_json_func.h"  // get_json_wrapper()
 #include "m_ctype.h"
 #include "memory_debugging.h"
 #include "my_bit.h"  // my_count_bits
@@ -58,6 +59,7 @@
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/derror.h"      // ER_THD
 #include "sql/enum_query_type.h"
+#include "sql/error_handler.h"  // Functional_index_error_handler
 #include "sql/handler.h"
 #include "sql/item_cmpfunc.h"
 #include "sql/item_func.h"
@@ -420,6 +422,8 @@ bool JOIN::optimize() {
     count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
                       false, false);
   }
+  // Ensure there are no errors prior making query plan
+  if (thd->is_error()) return true;
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -910,6 +914,9 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
     subst_gc.add("resulting_condition", where_cond);
   }
 
+  // An error occur during substitution. Let caller handle it.
+  if (thd->is_error()) return false;
+
   if (!(group_list || order)) return false;
   // Filter out GCs that do not have index usable for GROUP/ORDER
   Field *gc;
@@ -940,6 +947,9 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
       }
     }
   }
+  // An error occur during substitution. Let caller handle it.
+  if (thd->is_error()) return false;
+
   if (changed && trace->is_started()) {
     String str;
     SELECT_LEX::print_order(
@@ -1591,8 +1601,11 @@ uint find_shortest_key(TABLE *table, const Key_map *usable_keys) {
         /*
           Can not do full index scan on rtree index because it is not
           supported by Innodb, probably not supported by others either.
+          A multi-valued key requires unique filter, and won't be the most
+          fast option even if it will be the shortest one.
          */
         const KEY &key_ref = table->key_info[nr];
+        DBUG_ASSERT(!(key_ref.flags & HA_MULTI_VALUED_KEY));
         if (key_ref.key_length < min_length && !(key_ref.flags & HA_SPATIAL)) {
           min_length = key_ref.key_length;
           best = nr;
@@ -6535,6 +6548,8 @@ static uint get_semi_join_select_list_index(Item_field *item_field) {
  */
 static void warn_index_not_applicable(THD *thd, const Field *field,
                                       const Key_map cant_use_index) {
+  Functional_index_error_handler functional_index_error_handler(field, thd);
+
   if (thd->lex->is_explain() ||
       thd->variables.option_bits & OPTION_SAFE_UPDATES)
     for (uint j = 0; j < field->table->s->keys; j++)
@@ -6707,6 +6722,7 @@ static bool add_key_field(THD *thd, Key_field **key_fields, uint and_level,
           */
           if ((!field->is_temporal() && value[0]->is_temporal()) ||
               (field->cmp_type() == STRING_RESULT &&
+               field->match_collation_to_optimize_range() &&
                field->charset() != cond->compare_collation()) ||
               field_time_cmp_date(field, value[0])) {
             warn_index_not_applicable(stat->join()->thd, field, possible_keys);
@@ -7034,7 +7050,39 @@ static bool add_key_fields(THD *thd, JOIN *join, Key_field **key_fields,
           }
         }
       }  // if ( ... Item_func::BETWEEN)
+      else if (cond_func->functype() == Item_func::MEMBER_OF_FUNC &&
+               is_local_field(cond_func->key_item())) {
+        // The predicate is <val> IN (<typed array>)
+        add_key_equal_fields(thd, key_fields, *and_level, cond_func,
+                             (Item_field *)(cond_func->key_item()->real_item()),
+                             true, cond_func->arguments(), 1, usable_tables,
+                             sargables);
+      } else if (cond_func->functype() == Item_func::JSON_CONTAINS ||
+                 cond_func->functype() == Item_func::JSON_OVERLAPS) {
+        Json_wrapper cont_wr;
+        String str;
+        Field *field;
+        /*
+          Applicability analysis was done during substitute_gc().
+          Check here that a typed array field is used and there's a key over
+          it.
+          1) func has a key item
+          2) key item is a local field
+          3) key item is a typed array field
+          If so, mark appropriate index as available for range optimizer
+        */
+        if (!cond_func->key_item() ||                  // 1
+            !is_local_field(cond_func->key_item()) ||  // 2
+            !cond_func->key_item()->returns_array())   // 3
+          break;
+        field = (down_cast<Item_field *>(cond_func->key_item()))->field;
+        JOIN_TAB *tab = field->table->reginfo.join_tab;
+        Key_map possible_keys = field->key_start;
 
+        possible_keys.intersect(field->table->keys_in_use_for_query);
+        tab->keys().merge(possible_keys);      // Add possible keys
+        tab->const_keys.merge(possible_keys);  // Add possible keys
+      }                                        // if (... Item_func::CONTAINS)
       // The predicate is IN or <>
       else if (is_local_field(cond_func->key_item()) &&
                !(cond_func->used_tables() & OUTER_REF_TABLE_BIT)) {
@@ -8588,11 +8636,11 @@ bool JOIN::finalize_table_conditions() {
       (Moved down from WHERE- and ON-clauses)
     */
     if (condition != nullptr) {
-      Item *cache_item = nullptr;
-      Item **analyzer_arg = &cache_item;
+      cache_const_expr_arg cache_arg;
+      cache_const_expr_arg *analyzer_arg = &cache_arg;
       condition = condition->compile(
           &Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-          &Item::cache_const_expr_transformer, (uchar *)&cache_item);
+          &Item::cache_const_expr_transformer, (uchar *)&cache_arg);
       if (condition == nullptr) return true;
     }
 
@@ -8602,11 +8650,11 @@ bool JOIN::finalize_table_conditions() {
 
   /* Cache constant expressions in HAVING-clauses. */
   if (having_cond != nullptr) {
-    Item *cache_item = nullptr;
-    Item **analyzer_arg = &cache_item;
+    cache_const_expr_arg cache_arg;
+    cache_const_expr_arg *analyzer_arg = &cache_arg;
     having_cond = having_cond->compile(
         &Item::cache_const_expr_analyzer, (uchar **)&analyzer_arg,
-        &Item::cache_const_expr_transformer, (uchar *)&cache_item);
+        &Item::cache_const_expr_transformer, (uchar *)&cache_arg);
     if (having_cond == nullptr) return true;
   }
   return false;

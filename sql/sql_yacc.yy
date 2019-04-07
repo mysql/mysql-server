@@ -444,7 +444,7 @@ void warn_about_deprecated_national(THD *thd)
   1. We do not accept any reduce/reduce conflicts
   2. We should not introduce new shift/reduce conflicts any more.
 */
-%expect 98
+%expect 99
 
 /*
    MAINTAINER:
@@ -1222,6 +1222,8 @@ void warn_about_deprecated_national(THD *thd)
 %token<lexer.keyword> ACTIVE_SYM                    /* MYSQL */
 %token<lexer.keyword> INACTIVE_SYM                  /* MYSQL */
 %token          LATERAL_SYM                   /* SQL-1999-R */
+%token<lexer.keyword>ARRAY_SYM                     /* SQL-2003-R */
+%token          MEMBER_SYM                    /* SQL-2003-R */
 %token<lexer.keyword> OPTIONAL_SYM                  /* MYSQL */
 %token<lexer.keyword> SECONDARY_SYM                 /* MYSQL */
 %token<lexer.keyword> SECONDARY_ENGINE_SYM          /* MYSQL */
@@ -1900,6 +1902,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <load_set_list> load_data_set_list opt_load_data_set_spec
 
+%type <num> opt_array_cast
 %type <sql_cmd_srs_attributes> srs_attributes
 
 %type <alter_tablespace_type> undo_tablespace_state
@@ -9380,6 +9383,10 @@ predicate:
 
             $$= NEW_PTN Item_func_in(@$, $7, true);
           }
+        | bit_expr MEMBER_SYM opt_of '(' simple_expr ')'
+          {
+            $$= NEW_PTN Item_func_member_of(@$, $1, $5);
+          }
         | bit_expr BETWEEN_SYM bit_expr AND_SYM predicate
           {
             $$= NEW_PTN Item_func_between(@$, $1, $3, $5, false);
@@ -9431,6 +9438,11 @@ predicate:
             $$= NEW_PTN PTI_truth_transform(@$, item, Item::BOOL_NEGATED);
           }
         | bit_expr
+        ;
+
+opt_of:
+          OF_SYM
+        |
         ;
 
 bit_expr:
@@ -9592,9 +9604,9 @@ simple_expr:
           {
             $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
-        | CAST_SYM '(' expr AS cast_type ')'
+        | CAST_SYM '(' expr AS cast_type opt_array_cast ')'
           {
-            $$= create_func_cast(YYTHD, @3, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5, $6);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9636,6 +9648,11 @@ simple_expr:
             Item *extr= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
             $$= NEW_PTN Item_func_json_unquote(@$, extr);
           }
+        ;
+
+opt_array_cast:
+        /* empty */ { $$= false; }
+        | ARRAY_SYM { $$= true; }
         ;
 
 /*

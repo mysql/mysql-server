@@ -178,7 +178,7 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
     function is not called when applying updated records in
     replication.
   */
-  if ((field->flags & BLOB_FLAG) != 0 && field->is_virtual_gcol())
+  if (field->handle_old_value())
     (down_cast<Field_blob *>(field))->keep_old_value();
 
   if (is_partial_column) {
@@ -753,7 +753,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           Use the master's size information if available else call
           normal unpack operation.
         */
-        uint16 const metadata = tabledef->field_metadata(col_i);
+        uint const metadata = tabledef->field_metadata(col_i);
 #ifndef DBUG_OFF
         uchar const *const old_pack_ptr = pack_ptr;
 #endif

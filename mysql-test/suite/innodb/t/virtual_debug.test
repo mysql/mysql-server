@@ -443,7 +443,6 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 
-
 --echo #
 --echo # BUG#28448853 - ASSERTION FAILURE: ROW0LOG.CC:2153 ROW_LOG_TABLE_APPLY (THR=0X7F7C7C050030
 --echo #
@@ -617,5 +616,59 @@ SELECT j,a,isa,ab FROM t1;
 UPDATE t1 SET isa = 1 WHERE a = 'test' AND isa = 0;
 SELECT j,a,isa,ab FROM t1;
 DROP TABLE t1;
+
+
+
+# Test for the rollback scenario when both a virtual column and a virtual
+# Index are added. The in-memory dict_index_t object should be handled
+# properly, in case of any unexpected crash
+
+CREATE TABLE t1(a INT);
+
+INSERT INTO t1 VALUES(1), (1);
+
+set session debug = '+d, force_virtual_col_build_fail';
+
+# Prepare an index which is marked as aborted
+connect (conn1,localhost,root,,);
+connect (conn2,localhost,root,,);
+
+connection default;
+
+SET DEBUG_SYNC='innodb_commit_inplace_alter_table_enter SIGNAL rolling_back WAIT_FOR drop_created';
+--send ALTER TABLE t1 ADD COLUMN (h INT GENERATED ALWAYS AS(a+1) VIRTUAL), ADD INDEX idx(h), ALGORITHM=INPLACE;
+
+connection conn1;
+SET DEBUG_SYNC='now WAIT_FOR rolling_back';
+SET DEBUG_SYNC='row_search_for_mysql_before_return SIGNAL scanning WAIT_FOR continue_scan';
+--send SELECT * FROM t1;
+
+connection conn2;
+SET DEBUG_SYNC='now WAIT_FOR scanning';
+SET DEBUG_SYNC='now SIGNAL drop_created';
+
+connection default;
+--error ER_GET_ERRNO
+--reap
+
+connection conn2;
+SET DEBUG_SYNC='now SIGNAL continue_scan';
+
+connection conn1;
+--reap;
+
+disconnect conn1;
+disconnect conn2;
+
+connection default;
+
+set session debug = '-d, row_merge_drop_indexes_force_table_count';
+
+INSERT INTO t1 VALUES(1);
+
+CHECK TABLE t1;
+
+DROP TABLE t1;
+
 
 --source include/wait_until_count_sessions.inc
