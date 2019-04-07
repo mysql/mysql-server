@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -507,7 +507,7 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables) {
   for (TABLE_LIST *table_list = all_tables; table_list;
        table_list = table_list->next_global) {
     handler *handler_file = table_list->table->file;
-    int error = handler_file->extra(HA_EXTRA_EXPORT);
+    int error = handler_file->ha_extra(HA_EXTRA_EXPORT);
     if (error) {
       handler_file->print_error(error, MYF(0));
       return true;

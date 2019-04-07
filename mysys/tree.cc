@@ -194,6 +194,10 @@ static void delete_tree_element(TREE *tree, TREE_ELEMENT *element) {
   The following should be true:
     parent[0] = & parent[-1][0]->left ||
     parent[0] = & parent[-1][0]->right
+
+  @returns
+    NULL     OOM or duplicate
+    non-null inserted element
 */
 
 TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,

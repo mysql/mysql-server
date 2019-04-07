@@ -85,7 +85,7 @@ Table_map_event::Table_map_event(const char *buf,
 
   if (READER_CALL(available_to_read) > 0) {
     READER_TRY_SET(m_field_metadata_size, net_field_length_ll);
-    if (m_field_metadata_size > (m_colcnt * 2))
+    if (m_field_metadata_size > (m_colcnt * 4))
       READER_THROW("Invalid m_field_metadata_size");
     unsigned int num_null_bytes = (m_colcnt + 7) / 8;
     READER_TRY_CALL(alloc_and_memcpy, &m_field_metadata, m_field_metadata_size,

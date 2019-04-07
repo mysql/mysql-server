@@ -142,6 +142,7 @@ class ha_tablespace_statistics;
 namespace AQP {
 class Join_plan;
 }
+class Unique_on_insert;
 
 extern ulong savepoint_alloc_size;
 
@@ -509,6 +510,11 @@ enum enum_alter_inplace_result {
   be used for estimating cost.
 */
 #define HA_NO_INDEX_ACCESS (1LL << 54)
+
+/**
+  Supports multi-valued index
+*/
+#define HA_MULTI_VALUED_KEY_SUPPORT (1LL << 55)
 
 /*
   Bits in index_flags(index_number) for what you can do with index.
@@ -4164,6 +4170,9 @@ class handler {
   */
   bool m_update_generated_read_fields;
 
+  /* Filter row ids to weed out duplicates when multi-valued index is used */
+  Unique_on_insert *m_unique;
+
  public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
       : table_share(share_arg),
@@ -4192,7 +4201,8 @@ class handler {
         m_psi_locker(NULL),
         m_lock_type(F_UNLCK),
         ha_share(NULL),
-        m_update_generated_read_fields(false) {
+        m_update_generated_read_fields(false),
+        m_unique(nullptr) {
     DBUG_PRINT("info", ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
                         F_UNLCK, F_RDLCK, F_WRLCK));
   }
@@ -4997,9 +5007,33 @@ class handler {
     DBUG_ASSERT(0);
     return 0;
   }
+  /**
+    Request storage engine to do an extra operation: enable,disable or run some
+    functionality.
+
+    @param  operation  the operation to perform
+
+    @returns
+      0     on success
+      error otherwise
+  */
+  int ha_extra(enum ha_extra_function operation);
+
+ private:
+  /**
+    Storage engine specific implementation of ha_extra()
+
+    @param  operation  the operation to perform
+
+    @returns
+      0     on success
+      error otherwise
+  */
   virtual int extra(enum ha_extra_function operation MY_ATTRIBUTE((unused))) {
     return 0;
   }
+
+ public:
   virtual int extra_opt(enum ha_extra_function operation,
                         ulong cache_size MY_ATTRIBUTE((unused))) {
     return extra(operation);
@@ -6335,7 +6369,9 @@ class handler {
   static bool my_eval_gcolumn_expr_with_open(THD *thd, const char *db_name,
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
-                                             uchar *record);
+                                             uchar *record,
+                                             const char **mv_data_ptr,
+                                             ulong *mv_length);
 
   /**
     Callback for computing generated column values.
@@ -6353,13 +6389,17 @@ class handler {
                           After calling this function, it will be
                           used to return the value of the generated
                           columns.
+    @param[out]           mv_data_ptr When given (not null) and the field
+                          needs to be calculated is a typed array field, it
+                          will contain pointer to field's calculated value.
+    @param[out]           mv_length Length of the data above
 
     @retval true in case of error
     @retval false on success
   */
   static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
-                                   const MY_BITMAP *const fields,
-                                   uchar *record);
+                                   const MY_BITMAP *const fields, uchar *record,
+                                   const char **mv_data_ptr, ulong *mv_length);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
   virtual Partition_handler *get_partition_handler() { return NULL; }
@@ -6393,6 +6433,37 @@ class handler {
     engine.
   */
   handler *ha_get_primary_handler() const { return m_primary_handler; }
+
+  /**
+    Return max limits for a single set of multi-valued keys
+
+    @param[out]  num_keys      number of keys to store
+    @param[out]  keys_length   total length of keys, bytes
+  */
+  void ha_mv_key_capacity(uint *num_keys, size_t *keys_length) const {
+    return mv_key_capacity(num_keys, keys_length);
+  }
+
+ private:
+  /**
+    Engine-specific function for ha_can_store_mv_keys().
+    Dummy function. SE's overloaded method is used instead.
+  */
+  /* purecov: begin inspected */
+  virtual void mv_key_capacity(uint *num_keys, size_t *keys_length) const {
+    *num_keys = 0;
+    *keys_length = 0;
+  }
+  /* purecov: end */
+
+  /**
+    Filter duplicate records when multi-valued index is used for retrieval
+
+    @returns
+      true  duplicate, such row id was already seen
+      false row id is seen for the first time
+  */
+  bool filter_dup_records();
 
  protected:
   Handler_share *get_ha_share_ptr();

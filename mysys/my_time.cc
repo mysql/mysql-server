@@ -53,6 +53,7 @@
 #include <cstring>    // std::memset
 
 #include "field_types.h"     // enum_field_types
+#include "my_byteorder.h"    // int3store
 #include "my_systime.h"      // localtime_r
 #include "myisampack.h"      // mi_int2store
 #include "template_utils.h"  // pointer_cast
@@ -1967,6 +1968,16 @@ void my_timestamp_to_binary(const struct timeval *tm, uchar *ptr, uint dec) {
     case 6:
       mi_int3store(ptr + 4, tm->tv_usec);
   }
+}
+/**
+  Convert in-memory date representation to on-disk representation.
+
+  @param        ltime The value to convert.
+  @param [out]  ptr   The pointer to store the value to.
+*/
+void my_date_to_binary(const MYSQL_TIME *ltime, uchar *ptr) {
+  long tmp = ltime->day + ltime->month * 32 + ltime->year * 16 * 32;
+  int3store(ptr, tmp);
 }
 
 /**

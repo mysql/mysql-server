@@ -1337,7 +1337,10 @@ struct TABLE {
     needed by the query without reading the row.
   */
   Key_map covering_keys;
-  Key_map quick_keys, merge_keys;
+  Key_map quick_keys;
+
+  /* Merge keys are all keys that had a column reffered to in the query */
+  Key_map merge_keys;
 
   /*
     possible_quick_keys is a superset of quick_keys to use with EXPLAIN of

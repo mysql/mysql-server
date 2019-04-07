@@ -69,17 +69,19 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"          // Relay_log_info
-#include "sql/rpl_slave.h"        // rpl_master_has_bug
-#include "sql/spatial.h"          // Geometry
-#include "sql/sql_class.h"        // THD
-#include "sql/sql_join_buffer.h"  // CACHE_FIELD
+#include "sql/rpl_rli.h"                // Relay_log_info
+#include "sql/rpl_slave.h"              // rpl_master_has_bug
+#include "sql/spatial.h"                // Geometry
+#include "sql/sql_class.h"              // THD
+#include "sql/sql_exception_handler.h"  // handle_std_exception
+#include "sql/sql_join_buffer.h"        // CACHE_FIELD
 #include "sql/sql_lex.h"
 #include "sql/sql_time.h"       // str_to_datetime_with_warn
 #include "sql/sql_tmp_table.h"  // create_tmp_field
 #include "sql/srs_fetcher.h"
 #include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
+#include "sql/table_function.h"  // enum_jtc_on
 #include "sql/transaction_info.h"
 #include "sql/tztime.h"      // Time_zone
 #include "template_utils.h"  // pointer_cast
@@ -1440,8 +1442,8 @@ Field_num::Field_num(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
     : Field(ptr_arg, len_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
             field_name_arg),
       dec(dec_arg),
-      zerofill(zero_arg),
-      unsigned_flag(unsigned_arg) {
+      zerofill(zero_arg) {
+  unsigned_flag = unsigned_arg;
   if (zerofill) flags |= ZEROFILL_FLAG;
   if (unsigned_flag) flags |= UNSIGNED_FLAG;
 }
@@ -1633,6 +1635,7 @@ Field::Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
       m_warnings_pushed(0),
       gcol_info(0),
       stored_in_db(true),
+      unsigned_flag(false),
       m_default_val_expr(nullptr)
 
 {
@@ -2107,7 +2110,7 @@ uint Field::fill_cache_field(CACHE_FIELD *copy) {
   copy->str = ptr;
   copy->length = pack_length();
   copy->field = this;
-  if (flags & BLOB_FLAG) {
+  if (flags & BLOB_FLAG || is_array()) {
     copy->type = CACHE_BLOB;
     copy->length -= portable_sizeof_char_ptr;
     return copy->length;
@@ -2173,7 +2176,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   Field *tmp = clone(root);
   if (tmp == NULL) return 0;
 
-  if (tmp->table->is_nullable()) tmp->flags &= ~NOT_NULL_FLAG;
+  if (tmp->table && tmp->table->is_nullable()) tmp->flags &= ~NOT_NULL_FLAG;
   tmp->table = new_table;
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
@@ -3021,7 +3024,8 @@ longlong Field_new_decimal::val_int() const {
 my_decimal *Field_new_decimal::val_decimal(my_decimal *decimal_value) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   DBUG_ENTER("Field_new_decimal::val_decimal");
-  binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value, precision, dec);
+  binary2my_decimal(E_DEC_FATAL_ERROR, ptr, decimal_value, precision, dec,
+                    m_keep_precision);
   DBUG_EXECUTE("info", print_decimal_buff(decimal_value, ptr, bin_size););
   DBUG_RETURN(decimal_value);
 }
@@ -5749,8 +5753,7 @@ my_time_flags_t Field_newdate::date_flags(const THD *thd) const {
 
 type_conversion_status Field_newdate::store_internal(const MYSQL_TIME *ltime,
                                                      int *warnings) {
-  long tmp = ltime->day + ltime->month * 32 + ltime->year * 16 * 32;
-  int3store(ptr, tmp);
+  my_date_to_binary(ltime, ptr);
   if (non_zero_time(*ltime)) {
     *warnings |= MYSQL_TIME_NOTE_TRUNCATED;
     return TYPE_NOTE_TIME_TRUNCATED;
@@ -8135,9 +8138,9 @@ ulonglong Field_json::make_hash_key(ulonglong hash_val) {
   return wr.make_hash_key(hash_val);
 }
 
-const char *Field_json::get_binary() const {
+const char *Field_json::get_binary(ptrdiff_t row_offset) const {
   char *blob;
-  memcpy(&blob, ptr + packlength, sizeof(blob));
+  memcpy(&blob, ptr + packlength + row_offset, sizeof(blob));
   return blob;
 }
 
@@ -9429,16 +9432,19 @@ size_t calc_pack_length(dd::enum_column_types type, size_t char_length,
   return pack_length;
 }
 
-Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
-                  uchar *null_pos, uchar null_bit, enum_field_types field_type,
+Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
+                  size_t field_length, uchar *null_pos, uchar null_bit,
+                  enum_field_types field_type,
                   const CHARSET_INFO *field_charset,
                   Field::geometry_type geom_type, uchar auto_flags,
                   TYPELIB *interval, const char *field_name, bool maybe_null,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
-                  Nullable<gis::srid_t> srid) {
+                  Nullable<gis::srid_t> srid, bool is_array) {
   uchar *bit_ptr = NULL;
   uchar bit_offset = 0;
+  DBUG_ASSERT(mem_root);
+
   if (field_type == MYSQL_TYPE_BIT && !treat_bit_as_char) {
     bit_ptr = null_pos;
     bit_offset = null_bit;
@@ -9459,9 +9465,44 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
   if (is_temporal_real_type(field_type)) field_charset = &my_charset_numeric;
 
   DBUG_PRINT("debug", ("field_type: %d, field_length: %zu, "
-                       "interval: %p",
-                       field_type, field_length, interval));
+                       "interval: %p, is_array: %s",
+                       field_type, field_length, interval,
+                       (is_array ? "true" : "false")));
 
+  if (is_array) {
+    // See Item_func_array_cast::resolve_type() for supported types
+    switch (field_type) {
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_NEWDECIMAL:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_NEWDATE:
+        break;
+      case MYSQL_TYPE_TIME2:
+        decimals = (field_length > MAX_TIME_WIDTH)
+                       ? field_length - 1 - MAX_TIME_WIDTH
+                       : 0;
+        break;
+      case MYSQL_TYPE_DATETIME2:
+        decimals = (field_length > MAX_DATETIME_WIDTH)
+                       ? field_length - 1 - MAX_DATETIME_WIDTH
+                       : 0;
+        break;
+      default:
+        DBUG_ASSERT(0);  // Shouldn't happen
+        return NULL;
+    }
+    /*
+      Field_json constructor expects number of bytes used to represent length
+      of the underlying blob as parameter and not the real field pack_length.
+      JSON is used as array storage.
+    */
+    uint pack_length = calc_pack_length(MYSQL_TYPE_JSON, field_length) -
+                       portable_sizeof_char_ptr;
+
+    return new (mem_root) Field_typed_array(
+        field_type, is_unsigned, field_length, decimals, ptr, null_pos,
+        null_bit, auto_flags, field_name, share, pack_length, field_charset);
+  }
   /*
     FRMs from 3.23/4.0 can have strings with field_type == MYSQL_TYPE_DECIMAL.
     We should not be getting them after upgrade to new data-dictionary.
@@ -9470,11 +9511,10 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
   switch (field_type) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
-      return new (*THR_MALLOC)
-          Field_string(ptr, field_length, null_pos, null_bit, auto_flags,
-                       field_name, field_charset);
+      return new (mem_root) Field_string(ptr, field_length, null_pos, null_bit,
+                                         auto_flags, field_name, field_charset);
     case MYSQL_TYPE_VARCHAR:
-      return new (*THR_MALLOC) Field_varstring(
+      return new (mem_root) Field_varstring(
           ptr, field_length, HA_VARCHAR_PACKLENGTH(field_length), null_pos,
           null_bit, auto_flags, field_name, share, field_charset);
     case MYSQL_TYPE_BLOB:
@@ -9488,7 +9528,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length =
           calc_pack_length(field_type, field_length) - portable_sizeof_char_ptr;
 
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_blob(ptr, null_pos, null_bit, auto_flags, field_name, share,
                      pack_length, field_charset);
     }
@@ -9500,7 +9540,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length =
           calc_pack_length(field_type, field_length) - portable_sizeof_char_ptr;
 
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_geom(ptr, null_pos, null_bit, auto_flags, field_name, share,
                      pack_length, geom_type, srid);
     }
@@ -9512,101 +9552,101 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
       uint pack_length =
           calc_pack_length(field_type, field_length) - portable_sizeof_char_ptr;
 
-      return new (*THR_MALLOC) Field_json(ptr, null_pos, null_bit, auto_flags,
-                                          field_name, share, pack_length);
+      return new (mem_root) Field_json(ptr, null_pos, null_bit, auto_flags,
+                                       field_name, share, pack_length);
     }
     case MYSQL_TYPE_ENUM:
       DBUG_ASSERT(interval);
-      return new (*THR_MALLOC) Field_enum(
+      return new (mem_root) Field_enum(
           ptr, field_length, null_pos, null_bit, auto_flags, field_name,
           (pack_length_override ? pack_length_override
                                 : get_enum_pack_length(interval->count)),
           interval, field_charset);
     case MYSQL_TYPE_SET:
       DBUG_ASSERT(interval);
-      return new (*THR_MALLOC) Field_set(
+      return new (mem_root) Field_set(
           ptr, field_length, null_pos, null_bit, auto_flags, field_name,
           (pack_length_override ? pack_length_override
                                 : get_set_pack_length(interval->count)),
           interval, field_charset);
     case MYSQL_TYPE_DECIMAL:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_decimal(ptr, field_length, null_pos, null_bit, auto_flags,
                         field_name, decimals, is_zerofill, is_unsigned);
     case MYSQL_TYPE_NEWDECIMAL:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_new_decimal(ptr, field_length, null_pos, null_bit, auto_flags,
                             field_name, decimals, is_zerofill, is_unsigned);
     case MYSQL_TYPE_FLOAT:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_float(ptr, field_length, null_pos, null_bit, auto_flags,
                       field_name, decimals, is_zerofill, is_unsigned);
     case MYSQL_TYPE_DOUBLE:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_double(ptr, field_length, null_pos, null_bit, auto_flags,
                        field_name, decimals, is_zerofill, is_unsigned);
     case MYSQL_TYPE_TINY:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_tiny(ptr, field_length, null_pos, null_bit, auto_flags,
                      field_name, is_zerofill, is_unsigned);
     case MYSQL_TYPE_SHORT:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_short(ptr, field_length, null_pos, null_bit, auto_flags,
                       field_name, is_zerofill, is_unsigned);
     case MYSQL_TYPE_INT24:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_medium(ptr, field_length, null_pos, null_bit, auto_flags,
                        field_name, is_zerofill, is_unsigned);
     case MYSQL_TYPE_LONG:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_long(ptr, field_length, null_pos, null_bit, auto_flags,
                      field_name, is_zerofill, is_unsigned);
     case MYSQL_TYPE_LONGLONG:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_longlong(ptr, field_length, null_pos, null_bit, auto_flags,
                          field_name, is_zerofill, is_unsigned);
     case MYSQL_TYPE_TIMESTAMP:
-      return new (*THR_MALLOC) Field_timestamp(
-          ptr, field_length, null_pos, null_bit, auto_flags, field_name);
+      return new (mem_root) Field_timestamp(ptr, field_length, null_pos,
+                                            null_bit, auto_flags, field_name);
     case MYSQL_TYPE_TIMESTAMP2:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_timestampf(ptr, null_pos, null_bit, auto_flags, field_name,
                            field_length > MAX_DATETIME_WIDTH
                                ? field_length - 1 - MAX_DATETIME_WIDTH
                                : 0);
     case MYSQL_TYPE_YEAR:
-      return new (*THR_MALLOC) Field_year(ptr, field_length, null_pos, null_bit,
-                                          auto_flags, field_name);
+      return new (mem_root) Field_year(ptr, field_length, null_pos, null_bit,
+                                       auto_flags, field_name);
     case MYSQL_TYPE_NEWDATE:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_newdate(ptr, null_pos, null_bit, auto_flags, field_name);
 
     case MYSQL_TYPE_TIME:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_time(ptr, null_pos, null_bit, auto_flags, field_name);
     case MYSQL_TYPE_TIME2:
-      return new (*THR_MALLOC) Field_timef(
+      return new (mem_root) Field_timef(
           ptr, null_pos, null_bit, auto_flags, field_name,
           (field_length > MAX_TIME_WIDTH) ? field_length - 1 - MAX_TIME_WIDTH
                                           : 0);
     case MYSQL_TYPE_DATETIME:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_datetime(ptr, null_pos, null_bit, auto_flags, field_name);
     case MYSQL_TYPE_DATETIME2:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_datetimef(ptr, null_pos, null_bit, auto_flags, field_name,
                           (field_length > MAX_DATETIME_WIDTH)
                               ? field_length - 1 - MAX_DATETIME_WIDTH
                               : 0);
     case MYSQL_TYPE_NULL:
-      return new (*THR_MALLOC)
+      return new (mem_root)
           Field_null(ptr, field_length, auto_flags, field_name, field_charset);
     case MYSQL_TYPE_BIT:
       return treat_bit_as_char
-                 ? new (*THR_MALLOC)
+                 ? new (mem_root)
                        Field_bit_as_char(ptr, field_length, null_pos, null_bit,
                                          auto_flags, field_name)
-                 : new (*THR_MALLOC)
+                 : new (mem_root)
                        Field_bit(ptr, field_length, null_pos, null_bit, bit_ptr,
                                  bit_offset, auto_flags, field_name);
 
@@ -9619,13 +9659,14 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
 static Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
                          const char *field_name, size_t field_length,
                          uchar *ptr, uchar *null_pos, size_t null_bit) {
-  return make_field(share, ptr, field_length, null_pos, null_bit,
+  return make_field(*THR_MALLOC, share, ptr, field_length, null_pos, null_bit,
                     create_field.sql_type, create_field.charset,
                     create_field.geom_type, create_field.auto_flags,
                     create_field.interval, field_name, create_field.maybe_null,
                     create_field.is_zerofill, create_field.is_unsigned,
                     create_field.decimals, create_field.treat_bit_as_char,
-                    create_field.pack_length_override, create_field.m_srid);
+                    create_field.pack_length_override, create_field.m_srid,
+                    create_field.is_array);
 }
 
 Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
@@ -9865,6 +9906,307 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
                  !(cur_index_info->flags & HA_NOSAME)
              ? part_of_key.is_set(cur_index)
              : part_of_key_not_extended.is_set(cur_index);
+}
+
+Field_typed_array::Field_typed_array(const Field_typed_array &other)
+    : Field_json(other),
+      m_conv_field(other.m_conv_field),
+      m_elt_type(other.m_elt_type),
+      m_elt_decimals(other.m_elt_decimals),
+      m_elt_charset(other.m_elt_charset) {
+  /*
+    When conv_field is null the field is cloned from share and isn't
+    attached to any table yet (this will happen later).
+  */
+  //  DBUG_ASSERT(!m_conv_field);
+  m_conv_field = nullptr;
+  Json_array_ptr arr(down_cast<Json_array *>(other.m_array.clone().release()));
+  m_array.consume(std::move(arr));
+}
+
+uint32 Field_typed_array::key_length() const {
+  return calc_key_length(m_elt_type, field_length, m_elt_decimals,
+                         unsigned_flag,
+                         // Number of intervals isn't applicable here
+                         0);
+}
+
+Field_typed_array *Field_typed_array::clone(MEM_ROOT *mem_root) const {
+  DBUG_ASSERT(is_array());
+  return new (mem_root) Field_typed_array(*this);
+}
+
+Field_typed_array *Field_typed_array::clone() const {
+  DBUG_ASSERT(is_array());
+  return new (*THR_MALLOC) Field_typed_array(*this);
+}
+
+Item_result Field_typed_array::result_type() const {
+  return field_types_result_type[field_type2index(m_elt_type)];
+}
+
+type_conversion_status Field_typed_array::store_json(const Json_wrapper *data) {
+  m_array.clear();
+
+  set_null();
+
+  try {
+    String data_buf;
+
+    // How to store values
+    switch (data->type()) {
+      case enum_json_type::J_NULL: {
+        /*
+          Unlike SQL NULL, JSON null is a value, but a special one and it
+          can't be coerced to any data type. The latter means it can't be
+          indexed by relational SE. Due to that an error is thrown.
+        */
+        my_error(ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX, MYF(0),
+                 get_index_name());
+        return TYPE_ERR_BAD_VALUE;
+      }
+      case enum_json_type::J_DECIMAL:
+      case enum_json_type::J_DOUBLE:
+      case enum_json_type::J_STRING:
+      case enum_json_type::J_DATE:
+      case enum_json_type::J_TIME:
+      case enum_json_type::J_DATETIME:
+      case enum_json_type::J_TIMESTAMP:
+      case enum_json_type::J_INT:
+      case enum_json_type::J_UINT: {
+        // Handle scalars
+        Json_wrapper coerced;
+        if (coerce_json_value(data, &coerced))
+          return TYPE_ERR_BAD_VALUE; /* purecov: inspected */
+        coerced.set_alias();
+        m_array.append_alias(coerced.to_dom(table->in_use));
+        Json_wrapper wr(&m_array, true);
+        /*
+          No need to check multi-valued key limits, as single value is always
+          allowed if engine supports multi-valued index, and single value
+          can't outgrow index length limit.
+        */
+        set_notnull();
+        return Field_json::store_json(&wr);
+      }
+      case enum_json_type::J_ARRAY: {
+        // Handle array
+        Json_wrapper coerced;
+        uint max_num_keys = 0;
+        size_t keys_length = 0, max_keys_length = 0;
+
+        // Empty array stored as non-NULL empty array
+        if (data->length() == 0) {
+          Json_wrapper wr(&m_array, true);
+          set_notnull();
+          return Field_json::store_json(&wr);
+        }
+        table->file->ha_mv_key_capacity(&max_num_keys, &max_keys_length);
+        DBUG_ASSERT(max_num_keys && max_keys_length);
+        for (size_t i = 0; i < data->length(); i++) {
+          Json_wrapper elt = (*data)[i];
+          if (elt.type() == enum_json_type::J_NULL) {
+            /*
+              Unlike SQL NULL, JSON null is a value, but a special one and it
+              can't be coerced to any data type. The latter means it can't be
+              indexed by relational SE. Due to that an error is thrown.
+            */
+            my_error(ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX, MYF(0),
+                     get_index_name());
+            return TYPE_ERR_BAD_VALUE;
+          }
+
+          if (coerce_json_value(&elt, &coerced)) return TYPE_ERR_BAD_VALUE;
+          coerced.set_alias();
+          m_array.append_alias(coerced.to_dom(table->in_use));
+          if (type() == MYSQL_TYPE_VARCHAR)
+            keys_length += coerced.get_data_length();
+          else
+            keys_length += m_conv_field->pack_length();
+        }
+        /*
+          Non-strict mode issue:
+          While consisting of unique values, bad input can cause duplicates
+          after coercion. Remove them, as SE doesn't expect dups in the array.
+          This is why we need to sort & remove duplicates only after
+          processing all keys.
+        */
+        if (m_array.size() > 1)
+          m_array.remove_duplicates(type() == MYSQL_TYPE_VARCHAR ? m_elt_charset
+                                                                 : nullptr);
+        if (m_array.size() > max_num_keys) {
+          my_error(ER_EXCEEDED_MV_KEYS_NUM, MYF(0), get_index_name(),
+                   (m_array.size() - max_num_keys));
+          return TYPE_ERR_BAD_VALUE;
+        }
+        if (keys_length > max_keys_length) {
+          // Array fields have only one index defined over them
+          my_error(ER_EXCEEDED_MV_KEYS_SPACE, MYF(0), get_index_name(),
+                   (keys_length - max_keys_length));
+          return TYPE_ERR_BAD_VALUE;
+        }
+        Json_wrapper wr(&m_array, true);
+        set_notnull();
+        return Field_json::store_json(&wr);
+      }
+      case enum_json_type::J_BOOLEAN: {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing JSON BOOLEAN type to array");
+        return TYPE_ERR_BAD_VALUE;
+      }
+
+      case enum_json_type::J_OBJECT: {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing JSON OBJECT type to array");
+        return TYPE_ERR_BAD_VALUE;
+      }
+      case enum_json_type::J_ERROR:
+        my_error(ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX, MYF(0),
+                 get_index_name());
+        return TYPE_ERR_BAD_VALUE;
+      /* purecov: begin inspected */
+      default:
+        // Shouldn't happen
+        DBUG_ASSERT(0);
+        return TYPE_ERR_BAD_VALUE;
+    }
+  } catch (...) {
+    handle_std_exception("typed array field");
+  }
+  return TYPE_ERR_BAD_VALUE;
+  /* purecov: end */
+}
+
+void Field_typed_array::init(TABLE *table_arg) {
+  uint fld_length = field_length;
+  Field::init(table_arg);
+
+  switch (type()) {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_TIMESTAMP2:
+    case MYSQL_TYPE_DATETIME2:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_NEWDATE:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_NEWDECIMAL:
+      break;
+    default:
+      // Shouldn't happen
+      DBUG_ASSERT(0); /* purecov: inspected */
+
+      return;
+  }
+  // Create field for data conversion
+  m_conv_field = ::make_field(
+      // Allocate conversion field in table's mem_root
+      &table_arg->mem_root,
+      NULL,           // TABLE_SHARE, not needed
+      NULL,           // data buffer, isn't allocated yet
+      fld_length,     // field_length
+      &null_byte, 0,  // null_pos, nul_bit
+      real_type(),    // field_type
+      m_elt_charset,
+      Field::GEOM_GEOMETRY,  // geom type
+      Field::NONE,           // auto_flags
+      NULL,                  // itervals aren't supported in array
+      field_name, real_maybe_null(),
+      false,  // zerofill is meaningless with JSON
+      unsigned_flag, m_elt_decimals,
+      false,  // treat_bit_as_char
+      0,      // pack_length_override
+      {},     // srid
+      false   // is_array
+  );
+  if (!m_conv_field ||
+      !(m_conv_buf = static_cast<uchar *>(
+            table_arg->mem_root.Alloc(m_conv_field->pack_length()))))
+    return; /* purecov: inspected */
+  if (type() == MYSQL_TYPE_NEWDECIMAL)
+    (down_cast<Field_new_decimal *>(m_conv_field))->set_keep_precision(true);
+  m_conv_field->move_field(m_conv_buf);
+  // Allow conv_field to use table->in_use
+  m_conv_field->table = table;
+  m_conv_field->field_index = field_index;
+  m_conv_field->table_name = table_name;
+}
+
+const char *Field_typed_array::get_index_name() {
+  uint key = part_of_key.get_first_set();
+  DBUG_ASSERT(key != MY_BIT_NONE);
+  return table->s->key_info[key].name;
+}
+
+size_t Field_typed_array::make_sort_key(Json_wrapper *wr, uchar *to,
+                                        size_t length) {
+#ifndef DBUG_OFF
+  switch (wr->type()) {
+    case enum_json_type::J_ERROR:
+    case enum_json_type::J_OBJECT:
+    case enum_json_type::J_ARRAY:
+      // Only scalars are supported
+      DBUG_ASSERT(false);
+      break;
+    default:
+      break;
+  }
+#endif
+  THD *thd = table->in_use;
+  // Force error on bad data
+  enum_jtc_on on_error = enum_jtc_on::JTO_ERROR;
+  enum_check_fields warn = CHECK_FIELD_ERROR_FOR_NULL;
+#ifndef DBUG_OFF
+  bool res =
+#endif
+      save_json_to_field(thd, m_conv_field, on_error, wr, warn, true);
+  // Data should be already properly converted so no error is expected here
+  DBUG_ASSERT(!res && !thd->is_error());
+
+  return m_conv_field->make_sort_key(to, length);
+}
+
+int Field_typed_array::do_save_field_metadata(uchar *metadata_ptr) const {
+  *metadata_ptr = static_cast<uchar>(m_elt_type);
+  switch (m_elt_type) {
+    case MYSQL_TYPE_VARCHAR: {
+      DBUG_ASSERT(field_length < 65536);
+      char *param_ptr = (char *)(metadata_ptr + 1);
+      int3store(param_ptr, field_length);
+      return 4;
+    }
+    case MYSQL_TYPE_NEWDECIMAL: {
+      DBUG_ASSERT(field_length < 128);
+      uint8 precision = my_decimal_length_to_precision(field_length, decimals(),
+                                                       unsigned_flag);
+      *(metadata_ptr + 1) = precision;
+      *(metadata_ptr + 2) = decimals();
+      return 3;
+    }
+    case MYSQL_TYPE_LONGLONG:
+    case MYSQL_TYPE_NEWDATE:
+      return 1;
+    case MYSQL_TYPE_TIME2:
+    case MYSQL_TYPE_DATETIME2:
+      *(metadata_ptr + 1) = decimals();
+      return 2;
+    default:
+      break;
+  }
+  DBUG_ASSERT(0);  // Shouldn't happen
+  return 0;
+}
+
+void Field_typed_array::sql_type(String &str) const {
+  uint metadata;
+  uchar *metadata_ptr = reinterpret_cast<uchar *>(&metadata);
+  do_save_field_metadata(metadata_ptr);
+  std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
+      static_cast<const uchar *>(metadata_ptr), binlog_type());
+  show_sql_type(real_type(), true, pack.second.first, &str, charset());
 }
 
 Key_map Field::get_covering_prefix_keys() {
@@ -10119,7 +10461,7 @@ Field_varstring::Field_varstring(uchar *ptr_arg, uint32 len_arg,
     : Field_longstr(ptr_arg, len_arg, null_ptr_arg, null_bit_arg,
                     auto_flags_arg, field_name_arg, cs),
       length_bytes(length_bytes_arg) {
-  share->varchar_fields++;
+  if (share) share->varchar_fields++;
 }
 
 Field_varstring::Field_varstring(uint32 len_arg, bool maybe_null_arg,
@@ -10144,6 +10486,22 @@ uint32 Field_blob::get_length(ptrdiff_t row_offset) const {
 
 uint32 Field_blob::get_length(const uchar *ptr_arg) const {
   return get_length(ptr_arg, this->packlength, table->s->db_low_byte_first);
+}
+
+bool Field_blob::backup_blob_field() {
+  value.swap(m_blob_backup);
+#ifndef DBUG_OFF
+  m_uses_backup = true;
+#endif
+  return false;
+}
+
+void Field_blob::restore_blob_backup() {
+  DBUG_ASSERT(m_uses_backup);
+  value.swap(m_blob_backup);
+#ifndef DBUG_OFF
+  m_uses_backup = false;
+#endif
 }
 
 Create_field_wrapper::Create_field_wrapper(const Create_field *fld)
@@ -10198,7 +10556,7 @@ uint32 Create_field_wrapper::max_display_length() const {
 Create_field *generate_create_field(THD *thd, Item *item, TABLE *tmp_table) {
   Field *tmp_table_field;
   if (item->type() == Item::FUNC_ITEM) {
-    if (item->result_type() != STRING_RESULT)
+    if (item->result_type() != STRING_RESULT || item->returns_array())
       tmp_table_field = item->tmp_table_field(tmp_table);
     else
       tmp_table_field = item->tmp_table_field_from_field_type(tmp_table, false);

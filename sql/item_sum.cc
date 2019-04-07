@@ -981,7 +981,7 @@ bool Aggregator_distinct::setup(THD *thd) {
               create_tmp_table(thd, tmp_table_param, list, NULL, true, false,
                                select_lex->active_options(), HA_POS_ERROR, "")))
       return true;
-    table->file->extra(HA_EXTRA_NO_ROWS);  // Don't update rows
+    table->file->ha_extra(HA_EXTRA_NO_ROWS);  // Don't update rows
     table->no_rows = 1;
     if (table->hash_field) table->file->ha_index_init(0, 0);
 
@@ -1226,7 +1226,7 @@ void Aggregator_distinct::endup() {
     DBUG_ASSERT(item_sum->fixed == 1);
     Item_sum_count *sum = (Item_sum_count *)item_sum;
 
-    if (tree && tree->elements == 0) {
+    if (tree && tree->is_in_memory()) {
       /* everything fits in memory */
       sum->count = (longlong)tree->elements_in_tree();
       endup_done = true;
@@ -4386,7 +4386,7 @@ bool Item_func_group_concat::setup(THD *thd) {
                                  true, aggr_select->active_options(),
                                  HA_POS_ERROR, "")))
     DBUG_RETURN(true);
-  table->file->extra(HA_EXTRA_NO_ROWS);
+  table->file->ha_extra(HA_EXTRA_NO_ROWS);
   table->no_rows = 1;
 
   /**

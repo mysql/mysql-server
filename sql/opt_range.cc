@@ -186,6 +186,7 @@
 #include "sql/uniques.h"  // Unique
 #include "template_utils.h"
 // idx_merge_hint_state()
+#include "item_json_func.h"  // Item_func_json_contains
 
 using std::max;
 using std::min;
@@ -1836,6 +1837,9 @@ void QUICK_RANGE_SELECT::range_end() {
 
 QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT() {
   DBUG_ENTER("QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT");
+  if (head->key_info[index].flags & HA_MULTI_VALUED_KEY && file)
+    file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
+
   if (!dont_free) {
     /* file is NULL for CPK scan on covering ROR-intersection */
     if (file) {
@@ -1979,7 +1983,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
       DBUG_RETURN(1);
     }
     head->column_bitmaps_set(&column_bitmap, &column_bitmap);
-    file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
+    file->ha_extra(HA_EXTRA_SECONDARY_SORT_ROWID);
     goto end;
   }
 
@@ -2015,7 +2019,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler) {
   }
   free_file = true;
   last_rowid = file->ref;
-  file->extra(HA_EXTRA_SECONDARY_SORT_ROWID);
+  file->ha_extra(HA_EXTRA_SECONDARY_SORT_ROWID);
 
 end:
   /*
@@ -2075,7 +2079,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
     */
     int error = quick->init_ror_merged_scan(true);
     if (error) DBUG_RETURN(error);
-    quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+    quick->file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while ((quick = quick_it++)) {
 #ifndef DBUG_OFF
@@ -2083,7 +2087,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler) {
     const MY_BITMAP *const save_write_set = quick->head->write_set;
 #endif
     if ((error = quick->init_ror_merged_scan(false))) DBUG_RETURN(error);
-    quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+    quick->file->ha_extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     // Sets are shared by all members of "quick_selects" so must not change
     DBUG_ASSERT(quick->head->read_set == save_read_set);
     DBUG_ASSERT(quick->head->write_set == save_write_set);
@@ -6470,6 +6474,101 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
 }
 
 /**
+  Factory function to build a SEL_TREE from a JSON_OVERLAPS or JSON_CONTAINS
+  functions
+
+  @details
+  \verbatim
+    This function builds SEL_TREE out of JSON_OEVRLAPS() of form:
+      JSON_OVERLAPS(typed_array_field, "[<val>,...,<val>]")
+      JSON_OVERLAPS("[<val>,...,<val>]", typed_array_field)
+      JSON_CONTAINS(typed_array_field, "[<val>,...,<val>]")
+    where
+      typed_array_field is a field which has multi-valued index defined on it
+      <val>             each value in the array is coercible to the array's
+                        type
+    These conditions are pre-checked in substitute_gc().
+  \endverbatim
+  @param param      Information on 'just about everything'.
+  @param predicand  the typed array JSON_CONTAIN's argument
+  @param op         The 'JSON_OVERLAPS' operator itself.
+
+  @returns
+    non-NULL constructed SEL_TREE
+    NULL     in case of any error
+*/
+
+static SEL_TREE *get_func_mm_tree_from_json_overlaps_contains(
+    RANGE_OPT_PARAM *param, Item *predicand, Item_func *op) {
+  if (param->has_errors()) return NULL;
+
+  // The expression is JSON_OVERLAPS(<array_field>,<JSON array/scalar>), or
+  // The expression is JSON_OVERLAPS(<JSON array/scalar>, <array_field>), or
+  // The expression is JSON_CONTAINS(<array_field>, <JSON array/scalar>)
+  if (predicand->type() == Item::FIELD_ITEM && predicand->returns_array()) {
+    Json_wrapper wr, elt;
+    String str;
+    uint values;
+    if (op->functype() == Item_func::JSON_OVERLAPS) {
+      // If the predicand is the 1st arg, then the values arg is 2nd.
+      values = (predicand == op->arguments()[0]) ? 1 : 0;
+    } else {
+      DBUG_ASSERT(op->functype() == Item_func::JSON_CONTAINS);
+      values = 1;
+    }
+    if (get_json_wrapper(op->arguments(), values, &str, op->func_name(), &wr))
+      return NULL; /* purecov: inspected */
+
+    // Should be pre-checked already
+    DBUG_ASSERT(!(op->arguments()[values])->null_value &&
+                wr.type() != enum_json_type::J_OBJECT &&
+                wr.type() != enum_json_type::J_ERROR);
+    if (wr.length() == 0) return NULL;
+
+    Field_typed_array *field = down_cast<Field_typed_array *>(
+        static_cast<Item_field *>(predicand)->field);
+    if (wr.type() == enum_json_type::J_ARRAY)
+      wr.remove_duplicates(
+          field->type() == MYSQL_TYPE_VARCHAR ? field->charset() : nullptr);
+    size_t i = 0;
+    const size_t len = (wr.type() == enum_json_type::J_ARRAY) ? wr.length() : 1;
+    // Skip leading JSON null values as they can't be indexed and thus doesn't
+    // exist in index.
+    while (i < len && wr[i].type() == enum_json_type::J_NULL) ++i;
+    // No non-null values were found.
+    if (i == len) return nullptr;
+
+    // Fake const table for get_mm_parts, as we're using constants from JSON
+    // array
+    const bool save_const = field->table->const_table;
+    field->table->const_table = true;
+
+    field->set_notnull();
+
+    // Get the SEL_ARG tree for the first non-null element..
+    elt = wr[i++];
+    field->coerce_json_value(&elt, nullptr);
+    SEL_TREE *tree = get_mm_parts(param, op, field, Item_func::EQ_FUNC,
+                                  static_cast<Item_field *>(predicand));
+    // .. and OR with others
+    if (tree) {
+      for (; i < len; i++) {
+        elt = wr[i];
+        field->coerce_json_value(&elt, NULL);
+        tree = tree_or(param, tree,
+                       get_mm_parts(param, op, field, Item_func::EQ_FUNC,
+                                    static_cast<Item_field *>(predicand)));
+        if (!tree)  // OOM
+          break;
+      }
+    }
+    field->table->const_table = save_const;
+    return tree;
+  }
+  return NULL;
+}
+
+/**
   Build a SEL_TREE for a simple predicate.
 
   @param param     PARAM from test_quick_select
@@ -6536,6 +6635,11 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
     case Item_func::IN_FUNC: {
       Item_func_in *in_pred = static_cast<Item_func_in *>(cond_func);
       tree = get_func_mm_tree_from_in_predicate(param, predicand, in_pred, inv);
+    } break;
+    case Item_func::JSON_CONTAINS:
+    case Item_func::JSON_OVERLAPS: {
+      tree = get_func_mm_tree_from_json_overlaps_contains(param, predicand,
+                                                          cond_func);
     } break;
     default:
       if (predicand->type() == Item::FIELD_ITEM) {
@@ -6840,9 +6944,12 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond) {
       break;
     }  // end case Item_func::BETWEEN
 
+    case Item_func::JSON_CONTAINS:
+    case Item_func::JSON_OVERLAPS:
     case Item_func::IN_FUNC: {
-      Item *const predicand =
-          ((Item_func_in *)cond_func)->key_item()->real_item();
+      Item *predicand = cond_func->key_item();
+      if (!predicand) DBUG_RETURN(nullptr);
+      predicand = predicand->real_item();
       if (predicand->type() != Item::FIELD_ITEM &&
           predicand->type() != Item::ROW_ITEM)
         DBUG_RETURN(NULL);
@@ -7587,8 +7694,7 @@ static SEL_ROOT *get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func,
   */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((field->type() == FIELD_TYPE_BIT ||
-        ((Field_num *)field)->unsigned_flag) &&
+      ((field->type() == FIELD_TYPE_BIT || field->unsigned_flag) &&
        !(value)->unsigned_flag)) {
     longlong item_val = value->val_int();
     if (item_val < 0) {
@@ -10644,7 +10750,6 @@ int QUICK_RANGE_SELECT::reset() {
     head->set_keyread(true);
   else
     head->set_keyread(false);
-
   if (!file->inited) {
     /*
       read_set is set to the correct value for ror_merge_scan here as a
@@ -10673,6 +10778,14 @@ int QUICK_RANGE_SELECT::reset() {
       /* Restore bitmaps set on entry */
       head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     }
+  }
+  // Enable & reset unique record filter for multi-valued index
+  if (head->key_info[index].flags & HA_MULTI_VALUED_KEY) {
+    file->ha_extra(HA_EXTRA_ENABLE_UNIQUE_RECORD_FILTER);
+    // Add PK's fields to read_set as unique filter uses rowid to skip dups
+    if (head->s->primary_key != MAX_KEY)
+      head->mark_columns_used_by_index_no_reset(head->s->primary_key,
+                                                head->read_set);
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */

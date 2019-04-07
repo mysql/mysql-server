@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -87,6 +87,13 @@ dtuple_t *row_build_index_entry_low(
     entry = dtuple_create(heap, entry_len);
   }
 
+  if (index->is_corrupted() && dict_index_has_virtual(index) &&
+      dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED) {
+    /* See comments for virtual index in row_merge_drop_indexes().
+    In this case, just return the empty entry object */
+    return (entry);
+  }
+
   if (dict_index_is_ibuf(index)) {
     dtuple_set_n_fields_cmp(entry, entry_len);
     /* There may only be externally stored columns
@@ -126,7 +133,8 @@ dtuple_t *row_build_index_entry_low(
       ut_ad(v_col->v_pos < dtuple_get_n_v_fields(row));
       dfield2 = dtuple_get_nth_v_field(row, v_col->v_pos);
 
-      ut_ad(dfield_is_null(dfield2) || dfield2->data);
+      ut_ad(dfield_is_null(dfield2) || dfield2->len == UNIV_NO_INDEX_VALUE ||
+            dfield2->data);
     } else {
       dfield2 = dtuple_get_nth_field(row, col_no);
       ut_ad(dfield_get_type(dfield2)->mtype == DATA_MISSING ||
@@ -1200,6 +1208,23 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
   }
 
   return (ret);
+}
+
+dfield_t *Multi_value_entry_builder_normal::find_multi_value_field() {
+  uint16_t i = 0;
+  dfield_t *field = nullptr;
+  for (; i < m_row->n_v_fields; ++i) {
+    field = &m_row->v_fields[i];
+    if (!dfield_is_multi_value(field) ||
+        (m_mv_field_no = m_index->has_multi_value_col(
+             dict_table_get_nth_v_col(m_index->table, i))) == 0) {
+      continue;
+    }
+
+    break;
+  }
+
+  return (i == m_row->n_v_fields ? nullptr : field);
 }
 
 #ifdef UNIV_ENABLE_UNIT_TEST_ROW_RAW_FORMAT_INT

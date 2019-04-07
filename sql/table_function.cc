@@ -43,7 +43,8 @@
 #include "sql/json_path.h"
 #include "sql/my_decimal.h"
 #include "sql/psi_memory_key.h"
-#include "sql/sql_class.h"  // THD
+#include "sql/rpl_utility.h"  // read_field_metadata
+#include "sql/sql_class.h"    // THD
 #include "sql/sql_exception_handler.h"
 #include "sql/sql_list.h"
 #include "sql/sql_show.h"
@@ -129,137 +130,14 @@ List<Create_field> *Table_function_json::get_field_list() {
     false The JSON value can not be stored without encoding it, or it is not a
           JSON OPAQUE value.
 */
-static bool can_store_json_value_unencoded(const Field *field_to_store_in,
-                                           const Json_wrapper *json_data) {
+bool can_store_json_value_unencoded(const Field *field_to_store_in,
+                                    const Json_wrapper *json_data) {
   return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
           field_to_store_in->type() == MYSQL_TYPE_BLOB ||
           field_to_store_in->type() == MYSQL_TYPE_STRING) &&
          json_data->type() == enum_json_type::J_OPAQUE &&
          (json_data->field_type() == MYSQL_TYPE_STRING ||
           json_data->field_type() == MYSQL_TYPE_VARCHAR);
-}
-
-/**
-  Save JSON to a JSON_TABLE's column
-
-  Value is saved in type-aware manner. Into a JSON-typed column any JSON
-  data could be saved. Into an SQL scalar field only a scalar could be
-  saved. If data being saved isn't scalar or can't be coerced to the target
-  type, an error is returned.
-
-  @param  thd   thread handler
-  @param  field Column's field to save data to
-  @param  col   Column to save data from
-  @param  w     JSON data to save
-  @param  warn  level of warning for truncation handling
-
-  @returns
-    false ok
-    true  coercion error occur
-*/
-
-static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
-                                Json_wrapper *w, enum_check_fields warn) {
-  bool err = false;
-  if (field->type() == MYSQL_TYPE_JSON) {
-    Field_json *fld = down_cast<Field_json *>(field);
-    return (fld->store_json(w) != TYPE_OK);
-  }
-
-  const enum_coercion_error cr_error =
-      (warn == CHECK_FIELD_ERROR_FOR_NULL) ? CE_ERROR : CE_WARNING;
-  if (w->type() == enum_json_type::J_ARRAY ||
-      w->type() == enum_json_type::J_OBJECT) {
-    if (col->m_on_error == enum_jtc_on::JTO_ERROR)
-      my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), col->field_name);
-    return true;
-  }
-  thd->check_for_truncated_fields = warn;
-  switch (field->result_type()) {
-    case INT_RESULT: {
-      longlong value = w->coerce_int(col->field_name, &err, cr_error);
-
-      // If the Json_wrapper holds a numeric value, grab the signedness from it.
-      // If not, grab the signedness from the column where we are storing the
-      // value.
-      bool value_unsigned;
-      if (w->type() == enum_json_type::J_INT) {
-        value_unsigned = false;
-      } else if (w->type() == enum_json_type::J_UINT) {
-        value_unsigned = true;
-      } else {
-        value_unsigned = col->is_unsigned;
-      }
-
-      if (!err &&
-          (field->store(value, value_unsigned) >= TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case STRING_RESULT: {
-      MYSQL_TIME ltime;
-      bool date_time_handled = false;
-      /*
-        Here we explicitly check for DATE/TIME to reduce overhead by
-        avoiding encoding data into string in JSON code and decoding it
-        back from string in Field code.
-
-        Ensure that date is saved to a date column, and time into time
-        column. Don't mix.
-      */
-      if (field->is_temporal_with_date()) {
-        switch (w->type()) {
-          case enum_json_type::J_DATE:
-          case enum_json_type::J_DATETIME:
-          case enum_json_type::J_TIMESTAMP:
-            date_time_handled = true;
-            err = w->coerce_date(&ltime, "JSON_TABLE", cr_error);
-            break;
-          default:
-            break;
-        }
-      } else if (real_type_to_type(field->type()) == MYSQL_TYPE_TIME &&
-                 w->type() == enum_json_type::J_TIME) {
-        date_time_handled = true;
-        err = w->coerce_time(&ltime, "JSON_TABLE", cr_error);
-      }
-      if (date_time_handled) {
-        err = err || field->store_time(&ltime);
-        break;
-      }
-      String str;
-      if (can_store_json_value_unencoded(field, w)) {
-        str.set(w->get_data(), w->get_data_length(), field->charset());
-      } else {
-        err = w->to_string(&str, false, "JSON_TABLE");
-      }
-
-      if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
-                   TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case REAL_RESULT: {
-      double value = w->coerce_real(col->field_name, &err, cr_error);
-      if (!err && (field->store(value) >= TYPE_WARN_OUT_OF_RANGE)) err = true;
-      break;
-    }
-    case DECIMAL_RESULT: {
-      my_decimal value;
-      w->coerce_decimal(&value, col->field_name, &err, cr_error);
-      if (!err && (field->store_decimal(&value) >= TYPE_WARN_OUT_OF_RANGE))
-        err = true;
-      break;
-    }
-    case ROW_RESULT:
-    default:
-      // Shouldn't happen
-      DBUG_ASSERT(0);
-  }
-  if (err && cr_error == CE_ERROR)
-    my_error(ER_JT_VALUE_OUT_OF_RANGE, MYF(0), col->field_name);
-
-  return err;
 }
 
 /**
@@ -427,15 +305,15 @@ bool Table_function_json::do_init_args() {
     if (col->m_jtc_type != enum_jt_column::JTC_PATH) continue;
     DBUG_ASSERT(col->m_field_idx >= 0);
     if (col->m_on_empty == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_column(thd, get_field(col->m_field_idx), col,
-                              &col->m_default_empty_json, CHECK_FIELD_WARN)) {
+      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
+                             &col->m_default_empty_json, CHECK_FIELD_WARN)) {
         my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
         return true;
       }
     }
     if (col->m_on_error == enum_jtc_on::JTO_DEFAULT) {
-      if (save_json_to_column(thd, get_field(col->m_field_idx), col,
-                              &col->m_default_error_json, CHECK_FIELD_WARN)) {
+      if (save_json_to_field(thd, get_field(col->m_field_idx), col->m_on_error,
+                             &col->m_default_error_json, CHECK_FIELD_WARN)) {
         my_error(ER_INVALID_DEFAULT, MYF(0), col->field_name);
         return true;
       }
@@ -568,21 +446,22 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
             buf = Json_wrapper(a);
           } else {
             is_error = true;
-            // Thrown an error when save_json_to_column() isn't called
+            // Thrown an error when save_json_to_field() isn't called
             if (m_on_error == enum_jtc_on::JTO_ERROR)
               my_error(ER_WRONG_JSON_TABLE_VALUE, MYF(0), field_name);
           }
         } else
           buf = std::move(data_v[0]);
-        is_error = is_error || save_json_to_column(thd, fld, this, &buf, warn);
+        is_error =
+            is_error || save_json_to_field(thd, fld, m_on_error, &buf, warn);
         if (is_error) switch (m_on_error) {
             case enum_jtc_on::JTO_ERROR: {
               return true;
               break;
             }
             case enum_jtc_on::JTO_DEFAULT: {
-              save_json_to_column(thd, fld, this, &m_default_error_json,
-                                  CHECK_FIELD_IGNORE);
+              save_json_to_field(thd, fld, m_on_error, &m_default_error_json,
+                                 CHECK_FIELD_IGNORE);
               break;
             }
             case enum_jtc_on::JTO_NULL:
@@ -598,8 +477,8 @@ bool Json_table_column::fill_column(Field *fld, jt_skip_reason *skip) {
             return true;
           }
           case enum_jtc_on::JTO_DEFAULT: {
-            save_json_to_column(thd, fld, this, &m_default_empty_json,
-                                CHECK_FIELD_IGNORE);
+            save_json_to_field(thd, fld, m_on_error, &m_default_empty_json,
+                               CHECK_FIELD_IGNORE);
             break;
           }
           case enum_jtc_on::JTO_NULL:
@@ -865,27 +744,14 @@ bool Table_function_json::print_nested_path(Json_table_column *col, String *str,
         if (str->append(jtc->field_name, strlen(jtc->field_name)) ||
             str->append(' '))
           return true;
-        uint16 data = 0;
+        uint data = 0;
         Field *fld = get_field(jtc->m_field_idx);
-        /*
-          save_field_metadata + show_sql_type is broken for types below.
-          I.e. the former produces data which the latter doesn't print
-          properly.
-        */
-        switch (jtc->sql_type) {
-          case MYSQL_TYPE_STRING:
-            // Encode field's length so show_sql_type() prints it correctly
-            data = (((fld->field_length & 0x300) ^ 0x300) << 4) +
-                   (fld->field_length & 0xff);
-            break;
-          case MYSQL_TYPE_VAR_STRING:
-          case MYSQL_TYPE_VARCHAR:
-            data = fld->field_length;
-            break;
-          default:
-            fld->save_field_metadata((uchar *)&data);
-        }
-        show_sql_type(jtc->sql_type, data, &type, fld->charset());
+        fld->save_field_metadata((uchar *)&data);
+        std::pair<my_off_t, std::pair<uint, bool>> pack = read_field_metadata(
+            reinterpret_cast<const uchar *>(&data), fld->binlog_type());
+        data = pack.second.first;
+        DBUG_ASSERT(fld->binlog_type() != MYSQL_TYPE_TYPED_ARRAY);
+        show_sql_type(jtc->sql_type, false, data, &type, fld->charset());
         str->append(type);
         if (jtc->m_jtc_type == enum_jt_column::JTC_EXISTS) {
           if (str->append(STRING_WITH_LEN(" exists"))) return true;

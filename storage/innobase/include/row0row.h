@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -348,6 +348,241 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
                      ulint buf_size)                 /*!< in: output buffer size
                                                      in bytes */
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Class to build a series of entries based on one multi-value field.
+It assumes that there is only one multi-value field on multi-value index. */
+class Multi_value_entry_builder {
+ public:
+  /** Constructor */
+  Multi_value_entry_builder(dict_index_t *index, dtuple_t *entry, bool selected)
+      : m_index(index),
+        m_selected(selected),
+        m_entry(entry),
+        m_pos(0),
+        m_mv_data(nullptr),
+        m_mv_field_no(0) {}
+
+  virtual ~Multi_value_entry_builder() {}
+
+  /** Get the first index entry. If the multi-value field on the index
+  is null, then it's the entry including the null field, otherwise,
+  it should be the entry with  multi-value data at the 'pos' position.
+  @param[in]    pos     position of the multi-value array, default value
+                        will always start from 0
+  @return the first index entry to handle, the one including null
+  multi-value field, or the  multi-value data at the 'pos' position */
+  dtuple_t *begin(uint32_t pos = 0) {
+    if (!prepare_multi_value_field()) {
+      return (nullptr);
+    }
+
+    prepare_entry_if_necessary();
+    ut_ad(m_entry != nullptr);
+
+    m_pos = pos;
+    return (m_mv_data == nullptr ? m_entry : next());
+  }
+
+  /** Get next index entry based on next multi-value data.
+  If the previous value is null, then always no next.
+  @return next index entry, or nullptr if no more multi-value data */
+  dtuple_t *next() {
+    if (m_mv_data == nullptr || m_pos >= m_mv_data->num_v) {
+      return (nullptr);
+    }
+
+    ut_ad(m_entry != nullptr);
+    dfield_t *field = dtuple_get_nth_field(m_entry, m_mv_field_no);
+    ut_ad(dfield_is_multi_value(field));
+
+    if (m_selected && (skip() == m_mv_data->num_v)) {
+      return (nullptr);
+    }
+
+    dfield_set_data(field, m_mv_data->datap[m_pos], m_mv_data->data_len[m_pos]);
+
+    ++m_pos;
+    return (m_entry);
+  }
+
+  /** Get the position of last generated multi-value data
+  @return the position */
+  uint32_t last_multi_value_position() const {
+    return (m_pos > 0 ? m_pos - 1 : 0);
+  }
+
+ protected:
+  /** Find the multi-value field from the passed in entry or row.
+  m_mv_field_no should be set once the multi-value field found.
+  @return the multi-value field pointer, or nullptr if not found */
+  virtual dfield_t *find_multi_value_field() = 0;
+
+  /** Prepare the corresponding multi-value field from the row.
+  This function will set the m_mv_data if the proper field found.
+  @return true if the multi-value field with data on index found,
+  otherwise, false */
+  virtual bool prepare_multi_value_field() {
+    dfield_t *field = find_multi_value_field();
+
+    if (field == nullptr || field->len == UNIV_NO_INDEX_VALUE) {
+      return (false);
+    }
+
+    ut_ad(m_mv_field_no > 0);
+    ut_ad(dfield_is_multi_value(field));
+
+    --m_mv_field_no;
+
+    if (!dfield_is_null(field)) {
+      m_mv_data = static_cast<multi_value_data *>(field->data);
+    }
+
+    return (true);
+  }
+
+  /** Prepare the entry when the entry is not passed in */
+  virtual void prepare_entry_if_necessary() { return; }
+
+  /** Skip the not selected values and stop m_pos at the next selected one
+  @return the next valid value position, or size of m_mv_data to indicate
+  there is no more valid value */
+  virtual uint32_t skip() {
+    ut_ad(m_mv_data != nullptr);
+    ut_ad(m_selected);
+    return (m_mv_data->num_v);
+  }
+
+ protected:
+  /** Based on which index to build the entry */
+  dict_index_t *m_index;
+
+  /** True if only the selected(bitmap set) multi-value data would be
+  used to build the entries, otherwise false. */
+  const bool m_selected;
+
+  /** Entry built for the index */
+  dtuple_t *m_entry;
+
+  /** Multi-value data position */
+  uint32_t m_pos;
+
+  /** Multi-value data */
+  const multi_value_data *m_mv_data;
+
+  /** Field number of multi-value data on the index */
+  uint32_t m_mv_field_no;
+};
+
+/** The subclass of the multi-value entry builder, for non-INSERT cases,
+With this class, there should be no need to build separate entries for
+different values in the same multi-value field. */
+class Multi_value_entry_builder_normal : public Multi_value_entry_builder {
+ public:
+  /** Constructor
+  @param[in]		row		based on which complete row to build
+                                        the index row
+  @param[in]		ext		externally stored column prefixes of
+                                        the row
+  @param[in,out]	index		multi-value index
+  @param[in,out]	heap		memory heap
+  @param[in]		check		true if type can be checked, otherwise
+                                        skip checking
+  @param[in]		selected	true if only the selected(bitmap set)
+                                        multi-value data would be used to build
+                                        the entries, otherwise false. */
+  Multi_value_entry_builder_normal(const dtuple_t *row, const row_ext_t *ext,
+                                   dict_index_t *index, mem_heap_t *heap,
+                                   bool check, bool selected)
+      : Multi_value_entry_builder(index, nullptr, selected),
+        m_row(row),
+        m_ext(ext),
+        m_heap(heap),
+        m_check(check) {}
+
+ private:
+  /** Find the multi-value field from the passed in entry or row.
+  m_mv_field_no should be set once the multi-value field found.
+  @return the multi-value field pointer, or nullptr if not found */
+  dfield_t *find_multi_value_field();
+
+  /** Prepare the entry when the entry is not passed in */
+  virtual void prepare_entry_if_necessary() {
+    if (m_check) {
+      m_entry = row_build_index_entry(m_row, m_ext, m_index, m_heap);
+    } else {
+      /* If not check, then it's basically coming from purge. And actually,
+      for multi-value index, this flag really doesn't matter. */
+      m_entry = row_build_index_entry_low(m_row, m_ext, m_index, m_heap,
+                                          ROW_BUILD_FOR_PURGE);
+    }
+  }
+
+  /** Skip the not selected values and stop m_pos at the next selected one
+  @return the next valid value position, or size of m_mv_data to indicate
+  there is no more valid value */
+  uint32_t skip() {
+    ut_ad(m_selected);
+
+    if (m_mv_data->bitset == nullptr) {
+      return (m_pos);
+    }
+
+    while (m_pos < m_mv_data->num_v && !m_mv_data->bitset->test(m_pos)) {
+      ++m_pos;
+    }
+
+    return (m_pos);
+  }
+
+ private:
+  /** Based on which complete row to build the index row */
+  const dtuple_t *m_row;
+
+  /** Externally stored column prefixes, or nullptr */
+  const row_ext_t *m_ext;
+
+  /** Memory heap */
+  mem_heap_t *m_heap;
+
+  /** True if dfield type should be checked, otherwise false */
+  const bool m_check;
+};
+
+/** The subclass of the multi-value row builder, for INSERT cases.
+It simply replace the pointers to the multi-value field data for
+each different value */
+class Multi_value_entry_builder_insert : public Multi_value_entry_builder {
+ public:
+  /** Constructor
+  @param[in,out]	index	multi-value index
+  @param[in]		entry	entry to insert based on the index */
+  Multi_value_entry_builder_insert(dict_index_t *index, dtuple_t *entry)
+      : Multi_value_entry_builder(index, entry, false) {}
+
+ private:
+  /** Find the multi-value field from the passed entry in or row.
+  m_mv_field_no should be set once the multi-value field found.
+  @return the multi-value field pointer, or nullptr if not found */
+  dfield_t *find_multi_value_field() {
+    uint16_t i = 0;
+    dfield_t *field = nullptr;
+
+    ut_ad(m_entry != nullptr);
+
+    m_mv_field_no = 0;
+    for (; i < m_entry->n_fields; ++i) {
+      field = &m_entry->fields[i];
+      if (!dfield_is_multi_value(field)) {
+        continue;
+      }
+
+      m_mv_field_no = i + 1;
+      break;
+    }
+
+    return (i == m_entry->n_fields ? nullptr : field);
+  }
+};
 
 #include "row0row.ic"
 

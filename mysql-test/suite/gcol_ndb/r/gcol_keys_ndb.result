@@ -143,9 +143,9 @@ f1	gc
 9	10
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	15	100.00	Using pushed condition (`test`.`t1`.`gc` > 7); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) > 7)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` > 7)
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
@@ -186,6 +186,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
           },
           {
             "substitute_generated_columns": {
+              "resulting_condition": "(`t1`.`gc` > 7)"
             } /* substitute_generated_columns */
           },
           {
@@ -207,10 +208,70 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
             "rows_estimation": [
               {
                 "table": "`t1`",
-                "table_scan": {
-                  "rows": 10,
-                  "cost": 2500
-                } /* table_scan */
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 10,
+                    "cost": 2503.1
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "gc"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "setup_range_conditions": [
+                  ] /* setup_range_conditions */,
+                  "group_index_range": {
+                    "chosen": false,
+                    "cause": "not_group_by_or_distinct"
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "potential_skip_scan_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "query_references_nonkey_column"
+                      }
+                    ] /* potential_skip_scan_indexes */
+                  } /* skip_scan_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                      {
+                        "index": "PRIMARY",
+                        "ranges": [
+                          "7 < gc"
+                        ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": true,
+                        "index_only": false,
+                        "rows": 15,
+                        "cost": 5.51,
+                        "chosen": true
+                      }
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "PRIMARY",
+                      "rows": 15,
+                      "ranges": [
+                        "7 < gc"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 15,
+                    "cost_for_plan": 5.51,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
+                } /* range_analysis */
               }
             ] /* rows_estimation */
           },
@@ -223,33 +284,36 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "rows_to_scan": 10,
+                      "rows_to_scan": 15,
                       "filtering_effect": [
                       ] /* filtering_effect */,
                       "final_filtering_effect": 1,
-                      "access_type": "scan",
-                      "resulting_rows": 10,
-                      "cost": 2501,
+                      "access_type": "range",
+                      "range_details": {
+                        "used_index": "PRIMARY"
+                      } /* range_details */,
+                      "resulting_rows": 15,
+                      "cost": 7.01,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 10,
-                "cost_for_plan": 2501,
+                "rows_for_plan": 15,
+                "cost_for_plan": 7.01,
                 "chosen": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`f1` + 1) > 7)",
+              "original_condition": "(`t1`.`gc` > 7)",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`f1` + 1) > 7)"
+                  "attached": "(`t1`.`gc` > 7)"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -258,8 +322,8 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
             "finalizing_table_conditions": [
               {
                 "table": "`t1`",
-                "original_table_condition": "((`t1`.`f1` + 1) > 7)",
-                "final_table_condition   ": "((`t1`.`f1` + 1) > 7)"
+                "original_table_condition": "(`t1`.`gc` > 7)",
+                "final_table_condition   ": "(`t1`.`gc` > 7)"
               }
             ] /* finalizing_table_conditions */
           },
@@ -287,18 +351,18 @@ f1	gc
 6	7
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) = 7)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` = 7)
 SELECT * FROM t1 WHERE f1 + 1 IN (7,5);
 f1	gc
 4	5
 6	7
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 IN(7,5);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t1`.`gc` in (7,5)); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) in (7,5))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` in (7,5))
 SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
 f1	gc
 4	5
@@ -306,9 +370,9 @@ f1	gc
 6	7
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 BETWEEN 5 AND 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using pushed condition (`test`.`t1`.`gc` between 5 and 7); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) between 5 and 7)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` where (`test`.`t1`.`gc` between 5 and 7)
 # Check that expression isn't transformed for a disabled key
 SELECT * FROM t1 IGNORE KEY FOR JOIN(PRIMARY) WHERE f1 + 1 BETWEEN 5 AND 7;
 f1	gc
@@ -335,9 +399,9 @@ f1	gc
 9	10
 EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by (`test`.`t1`.`f1` + 1)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc` AS `gc` from `test`.`t1` order by `test`.`t1`.`gc`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
@@ -358,6 +422,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
         "steps": [
           {
             "substitute_generated_columns": {
+              "resulting_ORDER_BY": "`t1`.`gc`"
             } /* substitute_generated_columns */
           },
           {
@@ -428,16 +493,31 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
           {
             "optimizing_distinct_group_by_order_by": {
               "simplifying_order_by": {
-                "original_clause": "(`t1`.`f1` + 1)",
+                "original_clause": "`t1`.`gc`",
                 "items": [
                   {
-                    "item": "(`t1`.`f1` + 1)"
+                    "item": "`t1`.`gc`"
                   }
                 ] /* items */,
                 "resulting_clause_is_simple": true,
-                "resulting_clause": "(`t1`.`f1` + 1)"
+                "resulting_clause": "`t1`.`gc`"
               } /* simplifying_order_by */
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "reconsidering_access_paths_for_index_ordering": {
+              "clause": "ORDER BY",
+              "steps": [
+              ] /* steps */,
+              "index_order_summary": {
+                "table": "`t1`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "PRIMARY",
+                "plan_changed": true,
+                "access_type": "index"
+              } /* index_order_summary */
+            } /* reconsidering_access_paths_for_index_ordering */
           },
           {
             "finalizing_table_conditions": [
@@ -452,9 +532,6 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
           },
           {
             "considering_tmp_tables": [
-              {
-                "adding_sort_to_table_in_plan_at_position": 0
-              } /* filesort */
             ] /* considering_tmp_tables */
           }
         ] /* steps */
@@ -489,9 +566,9 @@ f1 + 1	MAX(GC)
 9	9
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	PRIMARY	PRIMARY	4	NULL	10	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by (`test`.`t1`.`f1` + 1)
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` + 1) AS `f1 + 1`,max(`test`.`t1`.`gc`) AS `MAX(GC)` from `test`.`t1` group by `test`.`t1`.`gc`
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
@@ -512,6 +589,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
         "steps": [
           {
             "substitute_generated_columns": {
+              "resulting_GROUP_BY": "`t1`.`gc`"
             } /* substitute_generated_columns */
           },
           {
@@ -529,10 +607,40 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
             "rows_estimation": [
               {
                 "table": "`t1`",
-                "table_scan": {
-                  "rows": 10,
-                  "cost": 2500
-                } /* table_scan */
+                "const_keys_added": {
+                  "keys": [
+                    "PRIMARY"
+                  ] /* keys */,
+                  "cause": "group_by"
+                } /* const_keys_added */,
+                "range_analysis": {
+                  "table_scan": {
+                    "rows": 10,
+                    "cost": 2503.1
+                  } /* table_scan */,
+                  "potential_range_indexes": [
+                    {
+                      "index": "PRIMARY",
+                      "usable": true,
+                      "key_parts": [
+                        "gc"
+                      ] /* key_parts */
+                    }
+                  ] /* potential_range_indexes */,
+                  "group_index_range": {
+                    "potential_group_range_indexes": [
+                      {
+                        "index": "PRIMARY",
+                        "usable": false,
+                        "cause": "not_covering"
+                      }
+                    ] /* potential_group_range_indexes */
+                  } /* group_index_range */,
+                  "skip_scan_range": {
+                    "chosen": false,
+                    "cause": "has_group_by"
+                  } /* skip_scan_range */
+                } /* range_analysis */
               }
             ] /* rows_estimation */
           },
@@ -582,16 +690,31 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
           {
             "optimizing_distinct_group_by_order_by": {
               "simplifying_group_by": {
-                "original_clause": "(`t1`.`f1` + 1)",
+                "original_clause": "`t1`.`gc`",
                 "items": [
                   {
-                    "item": "(`t1`.`f1` + 1)"
+                    "item": "`t1`.`gc`"
                   }
                 ] /* items */,
                 "resulting_clause_is_simple": true,
-                "resulting_clause": "(`t1`.`f1` + 1)"
+                "resulting_clause": "`t1`.`gc`"
               } /* simplifying_group_by */
             } /* optimizing_distinct_group_by_order_by */
+          },
+          {
+            "reconsidering_access_paths_for_index_ordering": {
+              "clause": "GROUP BY",
+              "steps": [
+              ] /* steps */,
+              "index_order_summary": {
+                "table": "`t1`",
+                "index_provides_order": true,
+                "order_direction": "asc",
+                "index": "PRIMARY",
+                "plan_changed": true,
+                "access_type": "index"
+              } /* index_order_summary */
+            } /* reconsidering_access_paths_for_index_ordering */
           },
           {
             "finalizing_table_conditions": [
@@ -606,10 +729,6 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
           },
           {
             "considering_tmp_tables": [
-              {
-                "adding_tmp_table_in_plan_at_position": 1,
-                "write_method": "continuously_update_group_row"
-              }
             ] /* considering_tmp_tables */
           }
         ] /* steps */
@@ -670,17 +789,21 @@ f1	gc_int	gc_date
 # INT column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 070707;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	gc_int_idx	gc_int_idx	5	NULL	2	100.00	Using pushed condition (`test`.`t1`.`gc_int` > 70707); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) > 70707)
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where (`test`.`t1`.`gc_int` > 70707)
 SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
 f1	gc_int	gc_date
+101010	101011	2010-10-11
+70707	70708	2007-07-08
+80808	80809	2008-08-09
+90909	90910	2009-09-10
 # DATE column & index should be picked
 EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > CAST(070707 AS DATE);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	range	gc_date_idx	gc_date_idx	4	NULL	2	100.00	Using pushed condition (`test`.`t1`.`gc_date` > <cache>(cast(70707 as date))); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where ((`test`.`t1`.`f1` + 1) > <cache>(cast(70707 as date)))
+Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,`test`.`t1`.`gc_int` AS `gc_int`,`test`.`t1`.`gc_date` AS `gc_date` from `test`.`t1` where (`test`.`t1`.`gc_date` > <cache>(cast(70707 as date)))
 DROP TABLE t1;
 #
 # BUG#21229846: WL8170: SIGNAL 11 IN JOIN::MAKE_SUM_FUNC_LIST
@@ -707,7 +830,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using temporary; Using filesort
 1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.table1.pk	1	100.00	Child of 'table1' in pushed join@1
 Warnings:
-Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) order by `field1`,`field2`
+Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) order by `col_int_gc_key`,`field2`
 SELECT  table1.col_int_key + 1 AS field1, table2.col_int_key AS field2
 FROM (t1 AS table1  JOIN t1 AS table2 ON (table2.pk = table1.pk))
 GROUP BY field1, field2;
@@ -720,7 +843,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using temporary
 1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.table1.pk	1	100.00	Child of 'table1' in pushed join@1
 Warnings:
-Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) group by `field1`,`field2`
+Note	1003	/* select#1 */ select (`test`.`table1`.`col_int_key` + 1) AS `field1`,`test`.`table2`.`col_int_key` AS `field2` from `test`.`t1` `table1` join `test`.`t1` `table2` where (`test`.`table2`.`pk` = `test`.`table1`.`pk`) group by `col_int_gc_key`,`field2`
 DROP TABLE t1;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
@@ -741,33 +864,33 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN SELECT a, b FROM t WHERE (a AND b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_and	gc_and	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` = 1)
 SELECT a, b FROM t WHERE (a AND b) = 1;
 a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE 1 = (a AND b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_and	gc_and	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = ((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = `test`.`t`.`gc_and`)
 SELECT a, b FROM t WHERE 1 = (a AND b);
 a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc_and	gc_and	5	NULL	6	100.00	Using pushed condition (`test`.`t`.`gc_and` in (1,2,3)); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) in (1,2,3))
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_and` in (1,2,3))
 SELECT a, b FROM t WHERE (a AND b) IN (1, 2, 3);
 a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a OR b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_or	gc_or	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) or (0 <> `test`.`t`.`b`)) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` = 1)
 SELECT a, b FROM t WHERE (a OR b) = 1;
 a	b
 0	1
@@ -775,9 +898,9 @@ a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc_or	gc_or	5	NULL	2	100.00	Using pushed condition (`test`.`t`.`gc_or` between 1 and 10); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) or (0 <> `test`.`t`.`b`)) between 1 and 10)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_or` between 1 and 10)
 SELECT a, b FROM t WHERE (a OR b) BETWEEN 1 AND 10;
 a	b
 0	1
@@ -785,27 +908,27 @@ a	b
 1	1
 EXPLAIN SELECT a, b FROM t WHERE (a XOR b) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_xor	gc_xor	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (((0 <> `test`.`t`.`a`) xor (0 <> `test`.`t`.`b`)) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (`test`.`t`.`gc_xor` = 1)
 SELECT a, b FROM t WHERE (a XOR b) = 1;
 a	b
 0	1
 1	0
 EXPLAIN SELECT a FROM t WHERE (NOT a) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_not	gc_not	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((0 = `test`.`t`.`a`) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_not` = 1)
 SELECT a FROM t WHERE (NOT a) = 1;
 a
 0
 0
 EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc_case	gc_case	5	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where ((case when ((0 <> `test`.`t`.`a`) and (0 <> `test`.`t`.`b`)) then `test`.`t`.`a` else `test`.`t`.`b` end) = 1)
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a` from `test`.`t` where (`test`.`t`.`gc_case` = 1)
 SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 a
 0
@@ -871,9 +994,9 @@ Table	Op	Msg_type	Msg_text
 test.employees	analyze	status	OK
 EXPLAIN SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	employees	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	employees	p0,p1,p2,p3,p4,p5,p6,p7	ref	name_idx2	name_idx2	123	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (json_extract(`test`.`employees`.`data`,'$.name') = 'Jane')
+Note	1003	/* select#1 */ select `test`.`employees`.`data` AS `data`,`test`.`employees`.`name1` AS `name1`,`test`.`employees`.`name2` AS `name2` from `test`.`employees` where (`test`.`employees`.`name2` = 'Jane')
 SELECT * FROM employees WHERE JSON_EXTRACT(data, '$.name') = 'Jane';
 data	name1	name2
 {"id": 1, "name": "Jane"}	"Jane"	Jane
@@ -889,9 +1012,9 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN UPDATE t SET b = 10 WHERE (a+1) = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc	gc	5	const	2	100.00	Using where; Using pushed condition (`test`.`t`.`gc` = 3); Using MRR
 Warnings:
-Note	1003	update `test`.`t` set `test`.`t`.`b` = 10 where ((`test`.`t`.`a` + 1) = 3)
+Note	1003	update `test`.`t` set `test`.`t`.`b` = 10 where (`test`.`t`.`gc` = 3)
 UPDATE t SET b = 10 WHERE (a+1) = 3;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -910,9 +1033,9 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
+1	UPDATE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	gc	5	NULL	1	100.00	Using temporary
 Warnings:
-Note	1003	update `test`.`t` set `test`.`t`.`b` = 9 order by (`test`.`t`.`a` + 1) limit 1
+Note	1003	update `test`.`t` set `test`.`t`.`b` = 9 order by `test`.`t`.`gc` limit 1
 UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -931,9 +1054,9 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN DELETE FROM t WHERE (a+1) = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc	gc	5	const	2	100.00	Using where; Using pushed condition (`test`.`t`.`gc` = 2); Using MRR
 Warnings:
-Note	1003	delete from `test`.`t` where ((`test`.`t`.`a` + 1) = 2)
+Note	1003	delete from `test`.`t` where (`test`.`t`.`gc` = 2)
 DELETE FROM t WHERE (a+1) = 2;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -950,9 +1073,9 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN DELETE FROM t ORDER BY (a+1) LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	Using filesort
+1	DELETE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	gc	5	NULL	1	100.00	NULL
 Warnings:
-Note	1003	delete from `test`.`t` order by (`test`.`t`.`a` + 1) limit 1
+Note	1003	delete from `test`.`t` order by `test`.`t`.`gc` limit 1
 DELETE FROM t ORDER BY (a+1) LIMIT 1;
 SELECT * FROM t ORDER BY a, b;
 a	b	gc
@@ -1009,25 +1132,25 @@ Table	Op	Msg_type	Msg_text
 test.t	analyze	status	OK
 EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cba';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc	gc	403	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) = 'cba')
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cba')
 SELECT * FROM t WHERE REVERSE(vc) = 'cba';
 vc	gc
 abc	cba
 EXPLAIN SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ref	gc	gc	403	const	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) = 'cbacba')
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` = 'cbacba')
 SELECT * FROM t WHERE REVERSE(vc) = 'cbacba';
 vc	gc
 abcabc	cbacba
 EXPLAIN SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	range	gc	gc	403	NULL	2	100.00	Using pushed condition (`test`.`t`.`gc` between 'c' and 'e'); Using MRR
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (reverse(`test`.`t`.`vc`) between 'c' and 'e')
+Note	1003	/* select#1 */ select `test`.`t`.`vc` AS `vc`,`test`.`t`.`gc` AS `gc` from `test`.`t` where (`test`.`t`.`gc` between 'c' and 'e')
 SELECT * FROM t WHERE REVERSE(vc) BETWEEN 'c' AND 'e';
 vc	gc
 abc	cba

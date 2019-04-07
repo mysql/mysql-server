@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -400,6 +400,10 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
 @retval positive if data1 is greater than data2 */
 inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
                     ulint len1, const byte *data2, ulint len2) {
+  ut_ad(!(prtype & DATA_MULTI_VALUE) ||
+        (len1 != UNIV_MULTI_VALUE_ARRAY_MARKER && len1 != UNIV_NO_INDEX_VALUE &&
+         len2 != UNIV_MULTI_VALUE_ARRAY_MARKER && len2 != UNIV_NO_INDEX_VALUE));
+
   if (len1 == UNIV_SQL_NULL || len2 == UNIV_SQL_NULL) {
     if (len1 == len2) {
       return (0);
@@ -694,12 +698,28 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
 
     ut_ad(!dfield_is_ext(dtuple_field));
 
-    /* For now, change buffering is only supported on
-    indexes with ascending order on the columns. */
-    ret = cmp_data(
-        type->mtype, type->prtype,
-        dict_index_is_ibuf(index) || index->get_field(cur_field)->is_ascending,
-        dtuple_b_ptr, dtuple_f_len, rec_b_ptr, rec_f_len);
+    if (dfield_is_multi_value(dtuple_field) &&
+        (dtuple_f_len == UNIV_MULTI_VALUE_ARRAY_MARKER ||
+         dtuple_f_len == UNIV_NO_INDEX_VALUE)) {
+      /* If it's the value parsed from the array, or NULL, then
+      the calculation can be done in a normal way in the else branch */
+      ut_ad(index->is_multi_value());
+      if (dtuple_f_len == UNIV_NO_INDEX_VALUE) {
+        ret = 1;
+      } else {
+        multi_value_data *mv_data =
+            static_cast<multi_value_data *>(dtuple_field->data);
+        ret = mv_data->has(type, rec_b_ptr, rec_f_len) ? 0 : 1;
+      }
+    } else {
+      /* For now, change buffering is only supported on
+      indexes with ascending order on the columns. */
+      ret = cmp_data(type->mtype, type->prtype,
+                     dict_index_is_ibuf(index) ||
+                         index->get_field(cur_field)->is_ascending,
+                     dtuple_b_ptr, dtuple_f_len, rec_b_ptr, rec_f_len);
+    }
+
     if (ret) {
       goto order_resolved;
     }
@@ -840,6 +860,8 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
         }
         /* fall through */
       default:
+        ut_ad(!(dfield_is_multi_value(dfield) &&
+                dtuple_f_len == UNIV_MULTI_VALUE_ARRAY_MARKER));
         ret = cmp_data(type->mtype, type->prtype, is_ascending, dtuple_b_ptr,
                        dtuple_f_len, rec_b_ptr, rec_f_len);
 

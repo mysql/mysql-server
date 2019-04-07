@@ -645,6 +645,14 @@ class ha_innobase : public handler {
                                        bool commit, const Table *old_dd_tab,
                                        Table *new_dd_tab);
 
+  /**
+    Return max limits for a single set of multi-valued keys
+
+    @param[out]  num_keys      number of keys to store
+    @param[out]  keys_length   total length of keys, bytes
+  */
+  void mv_key_capacity(uint *num_keys, size_t *keys_length) const override;
+
   /** The multi range read session object */
   DsMrr_impl m_ds_mrr;
 
@@ -1188,11 +1196,18 @@ void innodb_base_col_setup(dict_table_t *table, const Field *field,
 void innodb_base_col_setup_for_stored(const dict_table_t *table,
                                       const Field *field, dict_s_col_t *s_col);
 
-/** whether this ia stored column */
+/** whether this is a stored column */
 #define innobase_is_s_fld(field) ((field)->gcol_info && (field)->stored_in_db)
 
 /** whether this is a computed virtual column */
 #define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
+
+/** Whether this is a computed multi-value virtual column.
+This condition check should be equal to the following one:
+(innobase_is_v_fld(field) && (field)->gcol_info->expr_item &&
+ field->gcol_info->expr_item->returns_array())
+*/
+#define innobase_is_multi_value_fld(field) (field->is_array())
 
 /** Always normalize table name to lower case on Windows */
 #ifdef _WIN32

@@ -52,6 +52,7 @@
 #include "sql/aggregate_check.h"  // Distinct_check
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
+#include "sql/derror.h"       // ER_THD
 #include "sql/error_handler.h"
 #include "sql/field.h"
 #include "sql/histograms/histogram.h"
@@ -4093,6 +4094,43 @@ cmp_item *cmp_item_real::make_same() {
 
 cmp_item *cmp_item_row::make_same() { return new (*THR_MALLOC) cmp_item_row(); }
 
+cmp_item *cmp_item_json::make_same() {
+  return new (*THR_MALLOC) cmp_item_json();
+}
+
+int cmp_item_json::compare(const cmp_item *ci) const {
+  const cmp_item_json *l_cmp = down_cast<const cmp_item_json *>(ci);
+  return m_value.compare(l_cmp->m_value);
+}
+
+void cmp_item_json::store_value(Item *item) {
+  bool err = false;
+  if (item->data_type() == MYSQL_TYPE_JSON)
+    err = item->val_json(&m_value);
+  else {
+    String tmp;
+    err = get_json_atom_wrapper(&item, 0, "IN", &m_str_value, &tmp, &m_value,
+                                &m_holder, true);
+  }
+  set_null_value(err || item->null_value);
+}
+
+int cmp_item_json::cmp(Item *arg) {
+  Json_wrapper wr;
+
+  if (m_null_value) return UNKNOWN;
+
+  if (arg->data_type() == MYSQL_TYPE_JSON) {
+    if (arg->val_json(&wr) || arg->null_value) return UNKNOWN;
+  } else {
+    String tmp, str;
+    if (get_json_atom_wrapper(&arg, 0, "IN", &str, &tmp, &wr, &m_itm_holder,
+                              true))
+      return UNKNOWN; /* purecov: inspected */
+  }
+  return m_value.compare(wr) ? 1 : 0;
+}
+
 cmp_item_row::~cmp_item_row() {
   DBUG_ENTER("~cmp_item_row");
   DBUG_PRINT("enter", ("this: %p", this));
@@ -4479,10 +4517,14 @@ bool Item_func_in::resolve_type(THD *thd) {
   uint found_types = 0;
   uint type_cnt = 0, i;
   Item_result cmp_type = STRING_RESULT;
+  bool compare_as_json = (args[0]->data_type() == MYSQL_TYPE_JSON);
+
   left_result_type = args[0]->result_type();
   if (!(found_types = collect_cmp_types(args, arg_count, true))) return true;
 
   for (arg = args + 1, arg_end = args + arg_count; arg != arg_end; arg++) {
+    compare_as_json |= (arg[0]->data_type() == MYSQL_TYPE_JSON);
+
     if (!arg[0]->const_item()) {
       const_itm = false;
       if (arg[0]->real_item()->type() == Item::SUBSELECT_ITEM)
@@ -4498,12 +4540,26 @@ bool Item_func_in::resolve_type(THD *thd) {
   }
 
   /*
+    Set cmp_context of all arguments. This prevents
+    Item_field::equal_fields_propagator() from transforming a zerofill integer
+    argument into a string constant. Such a change would require rebuilding
+    cmp_items.
+   */
+  for (arg = args + 1, arg_end = args + arg_count; arg != arg_end; arg++) {
+    arg[0]->cmp_context =
+        item_cmp_type(left_result_type, arg[0]->result_type());
+  }
+  max_length = 1;
+
+  /*
     First conditions for bisection to be possible:
      1. All types are similar, and
      2. All expressions in <in value list> are const
+     3. No JSON is compared (in such case universal JSON comparator is used)
   */
-  bool bisection_possible = type_cnt == 1 &&  // 1
-                            const_itm;        // 2
+  bool bisection_possible = type_cnt == 1 &&   // 1
+                            const_itm &&       // 2
+                            !compare_as_json;  // 3
   if (bisection_possible) {
     /*
       In the presence of NULLs, the correct result of evaluating this item
@@ -4521,17 +4577,7 @@ bool Item_func_in::resolve_type(THD *thd) {
       bisection_possible = false;
   }
 
-  /*
-    JSON values will be compared as strings, and not with the JSON
-    comparator as one might expect. Raise a warning if one of the
-    arguments is JSON. (The degenerate case x IN (y) may get rewritten
-    to x = y, though, and then the JSON comparator will be used if one
-    of the arguments is JSON.)
-  */
-  unsupported_json_comparison(arg_count, args,
-                              "comparison of JSON in the IN operator");
-
-  if (type_cnt == 1) {
+  if (type_cnt == 1 && !compare_as_json) {
     if (cmp_type == STRING_RESULT &&
         agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
       return true;
@@ -4552,6 +4598,8 @@ bool Item_func_in::resolve_type(THD *thd) {
     /* All DATE/DATETIME fields/functions has the STRING result type. */
     if (cmp_type == STRING_RESULT || cmp_type == ROW_RESULT) {
       uint col, cols = args[0]->cols();
+      // Proper JSON comparison isn't yet supported if JSON is within a ROW
+      bool json_row_warning_printed = (cols > 1) ? false : true;
 
       for (col = 0; col < cols; col++) {
         bool skip_column = false;
@@ -4563,9 +4611,22 @@ bool Item_func_in::resolve_type(THD *thd) {
           Item *itm =
               ((cmp_type == STRING_RESULT) ? arg[0]
                                            : arg[0]->element_index(col));
-          if (itm->result_type() != STRING_RESULT) {
+          if (itm->data_type() == MYSQL_TYPE_JSON &&
+              !json_row_warning_printed) {
+            json_row_warning_printed = true;
+            push_warning_printf(
+                current_thd, Sql_condition::SL_WARNING, ER_NOT_SUPPORTED_YET,
+                ER_THD(current_thd, ER_NOT_SUPPORTED_YET),
+                "comparison of JSON within a ROW in the IN operator");
+          }
+          if (itm->result_type() != STRING_RESULT || skip_column) {
             skip_column = true;
-            break;
+            // If the warning wasn't printed yet, we need to continue scaning
+            // through args to check whether one of them is JSON
+            if (json_row_warning_printed)
+              break;
+            else
+              continue;
           } else if (itm->is_temporal_with_date()) {
             datetime_found = true;
             /*
@@ -4681,7 +4742,15 @@ bool Item_func_in::resolve_type(THD *thd) {
     have_null = array->fill(args + 1, arg_count - 1);
 
   } else {
-    if (compare_as_datetime) {
+    if (compare_as_json) {
+      // Use JSON comparator for all comparison types
+      for (i = 0; i <= (uint)DECIMAL_RESULT; i++) {
+        if (found_types & (1U << i) && !cmp_items[i]) {
+          if (!(cmp_items[i] = new (thd->mem_root) cmp_item_json()))
+            return true; /* purecov: inspected */
+        }
+      }
+    } else if (compare_as_datetime) {
       if (!(cmp_items[STRING_RESULT] =
                 new (thd->mem_root) cmp_item_datetime(date_arg)))
         return true;
@@ -4701,18 +4770,6 @@ bool Item_func_in::resolve_type(THD *thd) {
   }
   Opt_trace_object(&thd->opt_trace)
       .add("IN_uses_bisection", bisection_possible);
-  /*
-    Set cmp_context of all arguments. This prevents
-    Item_field::equal_fields_propagator() from transforming a zerofill integer
-    argument into a string constant. Such a change would require rebuilding
-    cmp_itmes.
-   */
-  for (arg = args + 1, arg_end = args + arg_count; arg != arg_end; arg++) {
-    arg[0]->cmp_context =
-        item_cmp_type(left_result_type, arg[0]->result_type());
-  }
-  max_length = 1;
-
   return false;
 }
 

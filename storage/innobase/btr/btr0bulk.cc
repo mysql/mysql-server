@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -210,7 +210,9 @@ void PageBulk::insert(const rec_t *rec, ulint *offsets) {
     ulint *old_offsets =
         rec_get_offsets(old_rec, m_index, nullptr, ULINT_UNDEFINED, &m_heap);
 
-    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index) > 0);
+    ut_ad(cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index) > 0 ||
+          (m_index->is_multi_value() &&
+           cmp_rec_rec(rec, old_rec, offsets, old_offsets, m_index) >= 0));
   }
 
   m_total_data += rec_size;

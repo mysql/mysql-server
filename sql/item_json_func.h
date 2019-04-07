@@ -40,6 +40,7 @@
 #include "sql/item.h"
 #include "sql/item_func.h"
 #include "sql/item_strfunc.h"    // Item_str_func
+#include "sql/json_dom.h"        // Json_array
 #include "sql/json_path.h"       // Json_path
 #include "sql/mem_root_array.h"  // Mem_root_array
 #include "sql/parse_tree_node_base.h"
@@ -150,9 +151,6 @@ class Item_json_func : public Item_func {
 
   // Cache for constant path expressions
   Json_path_cache m_path_cache;
-
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
 
   /**
     Target column for partial update, if this function is used in an
@@ -372,6 +370,9 @@ class Item_func_json_contains final : public Item_int_func {
       : Item_int_func(pos, a), m_path_cache(thd, arg_count) {}
 
   const char *func_name() const override { return "json_contains"; }
+  enum Functype functype() const override { return JSON_CONTAINS; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
 
   bool is_bool_func() const override { return true; }
 
@@ -384,6 +385,10 @@ class Item_func_json_contains final : public Item_int_func {
 
   /** Cleanup between executions of the statement */
   void cleanup() override;
+
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0] || arg == args[1]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
 };
 
 /**
@@ -415,6 +420,10 @@ class Item_func_json_contains_path final : public Item_int_func {
 
   /** Cleanup between executions of the statement */
   void cleanup() override;
+
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
 };
 
 /**
@@ -823,12 +832,108 @@ class Item_func_json_storage_free final : public Item_int_func {
   longlong val_int() override;
 };
 
+enum Cast_target : unsigned char;
+/**
+  Class that represents CAST(<expr> AS <type> ARRAY)
+*/
+
+class Item_func_array_cast final : public Item_func {
+  /// Type to cast to
+  Cast_target cast_type;
+  const CHARSET_INFO *cs;
+  /**
+    Whether use of CAST(.. AS .. ARRAY) is allowed
+
+    Currently use of CAST(.. AS .. ARRAY) is limited only to CREATE
+    TABLE/INDEX. In all other cases an error is thrown. This flag is set to
+    true only for allowed cases to ensure allowed function usage.
+  */
+  bool m_is_allowed{false};
+
+ public:
+  Item_func_array_cast(const POS &pos, Item *a, Cast_target type, uint len_arg,
+                       uint dec_arg, const CHARSET_INFO *cs_arg);
+  const char *func_name() const override { return "cast"; }
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  bool returns_array() const override { return true; }
+  bool val_json(Json_wrapper *wr) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  enum Item_result result_type() const override;
+  bool resolve_type(THD *) override;
+  Field *tmp_table_field(TABLE *table) override;
+  bool fix_fields(THD *thd, Item **ref) override;
+  void cleanup() override;
+  void allow_array_cast() override { m_is_allowed = true; }
+  // Regular val_x() funcs shouldn't be called
+  /* purecov: begin inspected */
+  longlong val_int() override  // For tests only
+  {
+    DBUG_ASSERT(0);
+    return 0;  // For tests only
+  }
+  String *val_str(String *) override {
+    DBUG_ASSERT(0);
+    return NULL;  // For tests only
+  }
+  my_decimal *val_decimal(my_decimal *) override {
+    DBUG_ASSERT(0);  // For tests only
+    return NULL;
+  }
+  virtual double val_real() override {
+    DBUG_ASSERT(0);
+    return 0;
+  }
+  virtual bool get_date(MYSQL_TIME *, my_time_flags_t) override {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  virtual bool get_time(MYSQL_TIME *) override {
+    DBUG_ASSERT(0);
+    return true;
+  }
+  /* purecov: end */
+};
+
+class Item_func_json_overlaps : public Item_bool_func {
+ public:
+  Item_func_json_overlaps(const POS &pos, Item *a, Item *b)
+      : Item_bool_func(pos, a, b) {}
+  const char *func_name() const override { return "json_overlaps"; }
+  enum Functype functype() const override { return JSON_OVERLAPS; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  longlong val_int() override;
+  Item *key_item() const override;
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[0] || arg == args[1]) ? CACHE_JSON_VALUE : CACHE_NONE;
+  }
+};
+
+class Item_func_member_of : public Item_bool_func {
+ public:
+  Item_func_member_of(const POS &pos, Item *a, Item *b)
+      : Item_bool_func(pos, a, b) {}
+  const char *func_name() const override { return "member of"; }
+  enum Functype functype() const override { return MEMBER_OF_FUNC; }
+  bool gc_subst_analyzer(uchar **) override { return true; }
+  optimize_type select_optimize(const THD *) override { return OPTIMIZE_KEY; }
+  longlong val_int() override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  Item *key_item() const override { return args[1]; }
+  enum_const_item_cache can_cache_json_arg(Item *arg) override {
+    return (arg == args[1]) ? CACHE_JSON_VALUE
+                            : ((arg == args[0]) ? CACHE_JSON_ATOM : CACHE_NONE);
+  }
+};
+
 /**
   Turn a GEOMETRY value into a JSON value per the GeoJSON specification
   revison 1.0. This method is implemented in item_geofunc.cc.
 
   @param[in,out] wr The wrapper to be stuffed with the JSON value.
-  @param[in]     geometry_arg The source GEOMETRY value.
+  @param[in]     swkb The source GEOMETRY value.
   @param[in]     calling_function Name of user-invoked function (for errors)
   @param[in]     max_decimal_digits See the user documentation for ST_AsGeoJSON.
   @param[in]     add_bounding_box See the user documentation for ST_AsGeoJSON.
@@ -839,7 +944,7 @@ class Item_func_json_storage_free final : public Item_int_func {
 
   @return false if the conversion succeeds, true otherwise
 */
-bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
+bool geometry_to_json(Json_wrapper *wr, String *swkb,
                       const char *calling_function, int max_decimal_digits,
                       bool add_bounding_box, bool add_short_crs_urn,
                       bool add_long_crs_urn, uint32 *geometry_srid);
@@ -885,4 +990,11 @@ using Json_dom_ptr = std::unique_ptr<Json_dom>;
 bool parse_json(const String &res, uint arg_idx, const char *func_name,
                 Json_dom_ptr *dom, bool require_str_or_json, bool *parse_error);
 
+typedef Prealloced_array<size_t, 16> Sorted_index_array;
+bool sort_and_remove_dups(const Json_wrapper &orig, Sorted_index_array *v);
+
+enum class enum_jtc_on : uint16;
+bool save_json_to_field(THD *thd, Field *field, enum_jtc_on m_on_error,
+                        const Json_wrapper *w, enum_check_fields warn,
+                        bool set_field_null = false);
 #endif /* ITEM_JSON_FUNC_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,26 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
 
 inline int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d,
                              int prec, int scale) {
-  return d->check_result(mask, bin2decimal(bin, d, prec, scale));
+  return d->check_result(mask, bin2decimal(bin, d, prec, scale, false));
+}
+
+/**
+  Decode DECIMAL from binary form
+
+  @param mask       Error mask
+  @param bin        Binary string to decode
+  @param d [out]    DECIMAL buffer
+  @param prec       Precision of stored value
+  @param scale      Scale of stored value
+  @param keep_prec  Whether to keep stored value's precision
+
+  @returns
+    conversion error
+*/
+
+inline int binary2my_decimal(uint mask, const uchar *bin, my_decimal *d,
+                             int prec, int scale, bool keep_prec) {
+  return d->check_result(mask, bin2decimal(bin, d, prec, scale, keep_prec));
 }
 
 inline int my_decimal_set_zero(my_decimal *d) {

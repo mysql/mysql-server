@@ -2640,7 +2640,7 @@ String *Item_field::val_str(String *str) {
 
 bool Item_field::val_json(Json_wrapper *result) {
   DBUG_ASSERT(fixed);
-  DBUG_ASSERT(data_type() == MYSQL_TYPE_JSON);
+  DBUG_ASSERT(data_type() == MYSQL_TYPE_JSON || returns_array());
   null_value = field->is_null();
   if (null_value) return false;
   return down_cast<Field_json *>(field)->val_json(result);
@@ -5924,13 +5924,37 @@ type_conversion_status Item::save_in_field(Field *field, bool no_conversions) {
 
 type_conversion_status Item::save_in_field_inner(Field *field,
                                                  bool no_conversions) {
+  // Array of any type is stored as JSON
+  if (returns_array()) {
+    Field_typed_array *fld = down_cast<Field_typed_array *>(field);
+    Json_wrapper wr;
+    if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+
+    if (null_value) return set_field_to_null(fld);
+
+    fld->set_notnull();
+    return fld->store_json(&wr);
+  }
+
   if (result_type() == STRING_RESULT) {
     const enum Type typ = type();
 
     if (typ == FUNC_ITEM || typ == SUBSELECT_ITEM) {
       enum_field_types ft = data_type();
-
+      // Avoid JSON dom/binary serialization to/from string
       if (ft == MYSQL_TYPE_JSON) {
+        if (field->type() == MYSQL_TYPE_JSON) {
+          // Store the value in the JSON binary format.
+          Field_json *f = down_cast<Field_json *>(field);
+          Json_wrapper wr;
+          if (val_json(&wr)) return TYPE_ERR_BAD_VALUE;
+
+          if (null_value) return set_field_to_null(field);
+
+          field->set_notnull();
+          return f->store_json(&wr);
+        }
+
         if (field->is_temporal()) {
           MYSQL_TIME t;
           if (get_time(&t)) {
@@ -6703,8 +6727,8 @@ bool Item::evaluate(THD *thd, String *buffer) {
 */
 
 bool Item::cache_const_expr_analyzer(uchar **arg) {
-  Item **cache_item = (Item **)*arg;
-  if (!*cache_item) {
+  cache_const_expr_arg *carg = (cache_const_expr_arg *)*arg;
+  if (!carg->cache_item) {
     Item *item = real_item();
     /*
       Cache constant items unless it's a basic constant, constant field or
@@ -6719,7 +6743,38 @@ bool Item::cache_const_expr_analyzer(uchar **arg) {
         are storing the pointer so that we can assert that we cache the
         correct item in Item::cache_const_expr_transformer().
       */
-      *cache_item = this;
+      carg->cache_item = this;
+    /*
+      JSON functions can read JSON from strings or use SQL scalars by
+      converting them to JSON scalars. Such conversion takes time and on
+      repetitive calls result is significant performance penalty.
+
+      Check if such data can be cached:
+      1) this item is constant
+      2) this item is an arg to a funciton
+      3) it's a source of JSON data
+      4) this item's type isn't JSON so conversion will be required
+      5) it's not cached already
+
+      Difference with the block above is that this one caches any const item,
+      because the goal here is to avoid conversion, rather than re-evaluation.
+    */
+    else if (const_for_execution() &&  // 1
+             carg->stack.elements > 0 &&
+             carg->stack.head()->type() == FUNC_ITEM)  // 2
+    {
+      Item_func *head = down_cast<Item_func *>(carg->stack.head());
+      enum_const_item_cache what_cache;
+      if ((what_cache = head->can_cache_json_arg(this)) &&  // 3
+          data_type() != MYSQL_TYPE_JSON &&                 // 4
+          item->type() != CACHE_ITEM)                       // 5
+      {
+        carg->cache_item = this;
+        carg->cache_arg = what_cache;
+      }
+    }
+    // Push only if we're going down the tree, so transformer will pop the item
+    carg->stack.push_front(item);
     /*
       If this item will be cached, no need to explore items further down
       in the tree, but the transformer must be called, so return 'true'.
@@ -6931,26 +6986,62 @@ void Item::aggregate_num_type(Item_result result_type, Item **item,
 /**
   Cache item if needed.
 
-  @param arg   != NULL <=> Cache this item.
+  @param arg   Descriptor of what and how to cache @see cache_const_expr_arg
 
   @return cache if cache needed.
   @return this otherwise.
 */
 
 Item *Item::cache_const_expr_transformer(uchar *arg) {
-  Item **item = (Item **)arg;
-  if (*item)  // Item is to be cached, note that it is used as a flag
+  cache_const_expr_arg *carg = (cache_const_expr_arg *)arg;
+  carg->stack.pop();
+  if (carg->cache_item)  // Item is to be cached, note that it is used as a flag
   {
-    DBUG_ASSERT(*item == this);
+    DBUG_ASSERT(carg->cache_item == this);
+    Item_cache *cache;
     /*
       Flag applies to present item, must reset it so it does not affect
       the parent item.
     */
-    *((Item **)arg) = NULL;
-    Item_cache *cache = Item_cache::get_cache(this);
-    if (!cache) return NULL;
-    cache->setup(this);
-    cache->store(this);
+    carg->cache_item = nullptr;
+    // Cache arg of a JSON function to avoid repetitive conversion
+    if (carg->cache_arg != CACHE_NONE) {
+      Item *itm = this;
+      Item_func *caller = down_cast<Item_func *>(carg->stack.head());
+      String buf;
+      Json_wrapper wr;
+      enum_const_item_cache what_cache = carg->cache_arg;
+
+      carg->cache_arg = CACHE_NONE;
+      if (what_cache == CACHE_JSON_VALUE) {
+        // Cache parse result of JSON string
+        if (get_json_wrapper(&itm, 0, &buf, caller->func_name(), &wr) ||
+            null_value) {
+          return current_thd->is_error() ? nullptr : this;
+        }
+      } else {
+        // Cache SQL scalar converted to JSON
+        DBUG_ASSERT(what_cache == CACHE_JSON_ATOM);
+        String conv_buf;
+        if (get_json_atom_wrapper(&itm, 0, caller->func_name(), &buf, &conv_buf,
+                                  &wr, NULL, true) ||
+            null_value) {
+          return current_thd->is_error() ? nullptr : this;
+        }
+      }
+      // Should've been checked at get_*_wrapper()
+      DBUG_ASSERT(wr.type() != enum_json_type::J_ERROR);
+      Item_cache_json *jcache = new Item_cache_json();
+      if (!jcache) return NULL;
+      jcache->setup(this);
+      jcache->store_value(this, &wr);
+      cache = jcache;
+    } else {
+      cache = Item_cache::get_cache(this);
+      if (!cache) return NULL;
+      cache->setup(this);
+      cache->store(this);
+    }
     /*
       This item is cached - for subqueries this effectively means that they
       are optimized away.
@@ -8679,7 +8770,9 @@ longlong Item_cache_datetime::val_date_temporal() {
 longlong Item_cache_datetime::val_int() { return val_int_from_decimal(); }
 
 Item_cache_json::Item_cache_json()
-    : Item_cache(MYSQL_TYPE_JSON), m_value(new (*THR_MALLOC) Json_wrapper()) {}
+    : Item_cache(MYSQL_TYPE_JSON),
+      m_value(new (*THR_MALLOC) Json_wrapper()),
+      m_is_sorted(false) {}
 
 Item_cache_json::~Item_cache_json() { destroy(m_value); }
 
@@ -8697,7 +8790,7 @@ bool Item_cache_json::cache_value() {
     // the row buffer might change, so need own copy
     m_value->to_dom(current_thd);
   }
-
+  m_is_sorted = false;
   return value_cached;
 }
 
@@ -8710,6 +8803,7 @@ void Item_cache_json::store_value(Item *expr, Json_wrapper *wr) {
     // the row buffer might change, so need own copy
     m_value->to_dom(current_thd);
   }
+  m_is_sorted = false;
 }
 
 /**
@@ -8783,6 +8877,14 @@ longlong Item_cache_json::val_int() {
   if (null_value) return true;
 
   return wr.coerce_int(whence(cached_field));
+}
+
+void Item_cache_json::sort() {
+  DBUG_ASSERT(!m_is_sorted);
+  if (has_value() && m_value->type() == enum_json_type::J_ARRAY) {
+    m_value->sort();
+    m_is_sorted = true;
+  }
 }
 
 bool Item_cache_real::cache_value() {
@@ -9546,6 +9648,16 @@ bool Item_field::repoint_const_outer_ref(uchar *arg) {
   bool *is_outer_ref = pointer_cast<bool *>(arg);
   if (*is_outer_ref) result_field = field;
   *is_outer_ref = false;
+  return false;
+}
+
+/**
+  Generated fields don't need db/table names. Strip them off as inplace ALTER
+  can reallocate them, making pointers invalid.
+*/
+bool Item_field::strip_db_table_name_processor(uchar *) {
+  db_name = nullptr;
+  table_name = nullptr;
   return false;
 }
 

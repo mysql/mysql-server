@@ -580,7 +580,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       DBUG_RETURN(err);
     }
 
-    if (thd->lex->is_ignore()) table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (thd->lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
     if (used_key_is_modified || order) {
       /*
@@ -777,7 +777,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         table and therefore might need update to be done immediately.
         So we turn-off the batching.
       */
-      (void)table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+      (void)table->file->ha_extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
       will_batch = false;
     } else {
       // No after update triggers, attempt to start bulk update
@@ -1673,7 +1673,7 @@ bool Query_result_update::prepare(THD *thd, List<Item> &, SELECT_LEX_UNIT *u) {
            table and therefore might need update to be done immediately.
            So we turn-off the batching.
         */
-        (void)table->file->extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
+        (void)table->file->ha_extra(HA_EXTRA_UPDATE_CANNOT_BATCH);
       }
     }
   }
@@ -1871,7 +1871,7 @@ bool Query_result_update::optimize() {
     ORDER group;
     Temp_table_param *tmp_param;
 
-    if (thd->lex->is_ignore()) table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (thd->lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)  // First table in join
     {
       /*
@@ -2125,7 +2125,7 @@ bool Query_result_update::send_data(THD *thd, List<Item> &) {
             while we may be scanning it.  This will flush the read cache
             if it's used.
           */
-          main_table->file->extra(HA_EXTRA_PREPARE_FOR_UPDATE);
+          main_table->file->ha_extra(HA_EXTRA_PREPARE_FOR_UPDATE);
         }
         if ((error = table->file->ha_update_row(table->record[1],
                                                 table->record[0])) &&

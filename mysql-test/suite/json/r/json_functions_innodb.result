@@ -95,25 +95,6 @@ i	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
 29	0	0	0	1	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 30	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
 31	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL	NULL	0	0	0	0	0	NULL
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
-Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 2
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 3
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 6
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 9
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 23
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 24
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 25
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 26
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 27
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 28
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 29
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 30
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 31
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 32
 SELECT i FROM t1
 WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8') AS JSON)
 ORDER BY i;
@@ -7185,8 +7166,6 @@ insert into tt(j) values (cast(1 as json)), (null);
 select sum( distinct j ) from tt group by j having j in ( avg( 1 ), 1 + j);
 sum( distinct j )
 1
-Warnings:
-Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 SELECT JSON_ARRAY(j), COUNT(*) FROM tt GROUP BY j, i WITH ROLLUP;
 JSON_ARRAY(j)	COUNT(*)
 [null]	1
@@ -11011,3 +10990,128 @@ group_name	min_json	max_json	min_string	max_string
 3	"xyz"	"xyzw"	xyz	xyzw
 NULL	NULL	NULL	NULL	NULL
 DROP TABLE t;
+#
+# WL#8199: Add JSON support to IN/GREATEST/LEAST 
+#
+SELECT CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON));
+CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON))
+1
+SELECT CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON));
+CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON))
+0
+SELECT CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL);
+CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL)
+1
+SELECT CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL);
+CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL)
+NULL
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON));
+CAST('{"a":1, "b":2}' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON))
+1
+SELECT CAST('[1,2,3]' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON));
+CAST('[1,2,3]' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON))
+1
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+NULL,
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON));
+CAST('{"a":1, "b":2}' AS JSON) IN(
+NULL,
+CAST('{"a":1, "b":2}' AS JSON),
+CAST('[1,2,3]' AS JSON))
+1
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":20}' AS JSON),
+CAST('[1,2,3]' AS JSON));
+CAST('{"a":1, "b":2}' AS JSON) IN(
+CAST(1 AS JSON),
+CAST('{"a":1, "b":20}' AS JSON),
+CAST('[1,2,3]' AS JSON))
+0
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+NULL,
+CAST('{"a":1, "b":20}' AS JSON),
+CAST('[1,2,3]' AS JSON));
+CAST('{"a":1, "b":2}' AS JSON) IN(
+NULL,
+CAST('{"a":1, "b":20}' AS JSON),
+CAST('[1,2,3]' AS JSON))
+NULL
+SELECT CAST('{"b":2, "a":2}' AS JSON) IN(CAST(@a_var AS JSON), CAST(NULL AS JSON));
+CAST('{"b":2, "a":2}' AS JSON) IN(CAST(@a_var AS JSON), CAST(NULL AS JSON))
+NULL
+#
+# BUG#28179109: JSON COLUMN WITH STRING VALUE GOT INCORRECT RESULT
+# BUG#28182471: JSON COLUMN WITH INTEGER VALUE GOT INCORRECT RESULT
+#
+CREATE TABLE t1 (jdoc JSON);
+INSERT INTO t1 VALUES('{"key1": "111", "key2": "222"}');
+INSERT INTO t1 VALUES('{"key1": "333", "key2": "444"}');
+SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1;
+jdoc	JSON_EXTRACT(jdoc,'$.key1')
+{"key1": "111", "key2": "222"}	"111"
+{"key1": "333", "key2": "444"}	"333"
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('"111"');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111');
+jdoc
+{"key1": "111", "key2": "222"}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('111');
+jdoc
+{"key1": "111", "key2": "222"}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333');
+jdoc
+{"key1": "111", "key2": "222"}
+{"key1": "333", "key2": "444"}
+SELECT * FROM t1 WHERE '111' IN (JSON_EXTRACT(jdoc,'$.key1'), '333');
+jdoc
+{"key1": "111", "key2": "222"}
+INSERT INTO t1 VALUES('{"key1": 1, "key2": 11}');
+INSERT INTO t1 VALUES('{"key1": 2, "key2": 22}');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('1');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2');
+jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1);
+jdoc
+{"key1": 1, "key2": 11}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = (1);
+jdoc
+{"key1": 1, "key2": 11}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2);
+jdoc
+{"key1": 1, "key2": 11}
+{"key1": 2, "key2": 22}
+SELECT * FROM t1 WHERE 1 IN (JSON_EXTRACT(jdoc,'$.key1'), 2);
+jdoc
+{"key1": 1, "key2": 11}
+SELECT (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
+(5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)))
+1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON within a ROW in the IN operator'
+SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
+(5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)))
+1
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON within a ROW in the IN operator'
+DROP TABLE t1;

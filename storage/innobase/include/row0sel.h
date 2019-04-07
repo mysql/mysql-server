@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -439,7 +439,7 @@ enum row_sel_match_mode {
 /** Convert a non-SQL-NULL field from Innobase format to MySQL format. */
 #define row_sel_field_store_in_mysql_format(dest, templ, idx, field, src, len, \
                                             sec)                               \
-  row_sel_field_store_in_mysql_format_func(dest, templ, src, len)
+  row_sel_field_store_in_mysql_format_func(dest, templ, idx, src, len)
 #endif /* UNIV_DEBUG */
 
 /** Stores a non-SQL-NULL field in the MySQL format. The counterpart of this
@@ -463,8 +463,8 @@ mysql_col_len, mbminlen, mbmaxlen
                                 range comparison. */
 void row_sel_field_store_in_mysql_format_func(byte *dest,
                                               const mysql_row_templ_t *templ,
-#ifdef UNIV_DEBUG
                                               const dict_index_t *index,
+#ifdef UNIV_DEBUG
                                               ulint field_no,
 #endif /* UNIV_DEBUG */
                                               const byte *data, ulint len

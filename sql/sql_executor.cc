@@ -3639,7 +3639,9 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   int error;
   DBUG_ENTER("join_read_const_table");
   TABLE *table = tab->table();
+  THD *const thd = tab->join()->thd;
   table->const_table = true;
+  DBUG_ASSERT(!thd->is_error());
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE) {
     const enum_sql_command sql_command = tab->join()->thd->lex->sql_command;
@@ -3685,6 +3687,8 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
   }
 
   if (error) {
+    // Promote error to fatal if an actual error was reported
+    if (thd->is_error()) error = 1;
     /* Mark for EXPLAIN that the row was not found */
     pos->filter_effect = 1.0;
     pos->rows_fetched = 0.0;
@@ -3701,7 +3705,6 @@ int join_read_const_table(JOIN_TAB *tab, POSITION *pos) {
 
   /* Check appearance of new constant items in Item_equal objects */
   JOIN *const join = tab->join();
-  THD *const thd = join->thd;
   if (join->where_cond && update_const_equal_items(thd, join->where_cond, tab))
     DBUG_RETURN(1);
   TABLE_LIST *tbl;
@@ -5295,9 +5298,9 @@ bool check_unique_constraint(TABLE *table) {
                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   while (!res) {
     // Check whether records are the same.
-    if (!(table->is_distinct ? table_rec_cmp(table)
-                             : group_rec_cmp(table->group, table->record[0],
-                                             table->record[1])))
+    if (!(table->group
+              ? group_rec_cmp(table->group, table->record[0], table->record[1])
+              : table_rec_cmp(table)))
       return false;  // skip it
     res = table->file->ha_index_next_same(table->record[1],
                                           table->hash_field->ptr, sizeof(hash));

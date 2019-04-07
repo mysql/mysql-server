@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -222,23 +222,75 @@ UNIV_INLINE
 void dfield_dup(dfield_t *field,  /*!< in/out: data field */
                 mem_heap_t *heap) /*!< in: memory heap where allocated */
 {
+  ut_ad(!dfield_is_multi_value(field) ||
+        dfield_get_len(field) != UNIV_MULTI_VALUE_ARRAY_MARKER);
+
   if (!dfield_is_null(field) && field->data != NULL) {
     UNIV_MEM_ASSERT_RW(field->data, field->len);
     field->data = mem_heap_dup(heap, field->data, field->len);
   }
 }
 
-/** Tests if two data fields are equal.
- If len==0, tests the data length and content for equality.
- If len>0, tests the first len bytes of the content for equality.
- @return true if both fields are NULL or if they are equal */
 UNIV_INLINE
-ibool dfield_datas_are_binary_equal(
-    const dfield_t *field1, /*!< in: field */
-    const dfield_t *field2, /*!< in: field */
-    ulint len)              /*!< in: maximum prefix to compare,
-                            or 0 to compare the whole field length */
-{
+bool dfield_is_multi_value(const dfield_t *field) {
+  return ((field->type.prtype & DATA_MULTI_VALUE) != 0);
+}
+
+/** Copies the data pointed to by a data field.
+This function works for multi-value fields only.
+@param[in,out]  field   data field
+@param[in]      heap    memory heap where allocated */
+UNIV_INLINE
+void dfield_multi_value_dup(dfield_t *field, mem_heap_t *heap) {
+  ut_ad(dfield_is_multi_value(field));
+
+  /* Actually, this checking exempts the NULL and UNIV_NO_INDEX_VALUE cases */
+  if (!dfield_is_null(field) && field->data != nullptr) {
+    ut_ad(field->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+    multi_value_data *mv_data = static_cast<multi_value_data *>(field->data);
+    multi_value_data *value =
+        static_cast<multi_value_data *>(mem_heap_zalloc(heap, sizeof(*value)));
+    value->copy(mv_data, heap);
+    field->data = value;
+  }
+}
+
+/** Tests if two data fields are equal.
+If len==0, tests the data length and content for equality.
+If len>0, tests the first len bytes of the content for equality.
+@param[in]      field1          first field to compare
+@param[in]      filed2          second field to compare
+@param[in]      len             maximum prefix to compare,
+                                or 0 to compare the whole field length.
+@return true if both fields are NULL or if they are equal */
+UNIV_INLINE
+ibool dfield_datas_are_binary_equal(const dfield_t *field1,
+                                    const dfield_t *field2, ulint len) {
+  if (dfield_is_multi_value(field1)) {
+    ut_ad(dfield_is_multi_value(field2));
+    ut_ad(field1->len == UNIV_MULTI_VALUE_ARRAY_MARKER ||
+          field1->len == UNIV_SQL_NULL || field1->len == UNIV_NO_INDEX_VALUE);
+    ut_ad(field2->len == UNIV_MULTI_VALUE_ARRAY_MARKER ||
+          field2->len == UNIV_SQL_NULL || field2->len == UNIV_NO_INDEX_VALUE);
+    if (field1->len != field2->len) {
+      return (false);
+    }
+
+    if (field2->len != UNIV_MULTI_VALUE_ARRAY_MARKER) {
+      return (true);
+    }
+
+    ut_ad(field1->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+    ut_ad(field2->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+
+    multi_value_data *multi_val1 =
+        static_cast<multi_value_data *>(field1->data);
+    multi_value_data *multi_val2 =
+        static_cast<multi_value_data *>(field2->data);
+
+    return (multi_val1->equal(multi_val2));
+  }
+
   ulint len2 = len;
 
   if (field1->len == UNIV_SQL_NULL || len == 0 || field1->len < len) {
@@ -261,9 +313,26 @@ ibool dfield_data_is_binary_equal(
     ulint len,             /*!< in: data length or UNIV_SQL_NULL */
     const byte *data)      /*!< in: data */
 {
-  return (len == dfield_get_len(field) &&
-          (len == UNIV_SQL_NULL || len == 0 ||
-           !memcmp(dfield_get_data(field), data, len)));
+  if (dfield_is_multi_value(field)) {
+    uint64_t field_len = dfield_get_len(field);
+    if (field_len == UNIV_MULTI_VALUE_ARRAY_MARKER) {
+      if (len != UNIV_MULTI_VALUE_ARRAY_MARKER) {
+        return (false);
+      }
+
+      multi_value_data *mv_data =
+          reinterpret_cast<multi_value_data *>(field->data);
+      return (mv_data->equal(reinterpret_cast<const multi_value_data *>(data)));
+    } else {
+      return (field_len == len &&
+              (len == UNIV_SQL_NULL || len == UNIV_NO_INDEX_VALUE ||
+               memcmp(dfield_get_data(field), data, len) == 0));
+    }
+  } else {
+    return (len == dfield_get_len(field) &&
+            (len == UNIV_SQL_NULL || len == 0 ||
+             !memcmp(dfield_get_data(field), data, len)));
+  }
 }
 #ifndef UNIV_HOTBACKUP
 #endif /* !UNIV_HOTBACKUP */
@@ -418,7 +487,11 @@ UNIV_INLINE
 void dtuple_dup_v_fld(const dtuple_t *vrow, mem_heap_t *heap) {
   for (ulint i = 0; i < vrow->n_v_fields; i++) {
     dfield_t *dfield = dtuple_get_nth_v_field(vrow, i);
-    dfield_dup(dfield, heap);
+    if (dfield_is_multi_value(dfield)) {
+      dfield_multi_value_dup(dfield, heap);
+    } else {
+      dfield_dup(dfield, heap);
+    }
   }
 }
 
@@ -429,6 +502,7 @@ void dtuple_init_v_fld(const dtuple_t *vrow) {
   for (ulint i = 0; i < vrow->n_v_fields; i++) {
     dfield_t *dfield = dtuple_get_nth_v_field(vrow, i);
     dfield_get_type(dfield)->mtype = DATA_MISSING;
+    dfield_get_type(dfield)->prtype = 0;
     dfield_set_len(dfield, UNIV_SQL_NULL);
   }
 }
@@ -575,8 +649,10 @@ void dtuple_set_types_binary(dtuple_t *tuple, /*!< in: data tuple */
   ulint i;
 
   for (i = 0; i < n; i++) {
+    bool is_multi_value = dfield_is_multi_value(dtuple_get_nth_field(tuple, i));
     dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
-    dtype_set(dfield_type, DATA_BINARY, 0, 0);
+    dtype_set(dfield_type, DATA_BINARY, (is_multi_value ? DATA_MULTI_VALUE : 0),
+              0);
   }
 }
 

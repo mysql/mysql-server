@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -100,6 +100,8 @@ ins_node_t *ins_node_create(
   node->entry_sys_heap = mem_heap_create(128);
 
   node->magic_n = INS_NODE_MAGIC_N;
+
+  node->ins_multi_val_pos = 0;
 
   return (node);
 }
@@ -3164,6 +3166,17 @@ and return. don't execute actual insert. */
     return (DB_LOCK_WAIT);
   });
 
+  DBUG_EXECUTE_IF("row_ins_sec_index_entry_lock_wait", {
+    static uint16_t count = 0;
+    if (index->is_multi_value()) {
+      ++count;
+    }
+    if (count == 2) {
+      count = 0;
+      return (DB_LOCK_WAIT);
+    }
+  });
+
   if (!index->table->foreign_set.empty()) {
     err = row_ins_check_foreign_constraints(index->table, index, entry, thr);
     if (err != DB_SUCCESS) {
@@ -3221,16 +3234,67 @@ and return. don't execute actual insert. */
   return (err);
 }
 
+/** Inserts an entry into a secondary index, which is created for
+multi-value field. For each value to be inserted, it tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@param[in]      index           secondary index which is for multi-value field
+@param[in,out]  entry           index entry to insert
+@param[in,out]  multi_val_pos   the start position to insert next multi-value
+                                data, and the returned value should be either
+                                0 if all are done, or the position where the
+                                insert failed. So return value of 0 could be
+                                a bit ambiguous, however the return error
+                                can help to see which case it is
+@param[in]      thr             query thread
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+static dberr_t row_ins_sec_index_multi_value_entry(dict_index_t *index,
+                                                   dtuple_t *entry,
+                                                   uint32_t &multi_val_pos,
+                                                   que_thr_t *thr) {
+  ut_d(trx_t *trx = thr_get_trx(thr));
+
+  ut_ad(trx->id != 0);
+  ut_ad(!index->table->is_intrinsic());
+  ut_ad(index->is_committed());
+  ut_ad(!dict_index_is_online_ddl(index));
+  ut_ad(index->is_multi_value());
+
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_insert mv_entry_builder(index, entry);
+
+  for (dtuple_t *mv_entry = mv_entry_builder.begin(multi_val_pos);
+       mv_entry != nullptr; mv_entry = mv_entry_builder.next()) {
+    err = row_ins_sec_index_entry(index, mv_entry, thr, false);
+    if (err != DB_SUCCESS) {
+      multi_val_pos = mv_entry_builder.last_multi_value_position();
+      return (err);
+    }
+  }
+
+  multi_val_pos = 0;
+
+  return (err);
+}
+
 /** Inserts an index entry to index. Tries first optimistic, then pessimistic
- descent down the tree. If the entry matches enough to a delete marked record,
- performs the insert by updating or delete unmarking the delete marked
- record.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
-static dberr_t row_ins_index_entry(
-    dict_index_t *index, /*!< in: index */
-    dtuple_t *entry,     /*!< in/out: index entry to insert */
-    que_thr_t *thr)      /*!< in: query thread */
-{
+descent down the tree. If the entry matches enough to a delete marked record,
+performs the insert by updating or delete unmarking the delete marked
+record.
+@param[in]	index		index to insert the entry
+@param[in,out]	entry		entry to insert
+@param[in,out]	multi_val_pos	if multi-value index, the start position
+                                to insert next multi-value data,
+                                and the returned value should be either
+                                0 if all are done, or the position where the
+                                insert failed. So return value of 0 could be
+                                a bit ambiguous, however the return error
+                                can help to see which case it is
+@param[in]	thr		query thread
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+static dberr_t row_ins_index_entry(dict_index_t *index, dtuple_t *entry,
+                                   uint32_t &multi_val_pos, que_thr_t *thr) {
   ut_ad(thr_get_trx(thr)->id != 0);
 
   DBUG_EXECUTE_IF("row_ins_index_entry_timeout", {
@@ -3240,6 +3304,9 @@ static dberr_t row_ins_index_entry(
 
   if (index->is_clustered()) {
     return (row_ins_clust_index_entry(index, entry, thr, 0, false));
+  } else if (index->is_multi_value()) {
+    return (
+        row_ins_sec_index_multi_value_entry(index, entry, multi_val_pos, thr));
   } else {
     return (row_ins_sec_index_entry(index, entry, thr, false));
   }
@@ -3373,7 +3440,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   ut_ad(dtuple_check_typed(node->entry));
 
-  err = row_ins_index_entry(node->index, node->entry, thr);
+  err = row_ins_index_entry(node->index, node->entry, node->ins_multi_val_pos,
+                            thr);
 
   DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
                       "after_row_ins_index_entry_step");

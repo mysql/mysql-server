@@ -768,7 +768,7 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
   if (instantiate_tmp_table(thd, table))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   DBUG_RETURN(false);
 }

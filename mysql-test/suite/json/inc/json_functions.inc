@@ -4054,6 +4054,73 @@ SELECT j->>'$.group' AS group_name,
 FROM t GROUP BY j->>'$.group';
 DROP TABLE t;
 
+--echo #
+--echo # WL#8199: Add JSON support to IN/GREATEST/LEAST 
+--echo #
+SELECT CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON));
+SELECT CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), CAST(3 AS JSON));
+
+SELECT CAST(1 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL);
+SELECT CAST(4 AS JSON) IN(CAST(1 AS JSON), CAST(2 AS JSON), NULL);
+
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+  CAST(1 AS JSON),
+  CAST('{"a":1, "b":2}' AS JSON),
+  CAST('[1,2,3]' AS JSON));
+SELECT CAST('[1,2,3]' AS JSON) IN(
+  CAST(1 AS JSON),
+  CAST('{"a":1, "b":2}' AS JSON),
+  CAST('[1,2,3]' AS JSON));
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+  NULL,
+  CAST('{"a":1, "b":2}' AS JSON),
+  CAST('[1,2,3]' AS JSON));
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+  CAST(1 AS JSON),
+  CAST('{"a":1, "b":20}' AS JSON),
+  CAST('[1,2,3]' AS JSON));
+SELECT CAST('{"a":1, "b":2}' AS JSON) IN(
+  NULL,
+  CAST('{"a":1, "b":20}' AS JSON),
+  CAST('[1,2,3]' AS JSON));
+SELECT CAST('{"b":2, "a":2}' AS JSON) IN(CAST(@a_var AS JSON), CAST(NULL AS JSON));
+
+
+--echo #
+--echo # BUG#28179109: JSON COLUMN WITH STRING VALUE GOT INCORRECT RESULT
+--echo # BUG#28182471: JSON COLUMN WITH INTEGER VALUE GOT INCORRECT RESULT
+--echo #
+CREATE TABLE t1 (jdoc JSON);
+
+INSERT INTO t1 VALUES('{"key1": "111", "key2": "222"}');
+INSERT INTO t1 VALUES('{"key1": "333", "key2": "444"}');
+SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1;
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('"111"');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('111');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333');
+
+SELECT * FROM t1 WHERE '111' IN (JSON_EXTRACT(jdoc,'$.key1'), '333');
+
+INSERT INTO t1 VALUES('{"key1": 1, "key2": 11}');
+INSERT INTO t1 VALUES('{"key1": 2, "key2": 22}');
+
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('1');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1);
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = (1);
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2);
+
+SELECT * FROM t1 WHERE 1 IN (JSON_EXTRACT(jdoc,'$.key1'), 2);
+
+SELECT (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
+SELECT (5, 1) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
+
+DROP TABLE t1;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

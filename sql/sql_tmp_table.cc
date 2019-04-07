@@ -1545,19 +1545,19 @@ err:
   DBUG_RETURN(NULL);          /* purecov: inspected */
 }
 
-/*
+/**
   Create a temporary table to weed out duplicate rowid combinations
 
-  SYNOPSIS
 
-    create_duplicate_weedout_tmp_table()
-      thd                    Thread handle
-      uniq_tuple_length_arg  Length of the table's column
-      sjtbl                  Update sjtbl->[start_]recinfo values which
+  @param    thd                    Thread handle
+  @param    uniq_tuple_length_arg  Length of the table's column
+  @param    sjtbl                  Update sjtbl->[start_]recinfo values which
                              will be needed if we'll need to convert the
                              created temptable from HEAP to MyISAM/Maria.
 
-  DESCRIPTION
+  @details
+    create_duplicate_weedout_tmp_table()
+
     Create a temporary table to weed out duplicate rowid combinations. The
     table has a single column that is a concatenation of all rowids in the
     combination.
@@ -1575,7 +1575,7 @@ err:
     The code in this function was produced by extraction of relevant parts
     from create_tmp_table().
 
-  RETURN
+  @return
     created table
     NULL on error
 */
@@ -1592,14 +1592,14 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
   uchar *bitmaps;
   uint *blob_field;
   bool using_unique_constraint = false;
-  Field *field, *key_field;
+  Field *field, *key_field, *hash_field = nullptr;
   uint null_pack_length;
   uchar *null_flags;
   uchar *pos;
   uint i;
 
   DBUG_ENTER("create_duplicate_weedout_tmp_table");
-  DBUG_ASSERT(!sjtbl->is_confluent);
+  DBUG_ASSERT(!sjtbl || !sjtbl->is_confluent);
 
   DBUG_EXECUTE_IF("create_duplicate_weedout_tmp_table_error", {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
@@ -1643,7 +1643,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     }
     // Mark hash_field as NOT NULL
     field->flags = NOT_NULL_FLAG;
-    *(reg_field++) = sjtbl->hash_field = field;
+    *(reg_field++) = hash_field = field;
+    if (sjtbl) sjtbl->hash_field = field;
     table->hash_field = field;
     field->table = field->orig_table = table;
     share->fields++;
@@ -1716,7 +1717,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     hash_key->table = table;
     hash_key->key_part = hash_kpi;
     hash_key->actual_flags = hash_key->flags = HA_NULL_ARE_EQUAL;
-    hash_kpi->init_from_field(sjtbl->hash_field);
+    hash_kpi->init_from_field(hash_field);
     hash_key->key_length = hash_kpi->store_length;
   } else {
     DBUG_PRINT("info", ("Creating group key in temporary table"));
@@ -1844,7 +1845,7 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
         cdef->maybe_null
             ? make_field(*cdef, share, nullptr,
                          pointer_cast<uchar *>(const_cast<char *>("")), 1)
-            : make_field(*cdef, share, nullptr, nullptr, 0);
+            : make_field(*cdef, share);
     if (!*reg_field) goto error;
     (*reg_field)->init(table);
     record_length += (*reg_field)->pack_length();
@@ -2094,7 +2095,7 @@ bool open_tmp_table(TABLE *table) {
     table->db_stat = 0;
     return (1);
   }
-  (void)table->file->extra(HA_EXTRA_QUICK); /* Faster */
+  (void)table->file->ha_extra(HA_EXTRA_QUICK); /* Faster */
 
   table->set_created();
   table->s->tmp_handler_count++;
@@ -2529,7 +2530,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         }
 
         if (table->no_rows) {
-          new_table.file->extra(HA_EXTRA_NO_ROWS);
+          new_table.file->ha_extra(HA_EXTRA_NO_ROWS);
           new_table.no_rows = 1;
         }
 

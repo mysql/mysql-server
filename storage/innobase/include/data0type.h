@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -214,12 +214,13 @@ temporary table */
 #define DATA_GIS_MBR 2048                        /* Used as GIS MBR column */
 #define DATA_MBR_LEN SPDIMS * 2 * sizeof(double) /* GIS MBR length*/
 
-#define DATA_LONG_TRUE_VARCHAR                                \
-  4096                    /* this is ORed to the precise data \
-                  type when the column is true VARCHAR where \
-                  MySQL uses 2 bytes to store the data len;  \
-                  for shorter VARCHARs MySQL uses only 1 byte */
-#define DATA_VIRTUAL 8192 /* Virtual column */
+#define DATA_LONG_TRUE_VARCHAR                                     \
+  4096                         /* this is ORed to the precise data \
+                       type when the column is true VARCHAR where \
+                       MySQL uses 2 bytes to store the data len;  \
+                       for shorter VARCHARs MySQL uses only 1 byte */
+#define DATA_VIRTUAL 8192      /* Virtual column */
+#define DATA_MULTI_VALUE 16384 /* Multi-value Virtual column */
 
 /*-------------------------------------------*/
 

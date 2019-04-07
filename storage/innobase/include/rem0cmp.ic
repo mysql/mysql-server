@@ -47,6 +47,14 @@ int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
                       bool is_asc) {
   const dtype_t *type;
 
+  /* The multi-value array data is not expected, however, if it's one
+  value of the array, then it's fine to compare it */
+  ut_ad(!(dfield_is_multi_value(dfield1) &&
+          (dfield_get_len(dfield1) == UNIV_MULTI_VALUE_ARRAY_MARKER ||
+           dfield_get_len(dfield1) == UNIV_NO_INDEX_VALUE)));
+  ut_ad(!(dfield_is_multi_value(dfield2) &&
+          (dfield_get_len(dfield2) == UNIV_MULTI_VALUE_ARRAY_MARKER ||
+           dfield_get_len(dfield2) == UNIV_NO_INDEX_VALUE)));
   ut_ad(dfield_check_typed(dfield1));
 
   type = dfield_get_type(dfield1);
@@ -55,6 +63,38 @@ int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
       type->mtype, type->prtype, is_asc, (const byte *)dfield_get_data(dfield1),
       dfield_get_len(dfield1), (const byte *)dfield_get_data(dfield2),
       dfield_get_len(dfield2)));
+}
+
+UNIV_INLINE
+int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                  const dfield_t *dfield2) {
+  ut_ad(dfield_is_multi_value(dfield1));
+  ut_ad(dfield_is_multi_value(dfield2));
+  ut_ad(dfield_is_null(dfield2) ||
+        (dfield_get_len(dfield2) != UNIV_MULTI_VALUE_ARRAY_MARKER &&
+         dfield_get_len(dfield2) != UNIV_NO_INDEX_VALUE));
+
+  if (dfield_is_null(dfield1)) {
+    return (dfield_is_null(dfield2) ? 0 : 1);
+  } else if (dfield_is_null(dfield2)) {
+    return (1);
+  }
+
+  if (dfield1->len == UNIV_NO_INDEX_VALUE) {
+    /* Nothing to be indexed, of course nothing match */
+    return (1);
+  }
+
+  ut_ad(dfield1->len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+
+  multi_value_data *multi_value =
+      reinterpret_cast<multi_value_data *>(dfield_get_data(dfield1));
+
+  return (multi_value->has(dfield_get_type(dfield2),
+                           static_cast<const byte *>(dfield_get_data(dfield2)),
+                           dfield_get_len(dfield2))
+              ? 0
+              : 1);
 }
 
 /** Compare two B-tree records.

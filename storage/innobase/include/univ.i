@@ -501,7 +501,17 @@ computers! */
 #define UNIV_SQL_NULL UINT32_UNDEFINED
 
 /** Flag to indicate a field which was added instantly */
-#define UNIV_SQL_ADD_COL_DEFAULT (UNIV_SQL_NULL - 1)
+#define UNIV_SQL_ADD_COL_DEFAULT (UINT32_UNDEFINED - 1)
+
+/** The following number as the length of a logical field means that no
+attribute value for the multi-value index exists in the JSON doc */
+#define UNIV_NO_INDEX_VALUE (UINT32_UNDEFINED - 2)
+
+/** The follwoing number as the length marker of a logical field, which
+is only used for multi-value field data, means the data itself of the
+field is actually an array. Define it as 0 to prevent any conflict with
+normal data length */
+#define UNIV_MULTI_VALUE_ARRAY_MARKER 0
 
 /** Lengths which are not UNIV_SQL_NULL, but bigger than the following
 number indicate that a field contains a reference to an externally

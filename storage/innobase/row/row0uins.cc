@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -337,7 +337,7 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
       }
       if (node->table->n_v_cols) {
         trx_undo_read_v_cols(node->table, ptr, node->row, false, false, nullptr,
-                             nullptr);
+                             node->heap);
       }
 
     } else {
@@ -347,6 +347,34 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
       goto close_table;
     }
   }
+}
+
+/** Removes a secondary index entry from the index, which is built on
+multi-value field, if found. For each value, it tries first optimistic,
+then pessimistic descent down the tree.
+@param[in,out]	index	multi-value index
+@param[in]	node	undo node
+@param[in]	thr	query thread
+@param[in,out]	heap	memory heap
+@return DB_SUCCESS or error code */
+static dberr_t row_undo_ins_remove_multi_sec(dict_index_t *index,
+                                             undo_node_t *node, que_thr_t *thr,
+                                             mem_heap_t *heap) {
+  dberr_t err = DB_SUCCESS;
+  Multi_value_entry_builder_normal mv_entry_builder(node->row, node->ext, index,
+                                                    heap, true, false);
+
+  ut_ad(index->is_multi_value());
+
+  for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
+       entry = mv_entry_builder.next()) {
+    err = row_undo_ins_remove_sec(index, entry, thr, node);
+    if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+      break;
+    }
+  }
+
+  return (err);
 }
 
 /** Removes secondary index records.
@@ -365,6 +393,16 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     dtuple_t *entry;
 
     if (index->type & DICT_FTS) {
+      dict_table_next_uncorrupted_index(index);
+      continue;
+    }
+
+    if (index->is_multi_value()) {
+      err = row_undo_ins_remove_multi_sec(index, node, thr, heap);
+      if (err != DB_SUCCESS) {
+        goto func_exit;
+      }
+      mem_heap_empty(heap);
       dict_table_next_uncorrupted_index(index);
       continue;
     }

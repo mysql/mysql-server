@@ -1981,7 +1981,7 @@ static const char *dict_load_table_low(table_name_t &name, const rec_t *rec,
   dict_table_decode_n_col(t_num, &n_cols, &n_v_col);
 
   *table = dict_mem_table_create(name.m_name, space_id, n_cols + n_v_col,
-                                 n_v_col, flags, flags2);
+                                 n_v_col, 0, flags, flags2);
 
   (*table)->id = table_id;
   (*table)->ibd_file_missing = FALSE;

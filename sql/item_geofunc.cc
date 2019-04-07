@@ -2295,14 +2295,10 @@ static bool append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
 }
 
 /** The contract for this function is found in item_json_func.h */
-bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
+bool geometry_to_json(Json_wrapper *wr, String *swkb,
                       const char *calling_function, int max_decimal_digits,
                       bool add_bounding_box, bool add_short_crs_urn,
                       bool add_long_crs_urn, uint32 *geometry_srid) {
-  String arg_val;
-  String *swkb = geometry_arg->val_str(&arg_val);
-  if ((geometry_arg->null_value)) return false;
-
   Geometry::wkb_parser parser(swkb->ptr(), swkb->ptr() + swkb->length());
   if (parser.scan_uint4(geometry_srid)) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), calling_function);
@@ -2350,7 +2346,9 @@ bool Item_func_as_geojson::val_json(Json_wrapper *wr) {
   */
   if (arg_count < 2) m_max_decimal_digits = INT_MAX32;
 
-  if (geometry_to_json(wr, args[0], func_name(), m_max_decimal_digits,
+  String tmp, *val = args[0]->val_str(&tmp);
+  if (!args[0]->null_value &&
+      geometry_to_json(wr, val, func_name(), m_max_decimal_digits,
                        m_add_bounding_box, m_add_short_crs_urn,
                        m_add_long_crs_urn, &m_geometry_srid)) {
     if (null_value && !current_thd->is_error())

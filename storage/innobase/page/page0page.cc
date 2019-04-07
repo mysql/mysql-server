@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0btr.h"
 #include "buf0buf.h"
+#include "ibuf0ibuf.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "page0zip.h"
@@ -2238,7 +2239,26 @@ ibool page_validate(
       bool rtr_equal_nodeptrs =
           (ret == 0 && dict_index_is_spatial(index) && !page_is_leaf(page));
 
-      if (ret <= 0 && !rtr_equal_nodeptrs) {
+      /* For multi-value index, we allow recs to be equal. */
+      bool multi_equal_nodeptrs = (ret == 0 && index->is_multi_value());
+
+      /* For multi-value index record buffered in change buffer,
+      we allow recs to be equal. This is for the case that a single multi-value
+      data may have values like "abc", "abc " and "abc  ", etc. These are
+      treated as unequal for user search, however, in change buffer,
+      they are treated as binary and comparison will confirm they are equal */
+      bool multi_value_on_ibuf = false;
+      if (ret == 0 && dict_index_is_ibuf(index) &&
+          ibuf_rec_has_multi_value(rec)) {
+        ut_ad(ibuf_rec_has_multi_value(old_rec));
+        /* Ideally, it would be better to double check that only the
+        multi-value fields are different by trailing spaces, other fields
+        should be the same. */
+        multi_value_on_ibuf = true;
+      }
+
+      if (ret <= 0 && !rtr_equal_nodeptrs && !multi_equal_nodeptrs &&
+          !multi_value_on_ibuf) {
         ib::error(ER_IB_MSG_901)
             << "Records in wrong order on"
                " space "

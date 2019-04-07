@@ -133,8 +133,8 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 int get_quote_char_for_identifier(const THD *thd, const char *name,
                                   size_t length);
 
-void show_sql_type(enum_field_types type, uint16 metadata, String *str,
-                   const CHARSET_INFO *field_cs = NULL);
+void show_sql_type(enum_field_types type, bool is_array, uint metadata,
+                   String *str, const CHARSET_INFO *field_cs = NULL);
 
 extern TYPELIB grant_types;
 #endif /* SQL_SHOW_H */

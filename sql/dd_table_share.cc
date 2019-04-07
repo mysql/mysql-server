@@ -520,7 +520,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
               (uint)(share->blob_fields * sizeof(uint)))))
       return true;  // OOM error message already reported
     for (k = 0, ptr = share->field; *ptr; ptr++, k++) {
-      if ((*ptr)->flags & BLOB_FLAG) (*save++) = k;
+      if ((*ptr)->flags & BLOB_FLAG || (*ptr)->is_array()) (*save++) = k;
     }
   }
 
@@ -885,11 +885,11 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
     column_options->get("treat_bit_as_char", &treat_bit_as_char);
   }
 
-  return make_field(share, ptr, field_length, null_pos, null_bit, field_type,
-                    charset, geom_type, auto_flags, interval, name,
+  return make_field(*THR_MALLOC, share, ptr, field_length, null_pos, null_bit,
+                    field_type, charset, geom_type, auto_flags, interval, name,
                     col_obj.is_nullable(), col_obj.is_zerofill(),
                     col_obj.is_unsigned(), decimals, treat_bit_as_char, 0,
-                    col_obj.srs_id());
+                    col_obj.srs_id(), col_obj.is_array());
 }
 
 /**
@@ -1257,7 +1257,8 @@ static void fill_index_elements_from_dd(TABLE_SHARE *share,
     //
 
     fill_index_element_from_dd(share, idx_elem_obj, keyinfo->key_part + i);
-
+    if (keyinfo->key_part[i].field->is_array())
+      keyinfo->flags |= HA_MULTI_VALUED_KEY;
     i++;
   }
 }

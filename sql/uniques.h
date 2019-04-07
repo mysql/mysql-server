@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,22 +38,32 @@
 class Cost_model_table;
 struct TABLE;
 
-/*
+/**
    Unique -- class for unique (removing of duplicates).
    Puts all values to the TREE. If the tree becomes too big,
    it's dumped to the file. User can request sorted values, or
    just iterate through them. In the last case tree merging is performed in
    memory simultaneously with iteration, so it should be ~2-3x faster.
- */
+
+   Unique values can be read only from final result (not on insert) because
+   duplicate values can be contained in different dumped tree files.
+*/
 
 class Unique {
+  /// Array of file pointers
   Prealloced_array<Merge_chunk, 16> file_ptrs;
+  /// Max elements in memory buffer
   ulong max_elements;
+  /// Memory buffer size
   ulonglong max_in_memory_size;
+  /// Cache file for unique values retrieval fo table read AM in executor
   IO_CACHE file;
+  /// Tree to filter duplicates in memory
   TREE tree;
   uchar *record_pointers;
+  /// Flush tree to disk
   bool flush();
+  /// Element size
   uint size;
 
  public:
@@ -62,6 +72,20 @@ class Unique {
          ulonglong max_in_memory_size_arg);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }
+
+  /**
+    Add new value to Unique
+
+    @details The value is inserted either to the tree, or to the duplicate
+    weedout table, depending on the mode of operation. If tree's mem buffer is
+    full, it's flushed to the disk.
+
+    @param ptr  pointer to the binary string to insert
+
+    @returns
+      false  error or duplicate
+      true   the value was inserted
+  */
   inline bool unique_add(void *ptr) {
     DBUG_ENTER("unique_add");
     DBUG_PRINT("info", ("tree %u - %lu", tree.elements_in_tree, max_elements));
@@ -90,11 +114,60 @@ class Unique {
 
   uint get_size() const { return size; }
   ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
-
+  bool is_in_memory() { return elements == 0; }
   friend int unique_write_to_file(void *v_key, element_count count,
                                   void *unique);
   friend int unique_write_to_ptrs(void *v_key, element_count count,
                                   void *unique);
+};
+
+/**
+  Unique_on_insert -- similar to above, but rejects duplicates on insert, not
+  just on read of the final result.
+  To achieve this values are inserted into mem tmp table which uses index to
+  detect duplicate keys. When memory buffer is full, tmp table is dumped to a
+  disk-based tmp table.
+*/
+
+class Unique_on_insert {
+  /// Element size
+  uint m_size;
+  /// Duplicate weedout tmp table
+  TABLE *m_table{nullptr};
+
+ public:
+  Unique_on_insert(uint size) : m_size(size) {}
+  /**
+    Add row id to the filter
+
+    @param ptr pointer to the rowid
+
+    @returns
+      false  rowid successfully inserted
+      true   duplicate or error
+  */
+  bool unique_add(void *ptr);
+
+  /**
+    Initialize duplicate filter - allocate duplicate weedout tmp table
+
+    @returns
+      false initialization succeeded
+      true  an error occur
+  */
+  bool init();
+
+  /**
+    Reset filter - drop all rowid records
+
+    @param reinit  Whether to restart index scan
+  */
+  void reset(bool reinit);
+
+  /**
+    Cleanup unique filter
+  */
+  void cleanup();
 };
 
 #endif  // UNIQUES_INCLUDED

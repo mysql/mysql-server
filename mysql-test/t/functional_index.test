@@ -71,7 +71,7 @@ CREATE INDEX idx1 ON t1 ((CAST(f2 AS JSON)));
 
 --error ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX
 INSERT INTO t1 (f1) VALUES (CAST(1000 AS JSON));
---error ER_TRUNCATED_WRONG_VALUE
+--error ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX
 INSERT INTO t1 (f2) VALUES ("lorem ipsum");
 
 --echo # In non-strict mode, a warning should be printed.

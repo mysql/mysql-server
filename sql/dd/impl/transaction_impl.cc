@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,8 @@ bool Open_dictionary_tables_ctx::open_tables() {
   for (TABLE_LIST *t = table_list; t; t = t->next_global) {
     DBUG_ASSERT(t->table->file->ha_table_flags() &
                 HA_ATTACHABLE_TRX_COMPATIBLE);
-    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING)) DBUG_RETURN(true);
+    if (t->table->file->ha_extra(HA_EXTRA_NO_AUTOINC_LOCKING))
+      DBUG_RETURN(true);
   }
 
   // Lock the tables.

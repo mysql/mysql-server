@@ -61,6 +61,14 @@ SHOW CREATE TABLE t1;
 DROP TABLE t1;
 SET SESSION debug="-d,show_hidden_columns";
 
+# Ensure that multi-valued index isn''t covering and index scan isn''t used
+SET SESSION debug="+d,show_hidden_columns";
+CREATE TABLE t1(j json, INDEX mv_idx((CAST(j AS UNSIGNED ARRAY))));
+SHOW CREATE TABLE t1;
+SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+EXPLAIN SELECT 680963a1f6dcb151c3e713b46b4c3452 FROM t1 ;
+SET SESSION debug="-d,show_hidden_columns";
+DROP TABLE t1;
 
 --echo #
 --echo # Bug#28037195 ASSERTION `FALSE' IN IN

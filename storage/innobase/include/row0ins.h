@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -192,6 +192,11 @@ struct ins_node_t {
   entry_list and sys fields are stored here;
   if this is NULL, entry list should be created
   and buffers for sys fields in row allocated */
+
+  /** When there is a lock wait error, this remembers current position of
+  the multi-value field, before which the values have been inserted */
+  uint32_t ins_multi_val_pos;
+
   ulint magic_n;
 };
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,8 +58,9 @@ byte data_error;
 
 #ifndef UNIV_HOTBACKUP
 /** Compare two data tuples.
-@param[in] tuple1 first data tuple
-@param[in] tuple2 second data tuple
+@param[in]	tuple1	first data tuple, which is allowed to have
+                        multi-value data
+@param[in]	tuple2	second data tuple
 @return whether tuple1 == tuple2 */
 bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   ulint n_fields;
@@ -78,10 +79,19 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
   cmp = (int)n_fields - (int)dtuple_get_n_fields(tuple2);
 
   for (i = 0; cmp == 0 && i < n_fields; i++) {
-    const dfield_t *field1 = dtuple_get_nth_field(tuple1, i);
+    dfield_t *field1 = dtuple_get_nth_field(tuple1, i);
     const dfield_t *field2 = dtuple_get_nth_field(tuple2, i);
-    /* Equality comparison does not care about ASC/DESC. */
-    cmp = cmp_dfield_dfield(field1, field2, true);
+
+    ut_ad(dfield_get_len(field2) != UNIV_NO_INDEX_VALUE);
+    ut_ad(!dfield_is_multi_value(field2) ||
+          dfield_get_len(field2) != UNIV_MULTI_VALUE_ARRAY_MARKER);
+
+    if (dfield_is_multi_value(field1)) {
+      cmp = cmp_multi_value_dfield_dfield(field1, field2);
+    } else {
+      /* Equality comparison does not care about ASC/DESC. */
+      cmp = cmp_dfield_dfield(field1, field2, true);
+    }
   }
 
   return (cmp == 0);
@@ -910,4 +920,230 @@ void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
   }
 }
 
+bool is_multi_value_clust_and_sec_equal(const byte *clust_field,
+                                        uint64_t clust_len,
+                                        const byte *sec_field, uint64_t sec_len,
+                                        const dict_col_t *col) {
+  if (clust_len == UNIV_SQL_NULL) {
+    return (sec_len == UNIV_SQL_NULL);
+  } else if (clust_len == UNIV_NO_INDEX_VALUE) {
+    return (false);
+  }
+
+  ut_ad(clust_len == 0);
+
+  const multi_value_data *multi_value =
+      reinterpret_cast<const multi_value_data *>(clust_field);
+  ut_ad(multi_value != nullptr);
+  return (multi_value->has(col->mtype, col->prtype, sec_field, sec_len));
+}
+
+bool multi_value_data::has(const dtype_t *type, const byte *data,
+                           uint64_t len) const {
+  return (has(type->mtype, type->prtype, data, len));
+}
+
+bool multi_value_data::has(ulint mtype, ulint prtype, const byte *data,
+                           uint64_t len) const {
+  for (uint32_t i = 0; i < num_v; ++i) {
+    if (cmp_data_data(mtype, prtype, true,
+                      reinterpret_cast<const byte *>(datap[i]), data_len[i],
+                      data, len) == 0) {
+      return (true);
+    }
+  }
+
+  return (false);
+}
+
 #endif /* !UNIV_HOTBACKUP */
+
+void multi_value_data::alloc(uint32_t num, bool alc_bitset, mem_heap_t *heap) {
+  datap =
+      static_cast<const void **>(mem_heap_zalloc(heap, num * sizeof(*datap)));
+  data_len =
+      static_cast<uint32_t *>(mem_heap_zalloc(heap, num * sizeof(*data_len)));
+  conv_buf =
+      static_cast<uint64_t *>(mem_heap_zalloc(heap, num * sizeof(*conv_buf)));
+
+  num_alc = num;
+
+  if (alc_bitset) {
+    alloc_bitset(heap, num);
+  } else {
+    bitset = nullptr;
+  }
+}
+
+void multi_value_data::alloc_bitset(mem_heap_t *heap, uint32_t size) {
+  ut_ad(bitset == nullptr);
+
+  bitset = static_cast<Bitset *>(mem_heap_zalloc(heap, sizeof(Bitset)));
+  uint32_t alloc_size = (size == 0 ? num_v : size);
+  byte *bitmap =
+      static_cast<byte *>(mem_heap_zalloc(heap, UT_BITS_IN_BYTES(alloc_size)));
+  bitset->init(bitmap, UT_BITS_IN_BYTES(alloc_size));
+  bitset->set();
+}
+
+uint32_t Multi_value_logger::get_log_len(bool precise) const {
+  /* Alwayas a multi-value data marker at the beginning */
+  uint32_t total_len = 1;
+
+  if (m_field_len == UNIV_SQL_NULL || m_field_len == UNIV_NO_INDEX_VALUE) {
+    total_len += s_log_length_for_null_or_empty;
+    return (total_len);
+  }
+
+  ut_ad(m_field_len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+
+  /* Keep two bytes for the total length of the log */
+  total_len += 2;
+
+  /* Remember the length of the multi-value array.
+  Will write the data_len[i] in compressed format which at most
+  costs 5 bytes */
+  total_len += precise ? mach_get_compressed_size(m_mv_data->num_v)
+                       : s_max_compressed_mv_key_length_size;
+
+  /* Remember each data length and value */
+  for (uint32_t i = 0; i < m_mv_data->num_v; ++i) {
+    ut_ad(m_mv_data->data_len[i] != UNIV_SQL_NULL);
+    total_len += m_mv_data->data_len[i];
+    total_len += precise ? mach_get_compressed_size(m_mv_data->data_len[i])
+                         : s_max_compressed_mv_key_length_size;
+  }
+
+  /* Remember the bitset of the multi-value data if exists*/
+  if (m_mv_data->bitset != nullptr) {
+    total_len += UT_BITS_IN_BYTES(m_mv_data->num_v);
+  }
+
+  return (total_len);
+}
+
+byte *Multi_value_logger::log(byte **ptr) {
+  mach_write_to_1(*ptr, s_multi_value_virtual_col_length_marker);
+  *ptr += 1;
+
+  if (m_field_len == UNIV_SQL_NULL) {
+    mach_write_to_2(*ptr, s_multi_value_null);
+    *ptr += s_log_length_for_null_or_empty;
+    return (*ptr);
+  } else if (m_field_len == UNIV_NO_INDEX_VALUE) {
+    mach_write_to_2(*ptr, s_multi_value_no_index_value);
+    *ptr += s_log_length_for_null_or_empty;
+    return (*ptr);
+  }
+
+  ut_ad(m_field_len == UNIV_MULTI_VALUE_ARRAY_MARKER);
+  byte *old_ptr = *ptr;
+
+  /* Store data in the same sequence as described in get_log_len() */
+  *ptr += 2;
+  *ptr += mach_write_compressed(*ptr, m_mv_data->num_v);
+  for (uint32_t i = 0; i < m_mv_data->num_v; ++i) {
+    ut_ad(m_mv_data->data_len[i] != UNIV_SQL_NULL);
+    *ptr += mach_write_compressed(*ptr, m_mv_data->data_len[i]);
+    ut_memcpy(*ptr, m_mv_data->datap[i], m_mv_data->data_len[i]);
+    *ptr += m_mv_data->data_len[i];
+  }
+
+  if (m_mv_data->bitset != nullptr) {
+    /* Always just write out the bitset of enough size for all data,
+    rather than the size of bitset. */
+    uint32_t bitset_len = UT_BITS_IN_BYTES(m_mv_data->num_v);
+    ut_memcpy(*ptr, m_mv_data->bitset->bitset(), bitset_len);
+    *ptr += bitset_len;
+  }
+
+  mach_write_to_2(old_ptr, *ptr - old_ptr);
+
+  return (*ptr);
+}
+
+uint32_t Multi_value_logger::read_log_len(const byte *ptr) {
+  ut_ad(is_multi_value_log(ptr));
+
+  uint32_t total_len = mach_read_from_2(ptr + 1);
+
+  if (total_len == s_multi_value_null ||
+      total_len == s_multi_value_no_index_value) {
+    return (1 + s_log_length_for_null_or_empty);
+  }
+
+  return (1 + total_len);
+}
+
+const byte *Multi_value_logger::read(const byte *ptr, dfield_t *field,
+                                     mem_heap_t *heap) {
+  ut_ad(is_multi_value_log(ptr));
+
+  ++ptr;
+
+  uint32_t total_len = mach_read_from_2(ptr);
+  const byte *old_ptr = ptr;
+
+  ptr += s_log_length_for_null_or_empty;
+
+  if (total_len == s_multi_value_null) {
+    dfield_set_null(field);
+    return (ptr);
+  } else if (total_len == s_multi_value_no_index_value) {
+    dfield_set_data(field, nullptr, UNIV_NO_INDEX_VALUE);
+    return (ptr);
+  }
+
+  uint32_t num = mach_read_next_compressed(&ptr);
+  field->data = mem_heap_alloc(heap, sizeof(multi_value_data));
+  field->len = UNIV_MULTI_VALUE_ARRAY_MARKER;
+
+  multi_value_data *multi_val = static_cast<multi_value_data *>(field->data);
+
+  multi_val->num_v = num;
+  multi_val->alloc(num, false, heap);
+
+  for (uint32_t i = 0; i < num; ++i) {
+    uint32_t len = mach_read_next_compressed(&ptr);
+    multi_val->datap[i] = ptr;
+    multi_val->data_len[i] = len;
+
+    ptr += len;
+  }
+
+  if (ptr < old_ptr + total_len) {
+    multi_val->alloc_bitset(heap);
+    multi_val->bitset->copy(ptr, UT_BITS_IN_BYTES(num));
+    ptr += UT_BITS_IN_BYTES(num);
+  }
+
+  ut_ad(ptr == old_ptr + total_len);
+  return (ptr);
+}
+
+uint32_t Multi_value_logger::get_keys_capacity(uint32_t log_size,
+                                               uint32_t key_length,
+                                               uint32_t *num_keys) {
+  uint32_t keys_length = log_size;
+
+  /* The calculation should be based on the ::log(), how it logs will
+  affect how the capacities calculated. And to be safe, in this function,
+  the length of each key would be assumed to be always the key_length
+  passed in, regardless of how actual data will consume. */
+
+  /* Exclude the bytes for multi-value marker, total log length and
+  number of keys */
+  keys_length -= (1 + 2 + 2);
+
+  /* Ignore the bitset too, to make the estimation simple */
+
+  *num_keys =
+      keys_length /
+      (key_length + Multi_value_logger::s_max_compressed_mv_key_length_size);
+
+  /* Total key length should also exclude the bytes for length of each key */
+  keys_length -=
+      *num_keys * Multi_value_logger::s_max_compressed_mv_key_length_size;
+
+  return (keys_length);
+}

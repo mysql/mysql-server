@@ -202,7 +202,10 @@ class Item_func : public Item_result_field {
     DATEADD_FUNC,
     DATETIME_LITERAL,
     GREATEST_FUNC,
-    LEAST_FUNC
+    LEAST_FUNC,
+    JSON_CONTAINS,
+    JSON_OVERLAPS,
+    MEMBER_OF_FUNC
   };
   enum optimize_type {
     OPTIMIZE_NONE,
@@ -391,40 +394,6 @@ class Item_func : public Item_result_field {
 
   my_decimal *val_decimal(my_decimal *) override;
 
-  /**
-    Same as save_in_field() except that special logic is added to
-    avoid serialization to string followed by parsing of the string
-    when saving a JSON value in a JSON column.
-
-    Unless both the return type of the function and the type of the
-    target column are JSON, this function works exactly as
-    save_in_field(). For the JSON type, this means:
-
-    - JSON values saved in non-JSON columns: The JSON value is
-      serialized to a character string and then attempted saved in the
-      target column. The usual conversions are performed if the target
-      column is not a character string column.
-
-    - Non-JSON values saved in JSON columns: Strings are parsed as
-      JSON text, converted to JSON binary representation and saved in
-      the target column. Non-strings cause a conversion error to be
-      raised.
-
-    A better solution might be to put this logic into
-    Item_func::save_in_field_inner() or even Item::save_in_field_inner().
-    But that would mean providing val_json() overrides for
-    more Item subclasses. And that feels like pulling on a
-    ball of yarn late in the release cycle for 5.7. FIXME.
-
-    @param[out] field          The field to set the value to.
-    @param      no_conversions Passed to save_in_field_inner().
-
-    @retval 0  On success.
-    @retval >0 On error.
-  */
-  virtual type_conversion_status save_possibly_as_json(Field *field,
-                                                       bool no_conversions);
-
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems, uint flags,
                         int item_sep) {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
@@ -556,6 +525,24 @@ class Item_func : public Item_result_field {
     maintains any necessary any invariants.
   */
   virtual void replace_argument(THD *thd, Item **oldpp, Item *newp);
+
+  /**
+    Whether an arg of a JSON function can be cached to avoid repetitive
+    string->JSON conversion. This function returns true only for those args,
+    which are the source of JSON data. JSON path args are cached independently
+    and for them this function returns false. Same as for all other type of
+    args.
+
+    @param arg  the arg to cache
+
+    @returns
+      true   arg can be cached
+      false  otherwise
+  */
+  virtual enum_const_item_cache can_cache_json_arg(
+      Item *arg MY_ATTRIBUTE((unused))) {
+    return CACHE_NONE;
+  }
 
  protected:
   /**
@@ -3646,8 +3633,6 @@ class Item_func_sp final : public Item_func {
 
  protected:
   bool is_expensive_processor(uchar *) override { return true; }
-  type_conversion_status save_in_field_inner(Field *field,
-                                             bool no_conversions) override;
 
  public:
   Item_func_sp(const POS &pos, const LEX_STRING &db_name,
@@ -3805,7 +3790,8 @@ extern enum_field_types agg_field_type(Item **items, uint nitems);
 double my_double_round(double value, longlong dec, bool dec_unsigned,
                        bool truncate);
 bool eval_const_cond(THD *thd, Item *cond, bool *value);
-Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type);
+Item_field *get_gc_for_expr(Item_func **func, Field *fld, Item_result type,
+                            Field **found = NULL);
 
 void retrieve_tablespace_statistics(THD *thd, Item **args, bool *null_value);
 

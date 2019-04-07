@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -77,6 +77,16 @@ int cmp_data_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
 UNIV_INLINE
 int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
                       bool is_asc) MY_ATTRIBUTE((warn_unused_result));
+
+/** Compare two data fields, the first one can be of any form of multi-value
+field, while the second one must be one field from multi-value index
+@param[in]	dfield1	multi-value data field;
+@param[in]	dfield2	data field; must have type field set
+@return 0 if dfield1 has dfield2 or they are equal if both NULL, otherwise 1 */
+UNIV_INLINE
+int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                  const dfield_t *dfield2)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Compare a GIS data tuple to a physical record.
 @param[in] dtuple data tuple

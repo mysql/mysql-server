@@ -8584,7 +8584,7 @@ ER_XA_CANT_CREATE_MDL_BACKUP
 ER_TABLE_WITHOUT_PK
   eng "Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting."
 
-WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX 01000
+ER_WARN_DATA_TRUNCATED_FUNCTIONAL_INDEX 01000
   eng "Data truncated for functional index '%s' at row %ld"
 
 ER_WARN_DATA_OUT_OF_RANGE_FUNCTIONAL_INDEX 22003
@@ -19270,6 +19270,26 @@ ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
 ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
   eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
 
+ER_WRONG_MVI_VALUE
+  eng "Can't store an array or an object in a scalar key part of the index '%.192s'"
+
+ER_WARN_FUNC_INDEX_NOT_APPLICABLE
+  eng "Cannot use functional index '%-.64s' due to type or collation conversion"
+
+ER_EXCEEDED_MV_KEYS_NUM
+  eng "Exceeded max number of values per record for multi-valued index '%-.64s' by %u value(s)"
+
+ER_EXCEEDED_MV_KEYS_SPACE
+  eng "Exceeded max total length of values per record for multi-valued index '%-.64s' by %u bytes"
+
+ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
+  eng "Data too long for functional index '%-.64s'"
+
+ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
+  eng "Invalid JSON value for CAST for functional index '%-.64s'"
+
+ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
+  eng "Out of range JSON value for CAST for functional index '%-.64s'"
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #

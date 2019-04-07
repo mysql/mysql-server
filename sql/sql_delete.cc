@@ -222,7 +222,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     HA_EXTRA_NO_IGNORE_DUP_KEY flag should be removed from
     delete_from_single_table(), Query_result_delete::optimize() and
   */
-  if (lex->is_ignore()) table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  if (lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   /*
     Test if the user wants to delete all rows and deletion doesn't have
@@ -425,7 +425,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
 
     if (select_lex->active_options() & OPTION_QUICK)
-      (void)table->file->extra(HA_EXTRA_QUICK);
+      (void)table->file->ha_extra(HA_EXTRA_QUICK);
 
     unique_ptr_destroy_only<Filesort> fsort;
     READ_RECORD info;
@@ -475,7 +475,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         and therefore might need delete to be done immediately. So we turn-off
         the batching.
       */
-      (void)table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+      (void)table->file->ha_extra(HA_EXTRA_DELETE_CANNOT_BATCH);
       will_batch = false;
     } else {
       // No after delete triggers, attempt to start bulk delete
@@ -567,7 +567,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       deleted_rows = table->file->end_read_removal();
     }
     if (select_lex->active_options() & OPTION_QUICK)
-      (void)table->file->extra(HA_EXTRA_NORMAL);
+      (void)table->file->ha_extra(HA_EXTRA_NORMAL);
   }  // End of scope for Modification_plan
 
 cleanup:
@@ -902,9 +902,9 @@ bool Query_result_delete::optimize() {
         table and therefore might need delete to be done immediately.
         So we turn-off the batching.
       */
-      (void)table->file->extra(HA_EXTRA_DELETE_CANNOT_BATCH);
+      (void)table->file->ha_extra(HA_EXTRA_DELETE_CANNOT_BATCH);
     }
-    if (thd->lex->is_ignore()) table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (thd->lex->is_ignore()) table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
     table->prepare_for_position();
     table->mark_columns_needed_for_delete(thd);
     if (thd->is_error()) DBUG_RETURN(true);

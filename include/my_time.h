@@ -361,6 +361,7 @@ int my_date_to_str(const MYSQL_TIME &my_time, char *to);
 int my_datetime_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 int my_TIME_to_str(const MYSQL_TIME &my_time, char *to, unsigned int dec);
 
+void my_date_to_binary(const MYSQL_TIME *ltime, unsigned char *ptr);
 int my_timeval_to_str(const struct timeval *tm, char *to, unsigned int dec);
 
 /**

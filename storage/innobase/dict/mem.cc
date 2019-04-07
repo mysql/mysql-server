@@ -153,6 +153,7 @@ dict_table_t *dict_mem_table_create(
     ulint n_cols,     /*!< in: total number of columns including
                       virtual and non-virtual columns */
     ulint n_v_cols,   /*!< in: number of virtual columns */
+    ulint n_m_v_cols, /*!< in: number of multi-value virtual columns */
     uint32_t flags,   /*!< in: table flags */
     uint32_t flags2)  /*!< in: table flags2 */
 {
@@ -188,6 +189,7 @@ dict_table_t *dict_mem_table_create(
   table->dd_space_id = dd::INVALID_OBJECT_ID;
   table->n_t_cols = (unsigned int)(n_cols + table->get_n_sys_cols());
   table->n_v_cols = (unsigned int)(n_v_cols);
+  table->n_m_v_cols = (unsigned int)(n_m_v_cols);
   table->n_cols = table->n_t_cols - table->n_v_cols;
   table->n_instant_cols = table->n_cols;
 

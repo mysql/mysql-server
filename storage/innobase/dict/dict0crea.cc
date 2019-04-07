@@ -679,7 +679,7 @@ dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
   snprintf(table_name, sizeof(table_name), "SDI_" SPACE_ID_PF, space);
 
   dict_table_t *table =
-      dict_mem_table_create(table_name, space, 5, 0, table_flags, 0);
+      dict_mem_table_create(table_name, space, 5, 0, 0, table_flags, 0);
 
   dict_mem_table_add_col(table, heap, "type", DATA_INT,
                          DATA_NOT_NULL | DATA_UNSIGNED, 4);

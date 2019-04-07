@@ -311,7 +311,7 @@ class table_def {
       we might need to modify the type to get the real type.
     */
     enum_field_types source_type = binlog_type(index);
-    uint16 source_metadata = m_field_metadata[index];
+    uint source_metadata = m_field_metadata[index];
     switch (source_type) {
       case MYSQL_TYPE_STRING: {
         int real_type = source_metadata >> 8;
@@ -348,12 +348,23 @@ class table_def {
     corresponding fields to properly extract the data from the binary log
     in the event that the master's field is smaller than the slave.
   */
-  uint16 field_metadata(uint index) const {
+  uint field_metadata(uint index) const {
     DBUG_ASSERT(index < m_size);
     if (m_field_metadata_size)
       return m_field_metadata[index];
     else
       return 0;
+  }
+
+  /**
+    Returns whether or not the field at `index` is a typed array.
+   */
+  bool is_array(uint index) const {
+    DBUG_ASSERT(index < m_size);
+    if (m_field_metadata_size)
+      return m_is_array[index];
+    else
+      return false;
   }
 
   /*
@@ -435,11 +446,12 @@ class table_def {
   ulong m_size;           // Number of elements in the types array
   unsigned char *m_type;  // Array of type descriptors
   uint m_field_metadata_size;
-  uint16 *m_field_metadata;
+  uint *m_field_metadata;
   uchar *m_null_bits;
   uint16 m_flags;  // Table flags
   uchar *m_memory;
   mutable int m_json_column_count;  // Number of JSON columns
+  bool *m_is_array;
 };
 
 #ifdef MYSQL_SERVER
@@ -474,6 +486,36 @@ class Deferred_log_events {
 };
 
 #endif
+
+/**
+  Decode field metadata from a char buffer (serialized form) into an int
+  (packed form).
+
+  @note On little-endian platforms (e.g Intel) this function effectively
+  inverts order of bytes compared to what Field::save_field_metadata()
+  writes. E.g for MYSQL_TYPE_NEWDECIMAL save_field_metadata writes precision
+  into the first byte and decimals into the second, this function puts
+  precision into the second byte and decimals into the first. This layout
+  is expected by replication code that reads metadata in the uint form.
+  Due to this design feature show_sql_type() can't correctly print
+  immediate output of save_field_metadata(), this function have to be used
+  as translator.
+
+  @param buffer Field metadata, in the character stream form produced by
+                save_field_metadata.
+  @param binlog_type The type of the field, in the form returned by
+                      Field::binlog_type and stored in Table_map_log_event.
+  @retval pair where:
+  - the first component is the length of the metadata within 'buffer',
+    i.e., how much the buffer pointer should move forward in order to skip it.
+  - the second component is pair containing:
+    - the metadata, encoded as an 'uint', in the form required by e.g.
+      show_sql_type.
+    - bool indicating whether the field is array (true) or a scalar (false)
+*/
+
+std::pair<my_off_t, std::pair<uint, bool>> read_field_metadata(
+    const uchar *metadata_ptr, enum_field_types type);
 
 // NB. number of printed bit values is limited to sizeof(buf) - 1
 #define DBUG_PRINT_BITSET(N, FRM, BS)                           \
