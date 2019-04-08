@@ -766,6 +766,7 @@ end4:
   *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
+    if (li == MAX_NEGATIVE_NUMBER) return LLONG_MIN;
     return -((longlong)li);
   }
   return (longlong)li;
@@ -2096,6 +2097,7 @@ end4:
   *endptr = s;
   if (negative) {
     if (li > MAX_NEGATIVE_NUMBER) goto overflow;
+    if (li == MAX_NEGATIVE_NUMBER) return LLONG_MIN;
     return -((longlong)li);
   }
   return (longlong)li;
