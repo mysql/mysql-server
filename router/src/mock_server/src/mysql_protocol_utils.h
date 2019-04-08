@@ -25,11 +25,11 @@
 #ifndef MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
 #define MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED
 
+#include <system_error>
+
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
 
-int get_socket_errno();
-std::string get_socket_errno_str();
 void send_packet(socket_t client_socket, const uint8_t *data, size_t size,
                  int flags = 0);
 void send_packet(socket_t client_socket,
@@ -39,5 +39,10 @@ void read_packet(socket_t client_socket, uint8_t *data, size_t size,
                  int flags = 0);
 int close_socket(socket_t sock);
 bool socket_has_data(socket_t sock, int timeout_ms);
+
+/**
+ * get last errno of a socket operation as std::error_code.
+ */
+std::error_code last_socket_error_code();
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED

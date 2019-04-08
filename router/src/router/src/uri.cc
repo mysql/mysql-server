@@ -1047,7 +1047,7 @@ URI URIParser::parse_shorthand_uri(const std::string &uri,
   if (match_authority(uri, pos, pos, tmp_host, tmp_port, tmp_username,
                       tmp_password)) {
     if (!match_path_absolute_or_empty(uri, pos, pos, tmp_path)) {
-      throw URIError("expoected absolute path or an empty path", uri, pos);
+      throw URIError("expected absolute path or an empty path", uri, pos);
     }
   } else if (match_path_absolute(uri, pos, pos, tmp_path)) {
   } else if (allow_path_rootless &&
