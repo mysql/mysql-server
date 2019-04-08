@@ -23,10 +23,12 @@
 #include "process_launcher.h"
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #include <thread>
 
 #ifdef _WIN32
@@ -522,7 +524,7 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
         wait_time -= sleep_for;
       } else {
         throw std::system_error(
-            ETIMEDOUT, std::generic_category(),
+            std::make_error_code(std::errc::timed_out),
             std::string("Timed out waiting " + std::to_string(timeout_ms) +
                         " ms for the process " + std::to_string(childpid) +
                         " to exit"));
@@ -536,9 +538,16 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
       } else if (WIFSIGNALED(status)) {
+        std::string msg;
+        std::array<char, 1024> b;
+        int n;
+        while ((n = read(b.data(), b.size(), 100)) > 0) {
+          msg.append(b.data(), n);
+        }
         throw std::runtime_error(
             std::string("Process " + std::to_string(childpid) + " got signal " +
-                        std::to_string(WTERMSIG(status))));
+                        std::to_string(WTERMSIG(status))) +
+            ":\n" + msg);
       } else {
         // it neither exited, not received a signal.
         throw std::runtime_error(std::string(

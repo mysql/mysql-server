@@ -478,7 +478,7 @@ Plugin *Loader::load_from(const std::string &plugin_name,
 }
 
 Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
-  log_info("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
+  log_debug("  plugin '%s:%s' loading", plugin_name.c_str(), key.c_str());
 
   if (BuiltinPlugins::instance().has(plugin_name)) {
     Plugin *plugin = BuiltinPlugins::instance().get_plugin(plugin_name);
@@ -495,7 +495,7 @@ Plugin *Loader::load(const std::string &plugin_name, const std::string &key) {
 }
 
 Plugin *Loader::load(const std::string &plugin_name) {
-  log_info("  plugin '%s' loading", plugin_name.c_str());
+  log_debug("  plugin '%s' loading", plugin_name.c_str());
 
   Config::SectionList plugins = config_.get(plugin_name);  // throws bad_section
   if (plugins.size() > 1) {
@@ -551,7 +551,7 @@ size_t Loader::external_plugins_to_load_count() {
 }
 
 void Loader::load_all() {
-  log_info("Loading all plugins.");
+  log_debug("Loading all plugins.");
 
   platform_specific_init();
   for (std::pair<const std::string &, std::string> name : available()) {
@@ -568,7 +568,7 @@ void Loader::load_all() {
 void Loader::unload_all() {
   // this stage has no implementation so far; however, we want to flag that we
   // reached this stage
-  log_info("Unloading all plugins.");
+  log_debug("Unloading all plugins.");
   // If that ever gets implemented make sure to not attempt unloading
   // built-in plugins
 }
@@ -686,7 +686,7 @@ static void call_plugin_function(PluginFuncEnv *env, std::exception_ptr &eptr,
 
 // returns first exception triggered by init()
 std::exception_ptr Loader::init_all() {
-  log_info("Initializing all plugins.");
+  log_debug("Initializing all plugins.");
 
   if (!topsort()) throw std::logic_error("Circular dependencies in plugins");
   order_.reverse();  // we need reverse-topo order for non-built-in plugins
@@ -707,7 +707,7 @@ std::exception_ptr Loader::init_all() {
       continue;
     }
 
-    log_info("  plugin '%s' initializing", plugin_name.c_str());
+    log_debug("  plugin '%s' initializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     std::exception_ptr eptr;
@@ -727,7 +727,7 @@ std::exception_ptr Loader::init_all() {
 
 // forwards first exception triggered by start() to main_loop()
 void Loader::start_all() {
-  log_info("Starting all plugins.");
+  log_debug("Starting all plugins.");
 
   // block signal handling for all threads
   //
@@ -759,8 +759,8 @@ void Loader::start_all() {
 
     // plugin start() will run in this new thread
     plugin_threads_.emplace_back([fptr, section, &env_promise, this]() {
-      log_info("  plugin '%s:%s' starting", section->name.c_str(),
-               section->key.c_str());
+      log_debug("  plugin '%s:%s' starting", section->name.c_str(),
+                section->key.c_str());
 
       // init env object and unblock harness thread
       std::shared_ptr<PluginFuncEnv> this_thread_env =
@@ -807,7 +807,7 @@ void Loader::start_all() {
  * @retval nullptr if no exception was returned
  */
 std::exception_ptr Loader::main_loop() {
-  log_info("Running.");
+  log_debug("Running.");
 
   // let's spawn the log reopen thread
   std::thread log_reopen_thread(log_reopen_thread_function);
@@ -896,7 +896,7 @@ std::exception_ptr Loader::main_loop() {
 std::exception_ptr Loader::stop_all() {
   // This function runs exactly once - it will be called even if all plugins
   // exit by themselves (thus there's nothing to stop).
-  log_info("Shutting down. Stopping all plugins.");
+  log_debug("Shutting down. Stopping all plugins.");
 
   // iterate over all plugin instances
   std::exception_ptr first_eptr;
@@ -916,8 +916,8 @@ std::exception_ptr Loader::stop_all() {
       continue;
     }
 
-    log_info("  plugin '%s:%s' stopping", section->name.c_str(),
-             section->key.c_str());
+    log_debug("  plugin '%s:%s' stopping", section->name.c_str(),
+              section->key.c_str());
 
     PluginFuncEnv stop_env(nullptr, section);
     call_plugin_function(&stop_env, first_eptr, fptr, "stop",
@@ -930,7 +930,7 @@ std::exception_ptr Loader::stop_all() {
 
 // returns first exception triggered by deinit()
 std::exception_ptr Loader::deinit_all() {
-  log_info("Deinitializing all plugins.");
+  log_debug("Deinitializing all plugins.");
 
   // we could just reverse order_ and that would work too,
   // but by leaving it intact it's easier to unit-test it
@@ -948,7 +948,7 @@ std::exception_ptr Loader::deinit_all() {
       continue;
     }
 
-    log_info("  plugin '%s' deinitializing", plugin_name.c_str());
+    log_debug("  plugin '%s' deinitializing", plugin_name.c_str());
     PluginFuncEnv env(&appinfo_, nullptr);
 
     call_plugin_function(&env, first_eptr, info.plugin->deinit, "deinit",
