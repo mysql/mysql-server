@@ -80,7 +80,7 @@ id	name
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
- SET NAMES utf8mb4 ;
+/*!50503 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -93,7 +93,7 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET u
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -107,7 +107,7 @@ INSERT  IGNORE INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first va
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t2` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -121,7 +121,7 @@ INSERT  IGNORE INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first va
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t3`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t3` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -135,7 +135,7 @@ INSERT  IGNORE INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first va
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t4`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t4` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -149,7 +149,7 @@ INSERT  IGNORE INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first va
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t5`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t5` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -163,7 +163,7 @@ INSERT  IGNORE INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first va
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t6`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t6` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -189,7 +189,7 @@ UNLOCK TABLES;
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
- SET NAMES utf8mb4 ;
+/*!50503 SET NAMES utf8mb4 */;
 /*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
 /*!40103 SET TIME_ZONE='+00:00' */;
 /*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
@@ -202,7 +202,7 @@ CREATE DATABASE /*!32312 IF NOT EXISTS*/ `test` /*!40100 DEFAULT CHARACTER SET u
 USE `test`;
 DROP TABLE IF EXISTS `t1`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -216,7 +216,7 @@ INSERT INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t2` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -230,7 +230,7 @@ INSERT INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t3`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t3` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -244,7 +244,7 @@ INSERT INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t4`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t4` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -258,7 +258,7 @@ INSERT INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t5`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t5` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL
@@ -272,7 +272,7 @@ INSERT INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4
 UNLOCK TABLES;
 DROP TABLE IF EXISTS `t6`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t6` (
   `id` int(8) DEFAULT NULL,
   `name` varchar(32) DEFAULT NULL

@@ -2166,7 +2166,7 @@ CREATE TABLE t1(id VARCHAR(20) NOT NULL, PRIMARY KEY(id)) ENGINE=FEDERATED
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 # Dump table t1 using mysqldump tool
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
- SET character_set_client = utf8mb4 ;
+/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `t1` (
   `id` varchar(20) NOT NULL,
   PRIMARY KEY (`id`)

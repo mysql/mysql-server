@@ -682,7 +682,7 @@ static void write_header(FILE *sql_file, char *db_name) {
           "\n/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS "
           "*/;"
           "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
-          "\n SET NAMES %s ;\n",
+          "\n/*!50503 SET NAMES %s */;\n",
           default_charset);
 
     if (opt_tz_utc) {
@@ -2690,7 +2690,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
           fprintf(sql_file,
                   "SET @saved_cs_client     = @@character_set_client;\n"
-                  "SET character_set_client = utf8mb4;\n"
+                  "/*!50503 SET character_set_client = utf8mb4 */;\n"
                   "/*!50001 CREATE VIEW %s AS SELECT \n",
                   result_table);
 
@@ -2737,7 +2737,7 @@ static uint get_table_structure(const char *table, char *db, char *table_type,
 
       fprintf(sql_file,
               "/*!40101 SET @saved_cs_client     = @@character_set_client */;\n"
-              " SET character_set_client = utf8mb4 ;\n"
+              "/*!50503 SET character_set_client = utf8mb4 */;\n"
               "%s%s;\n"
               "/*!40101 SET character_set_client = @saved_cs_client */;\n",
               (is_log_table || is_replication_metadata_table)
