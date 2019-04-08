@@ -2467,3 +2467,15 @@
    fun:*
    ...
 }
+
+# Sporadic error in GR tests
+
+{
+   Syscall param socketcall.sendto(msg) points to uninitialised byte(s)
+   Memcheck:Param
+   socketcall.sendto(msg)
+   obj:*
+   fun:__netlink_request
+   fun:getifaddrs_internal
+   fun:getifaddrs
+}
