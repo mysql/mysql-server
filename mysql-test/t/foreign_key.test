@@ -4316,6 +4316,7 @@ CREATE TABLE parent (pk VARCHAR(10) PRIMARY KEY);
 SHOW CREATE TABLE child;
 SELECT column_name, referenced_column_name FROM information_schema.key_column_usage
   WHERE referenced_table_schema='test' AND referenced_table_name='parent';
+SET FOREIGN_KEY_CHECKS=1;
 DROP TABLES child, parent;
 
 
@@ -4346,3 +4347,28 @@ SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 
 --echo # Clean-up.
 DROP TABLES t1, t2, t3, t4;
+
+
+--echo #
+--echo # Bug #11756183 "FOREIGN KEYS MAY DISAPPEAR AFTER ALTER TABLE RENAME".
+--echo # Bug #18713399 "FK CHILD TABLE CANNOT BE CREATED: PROBLEMS AFTER TABLE RENAME"
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY);
+INSERT INTO parent VALUES (1);
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+INSERT INTO child VALUES (1, 1);
+SHOW CREATE TABLE child;
+--echo # We use ALGORITHM=COPY to ensure that the below ALTER is executed
+--echo # using COPY algorithm even if changing column datatype becomes
+--echo # in-place operation.
+ALTER TABLE child MODIFY COLUMN b BIGINT, RENAME TO child_renamed, ALGORITHM=COPY;
+--echo # The foreign key should be still in SHOW CREATE TABLE output.
+SHOW CREATE TABLE child_renamed;
+--echo # Removal of parent row should not be allowed.
+--error ER_ROW_IS_REFERENCED_2
+DELETE FROM parent WHERE pk = 1;
+DROP TABLE child_renamed;
+--echo # Part of test covering bug#18713399. The below CREATE TABLE statement
+--echo # should not fail due to duplicate foreign key name.
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+DROP TABLES child, parent;
