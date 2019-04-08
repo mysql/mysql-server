@@ -1178,6 +1178,7 @@ int ha_archive::optimize(THD *, HA_CHECK_OPT *check_opt) {
   ha_rows count;
   my_bitmap_map *org_bitmap;
   char writer_filename[FN_REFLEN];
+  bool saved_copy_blobs = table->copy_blobs;
   DBUG_TRACE;
 
   mysql_mutex_lock(&share->mutex);
@@ -1226,6 +1227,9 @@ int ha_archive::optimize(THD *, HA_CHECK_OPT *check_opt) {
 
   stats.auto_increment_value = 1;
   org_bitmap = tmp_use_all_columns(table, table->read_set);
+
+  table->copy_blobs = true;
+
   /* read rows upto the remembered rows */
   for (ha_rows cur_count = count; cur_count; cur_count--) {
     if ((rc = get_row(&archive, table->record[0]))) break;
@@ -1246,6 +1250,7 @@ int ha_archive::optimize(THD *, HA_CHECK_OPT *check_opt) {
         save_auto_increment(table, &stats.auto_increment_value);
     }
   }
+  table->copy_blobs = saved_copy_blobs;
 
   tmp_restore_column_map(table->read_set, org_bitmap);
   share->rows_recorded = (ha_rows)writer.rows;
