@@ -189,7 +189,7 @@ SELECT ('a%b' LIKE 'ax%b' ESCAPE ('x', 'y'));
 SELECT ('a%b' LIKE 'ax%b' ESCAPE x) FROM t1;
 
 # Also test on an indexed column to exercise the range optimizer.
-# (The range optimizer will give up because it doesn't know the
+# (The range optimizer will give up because it does not know the
 # value of the escape character, so the query execution plan will
 # not actually use range optimization.)
 CREATE TABLE t2(x int, y varchar(100)) ENGINE=InnoDB;
@@ -301,3 +301,18 @@ SET NAMES default;
 --echo #
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
+
+
+--echo #
+--echo # Bug#29590129 UBSAN: MEMBER CALL ON NULL POINTER OF TYPE
+--echo #              'STRUCT STRING' IN ITEM_FUNC_LIKE::VA
+--echo #
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (42);
+
+--error ER_TRUNCATED_WRONG_VALUE
+DELETE FROM t1 WHERE
+( EXISTS
+   (SELECT * WHERE '520:33:32.77' < (c1 - INTERVAL(1) MONTH))
+) LIKE (c1);
+DROP TABLE t1;

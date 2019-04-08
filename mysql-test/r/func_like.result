@@ -392,3 +392,15 @@ SET NAMES default;
 #
 SELECT 'a' LIKE '%' ESCAPE CAST('' AS JSON);
 ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+#
+# Bug#29590129 UBSAN: MEMBER CALL ON NULL POINTER OF TYPE
+#              'STRUCT STRING' IN ITEM_FUNC_LIKE::VA
+#
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (42);
+DELETE FROM t1 WHERE
+( EXISTS
+(SELECT * WHERE '520:33:32.77' < (c1 - INTERVAL(1) MONTH))
+) LIKE (c1);
+ERROR 22007: Incorrect datetime value: '42'
+DROP TABLE t1;
