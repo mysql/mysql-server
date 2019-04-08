@@ -2351,11 +2351,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           << index->table->name << " was not found on update: " << *entry
           << " at: " << rec_index_print(rec, index);
 
-#ifdef UNIV_DEBUG
       if (dict_index_is_spatial(index)) {
         srv_mbr_print((unsigned char *)entry->fields[0].data);
       }
 
+#ifdef UNIV_DEBUG
       mtr_commit(&mtr);
       mtr_start(&mtr);
       ut_ad(btr_validate_index(index, 0, false));
