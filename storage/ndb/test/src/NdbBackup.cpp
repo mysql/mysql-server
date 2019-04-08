@@ -408,7 +408,7 @@ NdbBackup::restore(unsigned _backup_id,
     return -1;
 
   if(!restore_meta && !restore_data && !restore_epoch &&
-    (execRestore(false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
+    (execRestore(false, false, false, ndbNodes[0].node_id, _backup_id, error_insert) !=0))
     return -1;
 
   if(restore_meta && // if metadata restore enabled 
