@@ -32,7 +32,6 @@
 #include "sql/regexp/errors.h"
 #include "sql/regexp/regexp_facade.h"
 #include "sql/sql_class.h"
-#include "sql_string.h"
 #include "template_utils.h"
 
 namespace regexp {
@@ -105,22 +104,15 @@ const std::u16string &Regexp_engine::Replace(const std::u16string &replacement,
   return m_replace_buffer;
 }
 
-String *Regexp_engine::MatchedSubstring(String *result) {
+std::pair<int, int> Regexp_engine::MatchedSubstring() {
   int start = uregex_start(m_re, 0, &m_error_code);
   int end = uregex_end(m_re, 0, &m_error_code);
-  auto text =
-      pointer_cast<const char *>(uregex_getText(m_re, nullptr, &m_error_code));
   int start_in_bytes = start * sizeof(UChar);
   int length_in_bytes = (end - start) * sizeof(UChar);
 
-  if (U_FAILURE(m_error_code)) return nullptr;
-  /*
-    The ownership of the text was with us all along, we can safely pass it to
-    `result`.
-  */
-  result->set(text + start_in_bytes, length_in_bytes, regexp_lib_charset);
+  if (U_FAILURE(m_error_code)) return {-1, -1};
 
-  return result;
+  return {start_in_bytes, length_in_bytes};
 }
 
 void Regexp_engine::AppendHead(size_t size) {

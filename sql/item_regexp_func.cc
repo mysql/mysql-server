@@ -90,7 +90,7 @@ static bool ParseRegexpOptions(const std::string &options_string,
 }
 
 bool Item_func_regexp::resolve_type(THD *) {
-  return agg_arg_charsets_for_comparison(m_cmp_collation, args, 2);
+  return agg_arg_charsets_for_comparison(collation, args, 2);
 }
 
 bool Item_func_regexp::fix_fields(THD *thd, Item **arguments) {
@@ -116,8 +116,7 @@ bool Item_func_regexp::set_pattern() {
   if (!mp.has_value()) return true;
 
   bool is_case_sensitive =
-      ((m_cmp_collation.collation->state & MY_CS_CSSORT) != 0 ||
-       (m_cmp_collation.collation->state & MY_CS_BINSORT) != 0);
+      (((collation.collation->state & (MY_CS_CSSORT | MY_CS_BINSORT)) != 0));
 
   uint32_t icu_flags = 0;  // Avoids compiler warning on gcc 4.8.5.
   // match_parameter overrides coercion type.
@@ -185,7 +184,7 @@ longlong Item_func_regexp_like::val_int() {
 
 bool Item_func_regexp_replace::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  set_data_type_string(ulonglong{MAX_BLOB_WIDTH}, regexp::regexp_lib_charset);
+  set_data_type_string(ulonglong{MAX_BLOB_WIDTH});
   return false;
 }
 
@@ -206,6 +205,7 @@ String *Item_func_regexp_replace::val_str(String *buf) {
     return nullptr;
   }
 
+  buf->set_charset(collation.collation);
   String *result = m_facade->Replace(subject(), replacement(), pos.value(),
                                      occ.value(), buf);
   null_value = (result == nullptr);
@@ -214,8 +214,7 @@ String *Item_func_regexp_replace::val_str(String *buf) {
 
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  set_data_type_string(subject()->max_char_length(),
-                       regexp::regexp_lib_charset);
+  set_data_type_string(subject()->max_char_length());
   return false;
 }
 
@@ -233,6 +232,7 @@ String *Item_func_regexp_substr::val_str(String *buf) {
     null_value = true;
     return nullptr;
   }
+  buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
   null_value = (result == nullptr);
   return result;

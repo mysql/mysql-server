@@ -777,8 +777,6 @@ CREATE TABLE t1 AS SELECT
   regexp_substr( repeat('a', 512), 'a' ) AS e,
   regexp_substr( repeat('a', 513), 'a' ) AS f;
 
---echo # The actual character set that ICU uses depends on the machine.
---replace_regex /(utf16)(le)?/\1x/
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 DROP TABLE t1;
@@ -811,3 +809,34 @@ SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2 );
 SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2, 2 );
 
 --source ../mysql-test/include/cleanup_icu_utils.inc
+
+--echo #
+--echo # REGEXP_REPLACE DOES NOT CONVERT RESULT CHARACTER SET
+--echo #
+
+SELECT hex(regexp_replace( convert( 'abcd' using utf8mb4 ), 'c', ''));
+SELECT hex(regexp_replace( convert( 'abcd' using utf16 ), 'c', ''));
+SELECT hex(regexp_substr( convert( 'abcd' using utf8mb4 ), 'abc'));
+SELECT hex(regexp_substr( convert( 'abcd' using utf16 ), 'abc'));
+
+--echo #
+--echo # Test of the code path that elides character set conversion when the
+--echo # target column has the same character set as ICU produces. This depends
+--echo # on the architecture, and so we try both big and little endian.
+--echo #
+CREATE TABLE t1 (
+  a CHAR(10) CHARACTER SET utf16le,
+  b CHAR(10) CHARACTER SET utf16
+);
+
+INSERT INTO t1 VALUES (
+  regexp_substr( convert('abcd' using utf16le), 'abc' ),
+  regexp_substr( convert('abcd' using utf16), 'abc' ));
+
+INSERT INTO t1 VALUES (
+  regexp_substr( 'abcd', 'abc' ),
+  regexp_substr( 'abcd', 'abc' ));
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

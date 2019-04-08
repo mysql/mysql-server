@@ -121,17 +121,6 @@ class Regexp_facade {
 
   String *Substr(Item *subject_expr, int start, int occurrence, String *result);
 
-  /**
-    Returns the substring that was matched by the previous call to find() or
-    matches().
-
-    @param[out] result A string we can write to.
-    @return A pointer to result.
-  */
-  String *MatchedSubstring(String *result) {
-    return m_engine->MatchedSubstring(result);
-  }
-
  private:
   /**
     Resets the compiled regular expression with a new string.

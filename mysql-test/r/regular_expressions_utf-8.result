@@ -672,7 +672,7 @@ SELECT @buf_sz_utf16;
 512.000000000
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
 length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ))
-1024
+512
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
 ERROR HY000: The result string is larger than the result buffer.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));
@@ -907,16 +907,15 @@ regexp_replace( 'abc', 'b', 'x' ) AS c,
 regexp_substr( 'a', 'a' ) AS d,
 regexp_substr( repeat('a', 512), 'a' ) AS e,
 regexp_substr( repeat('a', 513), 'a' ) AS f;
-# The actual character set that ICU uses depends on the machine.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bigint(21) NOT NULL DEFAULT '0',
   `b` int(1) NOT NULL DEFAULT '0',
-  `c` longtext CHARACTER SET utf16x,
-  `d` varchar(1) CHARACTER SET utf16x NOT NULL DEFAULT '',
-  `e` varchar(512) CHARACTER SET utf16x DEFAULT NULL,
-  `f` text CHARACTER SET utf16x
+  `c` longtext CHARACTER SET latin1,
+  `d` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `e` varchar(512) CHARACTER SET latin1 DEFAULT NULL,
+  `f` text CHARACTER SET latin1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c	d	e	f
@@ -968,3 +967,38 @@ regexp_replace( '???', '.', 'a', 2 )
 SELECT regexp_replace( '🍣🍣🍣', '.', 'a', 2, 2 );
 regexp_replace( '???', '.', 'a', 2, 2 )
 🍣🍣a
+#
+# REGEXP_REPLACE DOES NOT CONVERT RESULT CHARACTER SET
+#
+SELECT hex(regexp_replace( convert( 'abcd' using utf8mb4 ), 'c', ''));
+hex(regexp_replace( convert( 'abcd' using utf8mb4 ), 'c', ''))
+616264
+SELECT hex(regexp_replace( convert( 'abcd' using utf16 ), 'c', ''));
+hex(regexp_replace( convert( 'abcd' using utf16 ), 'c', ''))
+006100620064
+SELECT hex(regexp_substr( convert( 'abcd' using utf8mb4 ), 'abc'));
+hex(regexp_substr( convert( 'abcd' using utf8mb4 ), 'abc'))
+616263
+SELECT hex(regexp_substr( convert( 'abcd' using utf16 ), 'abc'));
+hex(regexp_substr( convert( 'abcd' using utf16 ), 'abc'))
+006100620063
+#
+# Test of the code path that elides character set conversion when the
+# target column has the same character set as ICU produces. This depends
+# on the architecture, and so we try both big and little endian.
+#
+CREATE TABLE t1 (
+a CHAR(10) CHARACTER SET utf16le,
+b CHAR(10) CHARACTER SET utf16
+);
+INSERT INTO t1 VALUES (
+regexp_substr( convert('abcd' using utf16le), 'abc' ),
+regexp_substr( convert('abcd' using utf16), 'abc' ));
+INSERT INTO t1 VALUES (
+regexp_substr( 'abcd', 'abc' ),
+regexp_substr( 'abcd', 'abc' ));
+SELECT * FROM t1;
+a	b
+abc	abc
+abc	abc
+DROP TABLE t1;
