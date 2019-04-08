@@ -247,6 +247,19 @@ IF(SOLARIS AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
   ENDIF()
 ENDIF()
 
+# Configuring like below, we get -Werror=array-bounds with gcc 8.3
+# -DWITH_DEBUG=1
+# -DCMAKE_CXX_FLAGS=
+#   '-O2 -g -pipe -Wall -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 '
+# See:
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=89689
+# __builtin___memcpy_chk() has bugs.
+MY_CHECK_CXX_COMPILER_WARNING("-Warray-bounds" HAS_WARN_FLAG)
+IF(HAS_WARN_FLAG)
+  ADD_COMPILE_FLAGS(log/log0meb.cc
+    COMPILE_FLAGS "${HAS_WARN_FLAG}")
+ENDIF()
+
 # Generated code with logical-op warnings
 MY_CHECK_CXX_COMPILER_WARNING("-Wlogical-op" HAS_WARN_FLAG)
 IF(HAS_WARN_FLAG)
