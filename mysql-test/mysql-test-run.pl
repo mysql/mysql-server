@@ -4651,27 +4651,39 @@ sub run_testcase ($) {
 
   my $test = start_mysqltest($tinfo);
 
-  # Set only when we have to keep waiting after expectedly died server
-  my $keep_waiting_proc = 0;
+  # Maintain a queue to keep track of server processes which have
+  # died expectedly in order to wait for them to be restarted.
+  my @waiting_procs = ();
   my $print_timeout     = start_timer($print_freq * 60);
 
   while (1) {
     my $proc;
-    if ($keep_waiting_proc) {
+    if (scalar(@waiting_procs)) {
       # Any other process exited?
       $proc = My::SafeProcess->check_any();
       if ($proc) {
         mtr_verbose("Found exited process $proc");
+
+        # Insert the process into waiting queue and pick an other
+        # process which needs to be checked. This is done to avoid
+        # starvation.
+        unshift @waiting_procs, $proc;
+        $proc = pop @waiting_procs;
       } else {
-        $proc = $keep_waiting_proc;
+        # Pick a process from the waiting queue
+        $proc = pop @waiting_procs;
+
         # Also check if timer has expired, if so cancel waiting
         if (has_expired($test_timeout)) {
-          $keep_waiting_proc = 0;
+          $proc = undef;
+          @waiting_procs = ();
         }
       }
     }
 
-    if (!$keep_waiting_proc) {
+    # Check for test timeout if the waiting queue is empty and no
+    # process needs to be checked if it has been restarted.
+    if (not scalar(@waiting_procs) and not defined $proc) {
       if ($test_timeout > $print_timeout) {
         my $timer = $ENV{'MTR_MANUAL_DEBUG'} ? start_timer(2) : $print_timeout;
         $proc = My::SafeProcess->wait_any_timeout($timer);
@@ -4685,9 +4697,9 @@ sub run_testcase ($) {
           } elsif ($ENV{'MTR_MANUAL_DEBUG'}) {
             my $check_crash = check_expected_crash_and_restart($proc);
             if ($check_crash) {
-              # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-              $keep_waiting_proc = 0     if $check_crash == 1;
-              $keep_waiting_proc = $proc if $check_crash == 2;
+              # Add process to the waiting queue if the check returns 2
+              # or stop waiting if it returns 1.
+              unshift @waiting_procs, $proc if $check_crash == 2;
               next;
             }
           }
@@ -4696,9 +4708,6 @@ sub run_testcase ($) {
         $proc = My::SafeProcess->wait_any_timeout($test_timeout);
       }
     }
-
-    # Will be restored if we need to keep waiting
-    $keep_waiting_proc = 0;
 
     unless (defined $proc) {
       mtr_error("wait_any failed");
@@ -4849,9 +4858,9 @@ sub run_testcase ($) {
     # Check if it was an expected crash
     my $check_crash = check_expected_crash_and_restart($proc, $tinfo);
     if ($check_crash) {
-      # Keep waiting if it returned 2, if 1 don't wait or stop waiting.
-      $keep_waiting_proc = 0     if $check_crash == 1;
-      $keep_waiting_proc = $proc if $check_crash == 2;
+      # Add process to the waiting queue if the check returns 2
+      # or stop waiting if it returns 1
+      unshift @waiting_procs, $proc if $check_crash == 2;
       next;
     }
 
