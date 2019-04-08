@@ -3,6 +3,11 @@
 #
 --source include/not_windows.inc
 
+--disable_query_log
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
 --let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
 --let $SERVER_UUID      = `SELECT @@global.server_uuid`
 --let $IRLA_FILENAME    = archive.$SERVER_UUID.000001.log

@@ -20,6 +20,8 @@ if (!$IRLA_SMALL_DIR) {
 CALL mtr.add_suppression("Retry attempts for writing partial data failed");
 CALL mtr.add_suppression("bytes should have been written, only");
 CALL mtr.add_suppression("Error number .* means");
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
 --enable_query_log
 
 --let $saved_dirs       = `SELECT @@global.innodb_redo_log_archive_dirs`
