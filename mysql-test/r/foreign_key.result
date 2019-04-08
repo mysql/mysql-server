@@ -4461,6 +4461,7 @@ SELECT column_name, referenced_column_name FROM information_schema.key_column_us
 WHERE referenced_table_schema='test' AND referenced_table_name='parent';
 column_name	referenced_column_name
 Fk	pK
+SET FOREIGN_KEY_CHECKS=1;
 DROP TABLES child, parent;
 #
 # Test for bug#29173134 "FOREIGN KEY CONSTRAINT NAMES TAKING INDEX NAME".
@@ -4522,3 +4523,40 @@ t4_ibfk_1
 t4_ibfk_2
 # Clean-up.
 DROP TABLES t1, t2, t3, t4;
+#
+# Bug #11756183 "FOREIGN KEYS MAY DISAPPEAR AFTER ALTER TABLE RENAME".
+# Bug #18713399 "FK CHILD TABLE CANNOT BE CREATED: PROBLEMS AFTER TABLE RENAME"
+#
+CREATE TABLE parent (pk INT PRIMARY KEY);
+INSERT INTO parent VALUES (1);
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+INSERT INTO child VALUES (1, 1);
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `fk` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# We use ALGORITHM=COPY to ensure that the below ALTER is executed
+# using COPY algorithm even if changing column datatype becomes
+# in-place operation.
+ALTER TABLE child MODIFY COLUMN b BIGINT, RENAME TO child_renamed, ALGORITHM=COPY;
+# The foreign key should be still in SHOW CREATE TABLE output.
+SHOW CREATE TABLE child_renamed;
+Table	Create Table
+child_renamed	CREATE TABLE `child_renamed` (
+  `fk` int(11) DEFAULT NULL,
+  `b` bigint(20) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  CONSTRAINT `child_renamed_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Removal of parent row should not be allowed.
+DELETE FROM parent WHERE pk = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`child_renamed`, CONSTRAINT `child_renamed_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `parent` (`pk`))
+DROP TABLE child_renamed;
+# Part of test covering bug#18713399. The below CREATE TABLE statement
+# should not fail due to duplicate foreign key name.
+CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
+DROP TABLES child, parent;
