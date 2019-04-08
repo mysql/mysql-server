@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -53,12 +53,7 @@ const char kPlaceholderHttpBaseDir[]{"@placeholder_httpbasedir@"};
 const char kSubdirWithSpace[]{"with space"};
 const char kSubdirWithIndex[]{"with_index"};
 
-const char kSuccessfulLogOutput[]{
-    "Loading all plugins.\n"
-    "  plugin 'http_server:' loading\n"
-    "  plugin 'logger:' loading\n"
-    "Initializing all plugins.\n"
-    "  plugin 'logger' initializing\n"};
+const char kSuccessfulLogOutput[]{""};
 
 const size_t placeholder_datadir_length{strlen(kPlaceholderDatadir)};
 const size_t placeholder_stddatadir_length{strlen(kPlaceholderStddataDir)};
@@ -1608,8 +1603,8 @@ TEST_P(HttpServerAuthFailTest, ensure) {
     ASSERT_TRUE(req);
     ASSERT_EQ(req.get_response_code(), 404);
   } else {
-    SCOPED_TRACE("// wait http port connectable");
-    ASSERT_FALSE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT));
+    SCOPED_TRACE("// wait process to exit with with error");
+    EXPECT_NO_THROW({ ASSERT_NE(0, http_server.wait_for_exit()); });
     EXPECT_THAT(get_router_log_output(),
                 ::testing::HasSubstr(GetParam().expected_errmsg));
   }
