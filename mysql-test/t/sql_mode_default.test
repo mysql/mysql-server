@@ -80,3 +80,17 @@ SET sql_mode = default;
 --echo
 --echo End of wl#8326 tests!
 --echo
+
+--echo #
+--echo # Bug#29287785: PASSWORD IS NOT UPDATED WITHOUT ERRORS WHEN
+--echo #               SQL MODE IS PAD_CHAR_TO_FULL_LENGTH
+--echo #
+
+CREATE USER 'user1'@'localhost';
+SET sql_mode= 'PAD_CHAR_TO_FULL_LENGTH';
+SET PASSWORD FOR 'user1'@'localhost'= PASSWORD('abc');
+SELECT authentication_string FROM mysql.user WHERE user= 'user1';
+
+#Cleanup
+DROP USER 'user1'@'localhost';
+SET sql_mode= DEFAULT;
