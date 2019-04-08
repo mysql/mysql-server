@@ -2836,6 +2836,9 @@ DROP TABLE t1;
 --echo # Bug#29541665 "SWAPPING COLUMNS USED IN PARTITIONED EXPRESSION BY RENAMING BREAKS PARTITIONING".
 --echo #
 
+# Disabled execution under --ps-protocol until bug #13569548 "DBUG_ASSERT HIT
+# IN COLUMNS PART EXPR IN THE VALUE LIST UNDER --PS-PROTOCOL" is fixed.
+--disable_ps_protocol
 --echo #
 --echo # Test case mimicking the original one.
 CREATE TABLE t1 (i INT, j INT) PARTITION BY RANGE(i) (PARTITION p0 VALUES LESS THAN (0), PARTITION p1 VALUES LESS THAN MAXVALUE);
@@ -3032,3 +3035,4 @@ SHOW CREATE TABLE t1;
 SELECT i, j FROM t1 PARTITION (p0);
 SELECT i, j FROM t1 PARTITION (p1);
 DROP TABLE t1;
+--enable_ps_protocol
