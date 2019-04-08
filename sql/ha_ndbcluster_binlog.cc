@@ -972,7 +972,6 @@ ndb_create_table_from_engine(THD *thd,
     free(unpacked_data);
   }
 
-
   // Found table, now install it in DD
   Ndb_dd_client dd_client(thd);
 
@@ -982,12 +981,22 @@ ndb_create_table_from_engine(THD *thd,
     DBUG_RETURN(12);
   }
 
+  const std::string tablespace_name = ndb_table_tablespace_name(dict, tab);
+  if (!tablespace_name.empty())
+  {
+    // Acquire IX MDL on tablespace
+    if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true))
+    {
+      DBUG_RETURN(12);
+    }
+  }
+
   Ndb_referenced_tables_invalidator invalidator(thd, dd_client);
 
   if (!dd_client.install_table(
       schema_name, table_name, sdi,
       tab->getObjectId(), tab->getObjectVersion(),
-      tab->getPartitionCount(), force_overwrite,
+      tab->getPartitionCount(), tablespace_name, force_overwrite,
       (invalidate_referenced_tables?&invalidator:nullptr)))
   {
     DBUG_RETURN(13);
@@ -1568,11 +1577,25 @@ class Ndb_binlog_setup {
       DBUG_RETURN(false);
     }
 
+    const std::string tablespace_name =
+        ndb_table_tablespace_name(ndb->getDictionary(), ndbtab);
+    if (!tablespace_name.empty())
+    {
+      // Acquire IX MDL on tablespace
+      if (!dd_client.mdl_lock_tablespace(tablespace_name.c_str(), true))
+      {
+        ndb_log_error("Couldn't acquire metadata lock on tablespace '%s'",
+                      tablespace_name.c_str());
+        DBUG_RETURN(false);
+      }
+    }
+
     if (!dd_client.install_table(schema_name, table_name,
                                  sdi,
                                  ndbtab->getObjectId(),
                                  ndbtab->getObjectVersion(),
                                  ndbtab->getPartitionCount(),
+                                 tablespace_name,
                                  force_overwrite))
     {
       // Failed to install table

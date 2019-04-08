@@ -635,6 +635,7 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              const dd::sdi_t& sdi,
                              int ndb_table_id, int ndb_table_version,
                              size_t ndb_num_partitions,
+                             const std::string &tablespace_name,
                              bool force_overwrite,
                              Ndb_referenced_tables_invalidator *invalidator)
 {
@@ -688,6 +689,17 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
   {
     ndb_dd_table_fix_partition_count(install_table.get(),
                                      ndb_num_partitions);
+  }
+
+  // Set the tablespace id if applicable
+  if (!tablespace_name.empty())
+  {
+    dd::Object_id tablespace_id;
+    if (!lookup_tablespace_id(tablespace_name.c_str(), &tablespace_id))
+    {
+      return false;
+    }
+    ndb_dd_table_set_tablespace_id(install_table.get(), tablespace_id);
   }
 
   const dd::Table *existing= nullptr;

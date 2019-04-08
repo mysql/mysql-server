@@ -27,6 +27,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 #include <unordered_set>
 
@@ -136,7 +137,7 @@ public:
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
                      size_t ndb_num_partitions,
-                     bool force_overwrite,
+                     const std::string &tablespace_name, bool force_overwrite,
                      Ndb_referenced_tables_invalidator *invalidator= nullptr);
   bool migrate_table(const char* schema_name, const char* table_name,
                      const unsigned char* frm_data,

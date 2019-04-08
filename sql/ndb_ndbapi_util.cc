@@ -150,6 +150,7 @@ ndb_table_has_tablespace(const NdbDictionary::Table* ndbtab)
 
 }
 
+
 const char*
 ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab)
 {
@@ -160,6 +161,31 @@ ndb_table_tablespace_name(const NdbDictionary::Table* ndbtab)
   {
     // Just the zero length name, no tablespace name
     return nullptr;
+  }
+  return tablespace_name;
+}
+
+
+std::string
+ndb_table_tablespace_name(NdbDictionary::Dictionary *dict,
+                          const NdbDictionary::Table *ndbtab)
+{
+  // NOTE! The getTablespaceName() returns zero length string
+  // to indicate no tablespace
+  std::string tablespace_name = ndbtab->getTablespaceName();
+  if (tablespace_name.empty())
+  {
+    // Just the zero length name, no tablespace name
+    // Try and retrieve it using the id as a fallback mechanism
+    Uint32 tablespace_id;
+    if (ndbtab->getTablespace(&tablespace_id))
+    {
+      const NdbDictionary::Tablespace ts = dict->getTablespace(tablespace_id);
+      if (!ndb_dict_check_NDB_error(dict))
+      {
+        tablespace_name = ts.getName();
+      }
+    }
   }
   return tablespace_name;
 }
