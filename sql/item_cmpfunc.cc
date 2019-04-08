@@ -5656,6 +5656,7 @@ longlong Item_func_like::val_int() {
     return 0;
   }
   null_value = 0;
+  if (current_thd->is_error()) return 0;
 
   return my_wildcmp(cmp.cmp_collation.collation, res->ptr(),
                     res->ptr() + res->length(), res2->ptr(),
