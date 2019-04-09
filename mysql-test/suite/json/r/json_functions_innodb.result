@@ -11057,53 +11057,57 @@ NULL
 # BUG#28179109: JSON COLUMN WITH STRING VALUE GOT INCORRECT RESULT
 # BUG#28182471: JSON COLUMN WITH INTEGER VALUE GOT INCORRECT RESULT
 #
-CREATE TABLE t1 (jdoc JSON);
-INSERT INTO t1 VALUES('{"key1": "111", "key2": "222"}');
-INSERT INTO t1 VALUES('{"key1": "333", "key2": "444"}');
-SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1;
-jdoc	JSON_EXTRACT(jdoc,'$.key1')
-{"key1": "111", "key2": "222"}	"111"
-{"key1": "333", "key2": "444"}	"333"
+CREATE TABLE t1 (id INT, jdoc JSON);
+INSERT INTO t1 VALUES(1, '{"key1": "111", "key2": "222"}');
+INSERT INTO t1 VALUES(2, '{"key1": "333", "key2": "444"}');
+SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1 ORDER BY id;
+id	jdoc	JSON_EXTRACT(jdoc,'$.key1')
+1	{"key1": "111", "key2": "222"}	"111"
+2	{"key1": "333", "key2": "444"}	"333"
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"');
-jdoc
+id	jdoc
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('"111"');
-jdoc
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"');
-jdoc
+id	jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"')
+ORDER BY id;
+id	jdoc
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111');
-jdoc
-{"key1": "111", "key2": "222"}
+id	jdoc
+1	{"key1": "111", "key2": "222"}
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('111');
-jdoc
-{"key1": "111", "key2": "222"}
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333');
-jdoc
-{"key1": "111", "key2": "222"}
-{"key1": "333", "key2": "444"}
+id	jdoc
+1	{"key1": "111", "key2": "222"}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333')
+ORDER BY id;
+id	jdoc
+1	{"key1": "111", "key2": "222"}
+2	{"key1": "333", "key2": "444"}
 SELECT * FROM t1 WHERE '111' IN (JSON_EXTRACT(jdoc,'$.key1'), '333');
-jdoc
-{"key1": "111", "key2": "222"}
-INSERT INTO t1 VALUES('{"key1": 1, "key2": 11}');
-INSERT INTO t1 VALUES('{"key1": 2, "key2": 22}');
+id	jdoc
+1	{"key1": "111", "key2": "222"}
+INSERT INTO t1 VALUES(3, '{"key1": 1, "key2": 11}');
+INSERT INTO t1 VALUES(4, '{"key1": 2, "key2": 22}');
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1');
-jdoc
+id	jdoc
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('1');
-jdoc
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2');
-jdoc
+id	jdoc
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2')
+ORDER BY id;
+id	jdoc
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1);
-jdoc
-{"key1": 1, "key2": 11}
+id	jdoc
+3	{"key1": 1, "key2": 11}
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = (1);
-jdoc
-{"key1": 1, "key2": 11}
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2);
-jdoc
-{"key1": 1, "key2": 11}
-{"key1": 2, "key2": 22}
+id	jdoc
+3	{"key1": 1, "key2": 11}
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2)
+ORDER BY id;
+id	jdoc
+3	{"key1": 1, "key2": 11}
+4	{"key1": 2, "key2": 22}
 SELECT * FROM t1 WHERE 1 IN (JSON_EXTRACT(jdoc,'$.key1'), 2);
-jdoc
-{"key1": 1, "key2": 11}
+id	jdoc
+3	{"key1": 1, "key2": 11}
 SELECT (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)));
 (5, CAST(1 AS JSON)) IN ((1, CAST(5 AS JSON)),(5, CAST(1 AS JSON)))
 1
