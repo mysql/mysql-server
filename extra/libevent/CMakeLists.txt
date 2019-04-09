@@ -768,6 +768,10 @@ if(WIN32)
             -D_CRT_SECURE_NO_WARNINGS
             -D_CRT_NONSTDC_NO_DEPRECATE)
 
+    # Removing WIN32_LEAN_AND_MEAN definition to avoid:
+    # "warning C4005: 'WIN32_LEAN_AND_MEAN': macro redefinition" in several files
+    remove_definitions(-DWIN32_LEAN_AND_MEAN)
+
     include_directories(./WIN32-Code)
 endif()
 
