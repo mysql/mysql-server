@@ -28,6 +28,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/master-slave.inc
 --source include/have_ssl.inc
+--source include/not_asan.inc
 
 --echo ==== Create new replication user ====
 --echo [on master]
