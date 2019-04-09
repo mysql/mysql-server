@@ -635,3 +635,94 @@ FLUSH TABLES t1 FOR EXPORT;
 ERROR HY000: Tablespace has been discarded for table 't1'
 UNLOCK TABLES;
 DROP TABLE t1;
+#
+# Bug#29492113 TABLE NOT ACCESSIBLE AFTER MOVING THE IBD FILE,
+# WHEN THE DATABASE NAME HAS "/"
+#
+#
+# Scenario-1
+# create database `abc/def`
+# create table `abc/def`.`xyz/123` in MYSQL_TMP_DIR/my_dir1
+# The directory structure after creating the table should be
+# MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd
+#
+CREATE DATABASE `abc/def`;
+CREATE TABLE `abc/def`.`xyz/123` (c1 INT) DATA DIRECTORY 'MYSQL_TMP_DIR/my_dir1';
+SHOW WARNINGS;
+Level	Code	Message
+#
+# Validate the directory structure
+#
+abc@002fdef
+xyz@002f123.ibd
+INSERT INTO `abc/def`.`xyz/123` VALUES (1), (2), (3);
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+COUNT(*)
+3
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+FILE_NAME	TABLESPACE_NAME
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+name	space_type
+abc/def/xyz/123	Single
+#
+# Shutdown the server
+#
+#
+# Scenario-2
+# Move the IBD file from MYSQL_TMP_DIR/my_dir1 to MYSQL_TMP_DIR/my_dir2
+# Restart the server with --innodb_directories MYSQL_TMP_DIR/my_dir2
+# Query the table
+# Restart the server without --innodb_directories option
+#
+#
+# Move IBD file in MYSQL_TMP_DIR/my_dir1 to MYSQL_TMP_DIR/my_dir2
+#
+#
+# Resart server with --innodb_directories MYSQL_TMP_DIR/my_dir2
+#
+# restart: --innodb_directories=MYSQL_TMP_DIR/my_dir2
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+COUNT(*)
+3
+#
+# Restart server without --innodb_directories option
+#
+# restart:
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+COUNT(*)
+3
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+FILE_NAME	TABLESPACE_NAME
+MYSQL_TMP_DIR/my_dir2/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+name	space_type
+abc/def/xyz/123	Single
+#
+# Shutdown server
+#
+#
+# Scenario-3
+# Move the IBD file from MYSQL_TMP_DIR/my_dir2 to MYSQL_TMP_DIR/my_dir1
+# Restart the server with --innodb_directories MYSQL_TMP_DIR/my_dir1
+#
+#
+# Move IBD file from MYSQL_TMP_DIR/my_dir2 to MYSQL_TMP_DIR/my_dir1
+#
+#
+# Restart server with --innodb_directories MYSQL_TMP_DIR/my_dir1
+#
+# restart: --innodb_directories=MYSQL_TMP_DIR/my_dir1
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+COUNT(*)
+3
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+FILE_NAME	TABLESPACE_NAME
+MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd	abc/def/xyz/123
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+name	space_type
+abc/def/xyz/123	Single
+#
+# Cleanup
+#
+DROP DATABASE `abc/def`;

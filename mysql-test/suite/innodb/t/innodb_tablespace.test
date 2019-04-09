@@ -437,3 +437,114 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 FLUSH TABLES t1 FOR EXPORT;
 UNLOCK TABLES;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29492113 TABLE NOT ACCESSIBLE AFTER MOVING THE IBD FILE,
+--echo # WHEN THE DATABASE NAME HAS "/"
+--echo #
+
+--echo #
+--echo # Scenario-1
+--echo # create database `abc/def`
+--echo # create table `abc/def`.`xyz/123` in MYSQL_TMP_DIR/my_dir1
+--echo # The directory structure after creating the table should be
+--echo # MYSQL_TMP_DIR/my_dir1/abc@002fdef/xyz@002f123.ibd
+--echo #
+
+CREATE DATABASE `abc/def`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `abc/def`.`xyz/123` (c1 INT) DATA DIRECTORY '$MYSQL_TMP_DIR/my_dir1';
+SHOW WARNINGS;
+
+--echo #
+--echo # Validate the directory structure
+--echo #
+--list_files $MYSQL_TMP_DIR/my_dir1 *
+--list_files $MYSQL_TMP_DIR/my_dir1/abc@002fdef *
+
+INSERT INTO `abc/def`.`xyz/123` VALUES (1), (2), (3);
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+
+--echo #
+--echo # Shutdown the server
+--echo #
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Scenario-2
+--echo # Move the IBD file from MYSQL_TMP_DIR/my_dir1 to MYSQL_TMP_DIR/my_dir2
+--echo # Restart the server with --innodb_directories MYSQL_TMP_DIR/my_dir2
+--echo # Query the table
+--echo # Restart the server without --innodb_directories option
+--echo #
+
+--echo #
+--echo # Move IBD file in MYSQL_TMP_DIR/my_dir1 to MYSQL_TMP_DIR/my_dir2
+--echo #
+--mkdir $MYSQL_TMP_DIR/my_dir2
+--mkdir $MYSQL_TMP_DIR/my_dir2/abc@002fdef
+--copy_files_wildcard $MYSQL_TMP_DIR/my_dir1/abc@002fdef/ $MYSQL_TMP_DIR/my_dir2/abc@002fdef/ *
+--remove_files_wildcard $MYSQL_TMP_DIR/my_dir1/abc@002fdef/ *
+
+--echo #
+--echo # Resart server with --innodb_directories MYSQL_TMP_DIR/my_dir2
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = "restart: --innodb_directories=$MYSQL_TMP_DIR/my_dir2"
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+
+--echo #
+--echo # Restart server without --innodb_directories option
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters = "restart:"
+--source include/restart_mysqld.inc
+
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+
+--echo #
+--echo # Shutdown server
+--echo #
+--source include/shutdown_mysqld.inc
+
+--echo #
+--echo # Scenario-3
+--echo # Move the IBD file from MYSQL_TMP_DIR/my_dir2 to MYSQL_TMP_DIR/my_dir1
+--echo # Restart the server with --innodb_directories MYSQL_TMP_DIR/my_dir1
+--echo #
+
+--echo #
+--echo # Move IBD file from MYSQL_TMP_DIR/my_dir2 to MYSQL_TMP_DIR/my_dir1
+--echo #
+--copy_files_wildcard $MYSQL_TMP_DIR/my_dir2/abc@002fdef/ $MYSQL_TMP_DIR/my_dir1/abc@002fdef/ *
+--force-rmdir $MYSQL_TMP_DIR/my_dir2
+
+--echo #
+--echo # Restart server with --innodb_directories MYSQL_TMP_DIR/my_dir1
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters="restart: --innodb_directories=$MYSQL_TMP_DIR/my_dir1"
+--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM `abc/def`.`xyz/123`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT file_name, tablespace_name FROM information_schema.files WHERE file_name LIKE '%123%';
+SELECT name, space_type FROM information_schema.innodb_tablespaces WHERE name LIKE '%123%';
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP DATABASE `abc/def`;
+--force-rmdir $MYSQL_TMP_DIR/my_dir1

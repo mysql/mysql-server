@@ -9322,6 +9322,136 @@ bool fil_tablespace_open_for_recovery(space_id_t space_id) {
   return (fil_system->open_for_recovery(space_id));
 }
 
+/** Convert space_name to filesystem charset by extracting it from the
+path. If space_name is not a substring of path, return the original
+space_name.
+This function is called only while moving the location of IBD files from
+one directory to other and subsequently starting the server using
+--innodb-directories. While starting, the server looks for IBD files in
+these directories and marks them as moved and updates the data dictionary
+with the new location. However, in this case, the space name passed is in
+the tablespace charset which in certain cases is parsed incorrectly. For
+example, if the tablename or dbname contains "/", then it is considered as
+a directory separator, resulting in an incorrectly formed tablespace name.
+The path is always in the filesystem charset and hence, it can be used to
+recreate the space name.
+@param[in]	new_space_name          Tablespace name in system charset
+@param[in]	new_path                File path
+@param[out]	tablespace_name         Tablespace name in filesystem charset */
+static void convert_space_name_to_filesystem_charset(
+    const char *new_space_name, const std::string &new_path,
+    std::string *tablespace_name) {
+  ut_ad(!new_path.empty());
+
+  std::string path{new_path};
+  std::string name{new_space_name};
+  std::string filename, subdir, part, sub;
+
+  if (Fil_path::is_undo_tablespace_name(path)) {
+    tablespace_name->append(name);
+    return;
+  }
+
+  /* The tablespace name could be of the form dbname/filename#part#subpart.
+  Parse the path to find out these different components and recreate the space
+  name in the tablespace charset for comparing with the new_space_name which
+  is also in the tablespace charset. */
+
+  auto pos = path.find_last_of(Fil_path::SEPARATOR);
+
+  /* Extract the subdir and filename from the path. */
+  subdir = path.substr(0, pos);
+  filename = path.substr(pos + 1, path.length());
+
+  pos = subdir.find_last_of(Fil_path::SEPARATOR);
+
+  if (pos != std::string::npos) {
+    subdir = subdir.substr(pos + 1);
+  }
+
+  /* Remove the trailing extension (if any), from the filename. */
+  pos = filename.find(".");
+  if (pos != std::string::npos) {
+    filename.resize(pos);
+  }
+
+  /* Find the partition and sub partition, if available in the file name */
+  pos = filename.find("#");
+  if (pos != std::string::npos) {
+    /* Find the partition and remove it from the filename. */
+    part = filename.substr(pos + 1, filename.length());
+
+    /* Strip the filename to remove the partition information. */
+    filename.resize(pos);
+
+    /* Find and extract the sub partition, if any. */
+    pos = part.find("#");
+    if (pos != std::string::npos) {
+      sub = part.substr(pos + 1, part.length());
+      part.resize(pos);
+    }
+  }
+
+  /* Recreate the space name in the tablespace charset from the path using
+  the subdir, filename, part and subpart. */
+  std::string temp_space;
+  char db_buf[MAX_DATABASE_NAME_LEN + 1];
+  char tbl_buf[MAX_TABLE_NAME_LEN + 1];
+
+  auto len = filename_to_tablename(subdir.c_str(), db_buf,
+                                   (MAX_DATABASE_NAME_LEN + 1));
+  db_buf[len] = '\0';
+
+  len = filename_to_tablename(filename.c_str(), tbl_buf,
+                              (MAX_TABLE_NAME_LEN + 1));
+  tbl_buf[len] = '\0';
+
+  temp_space.append(db_buf);
+  temp_space.append("/");
+  temp_space.append(tbl_buf);
+
+  if (!part.empty()) {
+    char part_buf[MAX_TABLE_NAME_LEN + 1];
+    len =
+        filename_to_tablename(part.c_str(), part_buf, (MAX_TABLE_NAME_LEN + 1));
+    part_buf[len] = '\0';
+
+    temp_space.append("#");
+    temp_space.append(part_buf);
+
+    if (!sub.empty()) {
+      char sub_buf[MAX_TABLE_NAME_LEN + 1];
+      len =
+          filename_to_tablename(sub.c_str(), sub_buf, (MAX_TABLE_NAME_LEN + 1));
+      sub_buf[len] = '\0';
+
+      temp_space.append("#");
+      temp_space.append(sub_buf);
+    }
+  }
+
+  /* Compare the recreated space name in the tablespace charset with the space
+  name being moved. If they are same, then return the space name in the
+  filesystem charset. If they are different, then return the original space
+  name. */
+  if (temp_space.compare(name) == 0) {
+    tablespace_name->append(subdir);
+    tablespace_name->append("/");
+    tablespace_name->append(filename);
+    if (!part.empty()) {
+      tablespace_name->append("#");
+      tablespace_name->append(part);
+
+      if (!sub.empty()) {
+        tablespace_name->append("#");
+        tablespace_name->append(sub);
+      }
+    }
+  } else {
+    tablespace_name->append(name);
+  }
+}
+
 /** Lookup the tablespace ID and return the path to the file. The filename
 is ignored when testing for equality. Only the path up to the file name is
 considered for matching: e.g. ./test/a.ibd == ./test/b.ibd.
@@ -9444,7 +9574,12 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
   if (old_dir.compare(new_dir) != 0) {
     *new_path = result.first + result.second->front();
 
-    fil_system->moved(dd_object_id, space_id, space_name, old_path, *new_path);
+    // Convert space_name to filesystem charset
+    std::string tablespace_name;
+    convert_space_name_to_filesystem_charset(space_name, *new_path,
+                                             &tablespace_name);
+    fil_system->moved(dd_object_id, space_id, tablespace_name.c_str(), old_path,
+                      *new_path);
 
     return (Fil_state::MOVED);
   }

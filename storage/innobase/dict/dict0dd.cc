@@ -3790,7 +3790,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     is in the DD even if the datafile was moved. So let's use
     that path to open this tablespace. */
     mutex_exit(&dict_sys->mutex);
-    char *filepath = dd_get_first_path(heap, table, dd_table);
+    filepath = dd_get_first_path(heap, table, dd_table);
     mutex_enter(&dict_sys->mutex);
 
     if (filepath == nullptr) {
