@@ -2177,7 +2177,7 @@ class LO_mutex_class : public LO_class {
   static void destroy_all();
 
   LO_mutex_class(const char *category, const char *name, int flags);
-  virtual ~LO_mutex_class();
+  virtual ~LO_mutex_class() override;
 
   virtual unsigned int get_unified_key() const override {
     return m_key + LO_MUTEX_RANGE;
@@ -2251,7 +2251,7 @@ class LO_mutex_lock : public LO_lock {
  public:
   LO_mutex_lock(LO_mutex *mutex, const char *src_file, int src_line,
                 LO_thread *thread);
-  ~LO_mutex_lock() {}
+  ~LO_mutex_lock() override {}
 
   virtual const char *get_class_name() const override;
 
@@ -2287,9 +2287,9 @@ class LO_rwlock_class : public LO_class {
   static bool get_state_by_name(const char *name, PSI_rwlock_operation *state);
   static bool get_operation_by_name(const char *name, PSI_rwlock_operation *op);
 
-  virtual ~LO_rwlock_class();
+  virtual ~LO_rwlock_class() override;
 
-  virtual unsigned int get_unified_key() const {
+  virtual unsigned int get_unified_key() const override {
     return m_key + LO_RWLOCK_RANGE;
   }
 
@@ -2302,7 +2302,7 @@ class LO_rwlock_class : public LO_class {
                                       PSI_rwlock_operation op) const = 0;
   virtual const char *get_operation_name(PSI_rwlock_operation op) const = 0;
 
-  virtual void add_to_graph(LO_graph *g) const = 0;
+  virtual void add_to_graph(LO_graph *g) const override = 0;
 
   virtual LO_rwlock *build_instance() = 0;
 
@@ -2318,7 +2318,7 @@ class LO_rwlock_class : public LO_class {
 class LO_rwlock_class_pr : public LO_rwlock_class {
  public:
   LO_rwlock_class_pr(const char *category, const char *name, int flags);
-  ~LO_rwlock_class_pr();
+  ~LO_rwlock_class_pr() override;
 
   virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
@@ -2326,11 +2326,12 @@ class LO_rwlock_class_pr : public LO_rwlock_class {
                                       PSI_rwlock_operation state,
                                       PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(PSI_rwlock_operation op) const;
+  virtual const char *get_operation_name(
+      PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const;
+  virtual void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance();
+  virtual LO_rwlock *build_instance() override;
 
  private:
   /** Node "+R". */
@@ -2346,7 +2347,7 @@ class LO_rwlock_class_pr : public LO_rwlock_class {
 class LO_rwlock_class_rw : public LO_rwlock_class {
  public:
   LO_rwlock_class_rw(const char *category, const char *name, int flags);
-  ~LO_rwlock_class_rw();
+  ~LO_rwlock_class_rw() override;
 
   virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
@@ -2354,11 +2355,12 @@ class LO_rwlock_class_rw : public LO_rwlock_class {
                                       PSI_rwlock_operation state,
                                       PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(PSI_rwlock_operation op) const;
+  virtual const char *get_operation_name(
+      PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const;
+  virtual void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance();
+  virtual LO_rwlock *build_instance() override;
 
  private:
   /** Node "+R". */
@@ -2374,7 +2376,7 @@ class LO_rwlock_class_rw : public LO_rwlock_class {
 class LO_rwlock_class_sx : public LO_rwlock_class {
  public:
   LO_rwlock_class_sx(const char *category, const char *name, int flags);
-  ~LO_rwlock_class_sx();
+  ~LO_rwlock_class_sx() override;
 
   virtual LO_node *get_state_node(PSI_rwlock_operation state) const override;
 
@@ -2382,11 +2384,12 @@ class LO_rwlock_class_sx : public LO_rwlock_class {
                                       PSI_rwlock_operation state,
                                       PSI_rwlock_operation op) const override;
 
-  virtual const char *get_operation_name(PSI_rwlock_operation op) const;
+  virtual const char *get_operation_name(
+      PSI_rwlock_operation op) const override;
 
-  virtual void add_to_graph(LO_graph *g) const;
+  virtual void add_to_graph(LO_graph *g) const override;
 
-  virtual LO_rwlock *build_instance();
+  virtual LO_rwlock *build_instance() override;
 
  private:
   /** Node "+S". */
@@ -2483,9 +2486,9 @@ class LO_rwlock_lock : public LO_lock {
  public:
   LO_rwlock_lock(LO_rwlock *rwlock, const char *src_file, int src_line,
                  LO_thread *thread);
-  ~LO_rwlock_lock() {}
+  virtual ~LO_rwlock_lock() override {}
 
-  virtual const char *get_class_name() const;
+  virtual const char *get_class_name() const override;
 
   virtual LO_node *get_state_node() const override;
 
@@ -2604,13 +2607,15 @@ class LO_cond_class : public LO_class {
   static void destroy_all();
 
   LO_cond_class(const char *category, const char *name, int flags);
-  virtual ~LO_cond_class();
+  virtual ~LO_cond_class() override;
 
-  virtual unsigned int get_unified_key() const { return m_key + LO_COND_RANGE; }
+  virtual unsigned int get_unified_key() const override {
+    return m_key + LO_COND_RANGE;
+  }
 
   LO_node *get_node() const { return m_node; }
 
-  virtual void add_to_graph(LO_graph *g) const;
+  virtual void add_to_graph(LO_graph *g) const override;
 
   virtual LO_node *get_state_node_by_name(const char *name) const override;
 
@@ -2684,11 +2689,11 @@ class LO_cond_wait : public LO_lock {
   LO_cond_wait(LO_mutex *mutex, LO_cond *cond, const char *src_file,
                int src_line, LO_thread *thread);
 
-  virtual const char *get_class_name() const;
+  virtual const char *get_class_name() const override;
 
   virtual LO_node *get_state_node() const override;
 
-  virtual const char *get_state_name() const;
+  virtual const char *get_state_name() const override;
 
   virtual LO_node *get_node() const;
 
@@ -2698,7 +2703,7 @@ class LO_cond_wait : public LO_lock {
 
   virtual void dump(FILE *out) const;
 
-  ~LO_cond_wait() {}
+  ~LO_cond_wait() override {}
 
  private:
   LO_mutex *m_mutex;
@@ -2714,9 +2719,11 @@ class LO_file_class : public LO_class {
   static void destroy_all();
 
   LO_file_class(const char *category, const char *name, int flags);
-  virtual ~LO_file_class();
+  virtual ~LO_file_class() override;
 
-  virtual unsigned int get_unified_key() const { return m_key + LO_FILE_RANGE; }
+  virtual unsigned int get_unified_key() const override {
+    return m_key + LO_FILE_RANGE;
+  }
 
   LO_node *get_node() const { return m_node; }
 
@@ -2777,7 +2784,7 @@ class SCC_visitor {
 class SCC_all : public SCC_visitor {
  public:
   SCC_all() {}
-  virtual ~SCC_all() {}
+  virtual ~SCC_all() override {}
 
   virtual bool accept_node(LO_node *) const override { return true; }
   virtual bool accept_arc(LO_arc *) const override { return true; }
@@ -2786,7 +2793,7 @@ class SCC_all : public SCC_visitor {
 class SCC_filter : public SCC_visitor {
  public:
   SCC_filter() {}
-  virtual ~SCC_filter() {}
+  virtual ~SCC_filter() override {}
 
   virtual bool accept_node(LO_node *node) const override;
   virtual bool accept_arc(LO_arc *arc) const override;
@@ -4467,7 +4474,7 @@ void LO_thread::remove_mutex_lock(LO_thread *thread, LO_mutex *mutex) {
     LO_thread::dump(out_log, old_thread);
     print_file(out_log, "Unlocking thread:\n");
     LO_thread::dump(out_log, thread);
-    print_file(out_log, "my_thread_self: %ld\n", my_thread_self());
+    print_file(out_log, "my_thread_self: %lld\n", (long long)my_thread_self());
   }
 
   if ((old_thread != thread) && (old_thread != nullptr) &&
@@ -4485,7 +4492,7 @@ void LO_thread::remove_mutex_lock(LO_thread *thread, LO_mutex *mutex) {
     LO_thread::dump(out_log, old_thread);
     print_file(out_log, "Unlocking thread:\n");
     LO_thread::dump(out_log, thread);
-    print_file(out_log, "my_thread_self: %ld\n", my_thread_self());
+    print_file(out_log, "my_thread_self: %lld\n", (long long)my_thread_self());
 
     debug_lock_order_break_here(buff);
     return;
@@ -4721,17 +4728,18 @@ LO_node *LO_mutex_lock::get_node() const {
 void LO_mutex_lock::dump(FILE *out) const {
   if (m_thread != nullptr) {
     print_file(out,
-               "LO_mutex_lock on %s, file %s, line %d, thread %s %p %ld "
+               "LO_mutex_lock on %s, file %s, line %d, thread %s %p %lld "
                "event %ld)\n",
                m_mutex->get_class()->get_qname(), get_locking_src_file(),
                get_locking_src_line(), m_thread->get_class()->get_qname(),
-               m_thread, m_locking_pthread, get_event_id());
+               m_thread, (long long)m_locking_pthread,
+               static_cast<long>(get_event_id()));
   } else {
     print_file(
         out,
-        "LO_mutex_lock on %s, file %s, line %d, uninstrumented thread %ld)\n",
+        "LO_mutex_lock on %s, file %s, line %d, uninstrumented thread %lld)\n",
         m_mutex->get_class()->get_qname(), get_locking_src_file(),
-        get_locking_src_line(), m_locking_pthread);
+        get_locking_src_line(), (long long)m_locking_pthread);
   }
 }
 
@@ -5250,7 +5258,7 @@ void LO_rwlock_lock::dump(FILE *out) const {
   const LO_node *n = get_state_node();
   print_file(out, "LO_rwlock_lock on %s, file %s, line %d, event %ld)\n",
              n->get_qname(), get_locking_src_file(), get_locking_src_line(),
-             get_event_id());
+             static_cast<long>(get_event_id()));
 }
 
 LO_rwlock_lock *LO_rwlock_pr::build_lock(const char *src_file, int src_line,
@@ -5939,11 +5947,7 @@ static char *deep_copy_string(const char *src) {
     return nullptr;
   }
 
-  size_t len = strlen(src);
-  char *dst = static_cast<char *>(malloc(len + 1));
-  strncpy(dst, src, len + 1);
-  dst[len] = '\0';
-  return dst;
+  return strdup(src);
 }
 
 static void destroy_string(char *src) {
@@ -5995,7 +5999,8 @@ static inline LO_thread *get_THR_LO() { return THR_LO; }
 
 static inline void set_THR_LO(LO_thread *lo) {
   if (g_internal_debug) {
-    print_file(out_log, "set_THR_LO my_thread_self: %ld\n", my_thread_self());
+    print_file(out_log, "set_THR_LO my_thread_self: %lld\n",
+               (long long)my_thread_self());
     LO_thread *before = THR_LO;
     if (before) {
       print_file(out_log, "set_THR_LO before:\n");

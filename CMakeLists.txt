@@ -115,13 +115,6 @@ ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
-OPTION(WITH_LOCK_ORDER "Use lock order" OFF)
-
-EXECUTE_PROCESS(
-  COMMAND ${CMAKE_COMMAND} -E make_directory lock_order
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING
   "Set the entity that appears as the manufacturer of packages that support a manufacturer field.")
@@ -520,7 +513,17 @@ IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
 OPTION(WITH_AUTHENTICATION_LDAP
-       "Report error if the LDAP authentication plugin cannot be built." OFF)
+  "Report error if the LDAP authentication plugin cannot be built." OFF)
+
+OPTION(WITH_LOCK_ORDER
+  "Build the lock order mutex instrumentation code." OFF)
+
+IF(WITH_LOCK_ORDER)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND} -E make_directory lock_order
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+ENDIF()
 
 include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
