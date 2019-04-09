@@ -41,7 +41,8 @@ class RouterUserOptionTest : public RouterComponentTest,
 
 // check that using --user with no sudo gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
-  auto router = launch_router("--bootstrap=127.0.0.1:5000 --user=mysqlrouter");
+  auto router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"});
 
   EXPECT_EQ(router.wait_for_exit(), 1);
   EXPECT_TRUE(router.expect_output(
@@ -57,7 +58,8 @@ TEST_F(RouterUserOptionTest, UserOptionNoSudo) {
 
 // check that using --user parameter before --bootstrap gives a proper error
 TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
-  auto router = launch_router("--user=mysqlrouter --bootstrap=127.0.0.1:5000");
+  auto router =
+      launch_router({"--user=mysqlrouter", "--bootstrap=127.0.0.1:5000"});
 
   EXPECT_EQ(router.wait_for_exit(), 1);
   EXPECT_TRUE(router.expect_output(
@@ -70,7 +72,8 @@ TEST_F(RouterUserOptionTest, UserOptionBeforeBootstrap) {
 #else
 // check that it really is not supported on Windows
 TEST_F(RouterUserOptionTest, UserOptionOnWindows) {
-  auto router = launch_router("--bootstrap=127.0.0.1:5000 --user=mysqlrouter");
+  auto router =
+      launch_router({"--bootstrap=127.0.0.1:5000", "--user=mysqlrouter"});
 
   ASSERT_TRUE(router.expect_output("Error: unknown option '--user'."))
       << router.get_full_output();

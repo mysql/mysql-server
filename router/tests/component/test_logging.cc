@@ -157,7 +157,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router("-c " + conf_file);
+    auto router = launch_router({"-c", conf_file});
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -183,7 +183,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router("-c " + conf_file);
+    auto router = launch_router({"-c", conf_file});
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -225,7 +225,7 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
         create_config_file(conf_dir, "[keepalive]\n", &params);
 
     // run the router and wait for it to exit
-    auto router = launch_router("-c " + conf_file);
+    auto router = launch_router({"-c", conf_file});
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     // expect something like this to appear on STDERR
@@ -266,7 +266,7 @@ TEST_F(RouterLoggingTest, multiple_logger_sections) {
       create_config_file(conf_dir, "[logger]\n[logger]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -291,7 +291,7 @@ TEST_F(RouterLoggingTest, logger_section_with_key) {
       create_config_file(conf_dir, "[logger:some_key]\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -315,7 +315,7 @@ TEST_F(RouterLoggingTest, bad_loglevel) {
       create_config_file(conf_dir, "[logger]\nlevel = UNKNOWN\n", &conf_params);
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // expect something like this to appear on STDERR
@@ -409,7 +409,7 @@ TEST_P(RouterLoggingTestConfig, LoggingTestConfig) {
   const std::string conf_file =
       create_config_file(conf_dir, conf_text, &conf_params);
 
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
 
   bool ready = wait_for_port_ready(router_port);
   EXPECT_TRUE(ready) << router.get_full_output();
@@ -804,7 +804,7 @@ TEST_P(RouterLoggingConfigError, LoggingConfigError) {
   const std::string conf_file =
       create_config_file(conf_dir, conf_text, &conf_params);
 
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
 
   EXPECT_EQ(1, router.wait_for_exit());
 
@@ -1019,9 +1019,13 @@ TEST_F(RouterLoggingTest, very_long_router_name_gets_properly_logged) {
   // launch the router in bootstrap mode
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(bootstrap_dir); });
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --name " + name + " -d " + bootstrap_dir);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--name",
+      name,
+      "-d",
+      bootstrap_dir,
+  });
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1060,9 +1064,13 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
       << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --report-host dont.query.dns" + " -d " + bootstrap_dir);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "-d",
+      bootstrap_dir,
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1105,10 +1113,16 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
   std::string conf_file = create_config_file(bootstrap_conf, logger_section,
                                              &conf_params, "bootstrap.conf");
 
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --report-host dont.query.dns" + " --force -d " +
-                    bootstrap_dir + " -c " + conf_file);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--force",
+      "-d",
+      bootstrap_dir,
+      "-c",
+      conf_file,
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1153,10 +1167,16 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   const std::string conf_file =
       create_config_file(conf_dir, "[logger]\nlevel = DEBUG\n", &params);
 
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --report-host dont.query.dns" + " --force -d " +
-                    bootstrap_dir + " -c " + conf_file);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--force",
+      "-d",
+      bootstrap_dir,
+      "-c",
+      conf_file,
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1209,11 +1229,18 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
   std::string conf_file = create_config_file(bootstrap_conf, logger_section,
                                              &conf_params, "bootstrap.conf");
 
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                        " --report-host dont.query.dns" + " --force -d " +
-                        bootstrap_dir + " -c " + conf_file,
-                    false /*false = capture only stdout*/);
+  auto router = launch_router(
+      {
+          "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+          "--report-host",
+          "dont.query.dns",
+          "--force",
+          "-d",
+          bootstrap_dir,
+          "-c",
+          conf_file,
+      },
+      false /*false = capture only stdout*/);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1360,7 +1387,7 @@ TEST_F(MetadataCacheLoggingTest,
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1399,7 +1426,7 @@ TEST_F(MetadataCacheLoggingTest,
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1440,7 +1467,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1483,7 +1510,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1528,7 +1555,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1553,7 +1580,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
 
   // start the router again and check that the new log file got created
   auto router2 = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
   std::this_thread::sleep_for(500ms);
@@ -1571,7 +1598,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir));
+      {"-c", init_keyring_and_config_file(conf_dir)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 
@@ -1622,7 +1649,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
 
   // launch the router with metadata-cache configuration
   auto router = RouterComponentTest::launch_router(
-      "-c " + init_keyring_and_config_file(conf_dir, /*log_to_console=*/true));
+      {"-c", init_keyring_and_config_file(conf_dir, /*log_to_console=*/true)});
   bool router_ready = wait_for_port_ready(router_port, 10000);
   EXPECT_TRUE(router_ready) << router.get_full_output();
 

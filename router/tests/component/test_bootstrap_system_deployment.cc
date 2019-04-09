@@ -81,10 +81,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest, BootstrapPass) {
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-                    " --connect-timeout=1"
-                    " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -116,10 +118,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-                    " --connect-timeout=1"
-                    " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -153,10 +157,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-                    " --connect-timeout=1"
-                    " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -201,10 +207,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-                    " --connect-timeout=1"
-                    " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -245,10 +253,12 @@ TEST_F(RouterBootstrapSystemDeploymentTest,
   auto server_mock = run_server_mock();
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-                    " --connect-timeout=1"
-                    " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

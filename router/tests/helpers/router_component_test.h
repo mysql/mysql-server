@@ -307,21 +307,6 @@ class RouterComponentTest {
 
   /** @brief Launches the MySQLRouter process.
    *
-   * @param   params string containing command line parameters to pass to
-   * process
-   * @param   catch_stderr bool flag indicating if the process' error output
-   * stream should be included in the output caught from the process
-   * @param   with_sudo    bool flag indicating if the process' should be
-   * execute with sudo priviledges
-   *
-   * @returns handle to the launched proccess
-   */
-  CommandHandle launch_router(const std::string &params,
-                              bool catch_stderr = true,
-                              bool with_sudo = false) const;
-
-  /** @brief Launches the MySQLRouter process.
-   *
    * @param   params vector<string> containing command line parameters to pass
    * to process
    * @param   catch_stderr bool flag indicating if the process' error output

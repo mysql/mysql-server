@@ -136,7 +136,7 @@ class MetadataChacheTTLTest : public RouterComponentTest {
         conf_dir, logger_section + metadata_cache_section + routing_section,
         &default_section);
     auto router =
-        RouterComponentTest::launch_router("-c " + conf_file, true, false);
+        RouterComponentTest::launch_router({"-c", conf_file}, true, false);
     if (wait_for_md_refresh_started) {
       bool ready = wait_for_refresh_thread_started(5000);
       EXPECT_TRUE(ready) << get_router_log_output();

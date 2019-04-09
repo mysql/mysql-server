@@ -27,10 +27,11 @@
  * @brief Component Tests to test Router shutdown
  */
 
-#include <gmock/gmock.h>
-#include <signal.h>
 #include <chrono>
+#include <csignal>
 #include <thread>
+
+#include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
@@ -77,7 +78,7 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
 
     // launch the router
     CommandHandle router =
-        RouterComponentTest::launch_router("-c " + conf_file);
+        RouterComponentTest::launch_router({"-c", conf_file});
     bool ready = wait_for_port_ready(router_port);
     EXPECT_TRUE(ready) << router.get_full_output() << get_router_log_output();
 

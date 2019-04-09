@@ -208,25 +208,6 @@ static std::vector<std::string> build_exec_args(
 }
 
 RouterComponentTest::CommandHandle RouterComponentTest::launch_router(
-    const std::string &params, bool catch_stderr, bool with_sudo) const {
-  std::vector<std::string> args =
-      build_exec_args(mysqlrouter_exec_.str(), with_sudo);
-  args.emplace_back(params);
-
-  // first argument is special - it needs to be passed as "command" to
-  // launch_router()
-  auto it = args.begin();
-  std::string cmd(*it++);
-
-  // and the rest of them go into 'cmd_args', separated by spaces
-  std::string cmd_args;
-  for (; it < args.end(); it++) cmd_args += *it + " ";
-  cmd_args.resize(cmd_args.size() - 1);  // remove last space
-
-  return launch_command(cmd, cmd_args, catch_stderr);
-}
-
-RouterComponentTest::CommandHandle RouterComponentTest::launch_router(
     const std::vector<std::string> &params, bool catch_stderr,
     bool with_sudo) const {
   std::vector<std::string> args =

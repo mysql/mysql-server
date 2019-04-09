@@ -216,12 +216,15 @@ TEST_F(MasterKeyReaderWriterTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host dont.query.dns" + " --directory=" + bootstrap_dir_ +
-      " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -266,12 +269,15 @@ TEST_F(MasterKeyReaderWriterTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--directory=" + bootstrap_dir_ + " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script() +
-      " --report-host dont.query.dns" +
-      " --bootstrap=127.0.0.1:" + std::to_string(server_port));
+  auto router = launch_router({
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+      "--report-host",
+      "dont.query.dns",
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -326,12 +332,15 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyReader) {
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host dont.query.dns" + " --directory=" + bootstrap_dir_ +
-      " --force" +
-      " --master-key-reader=" + script_generator.get_fake_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_fake_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -361,12 +370,15 @@ TEST_F(MasterKeyReaderWriterTest, BootstrapFailsWhenCannotRunMasterKeyWriter) {
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host dont.query.dns" + " --directory=" + bootstrap_dir_ +
-      " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_fake_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_fake_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -401,12 +413,15 @@ TEST_F(MasterKeyReaderWriterTest, KeyringFileRestoredWhenBootstrapFails) {
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --directory=" + bootstrap_dir_ + " --force" +
-      " --master-key-reader=" + script_generator.get_fake_reader_script() +
-      " --master-key-writer=" + script_generator.get_fake_writer_script() +
-      " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_fake_reader_script(),
+      "--master-key-writer=" + script_generator.get_fake_writer_script(),
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -431,13 +446,14 @@ TEST_F(MasterKeyReaderWriterTest, MasterKeyRestoredWhenBootstrapFails) {
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --connect-timeout=1"
-      " --directory=" +
-      bootstrap_dir_ + " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--connect-timeout=1",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -467,12 +483,15 @@ TEST_F(MasterKeyReaderWriterTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host dont.query.dns" + " --directory=" + bootstrap_dir_ +
-      " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -510,12 +529,15 @@ TEST_F(MasterKeyReaderWriterTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host dont.query.dns" + " --directory=" + bootstrap_dir_ +
-      " --force" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--report-host",
+      "dont.query.dns",
+      "--directory=" + bootstrap_dir_,
+      "--force",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -553,11 +575,13 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
   const std::string conf_dir = get_tmp_dir("conf");
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(conf_dir); });
-  auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file(conf_dir,
-                                 "[logger]\nlevel = DEBUG\n" +
-                                     metadata_cache_section + routing_section,
-                                 &default_section_map));
+  auto router = RouterComponentTest::launch_router({
+      "-c",
+      create_config_file(conf_dir,
+                         "[logger]\nlevel = DEBUG\n" + metadata_cache_section +
+                             routing_section,
+                         &default_section_map),
+  });
 
   // in windows waiting for the router's keyring reader takes about 2seconds,
   // and we need to do 3 rounds
@@ -602,10 +626,10 @@ TEST_F(MasterKeyReaderWriterTest,
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file(conf_dir,
-                                 "[logger]\nlevel = DEBUG\n" +
-                                     metadata_cache_section + routing_section,
-                                 &default_section_map));
+      {"-c", create_config_file(conf_dir,
+                                "[logger]\nlevel = DEBUG\n" +
+                                    metadata_cache_section + routing_section,
+                                &default_section_map)});
 
   // in windows waiting for the router's keyring reader takes about 2seconds,
   // and we need to do 3 rounds
@@ -646,11 +670,13 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenNoMasterKeyReader) {
   const std::string conf_dir = get_tmp_dir("conf");
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(conf_dir); });
-  auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file(conf_dir,
-                                 "[logger]\nlevel = DEBUG\n" +
-                                     metadata_cache_section + routing_section,
-                                 &default_section_map));
+  auto router = RouterComponentTest::launch_router({
+      "-c",
+      create_config_file(conf_dir,
+                         "[logger]\nlevel = DEBUG\n" + metadata_cache_section +
+                             routing_section,
+                         &default_section_map),
+  });
 
   EXPECT_EQ(router.wait_for_exit(), 1);
 }
@@ -682,10 +708,10 @@ TEST_F(MasterKeyReaderWriterTest, CannotLaunchRouterWhenMasterKeyIncorrect) {
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(conf_dir); });
   auto router = RouterComponentTest::launch_router(
-      "-c " + create_config_file(conf_dir,
-                                 "[logger]\nlevel = DEBUG\n" +
-                                     metadata_cache_section + routing_section,
-                                 &incorrect_master_key_default_section_map));
+      {"-c", create_config_file(conf_dir,
+                                "[logger]\nlevel = DEBUG\n" +
+                                    metadata_cache_section + routing_section,
+                                &incorrect_master_key_default_section_map)});
 
   EXPECT_NO_THROW(EXPECT_EQ(router.wait_for_exit(), 1))
       << router.get_full_output();
@@ -797,11 +823,13 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest, BootstrapPass) {
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-      " --report-host dont.query.dns" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--report-host",
+      "dont.query.dns",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -837,11 +865,13 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-      " --report-host dont.query.dns" +
-      " --master-key-reader=" + script_generator.get_fake_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--report-host",
+      "dont.query.dns",
+      "--master-key-reader=" + script_generator.get_fake_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -872,11 +902,13 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-      " --report-host dont.query.dns" +
-      " --master-key-reader=" + script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_fake_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--report-host",
+      "dont.query.dns",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_fake_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -914,13 +946,14 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port_) +
-      " --connect-timeout=1"
-      " --master-key-reader=" +
-      script_generator.get_fake_reader_script() +
-      " --master-key-writer=" + script_generator.get_fake_writer_script() +
-      " --report-host dont.query.dns");
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port_),
+      "--connect-timeout=1",
+      "--master-key-reader=" + script_generator.get_fake_reader_script(),
+      "--master-key-writer=" + script_generator.get_fake_writer_script(),
+      "--report-host",
+      "dont.query.dns",
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -948,12 +981,12 @@ TEST_F(MasterKeyReaderWriterSystemDeploymentTest,
   ScriptGenerator script_generator(g_origin_path, tmp_dir_);
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --connect-timeout=1"
-      " --master-key-reader=" +
-      script_generator.get_reader_script() +
-      " --master-key-writer=" + script_generator.get_writer_script());
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--connect-timeout=1",
+      "--master-key-reader=" + script_generator.get_reader_script(),
+      "--master-key-writer=" + script_generator.get_writer_script(),
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

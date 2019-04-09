@@ -133,7 +133,7 @@ class StateFileTest : public RouterComponentTest {
         logger_section + metadata_cache_section + routing_section,
         &default_section);
     auto router = RouterComponentTest::launch_router(
-        "-c " + conf_file, /*catch_stderr=*/true, /*with_sudo=*/false);
+        {"-c", conf_file}, /*catch_stderr=*/true, /*with_sudo=*/false);
     return router;
   }
 
@@ -1151,9 +1151,9 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
-  std::string router_cmdline =
-      "--bootstrap=localhost:" + std::to_string(metadata_server_port) + " -d " +
-      temp_test_dir;
+  std::vector<std::string> router_cmdline{
+      "--bootstrap=localhost:" + std::to_string(metadata_server_port), "-d",
+      temp_test_dir};
   auto router = RouterComponentTest::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1221,8 +1221,8 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
       << md_server.get_full_output();
 
   SCOPED_TRACE("// Bootstrap against our metadata server");
-  std::string router_cmdline =
-      "--bootstrap=localhost:" + std::to_string(metadata_server_port);
+  std::vector<std::string> router_cmdline{"--bootstrap=localhost:" +
+                                          std::to_string(metadata_server_port)};
   auto router = RouterComponentTest::launch_router(router_cmdline);
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");

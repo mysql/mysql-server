@@ -322,7 +322,7 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
 
   RouterComponentTest::CommandHandle launch_router(
       unsigned /* router_port */, const std::string &config_file) {
-    return RouterComponentTest::launch_router("-c " + config_file);
+    return RouterComponentTest::launch_router({"-c", config_file});
   }
 
   RouterComponentTest::CommandHandle launch_server(unsigned cluster_port,
@@ -507,7 +507,7 @@ TEST_F(RouterRoutingConnectionTest,
   config_generator_->disconnect_on_promoted_to_primary(
       "&disconnect_on_promoted_to_primary=bogus");
   auto router = RouterComponentTest::launch_router(
-      "-c " + config_generator_->build_config_file(temp_test_dir_));
+      {"-c", config_generator_->build_config_file(temp_test_dir_)});
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }
@@ -524,7 +524,7 @@ TEST_F(RouterRoutingConnectionTest,
   config_generator_->disconnect_on_metadata_unavailable(
       "&disconnect_on_metadata_unavailable=bogus");
   auto router = RouterComponentTest::launch_router(
-      "-c " + config_generator_->build_config_file(temp_test_dir_));
+      {"-c", config_generator_->build_config_file(temp_test_dir_)});
   ASSERT_FALSE(wait_for_port_ready(router_ro_port_))
       << router.get_full_output();
 }

@@ -525,7 +525,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_unknown) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router("--service");
+  auto router = launch_router({"--service"});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // verify the message WAS written to STDERR
@@ -598,7 +598,7 @@ TEST_F(RouterEventlogTest, wrapper_running_as_process) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router("--install-service");  // missing -c <config>
+  auto router = launch_router({"--install-service"});  // missing -c <config>
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // mark the end of log
@@ -669,7 +669,7 @@ TEST_F(RouterEventlogTest, application_running_as_process_preconfig) {
   });
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c bogus.conf");
+  auto router = launch_router({"-c", "bogus.conf"});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   // mark the end of log
