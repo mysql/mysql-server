@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ using mysql_harness::PluginFuncEnv;
 void trace(const char *, ...) {}
 #endif
 
-#if defined(_MSC_VER) && defined(lifecycle2_EXPORTS)
+#if defined(_MSC_VER) && defined(routertestplugin_lifecycle2_EXPORTS)
 /* We are building this library */
 #define LIFECYCLE2_API __declspec(dllexport)
 #else
@@ -70,7 +70,7 @@ void trace(const char *, ...) {}
 // doesn't depend on lifecycle. However, to ensure that it is always initialized
 // after lifecycle in unit tests, we set this dependency here to enforce this.
 static const char *requires[] = {
-    "lifecycle",
+    "routertestplugin_lifecycle",
 };
 
 static void init(PluginFuncEnv *env) {
@@ -97,7 +97,7 @@ static void stop(PluginFuncEnv *) { trace("lifecycle2 stop()"); }
 static void deinit(PluginFuncEnv *) { trace("lifecycle2 deinit()"); }
 
 extern "C" {
-Plugin LIFECYCLE2_API harness_plugin_lifecycle2 = {
+Plugin LIFECYCLE2_API harness_plugin_routertestplugin_lifecycle2 = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "Lifecycle2 test plugin",

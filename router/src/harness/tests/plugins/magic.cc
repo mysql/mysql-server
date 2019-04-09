@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,11 @@
 
 #include "magic.h"
 
+#include <cstdlib>
+
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
-
-#include <cstdlib>
-#include <iostream>
 
 using mysql_harness::AppInfo;
 using mysql_harness::ARCHITECTURE_DESCRIPTOR;
@@ -40,7 +39,7 @@ using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 using mysql_harness::logging::log_info;
 
-#if defined(_MSC_VER) && defined(magic_EXPORTS)
+#if defined(_MSC_VER) && defined(routertestplugin_magic_EXPORTS)
 /* We are building this library */
 #define MAGIC_API __declspec(dllexport)
 #else
@@ -53,7 +52,7 @@ const ConfigSection *g_section;
 static void init(PluginFuncEnv *env) { g_info = get_app_info(env); }
 
 extern "C" void MAGIC_API do_magic() {
-  auto &&section = g_info->config->get("magic", "");
+  auto &&section = g_info->config->get("routertestplugin_magic", "");
   auto &&message = section.get("message");
   log_info("%s", message.c_str());
 }
@@ -72,7 +71,7 @@ static void start(PluginFuncEnv *env) {
 }
 
 extern "C" {
-Plugin MAGIC_API harness_plugin_magic = {
+Plugin MAGIC_API harness_plugin_routertestplugin_magic = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "A magic plugin",

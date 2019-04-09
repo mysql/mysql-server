@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -32,14 +32,14 @@ using mysql_harness::PluginFuncEnv;
 static const char *requires[] = {
     // Magic plugin is version 1.2.3, so version does not match and this
     // should fail to load.
-    "magic (>>1.2.3)",
+    "routertestplugin_magic (>>1.2.3)",
 };
 
 static void init(PluginFuncEnv *) {}
 
 static void deinit(PluginFuncEnv *) {}
 
-#if defined(_MSC_VER) && defined(bad_two_EXPORTS)
+#if defined(_MSC_VER) && defined(routertestplugin_bad_two_EXPORTS)
 /* We are building this library */
 #define EXAMPLE_API __declspec(dllexport)
 #else
@@ -47,7 +47,7 @@ static void deinit(PluginFuncEnv *) {}
 #endif
 
 extern "C" {
-Plugin EXAMPLE_API harness_plugin_bad_two = {
+Plugin EXAMPLE_API harness_plugin_routertestplugin_bad_two = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "A bad plugin",

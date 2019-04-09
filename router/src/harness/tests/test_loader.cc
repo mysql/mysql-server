@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,8 +103,8 @@ TEST_P(LoaderReadTest, Available) {
   auto lst = loader->available();
   EXPECT_EQ(5U, lst.size());
 
-  EXPECT_SECTION_AVAILABLE("example", loader);
-  EXPECT_SECTION_AVAILABLE("magic", loader);
+  EXPECT_SECTION_AVAILABLE("routertestplugin_example", loader);
+  EXPECT_SECTION_AVAILABLE("routertestplugin_magic", loader);
 }
 
 TEST_P(LoaderReadTest, Loading) {
@@ -113,22 +113,22 @@ TEST_P(LoaderReadTest, Loading) {
   // Test that loading something non-existant works
   EXPECT_THROW(loader->load("nonexistant-plugin"), bad_section);
 
-  // Dependent plugin do not exist
-  EXPECT_THROW(loader->load("bad_one"), bad_section);
+  // Dependent plugin does not exist
+  EXPECT_THROW(loader->load("routertestplugin_bad_one"), bad_section);
 
   // Wrong version of dependent sections
-  EXPECT_THROW(loader->load("bad_two"), bad_plugin);
+  EXPECT_THROW(loader->load("routertestplugin_bad_two"), bad_plugin);
 
   // These should all be OK.
-  Plugin *ext1 = loader->load("example", "one");
+  Plugin *ext1 = loader->load("routertestplugin_example", "one");
   EXPECT_NE(ext1, nullptr);
   EXPECT_STREQ("An example plugin", ext1->brief);
 
-  Plugin *ext2 = loader->load("example", "two");
+  Plugin *ext2 = loader->load("routertestplugin_example", "two");
   EXPECT_NE(ext2, nullptr);
   EXPECT_STREQ("An example plugin", ext2->brief);
 
-  Plugin *ext3 = loader->load("magic");
+  Plugin *ext3 = loader->load("routertestplugin_magic");
   EXPECT_NE(ext3, nullptr);
   EXPECT_STREQ("A magic plugin", ext3->brief);
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 #pragma clang diagnostic ignored "-Wsign-conversion"
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 #include "gtest_consoleoutput.h"
 
 #ifdef __clang__
@@ -57,15 +57,9 @@
 #include <unistd.h>
 #endif
 
-#ifdef __clang__
-// ignore GMock warnings
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wsign-conversion"
-#include "gmock/gmock.h"
-#pragma clang diagnostic pop
-#else
-#include "gmock/gmock.h"
-#endif
+static const std::string kPluginNameMagic("routertestplugin_magic");
+static const std::string kPluginNameLifecycle("routertestplugin_lifecycle");
+static const std::string kPluginNameLifecycle3("routertestplugin_lifecycle3");
 
 using std::string;
 using std::vector;
@@ -441,7 +435,7 @@ TEST_F(AppTest, SectionOverMultipleConfigFiles) {
   // let the Loader load the configuration files
   ASSERT_NO_THROW(r.start());
 
-  auto section = r.loader_->get_config().get("magic", "");
+  auto section = r.loader_->get_config().get(kPluginNameMagic, "");
   ASSERT_THAT(section.get("foo"), StrEq("bar"));
   ASSERT_THROW(section.get("NotInTheSection"), mysql_harness::bad_option);
 }
@@ -1097,12 +1091,14 @@ TEST_F(AppLoggerTest, TestLogger) {
     ofs_config << "[logger]\n";
     ofs_config << "level = DEBUG\n";  // override the default (WARNING)
     ofs_config << "\n";
-    ofs_config << "[magic]\n";  // magic plugin
+    ofs_config << "[" << kPluginNameMagic << "]\n";  // magic plugin
     ofs_config << "do_magic = yes\n";
     ofs_config << "message = It is some kind of magic\n";
     ofs_config << "\n";
-    ofs_config << "[lifecycle3]\n";  // lifecycle3 plugin (lifecycle dependency)
-    ofs_config << "[lifecycle:instance1]\n";  // lifecycle plugin
+    ofs_config << "[" << kPluginNameLifecycle3
+               << "]\n";  // lifecycle3 plugin (lifecycle dependency)
+    ofs_config << "[" << kPluginNameLifecycle
+               << ":instance1]\n";  // lifecycle plugin
     ofs_config.close();
   } else {
     throw std::runtime_error("Failed creating config file '" +
@@ -1113,25 +1109,28 @@ TEST_F(AppLoggerTest, TestLogger) {
   reset_ssout();
   vector<string> argv = {"-c", config_path.c_str()};
   MySQLRouter r(g_origin, argv);
-  ASSERT_NO_THROW(r.start());
+  ASSERT_NO_THROW(r.start()) << get_log_stream().str();
 
   // verify that all plugins have a module registered with the logger
   auto loggers =
       mysql_harness::DIM::instance().get_LoggingRegistry().get_logger_names();
   EXPECT_THAT(loggers, testing::UnorderedElementsAre(
-                           mysql_harness::logging::kMainLogger, "magic",
-                           "lifecycle", "lifecycle3", "sql", "logger"));
+                           mysql_harness::logging::kMainLogger,
+                           kPluginNameMagic, kPluginNameLifecycle,
+                           kPluginNameLifecycle3, "sql", "logger"));
 
   // verify the log contains what we expect it to contain. We're looking for
   // lines like this:
   {
     // 2017-05-03 11:30:25 magic INFO [7ffff5e34700] It is some kind of magic
-    EXPECT_THAT(get_log_stream().str(), HasSubstr(" magic INFO "));
+    EXPECT_THAT(get_log_stream().str(),
+                HasSubstr(" " + kPluginNameMagic + " INFO "));
     EXPECT_THAT(get_log_stream().str(), HasSubstr(" It is some kind of magic"));
 
     // 2017-05-03 11:30:25 lifecycle INFO [7faefa705780] lifecycle:all
     // init():begin
-    EXPECT_THAT(get_log_stream().str(), HasSubstr(" lifecycle INFO "));
+    EXPECT_THAT(get_log_stream().str(),
+                HasSubstr(" " + kPluginNameLifecycle + " INFO "));
     EXPECT_THAT(get_log_stream().str(),
                 HasSubstr(" lifecycle:all init():begin"));
   }

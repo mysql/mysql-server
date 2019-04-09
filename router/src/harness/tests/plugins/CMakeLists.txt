@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,29 +20,31 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-add_harness_plugin(bad_one NO_INSTALL
+add_harness_plugin(routertestplugin_bad_one NO_INSTALL
   DESTINATION harness
   SOURCES bad_one.cc)
-add_harness_plugin(bad_two NO_INSTALL
+add_harness_plugin(routertestplugin_bad_two NO_INSTALL
   DESTINATION harness
   SOURCES bad_two.cc)
-add_harness_plugin(magic NO_INSTALL
+add_harness_plugin(routertestplugin_magic NO_INSTALL
   DESTINATION harness
   SOURCES magic.cc)
-TARGET_INCLUDE_DIRECTORIES(magic PRIVATE ../include)
-add_harness_plugin(harness_example NO_INSTALL
+TARGET_INCLUDE_DIRECTORIES(routertestplugin_magic PRIVATE ../include)
+
+add_harness_plugin(routertestplugin_example NO_INSTALL
   DESTINATION harness
   SOURCES example.cc
-  REQUIRES magic
-  OUTPUT_NAME example)
-add_harness_plugin(lifecycle NO_INSTALL
+  REQUIRES routertestplugin_magic)
+
+add_harness_plugin(routertestplugin_lifecycle NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle.cc
 )
-TARGET_INCLUDE_DIRECTORIES(lifecycle PRIVATE ../include)
-add_harness_plugin(lifecycle2 NO_INSTALL
+TARGET_INCLUDE_DIRECTORIES(routertestplugin_lifecycle PRIVATE ../include)
+
+add_harness_plugin(routertestplugin_lifecycle2 NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle2.cc)
-add_harness_plugin(lifecycle3 NO_INSTALL
+add_harness_plugin(routertestplugin_lifecycle3 NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle3.cc)
