@@ -59,8 +59,6 @@ select @a;
 drop trigger trg;
 drop table t1;
 
-# PS doesn't work with multi-row statements
---disable_ps_protocol
 # Before update trigger
 # (In future we will achieve this via proper error handling in triggers)
 create table t1 (aid int not null primary key, balance int not null default 0);
@@ -82,7 +80,6 @@ select * from t1|
 drop trigger trg|
 drop table t1|
 delimiter ;|
---enable_ps_protocol
 
 # After update trigger
 create table t1 (i int);

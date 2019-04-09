@@ -212,61 +212,61 @@ class Execute_sql_statement : public Server_runnable {
   m_fields to accept the next result set.
 */
 
-class Protocol_local : public Protocol {
+class Protocol_local final : public Protocol {
  public:
   Protocol_local(THD *thd, Ed_connection *ed_connection);
-  ~Protocol_local() { free_root(&m_rset_root, MYF(0)); }
+  ~Protocol_local() override { free_root(&m_rset_root, MYF(0)); }
 
-  virtual int read_packet();
+  int read_packet() override;
 
-  virtual int get_command(COM_DATA *com_data, enum_server_command *cmd);
-  virtual ulong get_client_capabilities();
-  virtual bool has_client_capability(unsigned long client_capability);
-  virtual void end_partial_result_set();
-  virtual int shutdown(bool server_shutdown = false);
-  virtual bool connection_alive() const;
-  virtual void start_row();
-  virtual bool end_row();
-  virtual void abort_row() {}
-  virtual uint get_rw_status();
-  virtual bool get_compression();
+  int get_command(COM_DATA *com_data, enum_server_command *cmd) override;
+  ulong get_client_capabilities() override;
+  bool has_client_capability(unsigned long client_capability) override;
+  void end_partial_result_set() override;
+  int shutdown(bool server_shutdown = false) override;
+  bool connection_alive() const override;
+  void start_row() override;
+  bool end_row() override;
+  void abort_row() override {}
+  uint get_rw_status() override;
+  bool get_compression() override;
 
-  virtual bool start_result_metadata(uint num_cols, uint flags,
-                                     const CHARSET_INFO *resultcs);
-  virtual bool end_result_metadata();
-  virtual bool send_field_metadata(Send_field *field,
-                                   const CHARSET_INFO *charset);
-  virtual bool flush() { return true; }
-  virtual bool send_parameters(List<Item_param> *, bool) { return false; }
-  bool store_ps_status(ulong, uint, uint, ulong) { return false; }
+  bool start_result_metadata(uint num_cols, uint flags,
+                             const CHARSET_INFO *resultcs) override;
+  bool end_result_metadata() override;
+  bool send_field_metadata(Send_field *field,
+                           const CHARSET_INFO *charset) override;
+  bool flush() override { return true; }
+  bool send_parameters(List<Item_param> *, bool) override { return false; }
+  bool store_ps_status(ulong, uint, uint, ulong) override { return false; }
 
  protected:
-  virtual bool store_null();
-  virtual bool store_tiny(longlong from);
-  virtual bool store_short(longlong from);
-  virtual bool store_long(longlong from);
-  virtual bool store_longlong(longlong from, bool unsigned_flag);
-  virtual bool store_decimal(const my_decimal *, uint, uint);
-  virtual bool store(const char *from, size_t length, const CHARSET_INFO *cs);
-  virtual bool store(const char *from, size_t length,
-                     const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
-  virtual bool store(MYSQL_TIME *time, uint precision);
-  virtual bool store_date(MYSQL_TIME *time);
-  virtual bool store_time(MYSQL_TIME *time, uint precision);
-  virtual bool store(float value, uint32 decimals, String *buffer);
-  virtual bool store(double value, uint32 decimals, String *buffer);
-  virtual bool store(Proto_field *field);
+  bool store_null() override;
+  bool store_tiny(longlong from, uint32) override;
+  bool store_short(longlong from, uint32) override;
+  bool store_long(longlong from, uint32) override;
+  bool store_longlong(longlong from, bool unsigned_flag, uint32) override;
+  bool store_decimal(const my_decimal *, uint, uint) override;
+  bool store(const char *from, size_t length, const CHARSET_INFO *cs) override;
+  bool store(MYSQL_TIME *time, uint precision) override;
+  bool store_date(MYSQL_TIME *time) override;
+  bool store_time(MYSQL_TIME *time, uint precision) override;
+  bool store(float value, uint32 decimals, uint32 zerofill,
+             String *buffer) override;
+  bool store(double value, uint32 decimals, uint32 zerofill,
+             String *buffer) override;
+  bool store_field(const Field *field) override;
 
-  virtual enum enum_protocol_type type() const { return PROTOCOL_LOCAL; }
-  virtual enum enum_vio_type connection_type() const { return VIO_TYPE_LOCAL; }
+  enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
+  enum enum_vio_type connection_type() const override { return VIO_TYPE_LOCAL; }
 
-  virtual bool send_ok(uint server_status, uint statement_warn_count,
-                       ulonglong affected_rows, ulonglong last_insert_id,
-                       const char *message);
+  bool send_ok(uint server_status, uint statement_warn_count,
+               ulonglong affected_rows, ulonglong last_insert_id,
+               const char *message) override;
 
-  virtual bool send_eof(uint server_status, uint statement_warn_count);
-  virtual bool send_error(uint sql_errno, const char *err_msg,
-                          const char *sqlstate);
+  bool send_eof(uint server_status, uint statement_warn_count) override;
+  bool send_error(uint sql_errno, const char *err_msg,
+                  const char *sqlstate) override;
 
  private:
   bool store_string(const char *str, size_t length, const CHARSET_INFO *src_cs,
@@ -3433,28 +3433,28 @@ bool Protocol_local::store_string(const char *str, size_t length,
 
 /** Store a tiny int as is (1 byte) in a result set column. */
 
-bool Protocol_local::store_tiny(longlong value) {
+bool Protocol_local::store_tiny(longlong value, uint32) {
   char v = (char)value;
   return store_column(&v, 1);
 }
 
 /** Store a short as is (2 bytes, host order) in a result set column. */
 
-bool Protocol_local::store_short(longlong value) {
+bool Protocol_local::store_short(longlong value, uint32) {
   int16 v = (int16)value;
   return store_column(&v, 2);
 }
 
 /** Store a "long" as is (4 bytes, host order) in a result set column.  */
 
-bool Protocol_local::store_long(longlong value) {
+bool Protocol_local::store_long(longlong value, uint32) {
   int32 v = (int32)value;
   return store_column(&v, 4);
 }
 
 /** Store a "longlong" as is (8 bytes, host order) in a result set column. */
 
-bool Protocol_local::store_longlong(longlong value, bool) {
+bool Protocol_local::store_longlong(longlong value, bool, uint32) {
   int64 v = (int64)value;
   return store_column(&v, 8);
 }
@@ -3484,14 +3484,6 @@ bool Protocol_local::store(const char *str, size_t length,
   return store_string(str, length, src_cs, dst_cs);
 }
 
-/** Store a string. */
-
-bool Protocol_local::store(const char *str, size_t length,
-                           const CHARSET_INFO *src_cs,
-                           const CHARSET_INFO *dst_cs) {
-  return store_string(str, length, src_cs, dst_cs);
-}
-
 /* Store MYSQL_TIME (in binary format) */
 
 bool Protocol_local::store(MYSQL_TIME *time,
@@ -3514,20 +3506,20 @@ bool Protocol_local::store_time(MYSQL_TIME *time,
 
 /* Store a floating point number, as is. */
 
-bool Protocol_local::store(float value, uint32, String *) {
+bool Protocol_local::store(float value, uint32, uint32, String *) {
   return store_column(&value, sizeof(float));
 }
 
 /* Store a double precision number, as is. */
 
-bool Protocol_local::store(double value, uint32, String *) {
+bool Protocol_local::store(double value, uint32, uint32, String *) {
   return store_column(&value, sizeof(double));
 }
 
 /* Store a Field. */
 
-bool Protocol_local::store(Proto_field *field) {
-  return field->send_binary(this);
+bool Protocol_local::store_field(const Field *field) {
+  return field->send_to_protocol(this);
 }
 
 /** Called for statements that don't have a result set, at statement end. */

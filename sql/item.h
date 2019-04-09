@@ -2908,7 +2908,6 @@ class Item_sp_variable : public Item {
 
  public:
   inline void make_field(Send_field *field) override;
-  inline bool send(Protocol *protocol, String *str) override;
 
  protected:
   inline type_conversion_status save_in_field_inner(
@@ -2928,10 +2927,6 @@ inline void Item_sp_variable::make_field(Send_field *field) {
 inline type_conversion_status Item_sp_variable::save_in_field_inner(
     Field *field, bool no_conversions) {
   return this_item()->save_in_field(field, no_conversions);
-}
-
-inline bool Item_sp_variable::send(Protocol *protocol, String *str) {
-  return this_item()->send(protocol, str);
 }
 
 /*****************************************************************************
@@ -3073,10 +3068,6 @@ class Item_name_const final : public Item {
              enum_query_type query_type) const override;
 
   Item_result result_type() const override { return value_item->result_type(); }
-
-  bool send(Protocol *protocol, String *str) override {
-    return value_item->send(protocol, str);
-  }
 
   bool cache_const_expr_analyzer(uchar **) override {
     // Item_name_const always wraps a literal, so there is no need to cache it.

@@ -6556,8 +6556,6 @@ bool Item_null::send(Protocol *protocol, String *) {
 */
 
 bool Item::send(Protocol *protocol, String *buffer) {
-  bool result = false;  // Will be set if null_value == 0
-
   switch (data_type()) {
     default:
     case MYSQL_TYPE_NULL:
@@ -6575,73 +6573,66 @@ bool Item::send(Protocol *protocol, String *buffer) {
     case MYSQL_TYPE_BIT:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_JSON: {
-      String *res;
-      if ((res = val_str(buffer)))
-        result = protocol->store(res->ptr(), res->length(), res->charset());
-      else {
-        DBUG_ASSERT(null_value);
-      }
+      const String *res = val_str(buffer);
+      if (res != nullptr)
+        return protocol->store(res->ptr(), res->length(), res->charset());
       break;
     }
     case MYSQL_TYPE_TINY: {
-      longlong nr;
-      nr = val_int();
-      if (!null_value) result = protocol->store_tiny(nr);
+      longlong nr = val_int();
+      if (!null_value) return protocol->store_tiny(nr);
       break;
     }
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_YEAR: {
-      longlong nr;
-      nr = val_int();
-      if (!null_value) result = protocol->store_short(nr);
+      longlong nr = val_int();
+      if (!null_value) return protocol->store_short(nr);
       break;
     }
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG: {
-      longlong nr;
-      nr = val_int();
-      if (!null_value) result = protocol->store_long(nr);
+      longlong nr = val_int();
+      if (!null_value) return protocol->store_long(nr);
       break;
     }
     case MYSQL_TYPE_LONGLONG: {
-      longlong nr;
-      nr = val_int();
-      if (!null_value) result = protocol->store_longlong(nr, unsigned_flag);
+      longlong nr = val_int();
+      if (!null_value) return protocol->store_longlong(nr, unsigned_flag);
       break;
     }
     case MYSQL_TYPE_FLOAT: {
-      float nr;
-      nr = (float)val_real();
-      if (!null_value) result = protocol->store(nr, decimals, buffer);
+      float nr = static_cast<float>(val_real());
+      if (!null_value) return protocol->store(nr, decimals, 0, buffer);
       break;
     }
     case MYSQL_TYPE_DOUBLE: {
       double nr = val_real();
-      if (!null_value) result = protocol->store(nr, decimals, buffer);
+      if (!null_value) return protocol->store(nr, decimals, 0, buffer);
       break;
     }
     case MYSQL_TYPE_DATE: {
       MYSQL_TIME tm;
       get_date(&tm, TIME_FUZZY_DATE);
-      if (!null_value) result = protocol->store_date(&tm);
+      if (!null_value) return protocol->store_date(&tm);
       break;
     }
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_TIMESTAMP: {
       MYSQL_TIME tm;
       get_date(&tm, TIME_FUZZY_DATE);
-      if (!null_value) result = protocol->store(&tm, decimals);
+      if (!null_value) return protocol->store(&tm, decimals);
       break;
     }
     case MYSQL_TYPE_TIME: {
       MYSQL_TIME tm;
       get_time(&tm);
-      if (!null_value) result = protocol->store_time(&tm, decimals);
+      if (!null_value) return protocol->store_time(&tm, decimals);
       break;
     }
   }
-  if (null_value) result = protocol->store_null();
-  return result;
+
+  DBUG_ASSERT(null_value);
+  return protocol->store_null();
 }
 
 bool Item::update_null_value() {
@@ -7060,7 +7051,7 @@ Item *Item::cache_const_expr_transformer(uchar *arg) {
 }
 
 bool Item_field::send(Protocol *protocol, String *) {
-  return protocol->store(result_field);
+  return protocol->store_field(result_field);
 }
 
 /*
@@ -7578,7 +7569,7 @@ void Item_ref::print(const THD *thd, String *str,
 }
 
 bool Item_ref::send(Protocol *prot, String *tmp) {
-  if (result_field) return prot->store(result_field);
+  if (result_field != nullptr) return prot->store_field(result_field);
   return (*ref)->send(prot, tmp);
 }
 

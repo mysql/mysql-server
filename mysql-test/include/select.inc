@@ -2335,7 +2335,6 @@ DROP TABLE IF EXISTS t1,t2;
 #
 # Bug #20954 "avg(keyval) retuns 0.38 but max(keyval) returns an empty set"
 #
---disable_ps_protocol
 CREATE TABLE t1 (key1 float default NULL, UNIQUE KEY key1 (key1));
 CREATE TABLE t2 (key2 float default NULL, UNIQUE KEY key2 (key2));
 INSERT INTO t1 VALUES (0.3762),(0.3845),(0.6158),(0.7941);
@@ -2360,7 +2359,6 @@ select max(key1) from t1 where key1 <= 0.6158 and rand() + 0.5 >= 0.5;
 select min(key1) from t1 where key1 >= 0.3762 and rand() + 0.5 >= 0.5;
 
 DROP TABLE t1,t2;
---enable_ps_protocol
 
 #
 # Bug #18759 "Incorrect string to numeric conversion"

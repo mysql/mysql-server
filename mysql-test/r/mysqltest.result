@@ -648,13 +648,13 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 mysqltest: The test didn't produce any output
 Failing multi statement query
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.
 ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
-mysqltest: At line 3: Query 'create table t1 (a int primary key);
+mysqltest: At line 2: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
 insertz 'error query'' failed.

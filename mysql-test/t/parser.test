@@ -428,9 +428,6 @@ select "terminated, space";      $$
 select "non terminated, comment" /* comment */$$
 select "terminated, comment"; /* comment */$$
 
-# Multi queries can not be used in --ps-protocol test mode
---disable_ps_protocol
-
 select "stmt 1";select "stmt 2 non terminated"$$
 select "stmt 1";select "stmt 2 terminated";$$
 select "stmt 1";select "stmt 2 non terminated, space"      $$
@@ -446,8 +443,6 @@ $$
 
 DROP PROCEDURE IF EXISTS p26030; CREATE PROCEDURE p26030() SELECT 1; CALL p26030()
 $$
-
---enable_ps_protocol
 
 delimiter ;$$
 DROP PROCEDURE p26030;

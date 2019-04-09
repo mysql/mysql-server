@@ -2012,9 +2012,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/query.sql;
 #
 
 echo Failing multi statement query;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "select 'select-me';"                     >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
@@ -2035,9 +2033,7 @@ drop table t1;
 
 
 echo Multi statement using expected error;
-# PS does not support multi statement
---exec echo "--disable_ps_protocol"                    > $MYSQLTEST_VARDIR/tmp/bug11731.sql
---exec echo "delimiter ||||;"                         >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
+--exec echo "delimiter ||||;"                          > $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "--error 1064"                            >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "create table t1 (a int primary key);"    >> $MYSQLTEST_VARDIR/tmp/bug11731.sql
 --exec echo "insert into t1 values (1);"              >> $MYSQLTEST_VARDIR/tmp/bug11731.sql

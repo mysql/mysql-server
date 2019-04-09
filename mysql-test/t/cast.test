@@ -1,5 +1,4 @@
  #Get deafult engine value
---source include/no_ps_protocol.inc
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
@@ -96,12 +95,16 @@ drop table t1;
 #
 # CAST to NCHAR with/without length
 #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 select
   cast(_koi8r'ÆÇ'  AS nchar)    as c1,
   cast(_koi8r'Æ '  AS nchar)    as c2,
   cast(_koi8r'ÆÇÈ' AS nchar(2)) as c3,
   cast(_koi8r'Æ  ' AS nchar(2)) as c4,
   cast(_koi8r'Æ'   AS nchar(2)) as c5;
+--enable_ps_protocol
 
 create table t1 select
   cast(_koi8r'ÆÇ'  AS nchar)    as c1,
@@ -119,12 +122,16 @@ drop table t1;
 --echo #
 --echo # Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
 --echo #
+
+# Different number of warnings with ps protocol.
+--disable_ps_protocol
 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,
   CAST(_gb2312 x'CAFD20'       AS NATIONAL CHAR)    AS c2,
   CAST(_gb2312 x'CAFDBEDDBFE2' AS NATIONAL CHAR(2)) AS c3,
   CAST(_gb2312 x'CAFD2020'     AS NATIONAL CHAR(2)) AS c4,
   CAST(_gb2312 x'CAFD'         AS NATIONAL CHAR(2)) AS c5;
+--enable_ps_protocol
 
 CREATE TABLE t1 SELECT
   CAST(_gb2312 x'CAFDBEDD'     AS NATIONAL CHAR)    AS c1,

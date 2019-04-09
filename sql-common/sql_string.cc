@@ -173,19 +173,40 @@ bool String::set_int(longlong num, bool unsigned_flag, const CHARSET_INFO *cs) {
   return false;
 }
 
-bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
+/**
+  Sets the contents of this string to be the string representation of the given
+  floating-point number.
+
+  @param num the floating-point number
+  @param decimals the number of decimals
+  @param cs the character set of the string
+  @param gcvt_arg_type MY_GCVT_ARG_FLOAT if num is to be interpreted as a float,
+  MY_GCVT_ARG_DOUBLE if it is to be interpreted as a double
+  @param destination the string to modify
+  @return false on success, true on error
+*/
+static bool set_floating_point(double num, uint decimals,
+                               const CHARSET_INFO *cs,
+                               my_gcvt_arg_type gcvt_arg_type,
+                               String *destination) {
   char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
-  size_t len;
 
-  m_charset = cs;
   if (decimals >= NOT_FIXED_DEC) {
-    len = my_gcvt(num, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buff)) - 1,
-                  buff, NULL);
-    return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
+    size_t len = my_gcvt(num, gcvt_arg_type, static_cast<int>(sizeof(buff)) - 1,
+                         buff, nullptr);
+    return destination->copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-  len = my_fcvt(num, decimals, buff, NULL);
-  return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
+  size_t len = my_fcvt(num, decimals, buff, nullptr);
+  return destination->copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
+}
+
+bool String::set_real(double num, uint decimals, const CHARSET_INFO *cs) {
+  return set_floating_point(num, decimals, cs, MY_GCVT_ARG_DOUBLE, this);
+}
+
+bool String::set_float(float num, uint decimals, const CHARSET_INFO *cs) {
+  return set_floating_point(num, decimals, cs, MY_GCVT_ARG_FLOAT, this);
 }
 
 bool String::copy() {

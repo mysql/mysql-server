@@ -46,10 +46,10 @@ class THD;
 
 class my_decimal;
 class Send_field;
-class Proto_field;
 class Item_param;
 template <class T>
 class List;
+class Field;
 
 class Protocol {
  private:
@@ -128,25 +128,34 @@ class Protocol {
 
   /* Data sending functions */
   virtual bool store_null() = 0;
-  virtual bool store_tiny(longlong from) = 0;
-  virtual bool store_short(longlong from) = 0;
-  virtual bool store_long(longlong from) = 0;
-  virtual bool store_longlong(longlong from, bool unsigned_flag) = 0;
+  virtual bool store_tiny(longlong from, uint32 zerofill) = 0;
+  virtual bool store_short(longlong from, uint32 zerofill) = 0;
+  virtual bool store_long(longlong from, uint32 zerofill) = 0;
+  virtual bool store_longlong(longlong from, bool unsigned_flag,
+                              uint32 zerofill) = 0;
   virtual bool store_decimal(const my_decimal *, uint, uint) = 0;
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs) = 0;
-  virtual bool store(float from, uint32 decimals, String *buffer) = 0;
-  virtual bool store(double from, uint32 decimals, String *buffer) = 0;
+  virtual bool store(float from, uint32 decimals, uint32 zerofill,
+                     String *buffer) = 0;
+  virtual bool store(double from, uint32 decimals, uint32 zerofill,
+                     String *buffer) = 0;
   virtual bool store(MYSQL_TIME *time, uint precision) = 0;
   virtual bool store_date(MYSQL_TIME *time) = 0;
   virtual bool store_time(MYSQL_TIME *time, uint precision) = 0;
-  virtual bool store(Proto_field *field) = 0;
+  virtual bool store_field(const Field *field) = 0;
   // Convenience wrappers
-  inline bool store(int from) { return store_long((longlong)from); }
-  inline bool store(uint32 from) { return store_long((longlong)from); }
-  inline bool store(longlong from) { return store_longlong(from, 0); }
-  inline bool store(ulonglong from) {
-    return store_longlong((longlong)from, 1);
+  bool store(int from) { return store_long(longlong{from}, 0); }
+  bool store(uint32 from) { return store_long(longlong{from}, 0); }
+  bool store(longlong from) { return store_longlong(from, false, 0); }
+  bool store(ulonglong from) {
+    return store_longlong(static_cast<longlong>(from), true, 0);
+  }
+  bool store_tiny(longlong from) { return store_tiny(from, 0); }
+  bool store_short(longlong from) { return store_short(from, 0); }
+  bool store_long(longlong from) { return store_long(from, 0); }
+  bool store_longlong(longlong from, bool unsigned_flag) {
+    return store_longlong(from, unsigned_flag, 0);
   }
   /**
     Send \\0 end terminated string.

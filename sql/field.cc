@@ -1754,27 +1754,10 @@ void Field::copy_data(ptrdiff_t src_record_offset) {
     m_is_tmp_null = false;
 }
 
-bool Field::send_text(Protocol *protocol) const {
+bool Field::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
-  char buff[MAX_FIELD_WIDTH];
-  String str(buff, sizeof(buff), &my_charset_bin);
-#ifndef DBUG_OFF
-  my_bitmap_map *old_map = 0;
-  if (table->file) old_map = dbug_tmp_use_all_columns(table, table->read_set);
-#endif
-
-  String *res = val_str(&str);
-#ifndef DBUG_OFF
-  if (old_map) dbug_tmp_restore_column_map(table->read_set, old_map);
-#endif
-
-  return res ? protocol->store(res) : protocol->store_null();
-}
-
-bool Field::send_binary(Protocol *protocol) const {
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), charset());
-  if (is_null()) return protocol->store_null();
   String *res = val_str(&tmp);
   return res ? protocol->store(res) : protocol->store_null();
 }
@@ -3193,9 +3176,9 @@ const uchar *Field_new_decimal::unpack(uchar *to, const uchar *from,
   return from + len;
 }
 
-bool Field_new_decimal::send_binary(Protocol *protocol) const {
-  my_decimal dec_value;
+bool Field_new_decimal::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
+  my_decimal dec_value;
   return protocol->store_decimal(val_decimal(&dec_value),
                                  zerofill ? precision : 0, dec);
 }
@@ -3309,10 +3292,10 @@ String *Field_tiny::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_tiny::send_binary(Protocol *protocol) const {
+bool Field_tiny::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
-  return protocol->store_tiny((longlong)unsigned_flag ? (uint8)ptr[0]
-                                                      : (int8)ptr[0]);
+  return protocol->store_tiny(Field_tiny::val_int(),
+                              zerofill ? field_length : 0);
 }
 
 int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -3490,9 +3473,10 @@ String *Field_short::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_short::send_binary(Protocol *protocol) const {
+bool Field_short::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
-  return protocol->store_short(Field_short::val_int());
+  return protocol->store_short(Field_short::val_int(),
+                               zerofill ? field_length : 0);
 }
 
 int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -3659,10 +3643,11 @@ String *Field_medium::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_medium::send_binary(Protocol *protocol) const {
+bool Field_medium::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
-  return protocol->store_long(Field_medium::val_int());
+  return protocol->store_long(Field_medium::val_int(),
+                              zerofill ? field_length : 0);
 }
 
 int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -3856,10 +3841,11 @@ String *Field_long::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_long::send_binary(Protocol *protocol) const {
+bool Field_long::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
-  return protocol->store_long(Field_long::val_int());
+  return protocol->store_long(Field_long::val_int(),
+                              zerofill ? field_length : 0);
 }
 
 int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -4058,10 +4044,11 @@ String *Field_longlong::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_longlong::send_binary(Protocol *protocol) const {
+bool Field_longlong::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
-  return protocol->store_longlong(Field_longlong::val_int(), unsigned_flag);
+  return protocol->store_longlong(Field_longlong::val_int(), unsigned_flag,
+                                  zerofill ? field_length : 0);
 }
 
 int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -4287,10 +4274,12 @@ size_t Field_float::make_sort_key(uchar *to, size_t length) const {
   return sizeof(float);
 }
 
-bool Field_float::send_binary(Protocol *protocol) const {
+bool Field_float::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
-  return protocol->store((float)Field_float::val_real(), dec, (String *)0);
+  StringBuffer<FLOATING_POINT_BUFFER> buffer;
+  return protocol->store(static_cast<float>(Field_float::val_real()), dec,
+                         zerofill ? field_length : 0, &buffer);
 }
 
 /**
@@ -4509,10 +4498,11 @@ String *Field_double::val_str(String *val_buffer,
   return val_buffer;
 }
 
-bool Field_double::send_binary(Protocol *protocol) const {
+bool Field_double::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
-  String buf;
-  return protocol->store(Field_double::val_real(), dec, &buf);
+  StringBuffer<FLOATING_POINT_BUFFER> buffer;
+  return protocol->store(Field_double::val_real(), dec,
+                         zerofill ? field_length : 0, &buffer);
 }
 
 int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
@@ -4948,15 +4938,15 @@ bool Field_temporal_with_date::convert_str_to_TIME(const char *str, size_t len,
       str_to_datetime(cs, str, len, ltime, date_flags(), status));
 }
 
-bool Field_temporal_with_date::send_binary(Protocol *protocol) const {
-  MYSQL_TIME ltime;
+bool Field_temporal_with_date::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
+  MYSQL_TIME ltime;
   if (get_date_internal(&ltime)) {
     // Only MYSQL_TYPE_TIMESTAMP can return an error in get_date_internal()
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_DATETIME);
   }
-  return protocol->store(&ltime, 0);
+  return protocol->store(&ltime, dec);
 }
 
 type_conversion_status Field_temporal_with_date::store_internal_adjust_frac(
@@ -5444,16 +5434,14 @@ longlong Field_time_common::val_date_temporal() const {
   return TIME_to_longlong_datetime_packed(datetime);
 }
 
-bool Field_time_common::send_binary(Protocol *protocol) const {
-  MYSQL_TIME ltime;
+bool Field_time_common::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
+  MYSQL_TIME ltime;
   if (get_time(&ltime)) {
     DBUG_ASSERT(0);
     set_zero_time(&ltime, MYSQL_TIMESTAMP_TIME);
   }
-  ltime.day = ltime.hour / 24;  // Move hours to days
-  ltime.hour -= ltime.day * 24;
-  return protocol->store_time(&ltime, 0);
+  return protocol->store_time(&ltime, dec);
 }
 
 my_time_flags_t Field_time_common::date_flags(const THD *thd) const {
@@ -5693,11 +5681,11 @@ type_conversion_status Field_year::store(longlong nr, bool) {
   return TYPE_OK;
 }
 
-bool Field_year::send_binary(Protocol *protocol) const {
+bool Field_year::send_to_protocol(Protocol *protocol) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   if (is_null()) return protocol->store_null();
   ulonglong tmp = Field_year::val_int();
-  return protocol->store_short(tmp);
+  return protocol->store_short(tmp, zerofill ? field_length : 0);
 }
 
 double Field_year::val_real() const { return (double)Field_year::val_int(); }
@@ -5778,9 +5766,9 @@ type_conversion_status Field_newdate::store_packed(longlong nr) {
   return store_internal(&ltime, &warnings);
 }
 
-bool Field_newdate::send_binary(Protocol *protocol) const {
-  MYSQL_TIME ltime;
+bool Field_newdate::send_to_protocol(Protocol *protocol) const {
   if (is_null()) return protocol->store_null();
+  MYSQL_TIME ltime;
   get_date(&ltime, 0);
   return protocol->store_date(&ltime);
 }

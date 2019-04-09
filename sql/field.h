@@ -697,16 +697,7 @@ class Value_generator {
   bool permanent_changes_completed;
 };
 
-class Proto_field {
- public:
-  Proto_field() = default;
-  virtual ~Proto_field() = default;
-  Proto_field(const Proto_field &) = default;
-  virtual bool send_binary(Protocol *protocol) const = 0;
-  virtual bool send_text(Protocol *protocol) const = 0;
-};
-
-class Field : public Proto_field {
+class Field {
  public:
   /*
     Field(const Item &) = delete;
@@ -819,7 +810,7 @@ class Field : public Proto_field {
   Key_map part_of_key_not_extended;
 
   /**
-    Flags for Proto_field::auto_flags / Create_field::auto_flags bitmaps.
+    Flags for Field::auto_flags / Create_field::auto_flags bitmaps.
 
     @note NEXT_NUMBER and DEFAULT_NOW/ON_UPDATE_NOW/GENERATED flags should
           never be set at the same time. Also DEFAULT_NOW and GENERATED
@@ -949,7 +940,7 @@ class Field : public Proto_field {
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
         uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg);
 
-  ~Field() override {}
+  virtual ~Field() = default;
 
   void reset_warnings() { m_warnings_pushed = 0; }
 
@@ -1530,8 +1521,12 @@ class Field : public Proto_field {
     ptr = old_ptr;
     return str;
   }
-  bool send_binary(Protocol *protocol) const override;
-  bool send_text(Protocol *protocol) const final override;
+
+  /**
+    Send the value of this field over the protocol using the correct
+    Protocol::store*() function which matches the type of the field.
+  */
+  virtual bool send_to_protocol(Protocol *protocol) const;
 
   virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first) const;
@@ -2215,7 +2210,7 @@ class Field_new_decimal : public Field_num {
   const uchar *unpack(uchar *to, const uchar *from, uint param_data,
                       bool low_byte_first) final override;
   static Field *create_from_item(Item *);
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   void set_keep_precision(bool arg) { m_keep_precision = arg; }
 };
 
@@ -2247,7 +2242,7 @@ class Field_tiny : public Field_num {
   double val_real() const override;
   longlong val_int() const override;
   String *val_str(String *, String *) const override;
-  bool send_binary(Protocol *protocol) const override;
+  bool send_to_protocol(Protocol *protocol) const override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return 1; }
@@ -2308,7 +2303,7 @@ class Field_short final : public Field_num {
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return 2; }
@@ -2366,7 +2361,7 @@ class Field_medium final : public Field_num {
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return 3; }
@@ -2424,7 +2419,7 @@ class Field_long : public Field_num {
   }
   double val_real() const final override;
   longlong val_int() const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   String *val_str(String *, String *) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
@@ -2486,7 +2481,7 @@ class Field_longlong : public Field_num {
   double val_real() const final override;
   longlong val_int() const override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return PACK_LENGTH; }
@@ -2544,7 +2539,7 @@ class Field_float final : public Field_real {
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return sizeof(float); }
@@ -2610,7 +2605,7 @@ class Field_double final : public Field_real {
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return sizeof(double); }
@@ -2949,7 +2944,7 @@ class Field_temporal_with_date : public Field_temporal {
                            uint8 dec_arg)
       : Field_temporal(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                        field_name_arg, int_length_arg, dec_arg) {}
-  bool send_binary(Protocol *protocol) const override;
+  bool send_to_protocol(Protocol *protocol) const override;
   type_conversion_status store_time(MYSQL_TIME *ltime,
                                     uint8 dec) final override;
   String *val_str(String *, String *) const override;
@@ -3209,7 +3204,7 @@ class Field_year final : public Field_tiny {
   double val_real() const final override;
   longlong val_int() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   void sql_type(String &str) const final override;
   bool can_be_compared_as_longlong() const final override { return true; }
   Field_year *clone(MEM_ROOT *mem_root) const final override {
@@ -3256,7 +3251,7 @@ class Field_newdate : public Field_temporal_with_date {
   longlong val_time_temporal() const final override;
   longlong val_date_temporal() const final override;
   String *val_str(String *, String *) const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
   int cmp(const uchar *, const uchar *) const final override;
   size_t make_sort_key(uchar *buff, size_t length) const final override;
   uint32 pack_length() const final override { return PACK_LENGTH; }
@@ -3330,7 +3325,7 @@ class Field_time_common : public Field_temporal {
   bool get_date(MYSQL_TIME *ltime,
                 my_time_flags_t fuzzydate) const final override;
   longlong val_date_temporal() const final override;
-  bool send_binary(Protocol *protocol) const final override;
+  bool send_to_protocol(Protocol *protocol) const final override;
 };
 
 /*

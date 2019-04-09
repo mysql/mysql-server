@@ -783,13 +783,10 @@ select fun(2.3, 3, 5)|
 insert into t2 values (append("xxx", "yyy"), mul(4,3), e())|
 insert into t2 values (append("a", "b"), mul(2,mul(3,4)), fun(1.7, 4, 6))|
 
-# Disable PS because double's give a bit different values
---disable_ps_protocol
 select * from t2 where s = append("a", "b")|
 select * from t2 where i = mul(4,3) or i = mul(mul(3,4),2) order by i|
 select * from t2 where d = e()|
 select * from t2 order by i|
---enable_ps_protocol
 delete from t2|
 
 drop function e|
@@ -1086,10 +1083,8 @@ end|
 
 call rc()|
 select row_count()|
---disable_ps_protocol
 update t1 set data=42 where id = "b";
 select row_count()|
---enable_ps_protocol
 delete from t1|
 select row_count()|
 delete from t1|

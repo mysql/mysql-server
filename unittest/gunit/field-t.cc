@@ -38,8 +38,8 @@ using my_testing::Server_initializer;
 
 class FieldTest : public ::testing::Test {
  protected:
-  virtual void SetUp() { initializer.SetUp(); }
-  virtual void TearDown() { initializer.TearDown(); }
+  void SetUp() override { initializer.SetUp(); }
+  void TearDown() override { initializer.TearDown(); }
 
   THD *thd() { return initializer.thd(); }
 
@@ -80,7 +80,7 @@ class Mock_protocol : public Protocol {
  public:
   Mock_protocol(THD *) {}
 
-  virtual bool store_time(MYSQL_TIME *time, uint precision) {
+  bool store_time(MYSQL_TIME *time, uint precision) override {
     t = *time;
     p = precision;
     return false;
@@ -92,54 +92,58 @@ class Mock_protocol : public Protocol {
   }
 
   // Lots of functions that require implementation
-  int read_packet() { return 0; }
-  ulong get_client_capabilities() { return 0; }
-  bool has_client_capability(unsigned long) { return false; }
-  void end_partial_result_set() {}
-  int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) {
+  int read_packet() override { return 0; }
+  ulong get_client_capabilities() override { return 0; }
+  bool has_client_capability(unsigned long) override { return false; }
+  void end_partial_result_set() override {}
+  int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) override {
     return 0;
   }
   SSL_handle get_ssl() { return 0; }
-  void start_row() {}
-  bool end_row() { return false; }
-  bool connection_alive() const { return false; }
-  void abort_row() {}
-  uint get_rw_status() { return 0; }
-  bool get_compression() { return false; }
-  bool start_result_metadata(uint, uint, const CHARSET_INFO *) { return false; }
+  void start_row() override {}
+  bool end_row() override { return false; }
+  bool connection_alive() const override { return false; }
+  void abort_row() override {}
+  uint get_rw_status() override { return 0; }
+  bool get_compression() override { return false; }
+  bool start_result_metadata(uint, uint, const CHARSET_INFO *) override {
+    return false;
+  }
 
-  bool store_ps_status(ulong, uint, uint, ulong) { return false; }
-  virtual bool send_parameters(List<Item_param> *, bool) { return false; }
+  bool store_ps_status(ulong, uint, uint, ulong) override { return false; }
+  bool send_parameters(List<Item_param> *, bool) override { return false; }
 
   void send_num_fields(uint) {}
   void send_num_rows(uint) {}
-  bool send_field_metadata(Send_field *, const CHARSET_INFO *) { return false; }
-  virtual bool send_ok(uint, uint, ulonglong, ulonglong, const char *) {
+  bool send_field_metadata(Send_field *, const CHARSET_INFO *) override {
+    return false;
+  }
+  bool send_ok(uint, uint, ulonglong, ulonglong, const char *) override {
     return false;
   }
 
-  virtual bool send_eof(uint, uint) { return false; }
-  virtual bool send_error(uint, const char *, const char *) { return false; }
-  bool end_result_metadata() { return false; }
+  bool send_eof(uint, uint) override { return false; }
+  bool send_error(uint, const char *, const char *) override { return false; }
+  bool end_result_metadata() override { return false; }
 
-  virtual bool store_null() { return false; }
-  virtual bool store_tiny(longlong) { return false; }
-  virtual bool store_short(longlong) { return false; }
-  virtual bool store_long(longlong) { return false; }
-  virtual bool store_longlong(longlong, bool) { return false; }
-  virtual bool store_decimal(const my_decimal *, uint, uint) { return false; }
-  virtual bool store(const char *, size_t, const CHARSET_INFO *) {
+  bool store_null() override { return false; }
+  bool store_tiny(longlong, uint32) override { return false; }
+  bool store_short(longlong, uint32) override { return false; }
+  bool store_long(longlong, uint32) override { return false; }
+  bool store_longlong(longlong, bool, uint32) override { return false; }
+  bool store_decimal(const my_decimal *, uint, uint) override { return false; }
+  bool store(const char *, size_t, const CHARSET_INFO *) override {
     return false;
   }
-  virtual bool store(float, uint32, String *) { return false; }
-  virtual bool store(double, uint32, String *) { return false; }
-  virtual bool store(MYSQL_TIME *, uint) { return false; }
-  virtual bool store_date(MYSQL_TIME *) { return false; }
-  virtual bool store(Proto_field *) { return false; }
-  virtual enum enum_protocol_type type() const { return PROTOCOL_LOCAL; }
-  virtual enum enum_vio_type connection_type() const { return NO_VIO_TYPE; }
-  virtual int get_command(COM_DATA *, enum_server_command *) { return -1; }
-  virtual bool flush() { return true; }
+  bool store(float, uint32, uint32, String *) override { return false; }
+  bool store(double, uint32, uint32, String *) override { return false; }
+  bool store(MYSQL_TIME *, uint) override { return false; }
+  bool store_date(MYSQL_TIME *) override { return false; }
+  bool store_field(const Field *) override { return false; }
+  enum enum_protocol_type type() const override { return PROTOCOL_LOCAL; }
+  enum enum_vio_type connection_type() const override { return NO_VIO_TYPE; }
+  int get_command(COM_DATA *, enum_server_command *) override { return -1; }
+  bool flush() override { return true; }
 };
 
 TEST_F(FieldTest, FieldTimef) {
@@ -223,7 +227,7 @@ TEST_F(FieldTest, FieldTimef) {
 
   Mock_protocol protocol(thd());
   EXPECT_EQ(protocol.connection_type(), NO_VIO_TYPE);
-  EXPECT_FALSE(field->send_binary(&protocol));
+  EXPECT_FALSE(field->send_to_protocol(&protocol));
   // The verification below fails because send_binary move hours to days
   // protocol.verify_time(&bigTime, 0);  // Why 0?
 
