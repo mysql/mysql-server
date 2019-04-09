@@ -28,4 +28,23 @@ Grants for x@y
 GRANT USAGE ON *.* TO 'x'@'y'
 drop user x@y;
 drop database d1;
+[connection master]
+CREATE USER foo@localhost IDENTIFIED WITH 'mysql_native_password';
+CREATE USER bar@localhost IDENTIFIED WITH 'mysql_native_password';
+GRANT PROXY ON foo@localhost TO bar@localhost IDENTIFIED BY '123';;
+include/assert.inc [Assert that the query logged is indeed the GRANT PROXY one]
+SHOW GRANTS FOR bar@localhost;
+Grants for bar@localhost
+GRANT USAGE ON *.* TO 'bar'@'localhost' IDENTIFIED BY PASSWORD '*23AE809DDACAF96AF0FD78ED04B6A265E05AA257'
+GRANT PROXY ON 'foo'@'localhost' TO 'bar'@'localhost'
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SHOW GRANTS FOR bar@localhost;
+Grants for bar@localhost
+GRANT USAGE ON *.* TO 'bar'@'localhost' IDENTIFIED BY PASSWORD '*23AE809DDACAF96AF0FD78ED04B6A265E05AA257'
+GRANT PROXY ON 'foo'@'localhost' TO 'bar'@'localhost'
+[connection master]
+DROP USER foo@localhost;
+DROP USER bar@localhost;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
