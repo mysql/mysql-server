@@ -29,6 +29,9 @@
 
 #include "mysql_protocol_decoder.h"
 #include "mysql_protocol_encoder.h"
+#include "socket_operations.h"
+
+using mysql_harness::socket_t;
 
 void send_packet(socket_t client_socket, const uint8_t *data, size_t size,
                  int flags = 0);
@@ -40,9 +43,6 @@ void read_packet(socket_t client_socket, uint8_t *data, size_t size,
 int close_socket(socket_t sock);
 bool socket_has_data(socket_t sock, int timeout_ms);
 
-/**
- * get last errno of a socket operation as std::error_code.
- */
-std::error_code last_socket_error_code();
+std::error_code get_last_socket_error_code();
 
 #endif  // MYSQLD_MOCK_MYSQL_PROTOCOL_UTILS_INCLUDED

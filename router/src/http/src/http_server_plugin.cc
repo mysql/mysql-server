@@ -57,6 +57,7 @@
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
 #include "posix_re.h"
+#include "socket_operations.h"
 #include "static_files.h"
 #include "tls_server_context.h"
 
@@ -181,12 +182,80 @@ void HttpRequestThread::wait_and_dispatch() {
 class HttpRequestMainThread : public HttpRequestThread {
  public:
   void bind(const std::string &address, uint16_t port) {
-    auto *handle =
-        evhttp_bind_socket_with_handle(ev_http.get(), address.c_str(), port);
-    if (nullptr == handle) {
-      throw std::runtime_error("binding socket failed ...");
+    int err;
+    struct addrinfo hints, *ainfo;
+
+    auto *sock_ops = mysql_harness::SocketOperations::instance();
+
+    std::memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    err = getaddrinfo(address.c_str(), std::to_string(port).c_str(), &hints,
+                      &ainfo);
+    if (err != 0) {
+      throw std::runtime_error(std::string("getaddrinfo() failed") +
+                               gai_strerror(err));
     }
-    accept_fd_ = evhttp_bound_socket_get_fd(handle);
+
+    std::shared_ptr<void> exit_guard(nullptr,
+                                     [&](void *) { freeaddrinfo(ainfo); });
+
+    accept_fd_ = sock_ops->socket(ainfo->ai_family, ainfo->ai_socktype,
+                                  ainfo->ai_protocol);
+    if (accept_fd_ == mysql_harness::kInvalidSocket) {
+      throw std::system_error(sock_ops->get_error_code(), "socket() failed");
+    }
+
+    if (evutil_make_socket_nonblocking(accept_fd_) < 0) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(),
+                              "evutil_make_socket_nonblocking() failed");
+    }
+
+    if (evutil_make_socket_closeonexec(accept_fd_) < 0) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(),
+                              "evutil_make_socket_closeonexec() failed");
+    }
+
+    int option_value = 1;
+    if (sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_REUSEADDR,
+                             reinterpret_cast<const char *>(&option_value),
+                             static_cast<socklen_t>(sizeof(int))) == -1) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(),
+                              "setsockopt(SO_REUSEADDR) failed");
+    }
+    if (sock_ops->setsockopt(accept_fd_, SOL_SOCKET, SO_KEEPALIVE,
+                             reinterpret_cast<const char *>(&option_value),
+                             static_cast<socklen_t>(sizeof(int))) == -1) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(),
+                              "setsockopt(SO_KEEPALIVE) failed");
+    }
+
+    err = sock_ops->bind(accept_fd_, ainfo->ai_addr, ainfo->ai_addrlen);
+    if (err < 0) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(
+          sock_ops->get_error_code(),
+          "bind('0.0.0.0:" + std::to_string(port) + ") failed");
+    }
+
+    if (sock_ops->listen(accept_fd_, 128) == -1) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(), "listen() failed");
+    }
+
+    auto handle = evhttp_accept_socket_with_handle(ev_http.get(), accept_fd_);
+
+    if (nullptr == handle) {
+      sock_ops->close(accept_fd_);
+      throw std::system_error(sock_ops->get_error_code(),
+                              "evhttp_accept_socket_with_handle() failed");
+    }
   }
 };
 
