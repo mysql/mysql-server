@@ -947,12 +947,24 @@ SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.firewall_whitelist "
+         "MODIFY COLUMN USERHOST VARCHAR(288) NOT NULL";
+SET @str = IF(@had_firewall_whitelist > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 SET @had_firewall_users =
   (SELECT COUNT(table_name) FROM information_schema.tables
      WHERE table_schema = 'mysql' AND table_name = 'firewall_users' AND
            table_type = 'BASE TABLE');
 SET @cmd="ALTER TABLE mysql.firewall_users ENGINE=InnoDB";
+SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+SET @cmd="ALTER TABLE mysql.firewall_users "
+         "MODIFY COLUMN USERHOST VARCHAR(288)";
 SET @str = IF(@had_firewall_users > 0, @cmd, "SET @dummy = 0");
 PREPARE stmt FROM @str;
 EXECUTE stmt;
