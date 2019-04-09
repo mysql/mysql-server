@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #
 
 SET(SHARED_LIB_MAJOR_VERSION "21")
-SET(SHARED_LIB_MINOR_VERSION "0")
+SET(SHARED_LIB_MINOR_VERSION "1")
 SET(PROTOCOL_VERSION "10")
 
 # Generate "something" to trigger cmake rerun when VERSION changes
