@@ -7978,3 +7978,16 @@ DROP TABLE t0, t1, t2, t3, t4, t5, t6;
 SET sql_mode=default;
 SET SESSION TIMESTAMP=default;
 SET time_zone=default;
+
+--echo #
+--echo # Bug#29594951 DECIMAL2LLDIV_T REFERS TO UNINITIALIZED VALUES!
+--echo #
+
+CREATE TABLE t1 (c1 LONGTEXT);
+INSERT INTO t1 VALUES('2018-10-15 01:29:55');
+
+--error ER_INVALID_JSON_CHARSET
+SELECT * FROM t1 WHERE
+'2018-10-15 01:29:55'=(c1 + INTERVAL(json_keys(0xceedc36e,'$$')) SECOND);
+
+DROP TABLE t1;

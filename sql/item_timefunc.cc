@@ -1464,6 +1464,7 @@ bool get_interval_value(Item *args, interval_type int_type, String *str_value,
     my_decimal decimal_value, *val;
     lldiv_t tmp;
     if (!(val = args->val_decimal(&decimal_value))) return true;
+    if (args->null_value) return true;
     int lldiv_result = my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp);
     if (lldiv_result == E_DEC_OVERFLOW) return true;
 
@@ -1976,11 +1977,10 @@ bool Item_func_from_unixtime::get_date(
   lldiv_t lld;
   if (decimals) {
     my_decimal *val, decimal_value;
-    if (!(val = args[0]->val_decimal(&decimal_value)) ||
-        my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &lld)) {
-      null_value = 1;
-      return true;
-    }
+    if (!(val = args[0]->val_decimal(&decimal_value)) || args[0]->null_value)
+      return (null_value = true);
+    if (0 != my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &lld))
+      return (null_value = true);
   } else {
     lld.quot = args[0]->val_int();
     lld.rem = 0;
