@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -51,6 +51,7 @@ class Compression_lz4_writer : public I_output_writer,
 
   ~Compression_lz4_writer();
 
+  bool init();
   void append(const std::string &data_to_append);
 
   // Fix "inherits ... via dominance" warnings

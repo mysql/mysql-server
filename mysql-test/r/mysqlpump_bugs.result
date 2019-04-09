@@ -12,4 +12,8 @@ Dump process encountered error and will not continue.
 mysqlpump: Got error: 2005: Unknown MySQL server host 'non_existent_ghost' (errno) while connecting to the MySQL server
 mysqlpump: [ERROR] (11) 
 Dump process encountered error and will not continue.
+#
+# Bug#29389828: CRASH WHEN TILDE EXPANSION USED IN --RESULT-FILE PATH
+#
+# report error when tilde is used in file name
 # End of 8.0 tests

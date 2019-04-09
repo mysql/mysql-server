@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -74,3 +74,5 @@ Compression_lz4_writer::Compression_lz4_writer(
         *message_handler,
     Simple_id_generator *object_id_generator)
     : Abstract_output_writer_wrapper(message_handler, object_id_generator) {}
+
+bool Compression_lz4_writer::init() { return false; }
