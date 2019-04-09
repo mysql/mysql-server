@@ -4372,3 +4372,23 @@ DROP TABLE child_renamed;
 --echo # should not fail due to duplicate foreign key name.
 CREATE TABLE child (fk INT, b INT, FOREIGN KEY (fk) REFERENCES parent (pk));
 DROP TABLES child, parent;
+
+
+--echo #
+--echo # Bug #18199504 "AUTO-NAMING OF FOREIGN KEYS SEEMS BROKEN WHEN
+--echo #                MULTI-OPERATION ALTER IS USED".
+--echo #
+CREATE TABLE parent (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c CHAR(32));
+CREATE TABLE uncle (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, c CHAR(32));
+CREATE TABLE child (parent_id INT, c CHAR(32), FOREIGN KEY (parent_id) REFERENCES parent (id));
+--echo # Turn off foreign key checking so we can add foreign key using
+--echo # inplace algorithm.
+SET FOREIGN_KEY_CHECKS=0;
+--echo # The problem occured when a foreign key was added by ALTER TABLE
+--echo # executed using inplace algorithm which still did table rebuild
+--echo # internally. So we drop column to make operation non-instant for
+--echo # sure.
+ALTER TABLE child ADD COLUMN uncle_id INT, DROP COLUMN c, ADD CONSTRAINT FOREIGN KEY (uncle_id) REFERENCES uncle (id), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+SHOW CREATE TABLE child;
+DROP TABLES child, parent, uncle;
