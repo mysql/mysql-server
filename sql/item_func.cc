@@ -1647,7 +1647,8 @@ double Item_typecast_real::val_real() {
   null_value = args[0]->null_value;
   if (null_value) return 0.0;
   if (data_type() == MYSQL_TYPE_FLOAT &&
-      res > std::numeric_limits<float>::max())
+      ((res > std::numeric_limits<float>::max()) ||
+       res < std::numeric_limits<float>::lowest()))
     return raise_float_overflow();
   return check_float_overflow(res);
 }

@@ -666,6 +666,8 @@ SELECT -1.0 *  CAST(3.14e19 AS DOUBLE);
 -3.14e19
 SELECT CAST("3.14e100" AS FLOAT);
 ERROR 22003: DOUBLE value is out of range in 'cast('3.14e100' as float)'
+SELECT CAST(-1e308 as FLOAT);
+ERROR 22003: DOUBLE value is out of range in 'cast(-(1e308) as float)'
 SELECT CONCAT("value=", CAST("3.4e5" AS FLOAT));
 CONCAT("value=", CAST("3.4e5" AS FLOAT))
 value=340000
