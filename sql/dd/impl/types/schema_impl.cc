@@ -70,16 +70,6 @@ using dd::tables::Tables;
 
 namespace dd {
 
-/*
-  The se_private_data column of a schema might be used by several storage
-  engines at the same time as the schema is not associated with any specific
-  engine. So to avoid any naming conflicts, we have the convention that the
-  keys should be prefixed with the engine name.
-*/
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // NDB keys:
-    "ndb_counter", "ndb_node_id"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -88,7 +78,7 @@ Schema_impl::Schema_impl()
     : m_created(0),
       m_last_altered(0),
       m_default_encryption(enum_encryption_type::ET_NO),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_default_collation_id(INVALID_OBJECT_ID) {}
 
 bool Schema_impl::validate() const {

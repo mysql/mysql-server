@@ -79,19 +79,13 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // NDB keys:
-    "object_version", "previous_mysql_version",
-    // InnoDB keys:
-    "autoinc", "data_directory", "discard", "instant_col", "version"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Table_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl()
     : m_se_private_id(INVALID_OBJECT_ID),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_row_format(RF_FIXED),
       m_is_temporary(false),
       m_partition_type(PT_NONE),

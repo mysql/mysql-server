@@ -65,10 +65,6 @@ static const std::set<String_type> default_valid_option_keys = {
     "column_format", "geom_type",         "interval_count", "not_secondary",
     "storage",       "treat_bit_as_char", "is_array"};
 
-static const std::set<String_type> default_valid_se_private_data_keys = {
-    // InnoDB keys:
-    "default", "default_null", "nullable", "table_id"};
-
 ///////////////////////////////////////////////////////////////////////////
 // Column_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
@@ -92,7 +88,7 @@ Column_impl::Column_impl()
       m_default_value_null(true),
       m_default_value_utf8_null(true),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(NULL),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
@@ -118,7 +114,7 @@ Column_impl::Column_impl(Abstract_table_impl *table)
       m_default_value_null(true),
       m_default_value_utf8_null(true),
       m_options(default_valid_option_keys),
-      m_se_private_data(default_valid_se_private_data_keys),
+      m_se_private_data(),
       m_table(table),
       m_elements(),
       m_collation_id(INVALID_OBJECT_ID),
