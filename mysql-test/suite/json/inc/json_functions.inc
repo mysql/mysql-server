@@ -4090,29 +4090,33 @@ SELECT CAST('{"b":2, "a":2}' AS JSON) IN(CAST(@a_var AS JSON), CAST(NULL AS JSON
 --echo # BUG#28179109: JSON COLUMN WITH STRING VALUE GOT INCORRECT RESULT
 --echo # BUG#28182471: JSON COLUMN WITH INTEGER VALUE GOT INCORRECT RESULT
 --echo #
-CREATE TABLE t1 (jdoc JSON);
+CREATE TABLE t1 (id INT, jdoc JSON);
 
-INSERT INTO t1 VALUES('{"key1": "111", "key2": "222"}');
-INSERT INTO t1 VALUES('{"key1": "333", "key2": "444"}');
-SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1;
+INSERT INTO t1 VALUES(1, '{"key1": "111", "key2": "222"}');
+INSERT INTO t1 VALUES(2, '{"key1": "333", "key2": "444"}');
+SELECT *, JSON_EXTRACT(jdoc,'$.key1') from t1 ORDER BY id;
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"');
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('"111"');
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('"111"', '"333"')
+  ORDER BY id;
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111');
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('111');
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('111', '333')
+  ORDER BY id;
 
 SELECT * FROM t1 WHERE '111' IN (JSON_EXTRACT(jdoc,'$.key1'), '333');
 
-INSERT INTO t1 VALUES('{"key1": 1, "key2": 11}');
-INSERT INTO t1 VALUES('{"key1": 2, "key2": 22}');
+INSERT INTO t1 VALUES(3, '{"key1": 1, "key2": 11}');
+INSERT INTO t1 VALUES(4, '{"key1": 2, "key2": 22}');
 
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1');
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = ('1');
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2');
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN ('1', '2')
+  ORDER BY id;
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1);
 SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') = (1);
-SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2);
+SELECT * FROM t1 WHERE JSON_EXTRACT(jdoc,'$.key1') IN (1, 2)
+  ORDER BY id;
 
 SELECT * FROM t1 WHERE 1 IN (JSON_EXTRACT(jdoc,'$.key1'), 2);
 
