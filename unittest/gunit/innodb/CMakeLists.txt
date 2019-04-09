@@ -48,8 +48,7 @@ IF (MERGE_UNITTESTS)
   IF(WIN32)
     LIST(APPEND ALL_INNODB_TESTS ../../../sql/nt_servc.cc)
   ENDIF()
-  MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS}
-    ADD_TEST merge_innodb_tests)
+  MYSQL_ADD_EXECUTABLE(merge_innodb_tests-t ${ALL_INNODB_TESTS} SKIP_INSTALL)
   SET_TARGET_PROPERTIES(merge_innodb_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(merge_innodb_tests-t
@@ -69,6 +68,16 @@ IF (MERGE_UNITTESTS)
   ENDIF()
 
   ADD_DEPENDENCIES(merge_innodb_tests-t GenError)
+
+  # See ../CMakeLists.txt
+  IF(ADD_MERGE_LARGE_TESTS)
+    ADD_TEST(merge_innodb_tests-t
+      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_innodb_tests-t)
+  ELSE()
+    MESSAGE(WARNING
+      "Likely link failure for this compiler, skipping merge_innodb_tests-t")
+    SET_PROPERTY(TARGET merge_innodb_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+  ENDIF()
 
 ENDIF(MERGE_UNITTESTS)
 
