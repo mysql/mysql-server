@@ -67,13 +67,18 @@ Compression_zlib_writer::Compression_zlib_writer(
     std::function<bool(const Mysql::Tools::Base::Message_data &)>
         *message_handler,
     Simple_id_generator *object_id_generator, uint compression_level)
-    : Abstract_output_writer_wrapper(message_handler, object_id_generator) {
+    : Abstract_output_writer_wrapper(message_handler, object_id_generator),
+      m_compression_level(compression_level) {}
+
+bool Compression_zlib_writer::init() {
   memset(&m_compression_context, 0, sizeof(m_compression_context));
   m_buffer.resize(Compression_zlib_writer::buffer_size);
-  int ret = deflateInit(&m_compression_context, compression_level);
+  int ret = deflateInit(&m_compression_context, m_compression_level);
   if (ret != Z_OK) {
     this->pass_message(Mysql::Tools::Base::Message_data(
         0, "zlib compression initialization failed",
         Mysql::Tools::Base::Message_type_error));
+    return true;
   }
+  return false;
 }

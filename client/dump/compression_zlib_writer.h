@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@ class Compression_zlib_writer : public I_output_writer,
 
   ~Compression_zlib_writer();
 
+  bool init();
   void append(const std::string &data_to_append);
 
   // Fix "inherits ... via dominance" warnings
@@ -73,6 +74,7 @@ class Compression_zlib_writer : public I_output_writer,
 
   my_boost::mutex m_zlib_mutex;
   z_stream m_compression_context;
+  uint m_compression_level;
   std::vector<char> m_buffer;
 
   const static int buffer_size = 128 * 1024;

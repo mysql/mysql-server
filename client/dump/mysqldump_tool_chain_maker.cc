@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -67,6 +67,10 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
     else
       writer = new Standard_writer(this->get_message_handler(),
                                    this->get_object_id_generator());
+    if (writer->init()) {
+      delete writer;
+      return NULL;
+    }
     m_all_created_elements.push_back(writer);
     if (m_options->m_compress_output_algorithm.has_value()) {
       std::string algorithm_name =
@@ -78,6 +82,10 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
       if (algorithm_name == "lz4") {
         Compression_lz4_writer *compression_writer = new Compression_lz4_writer(
             this->get_message_handler(), this->get_object_id_generator());
+        if (compression_writer->init()) {
+          delete compression_writer;
+          return NULL;
+        }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
       } else if (algorithm_name == "zlib") {
@@ -85,13 +93,18 @@ I_object_reader *Mysqldump_tool_chain_maker::create_chain(
             new Compression_zlib_writer(this->get_message_handler(),
                                         this->get_object_id_generator(),
                                         Z_DEFAULT_COMPRESSION);
+        if (compression_writer->init()) {
+          delete compression_writer;
+          return NULL;
+        }
         compression_writer_as_wrapper = compression_writer;
         compression_writer_as_writer = compression_writer;
-      } else
+      } else {
         this->pass_message(Mysql::Tools::Base::Message_data(
             0, "Unknown compression method: " + algorithm_name,
             Mysql::Tools::Base::Message_type_error));
-
+        return NULL;
+      }
       compression_writer_as_wrapper->register_output_writer(writer);
       writer = compression_writer_as_writer;
       m_all_created_elements.push_back(writer);

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ void File_writer::append(const std::string &data_to_append) {
 
 File_writer::~File_writer() {
   // Check for I/O errors and close file.
-  if (ferror(m_file) != 0 || fclose(m_file) != 0) {
+  if (m_file && (ferror(m_file) != 0 || fclose(m_file) != 0)) {
     this->pass_message(Mysql::Tools::Base::Message_data(
         ferror(m_file), "Error occurred while finishing writing to output.",
         Mysql::Tools::Base::Message_type_error));
@@ -52,4 +52,19 @@ File_writer::File_writer(
         *message_handler,
     Simple_id_generator *object_id_generator, const std::string &file_name)
     : Abstract_chain_element(message_handler, object_id_generator),
-      m_file(fopen(file_name.c_str(), "wb")) {}
+      m_file(nullptr),
+      m_file_name(file_name) {}
+
+bool File_writer::init() {
+  if (!m_file) {
+    m_file = fopen(m_file_name.c_str(), "wb");
+    if (!m_file) {
+      this->pass_message(Mysql::Tools::Base::Message_data(
+          errno, "Can't create/open a file " + m_file_name,
+          Mysql::Tools::Base::Message_type_error));
+      return true;
+    } else
+      return false;
+  }
+  return false;
+}
