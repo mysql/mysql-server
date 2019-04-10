@@ -868,7 +868,7 @@ void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
                       bool generate_event) {
   DBUG_TRACE;
 
-  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT(sql_errno));
+  if (sql_errno) net_send_error(thd, sql_errno, ER_DEFAULT_NONCONST(sql_errno));
   thd->disconnect(server_shutdown);
 
   if (generate_event) {

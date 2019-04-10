@@ -10502,7 +10502,7 @@ void ha_ndbcluster::append_create_info(String*)
                               ER_THD(thd, ER_GET_ERRMSG),
                               4503,
                               "Table property PARTITION_BALANCE is set to"
-                              " an unknown value, could be an upgrade issue"
+                              " an unknown value, could be an upgrade issue",
                               "NDB");
         }
       }

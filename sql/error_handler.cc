@@ -287,8 +287,8 @@ static bool report_error(THD *thd, int error_code,
       return true;
     }
     case Sql_condition::SL_WARNING: {
-      push_warning_printf(thd, level, error_code, ER_THD(thd, error_code),
-                          args...);
+      push_warning_printf(thd, level, error_code,
+                          ER_THD_NONCONST(thd, error_code), args...);
       return true;
     }
     default: {
@@ -307,7 +307,7 @@ static bool report_error(THD *thd, int error_code,
       return true;
     }
     case Sql_condition::SL_WARNING: {
-      push_warning(thd, level, error_code, ER_THD(thd, error_code));
+      push_warning(thd, level, error_code, ER_THD_NONCONST(thd, error_code));
       return true;
     }
     default: {

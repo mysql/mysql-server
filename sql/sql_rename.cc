@@ -657,10 +657,9 @@ static bool do_rename(THD *thd, TABLE_LIST *ren_table, const char *new_db,
             return true;
           }
         } else if (to_schema->default_encryption() && !is_table_encrypted) {
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
-              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                       ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
         }
       }
 

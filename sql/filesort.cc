@@ -652,11 +652,12 @@ err:
       Guard against Bug#11745656 -- KILL QUERY should not send "server shutdown"
       to client!
     */
-    const char *cause = thd->killed ? ((thd->killed == THD::KILL_CONNECTION &&
-                                        !connection_events_loop_aborted())
-                                           ? ER_THD(thd, THD::KILL_QUERY)
-                                           : ER_THD(thd, thd->killed))
-                                    : thd->get_stmt_da()->message_text();
+    const char *cause = thd->killed
+                            ? ((thd->killed == THD::KILL_CONNECTION &&
+                                !connection_events_loop_aborted())
+                                   ? ER_THD_NONCONST(thd, THD::KILL_QUERY)
+                                   : ER_THD_NONCONST(thd, thd->killed))
+                            : thd->get_stmt_da()->message_text();
     const char *msg = ER_THD(thd, ER_FILESORT_TERMINATED);
 
     my_printf_error(ER_FILSORT_ABORT, "%s: %s", MYF(0), msg, cause);

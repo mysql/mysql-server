@@ -8974,6 +8974,12 @@ ER_CLONE_IN_PROGRESS
 ER_CLONE_DISALLOWED
   eng "The clone operation cannot be executed when %s."
 
+ER_SYSVAR_CHANGE_DURING_QUERY
+  eng "A plugin was loaded or unloaded during a query, a system variable table was changed."
+
+ER_GLOBSTAT_CHANGE_DURING_QUERY
+  eng "A plugin was loaded or unloaded during a query, a global status variable was changed."
+
 #
 #  End of 8.0 error messages.
 #
@@ -18445,13 +18451,13 @@ ER_SERVER_SLAVE_IGNORED_TABLE
   eng "Slave SQL thread ignored the query because of replicate-*-table rules"
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
-  eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.512s, position %lld."
+  eng "Cannot replicate anonymous transaction when AUTO_POSITION = 1, at file %.400s, position %lld."
 
 ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
-  eng "Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON, at file %.512s, position %lld."
+  eng "Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON, at file %.400s, position %lld."
 
 ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
-  eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.512s, position %lld."
+  eng "Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF, at file %.400s, position %lld."
 
 # This entry is intended for testing (for instance, the server-log test
 # component throws this, and has the built-in filtering engine select these)

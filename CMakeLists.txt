@@ -114,6 +114,7 @@ IF(DEFINED CMAKE_BUILD_TYPE)
 ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
+OPTION(CHECK_ERRMSG_FORMAT "Check printf format for English error messages" OFF)
 
 # Use a default manufacturer if no manufacturer was identified.
 SET(MANUFACTURER_DOCSTRING

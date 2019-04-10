@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -65,8 +65,8 @@ Hint_scanner::Hint_scanner(THD *thd_arg, size_t lineno_arg, const char *buf,
       yyleng(0),
       has_hints(false) {}
 
-void HINT_PARSER_error(THD *thd, Hint_scanner *scanner, PT_hint_list **,
-                       const char *msg) {
+void HINT_PARSER_error(THD *thd MY_ATTRIBUTE((unused)), Hint_scanner *scanner,
+                       PT_hint_list **, const char *msg) {
   if (strcmp(msg, "syntax error") == 0)
     msg = ER_THD(thd, ER_WARN_OPTIMIZER_HINT_SYNTAX_ERROR);
   scanner->syntax_warning(msg);
@@ -89,7 +89,8 @@ void Hint_scanner::syntax_warning(const char *msg) const {
                     thd->variables.character_set_client);
 
   push_warning_printf(thd, Sql_condition::SL_WARNING, ER_PARSE_ERROR,
-                      ER_THD(thd, ER_PARSE_ERROR), msg, err.ptr(), lineno);
+                      ER_THD(thd, ER_PARSE_ERROR), msg, err.ptr(),
+                      static_cast<int>(lineno));
 }
 
 /**

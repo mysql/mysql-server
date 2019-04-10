@@ -571,9 +571,9 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
       DBUG_EXECUTE_IF("skip_sender_anon_autoposition_error",
                       { return false; };);
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf,
-              ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
-              log_file, log_pos);
+      snprintf(buf, MYSQL_ERRMSG_SIZE,
+               ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION),
+               log_file, log_pos);
       set_fatal_error(buf);
       return true;
     }
@@ -586,8 +586,9 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
     */
     else if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_ON) {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
-              log_file, log_pos);
+      snprintf(buf, MYSQL_ERRMSG_SIZE,
+               ER_THD(m_thd, ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON),
+               log_file, log_pos);
       set_fatal_error(buf);
       return true;
     }
@@ -601,8 +602,9 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
     */
     if (get_gtid_mode_from_copy(GTID_MODE_LOCK_NONE) == GTID_MODE_OFF) {
       char buf[MYSQL_ERRMSG_SIZE];
-      sprintf(buf, ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
-              log_file, log_pos);
+      snprintf(buf, MYSQL_ERRMSG_SIZE,
+               ER_THD(m_thd, ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF),
+               log_file, log_pos);
       set_fatal_error(buf);
       return true;
     }

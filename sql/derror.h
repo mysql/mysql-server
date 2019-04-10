@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,8 +93,21 @@ class MY_LOCALE_ERRMSGS {
   const char *get_language() const { return language; }
 };
 
+#ifdef CHECK_ERRMSG_FORMAT
+// The number and type of arguments to error messages is
+// now checked at compile time.
+#include "mysqld_errmsg.h"
+#define ER_DEFAULT(X) X##_MSG
+#define ER_THD(T, X) X##_MSG
+#else
 const char *ER_DEFAULT(int mysql_errno);
 const char *ER_THD(const THD *thd, int mysql_errno);
+#endif  // CHECK_ERRMSG_FORMAT
+
+// Use these in place of ER_DEFAULT/ER_THD when the error number is not known at
+// compile time. Avoid using these if at all possible.
+const char *ER_DEFAULT_NONCONST(int mysql_errno);
+const char *ER_THD_NONCONST(const THD *thd, int mysql_errno);
 
 C_MODE_START
 const char *error_message_for_error_log(int mysql_errno);

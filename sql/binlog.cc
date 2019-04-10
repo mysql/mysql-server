@@ -10093,9 +10093,10 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
         for (int unsafe_type = 0; unsafe_type < LEX::BINLOG_STMT_UNSAFE_COUNT;
              unsafe_type++)
           if (unsafe_flags & (1 << unsafe_type))
-            my_error((error = ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
-                     ER_THD(current_thd,
-                            LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+            my_error(
+                (error = ER_BINLOG_UNSAFE_AND_STMT_ENGINE), MYF(0),
+                ER_THD_NONCONST(current_thd,
+                                LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       } else if (is_write &&
                  ((unsafe_flags = lex->get_stmt_unsafe_flags()) != 0)) {
         /*
@@ -10160,8 +10161,9 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
               DBUG_PRINT(
                   "info",
                   ("unsafe reason: %s",
-                   ER_THD(current_thd,
-                          Query_tables_list::binlog_stmt_unsafe_errcode[i])));
+                   ER_THD_NONCONST(
+                       current_thd,
+                       Query_tables_list::binlog_stmt_unsafe_errcode[i])));
           }
           DBUG_PRINT("info",
                      ("is_row_injection=%d", lex->is_stmt_row_injection()));
@@ -10377,7 +10379,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
       LogErr(WARNING_LEVEL, log_error_code);
       // Need to print to client so that users can adjust their workload.
       push_warning(thd, Sql_condition::SL_WARNING, error_code,
-                   ER_THD(thd, error_code));
+                   ER_THD_NONCONST(thd, error_code));
     }
     return true;
   }
@@ -11072,7 +11074,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char *buf,
                                         const char *query) {
   DBUG_TRACE;
   sprintf(buf, ER_DEFAULT(ER_BINLOG_UNSAFE_STATEMENT),
-          ER_DEFAULT(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+          ER_DEFAULT_NONCONST(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
   LogErr(WARNING_LEVEL, ER_BINLOG_UNSAFE_MESSAGE_AND_STATEMENT, buf, query);
 }
 
@@ -11181,7 +11183,7 @@ void THD::issue_unsafe_warnings() {
       push_warning_printf(
           this, Sql_condition::SL_NOTE, ER_BINLOG_UNSAFE_STATEMENT,
           ER_THD(this, ER_BINLOG_UNSAFE_STATEMENT),
-          ER_THD(this, LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+          ER_THD_NONCONST(this, LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       if (log_error_verbosity > 1 && opt_log_unsafe_statements) {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
           do_unsafe_limit_checkout(buf, unsafe_type, query().str);

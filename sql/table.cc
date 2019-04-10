@@ -3702,7 +3702,7 @@ bool check_column_name(const char *name) {
   @retval  true   There was an error.
 */
 
-bool Table_check_intact::check(THD *thd, TABLE *table,
+bool Table_check_intact::check(THD *thd MY_ATTRIBUTE((unused)), TABLE *table,
                                const TABLE_FIELD_DEF *table_def) {
   uint i;
   bool error = false;

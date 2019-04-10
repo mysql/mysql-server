@@ -5979,8 +5979,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
           dd::get_dictionary()->is_system_view_name(
               lex->query_tables->db, lex->query_tables->table_name))) {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-               ER_THD(thd, dictionary->table_type_error_code(ptr->db,
-                                                             ptr->table_name)),
+               ER_THD_NONCONST(thd, dictionary->table_type_error_code(
+                                        ptr->db, ptr->table_name)),
                ptr->db, ptr->table_name);
       // Take error handler into account to see if we should return.
       if (thd->is_error()) return nullptr;

@@ -95,11 +95,20 @@ const char *MY_LOCALE_ERRMSGS::lookup(int mysql_errno) {
   return "Invalid error code";
 }
 
+#ifndef CHECK_ERRMSG_FORMAT
 const char *ER_DEFAULT(int mysql_errno) {
   return my_default_lc_messages->errmsgs->lookup(mysql_errno);
 }
 
 const char *ER_THD(const THD *thd, int mysql_errno) {
+  return thd->variables.lc_messages->errmsgs->lookup(mysql_errno);
+}
+#endif  // CHECK_ERRMSG_FORMAT
+const char *ER_DEFAULT_NONCONST(int mysql_errno) {
+  return my_default_lc_messages->errmsgs->lookup(mysql_errno);
+}
+
+const char *ER_THD_NONCONST(const THD *thd, int mysql_errno) {
   return thd->variables.lc_messages->errmsgs->lookup(mysql_errno);
 }
 
@@ -118,7 +127,7 @@ const char *ER_THD(const THD *thd, int mysql_errno) {
 static const char *error_message_fetch(int mysql_errno) {
   if ((my_default_lc_messages != nullptr) &&
       (my_default_lc_messages->errmsgs->is_loaded()))
-    return ER_DEFAULT(mysql_errno);
+    return ER_DEFAULT_NONCONST(mysql_errno);
 
   {
     server_error *sqlstate_map = &error_names_array[1];
@@ -166,7 +175,7 @@ const char *error_message_for_error_log(int mysql_errno) {
   @retval  an error-message if available, or nullptr
 */
 const char *error_message_for_client(int mysql_errno) {
-  if (current_thd) return ER_THD(current_thd, mysql_errno);
+  if (current_thd) return ER_THD_NONCONST(current_thd, mysql_errno);
 
   return error_message_fetch(mysql_errno);
 }

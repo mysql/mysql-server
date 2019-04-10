@@ -4821,8 +4821,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       if (!ignored_error_code(ER_INCONSISTENT_ERROR)) {
         rli->report(
             ERROR_LEVEL, ER_INCONSISTENT_ERROR,
-            ER_THD(thd, ER_INCONSISTENT_ERROR), ER_THD(thd, expected_error),
-            expected_error,
+            ER_THD(thd, ER_INCONSISTENT_ERROR),
+            ER_THD_NONCONST(thd, expected_error), expected_error,
             (actual_error ? thd->get_stmt_da()->message_text() : "no error"),
             actual_error, print_slave_db_safe(db), query_arg);
         thd->is_slave_error = 1;
@@ -4834,7 +4834,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                     " error is thrown. "
                     "The expected error was %s with, Error_code: %d. "
                     "The actual error is %s with ",
-                    ER_THD(thd, expected_error), expected_error,
+                    ER_THD_NONCONST(thd, expected_error), expected_error,
                     thd->get_stmt_da()->message_text());
         clear_all_errors(thd, const_cast<Relay_log_info *>(rli));
       }
@@ -9398,7 +9398,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
       }
 
       if (thd->slave_thread) {
-        rli->report(ERROR_LEVEL, error, ER_THD(thd, error), buf);
+        rli->report(ERROR_LEVEL, error, ER_THD_NONCONST(thd, error), buf);
         thd->is_slave_error = 1;
         const_cast<Relay_log_info *>(rli)->slave_close_thread_tables(thd);
       } else {
@@ -9406,7 +9406,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
           For the cases in which a 'BINLOG' statement is set to
           execute in a user session
         */
-        my_printf_error(error, ER_THD(thd, error), MYF(0), buf);
+        my_printf_error(error, ER_THD_NONCONST(thd, error), MYF(0), buf);
       }
       return error;
     }

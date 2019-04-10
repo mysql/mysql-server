@@ -451,9 +451,9 @@ void sys_var::do_deprecated_warning(THD *thd) {
                       ? ER_DEPRECATE_MSG_NO_REPLACEMENT
                       : ER_DEPRECATE_MSG_WITH_REPLACEMENT;
     if (thd)
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_DEPRECATED_SYNTAX, ER_THD(thd, errmsg), buf1,
-                          deprecation_substitute);
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
+          ER_THD_NONCONST(thd, errmsg), buf1, deprecation_substitute);
     else
       LogErr(WARNING_LEVEL, errmsg, buf1, deprecation_substitute);
   }

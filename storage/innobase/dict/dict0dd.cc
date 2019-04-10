@@ -1157,7 +1157,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         invalid = true;
       } else {
         push_warning_printf(thd, Sql_condition::SL_WARNING, error,
-                            ER_DEFAULT(error), innobase_hton_name, kbs,
+                            ER_DEFAULT_NONCONST(error), innobase_hton_name, kbs,
                             zip_refused);
       }
     } else if (real_type != ROW_TYPE_COMPRESSED) {
@@ -1181,7 +1181,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         invalid = true;
       } else {
         push_warning_printf(thd, Sql_condition::SL_WARNING, error,
-                            ER_DEFAULT(error), innobase_hton_name, kbs,
+                            ER_DEFAULT_NONCONST(error), innobase_hton_name, kbs,
                             conflict);
       }
     }

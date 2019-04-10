@@ -1839,7 +1839,8 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
         uint transient_error =
             (error == 0) ? thd->get_stmt_da()->mysql_errno() : error;
         current_thd->rli_slave->retried_processing(
-            transient_error, ER_THD(thd, transient_error), trans_retries);
+            transient_error, ER_THD_NONCONST(thd, transient_error),
+            trans_retries);
 #ifndef DBUG_OFF
         if (trans_retries == 2 || trans_retries == 6)
           DBUG_EXECUTE_IF("rpl_ps_tables_worker_retry", {

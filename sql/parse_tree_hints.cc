@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,8 +162,8 @@ void PT_hint::print_warn(THD *thd, uint err_code,
     String qb_name_str;
     append_identifier(thd, &qb_name_str, qb_name_arg->str, qb_name_arg->length);
     push_warning_printf(thd, Sql_condition::SL_WARNING, err_code,
-                        ER_THD(thd, err_code), qb_name_str.c_ptr_safe(),
-                        str.c_ptr_safe());
+                        ER_THD(thd, ER_WARN_UNKNOWN_QB_NAME),
+                        qb_name_str.c_ptr_safe(), str.c_ptr_safe());
     return;
   }
 
@@ -196,7 +196,7 @@ void PT_hint::print_warn(THD *thd, uint err_code,
   str.append(')');
 
   push_warning_printf(thd, Sql_condition::SL_WARNING, err_code,
-                      ER_THD(thd, err_code), str.c_ptr_safe());
+                      ER_THD_NONCONST(thd, err_code), str.c_ptr_safe());
 }
 
 bool PT_qb_level_hint::contextualize(Parse_context *pc) {

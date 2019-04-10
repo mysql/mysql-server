@@ -101,7 +101,7 @@ class Acl_table_intact : public Table_check_intact {
       LogErr(log_level_, ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2, db_name,
              table_name);
     } else {
-      my_printv_error(code, ER_THD(thd, code), MYF(0), args);
+      my_printv_error(code, ER_THD_NONCONST(thd, code), MYF(0), args);
       va_end(args);
 
       if (code == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2)

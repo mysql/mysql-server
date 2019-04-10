@@ -170,7 +170,8 @@ using binary_log::checksum_crc32;
 using std::max;
 using std::min;
 
-#define ER_THD_OR_DEFAULT(thd, X) ((thd) ? ER_THD(thd, X) : ER_DEFAULT(X))
+#define ER_THD_OR_DEFAULT(thd, X) \
+  ((thd) ? ER_THD_NONCONST(thd, X) : ER_DEFAULT_NONCONST(X))
 
 const char *primary_key_name = "PRIMARY";
 
@@ -4863,7 +4864,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         if (key->type == KEYTYPE_MULTIPLE) {
           /* not a critical problem */
           push_warning_printf(thd, Sql_condition::SL_WARNING, ER_TOO_LONG_KEY,
-                              ER_THD(thd, ER_TOO_LONG_KEY), key_part_length);
+                              ER_THD(thd, ER_TOO_LONG_KEY),
+                              static_cast<int>(key_part_length));
           /* Align key length to multibyte char boundary */
           key_part_length -= key_part_length % sql_field->charset->mbmaxlen;
           /*
@@ -4920,7 +4922,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     if (key->type == KEYTYPE_MULTIPLE) {
       /* not a critical problem */
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_TOO_LONG_KEY,
-                          ER_THD(thd, ER_TOO_LONG_KEY), key_part_length);
+                          ER_THD(thd, ER_TOO_LONG_KEY),
+                          static_cast<int>(key_part_length));
       /* Align key length to multibyte char boundary */
       key_part_length -= key_part_length % sql_field->charset->mbmaxlen;
       /*
@@ -7854,8 +7857,9 @@ bool validate_comment_length(THD *thd, const char *comment_str,
       return true;
     }
     char warn_buff[MYSQL_ERRMSG_SIZE];
-    length = snprintf(warn_buff, sizeof(warn_buff), ER_THD(thd, err_code),
-                      comment_name, static_cast<ulong>(max_len));
+    length =
+        snprintf(warn_buff, sizeof(warn_buff), ER_THD_NONCONST(thd, err_code),
+                 comment_name, static_cast<ulong>(max_len));
     /* do not push duplicate warnings */
     if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length))
       push_warning(thd, Sql_condition::SL_WARNING, err_code, warn_buff);
@@ -8661,10 +8665,9 @@ bool mysql_create_table_no_lock(THD *thd, const char *db,
             return true;
           }
         } else if (schema->default_encryption() && !request_type) {
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
-              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                       ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
         }
       }
     }
@@ -14712,10 +14715,9 @@ static bool simple_rename_or_index_change(
             return true;
           }
         } else if (new_schema.default_encryption() && !is_table_encrypted) {
-          push_warning_printf(
-              thd, Sql_condition::SL_WARNING,
-              WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
-              ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB), "");
+          push_warning(thd, Sql_condition::SL_WARNING,
+                       WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                       ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
         }
       }
     }
@@ -16104,10 +16106,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         }
       } else if (new_schema->default_encryption() &&
                  !destination_encrytion_type) {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
-                            ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB),
-                            "");
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB,
+                     ER_THD(thd, WARN_UNENCRYPTED_TABLE_IN_ENCRYPTED_DB));
       }
     }
   }

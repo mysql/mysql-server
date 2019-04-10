@@ -616,7 +616,7 @@ Internal_error_handler *THD::pop_internal_handler() {
 }
 
 void THD::raise_error(uint sql_errno) {
-  const char *msg = ER_THD(this, sql_errno);
+  const char *msg = ER_THD_NONCONST(this, sql_errno);
   (void)raise_condition(sql_errno, NULL, Sql_condition::SL_ERROR, msg);
 }
 
@@ -625,7 +625,7 @@ void THD::raise_error_printf(uint sql_errno, ...) {
   char ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_TRACE;
   DBUG_PRINT("my", ("nr: %d  errno: %d", sql_errno, errno));
-  const char *format = ER_THD(this, sql_errno);
+  const char *format = ER_THD_NONCONST(this, sql_errno);
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -633,7 +633,7 @@ void THD::raise_error_printf(uint sql_errno, ...) {
 }
 
 void THD::raise_warning(uint sql_errno) {
-  const char *msg = ER_THD(this, sql_errno);
+  const char *msg = ER_THD_NONCONST(this, sql_errno);
   (void)raise_condition(sql_errno, NULL, Sql_condition::SL_WARNING, msg);
 }
 
@@ -642,7 +642,7 @@ void THD::raise_warning_printf(uint sql_errno, ...) {
   char ebuff[MYSQL_ERRMSG_SIZE];
   DBUG_TRACE;
   DBUG_PRINT("enter", ("warning: %u", sql_errno));
-  const char *format = ER_THD(this, sql_errno);
+  const char *format = ER_THD_NONCONST(this, sql_errno);
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -653,7 +653,7 @@ void THD::raise_note(uint sql_errno) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("code: %d", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES)) return;
-  const char *msg = ER_THD(this, sql_errno);
+  const char *msg = ER_THD_NONCONST(this, sql_errno);
   (void)raise_condition(sql_errno, NULL, Sql_condition::SL_NOTE, msg);
 }
 
@@ -663,7 +663,7 @@ void THD::raise_note_printf(uint sql_errno, ...) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("code: %u", sql_errno));
   if (!(variables.option_bits & OPTION_SQL_NOTES)) return;
-  const char *format = ER_THD(this, sql_errno);
+  const char *format = ER_THD_NONCONST(this, sql_errno);
   va_start(args, sql_errno);
   vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
@@ -695,7 +695,7 @@ Sql_condition *THD::raise_condition(uint sql_errno, const char *sqlstate,
   DBUG_ASSERT(sql_errno != 0);
   if (sql_errno == 0) /* Safety in release build */
     sql_errno = ER_UNKNOWN_ERROR;
-  if (msg == NULL) msg = ER_THD(this, sql_errno);
+  if (msg == NULL) msg = ER_THD_NONCONST(this, sql_errno);
   if (sqlstate == NULL) sqlstate = mysql_errno_to_sqlstate(sql_errno);
 
   if (fatal_error) {
@@ -2367,7 +2367,7 @@ void THD::syntax_error(int mysql_errno, ...) {
   va_list args;
   va_start(args, mysql_errno);
   vsyntax_error_at(m_parser_state->m_lip.get_tok_start(),
-                   ER_THD(this, mysql_errno), args);
+                   ER_THD_NONCONST(this, mysql_errno), args);
   va_end(args);
 }
 
@@ -2412,7 +2412,7 @@ void THD::syntax_error_at(const YYLTYPE &location, const char *format, ...) {
 void THD::syntax_error_at(const YYLTYPE &location, int mysql_errno, ...) {
   va_list args;
   va_start(args, mysql_errno);
-  vsyntax_error_at(location, ER_THD(this, mysql_errno), args);
+  vsyntax_error_at(location, ER_THD_NONCONST(this, mysql_errno), args);
   va_end(args);
 }
 

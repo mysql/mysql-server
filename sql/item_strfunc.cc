@@ -3800,7 +3800,8 @@ String *Item_func_compress::val_str(String *str) {
                       res->length())) != Z_OK) {
     code = err == Z_MEM_ERROR ? ER_ZLIB_Z_MEM_ERROR : ER_ZLIB_Z_BUF_ERROR;
     push_warning(current_thd, Sql_condition::SL_WARNING, code,
-                 ER_THD(current_thd, code));
+                 err == Z_MEM_ERROR ? ER_THD(current_thd, ER_ZLIB_Z_MEM_ERROR)
+                                    : ER_THD(current_thd, ER_ZLIB_Z_BUF_ERROR));
     null_value = 1;
     return 0;
   }
@@ -3858,7 +3859,11 @@ String *Item_func_uncompress::val_str(String *str) {
                                : ((err == Z_MEM_ERROR) ? ER_ZLIB_Z_MEM_ERROR
                                                        : ER_ZLIB_Z_DATA_ERROR));
   push_warning(current_thd, Sql_condition::SL_WARNING, code,
-               ER_THD(current_thd, code));
+               err == Z_BUF_ERROR
+                   ? ER_THD(current_thd, ER_ZLIB_Z_BUF_ERROR)
+                   : (err == Z_MEM_ERROR)
+                         ? ER_THD(current_thd, ER_ZLIB_Z_MEM_ERROR)
+                         : ER_THD(current_thd, ER_ZLIB_Z_DATA_ERROR));
 
 err:
   null_value = 1;

@@ -1312,8 +1312,9 @@ static void push_numerical_conversion_warning(
 
   String tmp(buf, sizeof(buf), cs);
   tmp.copy(str, length, cs);
-  push_warning_printf(thd, Sql_condition::SL_WARNING, error, ER_THD(thd, error),
-                      typestr, tmp.c_ptr(), field_name, row_num);
+  push_warning_printf(thd, Sql_condition::SL_WARNING, error,
+                      ER_THD_NONCONST(thd, error), typestr, tmp.c_ptr(),
+                      field_name, row_num);
 }
 
 /**
@@ -9819,7 +9820,8 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
       thd->lex->sql_command != SQLCOM_REPLACE_SELECT) {
     // We aggregate warnings from only INSERT and REPLACE statements.
 
-    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
+    push_warning_printf(thd, level, code, ER_THD_NONCONST(thd, code),
+                        field_name,
                         thd->get_stmt_da()->current_row_for_condition());
 
     return 0;
@@ -9834,7 +9836,8 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
 
   if (current_warning_mask) {
     if (!(m_warnings_pushed & current_warning_mask)) {
-      push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
+      push_warning_printf(thd, level, code, ER_THD_NONCONST(thd, code),
+                          field_name,
                           thd->get_stmt_da()->current_row_for_condition());
       m_warnings_pushed |= current_warning_mask;
     }
@@ -9846,7 +9849,8 @@ bool Field::set_warning(Sql_condition::enum_severity_level level, uint code,
       m_warnings_pushed |= NO_DEFAULT_FOR_VIEW_FIELD_PUSHED;
     }
   } else {
-    push_warning_printf(thd, level, code, ER_THD(thd, code), field_name,
+    push_warning_printf(thd, level, code, ER_THD_NONCONST(thd, code),
+                        field_name,
                         thd->get_stmt_da()->current_row_for_condition());
   }
 

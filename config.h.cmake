@@ -226,6 +226,7 @@
 /*
  * From main CMakeLists.txt
  */
+#cmakedefine CHECK_ERRMSG_FORMAT
 #cmakedefine MAX_INDEXES @MAX_INDEXES@
 #cmakedefine WITH_INNODB_MEMCACHED 1
 #cmakedefine ENABLE_MEMCACHED_SASL 1

@@ -1883,8 +1883,8 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     int error = (!mi->inited ? ER_SLAVE_MI_INIT_REPOSITORY
                              : ER_SLAVE_RLI_INIT_REPOSITORY);
     Rpl_info *info = (!mi->inited ? mi : static_cast<Rpl_info *>(mi->rli));
-    const char *prefix =
-        current_thd ? ER_THD(current_thd, error) : ER_DEFAULT(error);
+    const char *prefix = current_thd ? ER_THD_NONCONST(current_thd, error)
+                                     : ER_DEFAULT_NONCONST(error);
     info->report(ERROR_LEVEL,
                  (!mi->inited ? ER_SERVER_SLAVE_MI_INIT_REPOSITORY
                               : ER_SERVER_SLAVE_RLI_INIT_REPOSITORY),
@@ -2457,7 +2457,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
       version_number < 5) {
     errmsg = "Master reported unrecognized MySQL version";
     err_code = ER_SLAVE_FATAL_ERROR;
-    sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
+    sprintf(err_buff, ER_THD_NONCONST(current_thd, err_code), errmsg);
     goto err;
   }
 
@@ -2470,7 +2470,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     mysql_mutex_unlock(mi->rli->relay_log.get_log_lock());
     errmsg = "default Format_description_log_event";
     err_code = ER_SLAVE_CREATE_EVENT_FAILURE;
-    sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
+    sprintf(err_buff, ER_THD_NONCONST(current_thd, err_code), errmsg);
     goto err;
   }
 
@@ -2596,7 +2596,7 @@ MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
       err_code = ER_SLAVE_FATAL_ERROR;
-      sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
+      sprintf(err_buff, ER_THD(current_thd, ER_SLAVE_FATAL_ERROR), errmsg);
       goto err;
     }
   } else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE) {
@@ -2629,7 +2629,7 @@ maybe it is a *VERY OLD MASTER*.");
         "Slave configured with server id filtering could not detect the master "
         "server id.";
     err_code = ER_SLAVE_FATAL_ERROR;
-    sprintf(err_buff, ER_THD(current_thd, err_code), errmsg);
+    sprintf(err_buff, ER_THD(current_thd, ER_SLAVE_FATAL_ERROR), errmsg);
     goto err;
   }
 
@@ -4917,7 +4917,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
               rli->trans_retries++;
               if (rli->is_processing_trx()) {
                 rli->retried_processing(temp_trans_errno,
-                                        ER_THD(thd, temp_trans_errno),
+                                        ER_THD_NONCONST(thd, temp_trans_errno),
                                         rli->trans_retries);
               }
             }
@@ -8646,7 +8646,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
     if ((slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT) ||
         (slave_errno == ER_STOP_SLAVE_IO_THREAD_TIMEOUT)) {
       push_warning(thd, Sql_condition::SL_NOTE, slave_errno,
-                   ER_THD(thd, slave_errno));
+                   ER_THD_NONCONST(thd, slave_errno));
 
       /*
         If new slave_errno is added in the if() condition above then make sure
@@ -9240,8 +9240,7 @@ static void issue_deprecation_warnings_for_channel(THD *thd) {
                         ER_WARN_DEPRECATED_SYNTAX,
                         ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
                         "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
-                        "(when @@GLOBAL.GTID_MODE = ON)",
-                        "");
+                        "(when @@GLOBAL.GTID_MODE = ON)");
   }
 }
 

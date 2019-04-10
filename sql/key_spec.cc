@@ -113,8 +113,8 @@ bool Foreign_key_spec::validate(THD *thd, const char *table_name,
                         thd->is_dd_system_thread(), true, ref_db.str,
                         ref_db.length, ref_table.str)) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-             ER_THD(thd, dictionary->table_type_error_code(ref_db.str,
-                                                           ref_table.str)),
+             ER_THD_NONCONST(thd, dictionary->table_type_error_code(
+                                      ref_db.str, ref_table.str)),
              ref_db.str, ref_table.str);
     return true;
   }

@@ -129,10 +129,9 @@ longlong Item_func_spatial_mbr_rel::val_int() {
       return error_int();  // Error has already been flagged.
 
     if (!srs_exists) {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(), func_name());
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING, ER_WARN_SRS_NOT_FOUND,
+          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND), g1->get_srid());
     }
   }
 
@@ -223,10 +222,9 @@ longlong Item_func_spatial_rel::val_int() {
       return error_int();  // Error has already been flagged.
 
     if (!srs_exists) {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(), func_name());
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING, ER_WARN_SRS_NOT_FOUND,
+          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND), g1->get_srid());
     }
   }
 

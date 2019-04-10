@@ -3202,8 +3202,8 @@ bool sp_head::merge_table_list(THD *thd, TABLE_LIST *table,
               table->mdl_request.is_ddl_or_lock_tables_lock_request(),
               table->db, table->db_length, table->table_name)) {
         my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-                 ER_THD(thd, dictionary->table_type_error_code(
-                                 table->db, table->table_name)),
+                 ER_THD_NONCONST(thd, dictionary->table_type_error_code(
+                                          table->db, table->table_name)),
                  table->db, table->table_name);
         return true;
       }

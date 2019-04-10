@@ -538,8 +538,8 @@ bool create_native_table(THD *thd, const Plugin_table *pt) {
   if (dd::get_dictionary()->is_dd_table_name(pt->get_schema_name(),
                                              pt->get_name())) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-             ER_THD(thd, dd::get_dictionary()->table_type_error_code(
-                             pt->get_schema_name(), pt->get_name())),
+             ER_THD_NONCONST(thd, dd::get_dictionary()->table_type_error_code(
+                                      pt->get_schema_name(), pt->get_name())),
              pt->get_schema_name(), pt->get_name());
 
     return true;
@@ -597,8 +597,8 @@ bool drop_native_table(THD *thd, const char *schema_name,
                        const char *table_name) {
   if (dd::get_dictionary()->is_dd_table_name(schema_name, table_name)) {
     my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
-             ER_THD(thd, dd::get_dictionary()->table_type_error_code(
-                             schema_name, table_name)),
+             ER_THD_NONCONST(thd, dd::get_dictionary()->table_type_error_code(
+                                      schema_name, table_name)),
              schema_name, table_name);
 
     return true;

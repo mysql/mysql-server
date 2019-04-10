@@ -501,7 +501,7 @@ static void report_error(int where_to, uint error, ...) {
   va_list args;
   if (where_to & REPORT_TO_USER) {
     va_start(args, error);
-    my_printv_error(error, ER_THD(current_thd, error), MYF(0), args);
+    my_printv_error(error, ER_THD_NONCONST(current_thd, error), MYF(0), args);
     va_end(args);
   }
   if (where_to & REPORT_TO_LOG) {

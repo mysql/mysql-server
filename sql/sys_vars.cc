@@ -1069,7 +1069,7 @@ static bool check_explicit_defaults_for_timestamp(sys_var *self, THD *thd,
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_SYNTAX,
                           ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
-                          self->name.str, "");
+                          self->name.str);
   }
   if (thd->in_sub_stmt) {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_SF_OR_TRIGGER, MYF(0),
@@ -3856,8 +3856,7 @@ static void issue_deprecation_warnings_gtid_mode(
             thd, Sql_condition::SL_WARNING, ER_WARN_DEPRECATED_SYNTAX,
             ER_THD(thd, ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT),
             "CHANGE MASTER TO ... IGNORE_SERVER_IDS='...' "
-            "(when @@GLOBAL.GTID_MODE = ON)",
-            "");
+            "(when @@GLOBAL.GTID_MODE = ON)");
 
         break;  // Only push one warning
       }
@@ -4271,10 +4270,10 @@ static bool check_sql_mode(sys_var *, THD *thd, set_var *var) {
         (2): but ignore the other ones (e.g. nested SET SQL_MODE calls in
              SBR-invoked trigger calls).
       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_WARN_REMOVED_SQL_MODE,
-                          ER_THD(thd, ER_WARN_REMOVED_SQL_MODE),
-                          candidate_mode & ~MODE_ALLOWED_MASK);
+      push_warning_printf(
+          thd, Sql_condition::SL_WARNING, ER_WARN_REMOVED_SQL_MODE,
+          ER_THD(thd, ER_WARN_REMOVED_SQL_MODE),
+          static_cast<uint>(candidate_mode & ~MODE_ALLOWED_MASK));
       // ignore obsolete mode flags in case this is an old mysqlbinlog:
       candidate_mode &= MODE_ALLOWED_MASK;
     } else {
@@ -6346,13 +6345,22 @@ static bool check_binlog_row_value_options(sys_var *self, THD *thd,
     if (msg) {
       switch (code) {
         case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING, code,
+              ER_THD(thd, ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED), msg,
+              "PARTIAL_JSON");
+          break;
         case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
-          push_warning_printf(thd, Sql_condition::SL_WARNING, code,
-                              ER_THD(thd, code), msg, "PARTIAL_JSON");
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING, code,
+              ER_THD(thd,
+                     ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES),
+              msg, "PARTIAL_JSON");
           break;
         case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
-          push_warning_printf(thd, Sql_condition::SL_WARNING, code,
-                              ER_THD(thd, code), msg);
+          push_warning_printf(
+              thd, Sql_condition::SL_WARNING, code,
+              ER_THD(thd, ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED), msg);
           break;
         default:
           DBUG_ASSERT(0); /* purecov: deadcode */

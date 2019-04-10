@@ -2807,7 +2807,7 @@ static void handle_coercion_error(enum_coercion_error cr_error,
       */
       push_warning_printf(
           current_thd, Sql_condition::SL_WARNING, error_code,
-          ER_THD(current_thd, error_code), target_type, "", msgnam,
+          ER_THD_NONCONST(current_thd, error_code), target_type, "", msgnam,
           current_thd->get_stmt_da()->current_row_for_condition());
       return;
     }

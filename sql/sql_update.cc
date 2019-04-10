@@ -484,7 +484,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
 
       char buff[MYSQL_ERRMSG_SIZE];
-      snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0, 0,
+      snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO), 0L, 0L,
                (long)thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 

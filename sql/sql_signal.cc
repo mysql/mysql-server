@@ -95,13 +95,14 @@ bool Set_signal_information::set_item(enum_condition_item_name name,
 }
 
 void Sql_cmd_common_signal::assign_defaults(
-    THD *thd, Sql_condition *cond, bool set_level_code,
+    THD *thd MY_ATTRIBUTE((unused)), Sql_condition *cond, bool set_level_code,
     Sql_condition::enum_severity_level level, int sqlcode) {
   if (set_level_code) {
     cond->m_severity_level = level;
     cond->m_mysql_errno = sqlcode;
   }
-  if (!cond->message_text()) cond->set_message_text(ER_THD(thd, sqlcode));
+  if (!cond->message_text())
+    cond->set_message_text(ER_THD_NONCONST(thd, sqlcode));
 }
 
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond) {
