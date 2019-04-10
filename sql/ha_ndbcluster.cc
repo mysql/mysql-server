@@ -13944,6 +13944,10 @@ void ndbcluster_init_abort(const char* error)
   ndb_log_error("Use --skip-ndbcluster to start without ndbcluster.");
   // flush all the buffered messages before exiting
   ndb_log_flush_buffered_messages();
+  DBUG_EXECUTE("ndbcluster_init_fail1",
+               ndb_log_error_dump("ndbcluster_init_abort1"););
+  DBUG_EXECUTE("ndbcluster_init_fail2",
+               ndb_log_error_dump("ndbcluster_init_abort2"););
   exit(1);
 }
 
