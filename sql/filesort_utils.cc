@@ -286,16 +286,12 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
   if (compare_len < 10) {
     stable_sort(it_begin, it_end, Mem_compare(compare_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end,
-                    Equality_from_less<Mem_compare>(Mem_compare(compare_len))) -
-             it_begin;
+      return unique(it_begin, it_end, Mem_compare(compare_len)) - it_begin;
     }
   } else {
     stable_sort(it_begin, it_end, Mem_compare_longkey(compare_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end,
-                    Equality_from_less<Mem_compare_longkey>(
-                        Mem_compare_longkey(compare_len))) -
+      return unique(it_begin, it_end, Mem_compare_longkey(compare_len)) -
              it_begin;
     }
   }
