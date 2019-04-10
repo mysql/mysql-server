@@ -2886,10 +2886,10 @@ select * from t1 where
 drop table t1;
 
 
-#########################################################
-# WL#12686: Enable condition pushdown of field references
-#   to previous tables in the query plan.
-#########################################################
+--echo #########################################################
+--echo # WL#12686: Enable condition pushdown of field references
+--echo #   to previous tables in the query plan.
+--echo #########################################################
 
 create table t1 (
   a int,
@@ -2956,7 +2956,9 @@ select *
 from t1 straight_join t1 as t2
 on (t2.d = 1 or t1.d = t2.d);
 
-# Not pushed as 't2' not referred from 't1.d = 1'
+# Not used to be pushed as 't2' was not referred from 't1.d = 1'
+# WL#12956: Will now identify 't1.d = 1' as something we can pre-evaluate
+#           to true/false when generating scan filter for t2 -> push it
 explain
 select *
 from t1 straight_join t1 as t2
@@ -2980,7 +2982,9 @@ from t1 straight_join t1 as t2
 on (1 = t1.d or t2.d = 1);
 
 ########
-# 't1.c = t1.b' should not push, t2 not referenced in term
+# 't1.c = t1.b' not used to be pushed as t2 not referenced in term
+# WL#12956: Will now identify 't1.c = t1.b' as something we can pre-evaluate
+#           to true/false when generating scan filter for t2 -> push it
 explain
 select *
 from t1 straight_join t1 as t2
@@ -3123,7 +3127,9 @@ on t1.b = t2.c;
 alter table t1 add column d varchar(20);
 update t1 set d = c;
 
-# Test: excact type match required, cant compare char - varchar.
+# Test: Used to require excact type match, couldn't compare char - varchar.
+# WL#12956: Compatible types from previous tables (t1) are converted when their
+#           Values are extracted when generating the scan filters
 explain
 select *
 from t1 straight_join t1 as t2
@@ -3136,15 +3142,52 @@ on t1.d = t2.c;
 
 alter table t1 drop column d;
 
+# WL#12956: Added test:
+#           Length of the 'to be converted' char has to be <= length of Field. (t2)
+#           Will not be pushed as 'varchar(30) is too large.
+alter table t1 add column d varchar(30);
+update t1 set d = c;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
+
+# Shorter varchar is compatible, and will be pushed
+alter table t1 add column d varchar(10);
+update t1 set d = substring(c,1,10);
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+
+alter table t1 drop column d;
 
 ###########
-# Test collations, which has to match
-# (Other char columns created with the default utf8mb4 collation)
+# Test: There used to be a requirement that when comparing with Fields from 'other' tables,
+#       their collations had to match
+#       (Other char columns created with the default utf8mb4 collation)
+# WL#12956 Lifted this requirement as t1 Field values are now converted to
+#          the 'to be compared' collations when values are extracted when filters
+#          are generated.
 alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
 
 update t1 set d = c;
 
-#Different collations -> dont push
+#Different collations -> 'convert' and push
 explain
 select *
 from t1 straight_join t1 as t2
@@ -3155,7 +3198,6 @@ select *
 from t1 straight_join t1 as t2
 on t1.d = t2.c;
 
-alter table t1 drop column d;
 drop table t1;
 
 --enable_warnings

@@ -59,10 +59,9 @@ typedef enum ndb_func_type {
   NDB_LIKE_FUNC = 8,
   NDB_NOTLIKE_FUNC = 9,
   NDB_NOT_FUNC = 10,
-  NDB_UNKNOWN_FUNC = 11,
-  NDB_COND_AND_FUNC = 12,
-  NDB_COND_OR_FUNC = 13,
-  NDB_UNSUPPORTED_FUNC = 14
+  NDB_COND_AND_FUNC = 11,
+  NDB_COND_OR_FUNC = 12,
+  NDB_UNSUPPORTED_FUNC = 13
 } NDB_FUNC_TYPE;
 
 typedef union ndb_item_qualification {
@@ -111,7 +110,6 @@ static const function_mapping func_map[]=
   {NDB_LIKE_FUNC, NDB_NOTLIKE_FUNC, NDB_UNSUPPORTED_FUNC},
   {NDB_NOTLIKE_FUNC, NDB_LIKE_FUNC, NDB_UNSUPPORTED_FUNC},
   {NDB_NOT_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
-  {NDB_UNKNOWN_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
   {NDB_COND_AND_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
   {NDB_COND_OR_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC},
   {NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC, NDB_UNSUPPORTED_FUNC}
@@ -158,11 +156,11 @@ public:
     field_value->column_no= column_no;
     value.field_value= field_value;
   }
-  Ndb_item(Item_func::Functype func_type, const Item *item_value)
+  Ndb_item(Item_func::Functype func_type, const Item_func *item_func)
     : type(NDB_FUNCTION)
   {
     qualification.function_type= item_func_to_ndb_func(func_type);
-    value.arg_count= ((Item_func *) item_value)->argument_count();
+    value.arg_count= item_func->argument_count();
   }
   Ndb_item(Item_func::Functype func_type, uint no_args)
     : type(NDB_FUNCTION)
@@ -321,10 +319,6 @@ public:
     case (Item_func::ISNOTNULL_FUNC): { return NDB_ISNOTNULL_FUNC; }
     case (Item_func::LIKE_FUNC): { return NDB_LIKE_FUNC; }
     case (Item_func::NOT_FUNC): { return NDB_NOT_FUNC; }
-    case (Item_func::NEG_FUNC): { return NDB_UNKNOWN_FUNC; }
-    case (Item_func::DATE_FUNC): { return NDB_UNKNOWN_FUNC; }
-    case (Item_func::DATETIME_LITERAL): { return NDB_UNKNOWN_FUNC; }
-    case (Item_func::UNKNOWN_FUNC): { return NDB_UNKNOWN_FUNC; }
     case (Item_func::COND_AND_FUNC): { return NDB_COND_AND_FUNC; }
     case (Item_func::COND_OR_FUNC): { return NDB_COND_OR_FUNC; }
     default: { return NDB_UNSUPPORTED_FUNC; }
@@ -571,7 +565,7 @@ private:
 class Ndb_rewrite_context
 {
 public:
-  Ndb_rewrite_context(Item_func *func)
+  Ndb_rewrite_context(const Item_func *func)
     : func_item(func), left_hand_item(NULL), count(0) {}
   ~Ndb_rewrite_context()
   {
@@ -593,9 +587,8 @@ public:
 class Ndb_cond_traverse_context
 {
 public:
-  Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
-                            bool other_tbls_ok)
-    : table(tab), ndb_table(ndb_tab), m_other_tbls_ok(other_tbls_ok),
+  Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab)
+    : table(tab), ndb_table(ndb_tab),
     supported(true), skip(0), rewrite_stack(NULL)
   {}
   ~Ndb_cond_traverse_context()
@@ -735,7 +728,6 @@ public:
 
   TABLE* const table;
   const NdbDictionary::Table* const ndb_table;
-  const bool m_other_tbls_ok;
   bool supported;
   List<Ndb_item> items;
   Ndb_expect_stack expect_stack;
@@ -761,6 +753,32 @@ is_supported_temporal_type(enum_field_types type)
 }
 
 /*
+  operand_count() reflect the traverse_cond() operand traversal.
+  Note that traverse_cond() only traverse any operands for FUNC_ITEM
+  and COND_ITEM, which is reflected by operand_count().
+*/
+static uint
+operand_count(const Item *item)
+{
+  switch (item->type()) {
+    case Item::FUNC_ITEM:
+    {
+      const Item_func *func_item= static_cast<const Item_func *>(item);
+      return func_item->argument_count();
+    }
+    case Item::COND_ITEM:
+    {
+      Item_cond *cond_item= (Item_cond*)(item);
+      List<Item> *arguments = cond_item->argument_list();
+      // A COND_ITEM (And/or) is visited both infix and postfix, so need '+1'
+      return arguments->elements + 1;
+    }
+    default:
+      return 0;
+  }
+}
+
+/*
   Serialize the item tree into a List of Ndb_item objecs
   for fast generation of NbdScanFilter. Adds information such as
   position of fields that is not directly available in the Item tree.
@@ -775,148 +793,54 @@ ndb_serialize_cond(const Item *item, void *arg)
   // Check if we are skipping arguments to a function to be evaluated
   if (context->skip)
   {
-    if (!item)
-    {
-      ndb_log_error("ndb_serialize_cond(), Unexpected mismatch of found and "
-                    "expected number of function arguments %u", context->skip);
-      context->skip= 0;
-      DBUG_VOID_RETURN;
-    }
     DBUG_PRINT("info", ("Skipping argument %d", context->skip));
     context->skip--;
-    switch (item->type()) {
-    case Item::FUNC_ITEM:
+    if (item != nullptr)
     {
-      Item_func *func_item= (Item_func *) item;
-      context->skip+= func_item->argument_count();
-      break;
+      context->skip+= operand_count(item);
     }
-    case Item::INT_ITEM:
-    case Item::REAL_ITEM:
-    case Item::STRING_ITEM:
-    case Item::VARBIN_ITEM:
-    case Item::DECIMAL_ITEM:
-      break;
-    default:
-      context->supported= false;
-      break;
-    }
-    
     DBUG_VOID_RETURN;
   }
   
   if (context->supported)
   {
-    Ndb_rewrite_context *rewrite_context2= context->rewrite_stack;
-    const Item_func *rewrite_func_item;
+    Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
     // Check if we are rewriting some unsupported function call
-    if (rewrite_context2 &&
-        (rewrite_func_item= rewrite_context2->func_item) &&
-        rewrite_context2->count++ == 0)
+    if (rewrite_context)
     {
-      switch (rewrite_func_item->functype()) {
-      case Item_func::BETWEEN:
-        /*
-          Rewrite 
-          <field>|<const> BETWEEN <const1>|<field1> AND <const2>|<field2>
-          to <field>|<const> > <const1>|<field1> AND 
-          <field>|<const> < <const2>|<field2>
-          or actually in prefix format
-          BEGIN(AND) GT(<field>|<const>, <const1>|<field1>), 
-          LT(<field>|<const>, <const2>|<field2>), END()
-        */
-      case Item_func::IN_FUNC:
+      rewrite_context->count++;
+      if (rewrite_context->count == 1)
       {
-        /*
-          Rewrite <field>|<const> IN(<const1>|<field1>, <const2>|<field2>,..)
-          to <field>|<const> = <const1>|<field1> OR 
-          <field> = <const2>|<field2> ...
-          or actually in prefix format
-          BEGIN(OR) EQ(<field>|<const>, <const1><field1>), 
-          EQ(<field>|<const>, <const2>|<field2>), ... END()
-          Each part of the disjunction is added for each call
-          to ndb_serialize_cond and end of rewrite statement 
-          is wrapped in end of ndb_serialize_cond
-        */
-        if (context->expecting(item->type()))
-        {
-          // This is the <field>|<const> item, save it in the rewrite context
-          rewrite_context2->left_hand_item= item;
-          if (item->type() == Item::FUNC_ITEM)
-          {
-            Item_func *func_item= (Item_func *) item;
-            if ((func_item->functype() == Item_func::UNKNOWN_FUNC ||
-                 func_item->functype() == Item_func::DATE_FUNC ||
-                 func_item->functype() == Item_func::DATETIME_LITERAL ||
-                 func_item->functype() == Item_func::NEG_FUNC) &&
-                func_item->const_item())
-            {
-              // Skip any arguments since we will evaluate function instead
-              DBUG_PRINT("info", ("Skip until end of arguments marker"));
-              context->skip= func_item->argument_count();
-            }
-            else
-            {
-              DBUG_PRINT("info", ("Found unsupported functional expression in BETWEEN|IN"));
-              context->supported= false;
-              DBUG_VOID_RETURN;
-            }
-          }
-        }
-        else
-        {
-          // Non-supported BETWEEN|IN expression
-          DBUG_PRINT("info", ("Found unexpected item of type %u in BETWEEN|IN",
-                              item->type()));
-          context->supported= false;
-          DBUG_VOID_RETURN;
-        }
-        break;
+        // This is the <left_hand_item>, save it in the rewrite context
+        rewrite_context->left_hand_item= item;
       }
-      default:
-        context->supported= false;
-        break;
-      }
-      DBUG_VOID_RETURN;
-    }
-    else
-    {
-      Ndb_item *ndb_item = nullptr;
-      // Check if we are rewriting some unsupported function call
-      if (context->rewrite_stack)
+      else
       {
-        Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
-        const Item_func *func_item= rewrite_context->func_item;
-        context->expect_only_field_from_table();
-        context->expect_no_field_result();
-        context->expect(Item::INT_ITEM);
-        context->expect(Item::STRING_ITEM);
-        context->expect(Item::VARBIN_ITEM);
-        context->expect(Item::FUNC_ITEM);
-        context->expect(Item::CACHE_ITEM);
-        switch (func_item->functype()) {
+        // Has already seen the 'left_hand_item', this 'item' is one of
+        // the right hand items in the in/between predicate to be rewritten.
+        Item *cmp_func = nullptr;
+        const Item_func *rewrite_func_item= rewrite_context->func_item;
+        switch (rewrite_func_item->functype()) {
         case Item_func::BETWEEN:
         {
           /*
-            Rewrite 
-            <field>|<const> BETWEEN <const1>|<field1> AND <const2>|<field2>
-            to <field>|<const> > <const1>|<field1> AND 
-            <field>|<const> < <const2>|<field2>
-            or actually in prefix format
-            BEGIN(AND) GT(<field>|<const>, <const1>|<field1>), 
-            LT(<field>|<const>, <const2>|<field2>), END()
+            Rewrite <left_hand_item> BETWEEN <item1> AND <item2>
+            to <left_hand_item> >= <item1> AND
+               <left_hand_item> <= <item2>
           */
-          if (rewrite_context->count == 2)
+          if (rewrite_context->count == 2)  // Lower 'between-limit'
           {
             // Lower limit of BETWEEN
-            DBUG_PRINT("info", ("GE_FUNC"));      
-            ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::GE_FUNC, 2);
+            DBUG_PRINT("info", ("GE_FUNC"));
+            cmp_func = new (*THR_MALLOC) Item_func_ge(const_cast<Item*>(rewrite_context->left_hand_item),
+                                                      const_cast<Item*>(item));
           }
-          else if (rewrite_context->count == 3)
+          else if (rewrite_context->count == 3)  // Upper 'between-limit'
           {
             // Upper limit of BETWEEN
-            DBUG_PRINT("info", ("LE_FUNC"));      
-            ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::LE_FUNC, 2);
+            DBUG_PRINT("info", ("LE_FUNC"));
+            cmp_func = new (*THR_MALLOC) Item_func_le(const_cast<Item*>(rewrite_context->left_hand_item),
+                                                      const_cast<Item*>(item));
           }
           else
           {
@@ -925,42 +849,57 @@ ndb_serialize_cond(const Item *item, void *arg)
             context->supported= false;
             DBUG_VOID_RETURN;
           }
-          // Enum comparison can not be pushed
-          context->dont_expect_field_type(MYSQL_TYPE_ENUM);
           break;
         }
         case Item_func::IN_FUNC:
         {
           /*
-            Rewrite <field>|<const> IN(<const1>|<field1>, <const2>|<field2>,..)
-            to <field>|<const> = <const1>|<field1> OR 
-            <field> = <const2>|<field2> ...
-            or actually in prefix format
-            BEGIN(OR) EQ(<field>|<const>, <const1><field1>), 
-            EQ(<field>|<const>, <const2>|<field2>), ... END()
-            Each part of the disjunction is added for each call
-            to ndb_serialize_cond and end of rewrite statement 
-            is wrapped in end of ndb_serialize_cond
+            Rewrite <left_hand_item> IN(<item1>, <item2>,..)
+            to <left_hand_item> = <item1> OR
+               <left_hand_item> = <item2> ...
           */
-          DBUG_PRINT("info", ("EQ_FUNC"));      
-          ndb_item= new (*THR_MALLOC) Ndb_item(Item_func::EQ_FUNC, 2);
+          DBUG_PRINT("info", ("EQ_FUNC"));
+          cmp_func = new (*THR_MALLOC) Item_func_eq(const_cast<Item*>(rewrite_context->left_hand_item),
+                                                    const_cast<Item*>(item));
           break;
         }
         default:
+          // Only BETWEEN/IN can be rewritten.
+          // If we add support for rewrite of others, handling must be added above
+          DBUG_ASSERT(false);
           context->supported= false;
-        }
-        context->items.push_back(ndb_item);
-        ndb_item = nullptr;
-
-        // Handle left hand <field>|<const>
-        context->rewrite_stack= NULL; // Disable rewrite mode
-        ndb_serialize_cond(rewrite_context->left_hand_item, context);
-        context->skip= 0; // Any FUNC_ITEM expression has already been parsed
-        context->rewrite_stack= rewrite_context; // Enable rewrite mode
-        if (!context->supported)
           DBUG_VOID_RETURN;
+        }
+        cmp_func->fix_fields(current_thd, &cmp_func);
+        cmp_func->update_used_tables();
+
+        // Traverse and serialize the rewritten predicate
+        context->rewrite_stack= NULL; // Disable rewrite mode
+        context->expect_only(Item::FUNC_ITEM);
+        cmp_func->traverse_cond(&ndb_serialize_cond, context, Item::PREFIX);
+        context->rewrite_stack= rewrite_context; // Re-enable rewrite mode
+
+        // Possibly terminate the rewrite_context
+        if (context->supported &&
+            rewrite_context->count ==
+            rewrite_context->func_item->argument_count())
+        {
+          // Rewrite is done, wrap an END() at the end
+          DBUG_PRINT("info", ("End of rewrite condition group"));
+          context->items.push_back(new (*THR_MALLOC) Ndb_item(NDB_END_COND));
+          // Pop rewrite stack
+          context->rewrite_stack= rewrite_context->next;
+          rewrite_context->next= NULL;
+          destroy(rewrite_context);
+        }
       }
-      
+      DBUG_PRINT("info", ("Skip 'item' (to be) handled in rewritten predicate"));
+      context->skip= operand_count(item);
+      DBUG_VOID_RETURN;
+    }
+    else  //not in a 'rewrite_context'
+    {
+      Ndb_item *ndb_item = nullptr;
       // Check for end of AND/OR expression
       if (!item)
       {
@@ -972,6 +911,197 @@ ndb_serialize_cond(const Item *item, void *arg)
       else
       {
         bool pop= true;
+        /*
+          Based on which tables being used from an item expression,
+          we might be able to evaluate its value immediately.
+          Generally any tables prior to 'this' table has values known by
+          now, same is true for expressions being entirely 'const'.
+        */
+        const table_map this_table = context->table->pos_in_table_list->map();
+        if (!(item->used_tables() & this_table))
+        {
+          /*
+            Item value can be evaluated right away, and its value used in the
+            condition, instead of the Item-expression. Note that this will
+            also catch the INT_, STRING_, REAL_, DECIMAL_ and VARBIN_ITEM,
+            as well as any CACHE_ITEM and FIELD_ITEM referring 'other' tables.
+          */
+#ifndef DBUG_OFF
+          String str;
+          item->print(current_thd, &str, QT_ORDINARY);
+#endif
+          if (item->is_bool_func())
+          {
+            // Item is a boolean func, (e.g. an EQ_FUNC)
+            DBUG_ASSERT(item->result_type() == INT_RESULT);
+            DBUG_PRINT("info", ("BOOLEAN 'VALUE' expression: '%s'", str.c_ptr_safe()));
+            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+
+            // Expect another logical expression
+            context->expect_only(Item::FUNC_ITEM);
+            context->expect(Item::COND_ITEM);
+          }
+          else if (item->type() == Item::VARBIN_ITEM)
+          {
+            // VARBIN_ITEM is special as no similar VARBIN_RESULT type is defined,
+            // so it need to be explicitely handled here.
+            DBUG_PRINT("info", ("VARBIN_ITEM 'VALUE' expression: '%s'", str.c_ptr_safe()));
+            if (context->expecting(Item::VARBIN_ITEM))
+            {
+              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
+              if (context->expecting_field_from_table())
+              {
+                // We have not seen the field argument referring this table yet
+                context->expect_only_field_from_table();
+                context->expect_only_field_result(STRING_RESULT);
+              }
+              else
+              {
+                // Expect another logical expression
+                context->expect_only(Item::FUNC_ITEM);
+                context->expect(Item::COND_ITEM);
+              }
+            }
+            else
+              context->supported= false;
+          }
+          else
+          {
+            // For the INT, REAL, DECIMAL and STRING Item type, we use
+            // the similar result_type() as a 'catch it all' synonym to
+            // handle both an Item and any expression of the specific type.
+            //
+            // Assert that any such Items are of the expected RESULT_ type:
+            DBUG_ASSERT(item->type() != Item::INT_ITEM ||
+                        item->result_type() == INT_RESULT);
+            DBUG_ASSERT(item->type() != Item::REAL_ITEM ||
+                        item->result_type() == REAL_RESULT);
+            DBUG_ASSERT(item->type() != Item::DECIMAL_ITEM ||
+                        item->result_type() == DECIMAL_RESULT);
+            DBUG_ASSERT(item->type() != Item::STRING_ITEM ||
+                        item->result_type() == STRING_RESULT);
+
+            switch (item->result_type()) {
+            case INT_RESULT:
+              DBUG_PRINT("info", ("INTEGER 'VALUE' expression: '%s'", str.c_ptr_safe()));
+              if (context->expecting(Item::INT_ITEM))
+              {
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
+                if (context->expecting_no_field_result())
+                {
+                  // We have not seen the field argument yet
+                  context->expect_only_field_from_table();
+                  context->expect_only_field_result(INT_RESULT);
+                  context->expect_field_result(REAL_RESULT);
+                  context->expect_field_result(DECIMAL_RESULT);
+                }
+                else
+                {
+                  // Expect another logical expression
+                  context->expect_only(Item::FUNC_ITEM);
+                  context->expect(Item::COND_ITEM);
+                }
+              }
+              else
+                context->supported= false;
+              break;
+
+            case REAL_RESULT:
+              DBUG_PRINT("info", ("REAL 'VALUE' expression: '%s'", str.c_ptr_safe()));
+              if (context->expecting(Item::REAL_ITEM))
+              {
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
+                if (context->expecting_no_field_result())
+                {
+                  // We have not seen the field argument yet
+                  context->expect_only_field_from_table();
+                  context->expect_only_field_result(REAL_RESULT);
+                }
+                else
+                {
+                  // Expect another logical expression
+                  context->expect_only(Item::FUNC_ITEM);
+                  context->expect(Item::COND_ITEM);
+                }
+              }
+              else
+                context->supported= false;
+              break;
+
+            case DECIMAL_RESULT:
+              DBUG_PRINT("info", ("DECIMAL 'VALUE' expression: '%s'", str.c_ptr_safe()));
+              if (context->expecting(Item::DECIMAL_ITEM))
+              {
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
+                if (context->expecting_no_field_result())
+                {
+                  // We have not seen the field argument yet
+                  context->expect_only_field_from_table();
+                  context->expect_only_field_result(REAL_RESULT);
+                  context->expect_field_result(DECIMAL_RESULT);
+                }
+                else
+                {
+                  // Expect another logical expression
+                  context->expect_only(Item::FUNC_ITEM);
+                  context->expect(Item::COND_ITEM);
+                }
+              }
+              else
+                context->supported= false;
+              break;
+
+            case STRING_RESULT:
+              DBUG_PRINT("info", ("STRING 'VALUE' expression: '%s'", str.c_ptr_safe()));
+              // Check that we do support pushing the item value length
+              if (context->expecting(Item::STRING_ITEM) &&
+                  context->expecting_length(item->max_length))
+              {
+                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
+                if (context->expecting_no_field_result())
+                {
+                  // We have not seen the field argument yet
+                  context->expect_only_field_from_table();
+                  context->expect_only_field_result(STRING_RESULT);
+                  context->expect_collation(item->collation.collation);
+                  context->expect_length(item->max_length);
+                }
+                else
+                {
+                  // Expect another logical expression
+                  context->expect_only(Item::FUNC_ITEM);
+                  context->expect(Item::COND_ITEM);
+                  context->expect_no_length();
+                  // Check that we are comparing with a field with same collation
+                  if (!context->expecting_collation(item->collation.collation))
+                  {
+                    DBUG_PRINT("info", ("Found non-matching collation %s",
+                                        item->collation.collation->name));
+                    context->supported= false;
+                  }
+                }
+              }
+              else
+                context->supported= false;
+              break;
+
+            default:
+              DBUG_ASSERT(false);
+              context->supported= false;
+              break;
+            }
+          }
+          if (context->supported)
+          {
+            DBUG_ASSERT(ndb_item != nullptr);
+            context->items.push_back(ndb_item);
+	  }
+
+          // Skip any arguments since we will evaluate this expression instead
+          context->skip= operand_count(item);
+          DBUG_PRINT("info", ("Skip until end of arguments marker, operands:%d", context->skip));
+          DBUG_VOID_RETURN;
+        }
 
         switch (item->type()) {
         case Item::FIELD_ITEM:
@@ -980,16 +1110,6 @@ ndb_serialize_cond(const Item *item, void *arg)
           Field *field= field_item->field;
           const enum_field_types type= field->real_type();
 
-          DBUG_ASSERT(!item->is_bool_func());
-          if (!context->m_other_tbls_ok &&
-              (item->used_tables() & ~context->table->pos_in_table_list->map()))
-          {
-            /**
-             * 'cond' refers fields from other tables -> reject it.
-             */
-            context->supported= false;
-            break;
-          }
           /* Check whether field is computed at MySQL layer */
           if (field->is_virtual_gcol())
           {
@@ -1003,7 +1123,6 @@ ndb_serialize_cond(const Item *item, void *arg)
           DBUG_PRINT("info", ("column length %u", field->field_length));
           DBUG_PRINT("info", ("type %d", type));
           DBUG_PRINT("info", ("result type %d", field->result_type()));
-
 	  /*
             Check that the field is part of the table of the handler
             instance and that we expect a field of this result type.
@@ -1025,41 +1144,21 @@ ndb_serialize_cond(const Item *item, void *arg)
               type != MYSQL_TYPE_JSON &&
               type != MYSQL_TYPE_GEOMETRY)
           {
-            // Found a Field_item of a supported type.
+            // Found a Field_item of a supported type. and from 'this' table
+            DBUG_ASSERT(context->table == field->table);
 
-            // A Field_item could either refer 'this' table, or a previous
-            // 'other' table in the query plan. Check that we expected the
-            // variant we found:
-            if (context->table == field->table)    //'this' table
+            const NDBCOL *col= context->ndb_table->getColumn(field->field_name);
+            DBUG_ASSERT(col);
+            ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
+
+            // Field is a reference to 'this' table, was it expected?
+            if (!context->expecting_field_from_table())
             {
-              const NDBCOL *col= context->ndb_table->getColumn(field->field_name);
-              DBUG_ASSERT(col);
-              ndb_item= new (*THR_MALLOC) Ndb_item(field, col->getColumnNo());
-
-              // Field is a reference to 'this' table, was it expected?
-              if (!context->expecting_field_from_table())
-              {
-                DBUG_PRINT("info", ("Was not expecting field from table %s",
-                                    field->table->s->table_name.str));
-                context->supported= false;
-                break;
-              }
+              DBUG_PRINT("info", ("Was not expecting field from table %s",
+                                  field->table->s->table_name.str));
+              context->supported= false;
+              break;
             }
-            else
-            {
-              // Is a field reference to another table
-              ndb_item= new (*THR_MALLOC) Ndb_item(field);
-
-              if (context->expecting_only_field_from_table())
-              {
-                // Have already seen a const, or a Field value from another
-                // table. We only accept a field from 'this' table now.
-                DBUG_PRINT("info", ("Was not expecting a field from another table %s",
-                                    field->table->s->table_name.str));
-                context->supported= false;
-                break;
-              }
-	    }
 
 	    /*
               Check, or set, further expectations for the operand(s).
@@ -1117,59 +1216,46 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
               // This is the first operand, it decides expectations for
               // the next operand, required to be compatible with this one.
-              if (context->table == field->table)
-              {
-                // Dont expect more Fields referring 'this' table
-                context->dont_expect_field_from_table();
 
-                if (is_supported_temporal_type(type))
-                {
+              // Dont expect more Fields referring 'this' table
+              context->dont_expect_field_from_table();
+
+              if (is_supported_temporal_type(type))
+              {
+                context->expect_only(Item::STRING_ITEM);
+                context->expect(Item::INT_ITEM);
+              }
+              else
+              {
+                switch (field->result_type()) {
+                case STRING_RESULT:
+                  // Expect char string or binary string
                   context->expect_only(Item::STRING_ITEM);
-                  context->expect(Item::INT_ITEM);
-                }
-                else
-                {
-                  switch (field->result_type()) {
-                  case STRING_RESULT:
-                    // Expect char string or binary string
-                    context->expect_only(Item::STRING_ITEM);
-                    context->expect(Item::VARBIN_ITEM);
-                    context->expect_collation(field_item->collation.collation);
-                    context->expect_max_length(field->field_length);
-                    break;
-                  case REAL_RESULT:
-                    context->expect_only(Item::REAL_ITEM);
-                    context->expect(Item::DECIMAL_ITEM);
-                    context->expect(Item::INT_ITEM);
-                    break;
-                  case INT_RESULT:
-                    context->expect_only(Item::INT_ITEM);
-                    context->expect(Item::VARBIN_ITEM);
-                    break;
-                  case DECIMAL_RESULT:
-                    context->expect_only(Item::DECIMAL_ITEM);
-                    context->expect(Item::REAL_ITEM);
-                    context->expect(Item::INT_ITEM);
-                    break;
-                  default:
-                    break;
-                  }
-                }
-                // In addition, second argument can always be a FIELD_ITEM
-                // referring a previous table in the query plan.
-                context->expect(Item::FIELD_ITEM);
-              }
-              else  //is an 'other' table (context->table != field->table)
-              {		
-                // We have not seen the field argument referring this table yet
-                // Expect it to refer a Field of same type as 'this' Field
-                context->expect_only_field_from_table();
-                if (field->result_type() == STRING_RESULT)
-                {
+                  context->expect(Item::VARBIN_ITEM);
                   context->expect_collation(field_item->collation.collation);
-                  context->expect_length(item->max_length);
+                  context->expect_max_length(field->field_length);
+                  break;
+                case REAL_RESULT:
+                  context->expect_only(Item::REAL_ITEM);
+                  context->expect(Item::DECIMAL_ITEM);
+                  context->expect(Item::INT_ITEM);
+                  break;
+                case INT_RESULT:
+                  context->expect_only(Item::INT_ITEM);
+                  context->expect(Item::VARBIN_ITEM);
+                  break;
+                case DECIMAL_RESULT:
+                  context->expect_only(Item::DECIMAL_ITEM);
+                  context->expect(Item::REAL_ITEM);
+                  context->expect(Item::INT_ITEM);
+                  break;
+                default:
+                  break;
                 }
               }
+              // In addition, second argument can always be a FIELD_ITEM
+              // referring a previous table in the query plan.
+              context->expect(Item::FIELD_ITEM);
               context->expect_only_field_type(type);
               context->expect_only_field_result(field->result_type());	
             }
@@ -1184,25 +1270,21 @@ ndb_serialize_cond(const Item *item, void *arg)
         }
         case Item::FUNC_ITEM:
         {
-          Item_func *func_item= (Item_func *) item;
-          // Check that we expect a function or functional expression here
-          if (context->expecting(Item::FUNC_ITEM) ||
-              func_item->functype() == Item_func::UNKNOWN_FUNC ||
-              func_item->functype() == Item_func::DATE_FUNC ||
-              func_item->functype() == Item_func::DATETIME_LITERAL ||
-              func_item->functype() == Item_func::NEG_FUNC)
-            context->expect_nothing();
-          else
+          // Check that we expect a function here
+          if (!context->expecting(Item::FUNC_ITEM))
           {
-            // Did not expect function here
             context->supported= false;
             break;
           }
+
+          context->expect_nothing();
           context->expect_no_length();
+
+          const Item_func *func_item= static_cast<const Item_func *>(item);
           switch (func_item->functype()) {
           case Item_func::EQ_FUNC:
           {
-            DBUG_PRINT("info", ("EQ_FUNC"));      
+            DBUG_PRINT("info", ("EQ_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
             context->expect(Item::STRING_ITEM);
@@ -1216,7 +1298,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::NE_FUNC:
           {
-            DBUG_PRINT("info", ("NE_FUNC"));      
+            DBUG_PRINT("info", ("NE_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
@@ -1230,7 +1312,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::LT_FUNC:
           {
-            DBUG_PRINT("info", ("LT_FUNC"));      
+            DBUG_PRINT("info", ("LT_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
@@ -1246,7 +1328,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::LE_FUNC:
           {
-            DBUG_PRINT("info", ("LE_FUNC"));      
+            DBUG_PRINT("info", ("LE_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
@@ -1262,7 +1344,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::GE_FUNC:
           {
-            DBUG_PRINT("info", ("GE_FUNC"));      
+            DBUG_PRINT("info", ("GE_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
@@ -1278,7 +1360,7 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::GT_FUNC:
           {
-            DBUG_PRINT("info", ("GT_FUNC"));      
+            DBUG_PRINT("info", ("GT_FUNC"));
             ndb_item=
               new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
             context->expect(Item::STRING_ITEM);
@@ -1297,7 +1379,9 @@ ndb_serialize_cond(const Item *item, void *arg)
             Ndb_expect_stack* expect_next= new (*THR_MALLOC) Ndb_expect_stack();
             DBUG_PRINT("info", ("LIKE_FUNC"));
 
-            if (((const Item_func_like *)func_item)->escape_was_used_in_parsing())
+            const Item_func_like *like_func =
+              static_cast<const Item_func_like *>(func_item);
+            if (like_func->escape_was_used_in_parsing())
             {
               DBUG_PRINT("info", ("LIKE expressions with ESCAPE not supported"));
               context->supported= false;
@@ -1325,9 +1409,9 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::ISNULL_FUNC:
           {
-            DBUG_PRINT("info", ("ISNULL_FUNC"));      
+            DBUG_PRINT("info", ("ISNULL_FUNC"));
             ndb_item=
-              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);      
+              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
             context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
@@ -1337,9 +1421,9 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::ISNOTNULL_FUNC:
           {
-            DBUG_PRINT("info", ("ISNOTNULL_FUNC"));      
+            DBUG_PRINT("info", ("ISNOTNULL_FUNC"));
             ndb_item=
-              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);     
+              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
             context->expect_field_from_table();
             context->expect_field_result(STRING_RESULT);
             context->expect_field_result(REAL_RESULT);
@@ -1349,9 +1433,9 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           case Item_func::NOT_FUNC:
           {
-            DBUG_PRINT("info", ("NOT_FUNC"));      
+            DBUG_PRINT("info", ("NOT_FUNC"));
             ndb_item=
-              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);     
+              new (*THR_MALLOC) Ndb_item(func_item->functype(), func_item);
             context->expect(Item::FUNC_ITEM);
             context->expect(Item::COND_ITEM);
             break;
@@ -1359,8 +1443,9 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::BETWEEN:
           {
             DBUG_PRINT("info", ("BETWEEN, rewriting using AND"));
-            Item_func_between *between_func= (Item_func_between *) func_item;
-            Ndb_rewrite_context *rewrite_context= 
+            const Item_func_between *between_func =
+              static_cast<const Item_func_between *>(func_item);
+            Ndb_rewrite_context *rewrite_context=
               new (*THR_MALLOC) Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
@@ -1372,21 +1457,17 @@ ndb_serialize_cond(const Item *item, void *arg)
             }
             DBUG_PRINT("info", ("COND_AND_FUNC"));
             ndb_item=
-              new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC, 
+              new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC,
                            func_item->argument_count() - 1);
-            context->expect_field_from_table();
-            context->expect(Item::INT_ITEM);
-            context->expect(Item::STRING_ITEM);
-            context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FUNC_ITEM);
-            context->expect(Item::CACHE_ITEM);
+            // We do not 'expect' anything yet, added later as part of rewrite,
             break;
           }
           case Item_func::IN_FUNC:
           {
             DBUG_PRINT("info", ("IN_FUNC, rewriting using OR"));
-            Item_func_in *in_func= (Item_func_in *) func_item;
-            Ndb_rewrite_context *rewrite_context= 
+            const Item_func_in *in_func =
+              static_cast<const Item_func_in *>(func_item);
+            Ndb_rewrite_context *rewrite_context=
               new (*THR_MALLOC) Ndb_rewrite_context(func_item);
             rewrite_context->next= context->rewrite_stack;
             context->rewrite_stack= rewrite_context;
@@ -1399,287 +1480,22 @@ ndb_serialize_cond(const Item *item, void *arg)
             DBUG_PRINT("info", ("COND_OR_FUNC"));
             ndb_item= new (*THR_MALLOC) Ndb_item(
               Item_func::COND_OR_FUNC, func_item->argument_count() - 1);
-            context->expect_field_from_table();
-            context->expect(Item::INT_ITEM);
-            context->expect(Item::STRING_ITEM);
-            context->expect(Item::VARBIN_ITEM);
-            context->expect(Item::FUNC_ITEM);
-            context->expect(Item::CACHE_ITEM);
-            break;
-          }
-          case Item_func::NEG_FUNC:
-          case Item_func::DATE_FUNC:
-          case Item_func::DATETIME_LITERAL:
-          case Item_func::UNKNOWN_FUNC:
-          {
-            /*
-              Constant expressions of the type
-              -17, 1+2, concat(0xBB, '%') will
-              be evaluated before pushed.
-             */
-            DBUG_PRINT("info", ("Function %s", 
-                                func_item->const_item()?"const":""));  
-            DBUG_PRINT("info", ("result type %d", func_item->result_type()));
-            /*
-              Check if we are rewriting queries of the type
-              <const> BETWEEN|IN <func> ...
-              as this is currently not supported.
-             */
-            if (context->rewrite_stack &&
-                context->rewrite_stack->left_hand_item &&
-                context->rewrite_stack->left_hand_item->type()
-                != Item::FIELD_ITEM)
-            {
-              DBUG_PRINT("info", ("Function during rewrite not supported"));
-              context->supported= false;
-            }
-            if (func_item->const_item())
-            {
-              switch (func_item->result_type()) {
-              case STRING_RESULT:
-              {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
-                if (context->expecting_no_field_result())
-                {
-                  // We have not seen the field argument yet
-                  context->expect_only_field_from_table();
-                  context->expect_only_field_result(STRING_RESULT);
-                  context->expect_collation(func_item->collation.collation);
-                }
-                else
-                {
-                  // Expect another logical expression
-                  context->expect_only(Item::FUNC_ITEM);
-                  context->expect(Item::COND_ITEM);
-                  // Check that string result have correct collation
-                  if (!context->expecting_collation(item->collation.collation))
-                  {
-                    DBUG_PRINT("info", ("Found non-matching collation %s",  
-                                        item->collation.collation->name));
-                    context->supported= false;
-                  }
-                }
-                // Skip any arguments since we will evaluate function instead
-                DBUG_PRINT("info", ("Skip until end of arguments marker"));
-                context->skip= func_item->argument_count();
-                break;
-              }
-              case REAL_RESULT:
-              {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
-                if (context->expecting_no_field_result())
-                {
-                  // We have not seen the field argument yet
-                  context->expect_only_field_from_table();
-                  context->expect_only_field_result(REAL_RESULT);
-                }
-                else
-                {
-                  // Expect another logical expression
-                  context->expect_only(Item::FUNC_ITEM);
-                  context->expect(Item::COND_ITEM);
-                }
-                
-                // Skip any arguments since we will evaluate function instead
-                DBUG_PRINT("info", ("Skip until end of arguments marker"));
-                context->skip= func_item->argument_count();
-                break;
-              }
-              case INT_RESULT:
-              {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
-                if (context->expecting_no_field_result())
-                {
-                  // We have not seen the field argument yet
-                  context->expect_only_field_from_table();
-                  context->expect_only_field_result(INT_RESULT);
-                }
-                else
-                {
-                  // Expect another logical expression
-                  context->expect_only(Item::FUNC_ITEM);
-                  context->expect(Item::COND_ITEM);
-                }
-                
-                // Skip any arguments since we will evaluate function instead
-                DBUG_PRINT("info", ("Skip until end of arguments marker"));
-                context->skip= func_item->argument_count();
-                break;
-              }
-              case DECIMAL_RESULT:
-              {
-                ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
-                if (context->expecting_no_field_result())
-                {
-                  // We have not seen the field argument yet
-                  context->expect_only_field_from_table();
-                  context->expect_only_field_result(DECIMAL_RESULT);
-                }
-                else
-                {
-                  // Expect another logical expression
-                  context->expect_only(Item::FUNC_ITEM);
-                  context->expect(Item::COND_ITEM);
-                }
-                // Skip any arguments since we will evaluate function instead
-                DBUG_PRINT("info", ("Skip until end of arguments marker"));
-                context->skip= func_item->argument_count();
-                break;
-              }
-              default:
-                DBUG_ASSERT(false);
-                context->supported= false;
-                break;
-              }
-            }
-            else
-              // Function does not return constant expression
-              context->supported= false;
+            // We do not 'expect' anything yet, added later as part of rewrite,
             break;
           }
           default:
           {
-            DBUG_PRINT("info", ("Found func_item of type %d", 
+            DBUG_PRINT("info", ("Found func_item of type %d",
                                 func_item->functype()));
             context->supported= false;
           }
           }
           break;
         }
-        case Item::STRING_ITEM:
-          DBUG_PRINT("info", ("STRING_ITEM")); 
-          // Check that we do support pushing the item value length
-          if (context->expecting(Item::STRING_ITEM) &&
-              context->expecting_length(item->max_length)) 
-          {
-#ifndef DBUG_OFF
-            char buff[256];
-            String str(buff, 0, system_charset_info);
-            const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
-            DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
-#endif
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
-            if (context->expecting_no_field_result())
-            {
-              // We have not seen the field argument yet
-              context->expect_only_field_from_table();
-              context->expect_only_field_result(STRING_RESULT);
-              context->expect_collation(item->collation.collation);
-              context->expect_length(item->max_length);
-            }
-            else 
-            {
-              // Expect another logical expression
-              context->expect_only(Item::FUNC_ITEM);
-              context->expect(Item::COND_ITEM);
-              context->expect_no_length();
-              // Check that we are comparing with a field with same collation
-              if (!context->expecting_collation(item->collation.collation))
-              {
-                DBUG_PRINT("info", ("Found non-matching collation %s",  
-                                    item->collation.collation->name));
-                context->supported= false;
-              }
-            }
-          }
-          else
-            context->supported= false;
-          break;
-        case Item::INT_ITEM:
-          DBUG_PRINT("info", ("INT_ITEM"));
-          if (context->expecting(Item::INT_ITEM)) 
-          {
-            DBUG_PRINT("info", ("value %ld",
-                                (long) ((Item_int*) item)->value));
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
-            if (context->expecting_no_field_result())
-            {
-              // We have not seen the field argument yet
-              context->expect_only_field_from_table();
-              context->expect_only_field_result(INT_RESULT);
-              context->expect_field_result(REAL_RESULT);
-              context->expect_field_result(DECIMAL_RESULT);
-            }
-            else
-            {
-              // Expect another logical expression
-              context->expect_only(Item::FUNC_ITEM);
-              context->expect(Item::COND_ITEM);
-            }
-          }
-          else
-            context->supported= false;
-          break;
-        case Item::REAL_ITEM:
-          DBUG_PRINT("info", ("REAL_ITEM"));
-          if (context->expecting(Item::REAL_ITEM)) 
-          {
-            DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
-            if (context->expecting_no_field_result())
-            {
-              // We have not seen the field argument yet
-              context->expect_only_field_from_table();
-              context->expect_only_field_result(REAL_RESULT);
-            }
-            else
-            {
-              // Expect another logical expression
-              context->expect_only(Item::FUNC_ITEM);
-              context->expect(Item::COND_ITEM);
-            }
-          }
-          else
-            context->supported= false;
-          break;
-        case Item::VARBIN_ITEM:
-          DBUG_PRINT("info", ("VARBIN_ITEM"));
-          if (context->expecting(Item::VARBIN_ITEM)) 
-          {
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::VARBIN_ITEM);
-            if (context->expecting_no_field_result())
-            {
-              // We have not seen the field argument yet
-              context->expect_only_field_from_table();
-              context->expect_only_field_result(STRING_RESULT);
-            }
-            else
-            {
-              // Expect another logical expression
-              context->expect_only(Item::FUNC_ITEM);
-              context->expect(Item::COND_ITEM);
-            }
-          }
-          else
-            context->supported= false;
-          break;
-        case Item::DECIMAL_ITEM:
-          DBUG_PRINT("info", ("DECIMAL_ITEM"));
-          if (context->expecting(Item::DECIMAL_ITEM)) 
-          {
-            DBUG_PRINT("info", ("value %f",
-                                ((Item_decimal*) item)->val_real()));
-            ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
-            if (context->expecting_no_field_result())
-            {
-              // We have not seen the field argument yet
-              context->expect_only_field_from_table();
-              context->expect_only_field_result(REAL_RESULT);
-              context->expect_field_result(DECIMAL_RESULT);
-            }
-            else
-            {
-              // Expect another logical expression
-              context->expect_only(Item::FUNC_ITEM);
-              context->expect(Item::COND_ITEM);
-            }
-          }
-          else
-            context->supported= false;
-          break;
+
         case Item::COND_ITEM:
         {
-          Item_cond *cond_item= (Item_cond *) item;
+          const Item_cond *cond_item = static_cast<const Item_cond *>(item);
           if (context->expecting(Item::COND_ITEM))
           {
             switch (cond_item->functype()) {
@@ -1706,143 +1522,18 @@ ndb_serialize_cond(const Item *item, void *arg)
           }
           break;
         }
+        case Item::STRING_ITEM:
+        case Item::INT_ITEM:
+        case Item::REAL_ITEM:
+        case Item::VARBIN_ITEM:
+        case Item::DECIMAL_ITEM:
         case Item::CACHE_ITEM:
-        {
-          DBUG_PRINT("info", ("CACHE_ITEM"));
-          Item_cache* cache_item = (Item_cache*)item;
-          DBUG_PRINT("info", ("result type %d", cache_item->result_type()));
-
-          // Item_cache has cached "something", use its value
-          // based on the result_type of the item
-          switch(cache_item->result_type())
-          {
-          case INT_RESULT:
-            DBUG_PRINT("info", ("INT_RESULT"));
-            if (context->expecting(Item::INT_ITEM)) 
-            {
-              DBUG_PRINT("info", ("value %ld",
-                                  (long) ((Item_int*) item)->value));
-              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::INT_ITEM);
-              if (context->expecting_no_field_result())
-              {
-                // We have not seen the field argument yet
-                context->expect_only_field_from_table();
-                context->expect_only_field_result(INT_RESULT);
-                context->expect_field_result(REAL_RESULT);
-                context->expect_field_result(DECIMAL_RESULT);
-              }
-              else
-              {
-                // Expect another logical expression
-                context->expect_only(Item::FUNC_ITEM);
-                context->expect(Item::COND_ITEM);
-              }
-            }
-            else
-              context->supported= false;
-            break;
-
-          case REAL_RESULT:
-            DBUG_PRINT("info", ("REAL_RESULT"));
-            if (context->expecting(Item::REAL_ITEM)) 
-            {
-              DBUG_PRINT("info", ("value %f", ((Item_float*) item)->value));
-              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::REAL_ITEM);
-              if (context->expecting_no_field_result())
-              {
-                // We have not seen the field argument yet
-                context->expect_only_field_from_table();
-                context->expect_only_field_result(REAL_RESULT);
-              }
-              else
-              {
-                // Expect another logical expression
-                context->expect_only(Item::FUNC_ITEM);
-                context->expect(Item::COND_ITEM);
-              }
-            }
-            else
-              context->supported= false;
-            break;
-
-          case DECIMAL_RESULT:
-            DBUG_PRINT("info", ("DECIMAL_RESULT"));
-            if (context->expecting(Item::DECIMAL_ITEM)) 
-            {
-              DBUG_PRINT("info", ("value %f",
-                                  ((Item_decimal*) item)->val_real()));
-              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::DECIMAL_ITEM);
-              if (context->expecting_no_field_result())
-              {
-                // We have not seen the field argument yet
-                context->expect_only_field_from_table();
-                context->expect_only_field_result(REAL_RESULT);
-                context->expect_field_result(DECIMAL_RESULT);
-              }
-              else
-              {
-                // Expect another logical expression
-                context->expect_only(Item::FUNC_ITEM);
-                context->expect(Item::COND_ITEM);
-              }
-            }
-            else
-              context->supported= false;
-            break;
-
-          case STRING_RESULT:
-            DBUG_PRINT("info", ("STRING_RESULT")); 
-            // Check that we do support pushing the item value length
-            if (context->expecting(Item::STRING_ITEM) &&
-                context->expecting_length(item->max_length)) 
-            {
-  #ifndef DBUG_OFF
-              char buff[256];
-              String str(buff, 0, system_charset_info);
-              const_cast<Item*>(item)->print(current_thd, &str, QT_ORDINARY);
-              DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
-  #endif
-              ndb_item= new (*THR_MALLOC) Ndb_item(item, Item::STRING_ITEM);
-              if (context->expecting_no_field_result())
-              {
-                // We have not seen the field argument yet
-                context->expect_only_field_from_table();
-                context->expect_only_field_result(STRING_RESULT);
-                context->expect_collation(item->collation.collation);
-                context->expect_length(item->max_length);
-              }
-              else 
-              {
-                // Expect another logical expression
-                context->expect_only(Item::FUNC_ITEM);
-                context->expect(Item::COND_ITEM);
-                context->expect_no_length();
-                // Check that we are comparing with a field with same collation
-                if (!context->expecting_collation(item->collation.collation))
-                {
-                  DBUG_PRINT("info", ("Found non-matching collation %s",  
-                                      item->collation.collation->name));
-                  context->supported= false;
-                }
-              }
-            }
-            else
-              context->supported= false;
-            break;
-
-          default:
-            context->supported= false;
-            break;
-          }
-          break;
-        }
-
+          DBUG_ASSERT(false);   // Expression folded under 'used_tables'
+          // Fall through
         default:
-        {
           DBUG_PRINT("info", ("Found unsupported item of type %d",
                               item->type()));
           context->supported= false;
-        }
         }
         if (pop)
           context->expect_stack.pop();
@@ -1852,23 +1543,6 @@ ndb_serialize_cond(const Item *item, void *arg)
       {
         DBUG_ASSERT(ndb_item != nullptr);
         context->items.push_back(ndb_item);
-
-        if (context->rewrite_stack)
-        {
-          Ndb_rewrite_context *rewrite_context= context->rewrite_stack;
-          if (rewrite_context->count ==
-              rewrite_context->func_item->argument_count())
-          {
-            // Rewrite is done, wrap an END() at the end
-            DBUG_PRINT("info", ("End of condition group"));
-            context->expect_no_length();
-            context->items.push_back(new (*THR_MALLOC) Ndb_item(NDB_END_COND));
-            // Pop rewrite stack
-            context->rewrite_stack=  rewrite_context->next;
-            rewrite_context->next= NULL;
-            destroy(rewrite_context);
-          }
-        }
       }
     }
   }
@@ -2095,6 +1769,7 @@ cond_push_boolean_term(Item *term,
         code.push_front(new (*THR_MALLOC) Ndb_item(Item_func::COND_AND_FUNC, cond));
         code.push_back (new (*THR_MALLOC) Ndb_item(NDB_END_COND));
       }
+      DBUG_PRINT("info", ("COND_AND_FUNC, end"));
     }
     else
     {
@@ -2147,31 +1822,64 @@ cond_push_boolean_term(Item *term,
         code.push_front(new (*THR_MALLOC) Ndb_item(Item_func::COND_OR_FUNC, cond));
         code.push_back (new (*THR_MALLOC) Ndb_item(NDB_END_COND));
       }
+      DBUG_PRINT("info", ("COND_OR_FUNC, end"));
     }
     DBUG_RETURN(code);
   }
+  else if (term->type() == Item::FUNC_ITEM)
+  {
+    const Item_func *item_func = static_cast<const Item_func *>(term);
+    if (item_func->functype() == Item_func::TRIG_COND_FUNC)
+    {
+      const Item_func_trig_cond *func_trig =
+	static_cast<const Item_func_trig_cond *>(item_func);
 
-  // Has broken down the condition into predicate terms, or sub conditions,
-  // which either has to be accepted or rejected for pushdown
-  Ndb_cond_traverse_context context(table, ndb_table, other_tbls_ok);
-  context.expect(Item::FUNC_ITEM);
-  context.expect(Item::COND_ITEM);
-  term->traverse_cond(&ndb_serialize_cond, &context, Item::PREFIX);
-  
-  if (context.supported)
-  {
-    pushed_cond = term;
-    remainder_cond = nullptr;
-    DBUG_ASSERT(!context.items.is_empty());
-    DBUG_RETURN(context.items);
+      if (func_trig->get_trig_type() == Item_func_trig_cond::IS_NOT_NULL_COMPL)
+      {
+        DBUG_ASSERT(item_func->argument_count() == 1);
+        Item *cond_arg = item_func->arguments()[0];
+        Item *remainder = nullptr;
+        List<Ndb_item> code =
+          cond_push_boolean_term(cond_arg, table, ndb_table,
+				 other_tbls_ok, pushed_cond, remainder);
+        remainder_cond = term;
+        DBUG_RETURN(code);
+      }
+    }
   }
-  else  // Failed to push
+  /*
+    There are some used_tables() 'out of reach', tagged with special
+    *_TABLE_BIT. These can not be referred from a pushed condition.
+  */
+  const table_map dont_use_tables =
+          INNER_TABLE_BIT |      // Condition contain a subquery
+          RAND_TABLE_BIT;        // 'non-stable' value
+
+  if (term->used_tables() & dont_use_tables)
+  {}
+  else if (other_tbls_ok ||
+           !(term->used_tables() & ~table->pos_in_table_list->map()))
   {
-    pushed_cond = nullptr;
-    remainder_cond = term;
+    // Has broken down the condition into predicate terms, or sub conditions,
+    // which either has to be accepted or rejected for pushdown
+    Ndb_cond_traverse_context context(table, ndb_table);
+    context.expect(Item::FUNC_ITEM);
+    context.expect(Item::COND_ITEM);
+    term->traverse_cond(&ndb_serialize_cond, &context, Item::PREFIX);
+
+    if (context.supported) // 'term' was pushed
+    {
+      pushed_cond = term;
+      remainder_cond = nullptr;
+      DBUG_ASSERT(!context.items.is_empty());
+      DBUG_RETURN(context.items);
+    }
     context.items.destroy_elements();
-    DBUG_RETURN(empty_list);   //Discard any generated Ndb_cond's
   }
+  // Failed to push
+  pushed_cond = nullptr;
+  remainder_cond = term;
+  DBUG_RETURN(empty_list);   //Discard any generated Ndb_cond's
 }
 
 
@@ -2252,29 +1960,44 @@ ha_ndbcluster_cond::build_scan_filter_predicate(List_iterator<Ndb_item> &cond,
       DBUG_RETURN(1);
     }
 
-    /*
-      The NdbInterpreter handles a NULL value as being less than any
-      non-NULL value. However, MySQL server (and SQL std spec) specifies
-      that a NULL-value in a comparison predicate should result in an
-      UNKNOWN boolean result, which is 'not TRUE' -> the row being eliminated.
-
-      Thus, extra checks for both 'field' and 'value' being a
-      NULL-value has to be added to mitigate this semantic difference.
-    */
-    if (value != nullptr &&
-	const_cast<Item*>(value->get_item())->is_null())
+    if (value != nullptr)
     {
+      const Item *item = value->get_item();
+#ifndef DBUG_OFF
+      if (!item->basic_const_item())
+      {
+        String expr;
+        String buf, *val = const_cast<Item*>(item)->val_str(&buf);
+        item->print(current_thd, &expr, QT_ORDINARY);
+        DBUG_PRINT("info", ("Value evaluated to: '%s', expression '%s'",
+			    val ? val->c_ptr_safe() : "NULL",
+			    expr.c_ptr_safe()));
+      }
+#endif
+
       /*
-        'value' known to be a NULL-value.
-        Condition will be 'not TRUE' -> false, independent of the 'field'
-        value. Encapsulate in own group, as only this predicate become
-        'false', not entire group it is part of.
+        The NdbInterpreter handles a NULL value as being less than any
+        non-NULL value. However, MySQL server (and SQL std spec) specifies
+        that a NULL-value in a comparison predicate should result in an
+        UNKNOWN boolean result, which is 'not TRUE' -> the row being eliminated.
+
+        Thus, extra checks for both 'field' and 'value' being a
+        NULL-value has to be added to mitigate this semantic difference.
       */
-      if (filter->begin() == -1   ||
-	  filter->isfalse() == -1 ||
-	  filter->end() == -1)
-        DBUG_RETURN(1);
-      DBUG_RETURN(0);
+      if (const_cast<Item*>(item)->is_null())
+      {
+        /*
+          'value' known to be a NULL-value.
+          Condition will be 'not TRUE' -> false, independent of the 'field'
+          value. Encapsulate in own group, as only this predicate become
+          'false', not entire group it is part of.
+        */
+        if (filter->begin() == -1   ||
+            filter->isfalse() == -1 ||
+            filter->end() == -1)
+          DBUG_RETURN(1);
+        DBUG_RETURN(0);
+      }
     }
 
     bool need_explicit_null_check = field->get_field()->maybe_null();
@@ -2507,7 +2230,7 @@ ha_ndbcluster_cond::build_scan_filter_group(List_iterator<Ndb_item> &cond,
 
   do
   {
-    const Ndb_item *ndb_item = cond++;
+    Ndb_item *ndb_item = cond++;
     if (ndb_item == nullptr)
       DBUG_RETURN(1);
     switch (ndb_item->type) {
@@ -2545,6 +2268,41 @@ ha_ndbcluster_cond::build_scan_filter_group(List_iterator<Ndb_item> &cond,
         if (build_scan_filter_predicate(cond, filter, negated))
           DBUG_RETURN(1);
         break;
+      }
+      break;
+    }
+    case NDB_VALUE:
+    {
+      // (Boolean-)VALUE known at generate
+      const Item *item= ndb_item->get_item();
+#ifndef DBUG_OFF
+      String str;
+      item->print(current_thd, &str, QT_ORDINARY);
+#endif
+      if (const_cast<Item*>(item)->is_null())
+      {
+        // Note that boolean 'unknown' -> 'not true'
+        DBUG_PRINT("info", ("BOOLEAN value 'UNKNOWN', expression '%s'", str.c_ptr_safe()));
+        if (filter->begin(NdbScanFilter::AND) == -1 ||
+            filter->isfalse() == -1 ||
+            filter->end() == -1)
+          DBUG_RETURN(1);
+      }
+      else if (const_cast<Item*>(item)->val_bool() == !negated)
+      {
+        DBUG_PRINT("info", ("BOOLEAN value 'TRUE', expression '%s'", str.c_ptr_safe()));
+        if (filter->begin(NdbScanFilter::OR) == -1 ||
+            filter->istrue() == -1 ||
+            filter->end() == -1)
+          DBUG_RETURN(1);
+      }
+      else
+      {
+        DBUG_PRINT("info", ("BOOLEAN value 'FALSE', expression '%s'", str.c_ptr_safe()));
+        if (filter->begin(NdbScanFilter::AND) == -1 ||
+            filter->isfalse() == -1 ||
+            filter->end() == -1)
+          DBUG_RETURN(1);
       }
       break;
     }

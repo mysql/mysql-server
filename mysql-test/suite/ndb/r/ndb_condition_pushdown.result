@@ -2277,7 +2277,7 @@ insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 explain select * from t where 3 between 1+1 and x order by pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using pushed condition (3 between <cache>((1 + 1)) and `test`.`t`.`x`)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`x` AS `x` from `test`.`t` where (3 between <cache>((1 + 1)) and `test`.`t`.`x`) order by `test`.`t`.`pk`
 select * from t where 3 between 1+1 and x order by pk;
@@ -2287,7 +2287,7 @@ pk	x
 5	5
 explain select * from t where 3 between -1 and x order by pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using where
+1	SIMPLE	t	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	4	NULL	#	#	Using pushed condition (3 between <cache>(-(1)) and `test`.`t`.`x`)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`x` AS `x` from `test`.`t` where (3 between <cache>(-(1)) and `test`.`t`.`x`) order by `test`.`t`.`pk`
 select * from t where 3 between -1 and x order by pk;
@@ -2883,6 +2883,10 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`ushort` AS `ushort`,`test`.`t1`.`date_field` AS `date_field` from `test`.`t1` where (`test`.`t1`.`date_field` <= DATE'1999-01-01')
 drop table t1;
+#########################################################
+# WL#12686: Enable condition pushdown of field references
+#   to previous tables in the query plan.
+#########################################################
 create table t1 (
 a int,
 b int,
@@ -2946,42 +2950,42 @@ from t1 straight_join t1 as t2
 on (t2.d = 1 or t1.d = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t2`.`d` = 1) or (`test`.`t1`.`d` = 1))
 explain
 select *
 from t1 straight_join t1 as t2
 on (t2.d = 1 or 1 = t1.d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t2`.`d` = 1) or (`test`.`t1`.`d` = 1))
 explain
 select *
 from t1 straight_join t1 as t2
 on (t1.d = 1 or 1 = t2.d);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t1`.`d` = 1) or (`test`.`t2`.`d` = 1))
 explain
 select *
 from t1 straight_join t1 as t2
 on (1 = t1.d or t2.d = 1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t1`.`d` = 1) or (`test`.`t2`.`d` = 1))
 explain
 select *
 from t1 straight_join t1 as t2
 on (t2.d = 1 or t1.c = t1.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t2`.`d` = 1) or (`test`.`t1`.`b` = `test`.`t1`.`c`))
 explain
 select *
 from t1 straight_join t1 as t2
 on (t2.d = t1.d or t1.c = t1.b);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Using pushed condition ((`test`.`t2`.`d` = `test`.`t1`.`d`) or (`test`.`t1`.`b` = `test`.`t1`.`c`))
 explain
 select *
 from t1 straight_join t1 as t2
@@ -3116,16 +3120,16 @@ from t1 straight_join t1 as t2
 on t2.c = t1.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t2`.`c` = `test`.`t1`.`d`)
 explain
 select *
 from t1 straight_join t1 as t2
 on t1.d = t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t1`.`d` = `test`.`t2`.`c`)
 alter table t1 drop column d;
-alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
+alter table t1 add column d varchar(30);
 update t1 set d = c;
 explain
 select *
@@ -3142,6 +3146,39 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where
 alter table t1 drop column d;
+alter table t1 add column d varchar(10);
+update t1 set d = substring(c,1,10);
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t2`.`c` = `test`.`t1`.`d`)
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t1`.`d` = `test`.`t2`.`c`)
+alter table t1 drop column d;
+alter table t1 add column d char(20) character set latin1 collate latin1_swedish_ci;
+update t1 set d = c;
+explain
+select *
+from t1 straight_join t1 as t2
+on t2.c = t1.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (`test`.`t2`.`c` = convert(`test`.`t1`.`d` using utf8mb4))
+explain
+select *
+from t1 straight_join t1 as t2
+on t1.d = t2.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	8	12.50	Using pushed condition (convert(`test`.`t1`.`d` using utf8mb4) = `test`.`t2`.`c`)
 drop table t1;
 set optimizer_switch='block_nested_loop=default';
 #
@@ -3421,7 +3458,7 @@ join t2 on t2.pk = t1.a+0 and t2.x = t1.b
 join t3 on t3.d = t2.y;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	func	1	33.33	Parent of 2 pushed join@1; Using where; Using pushed condition (`test`.`t2`.`x` = `test`.`t1`.`b`)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	func	1	33.33	Parent of 2 pushed join@1; Using pushed condition ((`test`.`t2`.`x` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` = (`test`.`t1`.`a` + 0)))
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.y	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'pk' does neither 'ref' a column nor a constant

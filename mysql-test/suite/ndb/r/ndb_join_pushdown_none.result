@@ -932,7 +932,7 @@ straight_join t1 as t2 on t2.a = t1.b+0
 straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t2`.`a` = (`test`.`t1`.`b` + 0))
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
@@ -2310,7 +2310,7 @@ explain select count(*) from tx as x1
 left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Using where
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Using where; Using pushed condition (`test`.`x2`.`d` = `test`.`x1`.`d`)
 Warnings:
 Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`tx` `x1` left join `test`.`tx` `x2` on(((`test`.`x2`.`d` = `test`.`x1`.`d`) and (`test`.`x2`.`a` = `test`.`x1`.`c`))) where true
@@ -3297,7 +3297,7 @@ join t3 as y2 on y2.b3 = x2.c3 and y2.d3 = x1.c3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	b3,c3,c3_2	NULL	NULL	NULL	7	100.00	Parent of 2 pushed join@1; Using pushed condition ((`test`.`x1`.`d3` is not null) and (`test`.`x1`.`c3` is not null))
 1	SIMPLE	y1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	9	test.x1.b3,test.x1.d3	1	100.00	Child of 'x1' in pushed join@1
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b3,c3,c3_2	b3	4	func	1	100.00	Parent of 2 pushed join@2; Using where; Using pushed condition (`test`.`x2`.`c3` is not null)
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	b3,c3,c3_2	b3	4	func	1	100.00	Parent of 2 pushed join@2; Using pushed condition ((`test`.`x2`.`b3` = (`test`.`x1`.`b3` + 0)) and (`test`.`x2`.`c3` is not null))
 1	SIMPLE	y2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	9	test.x2.c3,test.x1.c3	1	100.00	Child of 'x2' in pushed join@2
 Warnings:
 Note	1003	Can't push table 'x2' as child, column 'b3' does neither 'ref' a column nor a constant
@@ -4171,7 +4171,7 @@ straight_join t1 as t3 on t3.k = t2.b
 straight_join t1 as t4 on t4.k = t1.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`t1`.`b` is not null)
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@2; Using where; Using pushed condition (`test`.`t2`.`b` is not null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@2; Using pushed condition ((`test`.`t2`.`k` = (`test`.`t1`.`b` + 0)) and (`test`.`t2`.`b` is not null))
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
 Warnings:
@@ -6147,7 +6147,7 @@ join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b
 join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=x2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`x1`.`c` = 0x4f)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	8	func,test.x1.b	#	#	Parent of 2 pushed join@1; Using where
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	8	func,test.x1.b	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`x2`.`a` = (0 + `test`.`x1`.`b`))
 1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	12	test.x2.d,test.x1.d,test.x2.c	#	#	Child of 'x2' in pushed join@1
 Warnings:
 Note	1003	Can't push table 'x2' as child, column 'a' does neither 'ref' a column nor a constant
@@ -6163,7 +6163,7 @@ join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b
 join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=0x4f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Using pushed condition (`test`.`x1`.`c` = 0x4f)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	8	func,test.x1.b	#	#	Parent of 2 pushed join@1; Using where
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	8	func,test.x1.b	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`x2`.`a` = (0 + `test`.`x1`.`b`))
 1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	12	test.x2.d,test.x1.d,const	#	#	Child of 'x2' in pushed join@1
 Warnings:
 Note	1003	Can't push table 'x2' as child, column 'a' does neither 'ref' a column nor a constant
