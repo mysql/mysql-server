@@ -285,6 +285,7 @@ create unique index ix1 ON t1(col_int_unique);
 insert into t1(pk,col_int_unique) values (1,1), (2,NULL);
 insert into t1(pk,col_int_unique) values (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
 
+ANALYZE TABLE t1;
 
 #EQ_REF access should be used on index ix1 in query plan
 EXPLAIN
