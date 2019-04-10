@@ -42,7 +42,7 @@ IF (MERGE_UNITTESTS)
     LIST(APPEND ALL_TEMPTABLE_TESTS ../../../sql/nt_servc.cc)
   ENDIF()
   MYSQL_ADD_EXECUTABLE(merge_temptable_tests-t ${ALL_TEMPTABLE_TESTS}
-    ADD_TEST merge_temptable_tests)
+    SKIP_INSTALL)
   SET_TARGET_PROPERTIES(merge_temptable_tests-t PROPERTIES ENABLE_EXPORTS TRUE)
 
   TARGET_LINK_LIBRARIES(merge_temptable_tests-t
@@ -61,6 +61,16 @@ IF (MERGE_UNITTESTS)
   ENDIF()
 
   ADD_DEPENDENCIES(merge_temptable_tests-t GenError)
+
+  # See ../CMakeLists.txt
+  IF(ADD_MERGE_LARGE_TESTS)
+    ADD_TEST(merge_temptable_tests-t
+      ${CMAKE_BINARY_DIR}/runtime_output_directory/merge_temptable_tests-t)
+  ELSE()
+    MESSAGE(WARNING
+      "Likely link failure for this compiler, skipping merge_temptable_tests-t")
+    SET_PROPERTY(TARGET merge_temptable_tests-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+  ENDIF()
 
 ENDIF(MERGE_UNITTESTS)
 

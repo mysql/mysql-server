@@ -48,6 +48,13 @@ FOREACH(testname ${tests})
   PFS_ADD_TEST(${testname})
 ENDFOREACH()
 
+SET(ADD_LARGE_UNIT_TESTS 1)
+IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+  MESSAGE(WARNING
+    "Likely link failure for this compiler, skipping pfs_connect_attr-t")
+  UNSET(ADD_LARGE_UNIT_TESTS)
+ENDIF()
+
 IF(WIN32)
   SET(MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF()
@@ -60,8 +67,16 @@ MYSQL_ADD_EXECUTABLE(pfs_connect_attr-t
   ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
   ${CMAKE_SOURCE_DIR}/mysys/my_string.cc
   ${MYSQLD_EXTRA_SOURCES}
-  ADD_TEST pfs_connect_attr
+  SKIP_INSTALL
 )
+
+IF(ADD_LARGE_UNIT_TESTS)
+  ADD_TEST(pfs_connect_attr
+    ${CMAKE_BINARY_DIR}/runtime_output_directory/pfs_connect_attr-t)
+ELSE()
+  SET_PROPERTY(TARGET pfs_connect_attr-t PROPERTY EXCLUDE_FROM_ALL TRUE)
+ENDIF()
+
 ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
 # We need to explicitly link in everything referenced in sql/sql_builtin.cc
