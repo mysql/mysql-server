@@ -269,29 +269,21 @@ unsigned Filesort_buffer::sort_buffer(Sort_param *param, uint count) {
     return count;
   }
 
-  /*
-    stable_sort algorithm will be used. Either for performance reasons, or
-    because force_stable_sort==true. In the latter case, we must exclude from
-    the sort key the ref_length last bytes which were added in
-    init_for_filesort(), so that those bytes do not cause a swapping of
-    otherwise equivalent elements.
-  */
-  uint compare_len = param->max_compare_length();
-  if (force_stable_sort && !param->using_addon_fields()) {
-    DBUG_ASSERT(compare_len > param->ref_length && !param->using_varlen_keys());
-    compare_len -= param->ref_length;  // ref was added last
-  }
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
   // Heuristics here: avoid function overhead call for short keys.
-  if (compare_len < 10) {
-    stable_sort(it_begin, it_end, Mem_compare(compare_len));
+  if (key_len < 10) {
+    stable_sort(it_begin, it_end, Mem_compare(key_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end, Mem_compare(compare_len)) - it_begin;
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare>(Mem_compare(key_len))) -
+             it_begin;
     }
   } else {
-    stable_sort(it_begin, it_end, Mem_compare_longkey(compare_len));
+    stable_sort(it_begin, it_end, Mem_compare_longkey(key_len));
     if (param->m_remove_duplicates) {
-      return unique(it_begin, it_end, Mem_compare_longkey(compare_len)) -
+      return unique(it_begin, it_end,
+                    Equality_from_less<Mem_compare_longkey>(
+                        Mem_compare_longkey(key_len))) -
              it_begin;
     }
   }
