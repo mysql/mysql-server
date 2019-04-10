@@ -136,12 +136,18 @@ class Block {
     m_is_final_block = is_final_block;
   }
 
-  /** Return if the log block has QUEUE_BLOCK_SIZE byes.
+  /** Return if the log block is full.
+
+      Condition is (m_offset == QUEUE_BLOCK_SIZE). Since we increment
+      m_offset by OS_FILE_LOG_BLOCK_SIZE only, the equivalent condition
+      is (m_offset > QUEUE_BLOCK_SIZE - OS_FILE_LOG_BLOCK_SIZE). The
+      latter one convinces the fortify tool, that we will never overrun
+      the buffer, while the first one is insufficient for the tool.
 
       @retval true if the log block has QUEUE_BLOCK_SIZE bytes.
       @retval false otherwise. */
   bool full() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_offset == QUEUE_BLOCK_SIZE);
+    return (m_offset > QUEUE_BLOCK_SIZE - OS_FILE_LOG_BLOCK_SIZE);
   }
 
  private:
