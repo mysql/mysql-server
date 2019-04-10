@@ -1187,9 +1187,13 @@ checkDbAndTableName(const TableS* table)
     return false;
   }
 
-  // If new options are given, ignore the old format
-  if (opt_include_tables || g_exclude_tables.size() > 0 ||
-      opt_include_databases || opt_exclude_databases ) {
+  // If --exclude lists are given, check them
+  if ((g_exclude_tables.size() || opt_exclude_databases)
+       && ! checkDoRestore(table))
+    return false;
+
+  // If --include lists are given, ignore the old-style table list
+  if (opt_include_tables || opt_include_databases ) {
     return (checkDoRestore(table));
   }
   
