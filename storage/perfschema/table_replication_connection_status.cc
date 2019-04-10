@@ -159,10 +159,12 @@ bool PFS_index_rpl_connection_status_by_thread::match(Master_info *mi) {
     row.thread_id = 0;
 
     if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-      PSI_thread *psi = thd_get_psi(mi->info_thd);
+      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
     }
 
     if (!m_key.match(row.thread_id)) {
@@ -328,11 +330,13 @@ int table_replication_connection_status::make_row(Master_info *mi) {
   }
 
   if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) {
-    PSI_thread *psi = thd_get_psi(mi->info_thd);
+    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   m_row.count_received_heartbeats = mi->received_heartbeats;

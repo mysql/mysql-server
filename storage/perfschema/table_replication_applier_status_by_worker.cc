@@ -167,10 +167,12 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(Master_info *mi) {
     if (mi->rli->slave_running) {
       /* STS will use SQL thread as workers on this table */
       if (mi->rli->get_worker_count() == 0) {
-        PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
+        PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
         if (psi != nullptr) {
           row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
       }
     }
 
@@ -195,10 +197,12 @@ bool PFS_index_rpl_applier_status_by_worker_by_thread::match(
 
     if (mi->rli->slave_running) {
       if (worker) {
-        PSI_thread *psi = thd_get_psi(worker->info_thd);
+        PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(worker->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
         if (psi != nullptr) {
           row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
         }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
       }
     }
 
@@ -430,11 +434,13 @@ int table_replication_applier_status_by_worker::make_row(Master_info *mi) {
          m_row.channel_name_length);
 
   if (mi->rli->slave_running) {
-    PSI_thread *psi = thd_get_psi(mi->rli->info_thd);
+    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   if (mi->rli->slave_running) {
@@ -479,11 +485,13 @@ int table_replication_applier_status_by_worker::make_row(Slave_worker *w) {
 
   mysql_mutex_lock(&w->jobs_lock);
   if (w->running_status == Slave_worker::RUNNING) {
-    PSI_thread *psi = thd_get_psi(w->info_thd);
+    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(w->info_thd);
+#ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
       m_row.thread_id_is_null = false;
     }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   }
 
   if (w->running_status == Slave_worker::RUNNING) {
