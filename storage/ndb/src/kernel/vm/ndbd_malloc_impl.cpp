@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -971,9 +971,31 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
   for (Uint32 i = 0; i<m_used_bitmap_pages.size(); i++)
     if (m_used_bitmap_pages[i] == start_bmp)
     {
-      m_mapped_pages[m_mapped_pages_new_count].start = start;
-      m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
-      m_mapped_pages_new_count++;
+      /* m_mapped_pages should contain the ranges of allocated pages.
+       * In release build there will typically be one big range.
+       * In debug build there are typically four ranges, one per allocation
+       * zone.
+       * Not all ranges passed to grow() may be used, but for a big range it
+       * is only the first partial range that can not be used.
+       * This part of code will be called with the range passed to top call to
+       * grow() broken up in 8GB regions by recursion above, and the ranges
+       * will always be passed with increasing addresses, and the start will
+       * match end of previous calls range.
+       * To keep use as few entries as possible in m_mapped_pages these
+       * adjacent ranges are combined.
+       */
+      if (m_mapped_pages_new_count > 0 &&
+          m_mapped_pages[m_mapped_pages_new_count - 1].end == start)
+      {
+        m_mapped_pages[m_mapped_pages_new_count - 1].end = start + cnt;
+      }
+      else
+      {
+        require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+        m_mapped_pages[m_mapped_pages_new_count].start = start;
+        m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+        m_mapped_pages_new_count++;
+      }
       goto found;
     }
 
@@ -997,11 +1019,18 @@ Ndbd_mem_manager::grow(Uint32 start, Uint32 cnt)
   ndbout_c("creating bitmap page %d", start_bmp);
 #endif
 
-  require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
-
-  m_mapped_pages[m_mapped_pages_new_count].start = start;
-  m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
-  m_mapped_pages_new_count++;
+  if (m_mapped_pages_new_count > 0 &&
+      m_mapped_pages[m_mapped_pages_new_count - 1].end == start)
+  {
+    m_mapped_pages[m_mapped_pages_new_count - 1].end = start + cnt;
+  }
+  else
+  {
+    require(m_mapped_pages_new_count < NDB_ARRAY_SIZE(m_mapped_pages));
+    m_mapped_pages[m_mapped_pages_new_count].start = start;
+    m_mapped_pages[m_mapped_pages_new_count].end = start + cnt;
+    m_mapped_pages_new_count++;
+  }
 
   {
     Alloc_page* bmp = m_base_page + start;
