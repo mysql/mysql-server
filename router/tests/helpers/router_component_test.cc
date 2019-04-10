@@ -94,9 +94,15 @@ std::vector<std::string> split_str(const std::string &s, char delim = ' ') {
 }
 
 #ifndef _WIN32
-int close_socket(int sock) { return close(sock); }
+int close_socket(int sock) {
+  ::shutdown(sock, SHUT_RDWR);
+  return close(sock);
+}
 #else
-int close_socket(SOCKET sock) { return closesocket(sock); }
+int close_socket(SOCKET sock) {
+  ::shutdown(sock, SD_BOTH);
+  return closesocket(sock);
+}
 #endif
 
 }  // namespace
@@ -162,7 +168,7 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
     const std::string &command, const std::string &params,
     bool catch_stderr) const {
   auto params_vec = split_str(params, ' ');
-  const char *params_arr[MAX_PARAMS];
+  const char *params_arr[kMaxLaunchedProcessParams];
   get_params(command, params_vec, params_arr);
 
   if (command.empty())
@@ -173,7 +179,7 @@ RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
 RouterComponentTest::CommandHandle RouterComponentTest::launch_command(
     const std::string &command, const std::vector<std::string> &params,
     bool catch_stderr) const {
-  const char *params_arr[MAX_PARAMS];
+  const char *params_arr[kMaxLaunchedProcessParams];
   get_params(command, params, params_arr);
 
   if (command.empty())
@@ -312,14 +318,14 @@ std::string RouterComponentTest::get_tmp_dir(const std::string &name) {
   return mysql_harness::get_tmp_dir(name);
 }
 
-void RouterComponentTest::get_params(const std::string &command,
-                                     const std::vector<std::string> &params_vec,
-                                     const char *out_params[MAX_PARAMS]) const {
+void RouterComponentTest::get_params(
+    const std::string &command, const std::vector<std::string> &params_vec,
+    const char *out_params[kMaxLaunchedProcessParams]) const {
   out_params[0] = command.c_str();
 
   size_t i = 1;
   for (const auto &par : params_vec) {
-    if (i >= MAX_PARAMS - 1) {
+    if (i >= kMaxLaunchedProcessParams - 1) {
       throw std::runtime_error("Too many parameters passed to the MySQLRouter");
     }
     out_params[i++] = par.c_str();
@@ -777,4 +783,27 @@ void RouterComponentTest::ProcessManager::ensure_clean_exit() {
       FAIL() << e.what() << "\n" << proc.get_full_output();
     }
   }
+}
+
+bool RouterComponentTest::wait_for_rest_endpoint_ready(
+    const std::string &uri, const uint16_t http_port,
+    const std::string &username, const std::string &password,
+    const std::string &http_host, std::chrono::milliseconds max_wait_time,
+    const std::chrono::milliseconds step_time) const noexcept {
+  IOContext io_ctx;
+  RestClient rest_client(io_ctx, http_host, http_port, username, password);
+
+  while (max_wait_time.count() > 0) {
+    auto req = rest_client.request_sync(HttpMethod::Get, uri);
+
+    if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
+      return true;
+
+    auto wait_time = std::min(step_time, max_wait_time);
+    std::this_thread::sleep_for(wait_time);
+
+    max_wait_time -= wait_time;
+  }
+
+  return false;
 }

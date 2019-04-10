@@ -161,7 +161,7 @@ void CommonBootstrapTest::bootstrap_failover(
     auto &proc = std::get<0>(mock_server);
     unsigned int port = std::get<1>(mock_server);
 
-    bool ready = wait_for_port_ready(port, DEFAULT_PORT_WAIT);
+    bool ready = wait_for_port_ready(port);
     EXPECT_TRUE(ready) << proc.get_full_output();
   }
 
@@ -726,7 +726,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-    bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
+    bool ready = wait_for_port_ready(server_port);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode
@@ -817,7 +817,7 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
+  bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -859,7 +859,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
 
     // launch mock server and wait for it to start accepting connections
     auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-    bool ready = wait_for_port_ready(server_port, DEFAULT_PORT_WAIT);
+    bool ready = wait_for_port_ready(server_port);
     EXPECT_TRUE(ready) << server_mock.get_full_output();
 
     // launch the router in bootstrap mode
@@ -1066,7 +1066,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
+  bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -1111,7 +1111,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   // launch mock server and wait for it to start accepting connections
   auto server_mock = launch_mysql_server_mock(json_stmts, server_port, false);
-  bool ready = wait_for_port_ready(server_port, 1000);
+  bool ready = wait_for_port_ready(server_port);
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
@@ -1198,9 +1198,11 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   });
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host " + my_hostname + " -d " + bootstrap_directory);
+  auto router =
+      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
+                    " --connect-timeout=1"
+                    " --report-host " +
+                    my_hostname + " -d " + bootstrap_directory);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1243,9 +1245,11 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
 
   // launch the router in bootstrap mode: -d set to existing but inaccessible
   // dir
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host " + my_hostname + " -d " + bootstrap_directory);
+  auto router =
+      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
+                    " --connect-timeout=1"
+                    " --report-host " +
+                    my_hostname + " -d " + bootstrap_directory);
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1289,9 +1293,11 @@ TEST_F(ErrorReportTest,
   // impossible to create
   std::string bootstrap_directory =
       mysql_harness::Path(bootstrap_superdir).join("subdir").str();
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host " + my_hostname + " -d " + bootstrap_directory);
+  auto router =
+      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
+                    " --connect-timeout=1"
+                    " --report-host " +
+                    my_hostname + " -d " + bootstrap_directory);
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

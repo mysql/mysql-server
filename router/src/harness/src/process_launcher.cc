@@ -178,11 +178,21 @@ int ProcessLauncher::wait(unsigned int timeout_ms) {
   if (get_ret = GetExitCodeProcess(pi.hProcess, &dwExit)) {
     if (dwExit == STILL_ACTIVE) {
       auto wait_ret = WaitForSingleObject(pi.hProcess, timeout_ms);
-      if (wait_ret == 0) {
-        get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
-      } else {
-        throw std::runtime_error("Error waiting for process exit: " +
-                                 std::to_string(wait_ret));
+      switch (wait_ret) {
+        case WAIT_OBJECT_0:
+          get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
+          break;
+        case WAIT_TIMEOUT:
+          throw std::system_error(
+              std::make_error_code(std::errc::timed_out),
+              std::string("Timed out waiting " + std::to_string(timeout_ms) +
+                          " ms for the process '" + cmd_line + "' to exit"));
+        case WAIT_FAILED:
+          throw std::system_error(GetLastError(), std::system_category());
+        default:
+          throw std::runtime_error(
+              "Unexpected error while waiting for the process '" + cmd_line +
+              "' to finish: " + std::to_string(wait_ret));
       }
     }
   }
@@ -532,8 +542,7 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
     } else if (ret == -1) {
       throw std::system_error(
           errno, std::generic_category(),
-          std::string("waiting for process " + std::to_string(childpid) +
-                      " failed"));
+          std::string("waiting for process '" + cmd_line + "' failed"));
     } else {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
@@ -544,14 +553,14 @@ int ProcessLauncher::wait(const unsigned int timeout_ms) {
         while ((n = read(b.data(), b.size(), 100)) > 0) {
           msg.append(b.data(), n);
         }
-        throw std::runtime_error(
-            std::string("Process " + std::to_string(childpid) + " got signal " +
-                        std::to_string(WTERMSIG(status))) +
-            ":\n" + msg);
+        throw std::runtime_error(std::string("Process '" + cmd_line +
+                                             "' got signal " +
+                                             std::to_string(WTERMSIG(status))) +
+                                 ":\n" + msg);
       } else {
         // it neither exited, not received a signal.
-        throw std::runtime_error(std::string(
-            "Process " + std::to_string(childpid) + " ... not idea"));
+        throw std::runtime_error(
+            std::string("Process '" + cmd_line + "' ... no idea"));
       }
     }
   } while (true);

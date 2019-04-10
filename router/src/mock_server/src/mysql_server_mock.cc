@@ -29,6 +29,7 @@
 #include "json_statement_reader.h"
 #include "mock_session.h"
 #include "mysql_protocol_utils.h"
+#include "socket_operations.h"
 
 #include "mysql/harness/logging/logging.h"
 IMPORT_LOG_FUNCTIONS()
@@ -61,12 +62,6 @@ IMPORT_LOG_FUNCTIONS()
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#endif
-
-#ifdef _WIN32
-constexpr socket_t kInvalidSocket = INVALID_SOCKET;
-#else
-constexpr socket_t kInvalidSocket = -1;
 #endif
 
 using namespace std::placeholders;
@@ -141,26 +136,27 @@ void MySQLServerMock::setup_service() {
 
   listener_ = socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
   if (listener_ < 0) {
-    throw std::system_error(last_socket_error_code(), "socket() failed: ");
+    throw std::system_error(get_last_socket_error_code(), "socket() failed");
   }
 
   int option_value = 1;
   if (setsockopt(listener_, SOL_SOCKET, SO_REUSEADDR,
                  reinterpret_cast<const char *>(&option_value),
                  static_cast<socklen_t>(sizeof(int))) == -1) {
-    throw std::system_error(last_socket_error_code(), "setsockopt() failed: ");
+    throw std::system_error(get_last_socket_error_code(),
+                            "setsockopt() failed");
   }
 
   err = bind(listener_, ainfo->ai_addr, ainfo->ai_addrlen);
   if (err < 0) {
     throw std::system_error(
-        last_socket_error_code(),
+        get_last_socket_error_code(),
         "bind('0.0.0.0', " + std::to_string(bind_port_) + ") failed");
   }
 
   err = listen(listener_, kListenQueueSize);
   if (err < 0) {
-    throw std::system_error(last_socket_error_code(), "listen() failed");
+    throw std::system_error(get_last_socket_error_code(), "listen() failed");
   }
 }
 
@@ -204,14 +200,14 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
       auto work = work_queue.pop();
 
       // exit
-      if (work.client_socket == kInvalidSocket) break;
+      if (work.client_socket == mysql_harness::kInvalidSocket) break;
 
       try {
         sockaddr_in addr;
         socklen_t addr_len = sizeof(addr);
         if (-1 == getsockname(work.client_socket,
                               reinterpret_cast<sockaddr *>(&addr), &addr_len)) {
-          throw std::system_error(last_socket_error_code(),
+          throw std::system_error(get_last_socket_error_code(),
                                   "getsockname() failed");
         }
         std::unique_ptr<StatementReaderBase> statement_reader{
@@ -285,7 +281,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
     int err = select(listener_ + 1, &fds, NULL, NULL, &tv);
 
     if (err < 0) {
-      std::cerr << std::system_error(last_socket_error_code(),
+      std::cerr << std::system_error(get_last_socket_error_code(),
                                      "select() failed")
                        .what()
                 << "\n";
@@ -299,8 +295,8 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
       while (true) {
         socket_t client_socket =
             accept(listener_, (struct sockaddr *)&client_addr, &addr_size);
-        if (client_socket == kInvalidSocket) {
-          auto accept_ec = last_socket_error_code();
+        if (client_socket == mysql_harness::kInvalidSocket) {
+          auto accept_ec = get_last_socket_error_code();
 
           // if we got interrupted at shutdown, just leave
           if (!is_running(env)) break;
@@ -336,7 +332,7 @@ void MySQLServerMock::handle_connections(mysql_harness::PluginFuncEnv *env) {
 
   // std::cerr << "sending death-signal to threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {
-    work_queue.push(Work{kInvalidSocket, "", "", 0});
+    work_queue.push(Work{mysql_harness::kInvalidSocket, "", "", 0});
   }
   // std::cerr << "joining threads" << std::endl;
   for (size_t ndx = 0; ndx < worker_threads.size(); ndx++) {

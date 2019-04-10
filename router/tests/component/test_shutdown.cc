@@ -78,7 +78,7 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
     // launch the router
     CommandHandle router =
         RouterComponentTest::launch_router("-c " + conf_file);
-    bool ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
+    bool ready = wait_for_port_ready(router_port);
     EXPECT_TRUE(ready) << router.get_full_output() << get_router_log_output();
 
     return router;
@@ -86,7 +86,7 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
 
   std::string create_JSON_tracefile(
       const std::string &temp_test_dir,
-      const std::vector<unsigned> cluster_node_ports) {
+      const std::vector<uint16_t> cluster_node_ports) {
     std::map<std::string, std::string> primary_json_env_vars = {
         {"PRIMARY_HOST", "127.0.0.1:" + std::to_string(cluster_node_ports[0])},
         {"SECONDARY_1_HOST",
@@ -112,52 +112,19 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
     return json_primary_node;
   }
 
-  const std::chrono::milliseconds kMockServerMaxRestEndpointWaitTime{1000};
-  const std::chrono::milliseconds kMockServerMaxRestEndpointStepTime{50};
-  /**
-   * wait until a REST endpoint returns !404.
-   *
-   * at mock startup the socket starts to listen before the REST endpoint gets
-   * registered. As long as it returns 404 Not Found we should wait and retry.
-   *
-   * @param rest_client initialized rest-client
-   * @param uri REST endpoint URI to check
-   * @param max_wait_time max time to wait for endpoint being ready
-   * @returns true once endpoint doesn't return 404 anymore, fails otherwise
-   */
-  bool wait_for_rest_endpoint_ready(
-      RestClient &rest_client, const std::string &uri,
-      std::chrono::milliseconds max_wait_time) const noexcept {
-    while (max_wait_time.count() > 0) {
-      auto req = rest_client.request_sync(HttpMethod::Get, uri);
-
-      if (req && req.get_response_code() != 0 && req.get_response_code() != 404)
-        return true;
-
-      auto wait_time =
-          std::min(kMockServerMaxRestEndpointStepTime, max_wait_time);
-      std::this_thread::sleep_for(wait_time);
-
-      max_wait_time -= wait_time;
-    }
-
-    return false;
-  }
-
   void delay_sending_handshake(
-      const std::vector<unsigned> cluster_node_http_ports) {
+      const std::vector<uint16_t> cluster_node_http_ports) {
     const std::string kRestGlobalsUri = "/api/v1/mock_server/globals/";
     const std::string kHostname = "127.0.0.1";
     const std::string kHandshakeSendDelayKey = "connect_exec_time";
     const std::string kHandshakeSendDelayMs = "10000";
 
     // tell all the server mocks to delay sending handshake by 10 seconds
-    for (unsigned http_port : cluster_node_http_ports) {
+    for (auto http_port : cluster_node_http_ports) {
       IOContext io_ctx;
       RestClient rest_client(io_ctx, kHostname, http_port);
 
-      ASSERT_TRUE(wait_for_rest_endpoint_ready(
-          rest_client, kRestGlobalsUri, kMockServerMaxRestEndpointWaitTime))
+      ASSERT_TRUE(wait_for_rest_endpoint_ready(kRestGlobalsUri, http_port))
           << "wait_for_rest_endpoint_ready() timed out";
 
       HttpRequest req =
@@ -178,20 +145,18 @@ class ShutdownTest : public RouterComponentTest, public ::testing::Test {
     }
   }
 
-  int get_delayed_handshakes_count(unsigned http_port) {
+  int get_delayed_handshakes_count(const uint16_t http_port) {
     const std::string kRestGlobalsUri = "/api/v1/mock_server/globals/";
     const std::string kHostname = "127.0.0.1";
     constexpr char kDelayedHandshakes[] = "delayed_handshakes";
 
     // GET request
 
-    IOContext io_ctx;
-    RestClient rest_client(io_ctx, kHostname, http_port);
-
-    EXPECT_TRUE(wait_for_rest_endpoint_ready(
-        rest_client, kRestGlobalsUri, kMockServerMaxRestEndpointWaitTime))
+    EXPECT_TRUE(wait_for_rest_endpoint_ready(kRestGlobalsUri, http_port))
         << "wait_for_rest_endpoint_ready() timed out";
 
+    IOContext io_ctx;
+    RestClient rest_client(io_ctx, kHostname, http_port);
     HttpRequest req =
         rest_client.request_sync(HttpMethod::Get, kRestGlobalsUri);
 
@@ -271,19 +236,19 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
   std::shared_ptr<void> exit_guard(nullptr,
                                    [&](void *) { purge_dir(temp_test_dir); });
 
-  const std::vector<unsigned> cluster_node_ports{
+  const std::vector<uint16_t> cluster_node_ports{
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
   };
-  const std::vector<unsigned> cluster_node_http_ports{
+  const std::vector<uint16_t> cluster_node_http_ports{
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
       port_pool_.get_next_available(),
   };
-  const unsigned router_port = port_pool_.get_next_available();
+  const uint16_t router_port = port_pool_.get_next_available();
 
   const std::string json_primary_node =
       create_JSON_tracefile(temp_test_dir, cluster_node_ports);
@@ -302,8 +267,7 @@ TEST_F(ShutdownTest, flaky_connection_to_cluster) {
 
   // wait for the whole cluster to be up
   for (size_t i = 0; i < cluster_nodes.size(); i++)
-    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i], DEFAULT_PORT_WAIT),
-                Eq(true))
+    EXPECT_THAT(wait_for_port_ready(cluster_node_ports[i]), Eq(true))
         << cluster_nodes[i].get_full_output();
 
   // write Router config

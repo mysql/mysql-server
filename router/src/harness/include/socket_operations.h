@@ -28,6 +28,7 @@
 #include <chrono>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
@@ -46,18 +47,20 @@ typedef long ssize_t;
 
 namespace mysql_harness {
 
+#ifdef _WIN32
+using socket_t = SOCKET;
+constexpr socket_t kInvalidSocket = INVALID_SOCKET;
+#else
+using socket_t = int;
+constexpr socket_t kInvalidSocket = -1;
+#endif
+
 /** @class SocketOperationsBase
  * @brief Base class to allow multiple SocketOperations implementations
  *        (at least one "real" and one mock for testing purposes)
  */
 class HARNESS_EXPORT SocketOperationsBase {
  public:
-#ifdef _WIN32
-  using socket_t = SOCKET;
-#else
-  using socket_t = int;
-#endif
-
   explicit SocketOperationsBase() = default;
   explicit SocketOperationsBase(const SocketOperationsBase &) = default;
   SocketOperationsBase &operator=(const SocketOperationsBase &) = default;
@@ -77,6 +80,7 @@ class HARNESS_EXPORT SocketOperationsBase {
                          socklen_t optlen) = 0;
   virtual int listen(int fd, int n) = 0;
   virtual int get_errno() = 0;
+  virtual std::error_code get_error_code() = 0;
   virtual void set_errno(int) = 0;
   virtual int poll(struct pollfd *fds, nfds_t nfds,
                    std::chrono::milliseconds timeout) = 0;
@@ -226,7 +230,7 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
   std::string get_local_hostname() override;
 
   /**
-   * get the error-code of the last (socket) operation
+   * get the errno of the last (socket) operation
    *
    * @see errno or WSAGetLastError()
    */
@@ -236,6 +240,20 @@ class HARNESS_EXPORT SocketOperations : public SocketOperationsBase {
 #else
     return errno;
 #endif
+  }
+
+  /**
+   * get the error-code of the last (socket) operation
+   *
+   */
+  std::error_code get_error_code() override {
+    return {
+#ifndef _WIN32
+        errno, std::generic_category()
+#else
+        WSAGetLastError(), std::system_category()
+#endif
+    };
   }
 
   /**

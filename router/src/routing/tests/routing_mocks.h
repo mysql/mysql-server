@@ -62,7 +62,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
   MOCK_METHOD2(listen, int(int fd, int n));
   MOCK_METHOD3(poll, int(struct pollfd *, nfds_t, std::chrono::milliseconds));
   MOCK_METHOD2(connect_non_blocking_wait,
-               int(socket_t sock, std::chrono::milliseconds timeout));
+               int(mysql_harness::socket_t sock,
+                   std::chrono::milliseconds timeout));
   MOCK_METHOD2(connect_non_blocking_status, int(int sock, int &so_error));
   MOCK_METHOD2(set_socket_blocking, void(int, bool));
   MOCK_METHOD0(get_local_hostname, std::string());
@@ -88,6 +89,8 @@ class MockSocketOperations : public mysql_harness::SocketOperationsBase {
     return errno;
 #endif
   }
+
+  MOCK_METHOD0(get_error_code, std::error_code());
 };
 
 class MockRoutingSockOps : public routing::RoutingSockOpsInterface {

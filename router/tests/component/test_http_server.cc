@@ -281,8 +281,7 @@ TEST_P(HttpServerPlainTest, ensure) {
     RestClient rest_client(io_ctx, http_hostname_, http_port);
 
     SCOPED_TRACE("// wait http port connectable");
-    ASSERT_TRUE(wait_for_port_ready(http_port, DEFAULT_PORT_WAIT))
-        << get_router_log_output();
+    ASSERT_TRUE(wait_for_port_ready(http_port)) << get_router_log_output();
 
     SCOPED_TRACE("// GETing " + rel_uri);
     auto req = rest_client.request_sync(GetParam().http_method, rel_uri);
@@ -990,7 +989,7 @@ TEST_P(HttpClientSecureTest, ensure) {
   RestClient rest_client(std::move(http_client));
 
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT))
+  ASSERT_TRUE(wait_for_port_ready(http_port_))
       << get_router_log_output() << http_server_.get_full_output();
 
   SCOPED_TRACE("// GETing " + u.join());
@@ -1138,7 +1137,7 @@ TEST_P(HttpServerSecureTest, ensure) {
     RestClient rest_client(std::move(http_client));
 
     SCOPED_TRACE("// wait for port ready");
-    ASSERT_TRUE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT))
+    ASSERT_TRUE(wait_for_port_ready(http_port_))
         << get_router_log_output() << "\n"
         << ConfigBuilder::build_section("http_server", http_section);
 
@@ -1476,8 +1475,7 @@ class HttpServerAuthTest
  */
 TEST_P(HttpServerAuthTest, ensure) {
   SCOPED_TRACE("// wait http port connectable");
-  ASSERT_TRUE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT))
-      << get_router_log_output();
+  ASSERT_TRUE(wait_for_port_ready(http_port_)) << get_router_log_output();
 
   std::string http_uri = GetParam().url;
   SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
@@ -1591,8 +1589,7 @@ TEST_P(HttpServerAuthFailTest, ensure) {
   pwf.close();
 
   if (GetParam().check_at_runtime) {
-    ASSERT_TRUE(wait_for_port_ready(http_port_, DEFAULT_PORT_WAIT))
-        << get_router_log_output();
+    ASSERT_TRUE(wait_for_port_ready(http_port_)) << get_router_log_output();
     std::string http_uri = "/";
     SCOPED_TRACE("// connecting " + http_hostname_ + ":" +
                  std::to_string(http_port_) + " for " + http_uri);

@@ -204,7 +204,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
                                                  json_my_port, env_vars);
     auto cluster_node = RouterComponentTest::launch_mysql_server_mock(
         json_my_port, cluster_port, false);
-    bool ready = wait_for_port_ready(cluster_port, DEFAULT_PORT_WAIT);
+    bool ready = wait_for_port_ready(cluster_port);
     EXPECT_TRUE(ready) << cluster_node.get_full_output();
 
     return cluster_node;
@@ -230,7 +230,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
         create_config_file(conf_dir, routing_section, &def_section);
     auto router = RouterComponentTest::launch_router("-c " + conf_file);
     if (!expect_error) {
-      bool ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
+      bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output()
                                             : get_router_log_output());
     }
@@ -260,7 +260,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     auto router = RouterComponentTest::launch_router("-c " + conf_file,
                                                      catch_stderr, with_sudo);
     if (wait_ready) {
-      bool ready = wait_for_port_ready(router_port, DEFAULT_PORT_WAIT);
+      bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << get_router_log_output();
     }
 
@@ -356,7 +356,7 @@ TEST_P(RouterRoutingStrategyMetadataCache, MetadataCacheRoutingStrategy) {
                           primary_json_env_vars);
   auto primary_node = launch_mysql_server_mock(json_primary_node,
                                                cluster_nodes_ports[0], false);
-  bool ready = wait_for_port_ready(cluster_nodes_ports[0], DEFAULT_PORT_WAIT);
+  bool ready = wait_for_port_ready(cluster_nodes_ports[0]);
   EXPECT_TRUE(ready) << primary_node.get_full_output();
   cluster_nodes.emplace_back(std::move(primary_node));
 
