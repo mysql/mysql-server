@@ -227,6 +227,19 @@ remove_file $MYSQL_TMP_DIR/keyring;
 
 
 --echo #
+--echo # Bug#29584642 DATABASE INITIALISATION FAILURE WITH INNODB_DEFAULT_ROW_FORMAT=REDUNDANT
+--echo #
+--echo # The database initialization would fail without the fix.
+--exec $MYSQLD $extra_args --datadir=$DDIR --initialize --innodb_default_row_format=redundant > $MYSQLD_LOG 2>&1
+
+--echo # delete mysqld log
+remove_file $MYSQLD_LOG;
+
+--echo # delete datadir
+--force-rmdir $DDIR
+
+
+--echo #
 --echo # Cleanup
 --echo #
 --echo # Restarting the server
