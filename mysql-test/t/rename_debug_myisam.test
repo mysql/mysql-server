@@ -2,6 +2,9 @@
 --source include/have_debug_sync.inc
 --source include/have_myisam.inc
 
+# Some parts of the test require enabled binary log.
+--source include/have_log_bin.inc
+
 --echo #
 --echo # Part of test coverage for WL#9826 "Allow RENAME TABLES under
 --echo # LOCK TABLES" which needs debug build and debug_sync facility.
