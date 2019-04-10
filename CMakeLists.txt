@@ -185,10 +185,24 @@ ENDIF()
 OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
 MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
+# Use 'uname -r' and 'rpm -qf /' to figure out host system.
+# For Docker images we cannot trust uname, so use rpm instead.
 IF(UNIX)
   FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin /sbin)
   IF(MY_UNAME)
-    EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+    EXECUTE_PROCESS(COMMAND ${MY_UNAME} -s
+      OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE MY_UNAME_RESULT
+      )
+  ENDIF()
+  FIND_PROGRAM(MY_RPM rpm /bin /usr/bin)
+  IF(MY_RPM)
+    EXECUTE_PROCESS(COMMAND ${MY_RPM} -qf /
+      OUTPUT_VARIABLE MY_HOST_FILESYSTEM_NAME
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      RESULT_VARIABLE MY_RPM_RESULT
+      )
   ENDIF()
 ENDIF()
 
@@ -199,11 +213,13 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
   SET (ENV_CXX "$ENV{CXX}")
   IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
     IF(MY_UNAME)
-      EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
+      EXEC_PROGRAM(${MY_UNAME} ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
       IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
-          MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+          (MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+          OR
+          (MY_HOST_FILESYSTEM_NAME MATCHES "\\.el[67]\\."))
         MESSAGE(STATUS
-          "This is ${MY_HOST_SYSTEM_NAME} version ${MY_HOST_SYSTEM_VERSION}")
+          "This is el6 or el7 as found from 'uname -r' or 'rpm -qf /'")
         MESSAGE(STATUS "We probably need some devtoolset compiler")
 
         FIND_PROGRAM(ALTERNATIVE_GCC gcc
