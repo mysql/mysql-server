@@ -388,6 +388,9 @@ c char(255) not null default 'xxxx'
 create unique index ix1 ON t1(col_int_unique);
 insert into t1(pk,col_int_unique) values (1,1), (2,NULL);
 insert into t1(pk,col_int_unique) values (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN
 SELECT STRAIGHT_JOIN *
 FROM t1 LEFT OUTER JOIN t1 AS t2
