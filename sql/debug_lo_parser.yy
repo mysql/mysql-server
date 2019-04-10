@@ -52,7 +52,6 @@ void LOCK_ORDER_error(YYLTYPE *yyloc, LO_parser_param *p, const char* msg);
 
 %pure-parser
 %locations
-%yacc
 
 %lex-param { yyscan_t YYLEX_PARAM }
 %parse-param { struct LO_parser_param *param }
