@@ -418,6 +418,7 @@ Obsoletes:      MySQL-Cluster-devel-gpl < %{version}-%{release}
 Provides:       MySQL-devel = %{version}-%{release}
 Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
+%{?el8:Obsoletes:      mariadb-embedded-devel}
 Obsoletes:      mariadb-devel
 Obsoletes:      mariadb-connector-c-devel
 Obsoletes:      mysql-connector-c-devel < 6.2
