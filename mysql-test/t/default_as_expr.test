@@ -897,3 +897,36 @@ CREATE TABLE t1 (a datetime, b varchar(10) DEFAULT (localtimestamp()));
 INSERT INTO t1(a) VALUES (now());
 SELECT * FROM t1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#29480711   DEBUG ASSERTION IN CREATE TABLE WITH ENUM OR SET
+--echo # COLUMNS HAVING EXPLICIT DEFAULT
+--echo #
+
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('y'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('y'));
+INSERT INTO t1 values (DEFAULT);
+INSERT INTO t1 values ();
+INSERT INTO t2 values (DEFAULT);
+INSERT INTO t2 values ();
+SELECT * from t1;
+SELECT * from t2;
+DROP TABLE t1;
+DROP TABLE t2;
+
+CREATE TABLE t1 (truth ENUM('y','n') DEFAULT('s'));
+CREATE TABLE t2 (truths SET('y','n') DEFAULT('p'));
+
+--error 1265
+INSERT INTO t1 values (DEFAULT);
+--error 1265
+INSERT INTO t1 values ();
+--error 1265
+INSERT INTO t2 values (DEFAULT);
+--error 1265
+INSERT INTO t2 values ();
+SELECT * from t1;
+SELECT * from t2;
+DROP TABLE t1;
+DROP TABLE t2;
+
