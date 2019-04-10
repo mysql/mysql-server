@@ -627,7 +627,6 @@ static inline void row_purge_remove_multi_sec_if_poss(purge_node_t *node,
   for (dtuple_t *entry = mv_entry_builder.begin(); entry != nullptr;
        entry = mv_entry_builder.next()) {
     row_purge_remove_sec_if_poss(node, index, entry);
-    mem_heap_empty(heap);
   }
 }
 
