@@ -190,7 +190,7 @@ EXPLAIN
     -> Table scan on t1
     -> Select #2 (subquery in condition; dependent)
         -> Group aggregate: group_concat(t.b separator ',')
-            -> Sort: <temporary>.a
+            -> Sort row IDs: <temporary>.a
                 -> Table scan on <temporary>
                     -> Temporary table
                         -> Table scan on t

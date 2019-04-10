@@ -258,7 +258,8 @@ int SortFileIndirectIterator::CachedRead() {
 }
 
 vector<string> SortFileIndirectIterator::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data: Row IDs from file, records from ") +
           table()->alias};
 }
@@ -325,7 +326,8 @@ int SortFileIterator<Packed_addon_fields>::Read() {
 
 template <bool Packed_addon_fields>
 vector<string> SortFileIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data from file (originally from ") +
           table()->alias + ")"};
 }
@@ -386,7 +388,8 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 
 template <bool Packed_addon_fields>
 vector<string> SortBufferIterator<Packed_addon_fields>::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data from memory (originally from ") +
           table()->alias + ")"};
 }
@@ -451,7 +454,8 @@ int SortBufferIndirectIterator::Read() {
 }
 
 vector<string> SortBufferIndirectIterator::DebugString() const {
-  // Not used, because sorting strategy is not decided at EXPLAIN time.
+  // Not used, because sort result iterator is not decided at EXPLAIN time
+  // (we can't know whether the buffer would stay in RAM or not).
   return {string("Read sorted data: Row IDs from memory, records from ") +
           table()->alias};
 }
@@ -650,10 +654,15 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
 
 vector<string> SortingIterator::DebugString() const {
   string ret;
-  if (m_filesort->m_remove_duplicates) {
-    ret = "Sort with duplicate removal: ";
+  if (m_filesort->using_addon_fields()) {
+    ret = "Sort";
   } else {
-    ret = "Sort: ";
+    ret = "Sort row IDs";
+  }
+  if (m_filesort->m_remove_duplicates) {
+    ret += " with duplicate removal: ";
+  } else {
+    ret += ": ";
   }
 
   bool first = true;
