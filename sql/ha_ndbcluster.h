@@ -444,7 +444,7 @@ public:
 
   enum_alter_inplace_result
     supported_inplace_field_change(Alter_inplace_info*,
-                                   Field*, Field*) const;
+                                   Field*, Field*, bool, bool) const;
   bool table_storage_changed(HA_CREATE_INFO*) const;
   bool column_has_index(TABLE*, uint, uint, uint) const;
   enum_alter_inplace_result
@@ -452,7 +452,7 @@ public:
                                         Alter_inplace_info*,
                                         bool, bool) const;
   enum_alter_inplace_result
-    supported_inplace_column_change(TABLE*, uint, Field*, Alter_inplace_info*) const;
+    supported_inplace_column_change(THD*, TABLE*, uint, Field*, Alter_inplace_info*) const;
   enum_alter_inplace_result
     check_inplace_alter_supported(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info);
@@ -512,6 +512,7 @@ public:
                                       Ndb_fk_list&);
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
+  bool has_fk_dependency(THD*, const NdbDictionary::Column*) const;
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
