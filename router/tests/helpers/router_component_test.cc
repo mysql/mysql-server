@@ -771,16 +771,17 @@ void RouterComponentTest::connect_client_and_query_port(unsigned router_port,
 void RouterComponentTest::ProcessManager::shutdown_all() {
   // stop them all
   for (auto &proc : processes_) {
-    proc.send_shutdown_event();
+    std::get<0>(proc).send_shutdown_event();
   }
 }
 
 void RouterComponentTest::ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
-      proc.wait_for_exit();
+      EXPECT_EQ(std::get<1>(proc), std::get<0>(proc).wait_for_exit())
+          << std::get<0>(proc).get_full_output();
     } catch (const std::exception &e) {
-      FAIL() << e.what() << "\n" << proc.get_full_output();
+      FAIL() << e.what() << "\n" << std::get<0>(proc).get_full_output();
     }
   }
 }

@@ -32,6 +32,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <list>
 #include <map>
 #include <sstream>
 #include <stdexcept>
@@ -173,6 +174,8 @@ class RouterComponentTest {
      * @returns exit code of the process
      */
     int wait_for_exit(unsigned timeout_ms = kDefaultWaitForExitTimeout) {
+      if (exit_code_set_) return exit_code();
+
       // wait_for_exit() is a convenient short name, but a little unclear with
       // respect to what this function actually does
       return wait_for_exit_while_reading_and_autoresponding_to_output(
@@ -274,11 +277,14 @@ class RouterComponentTest {
     /**
      * adds a CommandHandle to the ProcessManager.
      *
+     * @param proc a CommandHandle to track
+     * @param expected_exit_code expected exit-code for ensure_clean_exit()
+     *
      * @returns a ref to the added CommandHandle
      */
-    CommandHandle &add(CommandHandle proc) {
-      processes_.push_back(std::move(proc));
-      return processes_.back();
+    CommandHandle &add(CommandHandle proc, int expected_exit_code = 0) {
+      processes_.emplace_back(std::move(proc), expected_exit_code);
+      return std::get<0>(processes_.back());
     }
 
     /**
@@ -292,7 +298,7 @@ class RouterComponentTest {
     void ensure_clean_exit();
 
    private:
-    std::vector<CommandHandle> processes_;
+    std::list<std::tuple<CommandHandle, int>> processes_;
   };
 
   /** @brief Initializes the test
