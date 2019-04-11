@@ -408,8 +408,8 @@ public:
   int ndb_err(NdbTransaction*);
 
   enum_alter_inplace_result
-  check_if_supported_inplace_alter(TABLE *altered_table,
-                                   Alter_inplace_info *ha_alter_info) override;
+    check_if_supported_inplace_alter(TABLE *altered_table,
+                                     Alter_inplace_info *ha_alter_info) override;
 
 private:
   bool parse_comment_changes(NdbDictionary::Table *new_tab,
@@ -440,6 +440,17 @@ public:
   void prepare_inplace__drop_index(uint key_num);
   int inplace__final_drop_index(TABLE *table_arg);
 
+  enum_alter_inplace_result
+    supported_inplace_field_change(Alter_inplace_info*,
+                                   Field*, Field*) const;
+  bool table_storage_changed(HA_CREATE_INFO*) const;
+  bool column_has_index(TABLE*, uint, uint, uint) const;
+  enum_alter_inplace_result
+    supported_inplace_ndb_column_change(uint, TABLE*,
+                                        Alter_inplace_info*,
+                                        bool, bool) const;
+  enum_alter_inplace_result
+    supported_inplace_column_change(TABLE*, uint, Field*, Alter_inplace_info*) const;
   enum_alter_inplace_result
     check_inplace_alter_supported(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info);

@@ -16906,6 +16906,348 @@ ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
   DBUG_VOID_RETURN;
 }
 
+bool
+ha_ndbcluster::table_storage_changed(HA_CREATE_INFO *create_info) const
+{
+  enum ha_storage_media new_table_storage= create_info->storage_media;
+  if (new_table_storage == HA_SM_DEFAULT)
+    new_table_storage= HA_SM_MEMORY;
+  enum ha_storage_media old_table_storage=
+    table->s->default_storage_media;
+  if (old_table_storage == HA_SM_DEFAULT)
+    old_table_storage= HA_SM_MEMORY;
+  if (new_table_storage != old_table_storage)
+  {
+    return true;
+  }
+  return false;
+}
+
+bool
+ha_ndbcluster::column_has_index(TABLE *tab, uint field_idx,
+                                uint start_field, uint end_field) const
+{
+  /**
+   * Check all indexes to determine if column has index instead of checking
+   *   field->flags (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG
+   *   since field->flags appears to only be set on first column in
+   *   multi-part index
+   */
+  for (uint j= start_field; j<end_field; j++)
+  {
+    KEY* key_info= tab->key_info + j;
+    KEY_PART_INFO* key_part= key_info->key_part;
+    KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
+    for (; key_part != end; key_part++)
+    {
+      if (key_part->field->field_index == field_idx)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+enum_alter_inplace_result
+ha_ndbcluster::supported_inplace_ndb_column_change(uint field_idx,
+                                                   TABLE *altered_table,
+                                                   Alter_inplace_info *ha_alter_info,
+                                                   bool table_storage_changed,
+                                                   bool index_on_column) const
+{
+  DBUG_ENTER("ha_ndbcluster::supported_inplace_ndb_column_change");
+
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+  Field *old_field= table->field[field_idx];
+  const NDBCOL *old_col= m_table_map->getColumn(field_idx);
+  Field *new_field= altered_table->field[field_idx];
+  NDBCOL new_col;
+  /*
+    Create the new NdbDictionary::Column to be able to analyse if
+    the storage type or format has changed. Note that the default
+    storage format here needs to be based on whatever value it was before
+    because some previous ALTER TABLE might have changed it implicitly
+    to support add column or disk storage.
+   */
+  create_ndb_column(0, new_col, new_field, create_info, old_col->getDynamic());
+
+  if (index_on_column)
+  {
+    /**
+     * Index columns are stored in memory. Impose it on the new_col
+     * being created just now, in order to make the check 'if
+     * getStorageType() == getStorageType()' further down correct.
+     * Continue to keep an index column in memory even though it is an
+     * implicit disk column and the index is being dropped now (This
+     * will avoid the cost of moving it back to disk by copy alter).
+     */
+    new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
+  }
+  else
+  {
+    if (old_field->field_storage_type() == HA_SM_DEFAULT &&
+        table_storage_changed &&
+        new_col.getStorageType() != old_col->getStorageType())
+      {
+        DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                        "Column storage media is changed due "
+                                        "to change in table storage media"));
+      }
+
+    if (old_field->field_storage_type() != new_field->field_storage_type() &&
+        new_col.getStorageType() != old_col->getStorageType())
+    {
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Column storage media is changed"));
+    }
+
+    /**
+     * If user didn't specify any column format, keep old
+     *   to make as many alter's as possible online. E.g.:
+     *
+     *   When an index is created on an implicit disk column,
+     *   the column storage is silently converted to memory.
+     *   It is not changed back to disk again when the index is
+     *   dropped, unless the user explicitly specifies copy algorithm.
+     *
+     *   Also, keep the storage format Ndb has for BLOB/TEXT columns
+     *   since NDB stores BLOB/TEXT < 256 bytes in memory,
+     *   irrespective of storage type.
+     */
+    new_col.setStorageType(old_col->getStorageType());
+  }
+
+  // Check if we are adding an index to a disk stored column
+  if (new_field->flags & FIELD_IN_ADD_INDEX &&
+      new_col.getStorageType() == NdbDictionary::Column::StorageTypeDisk)
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Add/drop index is not supported for disk "
+                                    "stored column"));
+  }
+
+  if (index_on_column &&
+      new_field->field_storage_type() == HA_SM_DISK)
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Changing COLUMN_STORAGE "
+                                    "to disk (Explicit STORAGE DISK) "
+                                    "on index column)."));
+  }
+
+  /*
+    If a field has a specified storage type (not default)
+    and the column changes storage type this is not allowed
+   */
+  if (new_field->field_storage_type() != HA_SM_DEFAULT &&
+      old_col->getStorageType() != new_col.getStorageType())
+  {
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Column storage media is changed"));
+  }
+
+  // Check if type is changed
+  if (new_col.getType() != old_col->getType())
+ {
+    DBUG_PRINT("info", ("Detected unsupported type change for field %s : "
+                        "field types : old %u new %u "
+                        "ndb column types : old %u new %u ",
+                        old_field->field_name,
+                        old_field->real_type(),
+                        new_field->real_type(),
+                        old_col->getType(),
+                        new_col.getType()));
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering field type is not supported"));
+  }
+
+  Alter_inplace_info::HA_ALTER_FLAGS alter_flags= ha_alter_info->handler_flags;
+  bool altering_column= (alter_flags &
+                         (Alter_inplace_info::ALTER_COLUMN_DEFAULT |
+                          Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE |
+                          Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT));
+
+  /*
+    Check if format is changed.
+    If we are modifying some column with the column format
+    being specified (not using default value) and
+    we see a change of format on the Field level or
+    NdbDictionary::Column level, then the change is not supported.
+   */
+  if (altering_column &&
+      new_field->column_format() != COLUMN_FORMAT_TYPE_DEFAULT &&
+      (new_field->column_format() != old_field->column_format() ||
+       new_col.getDynamic() != old_col->getDynamic()))
+  {
+    DBUG_PRINT("info", ("Detected unsupported format change for field %s : "
+                        "field format : old %u new %u "
+                        "ndb column format : old %u  new %u ",
+                        old_field->field_name,
+                        old_field->column_format(),
+                        new_field->column_format(),
+                        old_col->getDynamic(),
+                        new_col.getDynamic()));
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering column format"));
+  }
+
+  DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
+}
+
+enum_alter_inplace_result
+ha_ndbcluster::supported_inplace_field_change(Alter_inplace_info *ha_alter_info,
+                               Field *old_field,
+                               Field *new_field) const
+{
+  DBUG_ENTER("supported_inplace_field_change");
+
+  // Check for defintion change
+  if (! old_field->eq_def(new_field))
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering field definition is "
+                                    "not supported"));
+  }
+
+  // Check max display length
+  if (new_field->max_display_length() != old_field->max_display_length())
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering field display length is "
+                                    "not supported"));
+  }
+
+  // Check if nullable change
+  if (new_field->maybe_null() != old_field->maybe_null())
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering if field is nullable is "
+                                    "not supported"));
+  }
+
+  // Check if auto_increment change
+  if (new_field->auto_flags != old_field->auto_flags)
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering field auto_increment "
+                                    "is not supported"));
+  }
+
+  // Check that BLOB fields are not modified
+  if ((old_field->flags & BLOB_FLAG || new_field->flags & BLOB_FLAG) &&
+      !old_field->eq_def(new_field))
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering BLOB field is not supported"));
+  }
+
+  const enum enum_field_types mysql_type= old_field->real_type();
+  char old_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
+  char new_buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
+
+  if ((!(old_field->flags & PRI_KEY_FLAG) ) &&
+      type_supports_default_value(mysql_type))
+  {
+    if (!(old_field->flags & NO_DEFAULT_VALUE_FLAG))
+    {
+      ptrdiff_t src_offset= old_field->table->default_values_offset();
+      if ((! old_field->is_real_null(src_offset)) ||
+          ((old_field->flags & NOT_NULL_FLAG)))
+      {
+        DBUG_PRINT("info", ("Checking default value hasn't changed "
+                            "for field %s", old_field->field_name));
+        memset(old_buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
+        get_default_value(old_buf, old_field);
+        memset(new_buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
+        get_default_value(new_buf, new_field);
+        if (memcmp(old_buf, new_buf, MAX_ATTR_DEFAULT_VALUE_SIZE))
+        {
+          DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                          "Altering default value is "
+                                          "not supported"));
+        }
+      }
+    }
+  }
+
+  // Check if the field is renamed
+  if ((new_field->flags & FIELD_IS_RENAMED) ||
+      (strcmp(old_field->field_name, new_field->field_name) != 0))
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering field name is not supported"));
+  }
+
+  DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
+}
+
+enum_alter_inplace_result
+ha_ndbcluster::supported_inplace_column_change(TABLE *altered_table,
+                                               uint field_position, Field *old_field,
+                                               Alter_inplace_info *ha_alter_info) const
+{
+  /*
+    Alter_inplace_info flags indicate a column has been modified
+    we need to check if usupported field type change is found,
+    if BLOB type is found
+    or if default value has really changed.
+  */
+  DBUG_ENTER("supported_inplace_column_change");
+
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+
+  bool is_table_storage_changed= table_storage_changed(create_info);
+
+  DBUG_PRINT("info", ("Checking if supported column change for field %s",
+                      old_field->field_name));
+
+  Field *new_field= altered_table->field[field_position];
+
+  // Ignore if old and new fields are virtual
+  if(old_field->is_virtual_gcol() &&
+     new_field->is_virtual_gcol())
+  {
+    DBUG_RETURN(HA_ALTER_INPLACE_INSTANT);
+  }
+
+  // Check if we are changing to/from virtual field
+  if(old_field->is_virtual_gcol() !=
+     new_field->is_virtual_gcol())
+  {
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+  }
+
+  bool is_index_on_column=
+    column_has_index(table, field_position, 0, table->s->keys);
+
+  // Check if storage type or format are changed from Ndb's point of view
+  enum_alter_inplace_result ndb_column_change_result=
+    supported_inplace_ndb_column_change(field_position, altered_table,
+                                        ha_alter_info,
+                                        is_table_storage_changed,
+                                        is_index_on_column);
+
+  if (ndb_column_change_result == HA_ALTER_INPLACE_NOT_SUPPORTED ||
+      ndb_column_change_result == HA_ALTER_ERROR)
+  {
+    DBUG_RETURN(ndb_column_change_result);
+  }
+
+  // Check if table field properties are changed
+  enum_alter_inplace_result field_change_result=
+    supported_inplace_field_change(ha_alter_info, old_field,
+                                   new_field);
+
+  if (field_change_result == HA_ALTER_INPLACE_NOT_SUPPORTED ||
+      field_change_result == HA_ALTER_ERROR)
+  {
+    DBUG_RETURN(field_change_result);
+  }
+
+  DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
+}
+
 enum_alter_inplace_result
 ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
                                              Alter_inplace_info *ha_alter_info)
@@ -16913,6 +17255,11 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   THD *thd= current_thd;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   Alter_info *alter_info= ha_alter_info->alter_info;
+  /*
+    Save the Alter_inplace_info::HA_ALTER_FLAGS set by the server.
+    Note that some of the flags are set if conservatively and after
+    double checking for real changes some flags can be reset.
+   */
   Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
       ha_alter_info->handler_flags;
   const Alter_inplace_info::HA_ALTER_FLAGS supported=
@@ -16949,6 +17296,19 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
 
   DBUG_ENTER("ha_ndbcluster::check_inplace_alter_supported");
+
+  if (alter_flags & Alter_inplace_info::DROP_COLUMN)
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Dropping column"));
+  }
+
+  if (alter_flags & Alter_inplace_info::ALTER_STORED_COLUMN_ORDER)
+  {
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering column order"));
+  }
+
   partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
@@ -16970,7 +17330,7 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
 
   bool max_rows_changed= false;
   bool comment_changed = false;
-  bool table_storage_changed= false;
+
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     DBUG_PRINT("info", ("Some create options changed"));
@@ -17015,17 +17375,6 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
       DBUG_PRINT("info", ("The COMMENT string changed"));
       comment_changed = true;
     }
-
-    enum ha_storage_media new_table_storage= create_info->storage_media;
-    if (new_table_storage == HA_SM_DEFAULT)
-      new_table_storage= HA_SM_MEMORY;
-    enum ha_storage_media old_table_storage= table->s->default_storage_media;
-    if (old_table_storage == HA_SM_DEFAULT)
-      old_table_storage= HA_SM_MEMORY;
-    if (new_table_storage != old_table_storage)
-    {
-      table_storage_changed= true;
-    }
   }
 
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
@@ -17044,11 +17393,42 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     }
   }
 
-  if (alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT &&
-      !(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN))
+  /**
+   * Check whether altering column properties can be performed inplace
+   * by comparing all old and new fields
+   */
+  for (uint i= 0; i < table->s->fields; i++)
   {
-    DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                    "Altering default value is not supported"));
+    Field *field= table->field[i];
+    enum_alter_inplace_result column_change_result=
+      supported_inplace_column_change(altered_table,
+                                      i, field,
+                                      ha_alter_info);
+
+    if (column_change_result == HA_ALTER_INPLACE_NOT_SUPPORTED ||
+        column_change_result == HA_ALTER_ERROR)
+    {
+      DBUG_RETURN(column_change_result);
+    }
+    else
+    {
+      // Save the highest lock requirement
+      result= MIN(result, column_change_result);
+    }
+  }
+  if (!(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN) &&
+      alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT)
+  {
+    // We didn't find that the default value has changed, remove flag
+    DBUG_PRINT("info", ("No change of default value found, ignoring flag"));
+    alter_flags&= ~Alter_inplace_info::ALTER_COLUMN_DEFAULT;
+  }
+  if (!(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN) &&
+      alter_flags & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE)
+  {
+    // We didn't find that the storage type has changed, remove flag
+    DBUG_PRINT("info", ("No change of storage type found, ignoring flag"));
+    alter_flags&= ~Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
   }
 
   if (alter_flags & not_supported)
@@ -17268,120 +17648,6 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     {
       DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                       "Only one index can be dropped online"));
-    }
-  }
-
-  for (uint i= 0; i < table->s->fields; i++)
-  {
-    Field *field= table->field[i];
-    if(field->is_virtual_gcol())
-      continue;
-    const NDBCOL *col= m_table_map->getColumn(i);
-
-    NDBCOL new_col;
-    create_ndb_column(0, new_col, field, create_info);
-
-    bool index_on_column = false;
-    /**
-     * Check all indexes to determine if column has index instead of checking
-     *   field->flags (PRI_KEY_FLAG | UNIQUE_KEY_FLAG | MULTIPLE_KEY_FLAG
-     *   since field->flags appears to only be set on first column in
-     *   multi-part index
-     */
-    for (uint j= 0; j<table->s->keys; j++)
-    {
-      KEY* key_info= table->key_info + j;
-      KEY_PART_INFO* key_part= key_info->key_part;
-      KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
-      for (; key_part != end; key_part++)
-      {
-        if (key_part->field->field_index == i)
-        {
-          index_on_column= true;
-          j= table->s->keys; // break outer loop
-          break;
-        }
-      }
-    }
-
-    if (index_on_column == false && (alter_flags & adding))
-    {
-      for (uint j= table->s->keys; j<altered_table->s->keys; j++)
-      {
-        KEY* key_info= altered_table->key_info + j;
-        KEY_PART_INFO* key_part= key_info->key_part;
-        KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
-        for (; key_part != end; key_part++)
-        {
-          if (key_part->field->field_index == i)
-          {
-            index_on_column= true;
-            j= altered_table->s->keys; // break outer loop
-            break;
-          }
-        }
-      }
-    }
-
-    /**
-     * This is a "copy" of code in ::create()
-     *   that "auto-converts" columns with keys into memory
-     *   (unless storage disk is explicitly added)
-     * This is needed to check if getStorageType() == getStorageType() 
-     * further down
-     */
-    if (index_on_column)
-    {
-      if (field->field_storage_type() == HA_SM_DISK)
-      {
-        DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                        "Found change of COLUMN_STORAGE to disk (Explicit STORAGE DISK on index column)."));
-      }
-      new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
-    }
-    else if (field->field_storage_type() == HA_SM_DEFAULT)
-    {
-      if (table_storage_changed &&
-             new_col.getStorageType() != col->getStorageType())
-      {
-        DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                        "Column storage media is changed due to change in table storage media"));
-      }
-
-      /**
-       * If user didn't specify any column format, keep old
-       *   to make as many alter's as possible online. E.g.:
-       *
-       *   When an index is created on an implicit disk column,
-       *   the column storage is silently converted to memory.
-       *   It is not changed back to disk again when the index is
-       *   dropped, unless the user explicitly specifies copy algorithm.
-       *
-       *   Also, keep the storage format Ndb has for BLOB/TEXT columns
-       *   since NDB stores BLOB/TEXT < 256 bytes in memory,
-       *   irrespective of storage type.
-       */
-      new_col.setStorageType(col->getStorageType());
-    }
-
-    if (col->getStorageType() != new_col.getStorageType())
-    {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                      "Column storage media is changed"));
-    }
-
-    if (field->flags & FIELD_IS_RENAMED)
-    {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                      "Field has been renamed, copy table"));
-    }
-
-    if ((field->flags & FIELD_IN_ADD_INDEX) &&
-        (col->getStorageType() == NdbDictionary::Column::StorageTypeDisk))
-    {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                      "Add/drop index not supported for disk "
-                                      "stored column"));
     }
   }
 

@@ -128,9 +128,14 @@ e1 Char(100;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DYNAMIC
 f Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
 f1 Char(100;latin1_swedish_ci) NOT NULL AT=FIXED ST=DISK
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
-alter table t1 change column b b int NOT NULL storage memory;
+alter table t1 algorithm=inplace, change column a1 a1 int column_format FIXED NOT NULL;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering if field is nullable is not supported. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, change column b b int NOT NULL storage memory, add index b_i(b);
 Warnings:
-Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
+Warning	1831	Duplicate index 'b_i' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+alter table t1 algorithm=inplace, change column b b int NOT NULL storage memory, add index b1_i(b1);
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Add/drop index is not supported for disk stored column. Try ALGORITHM=COPY.
+alter table t1 change column b b int NOT NULL storage memory;
 alter table t1 add column a2 int column_format FIXED;
 Warnings:
 Warning	1478	DYNAMIC column f1 with STORAGE DISK is not supported, column will become FIXED
@@ -150,7 +155,8 @@ t1	CREATE TABLE `t1` (
   `f` char(100) NOT NULL /*!50606 COLUMN_FORMAT FIXED */,
   `f1` char(100) NOT NULL /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT DYNAMIC */,
   `a2` int(11) /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
-  KEY `b` (`b`)
+  KEY `b` (`b`),
+  KEY `b_i` (`b`)
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Attributes:
 a Int NULL AT=FIXED ST=MEMORY
@@ -187,7 +193,8 @@ t1	CREATE TABLE `t1` (
   `f1` char(100) NOT NULL /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT DYNAMIC */,
   `a2` int(11) /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
   `c2` varchar(100) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
-  KEY `b` (`b`)
+  KEY `b` (`b`),
+  KEY `b_i` (`b`)
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Attributes:
 a Int NULL AT=FIXED ST=MEMORY
@@ -226,7 +233,8 @@ t1	CREATE TABLE `t1` (
   `a2` int(11) /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
   `c2` varchar(100) /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL,
   `c3` varchar(100) /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL,
-  KEY `b` (`b`)
+  KEY `b` (`b`),
+  KEY `b_i` (`b`)
 ) /*!50100 TABLESPACE `ts1` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 Attributes:
 a Int NULL AT=FIXED ST=MEMORY
