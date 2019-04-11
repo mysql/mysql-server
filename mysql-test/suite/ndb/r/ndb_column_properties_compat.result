@@ -12,7 +12,7 @@ BALANCE Unsigned NOT NULL AT=FIXED ST=MEMORY
 ACCOUNT_TYPE Unsigned NOT NULL AT=FIXED ST=MEMORY
 DROP TABLE test.t1;
 ALTER TABLE ACCOUNT_TYPE algorithm=inplace, MODIFY `DESCRIPTION` char(65);
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering field definition is not supported. Try ALGORITHM=COPY.
 ALTER TABLE ACCOUNT_TYPE DROP `DESCRIPTION`;
 Now there should be no warning
 SHOW WARNINGS;
@@ -29,7 +29,9 @@ ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(23);
 set @old_acat = @@session.ndb_allow_copying_alter_table;
 set @@session.ndb_allow_copying_alter_table = off;
 ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(24);
-ERROR 0A000: Implicit copying alter is not supported. Reason: ndb_allow_copying_alter_table=0. Try ALGORITHM=COPY to force the alter.
+Now there should be no warning
+SHOW WARNINGS;
+Level	Code	Message
 set @@session.ndb_allow_copying_alter_table = @old_acat;
 set @old_ndcf = @@global.ndb_default_column_format;
 set @@global.ndb_default_column_format = FIXED;

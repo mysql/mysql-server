@@ -33,8 +33,10 @@ SHOW WARNINGS;
 ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(23);
 set @old_acat = @@session.ndb_allow_copying_alter_table;
 set @@session.ndb_allow_copying_alter_table = off;
---error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+# Changing bigint display width can be done without copying
 ALTER TABLE SYSTEM_VALUES MODIFY `VALUE` bigint(24);
+--echo Now there should be no warning
+SHOW WARNINGS;
 set @@session.ndb_allow_copying_alter_table = @old_acat;
 set @old_ndcf = @@global.ndb_default_column_format;
 

@@ -236,7 +236,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD d INT AFTER b;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering column order. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -373,7 +373,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering field name is not supported. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -381,6 +381,15 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 name
 't1'
 alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+alter table t1 algorithm=inplace, change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+alter table t1 change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
 create index i1 on t1(medium);
 alter table t1 add index i2(new_tiny);
 drop index i1 on t1;
@@ -551,14 +560,20 @@ ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
+DISK stored column b will become fixed
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)
 TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB;
 Warnings:
 Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
-ALTER TABLE t1 algorithm=inplace, CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT FIXED STORAGE MEMORY;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed. Try ALGORITHM=COPY.
+ALTER TABLE t1 algorithm=inplace, CHANGE b b_1 INT COLUMN_FORMAT FIXED STORAGE DISK;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering column format. Try ALGORITHM=COPY.
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC STORAGE DISK;
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC;
+ALTER TABLE t1 algorithm=inplace, CHANGE b b INT;
 ALTER TABLE t1 algorithm=inplace, ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=inplace, ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
