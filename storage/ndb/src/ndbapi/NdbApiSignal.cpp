@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,10 +72,9 @@ NdbApiSignal::NdbApiSignal(BlockReference ref)
 
 NdbApiSignal::NdbApiSignal(Ndb* ndb)
 {
-  BlockReference ref = ndb->theMyRef;
   theVerId_signalNumber   = 0;    // 4 bit ver id - 16 bit gsn
   theReceiversBlockNumber = 0;  // Only 16 bit blocknum  
-  theSendersBlockRef      = refToBlock(ref);
+  theSendersBlockRef      = ndb->theNdbBlockNumber;
   theLength               = 0;
   theSendersSignalId      = 0;
   theSignalId             = 0;
@@ -84,6 +83,8 @@ NdbApiSignal::NdbApiSignal(Ndb* ndb)
   m_fragmentInfo          = 0;
   for (int i = 0; i < 25; i++)
     theData[i] = 0x13579753;
+
+  assert(theSendersBlockRef != 0);
   
   setDataPtr(&theData[0]);
   theNextSignal = 0;
