@@ -37,7 +37,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect;
 --exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail1" $args;
 
 --echo # Check the log file for expected error
-let SEARCH_PATTERN= Failed to initialize ndbcluster;
+let SEARCH_PATTERN= ndbcluster_init_abort1;
 let SEARCH_FILE= $error_log;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
@@ -48,7 +48,7 @@ let SEARCH_FILE= $error_log;
 --exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail2" $args;
 
 --echo # Check the log file for expected error
-let SEARCH_PATTERN= Failed to initialize ndbcluster;
+let SEARCH_PATTERN= ndbcluster_init_abort2;
 let SEARCH_FILE= $error_log;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
