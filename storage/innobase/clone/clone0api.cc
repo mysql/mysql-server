@@ -651,7 +651,6 @@ void Fixup_tables::fix_tables(THD *thd, const Const_table_iter &begin,
 
   /* For newly spawned threads, create server THD */
   if (thread_number != get_num_tasks()) {
-    my_thread_init();
     thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
     /* No MDL locks and privilege check during initialization phase. */
     thd->system_thread = SYSTEM_THREAD_DD_INITIALIZE;
@@ -704,7 +703,6 @@ void Fixup_tables::fix_tables(THD *thd, const Const_table_iter &begin,
   if (thread_created) {
     thd->system_thread = SYSTEM_THREAD_BACKGROUND;
     destroy_thd(thd);
-    my_thread_end();
   }
 }
 

@@ -1037,8 +1037,12 @@ to start log background threads in such case.
 @param[in,out]	log	redo log */
 void log_stop_background_threads(log_t &log);
 
-/** @return true iff log threads are started */
-bool log_threads_active(const log_t &log);
+/** Marks the flag which tells log threads to stop and wakes them.
+Does not wait until they are stopped. */
+void log_stop_background_threads_nowait(log_t &log);
+
+/** Wakes up all log threads which are alive. */
+void log_wake_threads(log_t &log);
 
 /** Free the log system data structures. Deallocate all the related memory. */
 void log_sys_close();
@@ -1080,16 +1084,15 @@ void log_checkpointer(log_t *log_ptr);
 
 #define log_checkpointer_mutex_exit(log) mutex_exit(&((log).checkpointer_mutex))
 
-#define log_checkpointer_mutex_own(log)      \
-  (mutex_own(&((log).checkpointer_mutex)) || \
-   !(log).checkpointer_thread_alive.load())
+#define log_checkpointer_mutex_own(log) \
+  (mutex_own(&((log).checkpointer_mutex)) || !log_checkpointer_is_active())
 
 #define log_closer_mutex_enter(log) mutex_enter(&((log).closer_mutex))
 
 #define log_closer_mutex_exit(log) mutex_exit(&((log).closer_mutex))
 
 #define log_closer_mutex_own(log) \
-  (mutex_own(&((log).closer_mutex)) || !(log).closer_thread_alive.load())
+  (mutex_own(&((log).closer_mutex)) || !log_closer_is_active())
 
 #define log_flusher_mutex_enter(log) mutex_enter(&((log).flusher_mutex))
 
@@ -1099,7 +1102,7 @@ void log_checkpointer(log_t *log_ptr);
 #define log_flusher_mutex_exit(log) mutex_exit(&((log).flusher_mutex))
 
 #define log_flusher_mutex_own(log) \
-  (mutex_own(&((log).flusher_mutex)) || !(log).flusher_thread_alive.load())
+  (mutex_own(&((log).flusher_mutex)) || !log_flusher_is_active())
 
 #define log_flush_notifier_mutex_enter(log) \
   mutex_enter(&((log).flush_notifier_mutex))
@@ -1107,9 +1110,8 @@ void log_checkpointer(log_t *log_ptr);
 #define log_flush_notifier_mutex_exit(log) \
   mutex_exit(&((log).flush_notifier_mutex))
 
-#define log_flush_notifier_mutex_own(log)      \
-  (mutex_own(&((log).flush_notifier_mutex)) || \
-   !(log).flush_notifier_thread_alive.load())
+#define log_flush_notifier_mutex_own(log) \
+  (mutex_own(&((log).flush_notifier_mutex)) || !log_flush_notifier_is_active())
 
 #define log_writer_mutex_enter(log) mutex_enter(&((log).writer_mutex))
 
@@ -1119,7 +1121,7 @@ void log_checkpointer(log_t *log_ptr);
 #define log_writer_mutex_exit(log) mutex_exit(&((log).writer_mutex))
 
 #define log_writer_mutex_own(log) \
-  (mutex_own(&((log).writer_mutex)) || !(log).writer_thread_alive.load())
+  (mutex_own(&((log).writer_mutex)) || !log_writer_is_active())
 
 #define log_write_notifier_mutex_enter(log) \
   mutex_enter(&((log).write_notifier_mutex))
@@ -1127,9 +1129,8 @@ void log_checkpointer(log_t *log_ptr);
 #define log_write_notifier_mutex_exit(log) \
   mutex_exit(&((log).write_notifier_mutex))
 
-#define log_write_notifier_mutex_own(log)      \
-  (mutex_own(&((log).write_notifier_mutex)) || \
-   !(log).write_notifier_thread_alive.load())
+#define log_write_notifier_mutex_own(log) \
+  (mutex_own(&((log).write_notifier_mutex)) || !log_write_notifier_is_active())
 
 #define log_limits_mutex_enter(log) mutex_enter(&((log).limits_mutex))
 
@@ -1161,6 +1162,30 @@ void log_position_unlock(log_t &log);
 @param[out]	checkpoint_lsn	stores checkpoint lsn there */
 void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
                                    lsn_t *checkpoint_lsn);
+
+/** Checks if log writer thread is active.
+@return true if and only if the log writer thread is active */
+inline bool log_writer_is_active();
+
+/** Checks if log write notifier thread is active.
+@return true if and only if the log write notifier thread is active */
+inline bool log_write_notifier_is_active();
+
+/** Checks if log flusher thread is active.
+@return true if and only if the log flusher thread is active */
+inline bool log_flusher_is_active();
+
+/** Checks if log flush notifier thread is active.
+@return true if and only if the log flush notifier thread is active */
+inline bool log_flush_notifier_is_active();
+
+/** Checks if log closer thread is active.
+@return true if and only if the log closer thread is active */
+inline bool log_closer_is_active();
+
+/** Checks if log checkpointer thread is active.
+@return true if and only if the log checkpointer thread is active */
+inline bool log_checkpointer_is_active();
 
 #else /* !UNIV_HOTBACKUP */
 

@@ -2593,7 +2593,7 @@ static void dict_index_remove_from_cache_low(
     if (retries >= 60000) {
       ut_error;
     }
-  } while (srv_shutdown_state == SRV_SHUTDOWN_NONE || !lru_evict);
+  } while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE || !lru_evict);
 
   rw_lock_free(&index->lock);
 

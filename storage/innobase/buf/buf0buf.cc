@@ -2086,7 +2086,7 @@ withdraw_retry:
     }
   }
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     /* abort to resize for shutdown. */
     buf_pool_withdrawing = false;
     return;
@@ -2160,7 +2160,7 @@ withdraw_retry:
   }
 #endif /* UNIV_DEBUG */
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2459,13 +2459,11 @@ withdraw_retry:
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again. */
 void buf_resize_thread() {
-  my_thread_init();
-
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     os_event_wait(srv_buf_resize_event);
     os_event_reset(srv_buf_resize_event);
 
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       break;
     }
 
@@ -2482,11 +2480,6 @@ void buf_resize_thread() {
 
     buf_pool_resize();
   }
-
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_buf_resize_thread_active = false;
 }
 
 /** Clears the adaptive hash index on all pages in the buffer pool. */

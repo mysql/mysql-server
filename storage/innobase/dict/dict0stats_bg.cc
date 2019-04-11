@@ -49,7 +49,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL 10 /* seconds */
 
-#define SHUTTING_DOWN() (srv_shutdown_state != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
 
 /** Event to wake up the stats thread */
 os_event_t dict_stats_event = NULL;
@@ -87,9 +87,6 @@ static recalc_pool_t *recalc_pool;
 use 'srv_shutdown_state' because we want to shutdown dict stats thread
 before purge thread. */
 static bool dict_stats_start_shutdown;
-
-/** Event to wait for shutdown of the dict stats thread */
-static os_event_t dict_stats_shutdown_event;
 
 /** Initialize the recalc pool, called once during thread initialization. */
 static void dict_stats_recalc_pool_init() {
@@ -214,7 +211,6 @@ void dict_stats_thread_init() {
   ut_a(!srv_read_only_mode);
 
   dict_stats_event = os_event_create(0);
-  dict_stats_shutdown_event = os_event_create(0);
 
   ut_d(dict_stats_disabled_event = os_event_create(0));
 
@@ -241,7 +237,7 @@ void dict_stats_thread_init() {
  after dict_stats_thread() has exited. */
 void dict_stats_thread_deinit() {
   ut_a(!srv_read_only_mode);
-  ut_ad(!srv_threads.m_dict_stats_thread_active);
+  ut_ad(!srv_thread_is_active(srv_threads.m_dict_stats));
 
   if (recalc_pool == NULL) {
     return;
@@ -257,9 +253,7 @@ void dict_stats_thread_deinit() {
 #endif /* UNIV_DEBUG */
 
   os_event_destroy(dict_stats_event);
-  os_event_destroy(dict_stats_shutdown_event);
   dict_stats_event = NULL;
-  dict_stats_shutdown_event = NULL;
   dict_stats_start_shutdown = false;
 }
 
@@ -366,8 +360,6 @@ void dict_stats_disabled_debug_update(THD *thd, SYS_VAR *var, void *var_ptr,
 the auto recalc list and proceeds them, eventually recalculating their
 statistics. */
 void dict_stats_thread() {
-  my_thread_init();
-
   ut_a(!srv_read_only_mode);
   THD *thd = create_thd(false, true, true, 0);
 
@@ -398,18 +390,13 @@ void dict_stats_thread() {
     os_event_reset(dict_stats_event);
   }
 
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_dict_stats_thread_active = false;
-
-  os_event_set(dict_stats_shutdown_event);
-
   destroy_thd(thd);
-  my_thread_end();
 }
 
 /** Shutdown the dict stats thread. */
 void dict_stats_shutdown() {
   dict_stats_start_shutdown = true;
   os_event_set(dict_stats_event);
-  os_event_wait(dict_stats_shutdown_event);
+
+  srv_threads.m_dict_stats.wait();
 }

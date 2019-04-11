@@ -1737,6 +1737,8 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
       log_increase_concurrency_margin(log);
     }
 
+    os_event_set(log.checkpointer_event);
+
     if (last_write_lsn + OS_FILE_LOG_BLOCK_SIZE <= checkpoint_limited_lsn) {
       /* Write what we have - adjust the speed to speed of checkpoints
       going forward (to speed of page-cleaners). */
@@ -1934,7 +1936,6 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
 void log_writer(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->writer_thread_alive.load());
 
   log_t &log = *log_ptr;
   lsn_t ready_lsn = 0;
@@ -2011,11 +2012,6 @@ void log_writer(log_t *log_ptr) {
       }
     }
   }
-
-  log.writer_thread_alive.store(false);
-
-  os_event_set(log.write_notifier_event);
-  os_event_set(log.flusher_event);
 
   log_writer_mutex_exit(log);
 }
@@ -2180,7 +2176,6 @@ static void log_flush_low(log_t &log) {
 
 void log_flusher(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->flusher_thread_alive.load());
 
   log_t &log = *log_ptr;
 
@@ -2189,7 +2184,16 @@ void log_flusher(log_t *log_ptr) {
 
   log_flusher_mutex_enter(log);
 
-  for (uint64_t step = 0; log.writer_thread_alive.load(); ++step) {
+  for (uint64_t step = 0;; ++step) {
+    if (log.should_stop_threads.load()) {
+      if (!log_writer_is_active()) {
+        /* If write_lsn > flushed_to_disk_lsn, we are going to execute
+        one more fsync just after the for-loop and before this thread
+        exits (inside log_flush_low at the very end of function def.). */
+        break;
+      }
+    }
+
     bool released = false;
 
     auto stop_condition = [&log, &released, step](bool wait) {
@@ -2220,8 +2224,10 @@ void log_flusher(log_t *log_ptr) {
       }
 
       /* Stop waiting if writer thread is dead. */
-      if (!log.writer_thread_alive.load()) {
-        return (true);
+      if (log.should_stop_threads.load()) {
+        if (!log_writer_is_active()) {
+          return (true);
+        }
       }
 
       if (wait) {
@@ -2261,12 +2267,9 @@ void log_flusher(log_t *log_ptr) {
       if (time_elapsed_us < flush_every_us) {
         log_flusher_mutex_exit(log);
 
-        if (log.writer_thread_alive.load()) {
-          /* If log.writer_thread_alive became false just now, we would
-          have the flusher_event set, because: the only place where we
-          can reset is just before fsync and after writer_thread_alive
-          is set to false, the flusher_event is set. */
-
+        /* When we are asked to stop threads, do not respect the limit
+        for flushes per second. */
+        if (!log.should_stop_threads.load()) {
           os_event_wait_time_low(log.flusher_event,
                                  flush_every_us - time_elapsed_us, 0);
         }
@@ -2284,9 +2287,7 @@ void log_flusher(log_t *log_ptr) {
     log_flush_low(log);
   }
 
-  log.flusher_thread_alive.store(false);
-
-  os_event_set(log.flush_notifier_event);
+  ut_a(log.write_lsn.load() == log.flushed_to_disk_lsn.load());
 
   log_flusher_mutex_exit(log);
 }
@@ -2303,7 +2304,6 @@ void log_flusher(log_t *log_ptr) {
 
 void log_write_notifier(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->write_notifier_thread_alive.load());
 
   log_t &log = *log_ptr;
   lsn_t lsn = log.write_lsn.load() + 1;
@@ -2315,10 +2315,12 @@ void log_write_notifier(log_t *log_ptr) {
                              srv_log_write_notifier_timeout};
 
   for (uint64_t step = 0;; ++step) {
-    if (!log.writer_thread_alive.load()) {
-      if (lsn > log.write_lsn.load()) {
-        ut_a(lsn == log.write_lsn.load() + 1);
-        break;
+    if (log.should_stop_threads.load()) {
+      if (!log_writer_is_active()) {
+        if (lsn > log.write_lsn.load()) {
+          ut_a(lsn == log.write_lsn.load() + 1);
+          break;
+        }
       }
     }
 
@@ -2335,8 +2337,14 @@ void log_write_notifier(log_t *log_ptr) {
 
       LOG_SYNC_POINT("log_write_notifier_before_check");
 
-      if (log.write_lsn.load() >= lsn || !log.writer_thread_alive.load()) {
+      if (log.write_lsn.load() >= lsn) {
         return (true);
+      }
+
+      if (log.should_stop_threads.load()) {
+        if (!log_writer_is_active()) {
+          return (true);
+        }
       }
 
       if (wait) {
@@ -2381,8 +2389,6 @@ void log_write_notifier(log_t *log_ptr) {
     }
   }
 
-  log.write_notifier_thread_alive.store(false);
-
   log_write_notifier_mutex_exit(log);
 }
 
@@ -2398,7 +2404,6 @@ void log_write_notifier(log_t *log_ptr) {
 
 void log_flush_notifier(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->flush_notifier_thread_alive.load());
 
   log_t &log = *log_ptr;
   lsn_t lsn = log.flushed_to_disk_lsn.load() + 1;
@@ -2410,10 +2415,12 @@ void log_flush_notifier(log_t *log_ptr) {
                              srv_log_flush_notifier_timeout};
 
   for (uint64_t step = 0;; ++step) {
-    if (!log.flusher_thread_alive.load()) {
-      if (lsn > log.flushed_to_disk_lsn.load()) {
-        ut_a(lsn == log.flushed_to_disk_lsn.load() + 1);
-        break;
+    if (log.should_stop_threads.load()) {
+      if (!log_flusher_is_active()) {
+        if (lsn > log.flushed_to_disk_lsn.load()) {
+          ut_a(lsn == log.flushed_to_disk_lsn.load() + 1);
+          break;
+        }
       }
     }
 
@@ -2430,9 +2437,14 @@ void log_flush_notifier(log_t *log_ptr) {
 
       LOG_SYNC_POINT("log_flush_notifier_before_check");
 
-      if (log.flushed_to_disk_lsn.load() >= lsn ||
-          !log.flusher_thread_alive.load()) {
+      if (log.flushed_to_disk_lsn.load() >= lsn) {
         return (true);
+      }
+
+      if (log.should_stop_threads.load()) {
+        if (!log_flusher_is_active()) {
+          return (true);
+        }
       }
 
       if (wait) {
@@ -2477,8 +2489,6 @@ void log_flush_notifier(log_t *log_ptr) {
     }
   }
 
-  log.flush_notifier_thread_alive.store(false);
-
   log_flush_notifier_mutex_exit(log);
 }
 
@@ -2494,7 +2504,6 @@ void log_flush_notifier(log_t *log_ptr) {
 
 void log_closer(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->closer_thread_alive.load());
 
   log_t &log = *log_ptr;
   lsn_t end_lsn = 0;
@@ -2539,51 +2548,48 @@ void log_closer(log_t *log_ptr) {
     waiting.wait(stop_condition);
 
     /* Check if we should close the thread. */
-    if (log.should_stop_threads.load() && !log.flusher_thread_alive.load() &&
-        !log.writer_thread_alive.load()) {
-      end_lsn = log.write_lsn.load();
+    if (log.should_stop_threads.load()) {
+      if (!log_flusher_is_active() && !log_writer_is_active()) {
+        end_lsn = log.write_lsn.load();
 
-      ut_a(log_lsn_validate(end_lsn));
-      ut_a(end_lsn == log.flushed_to_disk_lsn.load());
-      ut_a(end_lsn == log_buffer_ready_for_write_lsn(log));
+        ut_a(log_lsn_validate(end_lsn));
+        ut_a(end_lsn == log.flushed_to_disk_lsn.load());
+        ut_a(end_lsn == log_buffer_ready_for_write_lsn(log));
 
-      ut_a(end_lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
+        ut_a(end_lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
 
-      if (log_buffer_dirty_pages_added_up_to_lsn(log) == end_lsn) {
-        /* All confirmed reservations have been written
-        to redo and all dirty pages related to those
-        writes have been added to flush lists.
+        if (log_buffer_dirty_pages_added_up_to_lsn(log) == end_lsn) {
+          /* All confirmed reservations have been written
+          to redo and all dirty pages related to those
+          writes have been added to flush lists.
 
-        However, there could be user threads, which are
-        in the middle of log_buffer_reserve(), reserved
-        range of sn values, but could not confirm.
+          However, there could be user threads, which are
+          in the middle of log_buffer_reserve(), reserved
+          range of sn values, but could not confirm.
 
-        Note that because log_writer is already not alive,
-        the only possible reason guaranteed by its death,
-        is that there is x-lock at end_lsn, in which case
-        end_lsn separates two regions in log buffer:
-        completely full and completely empty. */
-        const lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
+          Note that because log_writer is already not alive,
+          the only possible reason guaranteed by its death,
+          is that there is x-lock at end_lsn, in which case
+          end_lsn separates two regions in log buffer:
+          completely full and completely empty. */
+          const lsn_t ready_lsn = log_buffer_ready_for_write_lsn(log);
 
-        const lsn_t current_lsn = log_get_lsn(log);
+          const lsn_t current_lsn = log_get_lsn(log);
 
-        if (current_lsn > ready_lsn) {
-          log.recent_written.validate_no_links(ready_lsn, current_lsn);
+          if (current_lsn > ready_lsn) {
+            log.recent_written.validate_no_links(ready_lsn, current_lsn);
 
-          log.recent_closed.validate_no_links(ready_lsn, current_lsn);
+            log.recent_closed.validate_no_links(ready_lsn, current_lsn);
+          }
+
+          break;
         }
-
-        break;
+        /* We need to wait until remaining dirty pages
+        have been added. */
       }
-
-      /* We need to wait until remaining dirty pages
-      have been added. */
+      /* We prefer to wait until all writing is done. */
     }
   }
-
-  log.closer_thread_alive.store(false);
-
-  os_event_set(log.checkpointer_event);
 
   log_closer_mutex_exit(log);
 }
@@ -2726,7 +2732,7 @@ bool log_rotate_encryption() {
 void redo_rotate_default_master_key() {
   fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 

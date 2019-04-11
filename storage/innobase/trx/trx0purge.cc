@@ -1294,8 +1294,8 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
 
   /* Don't do the actual truncate if we are doing a fast shutdown.
   The fixup routines will do it at startup. */
-  bool in_fast_shutdown =
-      (srv_shutdown_state != SRV_SHUTDOWN_NONE && srv_fast_shutdown != 0);
+  bool in_fast_shutdown = (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+                           srv_fast_shutdown != 0);
 #ifdef UNIV_DEBUG
   static int fast_shutdown_fail_count;
   DBUG_EXECUTE_IF(
@@ -1568,7 +1568,8 @@ static void trx_purge_truncate_history(
     if (!trx_purge_check_if_marked_undo_is_empty(limit)) {
       /* During slow shutdown, keep checking until
       it is empty. */
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE && srv_fast_shutdown == 0) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
+          srv_fast_shutdown == 0) {
         continue;
       }
 

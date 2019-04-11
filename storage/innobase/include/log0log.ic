@@ -336,4 +336,28 @@ inline bool log_write_to_file_requests_are_frequent(const log_t &log) {
       log.write_to_file_requests_interval.load(std::memory_order_relaxed)));
 }
 
+inline bool log_writer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_writer));
+}
+
+inline bool log_write_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_write_notifier));
+}
+
+inline bool log_flusher_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flusher));
+}
+
+inline bool log_flush_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flush_notifier));
+}
+
+inline bool log_closer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_closer));
+}
+
+inline bool log_checkpointer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_checkpointer));
+}
+
 #endif /* !UNIV_HOTBACKUP */

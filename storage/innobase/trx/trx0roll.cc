@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,9 +59,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** This many pages must be undone before a truncate is tried within
 rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
-
-/** true if trx_rollback_or_clean_all_recovered() thread is active */
-bool trx_rollback_or_clean_is_active;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t *trx_roll_crash_recv_trx = NULL;
@@ -737,17 +734,11 @@ void trx_recovery_rollback_thread() {
   THD *thd = create_thd(false, true, true, 0);
 #endif /* UNIV_PFS_THREAD */
 
-  my_thread_init();
-
   ut_ad(!srv_read_only_mode);
 
   trx_rollback_or_clean_recovered(TRUE);
 
-  trx_rollback_or_clean_is_active = false;
-
   destroy_thd(thd);
-
-  my_thread_end();
 }
 
 /** Tries truncate the undo logs. */

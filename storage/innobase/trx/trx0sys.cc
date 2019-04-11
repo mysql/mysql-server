@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -449,7 +449,7 @@ void trx_sys_print_mysql_binlog_offset_from_page(
 /*********************************************************************
 Shutdown/Close the transaction system. */
 void trx_sys_close(void) {
-  ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+  ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
   if (trx_sys == NULL) {
     return;

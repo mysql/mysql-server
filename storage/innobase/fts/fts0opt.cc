@@ -65,9 +65,6 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
-/** Event to wait for shutdown of the optimize thread */
-static os_event_t fts_opt_shutdown_event = NULL;
-
 /** Initial size of nodes in fts_word_t. */
 static const ulint FTS_WORD_NODES_INIT_SIZE = 64;
 
@@ -2804,7 +2801,6 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
   ulint n_tables = 0;
   ulint n_optimize = 0;
 
-  my_thread_init();
   ut_ad(!srv_read_only_mode);
 
   THD *thd = create_thd(false, true, true, 0);
@@ -2928,10 +2924,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
 
   ib::info(ER_IB_MSG_505) << "FTS optimize thread exiting.";
 
-  os_event_set(fts_opt_shutdown_event);
-
   destroy_thd(thd);
-  my_thread_end();
 }
 
 /** Startup the optimize thread and create the work queue. */
@@ -2942,12 +2935,13 @@ void fts_optimize_init(void) {
   ut_a(fts_optimize_wq == NULL);
 
   fts_optimize_wq = ib_wqueue_create();
-  fts_opt_shutdown_event = os_event_create(0);
   ut_a(fts_optimize_wq != NULL);
   last_check_sync_time = ut_time_monotonic();
 
-  os_thread_create(fts_optimize_thread_key, fts_optimize_thread,
-                   fts_optimize_wq);
+  srv_threads.m_fts_optimize = os_thread_create(
+      fts_optimize_thread_key, fts_optimize_thread, fts_optimize_wq);
+
+  srv_threads.m_fts_optimize.start();
 }
 
 /** Shutdown fts optimize thread. */
@@ -2974,9 +2968,7 @@ void fts_optimize_shutdown() {
 
   ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
-  os_event_wait(fts_opt_shutdown_event);
-
-  os_event_destroy(fts_opt_shutdown_event);
+  srv_threads.m_fts_optimize.wait();
 
   ib_wqueue_free(fts_optimize_wq);
   fts_optimize_wq = NULL;

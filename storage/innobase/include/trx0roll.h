@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -42,8 +42,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef UNIV_HOTBACKUP
 #include "que0que.h"
 #endif /* UNIV_HOTBACKUP */
-
-extern bool trx_rollback_or_clean_is_active;
 
 /** Determines if this transaction is rolling back an incomplete transaction
  in crash recovery.

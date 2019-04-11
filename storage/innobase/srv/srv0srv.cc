@@ -1055,12 +1055,28 @@ static void srv_init(void) {
 
   mutex_create(LATCH_ID_SRV_INNODB_MONITOR, &srv_innodb_monitor_mutex);
 
+  ut_d(srv_threads.shutdown_cleanup_dbg = os_event_create(nullptr));
+
+  srv_threads.m_purge_coordinator = {};
+
+  srv_threads.m_purge_workers_n = srv_n_purge_threads;
+
+  srv_threads.m_purge_workers =
+      UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_purge_workers_n);
+
   if (!srv_read_only_mode) {
     /* Number of purge threads + master thread */
     n_sys_threads = srv_n_purge_threads + 1;
 
     srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
   }
+
+  srv_threads.m_page_cleaner_coordinator = {};
+
+  srv_threads.m_page_cleaner_workers_n = srv_n_page_cleaners;
+
+  srv_threads.m_page_cleaner_workers =
+      UT_NEW_ARRAY_NOKEY(IB_thread, srv_threads.m_page_cleaner_workers_n);
 
   srv_sys = static_cast<srv_sys_t *>(ut_zalloc_nokey(srv_sys_sz));
 
@@ -1155,6 +1171,26 @@ void srv_free(void) {
   ut_free(srv_sys);
 
   srv_sys = 0;
+
+  if (srv_threads.m_page_cleaner_workers != nullptr) {
+    for (size_t i = 0; i < srv_threads.m_page_cleaner_workers_n; ++i) {
+      srv_threads.m_page_cleaner_workers[i] = {};
+    }
+    ut_free(srv_threads.m_page_cleaner_workers);
+    srv_threads.m_page_cleaner_workers = nullptr;
+  }
+
+  if (srv_threads.m_purge_workers != nullptr) {
+    for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
+      srv_threads.m_purge_workers[i] = {};
+    }
+    ut_free(srv_threads.m_purge_workers);
+    srv_threads.m_purge_workers = nullptr;
+  }
+
+  ut_d(os_event_destroy(srv_threads.shutdown_cleanup_dbg));
+
+  srv_threads = {};
 }
 
 /** Initializes the synchronization primitives, memory system, and the thread
@@ -1654,19 +1690,9 @@ loop:
     }
   }
 
-  if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
-    goto exit_func;
-  }
-
-  if (srv_print_innodb_monitor || srv_print_innodb_lock_monitor) {
+  if (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     goto loop;
   }
-
-  goto loop;
-
-exit_func:
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_monitor_thread_active = false;
 }
 
 /** A thread which prints warnings about semaphore waits which have lasted
@@ -1739,80 +1765,23 @@ loop:
 
   os_event_wait_time_low(srv_error_event, 1000000, sig_count);
 
-  if (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP) {
+  if (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     goto loop;
   }
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_error_monitor_thread_active = false;
 }
 
 /** Increment the server activity count. */
 void srv_inc_activity_count(void) { srv_sys->activity_count.inc(); }
-
-/** Check whether any background thread (except the master thread) is active.
-Send the threads wakeup signal.
-
-NOTE: this check is part of the final shutdown, when the first phase of
-shutdown has already been completed.
-@see srv_pre_dd_shutdown()
-@return name of thread that is active
-@retval NULL if no thread is active */
-const char *srv_any_background_threads_are_active() {
-  const char *thread_active = NULL;
-
-  ut_ad(!srv_threads.m_ts_alter_encrypt_thread_active);
-  ut_ad(!srv_threads.m_dict_stats_thread_active);
-
-  if (srv_read_only_mode) {
-    if (srv_threads.m_buf_resize_thread_active) {
-      thread_active = "buf_resize_thread";
-    }
-    os_event_set(srv_buf_resize_event);
-    return (thread_active);
-  } else if (srv_threads.m_error_monitor_thread_active) {
-    thread_active = "srv_error_monitor_thread";
-  } else if (srv_threads.m_timeout_thread_active) {
-    thread_active = "srv_lock_timeout thread";
-  } else if (srv_threads.m_monitor_thread_active) {
-    thread_active = "srv_monitor_thread";
-  } else if (srv_threads.m_buf_dump_thread_active) {
-    thread_active = "buf_dump_thread";
-  } else if (srv_threads.m_buf_resize_thread_active) {
-    thread_active = "buf_resize_thread";
-  }
-
-  os_event_set(srv_error_event);
-  os_event_set(srv_monitor_event);
-  os_event_set(srv_buf_dump_event);
-  os_event_set(lock_sys->timeout_event);
-  os_event_set(srv_buf_resize_event);
-
-  return (thread_active);
-}
 
 /** Check whether the master thread is active.
 This is polled during the final phase of shutdown.
 The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
-@see srv_any_background_threads_are_active()
 @retval true	if any thread is active
 @retval false	if no thread is active */
-bool srv_master_thread_active() {
-  if (srv_read_only_mode) {
-    return (false);
-  }
-
-  ut_a(!srv_threads.m_dict_stats_thread_active);
-  ut_a(!srv_threads.m_ts_alter_encrypt_thread_active);
-  srv_sys_mutex_enter();
-  ut_a(srv_sys->n_threads_active[SRV_WORKER] == 0);
-  ut_a(srv_sys->n_threads_active[SRV_PURGE] == 0);
-  bool active = srv_sys->n_threads_active[SRV_MASTER] != 0;
-  srv_sys_mutex_exit();
-
-  return (active);
+bool srv_master_thread_is_active() {
+  return (srv_thread_is_active(srv_threads.m_master));
 }
 
 /** Tells the InnoDB server that there has been activity in the database
@@ -1949,7 +1918,7 @@ static void srv_master_do_disabled_loop(void) {
 
   while (srv_master_thread_disabled_debug) {
     os_event_set(srv_master_thread_disabled_event);
-    if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       break;
     }
     os_thread_sleep(100000);
@@ -2225,7 +2194,7 @@ static void srv_master_do_active_tasks(void) {
 
   ut_d(srv_master_do_disabled_loop());
 
-  if (srv_shutdown_state > 0) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2239,7 +2208,7 @@ static void srv_master_do_active_tasks(void) {
   /* Now see if various tasks that are performed at defined
   intervals need to be performed. */
 
-  if (srv_shutdown_state > 0) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2281,7 +2250,7 @@ static void srv_master_do_idle_tasks(void) {
 
   ut_d(srv_master_do_disabled_loop());
 
-  if (srv_shutdown_state > 0) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2292,7 +2261,7 @@ static void srv_master_do_idle_tasks(void) {
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_IBUF_MERGE_MICROSECOND,
                                  counter_time);
 
-  if (srv_shutdown_state > 0) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2325,7 +2294,7 @@ static ibool srv_master_do_shutdown_tasks(
 
   ++srv_main_shutdown_loops;
 
-  ut_a(srv_shutdown_state > 0);
+  ut_a(srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
 
   /* In very fast shutdown none of the following is necessary */
   if (srv_fast_shutdown == 2) {
@@ -2349,10 +2318,8 @@ static ibool srv_master_do_shutdown_tasks(
 
 func_exit:
   /* Print progress message every 60 seconds during shutdown */
-  if (srv_shutdown_state > 0) {
-    srv_shutdown_print_master_pending(last_print_time, n_tables_to_drop,
-                                      n_bytes_merged);
-  }
+  srv_shutdown_print_master_pending(last_print_time, n_tables_to_drop,
+                                    n_bytes_merged);
 
   return (n_bytes_merged || n_tables_to_drop);
 }
@@ -2360,7 +2327,7 @@ func_exit:
 void undo_rotate_default_master_key() {
   fil_space_t *space;
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
     return;
   }
 
@@ -2547,8 +2514,6 @@ void srv_master_thread() {
   srv_slot_t *slot;
   ulint old_activity_count = srv_get_activity_count();
 
-  my_thread_init();
-
   THD *thd = create_thd(false, true, true, 0);
 
   ut_ad(!srv_read_only_mode);
@@ -2565,7 +2530,7 @@ loop:
     goto suspend_thread;
   }
 
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     srv_master_sleep();
 
     MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
@@ -2619,7 +2584,10 @@ loop:
     }
   }
 
-  while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS &&
+  /* This is just for test scenarios. */
+  srv_thread_delay_cleanup_if_needed(true);
+
+  while (srv_shutdown_state.load() != SRV_SHUTDOWN_MASTER_STOP &&
          srv_master_do_shutdown_tasks(&last_print_time)) {
     /* Shouldn't loop here in case of very fast shutdown */
     ut_ad(srv_fast_shutdown < 2);
@@ -2638,16 +2606,12 @@ suspend_thread:
 
   os_event_wait(slot->event);
 
-  if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+  if (srv_shutdown_state.load() != SRV_SHUTDOWN_MASTER_STOP) {
     goto loop;
   }
 
   srv_main_thread_op_info = "exiting";
   destroy_thd(thd);
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_master_thread_active = false;
 }
 
 /**
@@ -2656,18 +2620,21 @@ Check if purge should stop.
 static bool srv_purge_should_exit(
     ulint n_purged) /*!< in: pages purged in last batch */
 {
-  switch (srv_shutdown_state) {
+  switch (srv_shutdown_state.load()) {
     case SRV_SHUTDOWN_NONE:
       /* Normal operation. */
       break;
 
     case SRV_SHUTDOWN_CLEANUP:
-    case SRV_SHUTDOWN_EXIT_THREADS:
       /* Exit unless slow shutdown requested or all done. */
       return (srv_fast_shutdown != 0 || n_purged == 0);
 
+    case SRV_SHUTDOWN_EXIT_THREADS:
+      return (true);
+
     case SRV_SHUTDOWN_LAST_PHASE:
     case SRV_SHUTDOWN_FLUSH_PHASE:
+    case SRV_SHUTDOWN_MASTER_STOP:
       ut_error;
   }
 
@@ -2706,8 +2673,6 @@ static bool srv_task_execute(void) {
 /** Worker thread that reads tasks from the work queue and executes them. */
 void srv_worker_thread() {
   srv_slot_t *slot;
-
-  my_thread_init();
 
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
@@ -2753,19 +2718,16 @@ void srv_worker_thread() {
 
   ut_a(!purge_sys->running);
   ut_a(purge_sys->state == PURGE_STATE_EXIT);
-  ut_a(srv_shutdown_state > SRV_SHUTDOWN_NONE);
+  ut_a(srv_shutdown_state.load() != SRV_SHUTDOWN_NONE);
 
   rw_lock_x_unlock(&purge_sys->latch);
 
   destroy_thd(thd);
-
-  my_thread_end();
 }
 
 /** Do the actual purge operation.
  @return length of history list before the last purge batch. */
 static ulint srv_do_purge(
-    ulint n_threads,       /*!< in: number of threads to use */
     ulint *n_total_purged) /*!< in/out: total pages purged */
 {
   ulint n_pages_purged;
@@ -2774,6 +2736,8 @@ static ulint srv_do_purge(
   static ulint n_use_threads = 0;
   static ulint rseg_history_len = 0;
   ulint old_activity_count = srv_get_activity_count();
+
+  const auto n_threads = srv_threads.m_purge_workers_n;
 
   ut_a(n_threads > 0);
   ut_ad(!srv_read_only_mode);
@@ -2893,14 +2857,14 @@ static void srv_purge_coordinator_suspend(
 
     rw_lock_x_lock(&purge_sys->latch);
 
-    stop = (srv_shutdown_state == SRV_SHUTDOWN_NONE &&
+    stop = (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
             purge_sys->state == PURGE_STATE_STOP);
 
     if (!stop) {
       bool check = true;
       DBUG_EXECUTE_IF(
           "skip_purge_check_shutdown",
-          if (srv_shutdown_state != SRV_SHUTDOWN_NONE &&
+          if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE &&
               purge_sys->state == PURGE_STATE_STOP &&
               srv_fast_shutdown != 0) { check = false; };);
 
@@ -2955,8 +2919,6 @@ void srv_purge_coordinator_thread() {
 
   ulint n_total_purged = ULINT_UNDEFINED;
 
-  my_thread_init();
-
   ut_ad(!srv_read_only_mode);
   ut_a(srv_n_purge_threads >= 1);
   ut_a(trx_purge_state() == PURGE_STATE_INIT);
@@ -2977,7 +2939,7 @@ void srv_purge_coordinator_thread() {
     /* If there are no records to purge or the last
     purge didn't purge any records then wait for activity. */
 
-    if (srv_shutdown_state == SRV_SHUTDOWN_NONE &&
+    if (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE &&
         (purge_sys->state == PURGE_STATE_STOP || n_total_purged == 0)) {
       srv_purge_coordinator_suspend(slot, rseg_history_len);
     }
@@ -2989,9 +2951,17 @@ void srv_purge_coordinator_thread() {
 
     n_total_purged = 0;
 
-    rseg_history_len = srv_do_purge(srv_n_purge_threads, &n_total_purged);
+    rseg_history_len = srv_do_purge(&n_total_purged);
 
   } while (!srv_purge_should_exit(n_total_purged));
+
+  /* This is just for test scenarios. Do not pass thd here,
+  because it would lead to wait on event then, and we would
+  never exit the srv_pre_dd_shutdown() which waits for this
+  thread to exit. That's because the signal for which we
+  would wait is signalled in srv_shutdown which happens
+  after the srv_pre_dd_shutdown is ended. */
+  srv_thread_delay_cleanup_if_needed(false);
 
   /* Ensure that we don't jump out of the loop unless the
   exit condition is satisfied. */
@@ -3046,9 +3016,11 @@ void srv_purge_coordinator_thread() {
     srv_release_threads(SRV_WORKER, srv_n_purge_threads - 1);
   }
 
-  destroy_thd(thd);
+  /* This is just for test scenarios. Do not pass thd here.
+  For explanation look at comment for similar usage above. */
+  srv_thread_delay_cleanup_if_needed(false);
 
-  my_thread_end();
+  destroy_thd(thd);
 }
 
 /** Enqueues a task to server task queue and releases a worker thread, if there
@@ -3088,8 +3060,9 @@ void srv_purge_wakeup(void) {
   if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
     srv_release_threads(SRV_PURGE, 1);
 
-    if (srv_n_purge_threads > 1) {
-      ulint n_workers = srv_n_purge_threads - 1;
+    if (srv_threads.m_purge_workers_n > 1) {
+      /* SRV_PURGE is not counted here. */
+      ulint n_workers = srv_threads.m_purge_workers_n - 1;
 
       srv_release_threads(SRV_WORKER, n_workers);
     }
@@ -3099,23 +3072,29 @@ void srv_purge_wakeup(void) {
 /** Check if the purge threads are active, both coordinator and worker threads
 @return true if any thread is active, false if no thread is active */
 bool srv_purge_threads_active() {
-  for (uint i = 0; i < srv_sys->n_sys_threads; ++i) {
-    srv_slot_t *slot;
+  if (srv_threads.m_purge_workers == nullptr) {
+#ifdef UNIV_DEBUG
+    ut_a(srv_read_only_mode);
+#endif /* UNIV_DEBUG */
+    ut_ad(!srv_thread_is_active(srv_threads.m_purge_coordinator));
+    return (false);
+  }
 
-    slot = &srv_sys->sys_threads[i];
+  ut_ad(!srv_read_only_mode);
 
-    /* The slots for purge could be never used due to no purge
-    threads having been created, so check the flag first. */
-    if (slot->in_use) {
-      srv_thread_type type = srv_slot_get_type(slot);
-
-      if (type == SRV_WORKER || type == SRV_PURGE) {
-        return (true);
-      }
+  for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
+    if (srv_thread_is_active(srv_threads.m_purge_workers[i])) {
+      return (true);
     }
   }
 
+  ut_ad(!srv_thread_is_active(srv_threads.m_purge_coordinator));
+
   return (false);
+}
+
+bool srv_thread_is_active(const IB_thread &thread) {
+  return (thread_is_active(thread));
 }
 
 #endif /* !UNIV_HOTBACKUP */

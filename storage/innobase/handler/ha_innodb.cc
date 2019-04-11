@@ -3699,9 +3699,11 @@ static void innobase_post_recover() {
 
   /* Resume unfinished (un)encryption process in background thread. */
   if (!ts_encrypt_ddl_records.empty()) {
-    srv_threads.m_ts_alter_encrypt_thread_active = true;
-    os_thread_create(srv_ts_alter_encrypt_thread_key,
-                     fsp_init_resume_alter_encrypt_tablespace);
+    srv_threads.m_ts_alter_encrypt =
+        os_thread_create(srv_ts_alter_encrypt_thread_key,
+                         fsp_init_resume_alter_encrypt_tablespace);
+
+    srv_threads.m_ts_alter_encrypt.start();
 
     /* Wait till shared MDL is taken by background thread for all tablespaces,
     for which (un)encryption is to be rolled forward. */

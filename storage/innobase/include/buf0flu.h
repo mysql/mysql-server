@@ -39,8 +39,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0byte.h"
 
 #ifndef UNIV_HOTBACKUP
-/** Flag indicating if the page_cleaner is in active state. */
-extern bool buf_page_cleaner_is_active;
+/** Checks if the page_cleaner is in active state. */
+bool buf_flush_page_cleaner_is_active();
 
 #ifdef UNIV_DEBUG
 

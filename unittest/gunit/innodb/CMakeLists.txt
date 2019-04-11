@@ -33,6 +33,7 @@ SET(TESTS
   ha_innodb
   log0log
   mem0mem
+  os0thread-create
   ut0crc32
   ut0lock_free_hash
   ut0mem

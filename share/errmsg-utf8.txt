@@ -17864,7 +17864,7 @@ ER_IB_MSG_1151
   eng "%s started; log sequence number %llu"
 
 ER_IB_MSG_1152
-  eng "%s"
+  eng "Waiting for purge to complete"
 
 ER_IB_MSG_1153
   eng "Waiting for dict_stats_thread to exit"
@@ -18146,28 +18146,28 @@ ER_IB_MSG_1245
   eng "Redo log encryption is enabled."
 
 ER_IB_MSG_1246
-  eng "%s"
+  eng "Waiting for archiver to finish archiving page and log"
 
 ER_IB_MSG_1247
-  eng "%s"
+  eng "Starting shutdown..."
 
 ER_IB_MSG_1248
-  eng "%s"
+  eng "Waiting for %s to exit."
 
 ER_IB_MSG_1249
-  eng "%s"
+  eng "Waiting for %lu active transactions to finish"
 
 ER_IB_MSG_1250
-  eng "%s"
+  eng "Waiting for master thread to be suspended."
 
 ER_IB_MSG_1251
-  eng "%s"
+  eng "Waiting for page_cleaner to finish flushing of buffer pool."
 
 ER_IB_MSG_1252
-  eng "%s"
+  eng "Waiting for %lu buffer page I/Os to complete."
 
 ER_IB_MSG_1253
-  eng "%s"
+  eng "MySQL has requested a very fast shutdown without flushing the InnoDB buffer pool to data files. At the next mysqld startup InnoDB will do a crash recovery!"
 
 OBSOLETE_ER_IB_MSG_1254
   eng "%s"

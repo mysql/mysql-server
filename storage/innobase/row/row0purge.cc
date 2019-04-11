@@ -862,7 +862,7 @@ try_again:
   /* Cannot call dd_table_open_on_id() before server is fully up */
   if (!srv_upgrade_old_undo_found && !dict_table_is_system(table_id)) {
     while (!mysqld_server_started) {
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -965,7 +965,7 @@ try_again:
           dd_table_close(node->parent, thd & node->parent_mdl, false);
         }
       }
-      if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+      if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
         return (false);
       }
       os_thread_sleep(1000000);
@@ -1145,7 +1145,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
   DBUG_EXECUTE_IF(
       "do_not_meta_lock_in_background",
-      while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+      while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
         os_thread_sleep(500000);
       } return;);
 
@@ -1154,7 +1154,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
 
     purged = row_purge_record(node, undo_rec, thr, updated_extern, thd);
 
-    if (purged || srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+    if (purged || srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       return;
     }
 

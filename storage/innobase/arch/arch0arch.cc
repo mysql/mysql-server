@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -41,8 +41,20 @@ Arch_Page_Sys *arch_page_sys = nullptr;
 /** Event to signal the log archiver thread. */
 os_event_t log_archiver_thread_event;
 
-/** Global to indicate if the log archiver task is active */
-bool log_archiver_is_active = false;
+/** Wakes up archiver threads.
+@return true iff any thread was still alive */
+bool arch_wake_threads() {
+  bool found_alive = false;
+  if (srv_thread_is_active(srv_threads.m_log_archiver)) {
+    os_event_set(log_archiver_thread_event);
+    found_alive = true;
+  }
+  if (srv_thread_is_active(srv_threads.m_page_archiver)) {
+    os_event_set(page_archiver_thread_event);
+    found_alive = true;
+  }
+  return (found_alive);
+}
 
 void arch_remove_file(const char *file_path, const char *file_name) {
   char path[MAX_ARCH_PAGE_FILE_NAME_LEN];
@@ -489,9 +501,11 @@ int start_log_archiver_background() {
   ret = os_file_create_directory(ARCH_DIR, false);
 
   if (ret) {
-    log_archiver_is_active = true;
+    srv_threads.m_log_archiver =
+        os_thread_create(log_archiver_thread_key, log_archiver_thread);
 
-    os_thread_create(log_archiver_thread_key, log_archiver_thread);
+    srv_threads.m_log_archiver.start();
+
   } else {
     my_error(ER_CANT_CREATE_FILE, MYF(0), ARCH_DIR, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
@@ -509,9 +523,11 @@ int start_page_archiver_background() {
   ret = os_file_create_directory(ARCH_DIR, false);
 
   if (ret) {
-    page_archiver_is_active = true;
+    srv_threads.m_page_archiver =
+        os_thread_create(page_archiver_thread_key, page_archiver_thread);
 
-    os_thread_create(page_archiver_thread_key, page_archiver_thread);
+    srv_threads.m_page_archiver.start();
+
   } else {
     my_error(ER_CANT_CREATE_FILE, MYF(0), ARCH_DIR, errno,
              my_strerror(errbuf, sizeof(errbuf), errno));
@@ -549,6 +565,4 @@ void log_archiver_thread() {
       os_event_reset(log_archiver_thread_event);
     }
   }
-
-  log_archiver_is_active = false;
 }
