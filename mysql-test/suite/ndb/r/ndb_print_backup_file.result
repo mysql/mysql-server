@@ -144,6 +144,18 @@ ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.2
 34173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_basic_backup/BACKUP-1.2.log
 173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1-0.1.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1-0.2.Data
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.1.ctl
+35918 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.1.log
+173 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.2.ctl
+35918 bytes in output
+ndb_print_backup_file suite/ndb/backups/metadata_upgrade_disk_data_backup/BACKUP-1.2.log
+173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.1.Data
 173 bytes in output
 ndb_print_backup_file suite/ndb/backups/metadata_upgrade_fk_backup/BACKUP-1-0.2.Data
