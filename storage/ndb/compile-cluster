@@ -57,6 +57,7 @@ my $opt_vanilla;
 my $opt_autotest;
 my $opt_valgrind;
 my $opt_distcheck;
+my $opt_quick = 1;
 Getopt::Long::Configure("pass_through");
 GetOptions(
 
@@ -72,6 +73,7 @@ GetOptions(
   'valgrind' => \$opt_valgrind,
   'distcheck' => \$opt_distcheck,
   'embedded' => sub { $opt_embedded = 1; },
+  'quick=s' => \$opt_quick
 
 ) or exit(1);
 
@@ -162,6 +164,18 @@ if(! -d "$opt_srcdir/libmysqld")
     push(@args, "-DWITH_NDB_TEST=1");
     push(@args, "-DWITH_NDBAPI_EXAMPLES=1")
       unless ($^O eq "cygwin" or $^O eq "MSWin32")
+  }
+
+  if ($opt_quick)
+  {
+    # Hardcoded options removing an arbitrary set of slow to build
+    # unrelated components
+    push(@args, "-DWITH_ROUTER=0"); # No MySQL Router
+    push(@args, "-DWITH_MEB=0"); # No MEB
+    push(@args, "-DWITH_RAPID=0"); # No RAPID
+
+    # Also removing Unit tests - not unrelated
+    push(@args, "-DWITH_UNIT_TEST=0"); # No Unit tests
   }
 
   if ($opt_autotest)
