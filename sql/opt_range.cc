@@ -1895,10 +1895,19 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT *quick;
   DBUG_TRACE;
+  bool disable_unique_filter = false;
   destroy(unique);
   quick_it.rewind();
-  while ((quick = quick_it++)) quick->file = NULL;
+  while ((quick = quick_it++)) {
+    // Normally it's disabled by dtor of QUICK_RANGE_SELECT, but it can't be
+    // done without table's handler
+    disable_unique_filter |=
+        head->key_info[quick->index].flags & HA_MULTI_VALUED_KEY;
+    quick->file = NULL;
+  }
   quick_selects.delete_elements();
+  if (disable_unique_filter)
+    head->file->ha_extra(HA_EXTRA_DISABLE_UNIQUE_RECORD_FILTER);
   delete pk_quick_select;
   /* It's ok to call the next two even if they are already deinitialized */
   read_record.reset();
