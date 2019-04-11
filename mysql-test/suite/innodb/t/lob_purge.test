@@ -78,6 +78,7 @@ WHERE NAME='test/t1');
 if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
+   SELECT @fs;
 }
 if (`SELECT (@fs <= @fs_limit) > 0`)
 {
@@ -95,7 +96,7 @@ SET @fs = (SELECT FILE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE NAME='test/t1');
 #Set t1.ibd file size limit to 4MB, which is used to compare
 #t1.ibd file size after multiple update operations
-SET @fs_limit = 4194304;
+SET @fs_limit = 8388608;
 --echo # Execute multiple update operations.
 --disable_query_log
 while ($i)
@@ -112,6 +113,7 @@ WHERE NAME='test/t1');
 if (`SELECT (@fs > @fs_limit) > 0`)
 {
    --echo Error: The test/t1.ibd file size is growing.
+   SELECT @fs;
 }
 if (`SELECT (@fs <= @fs_limit) > 0`)
 {
