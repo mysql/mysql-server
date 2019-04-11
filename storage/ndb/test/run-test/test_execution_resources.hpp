@@ -61,7 +61,7 @@ class TestExecutionResources {
 
  private:
   std::array<const char *, 6> m_search_path = {
-      "bin", "libexec", "sbin", "scripts", "lib", "lib/mysql"};
+    {"bin", "libexec", "sbin", "scripts", "lib", "lib/mysql"}};
 
   std::array<const char *, 2> m_prefixes;
 
