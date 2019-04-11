@@ -2426,7 +2426,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint
   when a slow shutdown is being executed. During a slow
   shutdown, the insert buffer merge must be completed. */
 
-  if (ibuf->empty && !srv_shutdown_state) {
+  if (ibuf->empty && srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     return (0);
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   } else if (ibuf_debug) {

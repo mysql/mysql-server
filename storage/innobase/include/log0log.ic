@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -341,6 +341,30 @@ inline bool log_write_to_file_requests_are_frequent(uint64_t interval) {
 inline bool log_write_to_file_requests_are_frequent(const log_t &log) {
   return (log_write_to_file_requests_are_frequent(
       log.write_to_file_requests_interval.load(std::memory_order_relaxed)));
+}
+
+inline bool log_writer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_writer));
+}
+
+inline bool log_write_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_write_notifier));
+}
+
+inline bool log_flusher_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flusher));
+}
+
+inline bool log_flush_notifier_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_flush_notifier));
+}
+
+inline bool log_closer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_closer));
+}
+
+inline bool log_checkpointer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_log_checkpointer));
 }
 
 #endif /* !UNIV_HOTBACKUP */

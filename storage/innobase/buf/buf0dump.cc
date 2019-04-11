@@ -55,7 +55,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 enum status_severity { STATUS_VERBOSE, STATUS_INFO, STATUS_ERR };
 
-#define SHUTTING_DOWN() (srv_shutdown_state != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN() (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -677,8 +677,6 @@ again. */
 void buf_dump_thread() {
   ut_ad(!srv_read_only_mode);
 
-  my_thread_init();
-
   buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
   buf_load_status(STATUS_VERBOSE, "Loading of buffer pool not started");
 
@@ -706,9 +704,4 @@ void buf_dump_thread() {
     buf_dump(FALSE /* ignore shutdown down flag,
 		keep going even if we are in a shutdown state */);
   }
-
-  my_thread_end();
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_buf_dump_thread_active = false;
 }

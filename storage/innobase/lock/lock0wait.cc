@@ -475,7 +475,7 @@ void lock_wait_timeout_thread() {
     os_event_wait_time_low(event, 1000000, sig_count);
     sig_count = os_event_reset(event);
 
-    if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
+    if (srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
       break;
     }
 
@@ -499,8 +499,5 @@ void lock_wait_timeout_thread() {
 
     lock_wait_mutex_exit();
 
-  } while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-  srv_threads.m_timeout_thread_active = false;
+  } while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE);
 }

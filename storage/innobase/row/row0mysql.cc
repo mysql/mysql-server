@@ -3940,7 +3940,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
   if (!table->is_temporary() && !table->is_fts_aux()) {
-    if (srv_threads.m_dict_stats_thread_active) {
+    if (srv_thread_is_active(srv_threads.m_dict_stats)) {
       dict_stats_recalc_pool_del(table);
     }
 

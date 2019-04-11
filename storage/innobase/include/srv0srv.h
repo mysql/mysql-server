@@ -58,10 +58,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "log0ddl.h"
 #include "os0event.h"
 #include "os0file.h"
+#include "os0thread.h"
 #include "que0types.h"
 #include "srv0conc.h"
 #include "trx0types.h"
 #include "ut0counter.h"
+
+#include <future>
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
@@ -138,31 +141,107 @@ struct srv_stats_t {
   ulint_ctr_64_t n_rows_inserted;
 };
 
+/** Structure which keeps shared future objects for InnoDB background
+threads. One should use these objects to check if threads exited. */
 struct Srv_threads {
-  /** true if monitor thread is created */
-  bool m_monitor_thread_active;
+  /** Monitor thread (prints info). */
+  IB_thread m_monitor;
 
-  /** true if error monitor thread is created */
-  bool m_error_monitor_thread_active;
+  /** Error monitor thread. */
+  IB_thread m_error_monitor;
 
-  /** true if buffer pool dump/load thread is created */
-  bool m_buf_dump_thread_active;
+  /** Redo closer thread. */
+  IB_thread m_log_closer;
 
-  /** true if buffer pool resize thread is created */
-  bool m_buf_resize_thread_active;
+  /** Redo checkpointer thread. */
+  IB_thread m_log_checkpointer;
 
-  /** true if stats thread is created */
-  bool m_dict_stats_thread_active;
+  /** Redo writer thread. */
+  IB_thread m_log_writer;
 
-  /** true if timeout thread is created */
-  bool m_timeout_thread_active;
+  /** Redo flusher thread. */
+  IB_thread m_log_flusher;
 
-  /** true if master thread is created */
-  bool m_master_thread_active;
+  /** Redo write notifier thread. */
+  IB_thread m_log_write_notifier;
 
-  /** true if tablespace alter encrypt thread is created */
-  bool m_ts_alter_encrypt_thread_active;
+  /** Redo flush notifier thread. */
+  IB_thread m_log_flush_notifier;
+
+  /** Redo log archiver (used by backup). */
+  IB_thread m_backup_log_archiver;
+
+  /** Buffer pool dump thread. */
+  IB_thread m_buf_dump;
+
+  /** Buffer pool resize thread. */
+  IB_thread m_buf_resize;
+
+  /** Dict stats background thread. */
+  IB_thread m_dict_stats;
+
+  /** Thread detecting lock wait timeouts. */
+  IB_thread m_lock_wait_timeout;
+
+  /** The master thread. */
+  IB_thread m_master;
+
+  /** The ts_alter_encrypt thread. */
+  IB_thread m_ts_alter_encrypt;
+
+  /** Thread doing rollbacks during recovery. */
+  IB_thread m_trx_recovery_rollback;
+
+  /** Thread writing recovered pages during recovery. */
+  IB_thread m_recv_writer;
+
+  /** Purge coordinator (also being a worker) */
+  IB_thread m_purge_coordinator;
+
+  /** Number of purge workers and size of array below. */
+  size_t m_purge_workers_n;
+
+  /** Purge workers. Note that the m_purge_workers[0] is the same shared
+  state as m_purge_coordinator. */
+  IB_thread *m_purge_workers;
+
+  /** Page cleaner coordinator (also being a worker). */
+  IB_thread m_page_cleaner_coordinator;
+
+  /** Number of page cleaner workers and size of array below. */
+  size_t m_page_cleaner_workers_n;
+
+  /** Page cleaner workers. Note that m_page_cleaner_workers[0] is the
+  same shared state as m_page_cleaner_coordinator. */
+  IB_thread *m_page_cleaner_workers;
+
+  /** Archiver's log archiver (used by Clone). */
+  IB_thread m_log_archiver;
+
+  /** Archiver's page archiver (used by Clone). */
+  IB_thread m_page_archiver;
+
+  /** Thread doing optimization for FTS index. */
+  IB_thread m_fts_optimize;
+
+#ifdef UNIV_DEBUG
+  /** Used in test scenario to delay threads' cleanup until the pre_dd_shutdown
+  is ended and final plugin's shutdown is started (when plugin is DELETED).
+  Note that you may only delay the shutdown for threads for which there is no
+  waiting procedure used in the pre_dd_shutdown. */
+  os_event_t shutdown_cleanup_dbg;
+#endif /* UNIV_DEBUG */
 };
+
+/** Check if given thread is still active. */
+bool srv_thread_is_active(const IB_thread &thread);
+
+/** Delay the thread after it discovered that the shutdown_state
+is greater or equal to SRV_SHUTDOWN_CLEANUP, before it proceeds
+with further clean up. This is used in the tests to see if such
+a possible delay does not have impact on the clean shutdown.
+@param[in]  wait_for_signal   wait until shutdown phase starts */
+void srv_thread_delay_cleanup_if_needed(bool wait_for_signal);
 
 struct Srv_cpu_usage {
   int n_cpu;
@@ -907,26 +986,14 @@ ulint srv_get_task_queue_length(void);
 ulint srv_release_threads(enum srv_thread_type type, /*!< in: thread type */
                           ulint n); /*!< in: number of threads to release */
 
-/** Check whether any background thread is created.
-Send the threads wakeup signal.
-
-NOTE: this check is part of the final shutdown, when the first phase of
-shutdown has already been completed.
-@see srv_pre_dd_shutdown()
-@see srv_master_thread_active()
-@return name of thread that is active
-@retval NULL if no thread is active */
-const char *srv_any_background_threads_are_active();
-
 /** Check whether the master thread is active.
 This is polled during the final phase of shutdown.
 The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
-@see srv_any_background_threads_are_active()
 @retval true   if any thread is active
 @retval false  if no thread is active */
-bool srv_master_thread_active();
+bool srv_master_thread_is_active();
 
 /** Wakeup the purge threads. */
 void srv_purge_wakeup(void);

@@ -4513,7 +4513,6 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-  my_thread_init();
 #ifdef UNIV_PFS_THREAD
   THD *thd =
       create_thd(false, true, true, srv_ts_alter_encrypt_thread_key.m_value);
@@ -4523,11 +4522,6 @@ void fsp_init_resume_alter_encrypt_tablespace() {
 
   resume_alter_encrypt_tablespace(thd);
 
-  srv_threads.m_ts_alter_encrypt_thread_active = false;
-
   destroy_thd(thd);
-  my_thread_end();
-
-  return;
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -7591,7 +7591,7 @@ void fil_aio_wait(ulint segment) {
   ut_a(err == DB_SUCCESS);
 
   if (file == nullptr) {
-    ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+    ut_ad(srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
     return;
   }
 

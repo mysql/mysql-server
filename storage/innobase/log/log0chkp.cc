@@ -302,7 +302,7 @@ void log_files_header_flush(log_t &log, uint32_t nth_file, lsn_t start_lsn) {
 
 void log_files_header_read(log_t &log, uint32_t header) {
   ut_a(srv_is_being_started);
-  ut_a(!log.checkpointer_thread_alive.load());
+  ut_a(!log_checkpointer_is_active());
 
   const auto page_no =
       static_cast<page_no_t>(header / univ_page_size.physical());
@@ -342,7 +342,7 @@ void meb_log_print_file_hdr(byte *block) {
 
 void log_files_downgrade(log_t &log) {
   ut_ad(srv_is_being_shutdown);
-  ut_a(!log.checkpointer_thread_alive.load());
+  ut_a(!log_checkpointer_is_active());
 
   const uint32_t nth_file = 0;
 
@@ -628,7 +628,7 @@ static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
 }
 
 static void log_wait_for_checkpoint(const log_t &log, lsn_t requested_lsn) {
-  log_background_threads_active_validate(log);
+  ut_d(log_background_threads_active_validate(log));
 
   auto stop_condition = [&log, requested_lsn](bool) {
     return (log.last_checkpoint_lsn.load() >= requested_lsn);
@@ -707,7 +707,7 @@ static void log_preflush_pool_modified_pages(const log_t &log,
   if (new_oldest == LSN_MAX
       /* Forced flush request is processed by page_cleaner, if
       it's not active, then we must do flush ourselves. */
-      || !buf_page_cleaner_is_active
+      || !buf_flush_page_cleaner_is_active()
       /* Reason unknown. */
       || srv_is_being_started) {
     buf_flush_sync_all_buf_pools();
@@ -887,7 +887,6 @@ static bool log_consider_checkpoint(log_t &log) {
 
 void log_checkpointer(log_t *log_ptr) {
   ut_a(log_ptr != nullptr);
-  ut_a(log_ptr->checkpointer_thread_alive.load());
 
   log_t &log = *log_ptr;
 
@@ -916,6 +915,12 @@ void log_checkpointer(log_t *log_ptr) {
         return (true);
       }
 
+      if (log.should_stop_threads.load()) {
+        if (!log_closer_is_active()) {
+          return (true);
+        }
+      }
+
       return (false);
     };
 
@@ -937,12 +942,12 @@ void log_checkpointer(log_t *log_ptr) {
     }
 
     /* Check if we should close the thread. */
-    if (log.should_stop_threads.load() && !log.closer_thread_alive.load()) {
-      break;
+    if (log.should_stop_threads.load()) {
+      if (!log_closer_is_active()) {
+        break;
+      }
     }
   }
-
-  log.checkpointer_thread_alive.store(false);
 
   log_checkpointer_mutex_exit(log);
 }

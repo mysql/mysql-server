@@ -682,45 +682,40 @@ void log_sys_close() {
 /* @{ */
 
 void log_writer_thread_active_validate(const log_t &log) {
-  ut_a(log.writer_thread_alive.load());
+  ut_a(log_writer_is_active());
 }
 
 void log_closer_thread_active_validate(const log_t &log) {
-  ut_a(log.closer_thread_alive.load());
+  ut_a(log_closer_is_active());
 }
 
 void log_background_write_threads_active_validate(const log_t &log) {
   ut_ad(!log.disable_redo_writes);
 
-  ut_a(log.writer_thread_alive.load());
-
-  ut_a(log.flusher_thread_alive.load());
+  ut_a(log_writer_is_active());
+  ut_a(log_flusher_is_active());
 }
 
 void log_background_threads_active_validate(const log_t &log) {
   log_background_write_threads_active_validate(log);
 
-  ut_a(log.write_notifier_thread_alive.load());
-  ut_a(log.flush_notifier_thread_alive.load());
-
-  ut_a(log.closer_thread_alive.load());
-
-  ut_a(log.checkpointer_thread_alive.load());
+  ut_a(log_write_notifier_is_active());
+  ut_a(log_flush_notifier_is_active());
+  ut_a(log_closer_is_active());
+  ut_a(log_checkpointer_is_active());
 }
 
 void log_background_threads_inactive_validate(const log_t &log) {
-  ut_a(!log.checkpointer_thread_alive.load());
-  ut_a(!log.closer_thread_alive.load());
-  ut_a(!log.write_notifier_thread_alive.load());
-  ut_a(!log.flush_notifier_thread_alive.load());
-  ut_a(!log.writer_thread_alive.load());
-  ut_a(!log.flusher_thread_alive.load());
+  ut_a(!log_checkpointer_is_active());
+  ut_a(!log_closer_is_active());
+  ut_a(!log_write_notifier_is_active());
+  ut_a(!log_flush_notifier_is_active());
+  ut_a(!log_writer_is_active());
+  ut_a(!log_flusher_is_active());
 }
 
 void log_start_background_threads(log_t &log) {
   ib::info(ER_IB_MSG_1258) << "Log background threads are being started...";
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
 
   log_background_threads_inactive_validate(log);
 
@@ -728,28 +723,32 @@ void log_start_background_threads(log_t &log) {
   ut_a(!srv_read_only_mode);
   ut_a(log.sn.load() > 0);
 
-  log.closer_thread_alive.store(true);
-  log.checkpointer_thread_alive.store(true);
-  log.writer_thread_alive.store(true);
-  log.flusher_thread_alive.store(true);
-  log.write_notifier_thread_alive.store(true);
-  log.flush_notifier_thread_alive.store(true);
-
   log.should_stop_threads.store(false);
 
-  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_log_checkpointer =
+      os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
 
-  os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
+  srv_threads.m_log_closer =
+      os_thread_create(log_closer_thread_key, log_closer, &log);
 
-  os_thread_create(log_closer_thread_key, log_closer, &log);
+  srv_threads.m_log_flush_notifier =
+      os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
 
-  os_thread_create(log_writer_thread_key, log_writer, &log);
+  srv_threads.m_log_flusher =
+      os_thread_create(log_flusher_thread_key, log_flusher, &log);
 
-  os_thread_create(log_flusher_thread_key, log_flusher, &log);
+  srv_threads.m_log_write_notifier =
+      os_thread_create(log_write_notifier_thread_key, log_write_notifier, &log);
 
-  os_thread_create(log_write_notifier_thread_key, log_write_notifier, &log);
+  srv_threads.m_log_writer =
+      os_thread_create(log_writer_thread_key, log_writer, &log);
 
-  os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
+  srv_threads.m_log_checkpointer.start();
+  srv_threads.m_log_closer.start();
+  srv_threads.m_log_flush_notifier.start();
+  srv_threads.m_log_flusher.start();
+  srv_threads.m_log_write_notifier.start();
+  srv_threads.m_log_writer.start();
 
   log_background_threads_active_validate(log);
 
@@ -770,8 +769,6 @@ void log_stop_background_threads(log_t &log) {
 
   ib::info(ER_IB_MSG_1259) << "Log background threads are being closed...";
 
-  std::atomic_thread_fence(std::memory_order_seq_cst);
-
   meb::redo_log_archive_deinit();
 
   log_background_threads_active_validate(log);
@@ -780,39 +777,56 @@ void log_stop_background_threads(log_t &log) {
 
   log.should_stop_threads.store(true);
 
-  /* Log writer may wait on writer_event with 100ms timeout, so we better
-  wake him up, so he could notice that log.should_stop_threads has been
-  set to true, finish his work and exit. */
-  os_event_set(log.writer_event);
-
-  /* The same applies to log_checkpointer thread and log_closer thread.
-  However, it does not apply to others, because:
-    - log_flusher monitors log.writer_thread_alive,
-    - log_write_notifier monitors log.writer_thread_alive,
-    - log_flush_notifier monitors log.flusher_thread_alive. */
-  os_event_set(log.closer_event);
-  os_event_set(log.checkpointer_event);
-
   /* Wait until threads are closed. */
-  while (log.closer_thread_alive.load() ||
-         log.checkpointer_thread_alive.load() ||
-         log.writer_thread_alive.load() || log.flusher_thread_alive.load() ||
-         log.write_notifier_thread_alive.load() ||
-         log.flush_notifier_thread_alive.load()) {
-    os_thread_sleep(100 * 1000);
+  while (log_writer_is_active()) {
+    os_event_set(log.writer_event);
+    os_thread_sleep(10);
   }
-
-  std::atomic_thread_fence(std::memory_order_seq_cst);
+  while (log_write_notifier_is_active()) {
+    os_event_set(log.write_notifier_event);
+    os_thread_sleep(10);
+  }
+  while (log_flusher_is_active()) {
+    os_event_set(log.flusher_event);
+    os_thread_sleep(10);
+  }
+  while (log_flush_notifier_is_active()) {
+    os_event_set(log.flush_notifier_event);
+    os_thread_sleep(10);
+  }
+  while (log_closer_is_active()) {
+    os_event_set(log.closer_event);
+    os_thread_sleep(10);
+  }
+  while (log_checkpointer_is_active()) {
+    os_event_set(log.checkpointer_event);
+    os_thread_sleep(10);
+  }
 
   log_background_threads_inactive_validate(log);
 }
 
-bool log_threads_active(const log_t &log) {
-  return (log.closer_thread_alive.load() ||
-          log.checkpointer_thread_alive.load() ||
-          log.writer_thread_alive.load() || log.flusher_thread_alive.load() ||
-          log.write_notifier_thread_alive.load() ||
-          log.flush_notifier_thread_alive.load());
+void log_stop_background_threads_nowait(log_t &log) {
+  log.should_stop_threads.store(true);
+  log_wake_threads(log);
+}
+
+void log_wake_threads(log_t &log) {
+  if (log_closer_is_active()) {
+    os_event_set(log.closer_event);
+  }
+  if (log_checkpointer_is_active()) {
+    os_event_set(log.checkpointer_event);
+  }
+  if (log_writer_is_active()) {
+    os_event_set(log.writer_event);
+  }
+  if (log_flusher_is_active()) {
+    os_event_set(log.flusher_event);
+  }
+  if (log_write_notifier_is_active()) {
+    os_event_set(log.write_notifier_event);
+  }
 }
 
 /* @} */

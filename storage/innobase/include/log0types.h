@@ -471,24 +471,6 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
       /** Used for stopping the log background threads. */
       std::atomic_bool should_stop_threads;
 
-  /** True iff the log closer thread is alive. */
-  std::atomic_bool closer_thread_alive;
-
-  /** True iff the log checkpointer thread is alive. */
-  std::atomic_bool checkpointer_thread_alive;
-
-  /** True iff the log writer thread is alive. */
-  std::atomic_bool writer_thread_alive;
-
-  /** True iff the log flusher thread is alive. */
-  std::atomic_bool flusher_thread_alive;
-
-  /** True iff the log write notifier thread is alive. */
-  std::atomic_bool write_notifier_thread_alive;
-
-  /** True iff the log flush notifier thread is alive. */
-  std::atomic_bool flush_notifier_thread_alive;
-
   /** Size of the log buffer expressed in number of data bytes,
   that is excluding bytes for headers and footers of log blocks. */
   atomic_sn_t buf_size_sn;

@@ -697,7 +697,9 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   to reflect mtr commit rate. */
   srv_stats.log_write_requests.inc();
 
-  ut_a(srv_shutdown_state <= SRV_SHUTDOWN_FLUSH_PHASE);
+  ut_ad(srv_shutdown_state.load() <= SRV_SHUTDOWN_FLUSH_PHASE ||
+        srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
+
   ut_a(len > 0);
 
   /* Reserve space in sequence of data bytes: */
@@ -901,6 +903,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   uint64_t wait_loops = 0;
 
   while (!log.recent_written.has_space(start_lsn)) {
+    os_event_set(log.writer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }
@@ -938,6 +941,7 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
   uint64_t wait_loops = 0;
 
   while (!log.recent_closed.has_space(lsn)) {
+    os_event_set(log.closer_event);
     ++wait_loops;
     os_thread_sleep(20);
   }

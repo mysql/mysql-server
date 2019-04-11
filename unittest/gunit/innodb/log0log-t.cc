@@ -275,12 +275,6 @@ static bool log_test_recovery() {
 
   dberr_t err = recv_recovery_from_checkpoint_start(log, LOG_START_LSN);
 
-  extern bool recv_writer_thread_active;
-
-  while (!recv_writer_thread_active) {
-    os_thread_sleep(100);
-  }
-
   srv_is_being_started = false;
 
   if (err == DB_SUCCESS) {
@@ -291,7 +285,7 @@ static bool log_test_recovery() {
     srv_shutdown_state = SRV_SHUTDOWN_FLUSH_PHASE;
 
     /* XXX: Shouldn't this be guaranteed within log0recv.cc ? */
-    while (recv_writer_thread_active) {
+    while (srv_thread_is_active(srv_threads.m_recv_writer)) {
       os_thread_sleep(100 * 1000);
     }
   }

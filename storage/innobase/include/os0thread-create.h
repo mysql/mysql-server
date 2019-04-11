@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -71,11 +71,11 @@ class Runnable {
 #ifdef UNIV_PFS_THREAD
   /** Constructor for the Runnable object.
   @param[in]	pfs_key		Performance schema key */
-  explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) {}
+  explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { init(); }
 #else
   /** Constructor for the Runnable object.
   @param[in]	pfs_key		Performance schema key (ignored) */
-  explicit Runnable(mysql_pfs_key_t) {}
+  explicit Runnable(mysql_pfs_key_t) { init(); }
 #endif /* UNIV_PFS_THREAD */
 
  public:
@@ -84,14 +84,26 @@ class Runnable {
   @param[in]	args		Variable number of args to F */
   template <typename F, typename... Args>
   void operator()(F &&f, Args &&... args) {
+    while (m_thread.state() == IB_thread::State::NOT_STARTED) {
+      UT_RELAX_CPU();
+    }
+
+    ut_a(m_thread.state() == IB_thread::State::ALLOWED_TO_START);
+
     preamble();
+
+    m_thread.set_state(IB_thread::State::STARTED);
 
     auto task = std::bind(std::forward<F>(f), std::forward<Args>(args)...);
 
     task();
 
     epilogue();
+
+    m_thread.set_state(IB_thread::State::STOPPED);
   }
+
+  IB_thread thread() const { return (m_thread); }
 
  private:
   /** Register the thread with the server */
@@ -134,6 +146,8 @@ class Runnable {
       PSI_THREAD_CALL(delete_current_thread)();
     }
 #endif /* UNIV_PFS_THREAD && !UNIV_HOTBACKUP */
+
+    m_promise.set_value();
   }
 
  private:
@@ -141,17 +155,84 @@ class Runnable {
   /** Performance schema key */
   const mysql_pfs_key_t m_pfs_key;
 #endif /* UNIV_PFS_THREAD */
+
+  /** Promise which is set when task is done. */
+  std::promise<void> m_promise;
+
+  /** Future object which keeps the ref counter >= 1 at least
+  as long as the Runnable is non-destroyed. */
+  mutable IB_thread m_thread;
+
+  /** Initializes the m_shared_future, uses the m_promise's get_future,
+  which cannot be used since then, according to its documentation. */
+  void init() { m_thread.init(m_promise); }
 };
 
-/** Create a detached thread
-@param[in]	pfs_key		Performance schema thread key
-@param[in]	f		Callable instance
-@param[in]	args		zero or more args */
-template <typename F, typename... Args>
-void create_detached_thread(mysql_pfs_key_t pfs_key, F &&f, Args &&... args) {
-  std::thread t(Runnable(pfs_key), f, args...);
+inline bool thread_is_active(const IB_thread &thread) {
+  switch (thread.state()) {
+    case IB_thread::State::NOT_STARTED:
+      /* Not yet started. */
+      return (false);
 
+    case IB_thread::State::ALLOWED_TO_START:
+      /* Thread "thread" is already active, but start() has not been called.
+      Note that when start() is called, the thread's routine may decide to
+      check if it is active or trigger other thread to do similar check
+      regarding "thread". That could happen faster than thread's state
+      is advanced from ALLOWED_TO_START to STARTED. Therefore we must
+      already consider such thread as "active". */
+      return (true);
+
+    case IB_thread::State::STARTED:
+      /* Note, that potentially the thread might be doing its cleanup after
+      it has already ended its task. We still consider it active, until the
+      cleanup is finished. */
+      return (true);
+
+    case IB_thread::State::STOPPED:
+      /* Ended its task and became marked as STOPPED (cleanup finished) */
+      return (false);
+
+    case IB_thread::State::INVALID:
+    default:
+      /* The thread object has not been assigned yet. */
+      return (false);
+  }
+
+  /* Note that similar goal was achieved by the usage of shared_future:
+  return (shared_future.valid() && shared_future.wait_for(std::chrono::seconds(
+                                       0)) != std::future_status::ready);
+  However this resulted in longer execution of mtr tests (63minutes ->
+  75minutes). You could try `mtr --mem collations.esperanto` (cmake
+  WITH_DEBUG=1) */
+}
+
+/** Create a detached non-started thread. After thread is created, you should
+assign the received object to any of variables/fields which you later could
+access to check thread's state. You are allowed to either move or copy that
+object (any number of copies is allowed). After assigning you are allowed to
+start the thread by calling start() on any of those objects.
+@param[in]	pfs_key   Performance schema thread key
+@param[in]	f         Callable instance
+@param[in]	args      Zero or more args
+@return Object which allows to start the created thread, monitor its state and
+        wait until the thread is finished. */
+template <typename F, typename... Args>
+IB_thread create_detached_thread(mysql_pfs_key_t pfs_key, F &&f,
+                                 Args &&... args) {
+  Runnable runnable{pfs_key};
+
+  auto thread = runnable.thread();
+
+  std::thread t(std::move(runnable), f, args...);
   t.detach();
+
+  /* Thread t is doing busy waiting until the state is changed
+  from NOT_STARTED to ALLOWED_TO_START. That will happen when
+  thread.start() will be called. */
+  ut_a(thread.state() == IB_thread::State::NOT_STARTED);
+
+  return (thread);
 }
 
 #ifdef UNIV_PFS_THREAD
@@ -161,11 +242,11 @@ void create_detached_thread(mysql_pfs_key_t pfs_key, F &&f, Args &&... args) {
 #endif /* UNIV_PFS_THREAD */
 
 /** Parallel for loop over a container.
-@param[in]	pfs_key		Performance schema thread key
-@param[in]	c		Container to iterate over in parallel
-@param[in]	n		Number of threads to create
-@param[in]	f		Callable instance
-@param[in]	args		zero or more args */
+@param[in]	pfs_key  Performance schema thread key
+@param[in]	c        Container to iterate over in parallel
+@param[in]	n        Number of threads to create
+@param[in]	f        Callable instance
+@param[in]	args     Zero or more args */
 template <typename Container, typename F, typename... Args>
 void par_for(mysql_pfs_key_t pfs_key, const Container &c, size_t n, F &&f,
              Args &&... args) {
@@ -175,21 +256,26 @@ void par_for(mysql_pfs_key_t pfs_key, const Container &c, size_t n, F &&f,
 
   size_t slice = (n > 0) ? c.size() / n : 0;
 
-  using Workers = std::vector<std::thread>;
+  using Workers = std::vector<IB_thread>;
 
   Workers workers;
+
+  workers.reserve(n);
 
   for (size_t i = 0; i < n; ++i) {
     auto b = c.begin() + (i * slice);
     auto e = b + slice;
 
-    workers.push_back(std::thread{Runnable{pfs_key}, f, b, e, i, args...});
+    auto worker = os_thread_create(pfs_key, f, b, e, i, args...);
+    worker.start();
+
+    workers.push_back(std::move(worker));
   }
 
   f(c.begin() + (n * slice), c.end(), n, args...);
 
   for (auto &worker : workers) {
-    worker.join();
+    worker.wait();
   }
 }
 

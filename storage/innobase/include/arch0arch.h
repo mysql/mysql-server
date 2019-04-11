@@ -86,9 +86,6 @@ void log_archiver_thread();
 /** Archiver thread event to signal that data is available */
 extern os_event_t log_archiver_thread_event;
 
-/** Global to indicate if log archiver thread is active. */
-extern bool log_archiver_is_active;
-
 /** Memory block size */
 constexpr uint ARCH_PAGE_BLK_SIZE = UNIV_PAGE_SIZE_DEF;
 
@@ -256,11 +253,12 @@ int start_page_archiver_background();
 /** Archiver thread event to signal that data is available */
 extern os_event_t page_archiver_thread_event;
 
-/** Global to indicate if page archiver thread is active. */
-extern bool page_archiver_is_active;
-
 /** Page archiver background thread */
 void page_archiver_thread();
+
+/** Wakes up archiver threads.
+@return true iff any thread was still alive */
+bool arch_wake_threads();
 
 /** Forward declarations */
 class Arch_Group;

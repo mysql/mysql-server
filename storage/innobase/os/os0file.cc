@@ -221,8 +221,8 @@ i.e.: SRV_N_PENDING_IOS_PER_THREAD */
 /** In simulated aio, merge at most this many consecutive i/os */
 static const ulint OS_AIO_MERGE_N_CONSECUTIVE = 64;
 
-/** Flag indicating if the page_cleaner is in active state. */
-extern bool buf_page_cleaner_is_active;
+/** Checks if the page_cleaner is in active state. */
+bool buf_flush_page_cleaner_is_active();
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************
@@ -2131,8 +2131,8 @@ class LinuxAIOHandler {
 
   /** @return true if a shutdown was detected */
   bool is_shutdown() const {
-    return (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS &&
-            !buf_page_cleaner_is_active);
+    return (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS &&
+            !buf_flush_page_cleaner_is_active());
   }
 
   /** If no slot was found then the m_array->m_mutex will be released.
@@ -2379,8 +2379,8 @@ void LinuxAIOHandler::collect() {
       m_array->release();
     }
 
-    if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS ||
-        !buf_page_cleaner_is_active || ret > 0) {
+    if (srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS ||
+        !buf_flush_page_cleaner_is_active() || ret > 0) {
       break;
     }
 
@@ -6859,11 +6859,11 @@ static dberr_t os_aio_windows_handler(ulint segment, ulint pos, fil_node_t **m1,
 
   if (
 #ifndef UNIV_HOTBACKUP
-      srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+      srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
 #else  /* !UNIV_HOTBACKUP */
       true
 #endif /* !UNIV_HOTBACKUP */
-      && array->is_empty() && !buf_page_cleaner_is_active) {
+      && array->is_empty() && !buf_flush_page_cleaner_is_active()) {
 
     *m1 = NULL;
     *m2 = NULL;
@@ -7514,8 +7514,8 @@ static dberr_t os_aio_simulated_handler(ulint global_segment, fil_node_t **m1,
 
     } else if (n_reserved == 0
 #ifndef UNIV_HOTBACKUP
-               && !buf_page_cleaner_is_active &&
-               srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
+               && !buf_flush_page_cleaner_is_active() &&
+               srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS
 #endif /* !UNIV_HOTBACKUP */
     ) {
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -462,8 +462,8 @@ amount of redo log available for archiving.
 @param[out]	to_archive	amount of redo log to be archived */
 Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
                                          uint *to_archive) {
-  auto is_shutdown = (srv_shutdown_state == SRV_SHUTDOWN_LAST_PHASE ||
-                      srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
+  auto is_shutdown = (srv_shutdown_state.load() == SRV_SHUTDOWN_LAST_PHASE ||
+                      srv_shutdown_state.load() == SRV_SHUTDOWN_EXIT_THREADS);
 
   auto need_to_abort = (is_abort || is_shutdown);
 
@@ -637,7 +637,7 @@ int Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
 
           /* Check if we need to abort. */
           if (m_state == ARCH_STATE_ABORT ||
-              srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+              srv_shutdown_state.load() != SRV_SHUTDOWN_NONE) {
             err2 = ER_QUERY_INTERRUPTED;
           }
           ut_ad(m_state == ARCH_STATE_ACTIVE);

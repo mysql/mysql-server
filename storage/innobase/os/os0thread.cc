@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,6 +51,39 @@ ulint srv_max_n_threads = 0;
 
 /** Number of threads active. */
 std::atomic_int os_thread_count;
+
+void IB_thread::start() {
+  ut_a(state() == State::NOT_STARTED);
+  m_state->store(State::ALLOWED_TO_START);
+  while (state() == State::ALLOWED_TO_START) {
+    UT_RELAX_CPU();
+  }
+  const auto state_after_start = state();
+
+  ut_a(state_after_start == State::STARTED ||
+       state_after_start == State::STOPPED);
+}
+
+void IB_thread::wait(State state_to_wait_for) {
+  ut_a(state() != State::INVALID);
+  ut_a(m_shared_future.valid());
+  if (state_to_wait_for >= State::STOPPED) {
+    m_shared_future.wait();
+  }
+  while (state() < state_to_wait_for) {
+    UT_RELAX_CPU();
+  }
+}
+
+void IB_thread::init(std::promise<void> &promise) {
+  m_shared_future = promise.get_future();
+  m_state.reset(new std::atomic<State>(State::NOT_STARTED));
+}
+
+void IB_thread::set_state(State new_state) {
+  ut_a(state() != State::INVALID);
+  m_state->store(new_state);
+}
 
 /** Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself.

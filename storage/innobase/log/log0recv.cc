@@ -207,8 +207,10 @@ static lsn_t recv_max_page_lsn;
 mysql_pfs_key_t recv_writer_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
-/** Flag indicating if recv_writer thread is active. */
-bool recv_writer_thread_active = false;
+static bool recv_writer_is_active() {
+  return (srv_thread_is_active(srv_threads.m_recv_writer));
+}
+
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -476,7 +478,7 @@ void recv_sys_close() {
     os_event_destroy(recv_sys->flush_end);
   }
 
-  ut_ad(!recv_writer_thread_active);
+  ut_ad(!recv_writer_is_active());
   mutex_free(&recv_sys->writer_mutex);
 #endif /* !UNIV_HOTBACKUP */
 
@@ -771,8 +773,7 @@ static void recv_writer_thread() {
   Step 1: In recv_recovery_from_checkpoint_start().
   Step 2: This recv_writer thread is started.
   Step 3: In recv_recovery_from_checkpoint_finish().
-  Step 4: Wait for recv_writer thread to complete. This is based
-          on the flag recv_writer_thread_active.
+  Step 4: Wait for recv_writer thread to complete.
   Step 5: Assert that recv_writer thread is not active anymore.
 
   It is possible that the thread that is started in step 2,
@@ -780,15 +781,13 @@ static void recv_writer_thread() {
   step 5 fails.  So mark this thread active only if necessary. */
   mutex_enter(&recv_sys->writer_mutex);
 
-  if (recv_recovery_on) {
-    recv_writer_thread_active = true;
-  } else {
+  if (!recv_recovery_on) {
     mutex_exit(&recv_sys->writer_mutex);
     return;
   }
   mutex_exit(&recv_sys->writer_mutex);
 
-  while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+  while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
     os_thread_sleep(100000);
 
     mutex_enter(&recv_sys->writer_mutex);
@@ -811,10 +810,6 @@ static void recv_writer_thread() {
 
     mutex_exit(&recv_sys->writer_mutex);
   }
-
-  recv_writer_thread_active = false;
-
-  my_thread_end();
 }
 
 #if 0
@@ -830,8 +825,7 @@ recv_writer_thread()
 	Step 1: In recv_recovery_from_checkpoint_start().
 	Step 2: This recv_writer thread is started.
 	Step 3: In recv_recovery_from_checkpoint_finish().
-	Step 4: Wait for recv_writer thread to complete. This is based
-	        on the flag recv_writer_thread_active.
+	Step 4: Wait for recv_writer thread to complete.
 	Step 5: Assert that recv_writer thread is not active anymore.
 
 	It is possible that the thread that is started in step 2,
@@ -839,15 +833,13 @@ recv_writer_thread()
 	step 5 fails.  So mark this thread active only if necessary. */
 	mutex_enter(&recv_sys->writer_mutex);
 
-	if (recv_recovery_on) {
-		recv_writer_thread_active = true;
-	} else {
+	if (!recv_recovery_on) {
 		mutex_exit(&recv_sys->writer_mutex);
 		return;
 	}
 	mutex_exit(&recv_sys->writer_mutex);
 
-	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+	while (srv_shutdown_state.load() == SRV_SHUTDOWN_NONE) {
 
 		os_thread_sleep(100000);
 
@@ -866,10 +858,6 @@ recv_writer_thread()
 
 		mutex_exit(&recv_sys->writer_mutex);
 	}
-
-	recv_writer_thread_active = false;
-
-	my_thread_end();
 }
 #endif
 
@@ -882,7 +870,7 @@ void recv_sys_free() {
   /* wake page cleaner up to progress */
   if (!srv_read_only_mode) {
     ut_ad(!recv_recovery_on);
-    ut_ad(!recv_writer_thread_active);
+    ut_ad(!recv_writer_is_active());
     if (buf_flush_event != nullptr) {
       os_event_reset(buf_flush_event);
     }
@@ -3646,7 +3634,10 @@ static void recv_init_crash_recovery() {
     /* Spawn the background thread to flush dirty pages
     from the buffer pools. */
 
-    os_thread_create(recv_writer_thread_key, recv_writer_thread);
+    srv_threads.m_recv_writer =
+        os_thread_create(recv_writer_thread_key, recv_writer_thread);
+
+    srv_threads.m_recv_writer.start();
   }
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -3942,7 +3933,7 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
 
   ulint count = 0;
 
-  while (recv_writer_thread_active) {
+  while (recv_writer_is_active()) {
     ++count;
 
     os_thread_sleep(100000);
