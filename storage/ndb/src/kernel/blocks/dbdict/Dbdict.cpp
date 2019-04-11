@@ -9845,6 +9845,52 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     }
   }
 
+  // changed attribute stuff
+  {
+    if (newTablePtr.p->noOfAttributes == tablePtr.p->noOfAttributes)
+    {
+      jam();
+      // Find the table name for debug purpose:
+      char table_name[MAX_TAB_NAME_SIZE];
+      ConstRope table_name_r(c_rope_pool, tablePtr.p->tableName);
+      table_name_r.copy(table_name);
+      // Find any changed attributes
+      bool modified_attribute = false;
+      LocalAttributeRecord_list
+        list(c_attributeRecordPool, tablePtr.p->m_attributes);
+      AttributeRecordPtr oldAttrPtr;
+      list.first(oldAttrPtr);
+      LocalAttributeRecord_list
+        newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
+      AttributeRecordPtr newAttrPtr;
+      newlist.first(newAttrPtr);
+      Uint32 i = 0;
+      char old_column_name[MAX_TAB_NAME_SIZE];
+      char new_column_name[MAX_TAB_NAME_SIZE];
+      for (i = 0; i < tablePtr.p->noOfAttributes; i++)
+      {
+        ConstRope old_name_r(c_rope_pool, oldAttrPtr.p->attributeName);
+        old_name_r.copy(old_column_name);
+        ConstRope new_name_r(c_rope_pool, newAttrPtr.p->attributeName);
+        new_name_r.copy(new_column_name);
+        if (old_name_r.compare(new_column_name))
+        {
+          jam();
+          ndbout_c("DBDICT: Found renamed attribute %s(%s) for table %s", new_column_name, old_column_name, table_name);
+          modified_attribute = true;
+        }
+        list.next(oldAttrPtr);
+        newlist.next(newAttrPtr);
+      }
+      if (AlterTableReq::getModifyAttrFlag(impl_req->changeMask) && !modified_attribute)
+      {
+        jam();
+        setError(error, AlterTableRef::Inconsistency, __LINE__);
+        return;
+      }
+    }
+  }
+
   // add attribute stuff
   {
     const Uint32 noOfNewAttr =
@@ -11531,6 +11577,44 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
         list.addLast(qPtr);
       }
       tablePtr.p->noOfAttributes += noOfNewAttr;
+    }
+
+    if (AlterTableReq::getModifyAttrFlag(impl_req->changeMask))
+    {
+      jam();
+      // Find the table name for debug purpose:
+      char table_name[MAX_TAB_NAME_SIZE];
+      ConstRope table_name_r(c_rope_pool, tablePtr.p->tableName);
+      table_name_r.copy(table_name);
+      D("alterTable_commit: getModifyAttrFlag set");
+      // Find and save any changed attributes
+      LocalAttributeRecord_list
+        list(c_attributeRecordPool, tablePtr.p->m_attributes);
+      AttributeRecordPtr oldAttrPtr;
+      list.first(oldAttrPtr);
+      LocalAttributeRecord_list
+        newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
+      AttributeRecordPtr newAttrPtr;
+      newlist.first(newAttrPtr);
+      Uint32 i = 0;
+      char old_column_name[MAX_TAB_NAME_SIZE];
+      char new_column_name[MAX_TAB_NAME_SIZE];
+      for (i = 0; i < tablePtr.p->noOfAttributes; i++)
+      {
+        ConstRope old_name_r(c_rope_pool, oldAttrPtr.p->attributeName);
+        old_name_r.copy(old_column_name);
+        ConstRope new_name_r(c_rope_pool, newAttrPtr.p->attributeName);
+        new_name_r.copy(new_column_name);
+        if (old_name_r.compare(new_column_name))
+        {
+          jam();
+          ndbout_c("DBDICT: Renaming attribute %s to %s for table %s", old_column_name, new_column_name, table_name);
+          LocalRope attrName(c_rope_pool, oldAttrPtr.p->attributeName);
+          attrName.assign(new_column_name);
+        }
+        list.next(oldAttrPtr);
+        newlist.next(newAttrPtr);
+      }
     }
 
     if (AlterTableReq::getAddFragFlag(changeMask))
