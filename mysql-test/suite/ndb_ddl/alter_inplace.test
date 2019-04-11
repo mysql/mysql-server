@@ -136,6 +136,47 @@ while ($counter <= $num_tables)
            ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
   }
 
+
+  ##
+  # Test ALTER TABLE, RENAME COLUMN
+  #
+  let $skip_inplace_rename_column = 0;
+  if (`select FIND_IN_SET('$tx', 't1,t2,t3,t4,t5,t6')`)
+  {
+    # inplace add column not supported on table without primary key
+    let $skip_inplace_rename_column = 1;
+
+    --error ER_BAD_FIELD_ERROR,ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+           RENAME COLUMN b TO b_new;
+  }
+
+if (!$skip_inplace_rename_column)
+  {
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+       RENAME COLUMN b TO b_new;
+    # Show that table id is still the same
+    let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                         WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+    if ($table_id != $new_table_id)
+    {
+      die The table was not altered inplace, its table id changed;
+    }
+
+    # Run query
+    eval SELECT b_new FROM $tx WHERE a = 4;
+
+    eval ALTER TABLE $tx ALGORITHM=inplace,
+       RENAME COLUMN b_new TO b;
+    # Show that table id is still the same
+    let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                         WHERE fq_name = 'ndb_ddl_test/def/$tx'`;
+    if ($table_id != $new_table_id)
+    {
+      die The table was not altered inplace, its table id changed;
+    }
+  }
+
   inc $counter;
 }
 

@@ -372,15 +372,16 @@ PRIMARY KEY (auto)
 ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
-alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering field name is not supported. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, change tiny new_tiny tinyint(4) DEFAULT '0';
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering if field is nullable is not supported. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
 't1'
-alter table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
+alter table t1 change tiny tiny2 tinyint(4) DEFAULT '0' NOT NULL;
+alter table t1 algorithm=inplace, change tiny2 new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 alter table t1 algorithm=inplace, change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
 
@@ -388,6 +389,7 @@ ndb_show_tables completed.....
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
+'t1'
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 alter table t1 change new_tiny new_tiny tinyint(4) DEFAULT '1' NOT NULL;
 create index i1 on t1(medium);
@@ -569,8 +571,11 @@ Warnings:
 Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
 ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT FIXED STORAGE MEMORY;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Column storage media is changed. Try ALGORITHM=COPY.
-ALTER TABLE t1 algorithm=inplace, CHANGE b b_1 INT COLUMN_FORMAT FIXED STORAGE DISK;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering column format. Try ALGORITHM=COPY.
+ALTER TABLE t1 algorithm=inplace, CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
+ALTER TABLE t1 algorithm=inplace, CHANGE b_1 b_2 INT COLUMN_FORMAT DYNAMIC STORAGE DISK;
+ALTER TABLE t1 algorithm=inplace, RENAME COLUMN b_2 TO b;
+ALTER TABLE t1 algorithm=inplace, CHANGE b pk1 INT COLUMN_FORMAT DYNAMIC;
+ERROR 42S21: Duplicate column name 'pk1'
 ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC STORAGE DISK;
 ALTER TABLE t1 algorithm=inplace, CHANGE b b INT COLUMN_FORMAT DYNAMIC;
 ALTER TABLE t1 algorithm=inplace, CHANGE b b INT;
