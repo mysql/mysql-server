@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,9 @@ static bool check_backup_admin_privilege(THD *thd) {
 
 bool Sql_cmd_lock_instance::execute(THD *thd) {
   if (check_backup_admin_privilege(thd) ||
-      acquire_exclusive_backup_lock(thd, thd->variables.lock_wait_timeout))
+      acquire_exclusive_backup_lock(
+          thd, DBUG_EVALUATE_IF("stop_slave_dont_release_backup_lock", 5,
+                                thd->variables.lock_wait_timeout)))
     return true;
 
   my_ok(thd);
