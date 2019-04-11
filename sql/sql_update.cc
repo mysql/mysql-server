@@ -595,9 +595,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           NOTE: filesort will call table->prepare_for_position()
         */
         ha_rows examined_rows = 0;
-        iterator = create_table_iterator(thd, NULL, &qep_tab, false,
-                                         /*ignore_not_found_rows=*/false,
-                                         &examined_rows);
+        iterator =
+            create_table_iterator(thd, NULL, &qep_tab, false,
+                                  /*ignore_not_found_rows=*/false,
+                                  &examined_rows, /*using_table_scan=*/nullptr);
 
         if (qep_tab.condition() != nullptr) {
           iterator = NewIterator<FilterIterator>(thd, move(iterator),
@@ -605,10 +606,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         }
 
         // Force filesort to sort by position.
-        fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
+        fsort.reset(new (thd->mem_root)
+                        Filesort(thd, &qep_tab, order, limit,
+                                 /*force_stable_sort=*/false,
+                                 /*remove_duplicates=*/false,
+                                 /*force_sort_positions=*/true));
         iterator = NewIterator<SortingIterator>(
-            thd, fsort.get(), move(iterator), /*force_sort_position=*/true,
-            /*examined_rows=*/nullptr);
+            thd, fsort.get(), move(iterator), /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
         thd->inc_examined_row_count(examined_rows);
 
@@ -660,7 +664,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         if (used_index == MAX_KEY || qep_tab.quick()) {
           iterator = create_table_iterator(thd, NULL, &qep_tab, false,
                                            /*ignore_not_found_rows=*/false,
-                                           /*examined_rows=*/nullptr);
+                                           /*examined_rows=*/nullptr,
+                                           /*using_table_scan=*/nullptr);
         } else {
           iterator = create_table_iterator_idx(thd, table, used_index, reverse,
                                                &qep_tab);

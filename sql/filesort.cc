@@ -158,27 +158,33 @@ static bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
                                    ha_rows records, ulong memory_available,
                                    bool keep_addon_fields);
 
-void Sort_param::init_for_filesort(Filesort *file_sort,
-                                   Bounds_checked_array<st_sort_field> sf_array,
-                                   uint sortlen, TABLE *table,
-                                   ulong max_length_for_sort_data,
-                                   ha_rows maxrows, bool sort_positions,
-                                   bool remove_duplicates) {
-  DBUG_ASSERT(max_rows == 0);  // function should not be called twice
-  m_fixed_sort_length = sortlen;
-  m_force_stable_sort = file_sort->m_force_stable_sort;
-  m_remove_duplicates = remove_duplicates;
-  ref_length = table->file->ref_length;
+void Sort_param::decide_addon_fields(Filesort *file_sort, TABLE *table,
+                                     ulong max_length_for_sort_data,
+                                     bool force_sort_positions) {
+  if (m_addon_fields_status != Addon_fields_status::unknown_status) {
+    // Already decided.
+    return;
+  }
 
-  local_sortorder = sf_array;
+  // Generally, prefer using addon fields (ie., sorting rows instead of just
+  // row IDs) if we can.
+  //
+  // NOTE: If the table is already in memory (e.g. the MEMORY engine; see the
+  // HA_FAST_KEY_READ flag), it would normally be beneficial to sort row IDs
+  // over rows to get smaller sort chunks. However, eliding the temporary table
+  // entirely is even better than using row IDs, and only possible if we sort
+  // rows. Furthermore, since we set up filesort at optimize time, we don't know
+  // yet whether the source table would _remain_ in memory, or could be spilled
+  // to disk using InnoDB. Thus, the only case that reasonably remains where
+  // we'd want to use row IDs without being forced would be on user (ie.,
+  // non-temporary) MEMORY tables, which doesn't seem reasonable to add
+  // complexity for.
 
-  if (table->file->ha_table_flags() & HA_FAST_KEY_READ)
-    m_addon_fields_status = Addon_fields_status::using_heap_table;
-  else if (table->fulltext_searched)
+  if (table->fulltext_searched) {
     m_addon_fields_status = Addon_fields_status::fulltext_searched;
-  else if (sort_positions)
+  } else if (force_sort_positions) {
     m_addon_fields_status = Addon_fields_status::keep_rowid;
-  else {
+  } else {
     /*
       Get the descriptors of all fields whose values are appended
       to sorted fields and get its total length in m_addon_length.
@@ -187,6 +193,23 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
         max_length_for_sort_data, table->field, m_fixed_sort_length,
         &m_addon_fields_status, &m_addon_length, &m_packable_length);
   }
+  DBUG_ASSERT(m_addon_fields_status != Addon_fields_status::unknown_status);
+}
+
+void Sort_param::init_for_filesort(Filesort *file_sort,
+                                   Bounds_checked_array<st_sort_field> sf_array,
+                                   uint sortlen, TABLE *table,
+                                   ulong max_length_for_sort_data,
+                                   ha_rows maxrows, bool remove_duplicates) {
+  m_fixed_sort_length = sortlen;
+  m_force_stable_sort = file_sort->m_force_stable_sort;
+  m_remove_duplicates = remove_duplicates;
+  ref_length = table->file->ref_length;
+
+  local_sortorder = sf_array;
+
+  decide_addon_fields(file_sort, table, max_length_for_sort_data,
+                      file_sort->m_force_sort_positions);
   if (using_addon_fields()) {
     fixed_res_length = m_addon_length;
   } else {
@@ -331,9 +354,6 @@ static void trace_filesort_information(Opt_trace_context *trace,
 
   @param      thd            Current thread
   @param      filesort       How to sort the table
-  @param      sort_positions Set to true if we want to force sorting by position
-                             (Needed by UPDATE/INSERT or ALTER TABLE or
-                              when rowids are required by executor)
   @param      source_iterator Where to read the rows to be sorted from.
   @param      sort_result    Where to store the sort result.
   @param[out] found_rows     Store the number of found rows here.
@@ -341,15 +361,14 @@ static void trace_filesort_information(Opt_trace_context *trace,
                              applying WHERE condition.
 
   @note
-    If we sort by position (like if sort_positions is 1) filesort() will
-    call table->prepare_for_position().
+    If we sort by position (e.g., if sort_param.force_sort_positions is true),
+    filesort() will call table->prepare_for_position().
 
   @returns   False if success, true if error
 */
 
-bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
-              RowIterator *source_iterator, Sort_result *sort_result,
-              ha_rows *found_rows) {
+bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
+              Sort_result *sort_result, ha_rows *found_rows) {
   int error;
   ulong memory_available = thd->variables.sortbuff_size;
   ha_rows num_rows_found = HA_POS_ERROR;
@@ -357,7 +376,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE tempfile;    // Temporary file for storing intermediate results.
   IO_CACHE chunk_file;  // For saving Merge_chunk structs.
   IO_CACHE *outfile;    // Contains the final, sorted result.
-  Sort_param param;
+  Sort_param *param = &filesort->m_sort_param;
   QEP_TAB *const qep_tab = filesort->qep_tab;
   TABLE *const table = qep_tab->table();
   ha_rows max_rows = filesort->limit;
@@ -402,12 +421,12 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
-  param.init_for_filesort(filesort, make_array(filesort->sortorder, s_length),
-                          sortlength(thd, filesort->sortorder, s_length), table,
-                          thd->variables.max_length_for_sort_data, max_rows,
-                          sort_positions, filesort->m_remove_duplicates);
+  param->init_for_filesort(filesort, make_array(filesort->sortorder, s_length),
+                           sortlength(thd, filesort->sortorder, s_length),
+                           table, thd->variables.max_length_for_sort_data,
+                           max_rows, filesort->m_remove_duplicates);
 
-  table->sort.addon_fields = param.addon_fields;
+  table->sort.addon_fields = param->addon_fields;
 
   /*
     TODO: Now that we read from RowIterators, the situation is a lot more
@@ -418,17 +437,20 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   else
     thd->inc_status_sort_scan();
 
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
-
-  // If number of rows is not known, use as much of sort buffer as possible.
-  num_rows_estimate = table->file->estimate_rows_upper_bound();
+  if (table->file->inited) {
+    if (table->s->tmp_table)
+      table->file->info(HA_STATUS_VARIABLE);  // Get record count
+    num_rows_estimate = table->file->estimate_rows_upper_bound();
+  } else {
+    // If number of rows is not known, use as much of sort buffer as possible.
+    num_rows_estimate = HA_POS_ERROR;
+  }
 
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
-      param.max_record_length(),
+      param->max_record_length(),
       (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));
 
-  if (check_if_pq_applicable(trace, &param, &table->sort, table,
+  if (check_if_pq_applicable(trace, param, &table->sort, table,
                              num_rows_estimate, memory_available,
                              subselect != NULL)) {
     DBUG_PRINT("info", ("filesort PQ is applicable"));
@@ -438,13 +460,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       all pointers here. (We cannot pack fields anyways, so there is no
       point in doing incremental allocation).
      */
-    if (table->sort.preallocate_records(param.max_rows_per_buffer)) {
+    if (table->sort.preallocate_records(param->max_rows_per_buffer)) {
       my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
       LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
       goto err;
     }
 
-    if (pq.init(param.max_rows, &param, table->sort.get_sort_keys())) {
+    if (pq.init(param->max_rows, param, table->sort.get_sort_keys())) {
       /*
        If we fail to init pq, we have to give up:
        out of memory means my_malloc() will call my_error().
@@ -455,42 +477,42 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       goto err;
     }
     filesort->using_pq = true;
-    param.using_pq = true;
-    param.m_addon_fields_status = Addon_fields_status::using_priority_queue;
+    param->using_pq = true;
+    param->m_addon_fields_status = Addon_fields_status::using_priority_queue;
   } else {
     DBUG_PRINT("info", ("filesort PQ is not applicable"));
     filesort->using_pq = false;
-    param.using_pq = false;
+    param->using_pq = false;
 
     /*
       When sorting using priority queue, we cannot use packed addons.
       Without PQ, we can try.
     */
-    param.try_to_pack_addons(thd->variables.max_length_for_sort_data);
+    param->try_to_pack_addons(thd->variables.max_length_for_sort_data);
 
     /*
-      NOTE: param.max_rows_per_buffer is merely informative (for optimizer
+      NOTE: param->max_rows_per_buffer is merely informative (for optimizer
       trace) in this case, not actually used.
     */
     if (num_rows_estimate < MERGEBUFF2) num_rows_estimate = MERGEBUFF2;
     ha_rows keys =
-        memory_available / (param.max_record_length() + sizeof(char *));
-    param.max_rows_per_buffer =
+        memory_available / (param->max_record_length() + sizeof(char *));
+    param->max_rows_per_buffer =
         min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
 
-    table->sort.set_max_size(memory_available, param.max_record_length());
+    table->sort.set_max_size(memory_available, param->max_record_length());
   }
 
-  param.sort_form = table;
+  param->sort_form = table;
   size_t longest_key;
 
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found =
-        read_all_rows(thd, &param, qep_tab, &table->sort, &chunk_file,
-                      &tempfile, param.using_pq ? &pq : nullptr,
-                      source_iterator, found_rows, &longest_key);
+        read_all_rows(thd, param, qep_tab, &table->sort, &chunk_file, &tempfile,
+                      param->using_pq ? &pq : nullptr, source_iterator,
+                      found_rows, &longest_key);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -506,18 +528,19 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_chunks == 0)  // The whole set is in memory
   {
-    ha_rows rows_in_chunk = param.using_pq ? pq.num_elements() : num_rows_found;
-    if (save_index(&param, rows_in_chunk, &table->sort, sort_result)) goto err;
+    ha_rows rows_in_chunk =
+        param->using_pq ? pq.num_elements() : num_rows_found;
+    if (save_index(param, rows_in_chunk, &table->sort, sort_result)) goto err;
   } else {
     // If deduplicating, we'll need to remember the previous key somehow.
     if (filesort->m_remove_duplicates) {
-      param.m_last_key_seen =
+      param->m_last_key_seen =
           static_cast<uchar *>(thd->mem_root->Alloc(longest_key));
     }
 
     // We will need an extra buffer in SortFileIndirectIterator
     if (table->sort.addon_fields != nullptr &&
-        !(table->sort.addon_fields->allocate_addon_buf(param.m_addon_length)))
+        !(table->sort.addon_fields->allocate_addon_buf(param->m_addon_length)))
       goto err; /* purecov: inspected */
 
     table->sort.read_chunk_descriptors(&chunk_file, num_chunks);
@@ -532,8 +555,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       goto err;
     if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0)) goto err;
 
-    param.max_rows_per_buffer = static_cast<uint>(
-        table->sort.max_size_in_bytes() / param.max_record_length());
+    param->max_rows_per_buffer = static_cast<uint>(
+        table->sort.max_size_in_bytes() / param->max_record_length());
 
     Bounds_checked_array<uchar> merge_buf = table->sort.get_contiguous_buffer();
     if (merge_buf.array() == nullptr) {
@@ -541,14 +564,14 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
       goto err;
     }
-    if (merge_many_buff(thd, &param, merge_buf, table->sort.merge_chunks,
+    if (merge_many_buff(thd, param, merge_buf, table->sort.merge_chunks,
                         &num_chunks, &tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
         reinit_io_cache(&tempfile, READ_CACHE, 0L, 0, 0))
       goto err;
     if (merge_index(
-            thd, &param, merge_buf,
+            thd, param, merge_buf,
             Merge_chunk_array(table->sort.merge_chunks.begin(), num_chunks),
             &tempfile, outfile))
       goto err;
@@ -561,39 +584,39 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     String sort_mode(buffer, sizeof(buffer), &my_charset_bin);
     sort_mode.length(0);
     sort_mode.append("<");
-    if (param.using_varlen_keys())
+    if (param->using_varlen_keys())
       sort_mode.append("varlen_sort_key");
     else
       sort_mode.append("fixed_sort_key");
     sort_mode.append(", ");
-    sort_mode.append(param.using_packed_addons()
+    sort_mode.append(param->using_packed_addons()
                          ? "packed_additional_fields"
-                         : param.using_addon_fields() ? "additional_fields"
-                                                      : "rowid");
+                         : param->using_addon_fields() ? "additional_fields"
+                                                       : "rowid");
     sort_mode.append(">");
 
     const char *algo_text[] = {"none", "std::sort", "std::stable_sort"};
 
     Opt_trace_object filesort_summary(trace, "filesort_summary");
     filesort_summary.add("memory_available", memory_available)
-        .add("key_size", param.max_compare_length())
-        .add("row_size", param.max_record_length())
-        .add("max_rows_per_buffer", param.max_rows_per_buffer)
+        .add("key_size", param->max_compare_length())
+        .add("row_size", param->max_record_length())
+        .add("max_rows_per_buffer", param->max_rows_per_buffer)
         .add("num_rows_estimate", num_rows_estimate)
         .add("num_rows_found", num_rows_found)
         .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
         .add("peak_memory_used", table->sort.peak_memory_used())
-        .add_alnum("sort_algorithm", algo_text[param.m_sort_algorithm]);
-    if (!param.using_packed_addons())
+        .add_alnum("sort_algorithm", algo_text[param->m_sort_algorithm]);
+    if (!param->using_packed_addons())
       filesort_summary.add_alnum(
           "unpacked_addon_fields",
-          addon_fields_text(param.m_addon_fields_status));
+          addon_fields_text(param->m_addon_fields_status));
     filesort_summary.add_alnum("sort_mode", sort_mode.c_ptr());
   }
 
-  if (num_rows_found > param.max_rows) {
+  if (num_rows_found > param->max_rows) {
     // If read_all_rows() produced more results than the query LIMIT.
-    num_rows_found = param.max_rows;
+    num_rows_found = param->max_rows;
   }
   error = 0;
 
@@ -667,16 +690,18 @@ void filesort_free_buffers(TABLE *table, bool full) {
   }
 }
 
-Filesort::Filesort(QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
-                   bool force_stable_sort, bool remove_duplicates)
-    : qep_tab(tab_arg),
+Filesort::Filesort(THD *thd, QEP_TAB *tab_arg, ORDER *order, ha_rows limit_arg,
+                   bool force_stable_sort, bool remove_duplicates,
+                   bool sort_positions)
+    : m_thd(thd),
+      qep_tab(tab_arg),
       limit(limit_arg),
       sortorder(NULL),
       using_pq(false),
       m_force_stable_sort(
           force_stable_sort),  // keep relative order of equiv. elts
-      addon_fields(NULL),
-      m_remove_duplicates(remove_duplicates) {
+      m_remove_duplicates(remove_duplicates),
+      m_force_sort_positions(sort_positions) {
   // Switch to the right slice if applicable, so that we fetch out the correct
   // items from order_arg.
   if (qep_tab->join() != nullptr) {
@@ -1032,7 +1057,9 @@ static ha_rows read_all_rows(
       break;
     }
     // Note where we are, for the case where we are not using addon fields.
-    file->position(sort_form->record[0]);
+    if (!param->using_addon_fields()) {
+      file->position(sort_form->record[0]);
+    }
     DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
 
     if (thd->killed) {
@@ -2419,7 +2446,7 @@ Addon_fields *Filesort::get_addon_fields(
     if (!bitmap_is_set(read_set, field->field_index)) continue;
     // part_of_key is empty for a BLOB, so apply this check before the next.
     if (field->flags & BLOB_FLAG) {
-      DBUG_ASSERT(addon_fields == NULL);
+      DBUG_ASSERT(m_sort_param.addon_fields == NULL);
       *addon_fields_status = Addon_fields_status::row_contains_blob;
       return NULL;
     }
@@ -2436,44 +2463,48 @@ Addon_fields *Filesort::get_addon_fields(
     if (field->maybe_null()) null_fields++;
     num_fields++;
   }
-  if (0 == num_fields) return NULL;
+  if (0 == num_fields) {
+    *addon_fields_status = Addon_fields_status::zero_fields_needed;
+    return NULL;
+  }
 
   total_length += (null_fields + 7) / 8;
 
   *ppackable_length = packable_length;
 
   if (total_length + sortlength > max_length_for_sort_data) {
-    DBUG_ASSERT(addon_fields == NULL);
+    DBUG_ASSERT(m_sort_param.addon_fields == NULL);
     *addon_fields_status = Addon_fields_status::max_length_for_sort_data;
     return NULL;
   }
 
-  if (addon_fields == NULL) {
+  if (m_sort_param.addon_fields == NULL) {
     void *rawmem1 = (*THR_MALLOC)->Alloc(sizeof(Addon_fields));
     void *rawmem2 = (*THR_MALLOC)->Alloc(sizeof(Sort_addon_field) * num_fields);
     if (rawmem1 == NULL || rawmem2 == NULL)
       return NULL; /* purecov: inspected */
     Addon_fields_array addon_array(static_cast<Sort_addon_field *>(rawmem2),
                                    num_fields);
-    addon_fields = new (rawmem1) Addon_fields(addon_array);
+    m_sort_param.addon_fields = new (rawmem1) Addon_fields(addon_array);
   } else {
     /*
       Allocate memory only once, reuse descriptor array and buffer.
       Set using_packed_addons here, and size/offset details below.
      */
-    DBUG_ASSERT(num_fields == addon_fields->num_field_descriptors());
-    addon_fields->set_using_packed_addons(false);
+    DBUG_ASSERT(num_fields ==
+                m_sort_param.addon_fields->num_field_descriptors());
+    m_sort_param.addon_fields->set_using_packed_addons(false);
   }
 
   *plength = total_length;
 
   uint length = (null_fields + 7) / 8;
   null_fields = 0;
-  Addon_fields_array::iterator addonf = addon_fields->begin();
+  Addon_fields_array::iterator addonf = m_sort_param.addon_fields->begin();
   for (pfield = ptabfield; (field = *pfield); pfield++) {
     if (!bitmap_is_set(read_set, field->field_index)) continue;
     if (filter_covering && !field->part_of_key.is_set(index)) continue;
-    DBUG_ASSERT(addonf != addon_fields->end());
+    DBUG_ASSERT(addonf != m_sort_param.addon_fields->end());
 
     addonf->field = field;
     addonf->offset = length;
@@ -2494,7 +2525,15 @@ Addon_fields *Filesort::get_addon_fields(
   }
 
   DBUG_PRINT("info", ("addon_length: %d", length));
-  return addon_fields;
+  *addon_fields_status = Addon_fields_status::using_addon_fields;
+  return m_sort_param.addon_fields;
+}
+
+bool Filesort::using_addon_fields() {
+  m_sort_param.decide_addon_fields(this, qep_tab->table(),
+                                   m_thd->variables.max_length_for_sort_data,
+                                   m_force_sort_positions);
+  return m_sort_param.using_addon_fields();
 }
 
 /*

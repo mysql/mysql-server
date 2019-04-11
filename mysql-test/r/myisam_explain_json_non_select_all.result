@@ -3944,7 +3944,6 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
@@ -4962,7 +4961,6 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_key	4
-Handler_read_rnd	1
 Handler_read_rnd_next	27
 Sort_rows	1
 Sort_scan	1
