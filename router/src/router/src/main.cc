@@ -82,6 +82,7 @@
 #include "mysql/harness/tty.h"
 #include "mysql/harness/vt100_filter.h"
 #include "mysql_session.h"
+#include "mysqlrouter/mysql_client_thread_token.h"
 #include "random_generator.h"
 #include "router_app.h"
 #include "utils.h"
@@ -162,6 +163,7 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
   extern std::string g_program_name;
   g_program_name = argv[0];
 
+  mysqlrouter::MySQLClientThreadToken api_token;
   if (mysql_library_init(argc, argv, NULL)) {
     log_error("Could not initialize MySQL library");
     return 1;
@@ -207,11 +209,6 @@ int real_main(int argc, char **argv, bool use_os_logger_initially) {
     result = 1;
   }
 
-  // We should deinitialize mysql-lib but we can't do it safely here until
-  // we do WL9558 "Plugin life-cycle that support graceful shutdown and
-  // restart." Currently we can get here while there are still some threads
-  // running (like metadata_cache thread that is managed by the global
-  // g_metadata_cache) that still use mysql-lib, which leads to crash.
   mysql_library_end();
 
   return result;

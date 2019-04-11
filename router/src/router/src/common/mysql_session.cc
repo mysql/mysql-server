@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "mysqlrouter/mysql_session.h"
+#include "mysqlrouter/mysql_client_thread_token.h"
 #define MYSQL_ROUTER_LOG_DOMAIN "sql"
 #include "mysql/harness/logging/logging.h"
 
@@ -398,6 +399,8 @@ static GoogleMockRecorder g_mock_recorder;
 #endif  // !MOCK_RECORDER
 
 MySQLSession::MySQLSession() {
+  MySQLClientThreadToken api_token;
+
   connection_ = new MYSQL();
   connected_ = false;
   if (!mysql_init(connection_)) {
@@ -624,6 +627,7 @@ void MySQLSession::disconnect() {
 
   // initialize the connection handle again as _close() is also free()ing
   // a lot of internal data.
+  MySQLClientThreadToken api_token;
   mysql_init(connection_);
   connected_ = false;
   connection_address_.clear();
