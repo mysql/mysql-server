@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2767,4 +2767,43 @@ ha_ndbcluster::recreate_fk_for_truncate(THD* thd, Ndb* ndb, const char* tab_name
     }
   }
   DBUG_RETURN(0);
+}
+
+bool
+ha_ndbcluster::has_fk_dependency(THD* thd,
+                                 const NdbDictionary::Column* column) const
+{
+  DBUG_ENTER("ha_ndbcluster::has_fk_dependency");
+  Ndb* ndb= get_ndb(thd);
+  NDBDICT* dict = ndb->getDictionary();
+  NdbDictionary::Dictionary::List obj_list;
+  DBUG_PRINT("info", ("Searching for column %s", column->getName()));
+  if (dict->listDependentObjects(obj_list, *m_table) == 0)
+  {
+    for (unsigned i = 0; i < obj_list.count; i++)
+    {
+      const NDBDICT::List::Element &e= obj_list.elements[i];
+      if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      {
+       DBUG_PRINT("info", ("skip non-FK %s type %d", e.name, e.type));
+       continue;
+      }
+      DBUG_PRINT("info", ("found FK %s", e.name));
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, e.name) != 0)
+      {
+        DBUG_PRINT("error", ("Could not find the listed fk '%s'", e.name));
+        continue;
+      }
+      for (unsigned j = 0; j < fk.getParentColumnCount(); j++)
+      {
+	const NdbDictionary::Column* col =
+	  m_table->getColumn(fk.getParentColumnNo(j));
+	DBUG_PRINT("col", ("[%u] %s", i, col->getName()));
+	if (col == column)
+	  DBUG_RETURN(true);
+      }
+    }
+  }
+  DBUG_RETURN(false);
 }

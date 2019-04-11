@@ -17043,8 +17043,8 @@ ha_ndbcluster::supported_inplace_ndb_column_change(uint field_idx,
   if (new_field->field_storage_type() != HA_SM_DEFAULT &&
       old_col->getStorageType() != new_col.getStorageType())
   {
-      DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                      "Column storage media is changed"));
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Column storage media is changed"));
   }
 
   // Check if type is changed
@@ -17097,8 +17097,10 @@ ha_ndbcluster::supported_inplace_ndb_column_change(uint field_idx,
 
 enum_alter_inplace_result
 ha_ndbcluster::supported_inplace_field_change(Alter_inplace_info *ha_alter_info,
-                               Field *old_field,
-                               Field *new_field) const
+                                              Field *old_field,
+                                              Field *new_field,
+                                              bool field_fk_reference,
+                                              bool index_on_column) const
 {
   DBUG_ENTER("supported_inplace_field_change");
 
@@ -17175,15 +17177,32 @@ ha_ndbcluster::supported_inplace_field_change(Alter_inplace_info *ha_alter_info,
   if ((new_field->flags & FIELD_IS_RENAMED) ||
       (strcmp(old_field->field_name, new_field->field_name) != 0))
   {
-    DBUG_RETURN(inplace_unsupported(ha_alter_info,
-                                    "Altering field name is not supported"));
+    DBUG_PRINT("info", ("Detected field %s is renamed %s",
+                        old_field->field_name, new_field->field_name));
+    if (field_fk_reference)
+    {
+      DBUG_PRINT("info", ("Detected unsupported rename field %s being reference from a foreign key",
+                          old_field->field_name));
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALTER TABLE",
+               "Altering name of a field being referenced from a foreign key is not supported",
+               "dropping foreign key first");
+      DBUG_RETURN(HA_ALTER_ERROR);
+    }
+    if (index_on_column)
+    {
+      // Renaming column that is part of an index is not supported
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Renaming column that is part of an index is not supported"));
+    }
   }
 
   DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
 }
 
 enum_alter_inplace_result
-ha_ndbcluster::supported_inplace_column_change(TABLE *altered_table,
+ha_ndbcluster::supported_inplace_column_change(THD* thd,
+                                               TABLE *altered_table,
                                                uint field_position, Field *old_field,
                                                Alter_inplace_info *ha_alter_info) const
 {
@@ -17215,7 +17234,7 @@ ha_ndbcluster::supported_inplace_column_change(TABLE *altered_table,
   if(old_field->is_virtual_gcol() !=
      new_field->is_virtual_gcol())
   {
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info, "Unsupported change to virtual column"));
   }
 
   bool is_index_on_column=
@@ -17234,10 +17253,15 @@ ha_ndbcluster::supported_inplace_column_change(TABLE *altered_table,
     DBUG_RETURN(ndb_column_change_result);
   }
 
+  bool field_fk_reference= has_fk_dependency(thd, m_table->getColumn(field_position));
+
   // Check if table field properties are changed
   enum_alter_inplace_result field_change_result=
-    supported_inplace_field_change(ha_alter_info, old_field,
-                                   new_field);
+    supported_inplace_field_change(ha_alter_info,
+                                   old_field,
+                                   new_field,
+                                   field_fk_reference,
+                                   is_index_on_column);
 
   if (field_change_result == HA_ALTER_INPLACE_NOT_SUPPORTED ||
       field_change_result == HA_ALTER_ERROR)
@@ -17277,7 +17301,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ADD_FOREIGN_KEY |
     Alter_inplace_info::DROP_FOREIGN_KEY |
-    Alter_inplace_info::ALTER_INDEX_COMMENT;
+    Alter_inplace_info::ALTER_INDEX_COMMENT |
+    Alter_inplace_info::ALTER_COLUMN_NAME;
 
   const Alter_inplace_info::HA_ALTER_FLAGS not_supported= ~supported;
 
@@ -17393,6 +17418,11 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     }
   }
 
+  Ndb *ndb= get_ndb(thd);
+  NDBDICT *dict= ndb->getDictionary();
+  ndb->setDatabaseName(m_dbname);
+  NdbDictionary::Table new_tab= *old_tab;
+
   /**
    * Check whether altering column properties can be performed inplace
    * by comparing all old and new fields
@@ -17401,35 +17431,76 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
   {
     Field *field= table->field[i];
     enum_alter_inplace_result column_change_result=
-      supported_inplace_column_change(altered_table,
+      supported_inplace_column_change(thd,
+                                      altered_table,
                                       i, field,
                                       ha_alter_info);
 
-    if (column_change_result == HA_ALTER_INPLACE_NOT_SUPPORTED ||
-        column_change_result == HA_ALTER_ERROR)
-    {
+    switch(column_change_result) {
+    case HA_ALTER_ERROR:
+    case HA_ALTER_INPLACE_NOT_SUPPORTED:
       DBUG_RETURN(column_change_result);
-    }
-    else
-    {
+      break;
+    default:
       // Save the highest lock requirement
       result= MIN(result, column_change_result);
+      break;
+    }
+
+    /*
+       If we are changing a field name then change the
+       corresponding column name in the temporary Ndb table.
+    */
+    if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME)
+    {
+      Field *new_field= altered_table->field[i];
+      if (strcmp(field->field_name, new_field->field_name) != 0)
+      {
+        NDBCOL *ndbCol= new_tab.getColumn(new_field->field_index);
+        ndbCol->setName(new_field->field_name);
+      }
     }
   }
-  if (!(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN) &&
-      alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT)
+  if (!(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN))
   {
-    // We didn't find that the default value has changed, remove flag
-    DBUG_PRINT("info", ("No change of default value found, ignoring flag"));
-    alter_flags&= ~Alter_inplace_info::ALTER_COLUMN_DEFAULT;
+    if (alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT)
+    {
+      // We didn't find that the default value has changed, remove flag
+      DBUG_PRINT("info", ("No change of default value found, ignoring flag"));
+      alter_flags&= ~Alter_inplace_info::ALTER_COLUMN_DEFAULT;
+    }
+    if (alter_flags & Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE)
+    {
+      // We didn't find that the storage type has changed, remove flag
+      DBUG_PRINT("info", ("No change of storage type found, ignoring flag"));
+      alter_flags&= ~Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
+    }
+    if (alter_flags & Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT)
+    {
+      // We didn't find that the storage format has changed, remove flag
+      DBUG_PRINT("info", ("No change of storage format found, ignoring flag"));
+      alter_flags&= ~Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
+    }
+    if (alter_flags & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE)
+    {
+      // We didn't find that the storage of the column has changed, remove flag
+      DBUG_PRINT("info", ("No change of storage type, ignoring flag"));
+      alter_flags&= ~Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
+    }
   }
-  if (!(alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN) &&
-      alter_flags & Alter_inplace_info::ALTER_STORED_COLUMN_TYPE)
+
+  if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME)
   {
-    // We didn't find that the storage type has changed, remove flag
-    DBUG_PRINT("info", ("No change of storage type found, ignoring flag"));
-    alter_flags&= ~Alter_inplace_info::ALTER_STORED_COLUMN_TYPE;
-  }
+    /*
+      Check that we are only renaming column
+    */
+    if (alter_flags & ~Alter_inplace_info::ALTER_COLUMN_NAME)
+    {
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Only rename column exclusively can be "
+                                      "performed inplace"));
+    }
+   }
 
   if (alter_flags & not_supported)
   {
@@ -17444,16 +17515,13 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
                                     "Detected unsupported change"));
   }
 
-  if (alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN ||
+  if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME ||
+      alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
       max_rows_changed ||
       comment_changed)
   {
-     Ndb *ndb= get_ndb(thd);
-     NDBDICT *dict= ndb->getDictionary();
-     ndb->setDatabaseName(m_dbname);
-     NdbDictionary::Table new_tab= *old_tab;
 
      result= HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
      if (alter_flags & Alter_inplace_info::ADD_STORED_BASE_COLUMN)
@@ -17979,7 +18047,25 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  if (alter_flags &  Alter_inplace_info::ADD_STORED_BASE_COLUMN)
+  if (alter_flags & Alter_inplace_info::ALTER_COLUMN_NAME)
+  {
+    DBUG_PRINT("info", ("Finding renamed field"));
+     /* Find the renamed field */
+     for (uint i= 0; i < table->s->fields; i++)
+     {
+       Field *old_field= table->field[i];
+       Field *new_field= altered_table->field[i];
+       if (strcmp(old_field->field_name, new_field->field_name) != 0)
+       {
+         DBUG_PRINT("info", ("Found field %s renamed to %s",
+                             old_field->field_name, new_field->field_name));
+         NdbDictionary::Column* ndbCol= new_tab->getColumn(new_field->field_index);
+         ndbCol->setName(new_field->field_name);
+       }
+     }
+  }
+
+ if (alter_flags &  Alter_inplace_info::ADD_STORED_BASE_COLUMN)
   {
      NDBCOL col;
 
