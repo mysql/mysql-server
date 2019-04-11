@@ -17243,7 +17243,8 @@ static int copy_data_between_tables(
   unique_ptr_destroy_only<Filesort> fsort;
   unique_ptr_destroy_only<RowIterator> iterator = create_table_iterator(
       thd, from, NULL, false,
-      /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr);
+      /*ignore_not_found_rows=*/false, /*examined_rows=*/nullptr,
+      /*using_table_scan=*/nullptr);
 
   if (order && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {
@@ -17272,10 +17273,13 @@ static int copy_data_between_tables(
     if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
                     all_fields, order))
       goto err;
-    fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
-    unique_ptr_destroy_only<RowIterator> sort = NewIterator<SortingIterator>(
-        thd, fsort.get(), move(iterator), /*force_sort_position=*/true,
-        /*examined_rows=*/nullptr);
+    fsort.reset(new (thd->mem_root) Filesort(thd, &qep_tab, order, HA_POS_ERROR,
+                                             /*force_stable_sort=*/false,
+                                             /*remove_duplicates=*/false,
+                                             /*force_sort_positions=*/true));
+    unique_ptr_destroy_only<RowIterator> sort =
+        NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
+                                     /*examined_rows=*/nullptr);
     if (sort->Init()) {
       error = 1;
       goto err;

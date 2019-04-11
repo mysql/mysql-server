@@ -432,9 +432,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     unique_ptr_destroy_only<RowIterator> iterator;
     ha_rows examined_rows = 0;
     if (usable_index == MAX_KEY || qep_tab.quick())
-      iterator = create_table_iterator(thd, NULL, &qep_tab, false,
-                                       /*ignore_not_found_rows=*/false,
-                                       &examined_rows);
+      iterator =
+          create_table_iterator(thd, NULL, &qep_tab, false,
+                                /*ignore_not_found_rows=*/false, &examined_rows,
+                                /*using_table_scan=*/nullptr);
     else
       iterator = create_table_iterator_idx(thd, table, usable_index, reverse,
                                            &qep_tab);
@@ -447,10 +448,13 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
                                                qep_tab.condition());
       }
 
-      fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
+      fsort.reset(new (thd->mem_root)
+                      Filesort(thd, &qep_tab, order, HA_POS_ERROR,
+                               /*force_stable_sort=*/false,
+                               /*remove_duplicates=*/false,
+                               /*force_sort_positions=*/true));
       unique_ptr_destroy_only<RowIterator> sort =
           NewIterator<SortingIterator>(thd, fsort.get(), move(iterator),
-                                       /*force_sort_position=*/true,
                                        /*rows_examined=*/nullptr);
       if (sort->Init()) return true;
       iterator = move(sort);

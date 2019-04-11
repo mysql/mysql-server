@@ -1226,8 +1226,8 @@ TRACE
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<varlen_sort_key, rowid>"
+              "unpacked_addon_fields": "skip_heuristic",
+              "sort_mode": "<varlen_sort_key, additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */
@@ -5372,8 +5372,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_heap_table",
-              "sort_mode": "<fixed_sort_key, rowid>"
+              "sort_mode": "<fixed_sort_key, packed_additional_fields>"
             } /* filesort_summary */
           }
         ] /* steps */

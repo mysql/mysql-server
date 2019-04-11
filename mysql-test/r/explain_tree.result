@@ -331,9 +331,8 @@ INSERT INTO t1 VALUES ( 3 );
 EXPLAIN FORMAT=tree SELECT ( SELECT f1 FROM t1 AS inner_t1 WHERE inner_t1.f1 > t1.f1 LIMIT 1 ) AS tmp1 FROM t1 ORDER BY tmp1;
 EXPLAIN
 -> Sort: <temporary>.tmp1
-    -> Table scan on <temporary>
-        -> Temporary table
-            -> Index scan on t1 using PRIMARY
+    -> Stream results
+        -> Index scan on t1 using PRIMARY
 -> Select #2 (subquery in projection; dependent)
     -> Limit: 1 row(s)
         -> Filter: (inner_t1.f1 > t1.f1)
