@@ -30,12 +30,15 @@ Parallel read adapter interface implementation
 Created 2018-02-28 by Darshan M N */
 
 #include "row0pread-adapter.h"
+#include "my_thread.h"
 #include "row0sel.h"
 
 dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
   ulong *mysql_row_offsets;
   ulong *mysql_nullbit_offsets;
   ulong *mysql_null_bit_mask;
+
+  my_thread_init();
 
   mysql_row_offsets =
       static_cast<ulong *>(alloca(sizeof(ulong) * m_prebuilt->n_template));
@@ -73,6 +76,8 @@ dberr_t Parallel_reader_adapter::worker(size_t id, Queue &ctxq, Function &f) {
     }
   }
   m_load_end(m_thread_contexts[id]);
+
+  my_thread_end();
 
   return (err);
 }
