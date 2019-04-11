@@ -201,6 +201,9 @@ repeat(t4.f,2),
 '"') val
 from t t1, t t2, t t3, t t4) tt;
 ERROR HY000: Exceeded max number of values per record for multi-valued index 'i1' by 60184 value(s)
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select * from t1 ignore key(i1) where json_contains(doc->"$","[1,2,3]");
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
@@ -224,6 +227,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`doc` AS `doc` from `test`.`t1` wher
 drop table t2, t1, t;
 create table t2(j json, key k ((cast(j->'$[*]' as char(10) array))));
 insert into t2 values (json_array('abc')), (json_array('ABC'));
+analyze table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
 select * from t2 where "abc" member of (j->'$[*]');
 j
 ["abc"]
@@ -300,6 +306,9 @@ insert into t1(j) values
 ('{"data":[1,2,3]}'),
 ('{"other_data":[4,5,6]}'),
 ('"no data"');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where 2 member of(sp_f);
 j	sp_f
 {"data": [1, 2, 3]}	[1, 2, 3]
@@ -646,6 +655,9 @@ insert into t1(f1) values
 insert into t1(f1) values
 (cast('[1,-3]' as json)),
 (cast(-2 as json)), ('[98,99]');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1;
 id	f1
 1	[1, 3]
@@ -706,6 +718,9 @@ insert into t1(f1) values(cast('["xcv","cvb"]' as json));
 insert into t1(f1) values(cast('["adf"]' as json));
 insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
 insert into t1(f1) values(cast('["bnm","sdfqwe"]' as json));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where "qwe" member of (f1->"$[*]");
 f1
 ["asd", "qwe"]
@@ -751,6 +766,9 @@ insert into t1(f1) values(cast('["xcv","cvb"]' as json));
 insert into t1(f1) values(cast('["adf"]' as json));
 insert into t1(f1) values(cast('["asd","sdfqwe"]' as json));
 insert into t1(f1) values(cast('["bnm","sdfqwe"]' as json));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where "qwe" member of (f1->"$[*]");
 f1
 ["asd", "qwe"]
@@ -802,6 +820,9 @@ cast(1.33 as decimal(10,4))));
 insert into t1(f1) values(json_array(
 cast(98 as decimal(10,3)),
 cast(99 as decimal)));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1;
 id	f1
 1	0
@@ -862,6 +883,9 @@ insert into t1(f1) values(json_array(
 cast('01-01-12' as date),
 cast('01-01-13' as date)));
 insert into t1(f1) values('["01-02-03","22.11.17"]');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where cast('01-02-03' as date) member of (f1->"$");
 id	f1
 2	"2001-02-03"
@@ -932,6 +956,9 @@ insert into t1(f1) values(json_array(
 cast('01:12:54' as time),
 cast('01:12:55' as time)));
 insert into t1(f1) values('["01:02:03","22:11:17"]');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where cast('01:02:03' as time) member of (f1->"$");
 id	f1
 2	"01:02:03.000000"
@@ -1003,6 +1030,9 @@ insert into t1(f1) values(json_array(
 cast('01-01-01 01:12:54' as datetime),
 cast('01-01-01 01:12:55' as datetime)));
 insert into t1(f1) values('["01-01-01 01:02:03","01-01-01 22:11:17"]');
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where cast('01-01-01 01:02:03' as datetime) member of (f1->"$");
 id	f1
 2	"2001-01-01 01:02:03.000000"
@@ -1137,6 +1167,9 @@ insert into t1(f1) values
 (cast('[8,4,3,5]' as json)),
 (cast('[9,2,7]' as json)),
 (cast('null' as json));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where json_overlaps(cast('[4,6]' as json), f1->'$[*]');
 id	f1
 3	[3, 3, 4, 4, 7]
@@ -1197,6 +1230,9 @@ insert into t1(f1) values
 (cast(54 as json)), (cast('[40,5,7]' as json)), (cast(56 as json)),
 (cast(57 as json)), (cast('[58,4,3,5]' as json)), (cast('[55,6,7]' as json)),
 (cast('[59,2,7]' as json));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 set @save_sbs= @@sort_buffer_size;
 set @@sort_buffer_size=32768;
 select * from t1 force index(i1)
@@ -1553,6 +1589,9 @@ insert into t1(f1) values
 (cast(4 as json)), (cast('[0,5,7]' as json)), (cast(6 as json)),
 (cast(7 as json)), (cast('[8,4,3,5]' as json)), (cast('[5,6,7]' as json)),
 (cast('[9,2,7]' as json));
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 set @@optimizer_switch="mrr_cost_based=off";
 select * from t1 force index(i1)
 where json_overlaps(f1->"$[*]", "[4,3,7]") order by id;
@@ -1698,6 +1737,9 @@ insert into t1(j2, j3) select j2, j3 from t1;
 insert into t1(j2, j3) select j2, j3 from t1;
 insert into t1(j2, j3) select j2, j3 from t1;
 insert into t1(j2, j3) select j2, j3 from t1;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 explain select count(*) from t1 force index(mv_idx_unsigned);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
@@ -1948,6 +1990,9 @@ INSERT INTO c1 VALUES (266852963,'[[1835802859, 1212466474, 1958770846],
 ["1980-03-14 17:42:17", "2009-05-12 20:16:27", "1991-10-09 13:20:26",
 "1973-08-03 01:28:46", "2027-02-28 14:26:25", "2014-07-24 05:46:40",
 "2035-04-30 15:17:48"], [], ["06:32:03"]]');
+analyze table c1;
+Table	Op	Msg_type	Msg_text
+test.c1	analyze	status	OK
 SELECT  col_int FROM c1  WHERE
 (JSON_CONTAINS( col_jsonn-> '$[2][*]' , JSON_ARRAY( '2030-11-16' ) ) ) OR
 JSON_OVERLAPS(JSON_ARRAY('12:38:26', '17:42:23'), col_jsonn->'$[6][*]');
@@ -1976,6 +2021,9 @@ insert into c values (DEFAULT,'8','q','[0,0,1,1,0,1]'),
 (DEFAULT,'T','N','[1,0,0,0,0,1,0]'), (DEFAULT,'H','p','[0,0,1]'),
 (DEFAULT,'Z','t','[1]'), (DEFAULT,'T','v','[0]'), (DEFAULT,'m','N','[1,1,0]'),
 (DEFAULT,'4','o','[1,1,0,1]'), (DEFAULT,'1','5','[1,0,1,0,0,0]');
+analyze table c;
+Table	Op	Msg_type	Msg_text
+test.c	analyze	status	OK
 SELECT alias1 . pk AS   field1 , alias2 . pk AS   field3
 FROM ( c AS alias1 LEFT JOIN c AS alias2
 ON ( alias1 . col_varchar = alias2 . col_varchar_key  ) )
@@ -2032,3 +2080,4 @@ ON t1.pk = JSON_OVERLAPS( 'OJNRaUr' , JSON_ARRAY( 'Q' , 'qX' ) ) WHERE t2 .
 pk = 1;
 ERROR 22032: Invalid JSON text in argument 1 to function json_overlaps: "Invalid value." at position 0.
 DROP TABLE t1,t2;
+# restart:
