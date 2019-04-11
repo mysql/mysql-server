@@ -260,4 +260,28 @@ t2	CREATE TABLE `t2` (
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE t1 RENAME COLUMN col3 TO col3_new;
+ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+ALTER TABLE t1 ALGORITHM=inplace, RENAME COLUMN col3 TO col3_new;
+ERROR 0A000: ALTER TABLE is not supported. Reason: Altering name of a field being referenced from a foreign key is not supported. Try dropping foreign key first.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) NOT NULL,
+  PRIMARY KEY (`col1`),
+  UNIQUE KEY `name0` (`col2`),
+  UNIQUE KEY `name1` (`col3`)
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `col1` int(11) NOT NULL,
+  `col2` int(11) NOT NULL,
+  `col3` varchar(35) DEFAULT NULL,
+  UNIQUE KEY `col1` (`col1`),
+  KEY `fk1` (`col3`),
+  CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;

@@ -18,6 +18,9 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t1 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t1 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t2 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t2 WHERE a = 1;
 a
@@ -38,6 +41,9 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t2 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t2 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t3 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t3 WHERE a = 1;
 a
@@ -58,6 +64,9 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t3 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t3 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t4 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t4 WHERE a = 1;
 a
@@ -78,6 +87,9 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t4 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t4 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t5 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t5 WHERE a = 1;
 a
@@ -98,6 +110,9 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t5 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t5 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t6 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t6 WHERE a = 1;
 a
@@ -107,6 +122,9 @@ a
 ALTER TABLE t6 ALGORITHM=inplace,
 ADD COLUMN m VARCHAR(255) DEFAULT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Found hidden primary key or user defined partitioning. Try ALGORITHM=COPY.
+ALTER TABLE t6 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+Got one of the listed errors
 ALTER TABLE t7 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t7 WHERE a = 1;
 a
@@ -127,6 +145,13 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column with non-
 ALTER TABLE t7 ALGORITHM=inplace,
 ADD COLUMN ai INT NOT NULL UNIQUE AUTO_INCREMENT;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Only add column exclusively can be performed online. Try ALGORITHM=COPY.
+ALTER TABLE t7 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+SELECT b_new FROM t7 WHERE a = 4;
+b_new
+4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b
+ALTER TABLE t7 ALGORITHM=inplace,
+RENAME COLUMN b_new TO b;
 ALTER TABLE t8 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t8 WHERE a = 1;
 a
@@ -138,6 +163,13 @@ a
 ALTER TABLE t8 ALGORITHM=inplace,
 ADD COLUMN m VARCHAR(255) DEFAULT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Found hidden primary key or user defined partitioning. Try ALGORITHM=COPY.
+ALTER TABLE t8 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+SELECT b_new FROM t8 WHERE a = 4;
+b_new
+4-t8
+ALTER TABLE t8 ALGORITHM=inplace,
+RENAME COLUMN b_new TO b;
 ALTER TABLE t9 ALGORITHM=inplace, ADD INDEX a_idx1(a);
 SELECT a FROM t9 WHERE a = 1;
 a
@@ -149,4 +181,11 @@ a
 ALTER TABLE t9 ALGORITHM=inplace,
 ADD COLUMN m VARCHAR(255) DEFAULT NULL;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Found hidden primary key or user defined partitioning. Try ALGORITHM=COPY.
+ALTER TABLE t9 ALGORITHM=inplace,
+RENAME COLUMN b TO b_new;
+SELECT b_new FROM t9 WHERE a = 4;
+b_new
+4-t9
+ALTER TABLE t9 ALGORITHM=inplace,
+RENAME COLUMN b_new TO b;
 == verify_mysql_dd.inc ==
