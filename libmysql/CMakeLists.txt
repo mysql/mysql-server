@@ -140,13 +140,6 @@ mysql_session_track_get_first
 mysql_session_track_get_next
 mysql_reset_server_public_key
 mysql_result_metadata
-mysql_real_connect_nonblocking
-mysql_send_query_nonblocking
-mysql_real_query_nonblocking
-mysql_store_result_nonblocking
-mysql_next_result_nonblocking
-mysql_fetch_row_nonblocking
-mysql_free_result_nonblocking
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -167,6 +160,19 @@ my_make_scrambled_password
 
 CACHE INTERNAL "Undocumented functions exported by client API"
 
+)
+
+# Below list will have all nonblocking C APIs
+SET (CLIENT_API_NONBLOCKING_FUNCTIONS
+mysql_real_connect_nonblocking
+mysql_send_query_nonblocking
+mysql_real_query_nonblocking
+mysql_store_result_nonblocking
+mysql_next_result_nonblocking
+mysql_fetch_row_nonblocking
+mysql_free_result_nonblocking
+
+CACHE INTERNAL "Nonblocking functions exported by client API"
 )
 
 SET(CLIENT_SOURCES
@@ -278,7 +284,7 @@ IF(NOT DISABLE_SHARED)
   # Merge several convenience libraries into one big mysqlclient
   # and link them together into shared library.
   MERGE_LIBRARIES_SHARED(libmysql ${LIBS_TO_MERGE}
-    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
+    EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED} ${CLIENT_API_NONBLOCKING_FUNCTIONS}
     COMPONENT SharedLibraries)
   TARGET_LINK_LIBRARIES(libmysql PRIVATE ${LIBS_TO_LINK})
 
@@ -338,6 +344,9 @@ ENDIF()
 #
 SET(CLIENT_API_FUNCTION_LIST "")
 FOREACH(api ${CLIENT_API_FUNCTIONS})
+  SET(CLIENT_API_FUNCTION_LIST "${CLIENT_API_FUNCTION_LIST} ${api},")
+ENDFOREACH()
+FOREACH(api ${CLIENT_API_NONBLOCKING_FUNCTIONS})
   SET(CLIENT_API_FUNCTION_LIST "${CLIENT_API_FUNCTION_LIST} ${api},")
 ENDFOREACH()
 
