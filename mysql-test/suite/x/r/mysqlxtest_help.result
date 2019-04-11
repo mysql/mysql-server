@@ -16,6 +16,7 @@ Options:
 --sql=<SQL>           Use SQL as input and execute it like in -->sql block
 -e=<SQL>, --execute=<SQL> Aliases for "--sql" option
 -n, --no-auth         Skip authentication which is required by -->sql block (run mode)
+--no-connect-attrs    Skip send session connection attributes
 --plain-auth          Use PLAIN text authentication mechanism
 --cached-auth         Use SHA256_MEMORY authentication mechanism
 --mysql41-auth        Use MYSQL41 authentication mechanism

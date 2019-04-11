@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
  */
 
 #include "my_compiler.h"
+
 #include "unittest/gunit/xplugin/xcl/message_helpers.h"
 #include "unittest/gunit/xplugin/xcl/mock/query_result.h"
 #include "unittest/gunit/xplugin/xcl/session_t.h"
@@ -269,8 +270,9 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "         key: \"key3\" "
                                        "         value { "
                                        "           type: SCALAR scalar { "
-                                       "             type: V_BOOL "
-                                       "             v_bool: true "
+                                       "             type: V_STRING "
+                                       "             v_string { "
+                                       "               value: \"str1\" } "
                                        "       } } } "
                                        "} }"),
                                _))
@@ -321,8 +323,9 @@ TEST_F(Xcl_session_impl_tests_execute_connected,
                                        "       } } "
                                        "       value { "
                                        "         type: SCALAR scalar { "
-                                       "           type: V_BOOL "
-                                       "           v_bool: true "
+                                       "             type: V_STRING "
+                                       "             v_string { "
+                                       "               value: \"str1\" } "
                                        "       } } "
                                        "} }"),
                                _))

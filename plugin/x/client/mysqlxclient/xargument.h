@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace xcl {
@@ -37,6 +38,7 @@ class Argument_value {
  public:
   using Arguments = std::vector<Argument_value>;
   using Object = std::map<std::string, Argument_value>;
+  using Unordered_object = std::vector<std::pair<std::string, Argument_value>>;
 
   enum class Type {
     TInteger,
@@ -65,6 +67,7 @@ class Argument_value {
     virtual void visit(const float value) = 0;
     virtual void visit(const bool value) = 0;
     virtual void visit(const Object &value) = 0;
+    virtual void visit(const Unordered_object &value) = 0;
     virtual void visit(const Arguments &value) = 0;
     virtual void visit(const std::string &value,
                        const Argument_value::String_type st) = 0;
@@ -87,6 +90,7 @@ class Argument_value {
   Argument_value &operator=(const Value_type &value) {
     m_string.clear();
     m_object.clear();
+    m_unordered_object.clear();
     m_array.clear();
     set(value);
 
@@ -138,7 +142,10 @@ class Argument_value {
         return;
 
       case Type::TObject:
-        visitor->visit(m_object);
+        if (m_object.empty())
+          visitor->visit(m_unordered_object);
+        else
+          visitor->visit(m_object);
         return;
     }
   }
@@ -162,6 +169,11 @@ class Argument_value {
   void set() { m_type = Type::TNull; }
 
   void set(const std::string &s, Type type = Type::TString) {
+    m_type = type;
+    m_string = s;
+  }
+
+  void set(const char *s, Type type = Type::TString) {
     m_type = type;
     m_string = s;
   }
@@ -201,10 +213,16 @@ class Argument_value {
     m_object = object;
   }
 
+  void set(const Unordered_object &object) {
+    m_type = Type::TObject;
+    m_unordered_object = object;
+  }
+
   Type m_type;
   std::string m_string;
   Arguments m_array;
   Object m_object;
+  Unordered_object m_unordered_object;
 
   union {
     int64_t i;
@@ -215,8 +233,9 @@ class Argument_value {
   } m_value;
 };
 
-using Arguments = std::vector<Argument_value>;
-using Object = std::map<std::string, Argument_value>;
+using Arguments = Argument_value::Arguments;
+using Object = Argument_value::Object;
+using Argument_object = Argument_value::Unordered_object;
 
 }  // namespace xcl
 

@@ -45,17 +45,19 @@ void Driver_command_line_options::print_help() {
   std::cout << "mysqlxtest <options> [SCHEMA]\n";
   std::cout << "Options:\n";
   std::cout << "-f, --file=<file>     Reads input from file\n";
-  std::cout << "-I, --import=<dir>    Reads macro files from dir; required "
-               "by -->import\n";
-  std::cout << "--sql=<SQL>           Use SQL as input and execute it like "
-               "in -->sql block\n";
+  std::cout << "-I, --import=<dir>    "
+               "Reads macro files from dir; required by -->import\n";
+  std::cout << "--sql=<SQL>           "
+               "Use SQL as input and execute it like in -->sql block\n";
   std::cout << "-e=<SQL>, --execute=<SQL> Aliases for \"--sql\" option\n";
   std::cout << "-n, --no-auth         Skip authentication which is required "
                "by -->sql block (run mode)\n";
-  std::cout
-      << "--plain-auth          Use PLAIN text authentication mechanism\n";
-  std::cout
-      << "--cached-auth         Use SHA256_MEMORY authentication mechanism\n";
+  std::cout << "--no-connect-attrs    "
+               "Skip send session connection attributes\n";
+  std::cout << "--plain-auth          "
+               "Use PLAIN text authentication mechanism\n";
+  std::cout << "--cached-auth         "
+               "Use SHA256_MEMORY authentication mechanism\n";
   std::cout << "--mysql41-auth        Use MYSQL41 authentication mechanism\n";
   std::cout << "--using-cap-auth      Get capabilities to check which\n"
             << "                      authentication mechanism are supported\n";
@@ -87,8 +89,8 @@ void Driver_command_line_options::print_help() {
   std::cout << "                      URI takes precedence before options "
                "like: user, host, password, port\n";
   std::cout << "--socket=<file>       Connection through UNIX socket\n";
-  std::cout << "--use-socket          Connection through UNIX socket, using "
-               "default file name '"
+  std::cout << "--use-socket          "
+               "Connection through UNIX socket, using default file name '"
             << MYSQLX_UNIX_ADDR << "'\n";
   std::cout << "                      --use-socket* options take precedence "
                "before options like: uri, user,\n";
@@ -101,10 +103,10 @@ void Driver_command_line_options::print_help() {
                "client tries to set it up\n";
   std::cout << "                      \"DISABLED\" - encryption is disabled\n";
   std::cout << "                      \"REQUIRED\" - encryption is required\n";
-  std::cout << "                      \"VERIFY_CA\" - verify server certificate"
-               "\n";
-  std::cout << "                      \"VERIFY_IDENTITY\" - verify certificate "
-               "issuer\n";
+  std::cout << "                      "
+               "\"VERIFY_CA\" - verify server certificate\n";
+  std::cout << "                      "
+               "\"VERIFY_IDENTITY\" - verify certificate issuer\n";
   std::cout << "--ssl-key             X509 key in PEM format\n";
   std::cout << "--ssl-ca              CA file in PEM format\n";
   std::cout << "--ssl-ca_path         CA directory\n";
@@ -115,8 +117,8 @@ void Driver_command_line_options::print_help() {
   std::cout << "--connect-expired-password Allow expired password\n";
   std::cout << "--client-interactive  Connect in interactive mode\n";
   std::cout << "--quiet               Don't print out messages sent\n";
-  std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from "
-               "command line\n";
+  std::cout << "-vVARIABLE_NAME=VALUE "
+               "Set variable VARIABLE_NAME from command line\n";
   std::cout << "--fatal-errors=<0|1>  Mysqlxtest is started with ignoring or "
                "stopping on fatal error (default: 1)\n";
   std::cout << "--expect-error=<error_code> Default connection must fail with "
@@ -143,6 +145,7 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_has_file(false),
       m_cap_expired_password(false),
       m_client_interactive(false),
+      m_connect_attrs(true),
       m_daemon(false) {
   std::string user;
 
@@ -153,90 +156,95 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
       m_has_file = true;
     } else if (check_arg(argv, i, "--no-auth", "-n")) {
       m_run_without_auth = true;
-    } else if (check_arg(argv, i, "--plain-auth", NULL)) {
+    } else if (check_arg(argv, i, "--no-connect-attrs", nullptr)) {
+      m_connect_attrs = false;
+    } else if (check_arg(argv, i, "--plain-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("PLAIN");
-    } else if (check_arg(argv, i, "--cached-auth", NULL)) {
+    } else if (check_arg(argv, i, "--cached-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("SHA256_MEMORY");
-    } else if (check_arg(argv, i, "--using-cap-auth", NULL)) {
+    } else if (check_arg(argv, i, "--using-cap-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("FROM_CAPABILITIES");
-    } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
+    } else if (check_arg(argv, i, "--mysql41-auth", nullptr)) {
       m_connection_options.auth_methods.push_back("MYSQL41");
-    } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--debug", nullptr, value)) {
 #ifndef DBUG_OFF
       DBUG_PUSH(value);
 #endif  // DBUG_OFF
-    } else if (check_arg_with_value(argv, i, "--sql", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--sql", nullptr, value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-mode", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-mode", nullptr, value)) {
       m_connection_options.ssl_mode = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-key", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-key", nullptr, value)) {
       m_connection_options.ssl_key = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-ca", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-ca", nullptr, value)) {
       m_connection_options.ssl_ca = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-fips-mode", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-fips-mode", nullptr,
+                                    value)) {
       m_connection_options.ssl_fips_mode = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-ca_path", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-ca_path", nullptr, value)) {
       m_connection_options.ssl_ca_path = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-cert", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-cert", nullptr, value)) {
       m_connection_options.ssl_cert = value;
-    } else if (check_arg_with_value(argv, i, "--ssl-cipher", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ssl-cipher", nullptr, value)) {
       m_connection_options.ssl_cipher = value;
-    } else if (check_arg_with_value(argv, i, "--tls-version", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--tls-version", nullptr, value)) {
       m_connection_options.allowed_tls = value;
     } else if (check_arg_with_value(argv, i, "--host", "-h", value)) {
       m_connection_options.host = value;
-    } else if (check_arg_with_value(argv, i, "--network-namespace", NULL,
+    } else if (check_arg_with_value(argv, i, "--network-namespace", nullptr,
                                     value)) {
       m_connection_options.network_namespace = value;
     } else if (check_arg_with_value(argv, i, "--user", "-u", value)) {
       m_connection_options.user = value;
-    } else if (check_arg_with_value(argv, i, "--uri", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--uri", nullptr, value)) {
       m_uri = value;
-    } else if (check_arg_with_value(argv, i, "--schema", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--schema", nullptr, value)) {
       m_connection_options.schema = value;
     } else if (check_arg_with_value(argv, i, "--port", "-P", value)) {
       m_connection_options.port = std::stoi(value);
-    } else if (check_arg_with_value(argv, i, "--ipv", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--ipv", nullptr, value)) {
       m_connection_options.ip_mode = set_protocol(std::stoi(value));
     } else if (check_arg_with_value(argv, i, "--timeout", "-t", value)) {
       m_connection_options.session_connect_timeout =
           m_connection_options.io_timeout = std::stoi(value);
-    } else if (check_arg_with_value(argv, i, "--expect-error", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--expect-error", nullptr,
+                                    value)) {
       m_expected_error_code = mysqlxtest::get_error_code_by_text(value);
-    } else if (check_arg_with_value(argv, i, "--fatal-errors", NULL, value)) {
+    } else if (check_arg_with_value(argv, i, "--fatal-errors", nullptr,
+                                    value)) {
       m_context_options.m_fatal_errors = std::stoi(value);
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
     } else if (check_arg_with_value(argv, i, "--socket", "-S", value)) {
       m_connection_options.socket = value;
-    } else if (check_arg(argv, i, "--mysql57-compatible", NULL)) {
+    } else if (check_arg(argv, i, "--mysql57-compatible", nullptr)) {
       m_connection_options.compatible = true;
-    } else if (check_arg_with_value(argv, i, NULL, "-v", value)) {
+    } else if (check_arg_with_value(argv, i, nullptr, "-v", value)) {
       set_variable_option(value);
-    } else if (check_arg(argv, i, "--use-socket", NULL)) {
+    } else if (check_arg(argv, i, "--use-socket", nullptr)) {
       m_connection_options.socket = get_socket_name();
-    } else if (check_arg(argv, i, "--trace-protocol", NULL)) {
+    } else if (check_arg(argv, i, "--trace-protocol", nullptr)) {
       m_connection_options.trace_protocol = true;
-    } else if (check_arg(argv, i, "--close-no-sync", NULL)) {
+    } else if (check_arg(argv, i, "--close-no-sync", nullptr)) {
       m_connection_options.dont_wait_for_disconnect = true;
     } else if (check_arg(argv, i, "--bindump", "-B")) {
       m_context_options.m_bindump = true;
-    } else if (check_arg(argv, i, "--connect-expired-password", NULL)) {
+    } else if (check_arg(argv, i, "--connect-expired-password", nullptr)) {
       m_cap_expired_password = true;
-    } else if (check_arg(argv, i, "--client-interactive", NULL)) {
+    } else if (check_arg(argv, i, "--client-interactive", nullptr)) {
       m_client_interactive = true;
     } else if (check_arg(argv, i, "--quiet", "-q")) {
       m_context_options.m_quiet = true;
-    } else if (check_arg(argv, i, "--verbose", NULL)) {
+    } else if (check_arg(argv, i, "--verbose", nullptr)) {
       m_console_options.m_be_verbose = true;
-    } else if (check_arg(argv, i, "--daemon", NULL)) {
+    } else if (check_arg(argv, i, "--daemon", nullptr)) {
       m_daemon = true;
 #ifndef _WIN32
-    } else if (check_arg(argv, i, "--color", NULL)) {
+    } else if (check_arg(argv, i, "--color", nullptr)) {
       m_console_options.m_use_color = true;
 #endif
     } else if (check_arg_with_value(argv, i, "--import", "-I", value)) {

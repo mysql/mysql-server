@@ -85,6 +85,8 @@ class Session_impl : public XSession {
                         const char *value) override;
   XError set_capability(const Mysqlx_capability capability,
                         const int64_t value) override;
+  XError set_capability(const Mysqlx_capability capability,
+                        const Argument_object &value) override;
 
   XError connect(const char *host, const uint16_t port, const char *user,
                  const char *pass, const char *schema) override;
@@ -104,6 +106,8 @@ class Session_impl : public XSession {
                                               XError *out_error) override;
 
   void close() override;
+
+  Argument_object get_connect_attrs() const override;
 
  private:
   using Context_ptr = std::shared_ptr<Context>;

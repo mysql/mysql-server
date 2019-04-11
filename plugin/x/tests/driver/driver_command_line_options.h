@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,7 @@ class Driver_command_line_options : public Command_line_options {
   bool m_has_file;
   bool m_cap_expired_password;
   bool m_client_interactive;
+  bool m_connect_attrs;
 
   Execution_context::Options m_context_options;
   Console::Options m_console_options;

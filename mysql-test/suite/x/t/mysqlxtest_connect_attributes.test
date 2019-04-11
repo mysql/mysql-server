@@ -1,0 +1,36 @@
+## Test of general functionality of session_connect_attrs capability for mysqlxtest
+
+## Preamble
+--source ../include/have_performance_schema_statements.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+
+--write_file $MYSQL_TMP_DIR/mysqlxtest_connect_attrs.xpl
+
+stmtadmin list_clients;
+recvtovar %SQL_SESSION_ID% sql_session;
+stmtsql SELECT attr_name,
+  IF(LENGTH(attr_value) >0, 'not empty', 'EMPTY!') AS attr_value
+  FROM performance_schema.session_connect_attrs
+  WHERE processlist_id = %SQL_SESSION_ID% AND attr_name NOT LIKE '_thread'
+  ORDER BY ordinal_position;
+recvresult;
+
+EOF
+
+--replace_regex /(processlist_id = )[0-9]+/\1$SESSION_ID/
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/mysqlxtest_connect_attrs.xpl 2>&1;
+
+--replace_regex /(processlist_id = )[0-9]+/\1$SESSION_ID/
+exec $MYSQLXTEST
+  -ux_root --password='' --no-connect-attrs
+  --file=$MYSQL_TMP_DIR/mysqlxtest_connect_attrs.xpl 2>&1;
+
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
