@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -345,17 +345,25 @@ NdbColumnImpl::~NdbColumnImpl()
 }
 
 bool
-NdbColumnImpl::equal(const NdbColumnImpl& col) const 
+NdbColumnImpl::equal_skip(const NdbColumnImpl& col, column_change_flags& change_flags) const
 {
-  DBUG_ENTER("NdbColumnImpl::equal");
-  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+  DBUG_ENTER("equal_skip");
+  DBUG_PRINT("info", ("supported change flags %llu", change_flags));
   /* New member comparisons added here should also be
    * handled in the BackupRestore::column_compatible_check()
    * member of tools/restore/consumer_restore.cpp
    */
   if(strcmp(m_name.c_str(), col.m_name.c_str()) != 0){
-    DBUG_RETURN(false);
+    if (! check_change_flag(change_flags, COLUMN_NAME))
+    {
+      DBUG_RETURN(false);
+    }
   }
+  else
+  {
+    remove_change_flag(change_flags, COLUMN_NAME);
+  }
+
   if(m_type != col.m_type){
     DBUG_RETURN(false);
   }
@@ -397,6 +405,33 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   }
 
   DBUG_RETURN(true);
+}
+
+bool
+NdbColumnImpl::equal(const NdbColumnImpl& col) const
+{
+  DBUG_ENTER("NdbColumnImpl::equal");
+  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
+
+  column_change_flags change_flags = 0;
+  if (equal_skip(col, change_flags))
+    DBUG_RETURN(true);
+  else
+    DBUG_RETURN(false);
+}
+
+/*
+  Check for any supported changes to a column
+  and add any changes found to the column_change_flags
+ */
+bool
+NdbColumnImpl::alter_supported(const NdbColumnImpl& col,
+                               column_change_flags& change_flags) const
+{
+  DBUG_ENTER("NdbColumnImpl::alter_supported");
+
+  add_change_flag(change_flags, COLUMN_NAME);
+  DBUG_RETURN(equal_skip(col, change_flags));
 }
 
 void
@@ -4357,7 +4392,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   /*
     Check for new columns.
     We can add one or more new columns at the end, with some restrictions:
-     - All existing columns must be unchanged.
+     - All existing column definitions except name must be unchanged
      - The new column must be dynamic.
      - The new column must be nullable.
      - The new column must be memory based.
@@ -4369,11 +4404,17 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   found_varpart= old_impl.getForceVarPart();
   for(Uint32 i= 0; i<old_sz; i++)
   {
-    const NdbColumnImpl *col= impl.m_columns[i];
-    if(!col->equal(*(old_impl.m_columns[i])))
+    const NdbColumnImpl *col = impl.m_columns[i];
+    NdbColumnImpl::column_change_flags change_flags = 0;
+    if(!col->alter_supported(*(old_impl.m_columns[i]), change_flags))
     {
-      DBUG_PRINT("info", ("Old and new column not equal"));
+      DBUG_PRINT("info", ("Columns are not compatible for alter"));
       goto invalid_alter_table;
+    }
+    if(change_flags != 0)
+    {
+      DBUG_PRINT("info", ("Supported column change found"));
+      AlterTableReq::setModifyAttrFlag(change_mask, true);
     }
     if(col->m_storageType == NDB_STORAGETYPE_MEMORY &&
        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED))
