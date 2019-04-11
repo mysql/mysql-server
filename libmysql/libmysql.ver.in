@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,3 +23,11 @@
 
 libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.@SHARED_LIB_MINOR_VERSION@
 { global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; local: *; };
+
+# Adding new symbols need a bump in minor version number and setting that number
+# to the newly introduced symbols. However non blocking C API functions have
+# already been shipped in version 21.0 without increasing the minor version,
+# thus setting the minor version as 0 for non blocking C API functions and for
+# the rest setting to 1.
+libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
+{ global: ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };
