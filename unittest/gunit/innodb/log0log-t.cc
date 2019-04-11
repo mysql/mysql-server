@@ -57,7 +57,7 @@ static std::map<std::string, std::vector<std::string>> log_sync_points = {
       "log_wait_for_space_in_buf_middle"}},
 
     {"log_buffer_reserve",
-     {"log_buffer_reserve_before_sn_limit_for_end",
+     {"log_buffer_reserve_before_buf_limit_sn",
       "log_buffer_reserve_before_confirmation"}},
 
     {"log_buffer_write",
@@ -74,9 +74,7 @@ static std::map<std::string, std::vector<std::string>> log_sync_points = {
       "log_writer_before_write_new_incomplete_block",
       "log_writer_before_write_ahead", "log_writer_after_checkpoint_check",
       "log_writer_after_archiver_check", "log_writer_before_lsn_update",
-      "log_writer_before_limits_update", "log_writer_write_end",
-      "log_update_limits_middle_1", "log_update_limits_middle_2",
-      "log_update_limits_middle_3"}},
+      "log_writer_before_buf_limit_update", "log_writer_write_end"}},
 
     {"log_closer",
      {"log_advance_dpa_before_reclaim", "log_advance_dpa_before_update"}},

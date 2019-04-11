@@ -526,6 +526,7 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   mutex_create(LATCH_ID_LOG_FLUSHER, &log.flusher_mutex);
   mutex_create(LATCH_ID_LOG_WRITE_NOTIFIER, &log.write_notifier_mutex);
   mutex_create(LATCH_ID_LOG_FLUSH_NOTIFIER, &log.flush_notifier_mutex);
+  mutex_create(LATCH_ID_LOG_LIMITS, &log.limits_mutex);
 
   log.sn_lock.create(
 #ifdef UNIV_PFS_RWLOCK
@@ -546,8 +547,9 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log_allocate_file_header_buffers(log);
 
   log_calc_buf_size(log);
+  log_calc_max_ages(log);
 
-  if (!log_calc_max_ages(log)) {
+  if (!log_calc_concurrency_margin(log)) {
     ib::error(ER_IB_MSG_1267)
         << "Cannot continue operation. ib_logfiles are too"
         << " small for innodb_thread_concurrency " << srv_thread_concurrency
@@ -579,8 +581,6 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
   log.last_checkpoint_lsn = checkpoint_lsn;
   log.next_checkpoint_no = checkpoint_no;
   log.available_for_checkpoint_lsn = checkpoint_lsn;
-
-  log_update_limits(log);
 
   log.sn = log_translate_lsn_to_sn(log.recovered_lsn);
 
@@ -628,6 +628,9 @@ void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
   ut_ad(first_rec_group >= LOG_BLOCK_HDR_SIZE);
   ut_a(first_rec_group <= start_lsn - block_lsn);
 
+  log_update_buf_limit(log, start_lsn);
+  log_update_limits(log);
+
   /* Do not reorder writes above, below this line. For x86 this
   protects only from unlikely compile-time reordering. */
   std::atomic_thread_fence(std::memory_order_release);
@@ -649,6 +652,7 @@ void log_sys_close() {
 
   log.sn_lock.free();
 
+  mutex_free(&log.limits_mutex);
   mutex_free(&log.write_notifier_mutex);
   mutex_free(&log.flush_notifier_mutex);
   mutex_free(&log.flusher_mutex);
@@ -831,18 +835,21 @@ void log_print(const log_t &log, FILE *file) {
   lsn_t ready_for_write_lsn;
   lsn_t write_lsn;
   lsn_t flush_lsn;
-  lsn_t oldest_lsn;
   lsn_t max_assigned_lsn;
   lsn_t current_lsn;
+  lsn_t oldest_lsn;
 
-  last_checkpoint_lsn = log.last_checkpoint_lsn;
+  last_checkpoint_lsn = log.last_checkpoint_lsn.load();
   dirty_pages_added_up_to_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
   ready_for_write_lsn = log_buffer_ready_for_write_lsn(log);
-  write_lsn = log.write_lsn;
-  flush_lsn = log.flushed_to_disk_lsn;
-  oldest_lsn = log.available_for_checkpoint_lsn;
+  write_lsn = log.write_lsn.load();
+  flush_lsn = log.flushed_to_disk_lsn.load();
   max_assigned_lsn = log_get_lsn(log);
   current_lsn = log_get_lsn(log);
+
+  log_limits_mutex_enter(log);
+  oldest_lsn = log.available_for_checkpoint_lsn;
+  log_limits_mutex_exit(log);
 
   fprintf(file,
           "Log sequence number          " LSN_PF
@@ -936,6 +943,8 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
 
   log_calc_buf_size(log);
 
+  log_update_buf_limit(log);
+
   ut_a(srv_log_buffer_size == log.buf_size);
 
   ib::info(ER_IB_MSG_1260) << "srv_log_buffer_size was extended to "
@@ -990,8 +999,6 @@ static void log_calc_buf_size(log_t &log) {
   for free space in the log buffer). */
 
   log.buf_size_sn = log_translate_lsn_to_sn(log.buf_size);
-
-  log_update_limits(log);
 }
 
 /* @} */

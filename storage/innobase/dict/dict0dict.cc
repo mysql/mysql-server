@@ -231,7 +231,7 @@ static void dict_index_remove_from_cache_low(
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin(void);
 
 /** Removes a table object from the dictionary cache. */
@@ -5483,7 +5483,7 @@ void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    log_sys->dict_max_allowed_checkpoint_lsn = 0;
+    log_set_dict_max_allowed_checkpoint_lsn(*log_sys, 0);
     return;
   }
 
@@ -5518,7 +5518,7 @@ void dict_persist_to_dd_table_buffer() {
   We must not remove redo which could allow to deduce them.
   Therefore the maximum allowed lsn for checkpoint is the
   current lsn. */
-  log_sys->dict_max_allowed_checkpoint_lsn = persisted_lsn;
+  log_set_dict_max_allowed_checkpoint_lsn(*log_sys, persisted_lsn);
 
   mutex_exit(&dict_persist->mutex);
 
@@ -5533,7 +5533,7 @@ void dict_persist_to_dd_table_buffer() {
 have some changed dynamic metadata in memory and have not been written
 back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
 to stop user threads when redo log is running out of space and they
-do not hold latches (log.sn_limit_for_start). */
+do not hold latches (log.free_check_limit_sn). */
 static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */
@@ -5574,10 +5574,7 @@ static void dict_persist_update_log_margin() {
 
   if (log_sys != nullptr) {
     /* Update margin for redo log */
-    log_sys->dict_persist_margin.store(margin);
-
-    /* Update log.sn_limit_for_start. */
-    log_update_limits(*log_sys);
+    log_set_dict_persist_margin(*log_sys, margin);
   }
 }
 #endif /* !UNIV_HOTBACKUP */

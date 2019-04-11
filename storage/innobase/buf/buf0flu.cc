@@ -2306,12 +2306,7 @@ static ulint af_get_pct_for_dirty() {
  @return percent of io_capacity to flush to manage redo space */
 static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
 {
-  const lsn_t log_margin =
-      log_translate_sn_to_lsn(log_free_check_margin(*log_sys));
-
-  ut_a(log_sys->lsn_capacity_for_free_check > log_margin);
-
-  const lsn_t log_capacity = log_sys->lsn_capacity_for_free_check - log_margin;
+  const lsn_t log_capacity = log_get_free_check_capacity(*log_sys);
 
   lsn_t lsn_age_factor;
   lsn_t af_lwm = (srv_adaptive_flushing_lwm * log_capacity) / 100;
@@ -2321,9 +2316,7 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
     return (0);
   }
 
-  auto limit_for_age = log_get_max_modified_age_async();
-  ut_a(limit_for_age >= log_margin);
-  limit_for_age -= log_margin;
+  const auto limit_for_age = log_get_max_modified_age_async(*log_sys);
 
   if (age < limit_for_age && !srv_adaptive_flushing) {
     /* We have still not reached the max_async point and
@@ -2338,6 +2331,7 @@ static ulint af_get_pct_for_lsn(lsn_t age) /*!< in: current age of LSN. */
   lsn_age_factor = (age * 100) / limit_for_age;
 
   ut_ad(srv_max_io_capacity >= srv_io_capacity);
+
   return (static_cast<ulint>(((srv_max_io_capacity / srv_io_capacity) *
                               (lsn_age_factor * sqrt((double)lsn_age_factor))) /
                              7.5));
@@ -3357,19 +3351,25 @@ void buf_flush_sync_all_buf_pools(void) {
 
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed */
-void buf_flush_request_force(lsn_t lsn_limit) {
+bool buf_flush_request_force(lsn_t lsn_limit) {
   ut_a(buf_page_cleaner_is_active);
 
   /* adjust based on lsn_avg_rate not to get old */
   lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
+  bool result;
 
   mutex_enter(&page_cleaner->mutex);
   if (lsn_target > buf_flush_sync_lsn) {
     buf_flush_sync_lsn = lsn_target;
+    result = true;
+  } else {
+    result = false;
   }
   mutex_exit(&page_cleaner->mutex);
 
   os_event_set(buf_flush_event);
+
+  return (result);
 }
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 

@@ -503,12 +503,6 @@ inline lsn_t log_get_checkpoint_lsn(const log_t &log);
 
 #ifndef UNIV_HOTBACKUP
 
-/** When the oldest dirty page age exceeds this value, we start
-an asynchronous preflush of dirty pages. This function does not
-have side-effects, it only reads and returns the limit value.
-@return age of dirty page at which async. preflush is started */
-inline lsn_t log_get_max_modified_age_async();
-
 /** @return true iff log_free_check should be executed. */
 inline bool log_needs_free_check();
 
@@ -516,7 +510,7 @@ inline bool log_needs_free_check();
 about 4 pages. NOTE that this function may only be called when the thread
 owns no synchronization objects except the dictionary mutex.
 
-Checks if current log.sn exceeds log.sn_limit_for_start, in which case waits.
+Checks if current log.sn exceeds log.free_check_limit_sn, in which case waits.
 This is supposed to guarantee that we would not run out of space in the log
 files when holding latches of some dirty pages (which could end up in
 a deadlock, because flush of the latched dirty pages could be required
@@ -745,32 +739,42 @@ at the provided sn, in both the log buffer and in the log files.
 @param[in]	end_sn    end of the range of sn values */
 void log_wait_for_space(log_t &log, sn_t end_sn);
 
-/** Calculates margin which has to be used in log_free_check() call,
-when checking if user thread should wait for more space in redo log.
-@return size of the margin to use */
-sn_t log_free_check_margin(const log_t &log);
+/** Computes capacity of redo log available until log_free_check()
+reaches point where it needs to wait.
+@param[in]  log       redo log
+@return lsn capacity up to free_check_wait happens */
+lsn_t log_get_free_check_capacity(const log_t &log);
+
+/** When the oldest dirty page age exceeds this value, we start
+an asynchronous preflush of dirty pages.
+@param[in]  log       redo log
+@return age of dirty page at which async preflush is started */
+lsn_t log_get_max_modified_age_async(const log_t &log);
 
 /** Waits until there is free space in log files which includes
 concurrency margin required for all threads. You should rather
 use log_free_check().
 @see @ref sect_redo_log_reclaim_space
-@param[in]	log   redo log
-@param[in]	sn    sn for which there should be concurrency margin */
-void log_free_check_wait(log_t &log, sn_t sn);
+@param[in]     log   redo log */
+void log_free_check_wait(log_t &log);
 
-/** Updates sn limit values up to which user threads may consider the
-reserved space as available both in the log buffer and in the log files.
-Both limits - for the start and for the end of reservation, are updated.
-Limit for the end is the only one, which truly guarantees that there is
-space for the whole reservation. Limit for the start is used to check
-free space when being outside mtr (without latches), in which case it
-is unknown how much we will need to reserve and write, so current sn
-is then compared to the limit. This is called whenever these limits
-may change - when write_lsn or last_checkpoint_lsn are advanced,
-when the log buffer is resized or margins are changed (e.g. because
-of changed concurrency limit).
-@param[in,out]	log	redo log */
+/** Updates limits related to free space in redo log files:
+log.available_for_checkpoint_lsn and log.free_check_limit_sn.
+@param[in,out]  log         redo log */
 void log_update_limits(log_t &log);
+
+/** Updates limit used when writing to log buffer. Note that the
+log buffer may have space for log records for which we still do
+not have space in log files (for larger lsn values).
+@param[in,out]   log        redo log */
+void log_update_buf_limit(log_t &log);
+
+/** Updates limit used when writing to log buffer, according to provided
+write_lsn. It must be <= log.write_lsn.load() to protect from log buffer
+overwrites.
+@param[in,out]   log        redo log
+@param[in]       write_lsn  value <= log.write_lsn.load() */
+void log_update_buf_limit(log_t &log, lsn_t write_lsn);
 
 /** Waits until the redo log is written up to a provided lsn.
 @param[in]  log             redo log
@@ -925,6 +929,16 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn);
 @param[in]	new_size	new size (in bytes) */
 void log_write_ahead_resize(log_t &log, size_t new_size);
 
+/** Updates the field log.dict_max_allowed_checkpoint_lsn.
+@param[in,out]  log      redo log
+@param[in]      max_lsn  new value for the field */
+void log_set_dict_max_allowed_checkpoint_lsn(log_t &log, lsn_t max_lsn);
+
+/** Updates log.dict_persist_margin and recompute free check limit.
+@param[in,out]  log     redo log
+@param[in]      margin  new value for log.dict_persist_margin */
+void log_set_dict_persist_margin(log_t &log, sn_t margin);
+
 /** Increase concurrency_margin used inside log_free_check() calls. */
 void log_increase_concurrency_margin(log_t &log);
 
@@ -947,12 +961,16 @@ initialization of new log files. Flushes:
 void log_create_first_checkpoint(log_t &log, lsn_t lsn);
 
 /** Calculates limits for maximum age of checkpoint and maximum age of
-the oldest page. Uses current value of srv_thread_concurrency.
+the oldest page.
+@param[in,out]	log	redo log */
+void log_calc_max_ages(log_t &log);
+
+/** Updates concurrency margin. Uses current value of srv_thread_concurrency.
 @param[in,out]	log	redo log
 @retval true if success
 @retval false if the redo log is too small to accommodate the number of
 OS threads in the database server */
-bool log_calc_max_ages(log_t &log);
+bool log_calc_concurrency_margin(log_t &log);
 
 /** Initializes the log system. Note that the log system is not ready
 for user writes after this call is finished. It should be followed by
@@ -1112,6 +1130,12 @@ void log_checkpointer(log_t *log_ptr);
 #define log_write_notifier_mutex_own(log)      \
   (mutex_own(&((log).write_notifier_mutex)) || \
    !(log).write_notifier_thread_alive.load())
+
+#define log_limits_mutex_enter(log) mutex_enter(&((log).limits_mutex))
+
+#define log_limits_mutex_exit(log) mutex_exit(&((log).limits_mutex))
+
+#define log_limits_mutex_own(log) mutex_own(&(log).limits_mutex)
 
 #define LOG_SYNC_POINT(a)                \
   do {                                   \

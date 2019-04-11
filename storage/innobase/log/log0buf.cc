@@ -459,7 +459,7 @@ There is a special case - if it turned out, that log buffer is too small for
 the reserved range of lsn values, it resizes the log buffer.
 
 It's used during reservation of lsn values, when the reserved handle.end_sn is
-greater than log.sn_limit_for_end.
+greater than log.buf_limit_sn.
 
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation */
@@ -623,36 +623,18 @@ static void log_wait_for_space_after_reserving(log_t &log,
   log_wait_for_space_in_log_buf(log, end_sn);
 }
 
-sn_t log_free_check_margin(const log_t &log) {
-  sn_t margins = log.concurrency_margin.load();
-
-  margins += log.dict_persist_margin.load();
-
-  return (margins);
+void log_update_buf_limit(log_t &log) {
+  log_update_buf_limit(log, log.write_lsn.load());
 }
 
-void log_free_check_wait(log_t &log, sn_t sn) {
-  auto stop_condition = [&log, sn](bool) {
-    const sn_t margins = log_free_check_margin(log);
+void log_update_buf_limit(log_t &log, lsn_t write_lsn) {
+  ut_ad(write_lsn <= log.write_lsn.load());
 
-    const lsn_t start_lsn = log_translate_sn_to_lsn(sn + margins);
+  const sn_t limit_for_end = log_translate_lsn_to_sn(write_lsn) +
+                             log.buf_size_sn.load() -
+                             2 * OS_FILE_LOG_BLOCK_SIZE;
 
-    const lsn_t checkpoint_lsn = log.last_checkpoint_lsn.load();
-
-    if (start_lsn <= checkpoint_lsn + log.lsn_capacity_for_free_check) {
-      /* No reason to wait anymore. */
-      return (true);
-    }
-
-    log_request_checkpoint(log, true,
-                           start_lsn - log.lsn_capacity_for_free_check);
-
-    return (false);
-  };
-
-  const auto wait_stats = ut_wait_for(0, 100, stop_condition);
-
-  MONITOR_INC_WAIT_STATS(MONITOR_LOG_ON_FILE_SPACE_, wait_stats);
+  log.buf_limit_sn.store(limit_for_end);
 }
 
 void log_wait_for_space_in_log_buf(log_t &log, sn_t end_sn) {
@@ -717,13 +699,13 @@ Log_handle log_buffer_reserve(log_t &log, size_t len) {
   /* Headers in redo blocks are not calculated to sn values: */
   const sn_t end_sn = start_sn + len;
 
-  LOG_SYNC_POINT("log_buffer_reserve_before_sn_limit_for_end");
+  LOG_SYNC_POINT("log_buffer_reserve_before_buf_limit_sn");
 
   /* Translate sn to lsn (which includes also headers in redo blocks): */
   handle.start_lsn = log_translate_sn_to_lsn(start_sn);
   handle.end_lsn = log_translate_sn_to_lsn(end_sn);
 
-  if (unlikely(end_sn > log.sn_limit_for_end.load())) {
+  if (unlikely(end_sn > log.buf_limit_sn.load())) {
     log_wait_for_space_after_reserving(log, handle);
   }
 
@@ -1041,7 +1023,9 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
   ut_ad(data_len >= LOG_BLOCK_HDR_SIZE);
 
-  /* The next_checkpoint_no is protected by the x-lock too. */
+  /* The next_checkpoint_no might become increased just afterwards,
+  but it would correspond to the same state of the copied block,
+  just a different checkpoint_lsn within the block. */
 
   const auto checkpoint_no = log.next_checkpoint_no.load();
 

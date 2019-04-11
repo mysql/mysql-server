@@ -616,6 +616,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_limits_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -20739,7 +20740,7 @@ static void checkpoint_now_set(THD *thd MY_ATTRIBUTE((unused)),
               last_checkpoint_lsn = log_get_lsn(). */
     }
 
-    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn);
+    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn.load());
 
     ut_a(err == DB_SUCCESS);
   }
@@ -20784,11 +20785,15 @@ static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
   is acquired, current value of srv_checkpoint_disabled is checked,
   and if checkpoints are disabled, we cancel writing the checkpoint. */
 
-  log_checkpointer_mutex_enter(*log_sys);
+  log_t &log = *log_sys;
+
+  log_checkpointer_mutex_enter(log);
+  log_limits_mutex_enter(log);
 
   srv_checkpoint_disabled = *static_cast<const bool *>(save);
 
-  log_checkpointer_mutex_exit(*log_sys);
+  log_limits_mutex_exit(log);
+  log_checkpointer_mutex_exit(log);
 }
 
 /** Force a dirty pages flush now.
@@ -20976,14 +20981,9 @@ value. This function is registered as a callback with MySQL.
 @param[in]	save      immediate result from check function */
 static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save) {
-  log_t &log = *log_sys;
-
-  log_checkpointer_mutex_enter(log);
-  log_writer_mutex_enter(log);
-
   srv_thread_concurrency = *static_cast<const ulong *>(save);
 
-  if (!log_calc_max_ages(*log_sys)) {
+  if (!log_calc_concurrency_margin(*log_sys)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "Current innodb_thread_concurrency"
                         " is too big for safety of log files."
@@ -20993,9 +20993,6 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
     ib::info(ER_IB_MSG_1270)
         << "Set innodb_thread_concurrency to " << srv_thread_concurrency;
   }
-
-  log_writer_mutex_exit(log);
-  log_checkpointer_mutex_exit(log);
 }
 
 /** Update innodb_status_output or innodb_status_output_locks,

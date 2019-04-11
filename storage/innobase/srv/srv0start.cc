@@ -2315,7 +2315,8 @@ files_checked:
   if (create_new_db) {
     ut_a(!srv_read_only_mode);
 
-    ut_a(log_sys->last_checkpoint_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
+    ut_a(log_sys->last_checkpoint_lsn.load() ==
+         LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
     ut_a(flushed_lsn == LOG_START_LSN + LOG_BLOCK_HDR_SIZE);
 
@@ -2878,7 +2879,9 @@ void srv_start_threads(bool bootstrap) {
             - there are less possible flows - smaller risk of bug.
     Now we start allowing periodical checkpoints! Since now, it's
     hard to predict when checkpoints are written! */
+    log_limits_mutex_enter(*log_sys);
     log_sys->periodical_checkpoints_enabled = true;
+    log_limits_mutex_exit(*log_sys);
   }
 
   srv_threads.m_buf_resize_thread_active = true;
@@ -3279,7 +3282,7 @@ static lsn_t srv_shutdown_log() {
   /* Validate lsn and write it down. */
   ut_a(log_lsn_validate(lsn) || srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
-  ut_a(lsn == log_sys->last_checkpoint_lsn ||
+  ut_a(lsn == log_sys->last_checkpoint_lsn.load() ||
        srv_force_recovery >= SRV_FORCE_NO_LOG_REDO);
 
   ut_a(lsn == log_get_lsn(*log_sys));

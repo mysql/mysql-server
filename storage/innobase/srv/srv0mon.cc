@@ -1910,7 +1910,7 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_LSN_CHECKPOINT:
-      value = (mon_type_t)log_sys->last_checkpoint_lsn;
+      value = (mon_type_t)log_sys->last_checkpoint_lsn.load();
       break;
 
     case MONITOR_OVLD_LSN_CHECKPOINT_AGE:

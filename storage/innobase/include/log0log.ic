@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -165,17 +165,12 @@ inline void log_block_store_checksum(byte *log_block) {
 
 #ifndef UNIV_HOTBACKUP
 
-inline lsn_t log_get_max_modified_age_async() {
-  return (log_sys->max_modified_age_async);
-}
-
-inline bool log_needs_free_check() {
-  const log_t &log = *log_sys;
-
+inline bool log_needs_free_check(const log_t &log) {
   const sn_t sn = log.sn.load();
-
-  return (sn > log.sn_limit_for_start.load());
+  return (sn > log.free_check_limit_sn.load());
 }
+
+inline bool log_needs_free_check() { return (log_needs_free_check(*log_sys)); }
 
 /** Call this function before starting a mini-transaction.  It will check
 for space in the redo log. It assures there is at least
@@ -215,9 +210,7 @@ inline void log_free_check() {
   /** We prefer to wait now for the space in log file, because now
   are not holding any latches of dirty pages. */
 
-  const sn_t sn = log.sn.load();
-
-  if (unlikely(sn > log.sn_limit_for_start.load())) {
+  if (log_needs_free_check(log)) {
     /* We need to wait, because the concurrency margin could be violated
     if we let all threads to go forward after making this check now.
 
@@ -225,7 +218,7 @@ inline void log_free_check() {
     Therefore we extracted the code to seperate function, to make the
     inlined log_free_check() small. */
 
-    log_free_check_wait(log, sn);
+    log_free_check_wait(log);
   }
 }
 
