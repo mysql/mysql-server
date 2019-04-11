@@ -993,7 +993,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	PRIMARY	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	29	33.33	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	t2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using pushed condition (`test`.`t4`.`c1` < 'o')
+2	DEPENDENT SUBQUERY	t4	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	33.33	Using pushed condition ((`test`.`t4`.`c1` < 'o') and (`test`.`t4`.`i1` < (`test`.`t2`.`i1` + 1)) and (<cache>(`test`.`t3`.`pk`) = `test`.`t4`.`i1`))
 Warnings:
 Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
 Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
