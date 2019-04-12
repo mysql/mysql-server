@@ -345,7 +345,7 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
 
     /* We are parsing trigger and this is a trigger NEW-field. */
 
-    LEX_STRING expr_query = EMPTY_STR;
+    LEX_CSTRING expr_query = EMPTY_CSTR;
 
     if (!opt_expr) {
       // This is: SET NEW.x = DEFAULT
@@ -376,7 +376,7 @@ bool PT_option_value_no_option_type_internal::contextualize(Parse_context *pc) {
     sp_variable *spv = pctx->find_variable(name->value.base_name.str,
                                            name->value.base_name.length, false);
 
-    LEX_STRING expr_query = EMPTY_STR;
+    LEX_CSTRING expr_query = EMPTY_CSTR;
 
     if (!opt_expr) {
       /*

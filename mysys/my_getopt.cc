@@ -909,7 +909,7 @@ ret:
     @retval 1    Found an option
 */
 
-int findopt(char *optpat, uint length, const struct my_option **opt_res) {
+int findopt(const char *optpat, uint length, const struct my_option **opt_res) {
   for (const struct my_option *opt = *opt_res; opt->name; opt++)
     if (!getopt_compare_strings(opt->name, optpat, length) &&
         !opt->name[length]) {

@@ -89,6 +89,7 @@ class Simple_cstring {
     set(str_arg, length_arg);
   }
   Simple_cstring(const LEX_STRING arg) { set(arg.str, arg.length); }
+  Simple_cstring(const LEX_CSTRING arg) { set(arg.str, arg.length); }
   void reset() { set(NULL, 0); }
   /**
     Set to a null-terminated string.

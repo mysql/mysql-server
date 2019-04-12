@@ -1732,7 +1732,7 @@ ACL_USER *decoy_user(const LEX_STRING &username, const LEX_CSTRING &hostname,
   for (int i = 0; i < NUM_CREDENTIALS; ++i) {
     memset(user->credentials[i].m_salt, 0, SCRAMBLE_LENGTH + 1);
     user->credentials[i].m_salt_len = 0;
-    user->credentials[i].m_auth_string = empty_lex_str;
+    user->credentials[i].m_auth_string = EMPTY_CSTR;
   }
   return user;
 }

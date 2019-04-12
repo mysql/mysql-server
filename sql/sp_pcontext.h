@@ -103,7 +103,7 @@ class sp_label {
   };
 
   /// Name of the label.
-  LEX_STRING name;
+  LEX_CSTRING name;
 
   /// Instruction pointer of the label.
   uint ip;
@@ -115,7 +115,7 @@ class sp_label {
   class sp_pcontext *ctx;
 
  public:
-  sp_label(LEX_STRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
+  sp_label(LEX_CSTRING _name, uint _ip, enum_type _type, sp_pcontext *_ctx)
       : name(_name), ip(_ip), type(_type), ctx(_ctx) {}
 };
 
@@ -391,9 +391,9 @@ class sp_pcontext {
   // Labels.
   /////////////////////////////////////////////////////////////////////////
 
-  sp_label *push_label(THD *thd, LEX_STRING name, uint ip);
+  sp_label *push_label(THD *thd, LEX_CSTRING name, uint ip);
 
-  sp_label *find_label(LEX_STRING name);
+  sp_label *find_label(LEX_CSTRING name);
 
   sp_label *last_label() {
     sp_label *label = m_labels.head();

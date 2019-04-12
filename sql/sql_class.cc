@@ -101,7 +101,6 @@ using std::unique_ptr;
 */
 char empty_c_string[1] = {0}; /* used for not defined db */
 
-LEX_STRING EMPTY_STR = {(char *)"", 0};
 LEX_STRING NULL_STR = {NULL, 0};
 LEX_CSTRING EMPTY_CSTR = {"", 0};
 LEX_CSTRING NULL_CSTR = {NULL, 0};

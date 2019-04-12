@@ -296,6 +296,7 @@ class Name_string : public Simple_cstring {
   */
   Name_string(const char *str, size_t length) : Simple_cstring(str, length) {}
   Name_string(const LEX_STRING str) : Simple_cstring(str) {}
+  Name_string(const LEX_CSTRING str) : Simple_cstring(str) {}
   Name_string(const char *str, size_t length, bool is_null_terminated)
       : Simple_cstring() {
     set_or_copy(str, length, is_null_terminated);

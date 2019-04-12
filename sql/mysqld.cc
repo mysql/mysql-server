@@ -1060,7 +1060,7 @@ bool opt_require_secure_transport = 0;
 bool relay_log_purge;
 bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
-char *opt_secure_file_priv;
+const char *opt_secure_file_priv;
 bool opt_log_slow_admin_statements = 0;
 bool opt_log_slow_slave_statements = 0;
 bool lower_case_file_system = 0;
@@ -9731,7 +9731,8 @@ bool is_secure_file_path(const char *path) {
   } else {
     if (files_charset_info->coll->strnncoll(
             files_charset_info, (uchar *)buff2, strlen(buff2),
-            (uchar *)opt_secure_file_priv, opt_secure_file_priv_len, true))
+            pointer_cast<const uchar *>(opt_secure_file_priv),
+            opt_secure_file_priv_len, true))
       return false;
   }
   return true;
@@ -9821,7 +9822,8 @@ static bool check_secure_file_priv_path() {
   } else {
     if (!files_charset_info->coll->strnncoll(
             files_charset_info, (uchar *)datadir_buffer, opt_datadir_len,
-            (uchar *)opt_secure_file_priv, opt_secure_file_priv_len, true)) {
+            pointer_cast<const uchar *>(opt_secure_file_priv),
+            opt_secure_file_priv_len, true)) {
       warn = true;
       strcpy(whichdir, "Data directory");
     }
@@ -9847,7 +9849,8 @@ static bool check_secure_file_priv_path() {
     } else {
       if (!files_charset_info->coll->strnncoll(
               files_charset_info, (uchar *)plugindir_buffer, opt_plugindir_len,
-              (uchar *)opt_secure_file_priv, opt_secure_file_priv_len, true)) {
+              pointer_cast<const uchar *>(opt_secure_file_priv),
+              opt_secure_file_priv_len, true)) {
         warn = true;
         strcpy(whichdir, "Plugin directory");
       }
@@ -9928,7 +9931,7 @@ static int fix_paths(void) {
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_initialize) opt_secure_file_priv = EMPTY_STR.str;
+  if (opt_initialize) opt_secure_file_priv = "";
   secure_file_priv_nonempty = opt_secure_file_priv[0] ? true : false;
 
   if (secure_file_priv_nonempty && strlen(opt_secure_file_priv) > FN_REFLEN) {

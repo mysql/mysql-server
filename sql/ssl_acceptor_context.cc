@@ -606,9 +606,9 @@ ssl_artifacts_status SslAcceptorContext::auto_detect_ssl() {
 
     switch (result) {
       case 8:
-        opt_ssl_ca = (char *)DEFAULT_SSL_CA_CERT;
-        opt_ssl_cert = (char *)DEFAULT_SSL_SERVER_CERT;
-        opt_ssl_key = (char *)DEFAULT_SSL_SERVER_KEY;
+        opt_ssl_ca = DEFAULT_SSL_CA_CERT;
+        opt_ssl_cert = DEFAULT_SSL_SERVER_CERT;
+        opt_ssl_key = DEFAULT_SSL_SERVER_KEY;
         ret_status = SSL_ARTIFACTS_AUTO_DETECTED;
         break;
       case 4:

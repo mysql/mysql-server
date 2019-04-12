@@ -1091,7 +1091,7 @@ int set_var::light_check(THD *thd) {
 
 void set_var::update_source_user_host_timestamp(THD *thd) {
   var->set_source(enum_variable_source::DYNAMIC);
-  var->set_source_name(EMPTY_STR.str);
+  var->set_source_name(EMPTY_CSTR.str);
   var->set_user_host(thd);
   var->set_timestamp();
 }

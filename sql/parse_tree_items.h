@@ -131,11 +131,11 @@ class PTI_comp_op_all : public Parse_tree_item {
 class PTI_simple_ident_ident : public Parse_tree_item {
   typedef Parse_tree_item super;
 
-  LEX_STRING ident;
+  LEX_CSTRING ident;
   Symbol_location raw;
 
  public:
-  PTI_simple_ident_ident(const POS &pos, const LEX_STRING &ident_arg)
+  PTI_simple_ident_ident(const POS &pos, const LEX_CSTRING &ident_arg)
       : super(pos), ident(ident_arg), raw(pos.raw) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
@@ -720,12 +720,12 @@ class PTI_expr_with_alias : public Parse_tree_item {
 
   Item *expr;
   Symbol_location expr_loc;
-  LEX_STRING alias;
+  LEX_CSTRING alias;
 
  public:
   PTI_expr_with_alias(const POS &pos, Item *expr_arg,
                       const Symbol_location &expr_loc_arg,
-                      const LEX_STRING &alias_arg)
+                      const LEX_CSTRING &alias_arg)
       : super(pos), expr(expr_arg), expr_loc(expr_loc_arg), alias(alias_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
@@ -734,12 +734,12 @@ class PTI_expr_with_alias : public Parse_tree_item {
 class PTI_limit_option_ident : public Parse_tree_item {
   typedef Parse_tree_item super;
 
-  LEX_STRING ident;
+  LEX_CSTRING ident;
   Symbol_location ident_loc;
 
  public:
-  explicit PTI_limit_option_ident(const POS &pos, const LEX_STRING &ident_arg,
-                                  const Symbol_location &ident_loc_arg)
+  PTI_limit_option_ident(const POS &pos, const LEX_CSTRING &ident_arg,
+                         const Symbol_location &ident_loc_arg)
       : super(pos), ident(ident_arg), ident_loc(ident_loc_arg) {}
 
   virtual bool itemize(Parse_context *pc, Item **res) {

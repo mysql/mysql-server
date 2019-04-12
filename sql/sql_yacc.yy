@@ -342,7 +342,7 @@ static void case_stmt_action_case(THD *thd)
     (Instruction 12 in the example)
   */
 
-  pctx->push_label(thd, EMPTY_STR, sp->instructions());
+  pctx->push_label(thd, EMPTY_CSTR, sp->instructions());
 }
 
 /**
@@ -1271,7 +1271,7 @@ void warn_about_deprecated_national(THD *thd)
         role_ident role_ident_or_text
         IDENT_sys TEXT_STRING_sys TEXT_STRING_literal
         NCHAR_STRING opt_component
-        sp_opt_label BIN_NUM label_ident TEXT_STRING_filesystem ident_or_empty
+        BIN_NUM TEXT_STRING_filesystem ident_or_empty
         TEXT_STRING_sys_nonewline TEXT_STRING_password TEXT_STRING_hash
         TEXT_STRING_validated
         filter_wild_db_table_string
@@ -1283,8 +1283,10 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <lex_cstr>
         key_cache_name
+        label_ident
         opt_table_alias
         opt_replace_password
+        sp_opt_label
 
 %type <lex_str_list> TEXT_STRING_sys_list
 
@@ -3471,7 +3473,7 @@ sp_decl:
             uint num_vars= pctx->context_var_count();
             Item *dflt_value_item= $5.expr;
 
-            LEX_STRING dflt_value_query= EMPTY_STR;
+            LEX_CSTRING dflt_value_query= EMPTY_CSTR;
 
             if (dflt_value_item)
             {
@@ -3596,7 +3598,7 @@ sp_decl:
             }
 
             if (sp->m_parser_data.add_backpatch_entry(
-                  i, handler_pctx->push_label(thd, EMPTY_STR, 0)))
+                  i, handler_pctx->push_label(thd, EMPTY_CSTR, 0)))
             {
               MYSQL_YYABORT;
             }
@@ -3682,7 +3684,7 @@ sp_decl:
               MYSQL_YYABORT;
             }
 
-            LEX_STRING cursor_query= EMPTY_STR;
+            LEX_CSTRING cursor_query= EMPTY_CSTR;
 
             if (cursor_lex->is_metadata_used())
             {
@@ -4058,7 +4060,7 @@ simple_target_specification:
 
             $$=
               create_item_for_sp_var(
-                thd, $1, NULL,
+                thd, to_lex_cstring($1), NULL,
                 sp->m_parser_data.get_current_stmt_start_ptr(),
                 @1.raw.start,
                 @1.raw.end);
@@ -4261,7 +4263,7 @@ sp_proc_stmt_statement:
             {
               /* Extract the query statement from the tokenizer. */
 
-              LEX_STRING query=
+              LEX_CSTRING query=
                 make_string(thd,
                             sp->m_parser_data.get_current_stmt_start_ptr(),
                             @2.raw.end);
@@ -4302,7 +4304,7 @@ sp_proc_stmt_return:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
 
             const char *expr_start_ptr= @1.raw.end;
 
@@ -4348,7 +4350,7 @@ sp_proc_stmt_unlabeled:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             pctx->push_label(thd,
-                             EMPTY_STR,
+                             EMPTY_CSTR,
                              sp->instructions());
           }
           sp_unlabeled_control
@@ -4601,7 +4603,7 @@ sp_if:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @0.raw.end;
 
             if (lex->is_metadata_used())
@@ -4619,7 +4621,7 @@ sp_if:
 
             if (i == NULL ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4644,7 +4646,7 @@ sp_if:
                                            sp->instructions());
 
             sp->m_parser_data.add_backpatch_entry(
-              i, pctx->push_label(thd, EMPTY_STR, 0));
+              i, pctx->push_label(thd, EMPTY_CSTR, 0));
           }
           sp_elseifs            /*$7*/
           {                     /*$8*/
@@ -4689,7 +4691,7 @@ simple_case_stmt:
 
             /* Extract CASE-expression string. */
 
-            LEX_STRING case_expr_query= EMPTY_STR;
+            LEX_CSTRING case_expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4776,7 +4778,7 @@ simple_when_clause:
 
             /* Extract expression string. */
 
-            LEX_STRING when_expr_query= EMPTY_STR;
+            LEX_CSTRING when_expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4796,7 +4798,7 @@ simple_when_clause:
             if (i == NULL ||
                 i->on_after_expr_parsing(thd) ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4832,7 +4834,7 @@ searched_when_clause:
 
             /* Extract expression string. */
 
-            LEX_STRING when_query= EMPTY_STR;
+            LEX_CSTRING when_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -4850,7 +4852,7 @@ searched_when_clause:
 
             if (i == NULL ||
                 sp->m_parser_data.add_backpatch_entry(
-                  i, pctx->push_label(thd, EMPTY_STR, 0)) ||
+                  i, pctx->push_label(thd, EMPTY_CSTR, 0)) ||
                 sp->m_parser_data.add_cont_backpatch_entry(i) ||
                 sp->add_instr(thd, i) ||
                 sp->restore_lex(thd))
@@ -4923,7 +4925,7 @@ sp_labeled_control:
         ;
 
 sp_opt_label:
-          /* Empty  */  { $$= null_lex_str; }
+          /* Empty  */  { $$= NULL_CSTR; }
         | label_ident   { $$= $1; }
         ;
 
@@ -4968,7 +4970,7 @@ sp_unlabeled_block:
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             sp_label *lab=
-              pctx->push_label(YYTHD, EMPTY_STR, sp->instructions());
+              pctx->push_label(YYTHD, EMPTY_CSTR, sp->instructions());
 
             lab->type= sp_label::BEGIN;
           }
@@ -5061,7 +5063,7 @@ sp_unlabeled_control:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @1.raw.end;
 
             if (lex->is_metadata_used())
@@ -5128,7 +5130,7 @@ sp_unlabeled_control:
 
             /* Extract expression string. */
 
-            LEX_STRING expr_query= EMPTY_STR;
+            LEX_CSTRING expr_query= EMPTY_CSTR;
             const char *expr_start_ptr= @3.raw.end;
 
             if (lex->is_metadata_used())
@@ -9254,7 +9256,7 @@ select_item:
           table_wild { $$= $1; }
         | expr select_alias
           {
-            $$= NEW_PTN PTI_expr_with_alias(@$, $1, @1.cpp, $2);
+            $$= NEW_PTN PTI_expr_with_alias(@$, $1, @1.cpp, to_lex_cstring($2));
           }
         ;
 
@@ -11607,7 +11609,7 @@ limit_options:
 limit_option:
           ident
           {
-            $$= NEW_PTN PTI_limit_option_ident(@$, $1, @1.raw);
+            $$= NEW_PTN PTI_limit_option_ident(@$, to_lex_cstring($1), @1.raw);
           }
         | param_marker
           {
@@ -13731,7 +13733,7 @@ grouping_expr:
 simple_ident:
           ident
           {
-            $$= NEW_PTN PTI_simple_ident_ident(@$, $1);
+            $$= NEW_PTN PTI_simple_ident_ident(@$, to_lex_cstring($1));
           }
         | simple_ident_q
         ;
@@ -13949,7 +13951,7 @@ role_ident:
         ;
 
 label_ident:
-          IDENT_sys    { $$=$1; }
+          IDENT_sys    { $$=to_lex_cstring($1); }
         | label_keyword
           {
             THD *thd= YYTHD;
@@ -16482,7 +16484,7 @@ install:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_INSTALL_PLUGIN;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin($3, $5);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_install_plugin(to_lex_cstring($3), $5);
           }
         | INSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {
@@ -16497,7 +16499,7 @@ uninstall:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_UNINSTALL_PLUGIN;
-            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_plugin($3);
+            lex->m_sql_cmd= new (YYMEM_ROOT) Sql_cmd_uninstall_plugin(to_lex_cstring($3));
           }
        | UNINSTALL_SYM COMPONENT_SYM TEXT_STRING_sys_list
           {

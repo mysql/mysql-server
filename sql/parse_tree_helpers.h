@@ -217,7 +217,7 @@ Item *flatten_associative_operator(MEM_ROOT *mem_root, const POS &pos,
   }
 }
 
-Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
+Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
                                      class sp_variable *spv,
                                      const char *query_start_ptr,
                                      const char *start, const char *end);
@@ -225,9 +225,9 @@ Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
 bool find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp);
 bool set_system_variable(THD *thd, struct sys_var_with_base *tmp,
                          enum enum_var_type var_type, Item *val);
-LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
+LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr);
 bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
-                         Item *expr_item, LEX_STRING expr_query);
+                         Item *expr_item, LEX_CSTRING expr_query);
 void sp_create_assignment_lex(THD *thd, const char *option_ptr);
 bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr);
 bool resolve_engine(THD *thd, const LEX_CSTRING &name, bool is_temp_table,

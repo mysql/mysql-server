@@ -84,7 +84,6 @@ sys_var *trg_new_row_fake_var = (sys_var *)0x01;
   LEX_STRING constant for null-string to be used in parser and other places.
 */
 const LEX_STRING null_lex_str = {NULL, 0};
-const LEX_STRING empty_lex_str = {(char *)"", 0};
 /**
   Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
 
@@ -810,7 +809,7 @@ static int find_keyword(Lex_input_stream *lip, uint len, bool function) {
 
   if (symbol) {
     lip->yylval->keyword.symbol = symbol;
-    lip->yylval->keyword.str = (char *)tok;
+    lip->yylval->keyword.str = const_cast<char *>(tok);
     lip->yylval->keyword.length = len;
 
     if ((symbol->tok == NOT_SYM) &&
@@ -961,7 +960,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
 
       if (!(start =
                 static_cast<char *>(lip->m_thd->alloc((uint)(end - str) + 1))))
-        return (char *)"";  // MEM_ROOT has set error flag
+        return const_cast<char *>("");  // MEM_ROOT has set error flag
 
       lip->m_cpp_text_start = lip->get_cpp_tok_start() + pre_skip;
       lip->m_cpp_text_end = lip->get_cpp_ptr() - post_skip;
@@ -1447,7 +1446,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         return (result_state);  // IDENT or IDENT_QUOTED
 
       case MY_LEX_IDENT_SEP:  // Found ident and now '.'
-        yylval->lex_str.str = (char *)lip->get_ptr();
+        yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         c = lip->yyGet();  // should be '.'
         lip->next_state =
@@ -1875,7 +1874,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
             lip->next_state = MY_LEX_HOSTNAME;
             break;
         }
-        yylval->lex_str.str = (char *)lip->get_ptr();
+        yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         return ((int)'@');
       case MY_LEX_HOSTNAME:  // end '@' of user@hostname
@@ -1886,7 +1885,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         yylval->lex_str = get_token(lip, 0, lip->yyLength());
         return (LEX_HOSTNAME);
       case MY_LEX_SYSTEM_VAR:
-        yylval->lex_str.str = (char *)lip->get_ptr();
+        yylval->lex_str.str = const_cast<char *>(lip->get_ptr());
         yylval->lex_str.length = 1;
         lip->yySkip();  // Skip '@'
         lip->next_state =

@@ -80,10 +80,10 @@ ulonglong find_set(const TYPELIB *lib, const char *str, size_t length,
           ;
       var_len = (uint)(pos - start);
       uint find = cs ? find_type2(lib, start, var_len, cs)
-                     : find_type(lib, start, var_len, (bool)0);
+                     : find_type(lib, start, var_len, false);
       if (!find && *err_len == 0)  // report the first error with length > 0
       {
-        *err_pos = (char *)start;
+        *err_pos = const_cast<char *>(start);
         *err_len = var_len;
         *set_warning = 1;
       } else if (find)  // avoid 1ULL << 4294967295
@@ -236,8 +236,8 @@ size_t strconvert(const CHARSET_INFO *from_cs, const char *from,
       - if remaining string is shorter than 10, then mb_wc will return
         with error because of unexpected '\0' character.
     */
-    if ((cnvres = (*mb_wc)(from_cs, &wc, (uchar *)from, (uchar *)from + 10)) >
-        0) {
+    if ((cnvres = (*mb_wc)(from_cs, &wc, pointer_cast<const uchar *>(from),
+                           pointer_cast<const uchar *>(from) + 10)) > 0) {
       if (!wc) break;
       from += cnvres;
     } else if (cnvres == MY_CS_ILSEQ) {

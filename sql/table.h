@@ -721,10 +721,10 @@ struct TABLE_SHARE {
     To ensure this one can use set_table_cache() methods.
   */
   LEX_CSTRING table_cache_key{nullptr, 0};
-  LEX_CSTRING db{nullptr, 0};             /* Pointer to db */
-  LEX_CSTRING table_name{nullptr, 0};     /* Table name (for open) */
-  LEX_STRING path{nullptr, 0};            /* Path to .frm file (from datadir) */
-  LEX_STRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
+  LEX_CSTRING db{nullptr, 0};         /* Pointer to db */
+  LEX_CSTRING table_name{nullptr, 0}; /* Table name (for open) */
+  LEX_STRING path{nullptr, 0};        /* Path to .frm file (from datadir) */
+  LEX_CSTRING normalized_path{nullptr, 0}; /* unpack_filename(path) */
   LEX_STRING connect_string{nullptr, 0};
 
   /**
@@ -3031,7 +3031,7 @@ struct TABLE_LIST {
     member points to the tablespace_name in the HA_CREATE_INFO struct.
   */
   LEX_CSTRING target_tablespace_name{nullptr, 0};
-  char *schema_table_name{nullptr};
+  const char *schema_table_name{nullptr};
   char *option{nullptr}; /* Used by cache index  */
 
   /** Table level optimizer hints for this table.  */
@@ -3776,26 +3776,26 @@ TABLE_CATEGORY get_table_category(const LEX_CSTRING &db,
                                   const LEX_CSTRING &name);
 
 /* performance schema */
-extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
+extern LEX_CSTRING PERFORMANCE_SCHEMA_DB_NAME;
 
-extern LEX_STRING GENERAL_LOG_NAME;
-extern LEX_STRING SLOW_LOG_NAME;
+extern LEX_CSTRING GENERAL_LOG_NAME;
+extern LEX_CSTRING SLOW_LOG_NAME;
 
 /* information schema */
 extern LEX_CSTRING INFORMATION_SCHEMA_NAME;
 
 /* mysql schema name and DD ID */
-extern LEX_STRING MYSQL_SCHEMA_NAME;
+extern LEX_CSTRING MYSQL_SCHEMA_NAME;
 static const uint MYSQL_SCHEMA_DD_ID = 1;
 
 /* mysql tablespace name and DD ID */
-extern LEX_STRING MYSQL_TABLESPACE_NAME;
+extern LEX_CSTRING MYSQL_TABLESPACE_NAME;
 static const uint MYSQL_TABLESPACE_DD_ID = 1;
 
 /* replication's tables */
-extern LEX_STRING RLI_INFO_NAME;
-extern LEX_STRING MI_INFO_NAME;
-extern LEX_STRING WORKER_INFO_NAME;
+extern LEX_CSTRING RLI_INFO_NAME;
+extern LEX_CSTRING MI_INFO_NAME;
+extern LEX_CSTRING WORKER_INFO_NAME;
 
 inline bool is_infoschema_db(const char *name, size_t len) {
   return (

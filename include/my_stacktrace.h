@@ -46,7 +46,7 @@
 #if defined(HAVE_BACKTRACE) || defined(_WIN32)
 #define HAVE_STACKTRACE 1
 void my_init_stacktrace();
-void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack);
+void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack);
 void my_safe_puts_stderr(const char *val, size_t max_len);
 
 #ifdef _WIN32

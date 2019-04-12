@@ -1388,15 +1388,15 @@ static bool time_zone_tables_exist = 1;
   for dynamical loading of time zone descriptions.
 */
 
-static const LEX_STRING tz_tables_names[MY_TZ_TABLES_COUNT] = {
-    {C_STRING_WITH_LEN("time_zone_name")},
-    {C_STRING_WITH_LEN("time_zone")},
-    {C_STRING_WITH_LEN("time_zone_transition_type")},
-    {C_STRING_WITH_LEN("time_zone_transition")}};
+static const LEX_CSTRING tz_tables_names[MY_TZ_TABLES_COUNT] = {
+    {STRING_WITH_LEN("time_zone_name")},
+    {STRING_WITH_LEN("time_zone")},
+    {STRING_WITH_LEN("time_zone_transition_type")},
+    {STRING_WITH_LEN("time_zone_transition")}};
 
 /* Name of database to which those tables belong. */
 
-static const LEX_STRING tz_tables_db_name = {C_STRING_WITH_LEN("mysql")};
+static const LEX_CSTRING tz_tables_db_name = {STRING_WITH_LEN("mysql")};
 
 class Tz_names_entry {
  public:
@@ -1494,7 +1494,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   bool return_val = 1;
-  LEX_CSTRING db = {C_STRING_WITH_LEN("mysql")};
+  LEX_CSTRING db = {STRING_WITH_LEN("mysql")};
   int res;
   DBUG_TRACE;
 
@@ -1535,8 +1535,7 @@ bool my_tz_init(THD *org_thd, const char *default_tzname, bool bootstrap) {
     leap seconds shared by all time zones.
   */
   thd->set_db(db);
-  tz_tables[0].alias = tz_tables[0].table_name =
-      (char *)"time_zone_leap_second";
+  tz_tables[0].alias = tz_tables[0].table_name = "time_zone_leap_second";
   tz_tables[0].table_name_length = 21;
   tz_tables[0].db = db.str;
   tz_tables[0].db_length = sizeof(db) - 1;
@@ -2099,8 +2098,6 @@ Time_zone *my_tz_find(THD *thd, const String *name) {
   Time_zone *result_tz = 0;
   long offset;
   DBUG_TRACE;
-  DBUG_PRINT("enter", ("time zone name='%s'",
-                       name ? ((String *)name)->c_ptr_safe() : "NULL"));
 
   if (!name || name->is_empty()) return 0;
 

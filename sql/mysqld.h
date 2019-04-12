@@ -207,7 +207,7 @@ extern bool opt_enable_shared_memory;
 extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
-extern char *opt_secure_file_priv;
+extern const char *opt_secure_file_priv;
 extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;

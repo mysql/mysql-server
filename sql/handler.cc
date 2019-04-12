@@ -7436,7 +7436,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat) {
                             MYSQL_STORAGE_ENGINE_PLUGIN, &stat);
   } else {
     if (db_type->state != SHOW_OPTION_YES) {
-      const LEX_STRING *name = &se_plugin_array[db_type->slot]->name;
+      const LEX_CSTRING *name = &se_plugin_array[db_type->slot]->name;
       result = stat_print(thd, name->str, name->length, "", 0, "DISABLED", 8)
                    ? 1
                    : 0;

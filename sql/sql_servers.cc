@@ -316,7 +316,7 @@ end:
 static bool get_server_from_table_to_cache(TABLE *table) {
   /* alloc a server struct */
   char *ptr;
-  char *const blank = (char *)"";
+  char *blank = const_cast<char *>("");
   FOREIGN_SERVER *server = new (&mem) FOREIGN_SERVER();
 
   DBUG_TRACE;
@@ -452,7 +452,7 @@ void Server_options::reset() {
 }
 
 bool Server_options::insert_into_cache() const {
-  char *unset_ptr = (char *)"";
+  char *unset_ptr = const_cast<char *>("");
   DBUG_TRACE;
 
   FOREIGN_SERVER *server = new (&mem) FOREIGN_SERVER();

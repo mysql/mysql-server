@@ -1289,7 +1289,7 @@ bool Acl_table_user_reader::read_authentication_string(ACL_USER &user) {
     user.credentials[PRIMARY_CRED].m_auth_string.length =
         strlen(user.credentials[PRIMARY_CRED].m_auth_string.str);
   } else {
-    user.credentials[PRIMARY_CRED].m_auth_string = EMPTY_STR;
+    user.credentials[PRIMARY_CRED].m_auth_string = EMPTY_CSTR;
   }
 
   return false;
@@ -1523,7 +1523,8 @@ bool Acl_table_user_reader::read_plugin_info(
   if (plugin) {
     st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
     if (auth->validate_authentication_string(
-            user.credentials[PRIMARY_CRED].m_auth_string.str,
+            const_cast<char *>(
+                user.credentials[PRIMARY_CRED].m_auth_string.str),
             user.credentials[PRIMARY_CRED].m_auth_string.length)) {
       LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
              user.user ? user.user : "",
@@ -1723,17 +1724,14 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (additional_password.length()) {
         user.credentials[SECOND_CRED].m_auth_string.length =
             additional_password.length();
-        user.credentials[SECOND_CRED].m_auth_string.str =
-            (char *)m_mem_root.Alloc(
-                user.credentials[SECOND_CRED].m_auth_string.length + 1);
-        memcpy(user.credentials[SECOND_CRED].m_auth_string.str,
-               additional_password.c_str(),
+        char *auth_string = static_cast<char *>(m_mem_root.Alloc(
+            user.credentials[SECOND_CRED].m_auth_string.length + 1));
+        memcpy(auth_string, additional_password.c_str(),
                user.credentials[SECOND_CRED].m_auth_string.length);
-        user.credentials[SECOND_CRED]
-            .m_auth_string
-            .str[user.credentials[SECOND_CRED].m_auth_string.length] = 0;
+        auth_string[user.credentials[SECOND_CRED].m_auth_string.length] = 0;
+        user.credentials[SECOND_CRED].m_auth_string.str = auth_string;
       } else {
-        user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+        user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
       }
 
       /* Validate the hash string. */
@@ -1743,7 +1741,8 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       if (plugin) {
         st_mysql_auth *auth = (st_mysql_auth *)plugin_decl(plugin)->info;
         if (auth->validate_authentication_string(
-                user.credentials[SECOND_CRED].m_auth_string.str,
+                const_cast<char *>(
+                    user.credentials[SECOND_CRED].m_auth_string.str),
                 user.credentials[SECOND_CRED].m_auth_string.length)) {
           LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_INVALID_PASSWORD,
                  user.user ? user.user : "",
@@ -1755,11 +1754,11 @@ bool Acl_table_user_reader::read_user_attributes(ACL_USER &user) {
       }
     } else {
       // user_attributes column is NULL. So use suitable defaults.
-      user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+      user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
     }
     *m_restrictions = user_attributes.get_restrictions();
   } else {
-    user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+    user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
   }
   return false;
 }

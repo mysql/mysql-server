@@ -1372,7 +1372,7 @@ bool store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     packet->append(')');
     store_key_options(thd, packet, table, key_info);
     if (key_info->parser) {
-      LEX_STRING *parser_name = plugin_name(key_info->parser);
+      LEX_CSTRING *parser_name = plugin_name(key_info->parser);
       packet->append(STRING_WITH_LEN(" /*!50100 WITH PARSER "));
       append_identifier(thd, packet, parser_name->str, parser_name->length);
       packet->append(STRING_WITH_LEN(" */ "));
@@ -1891,9 +1891,12 @@ class List_process_list : public Do_THD_Impl {
     if (inspect_thd->peer_port &&
         (inspect_sctx_host.length || inspect_sctx->ip().length) &&
         m_client_thd->security_context()->host_or_ip().str[0]) {
-      if ((thd_info->host = (char *)m_client_thd->alloc(HOST_AND_PORT_LENGTH)))
-        snprintf((char *)thd_info->host, HOST_AND_PORT_LENGTH, "%s:%u",
+      char *host =
+          static_cast<char *>(m_client_thd->alloc(HOST_AND_PORT_LENGTH));
+      if (host)
+        snprintf(host, HOST_AND_PORT_LENGTH, "%s:%u",
                  inspect_sctx_host_or_ip.str, inspect_thd->peer_port);
+      thd_info->host = host;
     } else
       thd_info->host = m_client_thd->mem_strdup(
           inspect_sctx_host_or_ip.str[0]
@@ -2415,8 +2418,8 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     null_lex_str.length = 0;
     sys_var *var = ((sys_var *)variable->value);
     show_type = var->show_type();
-    value = (char *)var->value_ptr(running_thd, target_thd, value_type,
-                                   &null_lex_str);
+    value = pointer_cast<const char *>(
+        var->value_ptr(running_thd, target_thd, value_type, &null_lex_str));
     value_charset = var->charset(target_thd);
   } else {
     value = variable->value;
@@ -2433,77 +2436,82 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     case SHOW_DOUBLE_STATUS:
       value = (char *)status_var + reinterpret_cast<size_t>(value);
       /* 6 is the default precision for '%f' in sprintf() */
-      end = buff + my_fcvt(*(double *)value, 6, buff, NULL);
+      end = buff + my_fcvt(*pointer_cast<const double *>(value), 6, buff, NULL);
       value_charset = system_charset_info;
       break;
 
     case SHOW_DOUBLE:
       /* 6 is the default precision for '%f' in sprintf() */
-      end = buff + my_fcvt(*(double *)value, 6, buff, NULL);
+      end = buff + my_fcvt(*pointer_cast<const double *>(value), 6, buff, NULL);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONG_STATUS:
       value = (char *)status_var + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*(long *)value, buff, 10);
+      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONG:
       /* the difference lies in refresh_status() */
     case SHOW_LONG_NOFLUSH:
-      end = int10_to_str(*(long *)value, buff, 10);
+      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_LONG:
-      end = int10_to_str(*(long *)value, buff, -10);
+      end = int10_to_str(*pointer_cast<const long *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONGLONG_STATUS:
       value = (char *)status_var + reinterpret_cast<size_t>(value);
-      end = longlong10_to_str(*(longlong *)value, buff, 10);
+      end = longlong10_to_str(*pointer_cast<const longlong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_LONGLONG:
-      end = longlong10_to_str(*(longlong *)value, buff, 10);
+      end = longlong10_to_str(*pointer_cast<const longlong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_LONGLONG:
-      end = longlong10_to_str(*(longlong *)value, buff, -10);
+      end =
+          longlong10_to_str(*pointer_cast<const longlong *>(value), buff, -10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_HA_ROWS:
-      end = longlong10_to_str((longlong) * (ha_rows *)value, buff, 10);
+      end = longlong10_to_str(
+          static_cast<longlong>(*pointer_cast<const ha_rows *>(value)), buff,
+          10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_BOOL:
-      end = my_stpcpy(buff, *(bool *)value ? "ON" : "OFF");
+      end = my_stpcpy(buff, *pointer_cast<const bool *>(value) ? "ON" : "OFF");
       value_charset = system_charset_info;
       break;
 
     case SHOW_MY_BOOL:
-      end = my_stpcpy(buff, *(bool *)value ? "ON" : "OFF");
+      end = my_stpcpy(buff, *pointer_cast<const bool *>(value) ? "ON" : "OFF");
       value_charset = system_charset_info;
       break;
 
     case SHOW_INT:
-      end = int10_to_str((long)*(uint32 *)value, buff, 10);
+      end = int10_to_str(
+          static_cast<long>(*pointer_cast<const uint32 *>(value)), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_SIGNED_INT:
-      end = int10_to_str((long)*(int32 *)value, buff, -10);
+      end = int10_to_str(static_cast<long>(*pointer_cast<const int32 *>(value)),
+                         buff, -10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_HAVE: {
-      SHOW_COMP_OPTION tmp = *(SHOW_COMP_OPTION *)value;
+      SHOW_COMP_OPTION tmp = *pointer_cast<const SHOW_COMP_OPTION *>(value);
       pos = show_comp_option_name[(int)tmp];
       end = strend(pos);
       value_charset = system_charset_info;
@@ -2517,7 +2525,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     }
 
     case SHOW_CHAR_PTR: {
-      if (!(pos = *(char **)value)) {
+      if (!(pos = *pointer_cast<char *const *>(value))) {
         pos = "";
         if (is_null) *is_null = true;
       } else {
@@ -2528,7 +2536,7 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
     }
 
     case SHOW_LEX_STRING: {
-      LEX_STRING *ls = (LEX_STRING *)value;
+      const LEX_STRING *ls = pointer_cast<const LEX_STRING *>(value);
       if (!(pos = ls->str))
         end = pos = "";
       else
@@ -2538,13 +2546,13 @@ const char *get_one_variable_ext(THD *running_thd, THD *target_thd,
 
     case SHOW_KEY_CACHE_LONG:
       value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
-      end = int10_to_str(*(long *)value, buff, 10);
+      end = int10_to_str(*pointer_cast<const long *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
     case SHOW_KEY_CACHE_LONGLONG:
       value = (char *)dflt_key_cache + reinterpret_cast<size_t>(value);
-      end = longlong10_to_str(*(longlong *)value, buff, 10);
+      end = longlong10_to_str(*pointer_cast<const longlong *>(value), buff, 10);
       value_charset = system_charset_info;
       break;
 
@@ -2836,7 +2844,7 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
   restore_record(show_table, s->default_values);
 
   for (; (field = *ptr); ptr++) {
-    uchar *pos;
+    const uchar *pos;
     char tmp[MAX_FIELD_WIDTH];
     String type(tmp, sizeof(tmp), system_charset_info);
 
@@ -2864,17 +2872,18 @@ static int get_schema_tmp_table_columns_record(THD *thd, TABLE_LIST *tables,
     }
 
     // IS_NULLABLE
-    pos = (uchar *)((field->flags & NOT_NULL_FLAG) ? "NO" : "YES");
+    pos = pointer_cast<const uchar *>((field->flags & NOT_NULL_FLAG) ? "NO"
+                                                                     : "YES");
     table->field[TMP_TABLE_COLUMNS_IS_NULLABLE]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
     // COLUMN_KEY
-    pos =
-        (uchar *)((field->flags & PRI_KEY_FLAG)
-                      ? "PRI"
-                      : (field->flags & UNIQUE_KEY_FLAG)
-                            ? "UNI"
-                            : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
+    pos = pointer_cast<const uchar *>(
+        (field->flags & PRI_KEY_FLAG)
+            ? "PRI"
+            : (field->flags & UNIQUE_KEY_FLAG)
+                  ? "UNI"
+                  : (field->flags & MULTIPLE_KEY_FLAG) ? "MUL" : "");
     table->field[TMP_TABLE_COLUMNS_COLUMN_KEY]->store(
         (const char *)pos, strlen((const char *)pos), cs);
 
@@ -2972,7 +2981,7 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
     if (!(wild && wild[0] && wild_case_compare(scs, plug->name, wild))) {
       restore_record(table, s->default_values);
       table->field[0]->store(plug->name, strlen(plug->name), scs);
-      table->field[1]->store(C_STRING_WITH_LEN("NO"), scs);
+      table->field[1]->store(STRING_WITH_LEN("NO"), scs);
       table->field[2]->store(plug->descr, strlen(plug->descr), scs);
       if (schema_table_store_record(thd, table)) return 1;
     }
@@ -2980,11 +2989,11 @@ static bool iter_schema_engines(THD *thd, plugin_ref plugin, void *ptable) {
   }
 
   if (!(hton->flags & HTON_HIDDEN)) {
-    LEX_STRING *name = plugin_name(plugin);
+    LEX_CSTRING *name = plugin_name(plugin);
     if (!(wild && wild[0] && wild_case_compare(scs, name->str, wild))) {
-      LEX_STRING yesno[2] = {{C_STRING_WITH_LEN("NO")},
-                             {C_STRING_WITH_LEN("YES")}};
-      LEX_STRING *tmp;
+      LEX_CSTRING yesno[2] = {{STRING_WITH_LEN("NO")},
+                              {STRING_WITH_LEN("YES")}};
+      LEX_CSTRING *tmp;
       const char *option_name = show_comp_option_name[(int)hton->state];
       restore_record(table, s->default_values);
 
@@ -3145,7 +3154,7 @@ static int get_schema_tmp_table_keys_record(THD *thd, TABLE_LIST *tables,
 
       // NULLABLE
       uint flags = key_part->field ? key_part->field->flags : 0;
-      const char *pos = (char *)((flags & NOT_NULL_FLAG) ? "" : "YES");
+      const char *pos = ((flags & NOT_NULL_FLAG) ? "" : "YES");
       table->field[TMP_TABLE_KEYS_IS_NULLABLE]->store(pos, strlen(pos), cs);
 
       // COMMENT
@@ -3781,9 +3790,9 @@ bool get_schema_tables_result(JOIN *join,
 
       /* To be removed after 5.7 */
       if (is_infoschema_db(table_list->db, table_list->db_length)) {
-        static LEX_STRING INNODB_LOCKS = {C_STRING_WITH_LEN("INNODB_LOCKS")};
-        static LEX_STRING INNODB_LOCK_WAITS = {
-            C_STRING_WITH_LEN("INNODB_LOCK_WAITS")};
+        static LEX_CSTRING INNODB_LOCKS = {STRING_WITH_LEN("INNODB_LOCKS")};
+        static LEX_CSTRING INNODB_LOCK_WAITS = {
+            STRING_WITH_LEN("INNODB_LOCK_WAITS")};
 
         if (my_strcasecmp(system_charset_info, table_list->schema_table_name,
                           INNODB_LOCKS.str) == 0) {

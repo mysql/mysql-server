@@ -930,7 +930,7 @@ int Event_timed::get_create_event(const THD *thd, String *buf) {
     buf->append(STRING_WITH_LEN(" ON SCHEDULE EVERY "));
     buf->append(expr_buf);
     buf->append(' ');
-    const LEX_STRING *ival = &interval_type_to_name[m_interval];
+    const LEX_CSTRING *ival = &interval_type_to_name[m_interval];
     buf->append(ival->str, ival->length);
 
     if (!m_starts_null)
@@ -985,8 +985,8 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
   sp_sql->set(buffer.str, buffer.length, system_charset_info);
   sp_sql->length(0);
 
-  sp_sql->append(C_STRING_WITH_LEN("CREATE "));
-  sp_sql->append(C_STRING_WITH_LEN("PROCEDURE "));
+  sp_sql->append(STRING_WITH_LEN("CREATE "));
+  sp_sql->append(STRING_WITH_LEN("PROCEDURE "));
   /*
     Let's use the same name as the event name to perhaps produce a
     better error message in case it is a part of some parse error.
@@ -1001,7 +1001,7 @@ bool Event_job_data::construct_sp_sql(THD *thd, String *sp_sql) {
     let's execute the procedure with the invoker rights to save on
     resets of security contexts.
   */
-  sp_sql->append(C_STRING_WITH_LEN("() SQL SECURITY INVOKER "));
+  sp_sql->append(STRING_WITH_LEN("() SQL SECURITY INVOKER "));
 
   sp_sql->append(m_definition.str, m_definition.length);
 
@@ -1223,7 +1223,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
   sp_sql->set(buffer.str, buffer.length, system_charset_info);
   sp_sql->length(0);
 
-  ret |= sp_sql->append(C_STRING_WITH_LEN("DROP EVENT IF EXISTS"));
+  ret |= sp_sql->append(STRING_WITH_LEN("DROP EVENT IF EXISTS"));
   append_identifier(thd, sp_sql, schema_name.str, schema_name.length);
   ret |= sp_sql->append('.');
   append_identifier(thd, sp_sql, event_name.str, event_name.length);

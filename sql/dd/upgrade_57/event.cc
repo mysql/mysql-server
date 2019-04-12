@@ -322,13 +322,14 @@ static bool update_event_timing_fields(THD *thd, TABLE *table,
   @retval >=0  Ordinal position.
 */
 
-static int find_string_in_array(const LEX_STRING *haystack,
-                                const LEX_STRING *needle,
+static int find_string_in_array(const LEX_CSTRING *haystack,
+                                const LEX_CSTRING *needle,
                                 const CHARSET_INFO *cs) {
-  const LEX_STRING *pos;
+  const LEX_CSTRING *pos;
   for (pos = haystack; pos->str; pos++) {
-    if (!cs->coll->strnncollsp(cs, (uchar *)pos->str, pos->length,
-                               (uchar *)needle->str, needle->length)) {
+    if (!cs->coll->strnncollsp(
+            cs, pointer_cast<const uchar *>(pos->str), pos->length,
+            pointer_cast<const uchar *>(needle->str), needle->length)) {
       return static_cast<int>(pos - haystack);
     }
   }
@@ -373,7 +374,7 @@ static bool set_status_and_interval_for_event(THD *thd, TABLE *table,
     int i;
     char buff[MAX_FIELD_WIDTH];
     String str(buff, sizeof(buff), &my_charset_bin);
-    LEX_STRING tmp;
+    LEX_CSTRING tmp;
 
     table->field[ET_FIELD_TRANSIENT_INTERVAL]->val_str(&str);
     if (!(tmp.length = str.length())) return true;

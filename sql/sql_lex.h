@@ -1894,7 +1894,6 @@ struct st_sp_chistics {
 };
 
 extern const LEX_STRING null_lex_str;
-extern const LEX_STRING empty_lex_str;
 
 struct st_trg_chistics {
   enum enum_trigger_action_time_type action_time;

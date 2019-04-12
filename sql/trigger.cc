@@ -177,12 +177,11 @@ static bool construct_create_trigger_stmt_with_definer(
 }
 
 static const LEX_CSTRING trg_action_time_type_names[] = {
-    {C_STRING_WITH_LEN("BEFORE")}, {C_STRING_WITH_LEN("AFTER")}};
+    {STRING_WITH_LEN("BEFORE")}, {STRING_WITH_LEN("AFTER")}};
 
-static const LEX_CSTRING trg_event_type_names[] = {
-    {C_STRING_WITH_LEN("INSERT")},
-    {C_STRING_WITH_LEN("UPDATE")},
-    {C_STRING_WITH_LEN("DELETE")}};
+static const LEX_CSTRING trg_event_type_names[] = {{STRING_WITH_LEN("INSERT")},
+                                                   {STRING_WITH_LEN("UPDATE")},
+                                                   {STRING_WITH_LEN("DELETE")}};
 
 const LEX_CSTRING &Trigger::get_action_time_as_string() const {
   return trg_action_time_type_names[m_action_time];

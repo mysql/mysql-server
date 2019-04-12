@@ -65,7 +65,7 @@
 
   @return An Item_splocal object representing the SP variable, or NULL on error.
 */
-Item_splocal *create_item_for_sp_var(THD *thd, LEX_STRING name,
+Item_splocal *create_item_for_sp_var(THD *thd, LEX_CSTRING name,
                                      sp_variable *spv,
                                      const char *query_start_ptr,
                                      const char *start, const char *end) {
@@ -173,19 +173,13 @@ bool set_system_variable(THD *thd, struct sys_var_with_base *var_with_base,
   @param start_ptr  start of the new string.
   @param end_ptr    end of the new string.
 
-  @return LEX_STRING object, containing a pointer to a newly
+  @return LEX_CSTRING object, containing a pointer to a newly
   constructed/allocated string, and its length. The pointer is NULL
   in case of out-of-memory error.
 */
-LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
-  LEX_STRING s;
-
-  s.length = end_ptr - start_ptr;
-  s.str = (char *)thd->alloc(s.length + 1);
-
-  if (s.str) strmake(s.str, start_ptr, s.length);
-
-  return s;
+LEX_CSTRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
+  size_t length = end_ptr - start_ptr;
+  return {strmake_root(thd->mem_root, start_ptr, length), length};
 }
 
 /**
@@ -201,7 +195,7 @@ LEX_STRING make_string(THD *thd, const char *start_ptr, const char *end_ptr) {
 */
 
 bool set_trigger_new_row(Parse_context *pc, LEX_STRING trigger_field_name,
-                         Item *expr_item, LEX_STRING expr_query) {
+                         Item *expr_item, LEX_CSTRING expr_query) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   sp_head *sp = lex->sphead;
@@ -335,14 +329,15 @@ bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr) {
 
     /* Construct SET-statement query. */
 
-    LEX_STRING set_stmt_query;
+    LEX_CSTRING set_stmt_query;
 
     set_stmt_query.length = expr.length + 3;
-    set_stmt_query.str = (char *)thd->alloc(set_stmt_query.length + 1);
+    char *c = static_cast<char *>(thd->alloc(set_stmt_query.length + 1));
 
-    if (!set_stmt_query.str) return true;
+    if (!c) return true;
 
-    strmake(strmake(set_stmt_query.str, "SET", 3), expr.str, expr.length);
+    strmake(strmake(c, "SET", 3), expr.str, expr.length);
+    set_stmt_query.str = c;
 
     /*
       We have assignment to user or system variable or option setting, so we

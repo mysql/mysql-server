@@ -1225,7 +1225,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       // keyinfo->algorithm is set later, when storage engine is known
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
-      keyinfo->name = (char *)"<group_key>";
+      keyinfo->name = "<group_key>";
       ORDER *cur_group = group;
       for (; cur_group; cur_group = cur_group->next, key_part_info++) {
         Field *field = cur_group->field_in_tmp_table;
@@ -1264,7 +1264,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       keyinfo->key_part = key_part_info;
       keyinfo->actual_flags = keyinfo->flags = HA_NOSAME | HA_NULL_ARE_EQUAL;
       // TODO rename to <distinct_key>
-      keyinfo->name = (char *)"<auto_key>";
+      keyinfo->name = "<auto_key>";
       // keyinfo->algorithm is set later, when storage engine is known
       keyinfo->set_rec_per_key_array(NULL, NULL);
       keyinfo->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
@@ -1516,9 +1516,9 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     hash_key->algorithm = table->file->get_default_index_algorithm();
     hash_key->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
     if (distinct)
-      hash_key->name = (char *)"<hash_distinct_key>";
+      hash_key->name = "<hash_distinct_key>";
     else
-      hash_key->name = (char *)"<hash_group_key>";
+      hash_key->name = "<hash_group_key>";
     hash_kpi->init_from_field(table->hash_field);
     hash_key->key_length = hash_kpi->store_length;
     param->keyinfo = hash_key;
@@ -1744,7 +1744,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
     table->key_info->set_rec_per_key_array(NULL, NULL);
     table->key_info->algorithm = table->file->get_default_index_algorithm();
     table->key_info->set_in_memory_estimate(IN_MEMORY_ESTIMATE_UNKNOWN);
-    table->key_info->name = (char *)"weedout_key";
+    table->key_info->name = "weedout_key";
   }
 
   if (thd->is_fatal_error())  // If end of memory

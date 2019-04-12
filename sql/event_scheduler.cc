@@ -79,10 +79,10 @@
 
 extern my_thread_attr_t connection_attrib;
 
-static const LEX_STRING scheduler_states_names[] = {
-    {C_STRING_WITH_LEN("INITIALIZED")},
-    {C_STRING_WITH_LEN("RUNNING")},
-    {C_STRING_WITH_LEN("STOPPING")}};
+static const LEX_CSTRING scheduler_states_names[] = {
+    {STRING_WITH_LEN("INITIALIZED")},
+    {STRING_WITH_LEN("RUNNING")},
+    {STRING_WITH_LEN("STOPPING")}};
 
 struct scheduler_param {
   THD *thd;
@@ -212,10 +212,10 @@ void pre_init_event_thread(THD *thd) {
   DBUG_TRACE;
   thd->security_context()->set_master_access(0);
   thd->security_context()->cache_current_db_access(0);
-  thd->security_context()->set_host_or_ip_ptr((char *)my_localhost,
+  thd->security_context()->set_host_or_ip_ptr(my_localhost,
                                               strlen(my_localhost));
   thd->get_protocol_classic()->init_net(NULL);
-  thd->security_context()->set_user_ptr(C_STRING_WITH_LEN("event_scheduler"));
+  thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
   thd->get_protocol_classic()->get_net()->read_timeout = slave_net_timeout;
   thd->slave_thread = 0;
   thd->variables.option_bits |= OPTION_AUTO_IS_NULL;
@@ -477,7 +477,7 @@ bool Event_scheduler::start(int *err_no) {
     Therefore, assign all privileges to this thread.
   */
   new_thd->security_context()->skip_grants();
-  new_thd->security_context()->set_host_or_ip_ptr((char *)my_localhost,
+  new_thd->security_context()->set_host_or_ip_ptr(my_localhost,
                                                   strlen(my_localhost));
   new_thd->variables.transaction_read_only = false;
   new_thd->tx_read_only = false;

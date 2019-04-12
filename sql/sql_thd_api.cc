@@ -368,12 +368,12 @@ void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
                      const void *ha_data) {
   plugin_ref *lock = &thd->get_ha_data(hton->slot)->lock;
   if (ha_data && !*lock)
-    *lock = ha_lock_engine(NULL, (handlerton *)hton);
+    *lock = ha_lock_engine(NULL, hton);
   else if (!ha_data && *lock) {
     plugin_unlock(NULL, *lock);
     *lock = NULL;
   }
-  *thd_ha_data(thd, hton) = (void *)ha_data;
+  *thd_ha_data(thd, hton) = const_cast<void *>(ha_data);
 }
 
 long long thd_test_options(const MYSQL_THD thd, long long test_options) {
@@ -492,7 +492,8 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
 }
 
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid) {
-  *xid = *(MYSQL_XID *)thd->get_transaction()->xid_state()->get_xid();
+  *xid = *pointer_cast<const MYSQL_XID *>(
+      thd->get_transaction()->xid_state()->get_xid());
 }
 
 /**

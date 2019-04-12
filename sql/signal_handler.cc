@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,8 +122,9 @@ extern "C" void handle_fatal_signal(int sig) {
         "information to find out\n"
         "where mysqld died. If you see no messages after this, something went\n"
         "terribly wrong...\n");
-    my_print_stacktrace(thd ? (uchar *)thd->thread_stack : NULL,
-                        my_thread_stack_size);
+    my_print_stacktrace(
+        thd ? pointer_cast<const uchar *>(thd->thread_stack) : nullptr,
+        my_thread_stack_size);
   }
   if (thd) {
     const char *kreason = "UNKNOWN";

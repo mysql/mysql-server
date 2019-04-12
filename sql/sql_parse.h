@@ -125,7 +125,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 /* Variables */
 
 extern uint sql_command_flags[];
-extern const LEX_STRING command_name[];
+extern const LEX_CSTRING command_name[];
 
 inline bool is_supported_parser_charset(const CHARSET_INFO *cs) {
   return (cs->mbminlen == 1);

@@ -162,7 +162,7 @@ bool Query_result_union::create_result_table(
 
   if (!(table = create_tmp_table(thd_arg, &tmp_table_param, *column_types, NULL,
                                  is_union_distinct, true, options, HA_POS_ERROR,
-                                 (char *)table_alias)))
+                                 table_alias)))
     return true;
   if (create_table) {
     table->file->ha_extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -659,8 +659,8 @@ bool SELECT_LEX_UNIT::prepare(THD *thd, Query_result *sel_result,
             instantiate_tmp_table))
       goto err;
     result_table_list = TABLE_LIST();
-    result_table_list.db = (char *)"";
-    result_table_list.table_name = result_table_list.alias = (char *)"union";
+    result_table_list.db = "";
+    result_table_list.table_name = result_table_list.alias = "union";
     result_table_list.table = table = union_result->table;
     table->pos_in_table_list = &result_table_list;
     result_table_list.select_lex =

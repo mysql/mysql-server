@@ -688,9 +688,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   // Binlog CREATE/ALTER/CREATE OR REPLACE event.
   if (mysql_bin_log.is_open()) {
     String buff;
-    const LEX_STRING command[3] = {{C_STRING_WITH_LEN("CREATE ")},
-                                   {C_STRING_WITH_LEN("ALTER ")},
-                                   {C_STRING_WITH_LEN("CREATE OR REPLACE ")}};
+    const LEX_CSTRING command[3] = {{STRING_WITH_LEN("CREATE ")},
+                                    {STRING_WITH_LEN("ALTER ")},
+                                    {STRING_WITH_LEN("CREATE OR REPLACE ")}};
 
     buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
                 command[static_cast<int>(thd->lex->create_view_mode)].length);

@@ -2509,7 +2509,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
           /* Update auth string only when specified in ALTER/GRANT */
           if (auth.str) {
             if (auth.length == 0)
-              acl_user->credentials[PRIMARY_CRED].m_auth_string = EMPTY_STR;
+              acl_user->credentials[PRIMARY_CRED].m_auth_string = EMPTY_CSTR;
             else
               acl_user->credentials[PRIMARY_CRED].m_auth_string.str =
                   strmake_root(&global_acl_memory, auth.str, auth.length);
@@ -2531,7 +2531,7 @@ void acl_update_user(const char *user, const char *host, enum SSL_type ssl_type,
             }
             if (what_to_update.m_user_attributes &
                 acl_table::USER_ATTRIBUTE_DISCARD_PASSWORD) {
-              acl_user->credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+              acl_user->credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
             }
             set_user_salt(acl_user);
           }
@@ -2663,7 +2663,7 @@ void acl_users_add_one(THD *thd MY_ATTRIBUTE((unused)), const char *user,
       acl_user.credentials[SECOND_CRED].m_auth_string.length =
           second_auth.length;
     } else {
-      acl_user.credentials[SECOND_CRED].m_auth_string = EMPTY_STR;
+      acl_user.credentials[SECOND_CRED].m_auth_string = EMPTY_CSTR;
     }
     optimize_plugin_compare_by_pointer(&acl_user.plugin);
   }

@@ -123,35 +123,35 @@
 LEX_CSTRING INFORMATION_SCHEMA_NAME = {STRING_WITH_LEN("information_schema")};
 
 /* PERFORMANCE_SCHEMA name */
-LEX_STRING PERFORMANCE_SCHEMA_DB_NAME = {
-    C_STRING_WITH_LEN("performance_schema")};
+LEX_CSTRING PERFORMANCE_SCHEMA_DB_NAME = {
+    STRING_WITH_LEN("performance_schema")};
 
 /* MYSQL_SCHEMA name */
-LEX_STRING MYSQL_SCHEMA_NAME = {C_STRING_WITH_LEN("mysql")};
+LEX_CSTRING MYSQL_SCHEMA_NAME = {STRING_WITH_LEN("mysql")};
 
 /* MYSQL_TABLESPACE name */
-LEX_STRING MYSQL_TABLESPACE_NAME = {C_STRING_WITH_LEN("mysql")};
+LEX_CSTRING MYSQL_TABLESPACE_NAME = {STRING_WITH_LEN("mysql")};
 
 /* GENERAL_LOG name */
-LEX_STRING GENERAL_LOG_NAME = {C_STRING_WITH_LEN("general_log")};
+LEX_CSTRING GENERAL_LOG_NAME = {STRING_WITH_LEN("general_log")};
 
 /* SLOW_LOG name */
-LEX_STRING SLOW_LOG_NAME = {C_STRING_WITH_LEN("slow_log")};
+LEX_CSTRING SLOW_LOG_NAME = {STRING_WITH_LEN("slow_log")};
 
 /* RLI_INFO name */
-LEX_STRING RLI_INFO_NAME = {C_STRING_WITH_LEN("slave_relay_log_info")};
+LEX_CSTRING RLI_INFO_NAME = {STRING_WITH_LEN("slave_relay_log_info")};
 
 /* MI_INFO name */
-LEX_STRING MI_INFO_NAME = {C_STRING_WITH_LEN("slave_master_info")};
+LEX_CSTRING MI_INFO_NAME = {STRING_WITH_LEN("slave_master_info")};
 
 /* WORKER_INFO name */
-LEX_STRING WORKER_INFO_NAME = {C_STRING_WITH_LEN("slave_worker_info")};
+LEX_CSTRING WORKER_INFO_NAME = {STRING_WITH_LEN("slave_worker_info")};
 
 /* GTID_EXECUTED name */
-LEX_STRING GTID_EXECUTED_NAME = {C_STRING_WITH_LEN("gtid_executed")};
+LEX_CSTRING GTID_EXECUTED_NAME = {STRING_WITH_LEN("gtid_executed")};
 
 /* Keyword for parsing generated column functions */
-LEX_STRING PARSE_GCOL_KEYWORD = {C_STRING_WITH_LEN("parse_gcol_expr")};
+LEX_CSTRING PARSE_GCOL_KEYWORD = {STRING_WITH_LEN("parse_gcol_expr")};
 
 /* Functions defined in this file */
 
@@ -467,14 +467,14 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
 
   share->table_category = TABLE_CATEGORY_TEMPORARY;
   share->tmp_table = INTERNAL_TMP_TABLE;
-  share->db.str = (char *)key;
+  share->db.str = key;
   share->db.length = strlen(key);
-  share->table_cache_key.str = (char *)key;
+  share->table_cache_key.str = key;
   share->table_cache_key.length = key_length;
-  share->table_name.str = (char *)table_name;
+  share->table_name.str = table_name;
   share->table_name.length = strlen(table_name);
-  share->path.str = (char *)path;
-  share->normalized_path.str = (char *)path;
+  share->path.str = const_cast<char *>(path);
+  share->normalized_path.str = path;
   share->path.length = share->normalized_path.length = strlen(path);
 
   share->cached_row_logging_check = -1;
@@ -966,7 +966,7 @@ static int read_string(File file, uchar **to, size_t length) {
 static void unhex_type2(TYPELIB *interval) {
   for (uint pos = 0; pos < interval->count; pos++) {
     char *from, *to;
-    for (from = to = (char *)interval->type_names[pos]; *from;) {
+    for (from = to = const_cast<char *>(interval->type_names[pos]); *from;) {
       /*
         Note, hexchar_to_int(*from++) doesn't work
         one some compilers, e.g. IRIX. Looks like a compiler
@@ -1191,7 +1191,7 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
     }
 
     if (!comment_length) {
-      comment.str = (char *)"";
+      comment.str = "";
       comment.length = 0;
     } else {
       comment.str = *comment_pos;
@@ -1885,7 +1885,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       if (!(interval->type_lengths = (uint *)share->mem_root.Alloc(count)))
         goto err;
       for (count = 0; count < interval->count; count++) {
-        char *val = (char *)interval->type_names[count];
+        const char *val = interval->type_names[count];
         interval->type_lengths[count] = strlen(val);
       }
       interval->type_lengths[count] = 0;
@@ -2002,7 +2002,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
 
     for (uint key = 0; key < share->keys; key++, keyinfo++) {
       uint usable_parts = 0;
-      keyinfo->name = (char *)share->keynames.type_names[key];
+      keyinfo->name = share->keynames.type_names[key];
       /* Fix fulltext keys for old .frm files */
       if (share->key_info[key].flags & HA_FULLTEXT)
         share->key_info[key].algorithm = HA_KEY_ALG_FULLTEXT;
@@ -4075,9 +4075,9 @@ void TABLE::init(THD *thd, TABLE_LIST *tl) {
   /* Fix alias if table name changes. */
   if (strcmp(alias, tl->alias)) {
     size_t length = strlen(tl->alias) + 1;
-    alias = (char *)my_realloc(key_memory_TABLE, (char *)alias, length,
-                               MYF(MY_WME));
-    memcpy((char *)alias, tl->alias, length);
+    alias = static_cast<char *>(my_realloc(
+        key_memory_TABLE, const_cast<char *>(alias), length, MYF(MY_WME)));
+    memcpy(const_cast<char *>(alias), tl->alias, length);
   }
 
   const_table = false;
@@ -4376,11 +4376,11 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator, const char *alias,
   join_nest->nested_join = new (allocator) NESTED_JOIN;
   if (join_nest->nested_join == nullptr) return nullptr;
 
-  join_nest->db = (char *)"";
+  join_nest->db = "";
   join_nest->db_length = 0;
-  join_nest->table_name = (char *)"";
+  join_nest->table_name = "";
   join_nest->table_name_length = 0;
-  join_nest->alias = (char *)alias;
+  join_nest->alias = alias;
 
   join_nest->embedding = embedding;
   join_nest->join_list = belongs_to;

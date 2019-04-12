@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ class Cmp_splocal_locations
 
   @retval true in case of out of memory error.
 */
-static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
+static bool subst_spvars(THD *thd, sp_instr *instr, LEX_CSTRING query_str) {
   // Stack-local array, does not need instrumentation.
   Prealloced_array<Item_splocal *, 16> sp_vars_uses(PSI_NOT_INSTRUMENTED);
 
@@ -211,7 +211,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
   char buffer[512];
   String qbuf(buffer, sizeof(buffer), &my_charset_bin);
   qbuf.length(0);
-  char *cur = query_str->str;
+  const char *cur = query_str.str;
   int prev_pos = 0;
   int res = 0;
   thd->query_name_consts = 0;
@@ -255,7 +255,7 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str) {
 
     thd->query_name_consts++;
   }
-  if (res || qbuf.append(cur + prev_pos, query_str->length - prev_pos))
+  if (res || qbuf.append(cur + prev_pos, query_str.length - prev_pos))
     return true;
 
   char *pbuf;
@@ -800,7 +800,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd) {
 }
 
 void sp_lex_instr::get_query(String *sql_query) const {
-  LEX_STRING expr_query = this->get_expr_query();
+  LEX_CSTRING expr_query = get_expr_query();
 
   if (!expr_query.str) {
     sql_query->length(0);
@@ -876,7 +876,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     If we need to do a substitution but can't (OOM), give up.
   */
 
-  if (need_subst && subst_spvars(thd, this, &m_query)) return true;
+  if (need_subst && subst_spvars(thd, this, m_query)) return true;
 
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF) == 0))
     query_logger.general_log_write(thd, COM_QUERY, thd->query().str,
@@ -898,7 +898,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
       unlikely event of subst_spvars() failing (OOM), we'll try to log
       the unmodified statement instead.
     */
-    if (!need_subst) rc = subst_spvars(thd, this, &m_query);
+    if (!need_subst) rc = subst_spvars(thd, this, m_query);
     /*
       We currently do not support --log-slow-extra for this case,
       and therefore pass in a null-pointer instead of a pointer to

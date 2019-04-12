@@ -205,41 +205,41 @@ using std::max;
 
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-const LEX_STRING command_name[] = {
-    {C_STRING_WITH_LEN("Sleep")},
-    {C_STRING_WITH_LEN("Quit")},
-    {C_STRING_WITH_LEN("Init DB")},
-    {C_STRING_WITH_LEN("Query")},
-    {C_STRING_WITH_LEN("Field List")},
-    {C_STRING_WITH_LEN("Create DB")},
-    {C_STRING_WITH_LEN("Drop DB")},
-    {C_STRING_WITH_LEN("Refresh")},
-    {C_STRING_WITH_LEN("Shutdown")},
-    {C_STRING_WITH_LEN("Statistics")},
-    {C_STRING_WITH_LEN("Processlist")},
-    {C_STRING_WITH_LEN("Connect")},
-    {C_STRING_WITH_LEN("Kill")},
-    {C_STRING_WITH_LEN("Debug")},
-    {C_STRING_WITH_LEN("Ping")},
-    {C_STRING_WITH_LEN("Time")},
-    {C_STRING_WITH_LEN("Delayed insert")},
-    {C_STRING_WITH_LEN("Change user")},
-    {C_STRING_WITH_LEN("Binlog Dump")},
-    {C_STRING_WITH_LEN("Table Dump")},
-    {C_STRING_WITH_LEN("Connect Out")},
-    {C_STRING_WITH_LEN("Register Slave")},
-    {C_STRING_WITH_LEN("Prepare")},
-    {C_STRING_WITH_LEN("Execute")},
-    {C_STRING_WITH_LEN("Long Data")},
-    {C_STRING_WITH_LEN("Close stmt")},
-    {C_STRING_WITH_LEN("Reset stmt")},
-    {C_STRING_WITH_LEN("Set option")},
-    {C_STRING_WITH_LEN("Fetch")},
-    {C_STRING_WITH_LEN("Daemon")},
-    {C_STRING_WITH_LEN("Binlog Dump GTID")},
-    {C_STRING_WITH_LEN("Reset Connection")},
-    {C_STRING_WITH_LEN("clone")},
-    {C_STRING_WITH_LEN("Error")}  // Last command number
+const LEX_CSTRING command_name[] = {
+    {STRING_WITH_LEN("Sleep")},
+    {STRING_WITH_LEN("Quit")},
+    {STRING_WITH_LEN("Init DB")},
+    {STRING_WITH_LEN("Query")},
+    {STRING_WITH_LEN("Field List")},
+    {STRING_WITH_LEN("Create DB")},
+    {STRING_WITH_LEN("Drop DB")},
+    {STRING_WITH_LEN("Refresh")},
+    {STRING_WITH_LEN("Shutdown")},
+    {STRING_WITH_LEN("Statistics")},
+    {STRING_WITH_LEN("Processlist")},
+    {STRING_WITH_LEN("Connect")},
+    {STRING_WITH_LEN("Kill")},
+    {STRING_WITH_LEN("Debug")},
+    {STRING_WITH_LEN("Ping")},
+    {STRING_WITH_LEN("Time")},
+    {STRING_WITH_LEN("Delayed insert")},
+    {STRING_WITH_LEN("Change user")},
+    {STRING_WITH_LEN("Binlog Dump")},
+    {STRING_WITH_LEN("Table Dump")},
+    {STRING_WITH_LEN("Connect Out")},
+    {STRING_WITH_LEN("Register Slave")},
+    {STRING_WITH_LEN("Prepare")},
+    {STRING_WITH_LEN("Execute")},
+    {STRING_WITH_LEN("Long Data")},
+    {STRING_WITH_LEN("Close stmt")},
+    {STRING_WITH_LEN("Reset stmt")},
+    {STRING_WITH_LEN("Set option")},
+    {STRING_WITH_LEN("Fetch")},
+    {STRING_WITH_LEN("Daemon")},
+    {STRING_WITH_LEN("Binlog Dump GTID")},
+    {STRING_WITH_LEN("Reset Connection")},
+    {STRING_WITH_LEN("clone")},
+    {STRING_WITH_LEN("Error")}  // Last command number
 };
 
 bool command_satisfy_acl_cache_requirement(unsigned command) {
@@ -4420,10 +4420,10 @@ int mysql_execute_command(THD *thd, bool first_level) {
         if (!tmp_user->host.str && !tmp_user->user.str) {
           /* set user information as of the current user */
           DBUG_ASSERT(sctx->priv_host().str);
-          tmp_user->host.str = (char *)sctx->priv_host().str;
+          tmp_user->host.str = sctx->priv_host().str;
           tmp_user->host.length = strlen(sctx->priv_host().str);
           DBUG_ASSERT(sctx->user().str);
-          tmp_user->user.str = (char *)sctx->user().str;
+          tmp_user->user.str = sctx->user().str;
           tmp_user->user.length = strlen(sctx->user().str);
         }
         if (!(user = get_current_user(thd, tmp_user))) goto error;
@@ -5058,7 +5058,7 @@ bool create_select_for_variable(Parse_context *pc, const char *var_name) {
   THD *thd = pc->thd;
   LEX *lex = thd->lex;
   lex->sql_command = SQLCOM_SELECT;
-  tmp.str = (char *)var_name;
+  tmp.str = const_cast<char *>(var_name);
   tmp.length = strlen(var_name);
   memset(&null_lex_string, 0, sizeof(null_lex_string));
   /*
@@ -5432,7 +5432,7 @@ bool Alter_info::add_field(
   create_list.push_back(new_field);
   if (opt_after != NULL) {
     flags |= Alter_info::ALTER_COLUMN_ORDER;
-    new_field->after = (char *)(opt_after);
+    new_field->after = opt_after;
   }
 
   if (col_check_const_spec_list) {
@@ -5471,15 +5471,17 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
   Produces a PT_subquery object from a subquery's text.
   @param thd      Thread handler
   @param text     Subquery's text
+  @param text_length  Length of 'text'
   @param text_offset Offset in bytes of 'text' in the original statement
   @param[out] node Produced PT_subquery object
 
   @returns true if error
  */
-static bool reparse_common_table_expr(THD *thd, const LEX_STRING &text,
-                                      uint text_offset, PT_subquery **node) {
+static bool reparse_common_table_expr(THD *thd, const char *text,
+                                      size_t text_length, uint text_offset,
+                                      PT_subquery **node) {
   Common_table_expr_parser_state parser_state;
-  parser_state.init(thd, text.str, text.length);
+  parser_state.init(thd, text, text_length);
 
   Parser_state *old = thd->m_parser_state;
   thd->m_parser_state = &parser_state;
@@ -5525,8 +5527,8 @@ static bool reparse_common_table_expr(THD *thd, const LEX_STRING &text,
 bool PT_common_table_expr::make_subquery_node(THD *thd, PT_subquery **node) {
   if (m_postparse.references.size() >= 2) {
     // m_subq_node was already attached elsewhere, make new node:
-    return reparse_common_table_expr(thd, m_subq_text, m_subq_text_offset,
-                                     node);
+    return reparse_common_table_expr(thd, m_subq_text.str, m_subq_text.length,
+                                     m_subq_text_offset, node);
   }
   *node = m_subq_node;
   return false;
@@ -5571,8 +5573,9 @@ bool SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   const auto save_reparse_cte = thd->lex->reparse_common_table_expr_at;
   PT_subquery *node;
   if (tl->is_recursive_reference()) {
-    LEX_STRING dummy_subq = {C_STRING_WITH_LEN("(select 0)")};
-    if (reparse_common_table_expr(thd, dummy_subq, 0, &node))
+    LEX_CSTRING dummy_subq = {STRING_WITH_LEN("(select 0)")};
+    if (reparse_common_table_expr(thd, dummy_subq.str, dummy_subq.length, 0,
+                                  &node))
       return true; /* purecov: inspected */
   } else if (cte->make_subquery_node(thd, &node))
     return true; /* purecov: inspected */
@@ -5796,9 +5799,9 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
         files_charset_info, const_cast<char *>(table_name->table.str));
 
   ptr->select_lex = this;
-  ptr->table_name = const_cast<char *>(table_name->table.str);
+  ptr->table_name = table_name->table.str;
   ptr->table_name_length = table_name->table.length;
-  ptr->alias = const_cast<char *>(alias_str);
+  ptr->alias = alias_str;
   ptr->is_alias = alias != nullptr;
   ptr->table_function = table_name->table_function;
   if (table_name->table_function) {
@@ -5808,13 +5811,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
 
   if (table_name->db.str) {
     ptr->is_fqtn = true;
-    ptr->db = const_cast<char *>(table_name->db.str);
+    ptr->db = table_name->db.str;
     ptr->db_length = table_name->db.length;
   } else {
     bool found_cte;
     if (find_common_table_expr(thd, table_name, ptr, pc, &found_cte)) return 0;
-    if (!found_cte && lex->copy_db_to((char **)&ptr->db, &ptr->db_length))
-      return 0;
+    if (!found_cte && lex->copy_db_to(&ptr->db, &ptr->db_length)) return 0;
   }
 
   ptr->set_tableno(0);
@@ -5880,7 +5882,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(
       }
 
       if (schema_table) {
-        ptr->schema_table_name = const_cast<char *>(ptr->table_name);
+        ptr->schema_table_name = ptr->table_name;
         ptr->schema_table = schema_table;
       }
     }
@@ -6618,10 +6620,10 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex) {
 void get_default_definer(THD *thd, LEX_USER *definer) {
   const Security_context *sctx = thd->security_context();
 
-  definer->user.str = (char *)sctx->priv_user().str;
+  definer->user.str = sctx->priv_user().str;
   definer->user.length = strlen(definer->user.str);
 
-  definer->host.str = (char *)sctx->priv_host().str;
+  definer->host.str = sctx->priv_host().str;
   definer->host.length = strlen(definer->host.str);
 
   definer->plugin = EMPTY_CSTR;

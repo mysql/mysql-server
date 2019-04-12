@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ enum enum_plugin_load_option {
 /* A handle of a plugin */
 
 struct st_plugin_int {
-  LEX_STRING name{nullptr, 0};
+  LEX_CSTRING name{nullptr, 0};
   st_mysql_plugin *plugin{nullptr};
   st_plugin_dl *plugin_dl{nullptr};
   uint state{0};
@@ -68,7 +68,7 @@ template <typename T>
 inline T plugin_data(st_plugin_int *ref) {
   return static_cast<T>(ref->data);
 }
-inline LEX_STRING *plugin_name(st_plugin_int *ref) { return &(ref->name); }
+inline LEX_CSTRING *plugin_name(st_plugin_int *ref) { return &(ref->name); }
 inline uint plugin_state(st_plugin_int *ref) { return ref->state; }
 inline enum_plugin_load_option plugin_load_option(st_plugin_int *ref) {
   return ref->load_option;
@@ -91,7 +91,7 @@ template <typename T>
 inline T plugin_data(st_plugin_int **ref) {
   return static_cast<T>(ref[0]->data);
 }
-inline LEX_STRING *plugin_name(st_plugin_int **ref) { return &(ref[0]->name); }
+inline LEX_CSTRING *plugin_name(st_plugin_int **ref) { return &(ref[0]->name); }
 inline uint plugin_state(st_plugin_int **ref) { return ref[0]->state; }
 inline enum_plugin_load_option plugin_load_option(st_plugin_int **ref) {
   return ref[0]->load_option;

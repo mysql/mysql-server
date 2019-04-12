@@ -177,7 +177,6 @@ extern "C" void thd_set_waiting_for_disk_space(void *opaque_thd,
   (thd)->enter_stage(&stage, NULL, __func__, __FILE__, __LINE__)
 
 extern char empty_c_string[1];
-extern LEX_STRING EMPTY_STR;
 extern LEX_STRING NULL_STR;
 extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;

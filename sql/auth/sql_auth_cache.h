@@ -125,7 +125,7 @@ class Acl_credential {
   }
 
  public:
-  LEX_STRING m_auth_string;
+  LEX_CSTRING m_auth_string;
   /**
     The salt variable is used as the password hash for
     native_password_authetication.

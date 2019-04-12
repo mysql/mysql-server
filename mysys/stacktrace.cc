@@ -259,7 +259,7 @@ static void my_demangle_symbols(char **addrs, int n) {
 
 #endif /* HAVE_ABI_CXA_DEMANGLE */
 
-void my_print_stacktrace(uchar *stack_bottom, ulong thread_stack) {
+void my_print_stacktrace(const uchar *stack_bottom, ulong thread_stack) {
 #if defined(__FreeBSD__)
   static char procname_buffer[2048];
   unw_cursor_t cursor;
@@ -409,7 +409,7 @@ static void get_symbol_path(char *path, size_t size) {
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void my_print_stacktrace(uchar *unused1, ulong unused2) {
+void my_print_stacktrace(const uchar *unused1, ulong unused2) {
   HANDLE hProcess = GetCurrentProcess();
   HANDLE hThread = GetCurrentThread();
   static IMAGEHLP_MODULE64 module = {sizeof(module)};
