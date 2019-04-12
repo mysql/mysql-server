@@ -18,6 +18,7 @@ audit_null.audit_plugin_bugs : BUG#28080637 Test fails consistently
 auth_sec.openssl_without_fips : BUG#28812609 Test fails all over
 
 # binlog suite tests
+binlog.binlog_mysqlbinlog_rewrite_db @windows     : BUG#26717205 Requires a debug client binary and fails consistently.
 
 # func1 suite tests
 funcs_1.is_basics_mixed @darwin  : BUG#25882809 INCORRECT RESULT WHEN USING SUBQUERY ON TOP OF VIEW.

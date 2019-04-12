@@ -24,6 +24,7 @@
 # ==== References ====
 # WL#9175  Correct recovery of DDL statements/transactions by binary log
 
+--source include/big_test.inc
 --source include/not_crashrep.inc
 --source include/not_valgrind.inc
 --source include/have_log_bin.inc
