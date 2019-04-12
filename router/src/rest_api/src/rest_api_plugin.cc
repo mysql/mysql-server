@@ -142,10 +142,18 @@ RestApi::RestApi(const std::string &uri_prefix,
       ;
 }
 
+void RestApi::process_spec(RestApiComponent::SpecProcessor spec_processor) {
+  std::lock_guard<std::mutex> mx(spec_doc_mutex_);
+
+  spec_processor(spec_doc_);
+}
+
 std::string RestApi::spec() {
   rapidjson::StringBuffer json_buf;
   {
     rapidjson::Writer<rapidjson::StringBuffer> json_writer(json_buf);
+
+    std::lock_guard<std::mutex> mx(spec_doc_mutex_);
     spec_doc_.Accept(json_writer);
   }
 
@@ -154,6 +162,7 @@ std::string RestApi::spec() {
 
 void RestApi::add_path(const std::string &path,
                        std::unique_ptr<BaseRestApiHandler> handler) {
+  std::unique_lock<std::shared_timed_mutex> mx(rest_api_handler_mutex_);
   // ensure path is unique
   if (rest_api_handlers_.end() !=
       std::find_if(
@@ -168,6 +177,8 @@ void RestApi::add_path(const std::string &path,
 }
 
 void RestApi::remove_path(const std::string &path) {
+  std::unique_lock<std::shared_timed_mutex> mx(rest_api_handler_mutex_);
+
   std::remove_if(
       rest_api_handlers_.begin(), rest_api_handlers_.end(),
       [&path](const decltype(rest_api_handlers_)::value_type &value) {
@@ -191,6 +202,7 @@ void RestApi::handle_paths(HttpRequest &req) {
 
   if (uri_suffix.empty() || uri_suffix[0] == '/') {
     std::smatch m;
+    std::shared_lock<std::shared_timed_mutex> mx(rest_api_handler_mutex_);
     for (const auto &path : rest_api_handlers_) {
       if (std::regex_match(uri_suffix, m, std::get<1>(path))) {
         std::vector<std::string> matches;

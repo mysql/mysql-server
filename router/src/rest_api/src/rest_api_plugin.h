@@ -29,6 +29,7 @@
 
 #include <list>
 #include <regex>
+#include <shared_mutex>
 
 class RestApi {
  public:
@@ -43,9 +44,7 @@ class RestApi {
   /**
    * process the spec's Json JsonDocument.
    */
-  void process_spec(RestApiComponent::SpecProcessor spec_processor) {
-    spec_processor(spec_doc_);
-  }
+  void process_spec(RestApiComponent::SpecProcessor spec_processor);
 
   using PathList =
       std::list<std::tuple<std::regex, std::unique_ptr<BaseRestApiHandler>>>;
@@ -88,10 +87,12 @@ class RestApi {
   std::string uri_prefix_;
   std::string uri_prefix_regex_;
 
+  std::shared_timed_mutex rest_api_handler_mutex_;
   std::list<
       std::tuple<std::string, std::regex, std::unique_ptr<BaseRestApiHandler>>>
       rest_api_handlers_;
 
+  std::mutex spec_doc_mutex_;
   RestApiComponent::JsonDocument spec_doc_;
 };
 

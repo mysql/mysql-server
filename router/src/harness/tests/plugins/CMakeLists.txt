@@ -29,6 +29,7 @@ add_harness_plugin(bad_two NO_INSTALL
 add_harness_plugin(magic NO_INSTALL
   DESTINATION harness
   SOURCES magic.cc)
+TARGET_INCLUDE_DIRECTORIES(magic PRIVATE ../include)
 add_harness_plugin(harness_example NO_INSTALL
   DESTINATION harness
   SOURCES example.cc
@@ -38,6 +39,7 @@ add_harness_plugin(lifecycle NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle.cc
 )
+TARGET_INCLUDE_DIRECTORIES(lifecycle PRIVATE ../include)
 add_harness_plugin(lifecycle2 NO_INSTALL
   DESTINATION harness
   SOURCES lifecycle2.cc)
