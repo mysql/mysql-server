@@ -4990,9 +4990,9 @@ static bool fk_is_key_exact_match_any_order(Alter_info *alter_info,
                                             uint fk_col_count,
                                             const F &fk_columns,
                                             const KEY *key) {
-  if (fk_col_count != key->actual_key_parts) return false;
+  if (fk_col_count != key->user_defined_key_parts) return false;
 
-  for (uint i = 0; i < key->actual_key_parts; i++) {
+  for (uint i = 0; i < key->user_defined_key_parts; i++) {
     // Prefix parts are considered non-matching.
     if (key->key_part[i].key_part_flag & HA_PART_KEY_SEG) return false;
 
@@ -5035,17 +5035,22 @@ static bool fk_is_key_exact_match_any_order(Alter_info *alter_info,
                           out.
   @param  key             KEY object describing candidate parent/supporting
                           key.
+  @param  hidden_cols_key If non-nullptr, points to KEY object representing
+                          primary key for the table, which columns are added
+                          to the candidate parent key and should be taken
+                          into account when considering this parent key.
 
-  @sa fk_key_prefix_match_count(uint, F, dd::Index).
+  @sa fk_key_prefix_match_count(uint, F, dd::Index, bool).
 
   @retval Number of matching columns.
 */
 template <class F>
 static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
-                                      const F &fk_columns, const KEY *key) {
+                                      const F &fk_columns, const KEY *key,
+                                      const KEY *hidden_cols_key) {
   uint col_idx = 0;
 
-  for (; col_idx < key->actual_key_parts; ++col_idx) {
+  for (; col_idx < key->user_defined_key_parts; ++col_idx) {
     if (col_idx == fk_col_count) break;
     // Prefix parts are considered non-matching.
     if (key->key_part[col_idx].key_part_flag & HA_PART_KEY_SEG) break;
@@ -5061,6 +5066,46 @@ static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
       This is checked at earlier stage.
     */
     DBUG_ASSERT(!col->is_virtual_gcol());
+  }
+
+  if (col_idx < fk_col_count && col_idx == key->user_defined_key_parts &&
+      hidden_cols_key) {
+    /*
+      We have not found all foreign key columns and have not encountered
+      unsuitable columns so far. Continue counting columns from hidden
+      part of the key if it exists.
+    */
+    for (uint add_col_idx = 0;
+         add_col_idx < hidden_cols_key->user_defined_key_parts; ++add_col_idx) {
+      if (col_idx == fk_col_count) break;
+
+      KEY_PART_INFO *add_key_part = hidden_cols_key->key_part + add_col_idx;
+      /*
+        Hidden part of the key doesn't include columns already in the key,
+        unless they are used as prefix columns (which is impossible here).
+      */
+      if (std::any_of(key->key_part,
+                      key->key_part + key->user_defined_key_parts,
+                      [add_key_part](const KEY_PART_INFO &key_part) {
+                        return key_part.fieldnr == add_key_part->fieldnr;
+                      }))
+        continue;
+      /*
+        prepare_self_ref_fk_parent_key() ensures that we can't meet
+        primary keys with prefix parts here.
+      */
+      DBUG_ASSERT(!(add_key_part->key_part_flag & HA_PART_KEY_SEG));
+
+      const Create_field *col =
+          get_field_by_index(alter_info, add_key_part->fieldnr);
+
+      if (my_strcasecmp(system_charset_info, col->field_name,
+                        fk_columns(col_idx)) != 0)
+        break;
+
+      DBUG_ASSERT(!col->is_virtual_gcol());
+      ++col_idx;
+    }
   }
 
   return col_idx;
@@ -5084,8 +5129,12 @@ static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
                           out.
   @param  key             KEY object describing candidate parent/supporting
                           key.
+  @param  hidden_cols_key If non-nullptr, points to KEY object representing
+                          primary key for the table, which columns are added
+                          to the candidate parent key and should be taken
+                          into account when considering this parent key.
 
-  @sa fk_key_is_full_prefix_match(uint, F, dd::Index).
+  @sa fk_key_is_full_prefix_match(uint, F, dd::Index, bool).
 
   @retval True  - Key is proper parent/suporting key for the foreign key.
   @retval False - Key can't be parent/supporting key for the foreign key.
@@ -5093,15 +5142,19 @@ static uint fk_key_prefix_match_count(Alter_info *alter_info, uint fk_col_count,
 template <class F>
 static bool fk_key_is_full_prefix_match(Alter_info *alter_info,
                                         uint fk_col_count, const F &fk_columns,
-                                        const KEY *key) {
+                                        const KEY *key,
+                                        const KEY *hidden_cols_key) {
   /*
     The index may have more elements, but must start with the same
     elements as the FK.
   */
-  if (fk_col_count > key->actual_key_parts) return false;
+  if (fk_col_count >
+      key->user_defined_key_parts +
+          (hidden_cols_key ? hidden_cols_key->user_defined_key_parts : 0))
+    return false;
 
-  uint match_count =
-      fk_key_prefix_match_count(alter_info, fk_col_count, fk_columns, key);
+  uint match_count = fk_key_prefix_match_count(
+      alter_info, fk_col_count, fk_columns, key, hidden_cols_key);
   return (match_count == fk_col_count);
 }
 
@@ -5161,8 +5214,37 @@ static bool prepare_self_ref_fk_parent_key(
         So if there is suitable unique parent key we will always find
         it before encountering any non-unique keys.
       */
+
+      const KEY *hidden_cols_key = nullptr;
+
+      if (hton->foreign_keys_flags & HTON_FKS_WITH_EXTENDED_PARENT_KEYS) {
+        /*
+          Engine considers hidden part of key (columns from primary key
+          which are implicitly added to secondary keys) when determines
+          if it can serve as parent. Example: InnoDB.
+
+          Since KEY objects do not contain information about hidden parts
+          of the keys at this point, we have to figure out list of hidden
+          columns based on KEY object for explicit or implicit primary key.
+          For the sake of consistency with non-self-referencing case we
+          exclude primary keys with prefix elements from our consideration.
+
+          Thanks to the way keys are sorted, to find primary key it is
+          enough to check if the first key in key array satisfies
+          requirements on candidate key (unique, without null, prefix or
+          virtual parts). This also automatically excludes explicit primary
+          keys with prefix parts.
+        */
+        if (key != key_info_buffer && (key_info_buffer->flags & HA_NOSAME) &&
+            !(key_info_buffer->flags &
+              (HA_NULL_PART_KEY | HA_KEY_HAS_PART_KEY_SEG |
+               HA_VIRTUAL_GEN_KEY)))
+          hidden_cols_key = key_info_buffer;
+      }
+
       if (fk_key_is_full_prefix_match(alter_info, fk->key_parts,
-                                      fk_columns_lambda, key)) {
+                                      fk_columns_lambda, key,
+                                      hidden_cols_key)) {
         /*
           We only store names of PK or UNIQUE keys in UNIQUE_CONSTRAINT_NAME.
           InnoDB allows non-unique indexes as parent keys for which NULL is
@@ -5328,8 +5410,8 @@ static const KEY *find_fk_supporting_key(handlerton *hton,
           Example: NDB and non-unique keys, or unique/primary keys without
                    explicit USING HASH clause.
          */
-        uint match_count = fk_key_prefix_match_count(alter_info, fk->key_parts,
-                                                     fk_columns_lambda, key);
+        uint match_count = fk_key_prefix_match_count(
+            alter_info, fk->key_parts, fk_columns_lambda, key, nullptr);
 
         if (match_count > best_match_count) {
           best_match_count = match_count;
@@ -5345,7 +5427,7 @@ static const KEY *find_fk_supporting_key(handlerton *hton,
           foreign key is created.
         */
         if (fk_key_is_full_prefix_match(alter_info, fk->key_parts,
-                                        fk_columns_lambda, key))
+                                        fk_columns_lambda, key, nullptr))
           return key;
       }
     }
@@ -5605,20 +5687,21 @@ static bool fk_is_key_exact_match_any_order(uint fk_col_count,
                           out.
   @param  idx             dd::Index object describing candidate parent/
                           supporting key.
+  @param  use_hidden      Use hidden elements of the key as well.
 
-  @sa fk_key_prefix_match_count(Alter_info, uint, F, KEY).
+  @sa fk_key_prefix_match_count(Alter_info, uint, F, KEY, KEY).
 
   @retval Number of matching columns.
 */
 template <class F>
 static uint fk_key_prefix_match_count(uint fk_col_count, const F &fk_columns,
-                                      const dd::Index *idx) {
+                                      const dd::Index *idx, bool use_hidden) {
   uint fk_col_idx = 0;
 
   for (const dd::Index_element *idx_el : idx->elements()) {
     if (fk_col_idx == fk_col_count) break;
 
-    if (idx_el->is_hidden()) continue;
+    if (!use_hidden && idx_el->is_hidden()) continue;
 
     if (my_strcasecmp(system_charset_info, idx_el->column().name().c_str(),
                       fk_columns(fk_col_idx)) != 0)
@@ -5641,8 +5724,12 @@ static uint fk_key_prefix_match_count(uint fk_col_count, const F &fk_columns,
 
       Calling Index_element::is_prefix() can be a bit expensive so
       we do this after checking column name.
+
+      InnoDB doesn't set correct length for hidden index elements so
+      we simply assume that they use the full columns. We avoid calling
+      this code when it is not correct, see find_fk_parent_key().
     */
-    if (idx_el->is_prefix()) break;
+    if (!idx_el->is_hidden() && idx_el->is_prefix()) break;
 
     ++fk_col_idx;
   }
@@ -5666,19 +5753,21 @@ static uint fk_key_prefix_match_count(uint fk_col_count, const F &fk_columns,
                           out.
   @param  idx             dd::Index object describing candidate parent/
                           supporting key.
+  @param  use_hidden      Use hidden elements of the key as well.
 
-  @sa fk_key_is_full_prefix_match(Alter_info, uint, F, KEY).
+  @sa fk_key_is_full_prefix_match(Alter_info, uint, F, KEY, KEY).
 
   @retval True  - Key is proper parent/supporting key for the foreign key.
   @retval False - Key can't be parent/supporting key for the foreign key.
 */
 template <class F>
 static bool fk_key_is_full_prefix_match(uint fk_col_count, const F &fk_columns,
-                                        const dd::Index *idx) {
+                                        const dd::Index *idx, bool use_hidden) {
   // The index must have at least same amount of elements as the foreign key.
   if (fk_col_count > idx->elements().size()) return false;
 
-  uint match_count = fk_key_prefix_match_count(fk_col_count, fk_columns, idx);
+  uint match_count =
+      fk_key_prefix_match_count(fk_col_count, fk_columns, idx, use_hidden);
 
   return (match_count == fk_col_count);
 }
@@ -5708,6 +5797,47 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
                                            const dd::Table *parent_table_def,
                                            uint fk_col_count,
                                            const F &fk_columns) {
+  bool use_hidden = false;
+
+  if (hton->foreign_keys_flags & HTON_FKS_WITH_EXTENDED_PARENT_KEYS) {
+    DBUG_ASSERT(hton->foreign_keys_flags & HTON_FKS_WITH_PREFIX_PARENT_KEYS);
+    /*
+      Engine considers hidden part of key (columns from primary key
+      which are implicitly added to secondary keys) when determines
+      if it can serve as parent. Example: InnoDB.
+
+      Note that InnoDB doesn't correctly set length of these hidden
+      elements of keys, so we assume that they always cover the whole
+      column. To be able to do this we need to exclude primary keys
+      with prefix elements [sic!] from consideration. This means that
+      we won't support some exotic parent key scenarios which were
+      supported in 5.7. For example:
+
+      CREATE TABLE t1 (a INT, b CHAR(100), c int, KEY(c),
+                       PRIMARY KEY (a, b(10)));
+      CREATE TABLE t2 (fk1 int, fk2 int,
+                       FOREIGN KEY (fk1, fk2) REFERENCES t1 (c, a));
+    */
+    dd::Table::Index_collection::const_iterator first_idx_it =
+        std::find_if(parent_table_def->indexes().cbegin(),
+                     parent_table_def->indexes().cend(),
+                     [](const dd::Index *i) { return !i->is_hidden(); });
+
+    if (first_idx_it != parent_table_def->indexes().cend()) {
+      /*
+        Unlike similar check in prepare_self_ref_fk_parent_key() call
+        to dd::Index::is_candidate_key() is not cheap, so we try to
+        avoid it unless absolutely necessary. As result we try to use
+        hidden columns even for tables without implicit primary key,
+        which works fine (since such tables won't have any hidden
+        columns matching foreign key columns).
+      */
+      if ((*first_idx_it)->type() != dd::Index::IT_PRIMARY ||
+          (*first_idx_it)->is_candidate_key())
+        use_hidden = true;
+    }
+  }
+
   for (const dd::Index *idx : parent_table_def->indexes()) {
     // We can't use FULLTEXT or SPATIAL indexes.
     if (idx->type() == dd::Index::IT_FULLTEXT ||
@@ -5736,7 +5866,9 @@ static const dd::Index *find_fk_parent_key(handlerton *hton,
         So if there is suitable unique parent key we will always find
         it before any non-unique key.
       */
-      if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx))
+
+      if (fk_key_is_full_prefix_match(fk_col_count, fk_columns, idx,
+                                      use_hidden))
         return idx;
     } else {
       /*
@@ -5811,8 +5943,8 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
           Example: NDB and non-unique keys, or unique/primary keys without
                    explicit USING HASH clause.
          */
-        uint match_count = fk_key_prefix_match_count(fk->elements().size(),
-                                                     fk_columns_lambda, idx);
+        uint match_count = fk_key_prefix_match_count(
+            fk->elements().size(), fk_columns_lambda, idx, false);
 
         if (match_count > best_match_count) {
           best_match_count = match_count;
@@ -5828,7 +5960,7 @@ static const dd::Index *find_fk_supporting_key(handlerton *hton,
           foreign key is created.
         */
         if (fk_key_is_full_prefix_match(fk->elements().size(),
-                                        fk_columns_lambda, idx))
+                                        fk_columns_lambda, idx, false))
           return idx;
       }
     }

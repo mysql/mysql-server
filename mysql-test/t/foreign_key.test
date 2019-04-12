@@ -4392,3 +4392,109 @@ ALTER TABLE child ADD COLUMN uncle_id INT, DROP COLUMN c, ADD CONSTRAINT FOREIGN
 SET FOREIGN_KEY_CHECKS=1;
 SHOW CREATE TABLE child;
 DROP TABLES child, parent, uncle;
+
+
+--echo #
+--echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY
+--echo #                CONSTRAINT. MISSING INDEX FOR CONSTR".
+--echo #
+--echo # When InnoDB SE checks if a key can serve as a parent key for a foreign
+--echo # key it takes into account columns from hidden part of the key. This
+--echo # hidden part consists of primary key columns which are implicitly
+--echo # added by InnoDB to non-primary keys.
+--echo #
+--echo # See dd_upgrade_test test for coverage of upgrade process for such
+--echo # foreign keys.
+--echo #
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, b INT, KEY(a), UNIQUE(b));
+--echo # This works both for non-unique and unique keys.
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk));
+DROP TABLES child1, child2;
+--echo # This also works when foreign keys are added by ALTER TABLE.
+CREATE TABLE child1 (fk1 INT, fk2 INT);
+ALTER TABLE child1 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk);
+CREATE TABLE child2 (fk1 INT, fk2 INT);
+ALTER TABLE child2 ADD FOREIGN KEY (fk1, fk2) REFERENCES parent (b, pk);
+DROP TABLES child1, child2, parent;
+--echo # And for complex multi-column cases too.
+CREATE TABLE parent (a INT, b INT, c INT, PRIMARY KEY (a,b), KEY(c, a));
+CREATE TABLE child (fk1 INT, fk2 INT, fk3 INT, FOREIGN KEY (fk1, fk2, fk3) REFERENCES parent (c, a, b));
+DROP TABLES child, parent;
+--echo # Moreover, this works for keys which are promoted to primary.
+CREATE TABLE parent (u INT NOT NULL, a INT, b INT, UNIQUE(u), KEY(a), UNIQUE(b));
+CREATE TABLE child1 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, u));
+CREATE TABLE child2 (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (b, u));
+DROP TABLES child1, child2, parent;
+--echo # Also works correctly when parent table is altered.
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, KEY k1(a, pk), UNIQUE k2(a));
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+ALTER TABLE parent DROP KEY k1;
+DROP TABLES child, parent;
+--echo # And when we add parent table to previously orphan foreign key.
+SET FOREIGN_KEY_CHECKS=0;
+CREATE TABLE child (fk1 INT, fk2 INT, CONSTRAINT c FOREIGN KEY (fk1, fk2) REFERENCES parent (a, pk));
+SET FOREIGN_KEY_CHECKS=1;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT, UNIQUE ua(a));
+SELECT constraint_name, unique_constraint_name FROM information_schema.referential_constraints
+  WHERE constraint_schema='test' AND constraint_name='c';
+DROP TABLES child, parent;
+--echo # However, columns which are implicitly added by InnoDB as hidden
+--echo # elements to the primary key are not considered when searching for
+--echo # parent key (because primary key contains hidden system DB_TRX_ID,
+--echo # DB_ROLL_PTR columns before hidden normal columns).
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 INT, fk2 INT, FOREIGN KEY (fk1, fk2) REFERENCES parent (pk, a));
+DROP TABLE parent;
+--echo # Hidden parts which are column prefixes (because primary key has prefix
+--echo # parts [sic!]) are not allowed as parent key parts.
+CREATE TABLE parent (a CHAR(10), b int, KEY(b), PRIMARY KEY (a(5)));
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 int, fk2 CHAR(10), FOREIGN KEY (fk1, fk2) REFERENCES parent (b, a));
+DROP TABLE parent;
+--echo # Moreover, even hidden parts for full columns are not allowed if
+--echo # primary key contains prefix parts. This was supported in 5.7.
+CREATE TABLE parent (a INT, b CHAR(10), c int, KEY(c), PRIMARY KEY (a, b(5)));
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE child (fk1 int, fk2 int, FOREIGN KEY (fk1, fk2) REFERENCES parent (c, a));
+DROP TABLE parent;
+
+--echo #
+--echo # Now similar tests for self-referencing foreign keys.
+--echo #
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                    KEY(a), FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk));
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT,
+                    UNIQUE(b), FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk));
+DROP TABLES self1, self2;
+CREATE TABLE self1 (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT, KEY(a));
+ALTER TABLE self1 ADD FOREIGN KEY (fk1, fk2) REFERENCES self1 (a, pk);
+CREATE TABLE self2 (pk INT PRIMARY KEY, b INT, fk1 INT, fk2 INT, UNIQUE(b));
+ALTER TABLE self2 ADD FOREIGN KEY (fk1, fk2) REFERENCES self2 (b, pk);
+DROP TABLES self1, self2;
+--echo # Test for complex multi-column case.
+CREATE TABLE self (a INT, b INT, c INT, fk1 INT, fk2 INT, fk3 INT,
+                  PRIMARY KEY (a,b), KEY(c, a),
+                  FOREIGN KEY (fk1, fk2, fk3) REFERENCES self (c, a, b));
+DROP TABLE self;
+--echo # Test for removing parent key.
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                   KEY k1(a, pk), UNIQUE k2(a),
+                   FOREIGN KEY (fk1, fk2) REFERENCES self (a, pk));
+ALTER TABLE self DROP KEY k1;
+DROP TABLE self;
+--echo # But again this is not supposed to work for hidden columns added to
+--echo # primary key.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk1 INT, fk2 INT,
+                   FOREIGN KEY (fk1, fk2) REFERENCES self (pk, a));
+--echo # Hidden parts which are column prefixes should not work.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (a CHAR(10), b int, fk1 int, fk2 CHAR(10), KEY(b),
+                   PRIMARY KEY (a(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (b, a));
+--echo # Hidden parts for full columns are not allowed either if
+--echo # primary key contains prefix parts. This was supported in 5.7.
+--error ER_FK_NO_INDEX_PARENT
+CREATE TABLE self (a INT, b CHAR(10), c int, fk1 int, fk2 int, KEY(c),
+                   PRIMARY KEY (a, b(5)), FOREIGN KEY (fk1, fk2) REFERENCES self (c, a));

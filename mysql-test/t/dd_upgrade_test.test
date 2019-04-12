@@ -387,6 +387,17 @@ SELECT * FROM view_with_column_names.v3;
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE
 TABLE_SCHEMA='view_with_column_names';
 
+--echo # Bug #28480149 "UPGRADE FAIL: FAILED TO ADD THE FOREIGN KEY CONSTRAINT.
+--echo # MISSING INDEX FOR CONSTR". Coverage for upgrade scenario. Main part
+--echo # of coverage resides in foreign_key test.
+SHOW CREATE TABLE foreign_keys.t9;
+SHOW CREATE TABLE foreign_keys.ta;
+SHOW CREATE TABLE foreign_keys.tb;
+SHOW CREATE TABLE foreign_keys.tc;
+SHOW CREATE TABLE foreign_keys.td;
+SHOW CREATE TABLE foreign_keys.te;
+SHOW CREATE TABLE foreign_keys.tf;
+
 --echo # Restart on the upgraded data dir
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
 let $restart_parameters = "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1";
