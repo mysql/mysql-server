@@ -230,3 +230,33 @@ XA START 'trx_another_one';
 --connection default
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#29293279 -- XA COMMIT MAY LEAD REPLICATION BROKEN
+--echo #
+
+--echo Establish session con1
+connect (con1,localhost,root,,);
+CREATE TABLE t1(a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+--echo Disconnect con1 to save the XA transaction with xid1 into the cache
+--disconnect con1
+--source include/wait_until_disconnected.inc
+
+--enable_connect_log
+connect (con2,localhost,root,,);
+
+set debug_sync='external_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+--send XA COMMIT 'xid1'
+
+--connection default
+set debug_sync='now WAIT_FOR parked';
+set debug_sync='external_xa_commit_before_acquire_xa_lock SIGNAL go';
+--error ER_XAER_NOTA
+XA COMMIT 'xid1';
+
+DROP TABLE t1;
+--disable_connect_log

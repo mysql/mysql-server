@@ -116,3 +116,22 @@ XA ROLLBACK 'xid1';
 ERROR XAE04: XAER_NOTA: Unknown XID
 XA START 'trx_another_one';
 DROP TABLE t1;
+#
+# BUG#29293279 -- XA COMMIT MAY LEAD REPLICATION BROKEN
+#
+Establish session con1
+CREATE TABLE t1(a INT);
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+Disconnect con1 to save the XA transaction with xid1 into the cache
+connect  con2,localhost,root,,;
+set debug_sync='external_xa_commit_after_acquire_commit_lock SIGNAL parked WAIT_FOR go';
+XA COMMIT 'xid1';
+connection default;
+set debug_sync='now WAIT_FOR parked';
+set debug_sync='external_xa_commit_before_acquire_xa_lock SIGNAL go';
+XA COMMIT 'xid1';
+ERROR XAE04: XAER_NOTA: Unknown XID
+DROP TABLE t1;

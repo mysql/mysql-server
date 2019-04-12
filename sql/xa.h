@@ -27,6 +27,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <list>
+#include <mutex>
 
 #include "lex_string.h"
 #include "my_dbug.h"
@@ -374,6 +375,14 @@ class XID_STATE {
   static const char *xa_state_names[];
 
   XID m_xid;
+  /**
+    This mutex used for eliminating a possibility to run two
+    XA COMMIT/XA ROLLBACK statements concurrently against the same xid value.
+    m_xa_lock is used on handling XA COMMIT/XA ROLLBACK and acquired only for
+    external XA branches.
+  */
+  std::mutex m_xa_lock;
+
   /// Used by external XA only
   xa_states xa_state;
   bool in_recovery;
@@ -397,6 +406,8 @@ class XID_STATE {
         m_is_binlogged(false) {
     m_xid.null();
   }
+
+  std::mutex &get_xa_lock() { return m_xa_lock; }
 
   void set_state(xa_states state) { xa_state = state; }
 

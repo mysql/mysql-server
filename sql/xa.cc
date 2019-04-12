@@ -87,8 +87,7 @@ struct transaction_free_hash {
 
 static bool inited = false;
 static mysql_mutex_t LOCK_transaction_cache;
-static malloc_unordered_map<
-    std::string, std::unique_ptr<Transaction_ctx, transaction_free_hash>>
+static malloc_unordered_map<std::string, std::shared_ptr<Transaction_ctx>>
     transaction_cache{key_memory_XID};
 
 static const uint MYSQL_XID_PREFIX_LEN = 8;  // must be a multiple of 8
@@ -96,7 +95,7 @@ static const uint MYSQL_XID_OFFSET = MYSQL_XID_PREFIX_LEN + sizeof(server_id);
 static const uint MYSQL_XID_GTRID_LEN = MYSQL_XID_OFFSET + sizeof(my_xid);
 
 static void attach_native_trx(THD *thd);
-static Transaction_ctx *transaction_cache_search(XID *xid);
+static std::shared_ptr<Transaction_ctx> transaction_cache_search(XID *xid);
 static bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 static bool transaction_cache_insert_recovery(XID *xid);
 
@@ -461,8 +460,10 @@ void cleanup_trans_state(THD *thd) {
           sets an error in DA to specify a reason of search failure.
 */
 
-static Transaction_ctx *find_trn_for_recover_and_check_its_state(
-    THD *thd, xid_t *xid_for_trn_in_recover, XID_STATE *xid_state) {
+static std::shared_ptr<Transaction_ctx>
+find_trn_for_recover_and_check_its_state(THD *thd,
+                                         xid_t *xid_for_trn_in_recover,
+                                         XID_STATE *xid_state) {
   if (!xid_state->has_state(XID_STATE::XA_NOTR)) {
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     return nullptr;
@@ -478,7 +479,7 @@ static Transaction_ctx *find_trn_for_recover_and_check_its_state(
     transaction_cache_insert_recovery(XID), which is called before starting
     client connections, and thus is always single-threaded.
   */
-  Transaction_ctx *transaction =
+  std::shared_ptr<Transaction_ctx> transaction =
       transaction_cache_search(xid_for_trn_in_recover);
 
   XID_STATE *xs = (transaction ? transaction->xid_state() : nullptr);
@@ -578,7 +579,7 @@ static bool acquire_mandatory_metadata_locks(THD *thd, xid_t *external_xid) {
 bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
                                                    xid_t *external_xid,
                                                    XID_STATE *xid_state) {
-  Transaction_ctx *transaction =
+  std::shared_ptr<Transaction_ctx> transaction =
       find_trn_for_recover_and_check_its_state(thd, external_xid, xid_state);
 
   if (!transaction) return true;
@@ -594,6 +595,26 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
   */
   bool res = xs->xa_trans_rolled_back();
 
+  DEBUG_SYNC(thd, "external_xa_commit_before_acquire_xa_lock");
+  /*
+    Acquire XID_STATE::m_xa_lock to prevent concurrent running of two
+    XA COMMIT/XA ROLLBACK statements. Without acquiring this lock an attempt
+    to run two XA COMMIT/XA ROLLBACK statement for the same xid value may lead
+    to writing two events for the same xid into the binlog (e.g. twice
+    XA COMMIT event, that is an event for XA COMMIT some_xid_value
+    followed by an another event XA COMMIT with the same xid value).
+    As a consequences, presence of two XA COMMIT/XA ROLLACK statements for
+    the same xid value in binlog would break replication.
+  */
+  std::lock_guard<std::mutex> lk(xs->get_xa_lock());
+  /*
+    Double check that the XA transaction still does exist since the transaction
+    could be removed from the cache by another XA COMMIT/XA ROLLBACK statement
+    being executed concurrently from parallel session with the same xid value.
+  */
+  if (!find_trn_for_recover_and_check_its_state(thd, external_xid, xid_state))
+    return true;
+
   if (acquire_mandatory_metadata_locks(thd, external_xid)) {
     /*
       We can't rollback an XA transaction on lock failure due to
@@ -603,6 +624,8 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
     my_error(ER_XA_RETRY, MYF(0));
     return true;
   }
+
+  DEBUG_SYNC(thd, "external_xa_commit_after_acquire_commit_lock");
 
   /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
   bool need_clear_owned_gtid = false;
@@ -627,7 +650,7 @@ bool Sql_cmd_xa_commit::process_external_xa_commit(THD *thd,
   MDL_context_backup_manager::instance().delete_backup(
       external_xid->key(), external_xid->key_length());
 
-  transaction_cache_delete(transaction);
+  transaction_cache_delete(transaction.get());
   gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
 
   return res;
@@ -799,7 +822,7 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
                                                        XID_STATE *xid_state) {
   DBUG_TRACE;
 
-  Transaction_ctx *transaction =
+  std::shared_ptr<Transaction_ctx> transaction =
       find_trn_for_recover_and_check_its_state(thd, external_xid, xid_state);
 
   if (!transaction) return true;
@@ -807,6 +830,25 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
   XID_STATE *xs = transaction->xid_state();
 
   DBUG_ASSERT(xs->get_xid()->eq(external_xid));
+
+  /*
+    Acquire XID_STATE::m_xa_lock to prevent concurrent running of two
+    XA COMMIT/XA ROLLBACK statements. Without acquiring this lock an attempt
+    to run two XA COMMIT/XA ROLLBACK statement for the same xid value may lead
+    to writing two events for the same xid into the binlog (e.g. twice
+    XA ROLLBACK event, that is an event for XA ROLLBACK some_xid_value
+    followed by an another event XA ROLLBACK with the same xid value).
+    As a consequences, presence of two XA COMMIT/XA ROLLACK statements for
+    the same xid value in binlog would break replication.
+  */
+  std::lock_guard<std::mutex> lk(xs->get_xa_lock());
+  /*
+    Double check that the XA transaction still does exist since the transaction
+    could be removed from the cache by another XA COMMIT/XA ROLLBACK statement
+    being executed concurrently from parallel session with the same xid value.
+  */
+  if (!find_trn_for_recover_and_check_its_state(thd, external_xid, xid_state))
+    return true;
 
   if (acquire_mandatory_metadata_locks(thd, external_xid)) {
     /*
@@ -834,7 +876,7 @@ bool Sql_cmd_xa_rollback::process_external_xa_rollback(THD *thd,
 
   MDL_context_backup_manager::instance().delete_backup(
       external_xid->key(), external_xid->key_length());
-  transaction_cache_delete(transaction);
+  transaction_cache_delete(transaction.get());
   gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   return res || gtid_error;
 }
@@ -1370,10 +1412,13 @@ void transaction_cache_free() {
     @retval  != NULL  success
 */
 
-static Transaction_ctx *transaction_cache_search(XID *xid) {
+static std::shared_ptr<Transaction_ctx> transaction_cache_search(XID *xid) {
+  std::shared_ptr<Transaction_ctx> res{nullptr};
   mysql_mutex_lock(&LOCK_transaction_cache);
 
-  Transaction_ctx *res = find_or_nullptr(transaction_cache, to_string(*xid));
+  const auto it = transaction_cache.find(to_string(*xid));
+  if (it != transaction_cache.end()) res = it->second;
+
   mysql_mutex_unlock(&LOCK_transaction_cache);
   return res;
 }
@@ -1393,7 +1438,7 @@ static Transaction_ctx *transaction_cache_search(XID *xid) {
 
 bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction) {
   mysql_mutex_lock(&LOCK_transaction_cache);
-  std::unique_ptr<Transaction_ctx, transaction_free_hash> ptr(transaction);
+  std::shared_ptr<Transaction_ctx> ptr(transaction, transaction_free_hash());
   bool res = !transaction_cache.emplace(to_string(*xid), std::move(ptr)).second;
   mysql_mutex_unlock(&LOCK_transaction_cache);
   if (res) {
@@ -1415,8 +1460,8 @@ inline bool create_and_insert_new_transaction(XID *xid, bool is_binlogged_arg) {
 
   return !transaction_cache
               .emplace(to_string(*xs->get_xid()),
-                       std::unique_ptr<Transaction_ctx, transaction_free_hash>(
-                           transaction))
+                       std::shared_ptr<Transaction_ctx>(
+                           transaction, transaction_free_hash()))
               .second;
 }
 
