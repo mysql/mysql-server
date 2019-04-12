@@ -236,23 +236,11 @@ static ulonglong ndb_latest_handled_binlog_epoch= 0;
 static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= NULL;
-static NDB_SHARE *ndb_schema_share= NULL; //Need injector_data_mutex
 
 extern bool opt_log_slave_updates;
 static bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
-
-bool ndb_schema_dist_is_ready(void)
-{
-  Mutex_guard schema_share_g(injector_data_mutex);
-  if (ndb_schema_share)
-    return true;
-
-  DBUG_PRINT("info", ("ndb schema dist not ready"));
-  return false;
-}
-
 
 static void run_query(THD *thd, char *buf, char *end,
                       const int *no_print_error)
@@ -2546,7 +2534,6 @@ public:
      ndb_log_info(" <- sleep");
    }
 
-   DBUG_ASSERT(ndb_schema_share == nullptr);
    DBUG_ASSERT(ndb_apply_status_share == nullptr);
 
    // Protect the schema synchronization with GSL(Global Schema Lock)
@@ -2566,7 +2553,7 @@ public:
            opt_ndb_schema_dist_upgrade_allowed))
      return false;
 
-   if (ndb_schema_share == nullptr) {
+   if (!Ndb_schema_dist::is_ready(m_thd)) {
      ndb_log_verbose(50, "Schema distribution setup failed");
      return false;
    }
@@ -2595,9 +2582,7 @@ public:
      return false;
    }
 
-   // Check that references for ndb_schema and ndb_apply_status has
-   // been created
-   DBUG_ASSERT(ndb_schema_share);
+   // Check that references for ndb_apply_status has been created
    DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
 
    Mutex_guard injector_mutex_g(injector_data_mutex);
@@ -2775,26 +2760,43 @@ int Ndb_schema_dist_client::log_schema_op_impl(
     DBUG_RETURN(1);
   }
 
-  ndb_log_verbose(
-      19, "Distribution of '%s' type: %u query: \'%s\' - started!",
-      op_name.c_str(), type, query);
+  ndb_log_verbose(19, "Distribution of '%s' - started!", op_name.c_str());
+  if (ndb_log_get_verbose_level() >= 19) {
+    ndb_log_error_dump("Schema_op {");
+    ndb_log_error_dump("type: %d", type);
+    ndb_log_error_dump("query: '%s'", query);
+    ndb_log_error_dump("}");
+  }
 
   // Wait for participants to complete the schema change
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
     if (completed) {
       // Schema operation completed
+      ndb_log_verbose(19, "Distribution of '%s' - completed!", op_name.c_str());
       break;
     }
 
-    if (m_thd->killed) {
-      ndb_log_warning("Distribution of '%s' type: %u, query: '%s' - killed!",
-                      op_name.c_str(), type, query);
+    // Check if schema distribution is still ready.
+    if (m_share->have_event_operation() == false) {
+      // This case is unlikely, but there is small race between
+      // clients first check for schema distribution ready and schema op
+      // registered in the coordinator(since the message is passed
+      // via NDB).
+      ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_ABORT,
+                                        "Schema distribution is not ready");
+      ndb_log_warning("Distribution of '%s' - not ready!", op_name.c_str());
+      break;
+    }
+
+    if (thd_killed(m_thd) ||
+        DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
+      ndb_schema_object->fail_schema_op(Ndb_schema_dist::CLIENT_KILLED,
+                                        "Client was killed");
+      ndb_log_warning("Distribution of '%s' - killed!", op_name.c_str());
       break;
     }
   }
-  ndb_log_verbose(19, "Distribution of '%s' type: %u, query: '%s' - completed!",
-                  op_name.c_str(), type, query);
 
   // Inspect results in NDB_SCHEMA_OBJECT before it's released
   std::vector<NDB_SCHEMA_OBJECT::Result> participant_results;
@@ -2836,10 +2838,6 @@ ndbcluster_binlog_event_operation_teardown(THD *thd,
 {
   DBUG_ENTER("ndbcluster_binlog_event_operation_teardown");
   DBUG_PRINT("enter", ("pOp: %p", pOp));
-
-  // Should only called for TE_DROP and TE_CLUSTER_FAILURE event
-  DBUG_ASSERT(pOp->getEventType() == NDBEVENT::TE_DROP ||
-              pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
 
   // Get Ndb_event_data associated with the NdbEventOperation
   const Ndb_event_data* event_data=
@@ -3034,6 +3032,17 @@ public:
     // unlikley that the event_data is still around, but just in case
     Ndb_event_data::destroy(m_inplace_alter_event_data);
     m_inplace_alter_event_data = nullptr;
+
+    // Release any remaining active schema operations
+    for (const NDB_SCHEMA_OBJECT *schema_op: m_active_schema_ops) {
+      ndb_log_info(" - releasing schema operation on '%s.%s'",
+                   schema_op->db(), schema_op->name());
+      schema_op->fail_schema_op(Ndb_schema_dist::COORD_ABORT,
+                                "Coordinator aborted");
+      // Release coordinator reference
+      NDB_SCHEMA_OBJECT::release(const_cast<NDB_SCHEMA_OBJECT*>(schema_op));
+    }
+    m_active_schema_ops.clear();
   }
 
   void report_data_node_failure(unsigned data_node_id)
@@ -3966,14 +3975,6 @@ class Ndb_schema_event_handler {
     assert(event_data->shadow_table);
     assert(event_data->ndb_value[0]);
     assert(event_data->ndb_value[1]);
-
-    Mutex_guard ndb_schema_share_g(injector_data_mutex);
-    if (share != ndb_schema_share)
-    {
-      // Received event from s_ndb not pointing at the ndb_schema_share
-      assert(false);
-      return false;
-    }
     assert(Ndb_schema_dist_client::is_schema_dist_table(share->db,
                                                         share->table_name));
     return true;
@@ -5440,6 +5441,13 @@ class Ndb_schema_event_handler {
 
         // Add active schema operation to coordinator
         m_schema_dist_data.add_active_schema_op(ndb_schema_object.get());
+
+        // Test schema dist client killed
+        if (DBUG_EVALUATE_IF("ndb_schema_dist_client_killed", true, false)) {
+          // Wait until the Client has set "coordinator completed"
+          while(!ndb_schema_object->check_coordinator_completed())
+            ndb_milli_sleep(100);
+        }
       }
 
       Ndb_schema_op_result schema_op_result;
@@ -5664,6 +5672,13 @@ class Ndb_schema_event_handler {
   void handle_schema_result_event(Ndb *s_ndb, NdbEventOperation *pOp,
                                   NdbDictionary::Event::TableEvent event_type,
                                   const Ndb_event_data *event_data) {
+
+    // Test "coordinator abort active" by simulating cluster failure
+    if (DBUG_EVALUATE_IF("ndb_schema_dist_coord_abort_active", true, false)) {
+      ndb_log_info("Simulating cluster failure...");
+      event_type = NdbDictionary::Event::TE_CLUSTER_FAILURE;
+    }
+
     switch (event_type) {
       case NdbDictionary::Event::TE_INSERT:
         handle_schema_result_insert(
@@ -5715,7 +5730,23 @@ class Ndb_schema_event_handler {
     if (!check_is_ndb_schema_event(event_data))
       DBUG_VOID_RETURN;
 
-    const NDBEVENT::TableEvent ev_type= pOp->getEventType();
+    NDBEVENT::TableEvent ev_type= pOp->getEventType();
+
+    // Test "fail all schema ops" by simulating cluster failure
+    // before the schema operation has been registered
+    if (DBUG_EVALUATE_IF("ndb_schema_dist_coord_fail_all", true, false)) {
+      ndb_log_info("Simulating cluster failure...");
+      ev_type = NdbDictionary::Event::TE_CLUSTER_FAILURE;
+    }
+
+    // Test "client detect not ready" by simulating cluster failure
+    if (DBUG_EVALUATE_IF("ndb_schema_dist_client_not_ready", true, false)) {
+      ndb_log_info("Simulating cluster failure...");
+      ev_type = NdbDictionary::Event::TE_CLUSTER_FAILURE;
+      // There should be one NDB_SCHEMA_OBJECT registered
+      ndbcluster::ndbrequire(NDB_SCHEMA_OBJECT::count_active_schema_ops() == 1);
+    }
+
     switch (ev_type)
     {
     case NDBEVENT::TE_INSERT:
@@ -5743,11 +5774,8 @@ class Ndb_schema_event_handler {
         ndb_log_verbose(
             1, "NDB Binlog: NDB tables initially readonly on reconnect.");
 
-      /* release the ndb_schema_share */
+      // Indicate util tables not ready
       mysql_mutex_lock(&injector_data_mutex);
-      NDB_SHARE::release_reference(ndb_schema_share, "ndb_schema_share");
-      ndb_schema_share= NULL;
-
       ndb_binlog_tables_inited= false;
       ndb_binlog_is_ready= false;
       mysql_mutex_unlock(&injector_data_mutex);
@@ -5755,6 +5783,12 @@ class Ndb_schema_event_handler {
       ndb_tdc_close_cached_tables();
 
       ndbcluster_binlog_event_operation_teardown(m_thd, s_ndb, pOp);
+
+      if (DBUG_EVALUATE_IF("ndb_schema_dist_client_not_ready", true, false)) {
+        ndb_log_info("Wait for client to detect not ready...");
+        while (NDB_SCHEMA_OBJECT::count_active_schema_ops() > 0)
+          ndb_milli_sleep(100);
+      }
       break;
 
     case NDBEVENT::TE_ALTER:
@@ -6751,7 +6785,7 @@ int ndbcluster_binlog_setup_table(THD *thd, Ndb *ndb,
 
   // Before 'schema_dist_is_ready', Thd_ndb::ALLOW_BINLOG_SETUP is required
   int ret= 0;
-  if (ndb_schema_dist_is_ready() ||
+  if (Ndb_schema_dist::is_ready(thd) ||
       get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP))
   {
     ret= ndbcluster_setup_binlog_for_share(thd, ndb, share, table_def);
@@ -6935,12 +6969,10 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
   // Never create event op on the blob table(s)
   DBUG_ASSERT(!ndb_name_is_blob_prefix(ndbtab->getName()));
 
-  // Schema dist table need special processing
-  const bool do_ndb_schema_share = Ndb_schema_dist_client::is_schema_dist_table(
-      share->db, share->table_name);
-
-  // Schema dist result table need special processing
-  const bool is_ndb_schema_result =
+  // Schema dist tables need special processing
+  const bool is_schema_dist_setup =
+      Ndb_schema_dist_client::is_schema_dist_table(share->db,
+                                                   share->table_name) ||
       Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name);
 
@@ -6968,14 +7000,14 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     }
     Mutex_guard injector_mutex_g(injector_event_mutex);
     Ndb *ndb= injector_ndb;
-    if (do_ndb_schema_share || is_ndb_schema_result)
+    if (is_schema_dist_setup )
       ndb= schema_ndb;
 
     if (ndb == NULL)
       DBUG_RETURN(-1);
 
     NdbEventOperation* op;
-    if (do_ndb_schema_share || is_ndb_schema_result)
+    if (is_schema_dist_setup )
       op= ndb->createEventOperation(event_name.c_str());
     else
     {
@@ -7135,17 +7167,6 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     ndb_apply_status_share =
         NDB_SHARE::acquire_reference_on_existing(share,
                                                  "ndb_apply_status_share");
-
-    DBUG_ASSERT(get_thd_ndb(m_thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
-  }
-  else if (do_ndb_schema_share)
-  {
-    // ndb_schema_share also protected by injector_data_mutex
-    Mutex_guard ndb_schema_share_g(injector_data_mutex);
-
-    ndb_schema_share =
-        NDB_SHARE::acquire_reference_on_existing(share,
-                                                 "ndb_schema_share");
 
     DBUG_ASSERT(get_thd_ndb(m_thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
@@ -8115,20 +8136,6 @@ void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb,
                                                     Ndb *i_ndb) const {
   DBUG_ENTER("remove_all_event_operations");
 
-  /* protect ndb_schema_share */
-  mysql_mutex_lock(&injector_data_mutex);
-  if (ndb_schema_share)
-  {
-    NDB_SHARE::release_reference(ndb_schema_share, "ndb_schema_share");
-    ndb_schema_share= NULL;
-  }
-  mysql_mutex_unlock(&injector_data_mutex);
-  /* end protect ndb_schema_share */
-
-  /**
-   * '!ndb_schema_dist_is_ready()' allows us relax the concurrency control
-   * below as 'not ready' guarantees that no event subscribtion will be created.
-   */
   if (ndb_apply_status_share)
   {
     NDB_SHARE::release_reference(ndb_apply_status_share,
@@ -8585,6 +8592,11 @@ restart_cluster_failure:
       // Failed to complete binlog_setup, remove all existing event
       // operations from potential partial setup
       remove_all_event_operations(s_ndb, i_ndb);
+
+      // Fail any schema operations that has been registered but
+      // never reached the coordinator
+      NDB_SCHEMA_OBJECT::fail_all_schema_ops(Ndb_schema_dist::COORD_ABORT,
+                                             "Aborted after setup");
 
       if (!thd_ndb->valid_ndb())
       {
@@ -9371,6 +9383,13 @@ restart_cluster_failure:
   thd->reset_db(NULL_CSTR); // as not to try to free memory
   remove_all_event_operations(s_ndb, i_ndb);
 
+  schema_dist_data.release();
+
+  // Fail any schema operations that has been registered but
+  // never reached the coordinator
+  NDB_SCHEMA_OBJECT::fail_all_schema_ops(Ndb_schema_dist::COORD_ABORT,
+                                         "Aborted during shutdown");
+
   delete s_ndb;
   s_ndb= NULL;
 
@@ -9397,8 +9416,6 @@ restart_cluster_failure:
   {
     NDB_SHARE::print_remaining_open_tables();
   }
-
-  schema_dist_data.release();
 
   if (binlog_thread_state == BCCC_restart)
   {

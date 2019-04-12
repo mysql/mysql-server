@@ -203,6 +203,13 @@ class NDB_SCHEMA_OBJECT {
   static void release(NDB_SCHEMA_OBJECT *ndb_schema_object);
 
   /**
+     @brief Count number of NDB_SCHEMA_OBJECTs registered
+
+     @return Number of NDB_SCHEMA_OBJECTs
+   */
+  static size_t count_active_schema_ops();
+
+  /**
      @brief Add list of nodes to participants
      @param nodes List of nodes to add
    */
@@ -263,6 +270,21 @@ class NDB_SCHEMA_OBJECT {
    */
   bool check_timeout(int timeout_seconds, uint32 result,
                      const char *message) const;
+
+  /**
+     @brief Set schema operation as failed and mark all participants which
+     haven't already completed as failed.
+     @param result The result to set on the participant
+     @param message The message to set on the participant
+   */
+  void fail_schema_op(uint32 result, const char *message) const;
+
+  /**
+     @brief Fail all schema operations.
+     @param result The result to set on the participant
+     @param message The message to set on the participant
+   */
+  static void fail_all_schema_ops(uint32 result, const char* message);
 
   /**
      @brief Wait until coordinator indicates that all participants has completed

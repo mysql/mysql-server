@@ -11972,9 +11972,9 @@ ha_ndbcluster::rename_table_impl(THD* thd, Ndb* ndb,
       if (binlog_client.table_should_have_event_op(share))
       {
         // NOTE! Simple renames performs the rename without recreating the event
-        // operation, thus the check of share->op below.
+        // operation, thus the check for share->have_event_operation() below.
         Ndb_event_data* event_data;
-        if (share->op == nullptr &&
+        if (share->have_event_operation() == false &&
             (!binlog_client.create_event_data(share, to_table_def,
                                               &event_data) ||
              binlog_client.create_event_op(share, ndbtab, event_data)))
@@ -12240,7 +12240,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
         ndb_log_info("Migrating legacy privilege table: Rename %s to %s",
                      m_tabname, new_tabname);
         Ndb_share_temp_ref share(from, "rename_table__for_local_shadow");
-        assert(! share->op);  // privilege tables never have an event
+        // privilege tables never have an event
+        assert(!share->have_event_operation());
         NDB_SHARE_KEY* old_key = share->key; // Save current key
         NDB_SHARE_KEY* new_key = NDB_SHARE::create_key(to);
         (void)NDB_SHARE::rename_share(share, new_key);
@@ -13391,11 +13392,11 @@ int ndbcluster_discover(handlerton*, THD* thd,
                                                            name,
                                                            MDL_EXCLUSIVE));
 
-  // Don't allow discover unless ndb_schema distribution is ready and
+  // Don't allow discover unless schema distribution is ready and
   // "schema synchronization" have completed(which currently can be
   // checked using ndb_binlog_is_read_only()). The user who wants to use
   // this table simply has to wait
-  if (!ndb_schema_dist_is_ready() ||
+  if (!Ndb_schema_dist::is_ready(thd) ||
       ndb_binlog_is_read_only())
   {
     // Can't discover, schema distribution is not ready

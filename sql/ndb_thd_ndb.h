@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,8 +80,7 @@ public:
     IS_SCHEMA_DIST_PARTICIPANT= 1 << 1,
 
     /*
-      Gives special priorites to this Thd_ndb, allowing it to create
-      schema distribution event ops before ndb_schema_dist_is_ready()
+      Allow Thd_ndb to setup schema distribution and apply status
      */
     ALLOW_BINLOG_SETUP= 1 << 2,
 
