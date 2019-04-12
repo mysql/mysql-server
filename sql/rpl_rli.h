@@ -1757,7 +1757,7 @@ class MDL_lock_guard {
    Constructor that initializes the object and the target `THD` object but
    doesn't try to acquire any lock.
 
-   @param thd target THD object, source for the `MDL_context` to use.
+   @param target THD object, source for the `MDL_context` to use.
    */
   MDL_lock_guard(THD *target);
   /**
@@ -1770,7 +1770,7 @@ class MDL_lock_guard {
    the lock is already acquired and only try to lock if no conflicting lock is
    already acquired.
 
-   @param thd target THD object, source for the `MDL_context` to use.
+   @param target THD object, source for the `MDL_context` to use.
    @param namespace_arg MDL key namespace to acquire the lock from.
    @param mdl_type_arg MDL acquisition type
    @param blocking whether or not the execution should block if the lock is
