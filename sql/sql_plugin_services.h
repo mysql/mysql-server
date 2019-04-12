@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -227,9 +227,13 @@ struct st_service_ref {
 };
 
 static struct srv_session_service_st srv_session_service_handler = {
-    srv_session_init_thread, srv_session_deinit_thread,
-    srv_session_open,        srv_session_detach,
-    srv_session_close,       srv_session_server_is_available,
+    srv_session_init_thread,
+    srv_session_deinit_thread,
+    srv_session_open,
+    srv_session_open_ignore_max_connection_limit,
+    srv_session_detach,
+    srv_session_close,
+    srv_session_server_is_available,
     srv_session_attach};
 
 static struct command_service_st command_handler = {

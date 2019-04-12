@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,7 +98,7 @@ bool Connection_handler_manager::valid_connection_count() {
 }
 
 bool Connection_handler_manager::check_and_incr_conn_count(
-    bool is_admin_connection) {
+    bool ignore_max_connection_limit) {
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
@@ -109,7 +109,7 @@ bool Connection_handler_manager::check_and_incr_conn_count(
     checked later during authentication where valid_connection_count()
     is called for non-SUPER users only.
   */
-  if (connection_count > max_connections && !is_admin_connection) {
+  if (connection_count > max_connections && !ignore_max_connection_limit) {
     connection_accepted = false;
     m_connection_errors_max_connection++;
   } else {

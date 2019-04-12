@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,11 +163,15 @@ class Connection_handler_manager {
   /**
     Increment connection count if max_connections is not exceeded.
 
+    @param ignore_max_connection_limit  true if checking for a limit
+                                        specified by the max-connections
+                                        server option should be skipped
+
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
-  bool check_and_incr_conn_count(bool is_admin_connection);
+  bool check_and_incr_conn_count(bool ignore_max_connection_limit);
 
   /**
     Reset the max_used_connections counter to the number of current

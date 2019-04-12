@@ -63,7 +63,8 @@ int Sql_service_interface::open_session() {
   m_session = NULL;
   /* open a server session after server is in operating state */
   if (!wait_for_session_server(SESSION_WAIT_TIMEOUT)) {
-    m_session = srv_session_open(srv_session_error_handler, NULL);
+    m_session = srv_session_open_ignore_max_connection_limit(
+        srv_session_error_handler, nullptr);
     if (m_session == NULL) return 1; /* purecov: inspected */
   } else {
     return 1; /* purecov: inspected */
@@ -87,7 +88,8 @@ int Sql_service_interface::open_thread_session(void *plugin_ptr) {
       /* purecov: end */
     }
 
-    m_session = srv_session_open(srv_session_error_handler, NULL);
+    m_session = srv_session_open_ignore_max_connection_limit(
+        srv_session_error_handler, nullptr);
     if (m_session == NULL) {
       srv_session_deinit_thread();
       return 1;

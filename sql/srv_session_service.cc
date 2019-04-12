@@ -64,24 +64,16 @@ int srv_session_init_thread(const void *plugin) {
 */
 void srv_session_deinit_thread() { Srv_session::deinit_thread(); }
 
-/**
-  Opens server session
-
-  @param error_cb              Default completion callback
-  @param plugin_ctx            Plugin's context, opaque pointer that would
-                               be provided to callbacks. Might be NULL.
-  @return
-    handler of session   on success
-    NULL                 on failure
-*/
-Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
+static Srv_session *srv_session_open_internal(
+    srv_session_error_cb error_cb, void *plugin_ctx,
+    bool ignore_max_connection_limit) {
   DBUG_TRACE;
 
   if (!srv_session_server_is_available()) {
     if (error_cb)
       error_cb(plugin_ctx, ER_SERVER_ISNT_AVAILABLE,
                ER_DEFAULT(ER_SERVER_ISNT_AVAILABLE));
-    return NULL;
+    return nullptr;
   }
 
   bool simulate_reach_max_connections = false;
@@ -92,10 +84,10 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
       Connection_handler_manager::get_instance();
 
   if (simulate_reach_max_connections ||
-      !conn_manager->check_and_incr_conn_count(false)) {
+      !conn_manager->check_and_incr_conn_count(ignore_max_connection_limit)) {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
-    return NULL;
+    return nullptr;
   }
 
   Srv_session *session =
@@ -120,12 +112,35 @@ Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
 
     if (result) {
       delete session;
-      session = NULL;
+      session = nullptr;
     }
 
     if (current) current->store_globals();
   }
   return session;
+}
+
+/**
+  Opens server session
+
+  @param error_cb              Default completion callback
+  @param plugin_ctx            Plugin's context, opaque pointer that would
+                               be provided to callbacks. Might be NULL.
+  @return
+    handler of session   on success
+    NULL                 on failure
+*/
+Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
+  DBUG_TRACE;
+
+  return srv_session_open_internal(error_cb, plugin_ctx, false);
+}
+
+Srv_session *srv_session_open_ignore_max_connection_limit(
+    srv_session_error_cb error_cb, void *plugin_ctx) {
+  DBUG_TRACE;
+
+  return srv_session_open_internal(error_cb, plugin_ctx, true);
 }
 
 /**

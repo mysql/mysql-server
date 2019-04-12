@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,12 @@ MYSQL_THD srv_session_info_get_thd(MYSQL_SESSION) {
 }
 
 MYSQL_SESSION srv_session_open(srv_session_error_cb, void *) {
+  DBUG_ASSERT(0);
+  return 0;
+}
+
+MYSQL_SESSION srv_session_open_ignore_max_connection_limit(srv_session_error_cb,
+                                                           void *) {
   DBUG_ASSERT(0);
   return 0;
 }
