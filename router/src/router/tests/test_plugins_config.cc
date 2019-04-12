@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <fstream>
+
 #include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "router_app.h"
 
-#include <fstream>
-
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 using mysql_harness::Path;
 using std::string;
 using ::testing::HasSubstr;
 using ::testing::StrEq;
+
+static const std::string kPluginNameMagic("routertestplugin_magic");
 
 string g_cwd;
 Path g_origin;
@@ -78,7 +80,7 @@ TEST_F(PluginsConfigTest, NoPluginLoaded) {
 TEST_F(PluginsConfigTest, OnePluginLoaded) {
   reset_config();
   std::ofstream c(config_path->str(), std::fstream::app | std::fstream::out);
-  c << "[magic]\n\n";  // any plugin would do
+  c << "[" << kPluginNameMagic << "]\n\n";  // any plugin would do
   c.close();
 
   string cmd = app_mysqlrouter->str() + " -c " + config_path->str();

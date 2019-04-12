@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,15 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #include "lifecycle.h"
+
+#include <chrono>
+#include <condition_variable>
+#include <cstdarg>
+#include <cstdlib>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
+
 #include "harness_assert.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/logging/logging.h"
@@ -40,14 +49,6 @@
 #include "router_config.h"
 
 #include "my_compiler.h"
-
-#include <stdarg.h>  // some things not in std:: in cstdarg (Ubuntu 14.04)
-#include <chrono>
-#include <condition_variable>
-#include <cstdlib>
-#include <mutex>
-#include <stdexcept>
-#include <thread>
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -248,10 +249,12 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
-  const std::string &key =
-      (func == "init" || func == "deinit")
-          ? get_app_info(env)->config->get("lifecycle").front()->key
-          : get_config_section(env)->key;
+  const std::string &key = (func == "init" || func == "deinit")
+                               ? get_app_info(env)
+                                     ->config->get("routertestplugin_lifecycle")
+                                     .front()
+                                     ->key
+                               : get_config_section(env)->key;
 
   std::unique_lock<std::mutex> lock(g_strategies_mtx);
 
@@ -358,7 +361,7 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
 // PLUGIN API
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(_MSC_VER) && defined(lifecycle_EXPORTS)
+#if defined(_MSC_VER) && defined(routertestplugin_lifecycle_EXPORTS)
 /* We are building this library */
 #define LIFECYCLE_API __declspec(dllexport)
 #else
@@ -366,8 +369,8 @@ void execute_exit_strategy(const std::string &func, PluginFuncEnv *env) {
 #endif
 
 static const char *requires[] = {
-    "magic (>>1.0)",
-    "lifecycle3",
+    "routertestplugin_magic (>>1.0)",
+    "routertestplugin_lifecycle3",
 };
 
 static void init(PluginFuncEnv *env) {
@@ -407,7 +410,8 @@ static void init(PluginFuncEnv *env) {
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
-  const ConfigSection *section = info->config->get("lifecycle").front();
+  const ConfigSection *section =
+      info->config->get("routertestplugin_lifecycle").front();
 
   // only 3 predefined instances are supported
   harness_assert(section->key == "instance1" || section->key == "instance2" ||
@@ -445,7 +449,8 @@ static void deinit(PluginFuncEnv *env) {
   // init() and deinit() are called only once per plugin (not per plugin
   // instance), but we need an instance name for our logic to work, therefore
   // we pick the first plugin instance in such case
-  const ConfigSection *section = info->config->get("lifecycle").front();
+  const ConfigSection *section =
+      info->config->get("routertestplugin_lifecycle").front();
 
   // only 3 predefined instances are supported
   harness_assert(section->key == "instance1" || section->key == "instance2" ||
@@ -458,7 +463,7 @@ static void deinit(PluginFuncEnv *env) {
 }
 
 extern "C" {
-Plugin LIFECYCLE_API harness_plugin_lifecycle = {
+Plugin LIFECYCLE_API harness_plugin_routertestplugin_lifecycle = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "Lifecycle test plugin",

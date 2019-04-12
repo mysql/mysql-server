@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ using mysql_harness::Plugin;
 using mysql_harness::PLUGIN_ABI_VERSION;
 using mysql_harness::PluginFuncEnv;
 
-#if defined(_MSC_VER) && defined(lifecycle3_EXPORTS)
+#if defined(_MSC_VER) && defined(routertestplugin_lifecycle3_EXPORTS)
 /* We are building this library */
 #define LIFECYCLE3_API __declspec(dllexport)
 #else
@@ -55,7 +55,7 @@ static void init(PluginFuncEnv *) {}
 static void deinit(PluginFuncEnv *) {}
 
 extern "C" {
-Plugin LIFECYCLE3_API harness_plugin_lifecycle3 = {
+Plugin LIFECYCLE3_API harness_plugin_routertestplugin_lifecycle3 = {
     PLUGIN_ABI_VERSION,
     ARCHITECTURE_DESCRIPTOR,
     "Logging functions",
