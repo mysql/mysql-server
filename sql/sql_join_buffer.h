@@ -19,9 +19,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "memroot_allocator.h"
-#include <unordered_map>
-
 /** @file Join buffer classes */
 
 /* 
@@ -33,24 +30,6 @@
 #define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
 #define CACHE_VARSTR1   3        /* short string value (length takes 1 byte) */ 
 #define CACHE_VARSTR2   4        /* long string value (length takes 2 bytes) */
-
-
-/**
-  std::unordered_map, but allocated on a MEM_ROOT.
-*/
-template <class Key, class Value, class Hash = std::hash<Key>,
-          class KeyEqual = std::equal_to<Key>>
-class memroot_unordered_map
-    : public std::unordered_map<
-          Key, Value, Hash, KeyEqual,
-          Memroot_allocator<std::pair<const Key, Value>>> {
- public:
-  memroot_unordered_map(MEM_ROOT *mem_root)
-      : std::unordered_map<Key, Value, Hash, KeyEqual,
-                           Memroot_allocator<std::pair<const Key, Value>>>(
-            /*bucket_count=*/10, Hash(), KeyEqual(),
-            Memroot_allocator<std::pair<const Key, Value>>(mem_root)) {}
-};
 
 
 /*
@@ -120,12 +99,6 @@ private:
   uint size_of_rec_len;
   /* Size of the offset of a field within a record in the cache */   
   uint size_of_fld_ofs;
-
-  /**
-     In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
-     enough; this one is specific of generated column handling.
-  */
-  memroot_unordered_map<QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
 
 protected:
        
@@ -490,7 +463,6 @@ public:
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
     : QEP_operation(qep_tab_arg),
-      save_read_set_for_gcol(qep_tab_arg->table()->in_use->mem_root),
       join(j), buff(NULL), prev_cache(prev),
       next_cache(NULL)
     {
