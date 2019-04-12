@@ -2,6 +2,7 @@
 #define SQL_JOIN_CACHE_INCLUDED
 
 #include "sql_executor.h"
+#include "mem_root_array.h"
 
 /* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
@@ -99,6 +100,11 @@ private:
   uint size_of_rec_len;
   /* Size of the offset of a field within a record in the cache */   
   uint size_of_fld_ofs;
+  /**
+    In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
+    enough; this one is specific of generated column handling.
+  */
+  Mem_root_array<MY_BITMAP*, true> save_read_set_for_gcol;
 
 protected:
        
@@ -463,6 +469,7 @@ public:
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
     : QEP_operation(qep_tab_arg),
+      save_read_set_for_gcol(qep_tab_arg->table()->in_use->mem_root),
       join(j), buff(NULL), prev_cache(prev),
       next_cache(NULL)
     {
