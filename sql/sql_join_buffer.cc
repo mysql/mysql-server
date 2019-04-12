@@ -543,12 +543,15 @@ static void filter_gcol_for_dynamic_range_scan(QEP_TAB *const tab) {
 */
 
 void JOIN_CACHE::filter_virtual_gcol_base_cols() {
+  DBUG_ASSERT(save_read_set_for_gcol.empty());
+
   for (QEP_TAB *tab = qep_tab - tables; tab < qep_tab; tab++) {
     TABLE *table = tab->table();
     if (table->vfield == NULL) continue;
 
     const uint index = tab->effective_index();
-    if (index != MAX_KEY && table->index_contains_some_virtual_gcol(index) &&
+    const bool cov_index =
+        index != MAX_KEY && table->index_contains_some_virtual_gcol(index) &&
         /*
           There are two cases:
           - If the table scan uses covering index scan, we can get the value
@@ -558,21 +561,33 @@ void JOIN_CACHE::filter_virtual_gcol_base_cols() {
             After restore the base columns, the value of virtual generated
             columns can be calculated correctly.
         */
-        table->covering_keys.is_set(index)) {
-      DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
-      // Keep table->read_set in tmp_set so that it can be restored
-      bitmap_copy(&table->tmp_set, table->read_set);
+        table->covering_keys.is_set(index);
+    if (!(cov_index || tab->dynamic_range())) continue;
+
+    /*
+      Save of a copy of table->read_set in save_read_set so that it can be
+      restored. tmp_set cannot be used as recipient for this as it's already
+      used in other parts of JOIN_CACHE::init().
+    */
+    auto bitbuf =
+        (my_bitmap_map *)(*THR_MALLOC)->Alloc(table->s->column_bitmap_size);
+    auto save_read_set = (MY_BITMAP *)(*THR_MALLOC)->Alloc(sizeof(MY_BITMAP));
+    bitmap_init(save_read_set, bitbuf, table->s->fields, false);
+    bitmap_copy(save_read_set, table->read_set);
+    /*
+      restore_virtual_gcol_base_cols() will need old bitmap so we save a
+      reference to it.
+    */
+    save_read_set_for_gcol.insert(std::make_pair(tab, save_read_set));
+
+    if (cov_index) {
       bitmap_clear_all(table->read_set);
       table->mark_columns_used_by_index_no_reset(index, table->read_set);
       if (table->s->primary_key != MAX_KEY)
         table->mark_columns_used_by_index_no_reset(table->s->primary_key,
                                                    table->read_set);
-      bitmap_intersect(table->read_set, &table->tmp_set);
+      bitmap_intersect(table->read_set, save_read_set);
     } else if (tab->dynamic_range()) {
-      DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
-      // Keep table->read_set in tmp_set so that it can be restored
-      bitmap_copy(&table->tmp_set, table->read_set);
-
       filter_gcol_for_dynamic_range_scan(tab);
     }
   }
@@ -588,9 +603,10 @@ void JOIN_CACHE::restore_virtual_gcol_base_cols() {
     TABLE *table = tab->table();
     if (table->vfield == NULL) continue;
 
-    if (!bitmap_is_clear_all(&table->tmp_set)) {
-      bitmap_copy(table->read_set, &table->tmp_set);
-      bitmap_clear_all(&table->tmp_set);
+    auto saved = save_read_set_for_gcol.find(tab);
+    if (saved != save_read_set_for_gcol.end()) {
+      DBUG_ASSERT(!bitmap_is_clear_all(saved->second));
+      bitmap_copy(table->read_set, saved->second);
     }
   }
 }
