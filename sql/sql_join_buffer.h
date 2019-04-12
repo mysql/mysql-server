@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,6 +113,12 @@ class JOIN_CACHE : public QEP_operation {
   uint size_of_rec_len;
   /// Size of the offset of a field within a record in the cache.
   uint size_of_fld_ofs;
+
+  /**
+     In init() there are several uses of TABLE::tmp_set, so one tmp_set isn't
+     enough; this one is specific of generated column handling.
+  */
+  memroot_unordered_map<QEP_TAB *, MY_BITMAP *> save_read_set_for_gcol;
 
  protected:
   /// @return the number of bytes used to store an offset value
@@ -506,6 +512,7 @@ class JOIN_CACHE : public QEP_operation {
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
       : QEP_operation(qep_tab_arg),
+        save_read_set_for_gcol(*THR_MALLOC),
         join(j),
         buff(NULL),
         prev_cache(prev),
