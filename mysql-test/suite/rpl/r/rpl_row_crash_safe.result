@@ -24,7 +24,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -42,7 +42,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
@@ -58,7 +58,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
 Table	Create Table
 slave_worker_info	CREATE TABLE `slave_worker_info` (
@@ -76,7 +76,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_group_bitmap` blob NOT NULL,
   `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='Worker Information'
 include/start_slave.inc
 rpl_mixing_engines.inc [commands=configure]
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
