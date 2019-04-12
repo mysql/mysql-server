@@ -98,7 +98,7 @@ bool Connection_handler_manager::valid_connection_count() {
 }
 
 bool Connection_handler_manager::check_and_incr_conn_count(
-    bool ignore_max_connection_limit) {
+    bool is_admin_connection) {
   bool connection_accepted = true;
   mysql_mutex_lock(&LOCK_connection_count);
   /*
@@ -109,7 +109,7 @@ bool Connection_handler_manager::check_and_incr_conn_count(
     checked later during authentication where valid_connection_count()
     is called for non-SUPER users only.
   */
-  if (connection_count > max_connections && !ignore_max_connection_limit) {
+  if (connection_count > max_connections && !is_admin_connection) {
     connection_accepted = false;
     m_connection_errors_max_connection++;
   } else {

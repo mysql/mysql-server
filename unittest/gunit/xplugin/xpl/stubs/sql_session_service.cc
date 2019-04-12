@@ -40,12 +40,6 @@ MYSQL_SESSION srv_session_open(srv_session_error_cb, void *) {
   return 0;
 }
 
-MYSQL_SESSION srv_session_open_ignore_max_connection_limit(srv_session_error_cb,
-                                                           void *) {
-  DBUG_ASSERT(0);
-  return 0;
-}
-
 int srv_session_close(MYSQL_SESSION) {
   DBUG_ASSERT(0);
   return 0;

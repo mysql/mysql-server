@@ -52,9 +52,6 @@ extern "C" struct srv_session_service_st {
   MYSQL_SESSION(*open_session)
   (srv_session_error_cb error_cb, void *plugix_ctx);
 
-  MYSQL_SESSION(*open_session_ignore_max_connection_limit)
-  (srv_session_error_cb error_cb, void *plugix_ctx);
-
   int (*detach_session)(MYSQL_SESSION session);
 
   int (*close_session)(MYSQL_SESSION session);
@@ -72,9 +69,6 @@ extern "C" struct srv_session_service_st {
 #define srv_session_deinit_thread() srv_session_service->deinit_session_thread()
 
 #define srv_session_open(cb, ctx) srv_session_service->open_session((cb), (ctx))
-
-#define srv_session_open_ignore_max_connection_limit(cb, ctx) \
-  srv_session_service->open_session_ignore_max_connection_limit((cb), (ctx))
 
 #define srv_session_detach(session) \
   srv_session_service->detach_session((session))
@@ -127,23 +121,6 @@ void srv_session_deinit_thread();
     NULL      on failure
 */
 MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
-
-/**
-  Opens a server session ignoring a limitation imposed by the max_connection
-  server option.
-
-  In a thread not initialized by the server itself, this function should be
-  called only after srv_session_init_thread() has already been called.
-
-  @param error_cb    session error callback
-  @param plugin_ctx  Plugin's context, opaque pointer that would
-                     be provided to callbacks. Might be NULL.
-  @return
-    session   on success
-    NULL      on failure
-*/
-MYSQL_SESSION srv_session_open_ignore_max_connection_limit(
-    srv_session_error_cb error_cb, void *plugin_ctx);
 
 /**
   Detaches a session from current physical thread.

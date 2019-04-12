@@ -163,15 +163,11 @@ class Connection_handler_manager {
   /**
     Increment connection count if max_connections is not exceeded.
 
-    @param ignore_max_connection_limit  true if checking for a limit
-                                        specified by the max-connections
-                                        server option should be skipped
-
     @retval
       true   max_connections NOT exceeded
       false  max_connections reached
   */
-  bool check_and_incr_conn_count(bool ignore_max_connection_limit);
+  bool check_and_incr_conn_count(bool is_admin_connection);
 
   /**
     Reset the max_used_connections counter to the number of current
