@@ -41,12 +41,6 @@ SET(helper_sources
   helpers/rest_metadata_client.cc
 )
 
-IF(WIN32)
-  LIST(APPEND helper_sources helpers/cmd_exec-windows.cc)
-ELSE()
-  LIST(APPEND helper_sources helpers/cmd_exec.cc)
-ENDIF()
-
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
 ENDIF()

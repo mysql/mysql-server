@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #include "../../router/src/router_app.h"
 #include "../../routing/src/mysql_routing.h"
 #include "../../routing/src/utils.h"
-#include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/plugin.h"
@@ -46,7 +45,7 @@
 #include <WinSock2.h>
 #endif
 
-#include "gmock/gmock.h"
+#include <gmock/gmock.h>
 
 using mysql_harness::Path;
 using std::string;

@@ -143,7 +143,7 @@ class GrNotificationsTest : public RouterComponentTest {
         logger_section + metadata_cache_section + routing_section,
         &default_section);
     auto router = RouterComponentTest::launch_router(
-        "-c " + conf_file, /*catch_stderr=*/true, /*with_sudo=*/false);
+        {"-c", conf_file}, /*catch_stderr=*/true, /*with_sudo=*/false);
     return router;
   }
 

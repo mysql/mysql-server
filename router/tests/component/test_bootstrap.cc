@@ -718,7 +718,7 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
-  auto test_it = [&](const std::string &cmdline) -> void {
+  auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
     const std::string json_stmts =
         get_data_dir()
             .join("bootstrap_account_host_multiple_patterns.js")
@@ -750,22 +750,22 @@ TEST_F(RouterAccountHostTest, multiple_host_patterns) {
   // fashion
 
   // --bootstrap before --account-host
-  test_it("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-          " --report-host " + my_hostname + " -d " + bootstrap_directory +
-          " --account-host host1"       // 2nd CREATE USER
-          + " --account-host %"         // 1st CREATE USER
-          + " --account-host host1"     // \_ redundant, ignored
-          + " --account-host host1"     // /
-          + " --account-host host3%");  // 3rd CREATE USER
+  test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
+           "--report-host", my_hostname, "-d", bootstrap_directory,
+           "--account-host", "host1",     // 2nd CREATE USER
+           "--account-host", "%",         // 1st CREATE USER
+           "--account-host", "host1",     // \_ redundant, ignored
+           "--account-host", "host1",     // /
+           "--account-host", "host3%"});  // 3rd CREATE USER
 
   // --bootstrap after --account-host
-  test_it("-d " + bootstrap_directory + " --report-host " + my_hostname +
-          " --account-host host1"     // 2nd CREATE USER
-          + " --account-host %"       // 1st CREATE USER
-          + " --account-host host1"   // \_ redundant, ignored
-          + " --account-host host1"   // /
-          + " --account-host host3%"  // 3rd CREATE USER
-          + " --bootstrap=127.0.0.1:" + std::to_string(server_port));
+  test_it({"-d", bootstrap_directory, "--report-host", my_hostname,
+           "--account-host", "host1",   // 2nd CREATE USER
+           "--account-host", "%",       // 1st CREATE USER
+           "--account-host", "host1",   // \_ redundant, ignored
+           "--account-host", "host1",   // /
+           "--account-host", "host3%",  // 3rd CREATE USER
+           "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
 }
 
 /**
@@ -778,8 +778,8 @@ TEST_F(RouterAccountHostTest, argument_missing) {
 
   // launch the router in bootstrap mode
   auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --account-host");
+      launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
+                     "--account-host"});
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
@@ -795,7 +795,7 @@ TEST_F(RouterAccountHostTest, argument_missing) {
  */
 TEST_F(RouterAccountHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
-  auto router = launch_router("--account-host host1");
+  auto router = launch_router({"--account-host", "host1"});
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
@@ -824,10 +824,9 @@ TEST_F(RouterAccountHostTest, illegal_hostname) {
   std::shared_ptr<void> exit_guard(
       nullptr, [&](void *) { purge_dir(bootstrap_directory); });
   auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-      " --report-host " + my_hostname + " -d " + bootstrap_directory +
-      " --account-host "
-      "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost");
+      {"--bootstrap=127.0.0.1:" + std::to_string(server_port), "--report-host",
+       my_hostname, "-d", bootstrap_directory, "--account-host",
+       "veryveryveryveryveryveryveryveryveryveryveryveryveryveryverylonghost"});
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -853,7 +852,7 @@ TEST_F(RouterReportHostTest, typical_usage) {
   const std::string bootstrap_directory = get_tmp_dir();
   const unsigned server_port = port_pool_.get_next_available();
 
-  auto test_it = [&](const std::string &cmdline) -> void {
+  auto test_it = [&](const std::vector<std::string> &cmdline) -> void {
     const std::string json_stmts =
         get_data_dir().join("bootstrap_report_host.js").str();
 
@@ -881,12 +880,12 @@ TEST_F(RouterReportHostTest, typical_usage) {
   };
 
   // --bootstrap before --report-host
-  test_it("--bootstrap=127.0.0.1:" + std::to_string(server_port) + " -d " +
-          bootstrap_directory + " --report-host host.foo.bar");
+  test_it({"--bootstrap=127.0.0.1:" + std::to_string(server_port), "-d",
+           bootstrap_directory, "--report-host", "host.foo.bar"});
 
   // --bootstrap after --report-host
-  test_it("-d " + bootstrap_directory + " --report-host host.foo.bar" +
-          " --bootstrap=127.0.0.1:" + std::to_string(server_port));
+  test_it({"-d", bootstrap_directory, "--report-host", "host.foo.bar",
+           "--bootstrap=127.0.0.1:" + std::to_string(server_port)});
 }
 
 /**
@@ -896,8 +895,8 @@ TEST_F(RouterReportHostTest, typical_usage) {
  */
 TEST_F(RouterReportHostTest, multiple_hostnames) {
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=1.2.3.4:5678 --report-host host1 --report-host host2");
+  auto router = launch_router({"--bootstrap=1.2.3.4:5678", "--report-host",
+                               "host1", "--report-host", "host2"});
 
   // check if the bootstraping was successful
   EXPECT_TRUE(
@@ -913,7 +912,7 @@ TEST_F(RouterReportHostTest, multiple_hostnames) {
  */
 TEST_F(RouterReportHostTest, argument_missing) {
   // launch the router in bootstrap mode
-  auto router = launch_router("--bootstrap=1.2.3.4:5678 --report-host");
+  auto router = launch_router({"--bootstrap=1.2.3.4:5678", "--report-host"});
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
@@ -929,7 +928,7 @@ TEST_F(RouterReportHostTest, argument_missing) {
  */
 TEST_F(RouterReportHostTest, without_bootstrap_flag) {
   // launch the router in bootstrap mode
-  auto router = launch_router("--report-host host1");
+  auto router = launch_router({"--report-host", "host1"});
 
   // check if the bootstraping was successful
   EXPECT_TRUE(router.expect_output(
@@ -1070,9 +1069,9 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsYes) {
   EXPECT_TRUE(ready) << server_mock.get_full_output();
 
   // launch the router in bootstrap mode
-  auto router = launch_router(
-      "--bootstrap=127.0.0.1:" + std::to_string(server_port) + " -d " +
-      bootstrap_directory + " --conf-use-gr-notifications");
+  auto router =
+      launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
+                     "-d", bootstrap_directory, "--conf-use-gr-notifications"});
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1116,8 +1115,8 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
 
   // launch the router in bootstrap mode
   auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " -d " + bootstrap_directory);
+      launch_router({"--bootstrap=127.0.0.1:" + std::to_string(server_port),
+                     "-d", bootstrap_directory});
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
@@ -1146,7 +1145,7 @@ TEST_F(RouterBootstrapTest, ConfUseGrNotificationsNo) {
  *        causes proper error report
  */
 TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
-  auto router = launch_router("--conf-use-gr-notifications");
+  auto router = launch_router({"--conf-use-gr-notifications"});
 
   EXPECT_TRUE(
       router.expect_output("Error: Option --conf-use-gr-notifications can only "
@@ -1161,8 +1160,8 @@ TEST_F(RouterReportHostTest, ConfUseGrNotificationsNoBootstrap) {
  *        causes proper error report
  */
 TEST_F(RouterReportHostTest, ConfUseGrNotificationsHasValue) {
-  auto router =
-      launch_router("-B somehost:12345 --conf-use-gr-notifications=some");
+  auto router = launch_router(
+      {"-B", "somehost:12345", "--conf-use-gr-notifications=some"});
 
   EXPECT_TRUE(
       router.expect_output("Error: option '--conf-use-gr-notifications' does "
@@ -1198,11 +1197,14 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_and_is_not_empty) {
   });
 
   // launch the router in bootstrap mode
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --connect-timeout=1"
-                    " --report-host " +
-                    my_hostname + " -d " + bootstrap_directory);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--connect-timeout=1",
+      "--report-host",
+      my_hostname,
+      "-d",
+      bootstrap_directory,
+  });
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1245,11 +1247,14 @@ TEST_F(ErrorReportTest, bootstrap_dir_exists_but_is_inaccessible) {
 
   // launch the router in bootstrap mode: -d set to existing but inaccessible
   // dir
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --connect-timeout=1"
-                    " --report-host " +
-                    my_hostname + " -d " + bootstrap_directory);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--connect-timeout=1",
+      "--report-host",
+      my_hostname,
+      "-d",
+      bootstrap_directory,
+  });
   // add login hook
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
@@ -1293,11 +1298,14 @@ TEST_F(ErrorReportTest,
   // impossible to create
   std::string bootstrap_directory =
       mysql_harness::Path(bootstrap_superdir).join("subdir").str();
-  auto router =
-      launch_router("--bootstrap=127.0.0.1:" + std::to_string(server_port) +
-                    " --connect-timeout=1"
-                    " --report-host " +
-                    my_hostname + " -d " + bootstrap_directory);
+  auto router = launch_router({
+      "--bootstrap=127.0.0.1:" + std::to_string(server_port),
+      "--connect-timeout=1",
+      "--report-host",
+      my_hostname,
+      "-d",
+      bootstrap_directory,
+  });
 
   // add login hook
   router.register_response("Please enter MySQL password for root: ",

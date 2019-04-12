@@ -228,7 +228,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     // launch the router with the static routing configuration
     const std::string conf_file =
         create_config_file(conf_dir, routing_section, &def_section);
-    auto router = RouterComponentTest::launch_router("-c " + conf_file);
+    auto router = RouterComponentTest::launch_router({"-c", conf_file});
     if (!expect_error) {
       bool ready = wait_for_port_ready(router_port);
       EXPECT_TRUE(ready) << (log_to_console ? router.get_full_output()
@@ -257,7 +257,7 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
 
     const std::string conf_file = create_config_file(
         conf_dir, metadata_cache_section + routing_section, &default_section);
-    auto router = RouterComponentTest::launch_router("-c " + conf_file,
+    auto router = RouterComponentTest::launch_router({"-c", conf_file},
                                                      catch_stderr, with_sudo);
     if (wait_ready) {
       bool ready = wait_for_port_ready(router_port);

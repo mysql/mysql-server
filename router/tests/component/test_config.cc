@@ -44,7 +44,7 @@ TEST_F(RouterConfigTest, RoutingDirAsMainConfigDirectory) {
   const std::string config_dir = get_tmp_dir();
 
   // launch the router giving directory instead of config_name
-  auto router = launch_router("-c " + config_dir);
+  auto router = launch_router({"-c", config_dir});
 
   EXPECT_EQ(router.wait_for_exit(), 1);
 
@@ -77,7 +77,7 @@ TEST_F(RouterConfigTest, RoutingDirAsExtendedConfigDirectory) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router giving directory instead of an extra config name
-  auto router = launch_router("-c " + conf_file + " -a " + extra_conf_dir);
+  auto router = launch_router({"-c", conf_file, "-a", extra_conf_dir});
 
   EXPECT_EQ(router.wait_for_exit(), 1);
 
@@ -95,7 +95,7 @@ TEST_F(RouterConfigTest,
       create_config_file(conf_dir, "[section1]\n[section1]\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   EXPECT_THAT(
@@ -112,7 +112,7 @@ TEST_F(RouterConfigTest, IsExceptionThrownWhenAddTwiceTheSameSectionWithKey) {
       create_config_file(conf_dir, "[section1:key1]\n[section1:key1]\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   EXPECT_THAT(router.get_full_output(),
@@ -129,7 +129,7 @@ TEST_F(RouterConfigTest,
       conf_dir, "[section1]\ndynamic_state=a\ndynamic_state=b\n");
 
   // run the router and wait for it to exit
-  auto router = launch_router("-c " + conf_file);
+  auto router = launch_router({"-c", conf_file});
   EXPECT_EQ(router.wait_for_exit(), 1);
 
   EXPECT_THAT(router.get_full_output(),
@@ -168,7 +168,7 @@ TEST_F(RouterConfigTest, IsErrorReturnedWhenServiceDoesNotExist) {
         create_config_file(conf_dir, "[keepalive]\ninterval = 60\n");
 
     // run the router and wait for it to exit
-    auto router = launch_router("-c " + conf_file + " --service");
+    auto router = launch_router({"-c", conf_file, "--service"});
     EXPECT_EQ(router.wait_for_exit(), 1);
 
     EXPECT_THAT(router.get_full_output(),

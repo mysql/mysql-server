@@ -97,7 +97,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with simple static routing configuration
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // wait for both to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
@@ -109,9 +109,13 @@ TEST_F(RouterRoutingTest, RoutingOk) {
   // via first router instance
   std::shared_ptr<void> exit_guard2(nullptr,
                                     [&](void *) { purge_dir(bootstrap_dir); });
-  auto router_bootstrapping =
-      launch_router("--bootstrap=localhost:" + std::to_string(router_port) +
-                    " --report-host dont.query.dns" + " -d " + bootstrap_dir);
+  auto router_bootstrapping = launch_router({
+      "--bootstrap=localhost:" + std::to_string(router_port),
+      "--report-host",
+      "dont.query.dns",
+      "-d",
+      bootstrap_dir,
+  });
 
   router_bootstrapping.register_response(
       "Please enter MySQL password for root: ", "fake-pass\n");
@@ -159,7 +163,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with the created configuration
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
@@ -208,7 +212,7 @@ TEST_F(RouterRoutingTest, RoutingPluginCantSpawnMoreThreads) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with the created configuration
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
@@ -270,7 +274,7 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   std::shared_ptr<void> exit_guard2(nullptr,
                                     [&](void *) { purge_dir(conf_dir); });
   const std::string conf_file = create_config_file(conf_dir, routing_section);
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // loop until socket file appears and has correct permissions
   auto wait_for_correct_perms = [&socket_file](int timeout_ms) {
@@ -328,7 +332,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // wait for mock server to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))
@@ -452,7 +456,7 @@ TEST_F(RouterRoutingTest, test1) {
   std::string conf_file = create_config_file(conf_dir, routing_section);
 
   // launch the router with the created configuration
-  auto router_static = launch_router("-c " + conf_file);
+  auto router_static = launch_router({"-c", conf_file});
 
   // wait for server and router to begin accepting the connections
   ASSERT_TRUE(wait_for_port_ready(server_port))

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,6 @@
 */
 
 #include "router_test_helpers.h"
-#include "cmd_exec.h"
-#include "mysql/harness/filesystem.h"
-#include "mysqlrouter/utils.h"
 
 #include <cassert>
 #include <cerrno>
@@ -46,6 +43,9 @@
 #define getcwd _getcwd
 typedef long ssize_t;
 #endif
+
+#include "mysql/harness/filesystem.h"
+#include "mysqlrouter/utils.h"
 
 using mysql_harness::Path;
 

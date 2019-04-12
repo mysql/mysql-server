@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,6 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "gmock/gmock.h"
-
 #include <chrono>
 #include <cstdio>
 #include <fstream>
@@ -35,6 +33,8 @@
 #include <unistd.h>
 #endif
 
+#include <gmock/gmock.h>
+
 #include "common.h"
 
 #include "mysql/harness/config_parser.h"
@@ -43,7 +43,6 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/plugin.h"
 
-#include "cmd_exec.h"
 #include "gtest_consoleoutput.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysql_routing.h"
@@ -197,45 +196,6 @@ TEST_F(RoutingPluginTests, InitAppInfo) {
 
   ASSERT_THAT(g_app_info, Not(IsNull()));
   ASSERT_THAT(program.c_str(), StrEq(g_app_info->program));
-}
-
-TEST_F(RoutingPluginTests, StartCorrectSection) {
-  reset_config({}, true);
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output, HasSubstr("[routing:break]"));
-}
-
-TEST_F(RoutingPluginTests, StartCaseInsensitiveMode) {
-  mode = "Read-Only";
-  reset_config({}, true);
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output, Not(HasSubstr("valid are")));
-}
-
-TEST_F(RoutingPluginTests, StartCaseInsensitiveRoutingStrategy) {
-  routing_strategy = "First-Available";
-  reset_config({}, true);
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output, Not(HasSubstr("valid are")));
-}
-
-TEST_F(RoutingPluginTests, NoListeningSocket) {
-  mysql_harness::Config cfg;
-  mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
-  section.add("destinations", "localhost:1234");
-  section.add("mode", "read-only");
-
-  try {
-    RoutingPluginConfig config(&section);
-    FAIL() << "Expected std::invalid_argument to be thrown";
-  } catch (const std::invalid_argument &e) {
-    EXPECT_STREQ(
-        "either bind_address or socket option needs to be supplied, or both",
-        e.what());
-    SUCCEED();
-  } catch (...) {
-    FAIL() << "Expected std::invalid_argument to be thrown";
-  }
 }
 
 TEST_F(RoutingPluginTests, ListeningTcpSocket) {
@@ -407,43 +367,6 @@ TEST_F(RoutingPluginTests, TwoNonuniqueTcpSockets) {
   }
 }
 
-TEST_F(RoutingPluginTests, StartMissingDestination) {
-  {
-    reset_config({"destinations"});
-    auto cmd_result = cmd_exec(cmd, true);
-    ASSERT_THAT(
-        cmd_result.output,
-        HasSubstr("option destinations in [routing:tests] is required"));
-  }
-
-  {
-    destinations = {};
-    reset_config({});
-    auto cmd_result = cmd_exec(cmd, true);
-    ASSERT_THAT(cmd_result.output,
-                HasSubstr("option destinations in [routing:tests] is required "
-                          "and needs a value"));
-  }
-}
-
-TEST_F(RoutingPluginTests, StartImpossiblePortNumber) {
-  bind_address = "127.0.0.1:99999";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(
-      cmd_result.output,
-      HasSubstr("incorrect (invalid TCP port: impossible port number)"));
-}
-
-TEST_F(RoutingPluginTests, StartImpossibleIPAddress) {
-  bind_address = "512.512.512.512:3306";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("in [routing:tests]: invalid IP or name in "
-                        "bind_address '512.512.512.512:3306'"));
-}
-
 #ifndef _WIN32
 TEST_F(RoutingPluginTests, EmptyUnixSocket) {
   mysql_harness::Config cfg;
@@ -469,16 +392,6 @@ TEST_F(RoutingPluginTests, EmptyUnixSocket) {
   }
 }
 
-TEST_F(RoutingPluginTests, StartBadUnixSocket) {
-  socket = "/this/path/does/not/exist/socket";
-  reset_config();
-  CmdExecResult cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("Setting up named socket service "
-                        "'/this/path/does/not/exist/socket': "));
-  ASSERT_THAT(cmd_result.output, HasSubstr("No such file or directory"));
-}
-
 TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
   mysql_harness::Config cfg;
   mysql_harness::ConfigSection &section = cfg.add("routing", "test_route");
@@ -500,87 +413,6 @@ TEST_F(RoutingPluginTests, ListeningHostIsInvalid) {
   }
 }
 #endif
-
-TEST_F(RoutingPluginTests, StartWithBindAddressInDestinations) {
-  bind_address = "127.0.0.1:3306";
-  destinations = "127.0.0.1";  // default port is 3306
-#ifndef _WIN32
-  reset_config();
-#else
-  reset_config({"socket"});
-#endif
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("Bind Address can not be part of destinations"));
-}
-
-TEST_F(RoutingPluginTests, StartConnectTimeoutSetNegative) {
-  connect_timeout = "-1";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("connect_timeout in [routing:tests] needs value "
-                        "between 1 and 65535 inclusive, was '-1'"));
-}
-
-TEST_F(RoutingPluginTests, StartClientConnectTimeoutSetIncorrectly) {
-  {
-    client_connect_timeout = "1";
-    reset_config();
-    auto cmd_result = cmd_exec(cmd, true);
-    ASSERT_THAT(
-        cmd_result.output,
-        HasSubstr("option client_connect_timeout in [routing:tests] needs "
-                  "value between 2 and 31536000 inclusive, was '1'"));
-  }
-
-  {
-    client_connect_timeout = "31536001";  // 31536000 is maximum
-    reset_config();
-    auto cmd_result = cmd_exec(cmd, true);
-    ASSERT_THAT(
-        cmd_result.output,
-        HasSubstr("option client_connect_timeout in [routing:tests] needs "
-                  "value between 2 and 31536000 inclusive, was '31536001'"));
-  }
-}
-
-TEST_F(RoutingPluginTests, StartMaxConnectErrorsSetIncorrectly) {
-  {
-    max_connect_errors = "0";
-    reset_config();
-    auto cmd_result = cmd_exec(cmd, true);
-    ASSERT_THAT(cmd_result.output,
-                HasSubstr("option max_connect_errors in [routing:tests] needs "
-                          "value between 1 and 4294967295 inclusive, was '0'"));
-  }
-}
-
-TEST_F(RoutingPluginTests, StartTimeoutsSetToZero) {
-  connect_timeout = "0";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("option connect_timeout in [routing:tests] needs value "
-                        "between 1 and 65535 inclusive, was '0'"));
-}
-
-TEST_F(RoutingPluginTests, EmptyProtocolName) {
-  protocol = "";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(cmd_result.output,
-              HasSubstr("Configuration error: Invalid protocol name: ''"));
-}
-
-TEST_F(RoutingPluginTests, InvalidProtocolName) {
-  protocol = "invalid";
-  reset_config();
-  auto cmd_result = cmd_exec(cmd, true);
-  ASSERT_THAT(
-      cmd_result.output,
-      HasSubstr("Configuration error: Invalid protocol name: 'invalid'"));
-}
 
 int main(int argc, char *argv[]) {
   init_test_logger();
