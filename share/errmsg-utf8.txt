@@ -19137,6 +19137,98 @@ ER_NET_WAIT_ERROR
 ER_IB_MSG_1285
   eng "'%s' found not encrypted while '%s' is ON. Trying to encrypt it now."
 
+ER_IB_MSG_CLOCK_MONOTONIC_UNSUPPORTED
+  eng "CLOCK_MONOTONIC is unsupported, so do not change the system time when MySQL is running !"
+
+ER_IB_MSG_CLOCK_GETTIME_FAILED
+  eng "clock_gettime() failed: %s"
+
+ER_PLUGIN_NOT_EARLY_DUP
+  eng "Plugin '%s' is not to be used as an "early" plugin. Don't add it to --early-plugin-load, keyring migration etc."
+  bgn "Приставката '%s' не може да се използва като ранна приставка. Не я добавайте в --early-plugin-load и т.н."
+
+ER_PLUGIN_NO_INSTALL_DUP
+  eng "Plugin '%s' is marked as not dynamically installable. You have to stop the server to install it."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_SQL_CALC_FOUND_ROWS
+  eng "SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead."
+
+# When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
+# code.
+ER_WARN_DEPRECATED_FOUND_ROWS
+  eng "FOUND_ROWS() is deprecated and will be removed in a future release. Consider using COUNT(*) instead."
+
+ER_BINLOG_UNSAFE_DEFAULT_EXPRESSION_IN_SUBSTATEMENT
+  eng "The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave."
+
+ER_GRP_RPL_MEMBER_VER_READ_COMPATIBLE
+  eng "Member version is read compatible with the group."
+
+ER_LOCK_ORDER_INIT_FAILED
+  eng "Lock order disabled (reason: init failed)."
+
+ER_AUDIT_LOG_KEYRING_ID_TIMESTAMP_VALUE_IS_INVALID
+  eng "Keyring ID timestamp value is invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_TIMESTAMP_VALUE_IS_MISSING_OR_INVALID
+  eng "Cannot process audit log file. File name timestamp value is missing or invalid: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_DOES_NOT_HAVE_REQUIRED_FORMAT
+  eng "Cannot process audit log file. File name does not have required format: '%s'"
+
+ER_AUDIT_LOG_FILE_NAME_KEYRING_ID_VALUE_IS_MISSING
+  eng "Cannot process audit log file. File name keyring ID value is missing: '%s'"
+
+ER_AUDIT_LOG_FILE_HAS_BEEN_SUCCESSFULLY_PROCESSED
+  eng "Audit log file has been successfully processed: '%s'"
+
+ER_AUDIT_LOG_COULD_NOT_OPEN_FILE_FOR_READING
+  eng "Could not open audit log file for reading: '%s'"
+
+ER_AUDIT_LOG_INVALID_FILE_CONTENT
+  eng "Invalid audit log file content: '%s'"
+
+ER_AUDIT_LOG_CANNOT_READ_PASSWORD
+  eng "Cannot read password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_STORE_PASSWORD
+  eng "Cannot store password: '%.32s'"
+
+ER_AUDIT_LOG_CANNOT_REMOVE_PASSWORD
+  eng "Cannot remove password: '%.32s'"
+
+ER_AUDIT_LOG_PASSWORD_HAS_BEEN_COPIED
+  eng "'audit_log' password has been copied into '%.32s' and will be removed with first purged password."
+
+ER_AUDIT_LOG_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%.64s'@'%.64s'. Role needed to perform operation: '%.32s'"
+
+ER_WRONG_MVI_VALUE
+  eng "Can't store an array or an object in a scalar key part of the index '%.192s'"
+
+ER_WARN_FUNC_INDEX_NOT_APPLICABLE
+  eng "Cannot use functional index '%-.64s' due to type or collation conversion"
+
+ER_EXCEEDED_MV_KEYS_NUM
+  eng "Exceeded max number of values per record for multi-valued index '%-.64s' by %u value(s)"
+
+ER_EXCEEDED_MV_KEYS_SPACE
+  eng "Exceeded max total length of values per record for multi-valued index '%-.64s' by %u bytes"
+
+ER_FUNCTIONAL_INDEX_DATA_IS_TOO_LONG 22001
+  eng "Data too long for functional index '%-.64s'"
+
+ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
+  eng "Invalid JSON value for CAST for functional index '%-.64s'"
+
+ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
+  eng "Out of range JSON value for CAST for functional index '%-.64s'"
+
+ER_LDAP_EMPTY_USERDN_PASSWORD
+  eng "Empty user dn or password is not allowed, not attempting LDAP bind."
+
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
