@@ -1897,7 +1897,7 @@ bool QUICK_INDEX_MERGE_SELECT::push_quick_back(
 QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   List_iterator_fast<QUICK_RANGE_SELECT> quick_it(quick_selects);
   QUICK_RANGE_SELECT *quick;
-  DBUG_TRACE;
+  DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT");
   bool disable_unique_filter = false;
   destroy(unique);
   quick_it.rewind();
@@ -1916,6 +1916,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   read_record.iterator.reset();
   free_io_cache(head);
   free_root(&alloc, MYF(0));
+  DBUG_VOID_RETURN;
 }
 
 QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
