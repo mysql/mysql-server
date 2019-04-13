@@ -241,7 +241,7 @@ static bool can_convert_field_to(Field *field, enum_field_types source_type,
                        metadata));
 #endif
   // Can't convert from scalar to array and vice versa
-  if (is_array != field->is_array()) return false;
+  if (is_array != field->is_array()) DBUG_RETURN(false);
 
   /*
     If the real type is the same, we need to check the metadata to
