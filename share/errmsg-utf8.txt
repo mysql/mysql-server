@@ -19290,6 +19290,9 @@ ER_INVALID_JSON_VALUE_FOR_FUNC_INDEX 22018
 
 ER_JSON_VALUE_OUT_OF_RANGE_FOR_FUNC_INDEX 22003
   eng "Out of range JSON value for CAST for functional index '%-.64s'"
+
+ER_LDAP_EMPTY_USERDN_PASSWORD
+  eng "Empty user dn or password is not allowed, not attempting LDAP bind."
 #
 # End of 8.0 error messages intended to be logged to the server error log.
 #
