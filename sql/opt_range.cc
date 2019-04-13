@@ -1916,7 +1916,6 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   read_record.iterator.reset();
   free_io_cache(head);
   free_root(&alloc, MYF(0));
-  DBUG_VOID_RETURN;
 }
 
 QUICK_ROR_INTERSECT_SELECT::QUICK_ROR_INTERSECT_SELECT(THD *thd_param,
