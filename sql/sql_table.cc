@@ -2523,16 +2523,22 @@ static bool secondary_engine_load_table(THD *thd, const TABLE &table) {
  * prior to calling this function to ensure that queries already offloaded to
  * the secondary engine finished execution before unloading the table.
  *
- * @param thd        Thread handler.
- * @param db_name    Database name.
- * @param table_name Table name.
- * @param table_def  Table definition.
+ * @param thd          Thread handler.
+ * @param db_name      Database name.
+ * @param table_name   Table name.
+ * @param table_def    Table definition.
+ * @param error_if_not_loaded If true and the table is not loaded in the
+ *                            secondary engine, this function will return an
+ *                            error. If false, this function will not return an
+ *                            error if the table is not loaded in the secondary
+ *                            engine.
  *
  * @return True if error, false otherwise.
  */
 static bool secondary_engine_unload_table(THD *thd, const char *db_name,
                                           const char *table_name,
-                                          const dd::Table &table_def) {
+                                          const dd::Table &table_def,
+                                          bool error_if_not_loaded) {
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, db_name, table_name, MDL_EXCLUSIVE));
 
@@ -2541,7 +2547,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   if (!table_def.options().exists("secondary_engine") ||
       table_def.options().get("secondary_engine", &secondary_engine,
                               thd->mem_root))
-    return false;
+    return error_if_not_loaded;
 
   // Get handlerton of secondary engine. It may happen that no handlerton is
   // found either if the defined secondary engine is invalid (if so, the table
@@ -2549,9 +2555,18 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   // after tables were loaded into it (in which case the tables have already
   // been unloaded).
   plugin_ref plugin = ha_resolve_by_name(thd, &secondary_engine, false);
-  if (plugin == nullptr) return false;
+  if (plugin == nullptr) {
+    if (error_if_not_loaded)
+      my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), secondary_engine);
+    return error_if_not_loaded;
+  }
   handlerton *hton = plugin_data<handlerton *>(plugin);
-  if (hton == nullptr) return false;
+  if (hton == nullptr) {
+    if (error_if_not_loaded)
+      my_error(ER_SECONDARY_ENGINE, MYF(0),
+               "Table is not loaded on a secondary engine");
+    return error_if_not_loaded;
+  }
 
   // The defined secondary engine is a valid storage engine. However, if the
   // engine is not a valid secondary engine, no tables have been loaded and
@@ -2565,7 +2580,7 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   if (handler == nullptr) return true;
 
   // Unload table from secondary engine.
-  return handler->ha_unload_table(db_name, table_name) > 0;
+  return handler->ha_unload_table(db_name, table_name, error_if_not_loaded) > 0;
 }
 
 /**
@@ -2628,7 +2643,7 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
 
   // Drop table from secondary engine.
   if (secondary_engine_unload_table(thd, table->db, table->table_name,
-                                    *table_def))
+                                    *table_def, false))
     return true; /* purecov: inspected */
 
   handlerton *hton;
@@ -10693,9 +10708,10 @@ bool Sql_cmd_secondary_load_unload::mysql_secondary_load_or_unload(
 
   // Initiate loading into or unloading from secondary engine.
   const bool error =
-      is_load ? secondary_engine_load_table(thd, *table_list->table)
-              : secondary_engine_unload_table(
-                    thd, table_list->db, table_list->table_name, *table_def);
+      is_load
+          ? secondary_engine_load_table(thd, *table_list->table)
+          : secondary_engine_unload_table(
+                thd, table_list->db, table_list->table_name, *table_def, true);
   if (error) return true;
 
   // Close primary table.
@@ -12276,7 +12292,7 @@ static bool remove_secondary_engine(THD *thd, const TABLE_LIST &table,
     return true;
 
   return secondary_engine_unload_table(thd, table.db, table.table_name,
-                                       *old_table_def);
+                                       *old_table_def, false);
 }
 
 /**

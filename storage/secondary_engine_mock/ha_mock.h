@@ -93,7 +93,8 @@ class ha_mock : public handler {
 
   int load_table(const TABLE &table) override;
 
-  int unload_table(const char *db_name, const char *table_name) override;
+  int unload_table(const char *db_name, const char *table_name,
+                   bool error_if_not_loaded) override;
 
   THR_LOCK_DATA m_lock;
 };
