@@ -2706,11 +2706,20 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
       ut_ad(templ->is_virtual || !(field->prefix_len % templ->mbmaxlen));
 
-      if (templ->mbminlen == 1 && templ->mbmaxlen != 1) {
-        /* Pad with spaces. This undoes the stripping
-        done in row0mysql.cc, function
-        row_mysql_store_col_in_innobase_format(). */
-
+      /* Pad with spaces. This undoes the stripping
+      done in row0mysql.cc, function
+      row_mysql_store_col_in_innobase_format(). */
+      if ((templ->mbminlen == 1 && templ->mbmaxlen != 1) ||
+          (templ->is_virtual && templ->mysql_col_len > len)) {
+        /* NOTE: This comment is for the second condition:
+        This probably comes from a prefix virtual index, where no complete
+        value can be got because the full virtual column can only be
+        calculated in server layer for now. Since server now assumes the
+        returned value should always have padding spaces, thus the fixup.
+        However, a proper and more efficient solution is that server does
+        not depend on the trailing spaces to check the terminal of the CHAR
+        string, because at least in this case,server should know it's a prefix
+        index search and no complete value would be got. */
         memset(dest + len, 0x20, mysql_col_len - len);
       }
       break;
