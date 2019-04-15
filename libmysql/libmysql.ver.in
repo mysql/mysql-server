@@ -22,12 +22,4 @@
 
 
 libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
-{ global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; local: *; };
-
-# Adding new symbols need a bump in minor version number and setting that number
-# to the newly introduced symbols. However non blocking C API functions have
-# already been shipped in version 21.0 without increasing the minor version,
-# thus setting the minor version as 0 for non blocking C API functions and for
-# the rest setting to 1.
-libmysqlclient_@SHARED_LIB_MAJOR_VERSION@.0
-{ global: ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };
+{ global: ${CLIENT_API_FUNCTIONS};${CLIENT_API_FUNCTIONS_UNDOCUMENTED}; ${CLIENT_API_NONBLOCKING_FUNCTIONS}; local: *; };
