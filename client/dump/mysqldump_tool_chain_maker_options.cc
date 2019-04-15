@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -178,6 +178,9 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       We filter out all the tables which store account and privilge
       information. ex: mysql.user, mysql.db, mysql.tables_priv,
       mysql.columns_priv, mysql.procs_priv, mysql.proxies_priv
+      mysql.default_roles, mysql.global_grants, mysql_role_edges.
+      We do not filter password_history since the password history
+      will be lost this way.
     */
     m_object_filter.m_tables_excluded.push_back(
         std::make_pair("mysql", "user"));
@@ -190,6 +193,12 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
         std::make_pair("mysql", "procs_priv"));
     m_object_filter.m_tables_excluded.push_back(
         std::make_pair("mysql", "proxies_priv"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "default_roles"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "global_grants"));
+    m_object_filter.m_tables_excluded.push_back(
+        std::make_pair("mysql", "role_edges"));
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
       m_object_filter.m_databases_included.size() == 0) {
