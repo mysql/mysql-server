@@ -652,6 +652,90 @@ INSERT INTO global_grants SELECT user, host, 'APPLICATION_PASSWORD_ADMIN', IF(gr
 FROM mysql.user WHERE Create_user_priv = 'Y' AND @hadApplicationPasswordAdminPriv = 0;
 COMMIT;
 
+-- Add the privilege BINLOG_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige BINLOG_ADMIN.
+SET @hadBinLogAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BINLOG_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadBinLogAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege BINLOG_ENCRYPTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige BINLOG_ENCRYPTION_ADMIN.
+SET @hadBinLogEncryptionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BINLOG_ENCRYPTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'BINLOG_ENCRYPTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadBinLogEncryptionAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege CONNECTION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige CONNECTION_ADMIN.
+SET @hadConnectionAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'CONNECTION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'CONNECTION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadConnectionAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege ENCRYPTION_KEY_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige ENCRYPTION_KEY_ADMIN.
+SET @hadEncryptionKeyAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'ENCRYPTION_KEY_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'ENCRYPTION_KEY_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadEncryptionKeyAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege GROUP_REPLICATION_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige GROUP_REPLICATION_ADMIN.
+SET @hadGroupReplicationAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'GROUP_REPLICATION_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'GROUP_REPLICATION_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadGroupReplicationAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege PERSIST_RO_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige PERSIST_RO_VARIABLES_ADMIN.
+SET @hadPersistRoVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'PERSIST_RO_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'PERSIST_RO_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadPersistRoVariablesAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege REPLICATION_SLAVE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige REPLICATION_SLAVE_ADMIN.
+SET @hadReplicationSlaveAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'REPLICATION_SLAVE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'REPLICATION_SLAVE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadReplicationSlaveAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege RESOURCE_GROUP_USER for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige RESOURCE_GROUP_USER.
+SET @hadResourceGroupUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_USER');
+INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_USER', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupUserPriv = 0;
+COMMIT;
+
+-- Add the privilege ROLE_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige ROLE_ADMIN.
+SET @hadRoleAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'ROLE_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'ROLE_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadRoleAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege SESSION_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SESSION_VARIABLES_ADMIN.
+SET @hadSessionVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SESSION_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SESSION_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSessionVariablesAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege SET_USER_ID for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SET_USER_ID.
+SET @hadSetUserIdPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SET_USER_ID');
+INSERT INTO global_grants SELECT user, host, 'SET_USER_ID', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSetUserIdPriv = 0;
+COMMIT;
+
+-- Add the privilege SYSTEM_VARIABLES_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilige SYSTEM_VARIABLES_ADMIN.
+SET @hadSystemVariablesAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_VARIABLES_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'SYSTEM_VARIABLES_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
+FROM mysql.user WHERE super_priv = 'Y' AND @hadSystemVariablesAdminPriv = 0;
+COMMIT;
+
 -- Add the privilege SYSTEM_USER for every user who has privilege SET_USER_ID privilege
 SET @hadSystemUserPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'SYSTEM_USER');
 INSERT INTO global_grants SELECT user, host, 'SYSTEM_USER',
