@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -318,14 +318,16 @@ MACRO(EXTRACT_LINK_LIBRARIES target var)
       # Filter out "general", it is not a library, just CMake hint
       IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
         IF (lib MATCHES "^\\-l")
-          SET(${var} "${${var}} ${lib} ") 
+          SET(${var} "${${var}} ${lib} ")
+        ELSEIF (lib MATCHES "^\\-L")
+          SET(${var} "${${var}} ${lib} ")
         ELSEIF(lib MATCHES "^/")
           # Full path, convert to just filename, strip "lib" prefix and extension
           GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
           STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-          SET(${var} "${${var}}-l${lib} " ) 
+          SET(${var} "${${var}}-l${lib} " )
         ELSE()
-          SET(${var} "${${var}}-l${lib} " ) 
+          SET(${var} "${${var}}-l${lib} " )
         ENDIF()
       ENDIF()
     ENDFOREACH()
