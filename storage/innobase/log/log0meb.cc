@@ -514,10 +514,9 @@ void redo_log_archive_init() {
     failed = true;
   }
   mutex_exit(&redo_log_archive_admin_mutex);
+  redo_log_archive_initialized = true;
   if (failed) {
     redo_log_archive_deinit();
-  } else {
-    redo_log_archive_initialized = true;
   }
   DBUG_VOID_RETURN;
 }
@@ -577,27 +576,29 @@ static bool drop_remnants(bool force) {
 */
 void redo_log_archive_deinit() {
   DBUG_ENTER("redo_log_archive_deinit");
-  redo_log_archive_initialized = false;
-  /* Do not acquire the logwriter mutex at this late stage. */
-  redo_log_archive_produce_blocks = false;
-  /* Unregister the UDFs. */
-  unregister_udfs();
-  mutex_enter(&redo_log_archive_admin_mutex);
-  if (redo_log_archive_active) {
-    /* purecov: begin inspected */ /* Only needed at shutdown. */
-    terminate_consumer(/*rapid*/ true);
-    /* purecov: end */
+  if (redo_log_archive_initialized) {
+    redo_log_archive_initialized = false;
+    /* Do not acquire the logwriter mutex at this late stage. */
+    redo_log_archive_produce_blocks = false;
+    /* Unregister the UDFs. */
+    unregister_udfs();
+    mutex_enter(&redo_log_archive_admin_mutex);
+    if (redo_log_archive_active) {
+      /* purecov: begin inspected */ /* Only needed at shutdown. */
+      terminate_consumer(/*rapid*/ true);
+      /* purecov: end */
+    }
+    drop_remnants(/*force*/ true);
+    redo_log_archive_file_pathname.clear();
+    redo_log_archive_recorded_error.clear();
+    redo_log_archive_session_ending = false;
+    redo_log_archive_thd = nullptr;
+    redo_log_archive_session = nullptr;
+    redo_log_archive_active = false;
+    redo_log_archive_queue.drop();
+    mutex_exit(&redo_log_archive_admin_mutex);
+    mutex_free(&redo_log_archive_admin_mutex);
   }
-  drop_remnants(/*force*/ true);
-  redo_log_archive_file_pathname.clear();
-  redo_log_archive_recorded_error.clear();
-  redo_log_archive_session_ending = false;
-  redo_log_archive_thd = nullptr;
-  redo_log_archive_session = nullptr;
-  redo_log_archive_active = false;
-  redo_log_archive_queue.drop();
-  mutex_exit(&redo_log_archive_admin_mutex);
-  mutex_free(&redo_log_archive_admin_mutex);
   DBUG_VOID_RETURN;
 }
 
