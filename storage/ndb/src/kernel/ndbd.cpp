@@ -34,6 +34,7 @@
 #include "vm/ThreadConfig.hpp"
 #include "vm/Configuration.hpp"
 
+#include "ndb_stacktrace.h"
 #include "ndbd.hpp"
 
 #include <TransporterRegistry.hpp>
@@ -700,6 +701,7 @@ extern "C"
 void
 handler_shutdown(int signum){
   g_eventLogger->info("Received signal %d. Performing stop.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
@@ -732,6 +734,7 @@ handler_error(int signum){
   handling_error = true;
 
   g_eventLogger->info("Received signal %d. Running error handler.", signum);
+  ndb_print_stacktrace();
   childReportSignal(signum);
   // restart the system
   char errorData[64], *info= 0;
@@ -957,6 +960,8 @@ ndbd_run(bool foreground, int report_fd,
     }
   }
 #endif
+
+  ndb_init_stacktrace();
 
   if (foreground)
     g_eventLogger->info("Ndb started in foreground");

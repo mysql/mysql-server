@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 #include "EventLogger.hpp"
 extern EventLogger * g_eventLogger;
 
+#include "ndb_stacktrace.h"
 #include "TimeModule.hpp"
 
 #include <NdbAutoPtr.hpp>
@@ -263,6 +264,8 @@ ErrorReporter::handleError(int messageID,
 			   const char* objRef,
 			   NdbShutdownType nst)
 {
+  ndb_print_stacktrace();
+
   if(messageID == NDBD_EXIT_ERROR_INSERT)
   {
     nst = NST_ErrorInsert;

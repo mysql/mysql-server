@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,8 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbMem.cpp NdbConfig.cpp NdbTick.cpp NdbDir.cpp
             ndb_daemon.cpp ${EXTRA_SRC}
             NdbNuma.cpp NdbMutex_DeadlockDetector.cpp
-            NdbGetRUsage.cpp NdbLockCpuUtil.cpp)
+            NdbGetRUsage.cpp NdbLockCpuUtil.cpp
+            ndb_stacktrace.cpp)
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${LIBSOCKET})
 
 NDB_ADD_TEST(NdbDir-t NdbDir.cpp
