@@ -279,7 +279,8 @@ ngs::Error_code Admin_command_handler::kill_client(
 
   uint64_t cid = 0;
 
-  ngs::Error_code error = args->uint_arg({"id"}, &cid).end();
+  ngs::Error_code error =
+      args->uint_arg({"id"}, &cid, Argument_appearance::k_obligatory).end();
   if (error) return error;
 
   {
@@ -328,9 +329,10 @@ ngs::Error_code Admin_command_handler::create_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error = args->string_arg({"schema"}, &schema)
-                              .string_arg({"name"}, &collection)
-                              .end();
+  ngs::Error_code error =
+      args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
+          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
+          .end();
   if (error) return error;
 
   if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
@@ -358,9 +360,10 @@ ngs::Error_code Admin_command_handler::drop_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error = args->string_arg({"schema"}, &schema)
-                              .string_arg({"name"}, &collection)
-                              .end();
+  ngs::Error_code error =
+      args->string_arg({"schema"}, &schema, Argument_appearance::k_obligatory)
+          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
+          .end();
   if (error) return error;
 
   if (schema.empty()) return ngs::Error_code(ER_X_BAD_SCHEMA, "Invalid schema");
@@ -388,15 +391,18 @@ ngs::Error_code Admin_command_handler::drop_collection(
  * - collection: string - name of indexed collection
  * - schema: string - name of collection's schema
  * - unique: bool - whether the index should be a unique index
- * - type: string, optional - name of index's type {"INDEX"|"SPATIAL"}
+ * - type: string, optional - name of index's type
+ *   {"INDEX"|"SPATIAL"|"FULLTEXT"}
  * - fields|constraint: object, list - detailed information for the generated
  *   column
  *   - field|member: string - path to document member for which the index
  *     will be created
- *   - required: bool - whether the generated column will be created as NOT NULL
- *   - type: string - data type of the generated column
+ *   - required: bool, optional - whether the generated column will be created
+ *     as NOT NULL
+ *   - type: string, optional - data type of the indexed values
  *   - options: int, optional - parameter for generation spatial column
  *   - srid: int, optional - parameter for generation spatial column
+ *   - array: bool, optional - indexed field is an array of scalars
  *
  * VARCHAR and CHAR are now indexable because:
  * - varchar column needs to be created with a length, which would limit
@@ -458,8 +464,9 @@ ngs::Error_code Admin_command_handler::enable_notices(
       &ngs::Common_status_variables::m_stmt_enable_notices);
 
   std::vector<std::string> notice_names_to_enable;
-  ngs::Error_code error =
-      args->string_list({"notice"}, &notice_names_to_enable).end();
+  ngs::Error_code error = args->string_list({"notice"}, &notice_names_to_enable,
+                                            Argument_appearance::k_obligatory)
+                              .end();
 
   if (error) return error;
 
@@ -493,7 +500,9 @@ ngs::Error_code Admin_command_handler::disable_notices(
 
   std::vector<std::string> notice_names_to_disable;
   ngs::Error_code error =
-      args->string_list({"notice"}, &notice_names_to_disable).end();
+      args->string_list({"notice"}, &notice_names_to_disable,
+                        Argument_appearance::k_obligatory)
+          .end();
 
   if (error) return error;
 
@@ -632,9 +641,10 @@ ngs::Error_code Admin_command_handler::list_objects(
           : "";
 
   std::string schema, pattern;
-  ngs::Error_code error = args->string_arg({"schema"}, &schema, true)
-                              .string_arg({"pattern"}, &pattern, true)
-                              .end();
+  ngs::Error_code error =
+      args->string_arg({"schema"}, &schema, Argument_appearance::k_optional)
+          .string_arg({"pattern"}, &pattern, Argument_appearance::k_optional)
+          .end();
   if (error) return error;
 
   if (!is_table_names_case_sensitive) schema = details::to_lower(schema);
@@ -739,9 +749,10 @@ ngs::Error_code Admin_command_handler::ensure_collection(
   std::string schema;
   std::string collection;
 
-  ngs::Error_code error = args->string_arg({"schema"}, &schema, true)
-                              .string_arg({"name"}, &collection)
-                              .end();
+  ngs::Error_code error =
+      args->string_arg({"schema"}, &schema, Argument_appearance::k_optional)
+          .string_arg({"name"}, &collection, Argument_appearance::k_obligatory)
+          .end();
   if (error) return error;
 
   if (collection.empty())

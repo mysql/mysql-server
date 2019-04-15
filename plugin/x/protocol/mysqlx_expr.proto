@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -194,6 +194,8 @@ message FunctionCall {
 //     * ``cast``
 //     * ``cont_in``
 //     * ``not_cont_in``
+//     * ``overlaps``
+//     * ``not_overlaps``
 //
 //   Using special representation, with more than 2 params
 //     * ``in`` (param[0] IN (param[1], param[2], ...))

@@ -293,17 +293,12 @@ const char *const native_mysql_functions[] = {
 
 // keep in ASC order
 const char *const mysql_functions_that_operate_on_json[] = {
-    "JSON_CONTAINS",
-    "JSON_CONTAINS_PATH",
-    "JSON_DEPTH",
-    "JSON_LENGTH",
-    "JSON_PRETTY",
-    "JSON_SCHEMA_VALID",
-    "JSON_SCHEMA_VALIDATION_REPORT",
-    "JSON_STORAGE_FREE",
-    "JSON_STORAGE_SIZE",
-    "JSON_TYPE",
-    "JSON_UNQUOTE",
+    "JSON_CONTAINS",     "JSON_CONTAINS_PATH",
+    "JSON_DEPTH",        "JSON_LENGTH",
+    "JSON_OVERLAPS",     "JSON_PRETTY",
+    "JSON_SCHEMA_VALID", "JSON_SCHEMA_VALIDATION_REPORT",
+    "JSON_STORAGE_FREE", "JSON_STORAGE_SIZE",
+    "JSON_TYPE",         "JSON_UNQUOTE",
     "JSON_VALID",
 };
 

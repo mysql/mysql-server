@@ -458,14 +458,14 @@ void Expression_generator::generate_json_literal_param(
   }
 }
 
-void Expression_generator::generate_cont_in_param(
-    const Mysqlx::Expr::Expr &arg) const {
+void Expression_generator::generate_json_only_param(
+    const Mysqlx::Expr::Expr &arg, const std::string &expr_name) const {
   switch (arg.type()) {
     case Mysqlx::Expr::Expr::IDENT:
       if (arg.identifier().document_path_size() < 1)
-        throw Error(ER_X_EXPR_BAD_VALUE,
-                    "CONT_IN expression requires identifier"
-                    " that produce a JSON value.");
+        throw Error(ER_X_EXPR_BAD_VALUE, expr_name +
+                                             " expression requires identifier"
+                                             " that produce a JSON value.");
       generate(arg);
       break;
 
@@ -475,17 +475,17 @@ void Expression_generator::generate_cont_in_param(
 
     case Mysqlx::Expr::Expr::FUNC_CALL:
       if (!is_json_function_call(arg.function_call()))
-        throw Error(ER_X_EXPR_BAD_VALUE,
-                    "CONT_IN expression requires function"
-                    " that produce a JSON value.");
+        throw Error(ER_X_EXPR_BAD_VALUE, expr_name +
+                                             " expression requires function"
+                                             " that produce a JSON value.");
       generate(arg);
       break;
 
     case Mysqlx::Expr::Expr::OPERATOR:
       if (!is_cast_to_json(arg.operator_()))
-        throw Error(ER_X_EXPR_BAD_VALUE,
-                    "CONT_IN expression requires operator"
-                    " that produce a JSON value.");
+        throw Error(ER_X_EXPR_BAD_VALUE, expr_name +
+                                             " expression requires operator"
+                                             " that produce a JSON value.");
       generate(arg);
       break;
 
@@ -514,9 +514,9 @@ void Expression_generator::cont_in_expression(const Mysqlx::Expr::Operator &arg,
                 "CONT_IN expression requires two parameters.");
 
   m_qb->put(str).put("JSON_CONTAINS(");
-  generate_cont_in_param(arg.param(1));
+  generate_json_only_param(arg.param(1), "CONT_IN");
   m_qb->put(",");
-  generate_cont_in_param(arg.param(0));
+  generate_json_only_param(arg.param(0), "CONT_IN");
   m_qb->put(")");
 }
 
@@ -597,14 +597,12 @@ struct Cast_type_validator {
       : m_error_msg(error_msg) {}
 
   bool operator()(const char *str) const {
-    static const Regex re(
-        "^("
-        "BINARY(\\([[:digit:]]+\\))?|"
+    static const xpl::Regex re(
+        "BINARY(?:\\([[:digit:]]+\\))?|"
         "DATE|DATETIME|TIME|JSON|"
-        "CHAR(\\([[:digit:]]+\\))?|"
-        "DECIMAL(\\([[:digit:]]+(,[[:digit:]]+)?\\))?|"
-        "SIGNED( INTEGER)?|UNSIGNED( INTEGER)?"
-        "){1}$");
+        "CHAR(?:\\([[:digit:]]+\\))?|"
+        "DECIMAL(?:\\([[:digit:]]+(?:,[[:digit:]]+)?\\))?|"
+        "SIGNED(?: INTEGER)?|UNSIGNED(?: INTEGER)?");
     return re.match(str);
   }
 
@@ -735,8 +733,10 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const {
       {"not_cont_in", std::bind(&Gen::cont_in_expression, _1, _2, "NOT ")},
       {"not_in", std::bind(&Gen::in_expression, _1, _2, "NOT ")},
       {"not_like", std::bind(&Gen::like_expression, _1, _2, " NOT LIKE ")},
+      {"not_overlaps", std::bind(&Gen::overlaps_expression, _1, _2, "NOT ")},
       {"not_regexp",
        std::bind(&Gen::binary_expression, _1, _2, " NOT REGEXP ")},
+      {"overlaps", std::bind(&Gen::overlaps_expression, _1, _2, "")},
       {"regexp", std::bind(&Gen::binary_expression, _1, _2, " REGEXP ")},
       {"sign_minus", std::bind(&Gen::unary_operator, _1, _2, "-")},
       {"sign_plus", std::bind(&Gen::unary_operator, _1, _2, "+")},
@@ -790,6 +790,19 @@ void Expression_generator::nullary_operator(const Mysqlx::Expr::Operator &arg,
 Expression_generator Expression_generator::clone(
     Query_string_builder *qb) const {
   return Expression_generator(qb, m_args, m_default_schema, m_is_relational);
+}
+
+void Expression_generator::overlaps_expression(
+    const Mysqlx::Expr::Operator &arg, const char *str) const {
+  if (arg.param_size() != 2)
+    throw Error(ER_X_EXPR_BAD_NUM_ARGS,
+                "OVERLAPS expression requires two parameters.");
+
+  m_qb->put(str).put("JSON_OVERLAPS(");
+  generate_json_only_param(arg.param(0), "OVERLAPS");
+  m_qb->put(",");
+  generate_json_only_param(arg.param(1), "OVERLAPS");
+  m_qb->put(")");
 }
 
 }  // namespace xpl

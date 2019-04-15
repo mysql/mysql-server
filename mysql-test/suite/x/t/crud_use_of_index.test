@@ -1,0 +1,149 @@
+## verify of index usage
+
+## 1. Verify usage array index
+## 1.1 with "cont_in (JSON_CONTAINS)
+## 1.2 with "overlaps" (JSON_OVERLAPS)
+
+--source ../include/have_performance_schema_threads.inc
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/array_index.xpl
+-->import assert_select.macro
+-->quiet
+
+-->macro Insert  %COLL%  %VALUE%  %ERROR%
+Mysqlx.Crud.Insert {
+  collection {
+    name: "%COLL%"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: %VALUE%
+        }
+      }
+    }
+  }
+}
+-->expecterror %ERROR%
+-->recvresult
+-->endmacro
+
+-->macro Get_thread_id
+-->stmtsql SELECT thread_id FROM performance_schema.threads WHERE processlist_id=connection_id()
+-->recvtovar %THREAD_ID%
+-->endmacro
+
+
+-->macro Assert_index_use	%TID%
+callmacro Assert_select
+	Result
+	0
+	SELECT NO_INDEX_USED OR NO_GOOD_INDEX_USED as Result FROM performance_schema.events_statements_history WHERE THREAD_ID = %TID% ORDER BY event_id DESC LIMIT 1;
+-->endmacro
+
+
+
+
+-->callmacro Get_thread_id
+#select %THREAD_ID%;
+
+-->title =Create_collection
+-->stmtadmin create_collection	{"schema":"xtest", "name":"data"}
+-->recvresult
+
+-->title =Insert documents into collection 'data'
+-->callmacro Insert	data	'{"_id":"001"}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"002","integer":[9, 10]}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"003","integer":[11, 12]}'	ER_SUCCESS
+-->callmacro Insert	data	'{"_id":"004", "integer":[13, 14, 15, 16]}'	ER_SUCCESS
+
+-->title =Create index on collection 'data'
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"data", "name":"idx", "unique":false, "fields":{"field":"$.integer", "type":"SIGNED", "array":true}}
+-->recvresult
+
+-->echo ## 1. Verify usage array index
+-->echo ## 1.1 with "cont_in (JSON_CONTAINS)
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "data"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "cont_in"
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT v_signed_int: 11
+        }
+      }
+      param {
+        type: IDENT
+        identifier {
+          document_path{type:MEMBER value:"integer"}
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_index_use	%THREAD_ID%
+
+
+
+-->echo ## 1. Verify usage array index
+-->echo ## 1.2 with "overlaps" (JSON_OVERLAPS)
+
+Mysqlx.Crud.Find {
+  collection {
+    name: "data"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "overlaps"
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS v_octets {value:'[8,14,15]'content_type:2}
+        }
+      }
+      param {
+        type: IDENT
+        identifier {
+          document_path{type:MEMBER value:"integer"}
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->callmacro Assert_index_use	%THREAD_ID%
+
+EOF
+
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+--replace_regex /THREAD_ID = ([0-9]+)/THREAD_ID = XX/
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/array_index.xpl 2>&1
+
+## Cleanup
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/array_index.xpl
+--source include/xplugin_drop_user.inc

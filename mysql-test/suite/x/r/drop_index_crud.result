@@ -4972,11 +4972,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5017
-  msg: "Invalid or unsupported type specification \'CHAR(25)\'"
-  sql_state: "HY000"
+Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN ANALYZE TABLE xplugintest.table1
@@ -4986,25 +4982,27 @@ xplugintest.table1	analyze	status	OK
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
 table1	0	PRIMARY	1	_id	A	0	null	null		BTREE			YES	null
+table1	0	ix	1	$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70	A	0	null	null		BTREE			YES	null
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest.table1
 Table	Create Table
 table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
-  PRIMARY KEY (`_id`)
+  `$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` char(25) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
+  PRIMARY KEY (`_id`),
+  UNIQUE KEY `ix` (`$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"LONG LONG STRING, LONGER THAN INDEX SIZE","_id":1}')
-
-1 rows affected
+While executing INSERT INTO xplugintest.table1(doc) VALUES('{"col":"LONG LONG STRING, LONGER THAN INDEX SIZE","_id":1}'):
+Got expected error: Data too long for column '$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70' at row 1 (code 1406)
 RUN SELECT * FROM xplugintest.table1
-doc	_id
-{"_id": 1, "col": "LONG LONG STRING, LONGER THAN INDEX SIZE"}	1
+doc	_id	$ix_c25_r_193639E0029FB71DA5916BDF64B75D481FD4CF70
 0 rows affected
 RUN DELETE FROM xplugintest.table1
 
-1 rows affected
+0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
   args {
@@ -5037,11 +5035,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1091
-  msg: "Can\'t DROP \'ix\'; check that column/key exists"
-  sql_state: "42000"
+Mysqlx.Sql.StmtExecuteOk {
 }
 
 RUN SHOW INDEX FROM xplugintest.table1
