@@ -128,8 +128,22 @@ class AutoDebugTrace {
   _db_stack_frame_ m_stack_frame;
 };
 
+#ifdef __SUNPRO_CC
+// Disable debug tracing for Developer Studio, because we may get
+// a fatal error from ld when linking large executables.
+//   section .eh_frame%__gthread_trigger():
+//   unexpected negative integer encountered: offset 0x630
+#define DBUG_TRACE \
+  do {             \
+  } while (false)
+
+#else
+
 #define DBUG_TRACE \
   AutoDebugTrace _db_trace(DBUG_PRETTY_FUNCTION, __FILE__, __LINE__)
+
+#endif  // __SUNPRO_CC
+
 #endif
 
 #define DBUG_ENTER(a)                       \
