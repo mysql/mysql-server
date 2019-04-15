@@ -17,4 +17,43 @@
 --error 2
 --exec $MYSQL_PUMP --result-file=~/dump.sql
 
+
+--echo #
+--echo # Bug #29343073: MYSQLPUMP DUMPS GRANT TABLES THAT IT SHOULD NOT
+--echo #
+
+--exec $MYSQL_PUMP --skip-dump-rows mysql > $MYSQLTEST_VARDIR/tmp/bug29343073.sql
+
+--let $assert_text=Should not contain mysql.role_edges
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--let $assert_select=CREATE TABLE `mysql`.`role_edges`
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--let $assert_text=Should not contain mysql.global_grants
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--let $assert_select=CREATE TABLE `mysql`.`mysql_global_grants`
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--let $assert_text=Should not contain mysql.default_roles
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--let $assert_select=CREATE TABLE `mysql`.`default_roles`
+--let $assert_count=0
+--source include/assert_grep.inc
+
+--let $assert_text=Should contain mysql.password_history
+--let $assert_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--let $assert_select=CREATE TABLE `mysql`.`password_history`
+--let $assert_count=1
+--source include/assert_grep.inc
+
+--echo Test: dump of mysql database should not contain unexpected tables
+--let $grep_file=$MYSQLTEST_VARDIR/tmp/bug29343073.sql
+--let $grep_pattern=CREATE TABLE
+--source include/grep_pattern.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/bug29343073.sql
+
+
 --echo # End of 8.0 tests
