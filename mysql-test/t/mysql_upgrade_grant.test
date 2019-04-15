@@ -553,6 +553,65 @@ DROP USER u1;
 
 --echo # End of tests for WL#12138
 
+--echo #
+--echo # Bug #29043233: UPGRADE TO 8.0.X, ROOT USER IS NOT REVISED TO INCLUDE ALL DYNAMIC PRIVILEGES
+--echo #
+
+--let $privileges = BINLOG_ADMIN, BINLOG_ENCRYPTION_ADMIN, CONNECTION_ADMIN, ENCRYPTION_KEY_ADMIN, GROUP_REPLICATION_ADMIN, PERSIST_RO_VARIABLES_ADMIN, REPLICATION_SLAVE_ADMIN, RESOURCE_GROUP_USER, ROLE_ADMIN, SESSION_VARIABLES_ADMIN, SET_USER_ID, SYSTEM_VARIABLES_ADMIN
+--echo set @privileges = $privileges
+
+--echo # Show privileges for root@localhost before the @privileges be revoked
+SHOW GRANTS FOR root@localhost;
+
+CREATE USER u1;
+GRANT SUPER ON *.* TO u1;
+
+--echo # Revoke the @privileges in order to simulate
+--echo # the case when upgrade is run against a database that was created by
+--echo # mysql server without support for them.
+--eval REVOKE $privileges ON *.* FROM root@localhost;
+--eval REVOKE $privileges ON *.* FROM `mysql.session`@localhost;
+
+--echo # Show here that the users root@localhost and u1 have the privilege
+--echo # SUPER and don't have the @privileges
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # Show privileges granted to the users root@localhost and u1 after
+--echo # upgrade has been finished. It is expected that the users
+--echo # root@localhost and u1 have the @privileges granted
+--echo # since they had the privilege SUPER before upgrade
+--echo # and there wasn't any user with explicitly granted @privileges
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Upgrade against database where there is a user with granted @privileges
+
+--echo # Revoke the @privileges from the user u1 and mysql.session@localhost
+--eval REVOKE $privileges ON *.* FROM u1;
+--eval REVOKE $privileges ON *.* FROM `mysql.session`@localhost;
+
+--echo # Start upgrade
+
+--let $restart_parameters = restart:--upgrade=FORCE --log-error=$test_error_log
+--let $wait_counter= 10000
+--replace_result $test_error_log test_error_log
+--source include/restart_mysqld.inc
+
+--echo # It is expected that after upgrade be finished the @privileges won't be
+--echo # granted to the user u1 since there was another user (root@localhost)
+--echo # who had the @privileges at the time when upgrade was started
+SHOW GRANTS FOR root@localhost;
+SHOW GRANTS FOR u1;
+
+--echo # Cleaning up
+DROP USER u1;
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo End of tests
