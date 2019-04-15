@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -125,6 +125,15 @@ ENDIF()
 
 PROJECT(${MYSQL_PROJECT_NAME})
 
+# STRING(APPEND ...) from cmake VERSION 3.4
+MACRO(STRING_APPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${${STRING_VAR}}${INPUT}")
+ENDMACRO()
+
+MACRO(STRING_PREPEND STRING_VAR INPUT)
+  SET(${STRING_VAR} "${INPUT}${${STRING_VAR}}")
+ENDMACRO()
+
 SET(BUILD_IS_SINGLE_CONFIG TRUE)
 MESSAGE(STATUS "CMAKE_GENERATOR: ${CMAKE_GENERATOR}")
 IF(CMAKE_GENERATOR MATCHES "Visual Studio" OR CMAKE_GENERATOR STREQUAL "Xcode")
@@ -189,6 +198,10 @@ ENDIF()
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 MESSAGE(STATUS "SIZEOF_VOIDP ${SIZEOF_VOIDP}")
+# On some platforms, cmake may think that CMAKE_SIZEOF_VOID_P == 4
+# even if we have configured for 64bit build....
+SET(CMAKE_SIZEOF_VOID_P ${SIZEOF_VOIDP})
+
 IF(WITH_DEFAULT_COMPILER_OPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/build_configurations/compiler_options.cmake)
 ENDIF()
