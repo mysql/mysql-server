@@ -56,6 +56,7 @@ class THD;
 #endif
 #include "lf.h"
 #include "my_compiler.h"
+#include "my_hostname.h" /* HOSTNAME_LENGTH */
 #include "sql/mdl.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_con_slice.h"

@@ -73,9 +73,9 @@
 #include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 #include "sql/current_thd.h"                              // current_thd
 #include "sql/derror.h"                                   // ER_THD
-#include "sql/hostname.h"  // Host_errors, inc_host_errors
-#include "sql/log.h"       // query_logger
-#include "sql/mysqld.h"    // global_system_variables
+#include "sql/hostname_cache.h"  // Host_errors, inc_host_errors
+#include "sql/log.h"             // query_logger
+#include "sql/mysqld.h"          // global_system_variables
 #include "sql/protocol.h"
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"  // key_memory_MPVIO_EXT_auth_info

@@ -34,7 +34,9 @@
 #include "lex_string.h"
 #include "my_command.h"
 #include "my_dbug.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
+#include "mysql_com.h"  // USERNAME_LENGTH
 #include "template_utils.h"
 
 /* Forward Declarations */
@@ -1021,5 +1023,14 @@ class Auth_id {
   more substances are added to latter.
 */
 using Role_id = Auth_id;
+
+/**
+  Length of string buffer, that is enough to contain
+  username and hostname parts of the user identifier with trailing zero in
+  MySQL standard format:
+  user_name_part\@host_name_part\\0
+*/
+static constexpr int USER_HOST_BUFF_SIZE =
+    HOSTNAME_LENGTH + USERNAME_LENGTH + 2;
 
 #endif /* AUTH_COMMON_INCLUDED */

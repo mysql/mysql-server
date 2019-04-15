@@ -39,8 +39,8 @@
 #include "sql/current_thd.h"  // my_thread_set_THR_THD
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
-#include "sql/hostname.h"  // hostname_cache_refresh
-#include "sql/log.h"       // query_logger
+#include "sql/hostname_cache.h"  // hostname_cache_refresh
+#include "sql/log.h"             // query_logger
 #include "sql/mdl.h"
 #include "sql/mysqld.h"                 // select_errors
 #include "sql/opt_costconstantcache.h"  // reload_optimizer_cost_constants

@@ -71,10 +71,10 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
-#include "sql/hostname.h"    // Host_errors
-#include "sql/item_func.h"   // mqh_used
+#include "sql/debug_sync.h"      // DEBUG_SYNC
+#include "sql/derror.h"          // ER_THD
+#include "sql/hostname_cache.h"  // Host_errors
+#include "sql/item_func.h"       // mqh_used
 #include "sql/log.h"
 #include "sql/mysqld.h"  // LOCK_user_conn
 #include "sql/net_ns.h"  // set_network_namespace

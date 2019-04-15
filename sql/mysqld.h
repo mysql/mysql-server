@@ -36,6 +36,7 @@
 #include "my_command.h"
 #include "my_compiler.h"
 #include "my_getopt.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"

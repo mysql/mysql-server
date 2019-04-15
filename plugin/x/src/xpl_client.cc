@@ -42,7 +42,7 @@
 #include "plugin/x/src/mysql_variables.h"
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/src/xpl_session.h"
-#include "sql/hostname.h"
+#include "sql/hostname_cache.h"  // ip_to_hostname
 
 namespace xpl {
 

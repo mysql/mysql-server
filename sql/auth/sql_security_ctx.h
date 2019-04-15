@@ -30,7 +30,8 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_dbug.h"
-#include "mysql_com.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
+#include "mysql_com.h"    // USERNAME_LENGTH
 #include "sql/auth/auth_common.h"
 #include "sql/auth/partial_revokes.h"
 #include "sql/sql_const.h"

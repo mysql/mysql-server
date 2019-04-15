@@ -623,8 +623,8 @@ The documentation is based on the source files such as:
 #include "sql/event_data_objects.h"  // init_scheduler_psi_keys
 #include "sql/events.h"              // Events
 #include "sql/handler.h"
-#include "sql/hostname.h"  // hostname_cache_init
-#include "sql/init.h"      // unireg_init
+#include "sql/hostname_cache.h"  // hostname_cache_init
+#include "sql/init.h"            // unireg_init
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Arg_comparator
 #include "sql/item_create.h"

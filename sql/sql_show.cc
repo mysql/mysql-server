@@ -1832,12 +1832,6 @@ static const char *thread_state_info(THD *tmp) {
 }
 
 /**
-  Number of bytes required to hold "hostname:portnumber"
-*/
-static const int HOST_AND_PORT_LENGTH =
-    (HOSTNAME_LENGTH + 1 + PORTNUMBER_LENGTH + 1);
-
-/**
   This class implements callback function used by mysqld_list_processes() to
   list all the client process information.
 */

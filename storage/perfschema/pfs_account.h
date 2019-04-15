@@ -33,6 +33,7 @@
 #include <atomic>
 
 #include "lf.h"
+#include "my_hostname.h" /* HOSTNAME_LENGTH */
 #include "my_inttypes.h"
 #include "mysql_com.h" /* USERNAME_LENGTH */
 #include "storage/perfschema/pfs_con_slice.h"
