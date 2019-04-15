@@ -214,13 +214,14 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
     return -1;
   }
   /* Create the file world readable */
-  if ((file = mysql_file_create(key_select_to_file, path, 0666,
-                                O_WRONLY | O_EXCL, MYF(MY_WME))) < 0)
+  if ((file = mysql_file_create(key_select_to_file, path,
+                                S_IRUSR | S_IWUSR | S_IRGRP, O_WRONLY | O_EXCL,
+                                MYF(MY_WME))) < 0)
     return file;
 #ifdef HAVE_FCHMOD
-  (void)fchmod(file, 0666);  // Because of umask()
+  (void)fchmod(file, S_IRUSR | S_IWUSR | S_IRGRP);  // Because of umask()
 #else
-  (void)chmod(path, 0666);
+  (void)chmod(path, S_IRUSR | S_IWUSR | S_IRGRP);
 #endif
   if (init_io_cache(cache, file, 0L, WRITE_CACHE, 0L, 1, MYF(MY_WME))) {
     mysql_file_close(file, MYF(0));
