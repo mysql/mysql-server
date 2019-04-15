@@ -57,9 +57,7 @@ static bool check_backup_admin_privilege(THD *thd) {
 
 bool Sql_cmd_lock_instance::execute(THD *thd) {
   if (check_backup_admin_privilege(thd) ||
-      acquire_exclusive_backup_lock(
-          thd, DBUG_EVALUATE_IF("stop_slave_dont_release_backup_lock", 5,
-                                thd->variables.lock_wait_timeout)))
+      acquire_exclusive_backup_lock(thd, thd->variables.lock_wait_timeout))
     return true;
 
   my_ok(thd);

@@ -8906,9 +8906,6 @@ ER_DEPENDENT_BY_PARTITION_FUNC
 ER_WARN_DEPRECATED_FLOAT_AUTO_INCREMENT
   eng "AUTO_INCREMENT support for FLOAT/DOUBLE columns is deprecated and will be removed in a future release. Consider removing AUTO_INCREMENT from column '%-.192s'."
 
-ER_RPL_CANT_STOP_SLAVE_WHILE_LOCKED_BACKUP
-  eng "Cannot stop the slave SQL thread while the instance is locked for backup. Try running `UNLOCK INSTANCE` first."
-
 #
 #  End of 8.0 error messages.
 #
