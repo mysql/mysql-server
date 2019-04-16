@@ -29,7 +29,8 @@
 #include <boost/geometry/util/select_coordinate_type.hpp>
 
 #include <boost/geometry/strategies/cartesian/disjoint_segment_box.hpp>
-#include <boost/geometry/strategies/cartesian/envelope_segment.hpp>
+#include <boost/geometry/strategies/cartesian/envelope.hpp>
+#include <boost/geometry/strategies/cartesian/point_in_point.hpp>
 #include <boost/geometry/strategies/compare.hpp>
 #include <boost/geometry/strategies/side.hpp>
 
@@ -72,7 +73,7 @@ class side_by_triangle
     };
 
 public :
-    typedef strategy::envelope::cartesian_segment<CalculationType> envelope_strategy_type;
+    typedef strategy::envelope::cartesian<CalculationType> envelope_strategy_type;
 
     static inline envelope_strategy_type get_envelope_strategy()
     {
@@ -84,6 +85,12 @@ public :
     static inline disjoint_strategy_type get_disjoint_strategy()
     {
         return disjoint_strategy_type();
+    }
+
+    typedef strategy::within::cartesian_point_point equals_point_point_strategy_type;
+    static inline equals_point_point_strategy_type get_equals_point_point_strategy()
+    {
+        return equals_point_point_strategy_type();
     }
 
     // Template member function, because it is not always trivial
@@ -168,9 +175,9 @@ public :
             // For robustness purposes, first check if any two points are
             // the same; in this case simply return that the points are
             // collinear
-            if (geometry::detail::equals::equals_point_point(p1, p2)
-                || geometry::detail::equals::equals_point_point(p1, p)
-                || geometry::detail::equals::equals_point_point(p2, p))
+            if (equals_point_point(p1, p2)
+                || equals_point_point(p1, p)
+                || equals_point_point(p2, p))
             {
                 return PromotedType(0);
             }
@@ -276,6 +283,13 @@ public :
             : -1;
     }
 
+private:
+    template <typename P1, typename P2>
+    static inline bool equals_point_point(P1 const& p1, P2 const& p2)
+    {
+        typedef equals_point_point_strategy_type strategy_t;
+        return geometry::detail::equals::equals_point_point(p1, p2, strategy_t());
+    }
 };
 
 

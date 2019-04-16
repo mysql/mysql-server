@@ -2,8 +2,8 @@
 
 // Copyright (c) 2015 Barend Gehrels, Amsterdam, the Netherlands.
 
-// This file was modified by Oracle on 2015.
-// Modifications copyright (c) 2015, Oracle and/or its affiliates.
+// This file was modified by Oracle on 2015, 2019.
+// Modifications copyright (c) 2015-2019, Oracle and/or its affiliates.
 
 // Contributed and/or modified by Adam Wulkiewicz, on behalf of Oracle
 
@@ -120,6 +120,7 @@ struct multiplicable_integral
         return b < a;
     }
 
+#ifdef BOOST_GEOMETRY_SIDE_OF_INTERSECTION_DEBUG
     template <typename CmpVal>
     void check_value(CmpVal const& cmp_val) const
     {
@@ -127,6 +128,7 @@ struct multiplicable_integral
         CmpVal val = CmpVal(m_sign) * (CmpVal(m_ms) * CmpVal(b) + CmpVal(m_ls));
         BOOST_GEOMETRY_ASSERT(cmp_val == val);
     }
+#endif // BOOST_GEOMETRY_SIDE_OF_INTERSECTION_DEBUG
 };
 
 } // namespace detail

@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ static void merge_mbrs(const std::vector<Cartesian_box> &boxes,
 static void merge_mbrs(const std::vector<Geographic_box> &boxes,
                        Geographic_box *mbr) {
   if (!boxes.empty())
-    bg::detail::envelope::envelope_range_of_boxes::apply(boxes, *mbr, 0);
+    bg::detail::envelope::envelope_range_of_boxes::apply(boxes, *mbr);
 }
 
 /// Computes the envelope of a Cartesian geometry.
@@ -187,8 +187,8 @@ static void cartesian_envelope(const Geometry *g, Cartesian_box *mbr) {
 /// @param[out] mbr The envelope of g.
 static void geographic_envelope(const Geometry *g, double semi_major,
                                 double semi_minor, Geographic_box *mbr) {
-  bg::strategy::envelope::geographic_segment<bg::strategy::andoyer,
-                                             bg::srs::spheroid<double>>
+  bg::strategy::envelope::geographic<bg::strategy::andoyer,
+                                     bg::srs::spheroid<double>>
   strategy(bg::srs::spheroid<double>(semi_major, semi_minor));
   switch (g->type()) {
     case Geometry_type::kPoint:
@@ -207,8 +207,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
       for (auto geom : *down_cast<const Geographic_geometrycollection *>(g)) {
         switch (geom->type()) {
           case Geometry_type::kPoint:
-            bg::envelope(*down_cast<const Geographic_point *>(geom), geom_mbr,
-                         strategy);
+            bg::envelope(*down_cast<const Geographic_point *>(geom), geom_mbr);
             break;
           case Geometry_type::kLinestring:
             bg::envelope(*down_cast<const Geographic_linestring *>(geom),
@@ -248,8 +247,7 @@ static void geographic_envelope(const Geometry *g, double semi_major,
       break;
     }
     case Geometry_type::kMultipoint:
-      bg::envelope(*down_cast<const Geographic_multipoint *>(g), *mbr,
-                   strategy);
+      bg::envelope(*down_cast<const Geographic_multipoint *>(g), *mbr);
       break;
     case Geometry_type::kMultilinestring:
       bg::envelope(*down_cast<const Geographic_multilinestring *>(g), *mbr,
