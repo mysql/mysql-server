@@ -3327,7 +3327,7 @@ bool mysql_grant(THD *thd, const char *db, List<LEX_USER> &list, ulong rights,
 
   bool with_grant_option = ((rights & GRANT_ACL) != 0);
   bool grant_option = thd->lex->grant_privilege;
-  if (db == 0 && with_grant_option && (rights | GRANT_ACL) == 0 &&
+  if (db == 0 && with_grant_option && (rights & ~GRANT_ACL) == 0 &&
       dynamic_privilege.elements > 0) {
     /*
       If this is a grant on global privilege level and there only dynamic
@@ -5084,22 +5084,23 @@ class Silence_routine_definer_errors : public Internal_error_handler {
   @param is_proc   True if this is a SP rather than a function.
 
   @retval
-    0           OK.
+    false       OK.
   @retval
-    < 0         Error. Error message not yet sent.
+    true        Error. Error message not yet sent.
 */
 
 bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
                           bool is_proc) {
   bool revoked;
-  int result = 0;
+  int int_result;
+  bool result = false;
   TABLE_LIST tables[ACL_TABLES::LAST_ENTRY];
   Silence_routine_definer_errors error_handler;
   bool transactional_tables;
   DBUG_ENTER("sp_revoke_privileges");
 
-  if ((result = open_grant_tables(thd, tables, &transactional_tables)))
-    DBUG_RETURN(result != 1);
+  if (0 != (int_result = open_grant_tables(thd, tables, &transactional_tables)))
+    DBUG_RETURN(int_result != 1);
 
   Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::WRITE_MODE);
   if (!acl_cache_lock.lock()) {
@@ -5146,7 +5147,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
             thd, grant_proc, tables[4].table, lex_user, grant_proc->db,
             grant_proc->tname, is_proc, ~(ulong)0, true);
         if (ret < 0) {
-          result = 1;
+          result = true;
           revoked = false;
           break;
         } else if (ret == 0) {
