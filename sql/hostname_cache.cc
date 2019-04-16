@@ -30,7 +30,7 @@
   doesn't resemble an IP address.
 */
 
-#include "sql/hostname.h"
+#include "sql/hostname_cache.h"
 
 #include "my_config.h"
 

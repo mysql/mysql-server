@@ -40,7 +40,7 @@
 #include "mysql/plugin.h"
 #include "mysql/status_var.h"
 #include "mysqld_error.h"
-#include "sql/hostname.h"
+#include "sql/hostname_cache.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"

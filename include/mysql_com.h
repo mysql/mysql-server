@@ -51,23 +51,6 @@
 #include <stdbool.h>
 #endif
 
-/*
-   Note that this is the actual length available, and that room
-   for a trailing '\0' is not included in this size.
-
-   The metadata columns storing hostname use single byte character
-   as they are using ASCII character set.
-
-   pre 8.0.17: 60 characters
-*/
-#define HOSTNAME_LENGTH 255
-
-/*
-  Number of characters that a port number can have.
-  As per rfc6335 section 6, the range is 0 to 65535.
-*/
-#define PORTNUMBER_LENGTH 5
-
 #define SYSTEM_CHARSET_MBMAXLEN 3
 #define FILENAME_CHARSET_MBMAXLEN 5
 #define NAME_CHAR_LEN 64 /**< Field/table name length */
@@ -108,14 +91,6 @@
   @ref page_protocol_basic_eof_packet.
 */
 #define MAX_PACKET_LENGTH (256L * 256L * 256L - 1)
-
-/**
-  Length of string buffer, that is enough to contain
-  username and hostname parts of the user identifier with trailing zero in
-  MySQL standard format:
-  user_name_part\@host_name_part\\0
-*/
-#define USER_HOST_BUFF_SIZE HOSTNAME_LENGTH + USERNAME_LENGTH + 2
 
 #define LOCAL_HOST "localhost"
 #define LOCAL_HOST_NAMEDPIPE "."

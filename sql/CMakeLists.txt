@@ -348,7 +348,7 @@ SET(SQL_SHARED_SOURCES
   histograms/histogram.cc
   histograms/singleton.cc
   histograms/value_map.cc
-  hostname.cc
+  hostname_cache.cc
   init.cc
   log_resource.cc
   item.cc

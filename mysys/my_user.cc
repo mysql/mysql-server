@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,8 @@
 
 #include "my_user.h"
 #include "m_string.h"
-#include "mysql_com.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
+#include "mysql_com.h"    // USERNAME_LENGTH
 
 /*
   Parse user value to user name and host name parts.

@@ -43,6 +43,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_hostname.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"

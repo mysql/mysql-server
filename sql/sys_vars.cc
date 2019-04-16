@@ -95,8 +95,8 @@
 #include "sql/conn_handler/socket_connection.h"  // MY_BIND_ALL_ADDRESSES
 #include "sql/derror.h"                          // read_texts
 #include "sql/discrete_interval.h"
-#include "sql/events.h"    // Events
-#include "sql/hostname.h"  // host_cache_resize
+#include "sql/events.h"          // Events
+#include "sql/hostname_cache.h"  // host_cache_resize
 #include "sql/log.h"
 #include "sql/log_event.h"  // MAX_MAX_ALLOWED_PACKET
 #include "sql/mdl.h"

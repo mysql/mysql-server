@@ -32,6 +32,7 @@
 #include <sys/types.h>
 
 #include "my_base.h"
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "mysql_com.h"
 #include "sql/rpl_info.h"
 #include "sql/sql_const.h"  // UUID_LENGTH

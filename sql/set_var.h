@@ -37,7 +37,8 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_getopt.h"  // get_opt_arg_type
+#include "my_getopt.h"    // get_opt_arg_type
+#include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_systime.h"  // my_micro_time()
