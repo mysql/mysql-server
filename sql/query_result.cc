@@ -174,6 +174,13 @@ void Query_result_to_file::cleanup(THD *) {
 ** Export of select to textfile
 ***************************************************************************/
 
+// This is a hack to make it compile. File permissions are different on Windows.
+#ifdef _WIN32
+#define S_IRUSR 00400
+#define S_IWUSR 00200
+#define S_IRGRP 00040
+#endif
+
 /*
   Create file with IO cache
 
