@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -772,7 +772,7 @@ static st_plugin_int *plugin_find_internal(const LEX_CSTRING &name,
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
-  if (! initialized)
+  if (!initialized || !name.str)
     DBUG_RETURN(NULL);
 
   mysql_mutex_assert_owner(&LOCK_plugin);
