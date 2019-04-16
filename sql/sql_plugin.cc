@@ -673,7 +673,7 @@ static struct st_plugin_int *plugin_find_internal(const LEX_STRING *name, int ty
 {
   uint i;
   DBUG_ENTER("plugin_find_internal");
-  if (! initialized)
+  if (!initialized || !name->str)
     DBUG_RETURN(0);
 
   mysql_mutex_assert_owner(&LOCK_plugin);
