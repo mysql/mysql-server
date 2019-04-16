@@ -41,6 +41,13 @@
 #include <mgmapi_config_parameters.h>
 #include <mgmapi_configuration.hpp>
 
+static bool isHostLocal(const char* hostName)
+{
+  /* Examples assuming that hostname served indicates locality... */
+  return ((strcmp(hostName, "localhost") == 0) ||
+          (strcmp(hostName, "127.0.0.1") == 0));
+}
+
 int
 NdbBackup::clearOldBackups()
 {
@@ -68,11 +75,18 @@ NdbBackup::clearOldBackups()
      * Clear old backup files
      */ 
     BaseString tmp;
-    tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
-  
+    if (!isHostLocal(host))
+    {
+      tmp.assfmt("ssh %s rm -rf %s/BACKUP", host, path);
+    }
+    else
+    {
+      tmp.assfmt("rm -rf %s/BACKUP", path);
+    }
+
     ndbout << "buf: "<< tmp.c_str() <<endl;
     int res = system(tmp.c_str());  
-    ndbout << "ssh res: " << res << endl;
+    ndbout << "res: " << res << endl;
 
     if (res && retCode == 0)
       retCode = res;
@@ -281,12 +295,19 @@ NdbBackup::execRestore(bool _restore_data,
    * Copy  backup files to local dir
    */ 
   BaseString tmp;
-  tmp.assfmt("scp %s:%s/BACKUP/BACKUP-%d/BACKUP-%d*.%d.* .",
-             host, path,
-             _backup_id,
-             _backup_id,
-             _node_id);
-  
+  if (!isHostLocal(host))
+  {
+    tmp.assfmt("scp -r %s:%s/BACKUP/BACKUP-%d/* .",
+               host, path,
+               _backup_id);
+  }
+  else
+  {
+    tmp.assfmt("scp -r %s/BACKUP/BACKUP-%d/* .",
+               path,
+               _backup_id);
+  }
+
   ndbout << "buf: "<< tmp.c_str() <<endl;
   int res = system(tmp.c_str());  
   
