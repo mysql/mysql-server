@@ -6843,11 +6843,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
     }
 
     ib::warn(ER_IB_MSG_557)
-        << "Cannot open table " << norm_name
-        << " from the"
-           " internal data dictionary of InnoDB though the .frm"
-           " file for the table exists. "
-        << TROUBLESHOOTING_MSG;
+        << "Cannot open table " << norm_name << TROUBLESHOOTING_MSG;
 
     free_share(m_share);
     set_my_errno(ENOENT);

@@ -1916,10 +1916,7 @@ loading the index definition */
       mutex_enter(&dict_sys->mutex);
 
       /* The data dictionary tables should never contain
-      invalid index definitions.  If we ignored this error
-      and simply did not load this index definition, the
-      .frm file would disagree with the index definitions
-      inside InnoDB. */
+      invalid index definitions. */
       if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
         goto func_exit;
       }
