@@ -152,7 +152,7 @@ def	information_schema	PARAMETERS	DATA_TYPE	7	NULL	YES	longtext	4294967295	42949
 def	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	9	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(21)			select			NULL
 def	information_schema	PARAMETERS	NUMERIC_PRECISION	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
-def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(11)			select			NULL
+def	information_schema	PARAMETERS	NUMERIC_SCALE	11	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(10)			select			NULL
 def	information_schema	PARAMETERS	DATETIME_PRECISION	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
 def	information_schema	PARAMETERS	CHARACTER_SET_NAME	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
 def	information_schema	PARAMETERS	COLLATION_NAME	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select			NULL
@@ -612,7 +612,7 @@ NULL	information_schema	PARAMETERS	ORDINAL_POSITION	bigint	NULL	NULL	NULL	NULL	b
 NULL	information_schema	PARAMETERS	CHARACTER_MAXIMUM_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	PARAMETERS	CHARACTER_OCTET_LENGTH	bigint	NULL	NULL	NULL	NULL	bigint(21)
 NULL	information_schema	PARAMETERS	NUMERIC_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	information_schema	PARAMETERS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(11)
+NULL	information_schema	PARAMETERS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(10)
 NULL	information_schema	PARAMETERS	DATETIME_PRECISION	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	information_schema	PARAMETERS	CHARACTER_SET_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PARAMETERS	COLLATION_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
